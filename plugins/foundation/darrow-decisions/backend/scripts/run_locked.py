@@ -80,15 +80,10 @@ def default_cache_root(environment: Mapping[str, str], platform: str) -> str:
                 "LOCALAPPDATA is required when DARROW_CACHE_DIR is not set"
             )
         return join_path(platform, local, "Darrow", "Cache")
-    xdg = environment.get("XDG_CACHE_HOME")
-    if xdg:
-        return join_path(platform, xdg, "darrow")
     home = environment.get("HOME")
     if not home:
-        raise LauncherError(
-            "HOME is required when DARROW_CACHE_DIR and XDG_CACHE_HOME are not set"
-        )
-    return join_path(platform, home, ".cache", "darrow")
+        raise LauncherError("HOME is required when DARROW_CACHE_DIR is not set")
+    return join_path(platform, home, ".darrow", "cache")
 
 
 def resolve_cache_root(environment: Mapping[str, str], platform: str) -> str:

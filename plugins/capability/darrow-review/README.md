@@ -92,6 +92,34 @@ Resolves and snapshots the requested review scope. It accounts for committed,
 staged, unstaged, renamed, deleted, and untracked paths as appropriate so every
 reviewer examines the same immutable change packet.
 
+### Review state and cleanup
+
+Generated review packets and evidence live under `~/.darrow/reviews` on Linux
+and macOS or `%LOCALAPPDATA%\Darrow\Reviews` on native Windows. Set
+`DARROW_REVIEW_STATE_DIR` to a nonempty absolute path to select another root.
+Each repository and worktree has a separate state directory, and each review
+gets a unique run directory. The scope command returns the absolute manifest
+path; `review-scope locate --repo <repo> --target <fingerprint>` finds one
+validated prior manifest when a follow-up did not retain its path.
+If preparation stops before producing a scope manifest, `review-scope
+allocate-terminal --repo <repo>` returns a private directory and terminal
+manifest for the blocked result. That manifest also supports `pin` and `unpin`.
+
+The next review invocation prunes unpinned runs whose directories have not
+changed for 30 days across the
+user's review-state root. A retained fix-verification run keeps every prior
+scope and verification run it references. Use `review-scope pin --manifest
+<absolute-scope.tsv>` to retain a run and its dependencies, or `unpin` with the
+same argument to return it to normal retention. `review-scope prune --all`
+applies the 30-day rule immediately; `--older-than-days 0` removes all unpinned
+runs without retained dependents. These commands remove only generated review
+state. Expired follow-up evidence produces a clear refusal. Older `.git` review
+directories are neither migrated nor deleted automatically.
+
+The separate UV project-environment cache lives under `~/.darrow/cache` on
+Linux and macOS or `%LOCALAPPDATA%\Darrow\Cache` on Windows. It is disposable;
+review evidence is retained until the review cleanup rule removes it.
+
 ### `review-result`
 
 Validates the structured findings produced by each comprehensive axis, the final

@@ -331,6 +331,27 @@ axis and report `not_available`. Do not invent requirements.
     result. An unavailable-route result MUST retain zero native reader-launch
     attempts, including inherited, substituted, background, generic, or
     otherwise unbound attempts.
+22. **CR-C22 — User-level review state and bounded retention.** Generated review
+    packets and evidence MUST live in a per-user review-state root, never in the
+    repository Git directory or product tree. The default is `~/.darrow/reviews`
+    on Unix and `%LOCALAPPDATA%\Darrow\Reviews` on native Windows; an explicit
+    override MUST be absolute. Each run is isolated by canonical repository and
+    worktree identity and a unique run directory. Bundled commands return
+    absolute paths and provide exact-target discovery; callers MUST NOT scan
+    `.git` or infer an artifact from a filename. The state root and run
+    directories MUST restrict access to the current user on Unix and use the
+    user's local application-data area on Windows. Successful evidence remains
+    available for fix verification. A terminal scope failure MUST still be able
+    to allocate a private run and manifest for its canonical blocked result,
+    so the same pinning and retention rules apply. On review
+    invocation, bundled mechanics prune unpinned runs whose directories have
+    not changed for 30 days, retaining every prior scope and verification
+    artifact referenced by a retained run. An explicit pin keeps a run and its
+    dependencies; an explicit prune can remove unpinned expired
+    evidence. Cleanup MUST stay inside the review-state root, reject unsafe
+    paths, and report expired or missing follow-up evidence clearly. Temporary
+    staging files are removed as soon as their canonical record is installed.
+    This location change does not migrate or delete older `.git` review files.
 
 ## Result shape and presentation
 
@@ -425,6 +446,12 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
    absolute paths. The plugin MAY share the `.darrow/config.json` envelope with
    other independently installed plugins, but MUST NOT call or reference their
    helpers or files.
+9. **CR-P9 — Review-state portability.** State-root selection, allocation,
+   exact-target lookup, pinning, and pruning belong to the review plugin's
+   bundled mechanics. They must work across supported native hosts without a
+   daemon or a shared Darrow runtime. A missing or unusable state root refuses
+   review rather than falling back to `.git`, the repository, or a temporary
+   location.
 
 ## Evaluation requirements
 

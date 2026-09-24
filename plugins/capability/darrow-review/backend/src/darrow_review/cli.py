@@ -7,10 +7,11 @@ import io
 import signal
 import sys
 from collections.abc import Callable, Sequence
+from pathlib import Path
 from typing import NoReturn
 
-from . import check, provider, report, result, routing, scope
-from .common import ReviewError, read_text, require, serialize
+from . import check, provider, report, result, routing, scope, storage
+from .common import ReviewError, read_text, require, root_directory, serialize
 from .records import validate_result
 
 
@@ -63,14 +64,25 @@ def options(
 
 
 def scope_command(args: list[str]) -> str | bytes:
-    require(args, "Usage: review-scope prepare|show|compare [options]")
+    require(
+        args,
+        "Usage: review-scope prepare|show|compare|allocate-terminal|locate|prune|pin|unpin [options]",
+    )
     command, rest = args[0], args[1:]
     handlers: dict[str, Callable[[list[str]], str | bytes]] = {
         "prepare": prepare_scope,
         "show": show_scope,
         "compare": compare_scope,
+        "allocate-terminal": allocate_terminal_scope,
+        "locate": locate_scope,
+        "prune": prune_scope,
+        "pin": pin_scope,
+        "unpin": unpin_scope,
     }
-    require(command in handlers, "Usage: review-scope prepare|show|compare [options]")
+    require(
+        command in handlers,
+        "Usage: review-scope prepare|show|compare|allocate-terminal|locate|prune|pin|unpin [options]",
+    )
     return handlers[command](rest)
 
 
@@ -96,6 +108,54 @@ def compare_scope(args: list[str]) -> str:
         "review-scope compare", args, ("prior-manifest", "current-manifest")
     )
     return scope.compare(parsed.prior_manifest, parsed.current_manifest)
+
+
+def allocate_terminal_scope(args: list[str]) -> str:
+    parsed = options("review-scope allocate-terminal", args, ("repo",))
+    repo = root_directory(parsed.repo)
+    run = storage.allocate_terminal(repo)
+    return serialize([["artifact_dir", str(run)], ["manifest", str(run / "scope.tsv")]])
+
+
+def locate_scope(args: list[str]) -> str:
+    parsed = options("review-scope locate", args, ("repo", "target"))
+    candidate = storage.locate(root_directory(parsed.repo), parsed.target)
+    require(
+        candidate is not None,
+        f"review artifact is unavailable for target: {parsed.target}",
+        4,
+    )
+    return serialize([["manifest", str(candidate)]])
+
+
+def prune_scope(args: list[str]) -> str:
+    parsed = options(
+        "review-scope prune", args, (), ("repo", "older-than-days"), ("all",)
+    )
+    days = parsed.older_than_days
+    require(
+        not days or days.isdecimal(), "older-than-days must be a nonnegative integer"
+    )
+    require(parsed.all or parsed.repo, "prune requires --repo or --all")
+    age = int(days) if days else storage.RETENTION_DAYS
+    removed = (
+        storage.prune_all(older_than_days=age)
+        if parsed.all
+        else storage.prune(root_directory(parsed.repo), age)
+    )
+    return serialize(
+        [["pruned", str(len(removed))], *[["removed", str(p)] for p in removed]]
+    )
+
+
+def pin_scope(args: list[str]) -> str:
+    parsed = options("review-scope pin", args, ("manifest",))
+    return serialize([["pinned", str(storage.pin(Path(parsed.manifest)))]])
+
+
+def unpin_scope(args: list[str]) -> str:
+    parsed = options("review-scope unpin", args, ("manifest",))
+    return serialize([["unpinned", str(storage.unpin(Path(parsed.manifest)))]])
 
 
 def result_command(args: list[str]) -> str:

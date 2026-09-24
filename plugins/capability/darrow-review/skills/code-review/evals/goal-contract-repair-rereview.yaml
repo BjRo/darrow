@@ -39,7 +39,7 @@ fixture:
           #!/usr/bin/env bash
           set -eu
           git_dir=$(git rev-parse --git-dir)
-          record=$(find "$git_dir" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1)
+          record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1)
           test -n "$record"
           grep -F 'outcome	clear' "$record" >/dev/null
           printf '%s\n' complete >"$git_dir/goal-complete"
@@ -54,8 +54,8 @@ fixture:
 checks:
   - name: original guidance survives the real review and repair chain
     run: |
-      record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1)
-      original=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n 1)
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1)
+      original=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n 1)
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n 1)
       test -n "$record" && test -n "$original" && test -n "$tool" || exit 1
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-original "$original" "$record" || exit 1
@@ -66,15 +66,15 @@ checks:
   - name: clear fix verification returns control to the enclosing goal
     run: test "$(cat .git/goal-complete)" = complete
   - name: repair causes an initial scope and a fix-verification scope
-    run: test "$(find .git -maxdepth 2 -name scope.tsv -path '*/darrow-review.*/*' | wc -l | tr -d ' ')" -ge 2
+    run: test "$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -maxdepth 3 -name scope.tsv -path '*/darrow-review.*/*' | wc -l | tr -d ' ')" -ge 2
   - name: fix verification uses a new target fingerprint
     run: >-
-      find .git -maxdepth 2 -name scope.tsv -path '*/darrow-review.*/*' -exec
+      find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -maxdepth 3 -name scope.tsv -path '*/darrow-review.*/*' -exec
       awk -F '\t' '$1 == "target" { print $2 }' {} + | sort -u >.git/review-targets &&
       test "$(wc -l <.git/review-targets | tr -d ' ')" -ge 2
   - name: additive verification artifact validates beside the repaired scope
     run: >-
-      record=$(find .git -maxdepth 2 -name verification.tsv -path '*/darrow-review.*/*' | sort | tail -n 1) &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -maxdepth 3 -name verification.tsv -path '*/darrow-review.*/*' | sort | tail -n 1) &&
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1') &&
       test -n "$tool" &&
       test -n "$record" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-verification "$record" &&

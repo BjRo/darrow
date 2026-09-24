@@ -12,6 +12,7 @@ import { existsSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, relative, sep } from "node:path";
 import type { Fixture } from "./types";
+import { trialReviewStateDir } from "./environment";
 
 const TICKETCTL = `#!/bin/bash
 set -euo pipefail
@@ -602,7 +603,11 @@ export async function buildFixture(
 }
 
 export async function destroyFixture(repoDir: string): Promise<void> {
-  if (!existsSync(repoDir)) return;
+  const reviewStateDir = trialReviewStateDir(repoDir);
+  if (!existsSync(repoDir)) {
+    await rm(reviewStateDir, { recursive: true, force: true });
+    return;
+  }
   let removalError: unknown;
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const writable = Bun.spawn(["chmod", "-R", "u+rwX", repoDir], {
@@ -626,7 +631,10 @@ export async function destroyFixture(repoDir: string): Promise<void> {
     } catch (error) {
       removalError = error;
     }
-    if (!existsSync(repoDir)) return;
+    if (!existsSync(repoDir)) {
+      await rm(reviewStateDir, { recursive: true, force: true });
+      return;
+    }
     await Bun.sleep(Math.min(100 * 2 ** attempt, 1_000));
   }
   throw removalError ?? new Error(`cannot remove eval fixture: ${repoDir}`);

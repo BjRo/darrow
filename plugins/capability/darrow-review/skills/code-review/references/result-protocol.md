@@ -44,7 +44,10 @@ For `review-scope prepare` exit 2, 3, or 4, invoke no reviewer. Emit no
 was resolved. Set Standards to `blocked`; set Spec to `blocked` when a Spec was
 available or `not_available` when genuinely absent. Add the literal failed
 prepare command as one applicable blocked `check`, set verdict `blocked`, and
-make `next_action` the exact remediation reported by the scope tool.
+make `next_action` the exact remediation reported by the scope tool. Run
+`review-scope allocate-terminal --repo <bound-repo>` and write `result.tsv`
+directly beneath its returned `artifact_dir`; this command provides a private
+review-state run and terminal manifest when scope preparation stopped early.
 
 ## Completed result schema
 

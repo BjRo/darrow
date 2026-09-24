@@ -61,11 +61,17 @@ the updated environment.
 Each plugin ships its own `pyproject.toml` and `uv.lock`. Its documented
 bootstrap commands prepare an isolated environment from that lock on first use
 without writing below the installed plugin. By default, environments live under
-`${XDG_CACHE_HOME:-$HOME/.cache}/darrow` on Linux and macOS and
+`$HOME/.darrow/cache` on Linux and macOS and
 `%LOCALAPPDATA%\Darrow\Cache` on native Windows. Set `DARROW_CACHE_DIR` to a
 non-empty absolute path to override that root. The selected root must be
 readable and writable; invalid configuration fails without falling back to the
 plugin, working directory, repository, or temporary storage.
+These UV project environments are disposable cache files. The new default
+does not move or delete files under the former cache location; remove those
+manually when no older plugin process needs them. `UV_CACHE_DIR` still belongs
+to UV or the caller. Review evidence uses a separate retained state directory
+under `$HOME/.darrow/reviews` or `%LOCALAPPDATA%\Darrow\Reviews` and follows
+the cleanup rules documented by `darrow-review`.
 
 Allow network access for Python, build requirements, and runtime dependency
 downloads, plus write access to the Darrow and UV caches. Subsequent runs reuse

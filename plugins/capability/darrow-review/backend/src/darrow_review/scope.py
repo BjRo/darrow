@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import difflib
+import os
 import shutil
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from . import storage
 from .common import (
     command_line,
     entrypoint,
@@ -285,25 +286,20 @@ def prepare(options: ScopeOptions) -> str:
     base = effective_base(
         repo, resolve_commit(repo, options.base, "base"), target, options.merge_base
     )
-    validate_prior(repo, base, options.prior_manifest)
-    names, layers, packet = assemble(repo, options, base, target)
-    require(names or options.allow_empty, "the declared review scope is empty", 3)
-    git_dir = Path(
-        git(
-            repo,
-            "rev-parse",
-            "--absolute-git-dir",
-            message="cannot resolve the repository Git directory",
-        )
-        .decode()
-        .strip()
-    ).resolve()
-    artifact = Path(tempfile.mkdtemp(prefix="darrow-review.", dir=git_dir))
-    try:
-        return write_scope(artifact, repo, options, base, target, names, layers, packet)
-    except BaseException:
-        shutil.rmtree(artifact)
-        raise
+    with storage.bucket_lock(storage.repository_state(repo)):
+        validate_prior(repo, base, options.prior_manifest)
+        names, layers, packet = assemble(repo, options, base, target)
+        require(names or options.allow_empty, "the declared review scope is empty", 3)
+        artifact = storage.allocate(repo)
+        try:
+            output = write_scope(
+                artifact, repo, options, base, target, names, layers, packet
+            )
+        except BaseException:
+            shutil.rmtree(artifact)
+            raise
+    storage.prune_all(repo)
+    return output
 
 
 def write_scope(
@@ -317,7 +313,9 @@ def write_scope(
     packet: bytes,
 ) -> str:
     diff = artifact / "diff.patch"
-    diff.write_bytes(packet)
+    descriptor = os.open(diff, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    with os.fdopen(descriptor, "wb") as stream:
+        stream.write(packet)
     checksum = (
         git(
             repo,
@@ -375,5 +373,7 @@ def write_scope(
         )
     records.append(["manifest", path])
     body = serialize(records)
-    Path(path).write_text(body, encoding="utf-8", newline="\n")
+    descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as stream:
+        stream.write(body)
     return body

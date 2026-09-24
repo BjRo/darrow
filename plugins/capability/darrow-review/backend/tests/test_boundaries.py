@@ -11,6 +11,7 @@ import pytest
 
 from darrow_review import check, cli, common, scope
 from darrow_review.common import ReviewError
+from darrow_review.records import Records
 
 
 def test_check_capture_and_refusals(
@@ -18,7 +19,9 @@ def test_check_capture_and_refusals(
 ) -> None:
     monkeypatch.chdir(repo)
     command = 'Write-Output "checked"' if os.name == "nt" else 'printf "checked\\n"'
-    path = repo / ".git/check.tsv"
+    (repo / "file.txt").write_text("changed", encoding="utf-8")
+    manifest = Records(scope.prepare(scope.ScopeOptions(str(repo), "HEAD", "WORKTREE")))
+    path = Path(manifest.value("manifest")).parent / "check.tsv"
     output = cli.check_command(["run", "--output", str(path), "--command", command])
     assert str(path) in output
     assert "applicable\tpass\texited 0: checked" in path.read_text(encoding="utf-8")
@@ -145,4 +148,5 @@ def test_artifact_cleanup_after_failure(
     monkeypatch.setattr(scope, "write_scope", fail)
     with pytest.raises(OSError):
         scope.prepare(scope.ScopeOptions(str(repo), "HEAD", "WORKTREE"))
-    assert not list((repo / ".git").glob("darrow-review.*"))
+    state = Path(os.environ["DARROW_REVIEW_STATE_DIR"])
+    assert not list(state.glob("*/darrow-review.*"))

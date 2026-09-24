@@ -20,7 +20,7 @@ checks:
     expect_regex: "^valid: darrow-review-result-v1$"
   - name: explicit machine response preserves the retained canonical record
     run: >-
-      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       awk '1' "$record" >.git/expected-review.tsv &&
       awk '1' .git/last-message.md >.git/actual-review.tsv &&

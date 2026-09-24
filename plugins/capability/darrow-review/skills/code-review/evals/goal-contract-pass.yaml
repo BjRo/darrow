@@ -30,7 +30,7 @@ fixture:
           #!/usr/bin/env bash
           set -eu
           git_dir=$(git rev-parse --git-dir)
-          record=$(find "$git_dir" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n 1)
+          record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n 1)
           test -n "$record"
           grep -F 'verdict	pass' "$record" >/dev/null
           grep -F 'next_action	return control to enclosing goal' "$record" >/dev/null
@@ -43,12 +43,12 @@ checks:
   - name: candidate content remains unchanged
     run: bash check.sh
   - name: composed review pins one target
-    run: test "$(find .git -maxdepth 2 -name scope.tsv -path '*/darrow-review.*/*' | wc -l | tr -d ' ')" -ge 1
+    run: test "$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -maxdepth 3 -name scope.tsv -path '*/darrow-review.*/*' | wc -l | tr -d ' ')" -ge 1
   - name: composed review creates no commit
     run: test "$(git rev-list --count HEAD)" -eq 1
   - name: composed review artifact is canonical and returns control
     run: >-
-      record=$(find .git -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
       test -n "$tool" || exit 1;

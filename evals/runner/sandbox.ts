@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readdir, realpath, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
+import { trialReviewStateDir } from "./environment";
 
 const SOURCE_ROOT = resolve(import.meta.dir, "..", "..");
 const SANDBOX_EXEC = "/usr/bin/sandbox-exec";
@@ -40,6 +41,7 @@ export function sandboxProfile(
 
 async function siblingFixtures(repoDir: string): Promise<string[]> {
   const repoReal = await realpath(repoDir);
+  const ownReviewState = trialReviewStateDir(repoReal);
   const entries = await readdir(tmpdir(), { withFileTypes: true });
   const paths: string[] = [];
   for (const entry of entries) {
@@ -48,7 +50,8 @@ async function siblingFixtures(repoDir: string): Promise<string[]> {
     const candidate = join(tmpdir(), entry.name);
     try {
       const candidateReal = await realpath(candidate);
-      if (candidateReal !== repoReal) paths.push(candidateReal);
+      if (candidateReal !== repoReal && candidateReal !== ownReviewState)
+        paths.push(candidateReal);
     } catch {
       // A concurrently removed fixture is already inaccessible.
     }

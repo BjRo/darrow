@@ -35,10 +35,11 @@ def test_cache_root_resolution_is_native_and_fail_closed() -> None:
     assert resolve({"DARROW_CACHE_DIR": "/var/cache/darrow-test"}, "posix") == (
         "/var/cache/darrow-test"
     )
-    assert resolve({"XDG_CACHE_HOME": "/var/cache/user"}, "posix") == (
-        "/var/cache/user/darrow"
+    assert (
+        resolve({"HOME": "/home/test", "XDG_CACHE_HOME": "/var/cache/user"}, "posix")
+        == "/home/test/.darrow/cache"
     )
-    assert resolve({"HOME": "/home/test"}, "posix") == "/home/test/.cache/darrow"
+    assert resolve({"HOME": "/home/test"}, "posix") == "/home/test/.darrow/cache"
     assert (
         resolve({"LOCALAPPDATA": r"C:\Users\Test\AppData\Local"}, "nt")
         == r"C:\Users\Test\AppData\Local\Darrow\Cache"

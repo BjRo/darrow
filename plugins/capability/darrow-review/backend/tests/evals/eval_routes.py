@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -148,8 +149,15 @@ def verify_provider(directory: Path, axis: str, count: int) -> None:
             ]
 
 
-def verify(git_dir: Path, host: str, profile: str, axes: list[str]) -> None:
-    selections = sorted(git_dir.glob("**/darrow-review.*/reviewer-route.tsv"))
+def verify(
+    git_dir: Path,
+    host: str,
+    profile: str,
+    axes: list[str],
+    review_state: Path | None = None,
+) -> None:
+    review_root = review_state if review_state is not None else git_dir
+    selections = sorted(review_root.glob("**/darrow-review.*/reviewer-route.tsv"))
     assert selections, "missing reviewer route"
     directory = selections[-1].parent
     expected = route(host, profile)
@@ -176,7 +184,15 @@ def main() -> None:
         "--axes", choices=("standards", "spec"), nargs="+", required=True
     )
     arguments = parser.parse_args()
-    verify(Path(".git"), arguments.host, arguments.profile, arguments.axes)
+    review_root = os.environ.get("DARROW_REVIEW_STATE_DIR")
+    assert review_root, "missing review-state directory"
+    verify(
+        Path(".git"),
+        arguments.host,
+        arguments.profile,
+        arguments.axes,
+        Path(review_root),
+    )
 
 
 if __name__ == "__main__":

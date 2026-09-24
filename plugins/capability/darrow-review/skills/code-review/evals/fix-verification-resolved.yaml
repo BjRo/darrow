@@ -65,7 +65,7 @@ checks:
     run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
   - name: current verification scope remains in the requested repository
     run: >-
-      verification=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
+      verification=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
       test -n "$verification" &&
       artifact_dir=$(cd "$(dirname "$verification")" && pwd -P) &&
       manifest=$artifact_dir/scope.tsv &&
@@ -77,7 +77,7 @@ checks:
       case "$manifest" in "$git_dir"/*) ;; *) exit 1 ;; esac
   - name: additive verification artifact validates and clears
     run: >-
-      record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1') &&
       test -n "$tool" &&
       test -n "$record" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-verification "$record" &&
@@ -91,7 +91,7 @@ checks:
       --host "$DARROW_EVAL_HARNESS" --profile default --axes standards spec
   - name: final response is the complete rendered verification report
     run: >-
-      record=$(find .git -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
       test -n "$record" &&
       report=$(dirname "$record")/verification.md &&
       test -r "$report" && test -s "$report" &&

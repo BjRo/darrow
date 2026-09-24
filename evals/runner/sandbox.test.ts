@@ -9,6 +9,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { trialReviewStateDir } from "./environment";
 import {
   sandboxedAgentCommand,
   sandboxedCommand,
@@ -83,6 +84,12 @@ describe("eval outer sandbox", () => {
     cleanup.push(repoDir);
     cleanup.push(unrelatedDir);
     await mkdir(join(repoDir, ".git"));
+    const ownReviewState = trialReviewStateDir(repoDir);
+    const siblingReviewState = await mkdtemp(
+      join(tmpdir(), "darrow-eval-other-reviews-"),
+    );
+    await mkdir(ownReviewState);
+    cleanup.push(ownReviewState, siblingReviewState);
 
     if (process.platform === "darwin") {
       const protectedPath = join(repoDir, ".git", "eval-plugin");
@@ -105,6 +112,10 @@ describe("eval outer sandbox", () => {
         `(deny file-read* (subpath "${await realpath(main!)}"))`,
       );
       expect(profile).not.toContain(await realpath(unrelatedDir));
+      expect(profile).not.toContain(await realpath(ownReviewState));
+      expect(profile).toContain(
+        `(deny file-read* (subpath "${await realpath(siblingReviewState)}"))`,
+      );
       expect(profile).toContain(
         `(deny file-write* (subpath "${protectedPath}"))`,
       );

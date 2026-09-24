@@ -1,7 +1,7 @@
 {
   "name": "darrow-tickets",
   "description": "Ticket skills with a bundled GitHub Issues adapter: create-ticket, read-ticket, update-ticket, list-tickets",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "hooks": "./.claude-plugin/hooks.json",
   "license": "BUSL-1.1",
   "author": {

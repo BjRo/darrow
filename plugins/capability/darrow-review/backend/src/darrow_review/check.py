@@ -6,7 +6,8 @@ import os
 import shutil
 from pathlib import Path
 
-from .common import ReviewError, git, new_record, require, run, serialize
+from . import storage
+from .common import ReviewError, new_record, require, root_directory, run, serialize
 
 
 def shell_args(command: str) -> list[str]:
@@ -59,21 +60,7 @@ def capture(output: str, command: str) -> str:
     )
     require(Path(output).is_absolute(), "output must be an absolute path")
     require(Path(output).name not in ("", ".", ".."), "output must name a file")
-    git_dir = Path(
-        git(
-            Path.cwd(),
-            "rev-parse",
-            "--absolute-git-dir",
-            message="current directory is not inside a Git repository",
-        )
-        .decode()
-        .strip()
-    ).resolve()
-    path = Path(output).parent.resolve(strict=True) / Path(output).name
-    require(
-        path.is_relative_to(git_dir),
-        f"output must be beneath the repository Git directory: {git_dir}",
-    )
+    path = storage.check_output(root_directory(str(Path.cwd())), Path(output))
     require(
         not path.exists() and not path.is_symlink(), f"output already exists: {path}"
     )

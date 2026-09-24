@@ -9,7 +9,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { isolatedHarnessEnvironment } from "./environment";
+import { isolatedHarnessEnvironment, trialReviewStateDir } from "./environment";
 import { codexAgentConcurrency } from "./codex-config";
 
 const cleanup: string[] = [];
@@ -55,6 +55,7 @@ describe("isolated harness environment", () => {
     expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBe("claude-test-token");
     expect(env.DARROW_ADAPTIVE_DELIVERY_EXTERNAL_SANDBOX).toBe("1");
     expect(env.DARROW_CACHE_DIR).toBe(join(env.TMPDIR!, "darrow-cache"));
+    expect(env.DARROW_REVIEW_STATE_DIR).toBe(trialReviewStateDir(repo));
     expect(env.UV_PROJECT_ENVIRONMENT).toBeUndefined();
     expect(env.UV_CACHE_DIR).toBe(join(env.TMPDIR!, "uv-cache"));
     expect(env.UNRELATED_EVAL_SECRET).toBeUndefined();
