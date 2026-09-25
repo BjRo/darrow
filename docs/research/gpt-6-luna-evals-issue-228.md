@@ -128,9 +128,9 @@ The [final shipped-skill snapshot](../../evals/experiments/discovery/snapshots/2
 
 ### darrow-git
 
-| Case                                                                                                                           | What failed                                                                                                                          | Assessment   | Recommended next step                                          |
-| ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ | ------------ | -------------------------------------------------------------- |
-| [create-pr-template-choice-required](../../plugins/capability/darrow-git/skills/create-pr/evals/template-choice-required.yaml) | No PR was created without a user choice failed. Also: branch was not pushed without a user choice, user retains the template choice. | Skill likely | Require the template choice before push or PR creation; rerun. |
+| Case                                                                                                                           | What failed                                                                                                                           | Assessment                  | Recommended next step                                                                                                                                       |
+| ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [create-pr-template-choice-required](../../plugins/capability/darrow-git/skills/create-pr/evals/template-choice-required.yaml) | The original case told the agent to choose a template, but expected it to stop; the agent pushed and created a PR in two Luna trials. | Contract mismatch, repaired | GW-P8 now allows explicit delegation. The delegated and no-choice cases each passed 5/5; all 12 create-pr cases passed a fresh single-trial regression run. |
 
 ### darrow-information-architecture
 

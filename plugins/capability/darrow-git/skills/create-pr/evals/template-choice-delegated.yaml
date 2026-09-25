@@ -1,0 +1,108 @@
+id: create-pr-template-choice-delegated
+invariant: GW-P8
+activation: positive
+mount_plugin_skills: true
+prompt: >-
+  Open a PR for the retry work. The repository has multiple PR templates; pick
+  whichever one seems best and do not ask me another question.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+        .gitignore: "eval-pr-body.md\n"
+        src/http.ts: "export async function get(url: string) { return fetch(url); }\n"
+        .github/PULL_REQUEST_TEMPLATE/feature.md: |
+          ## User Value
+
+          ## Behavior
+        .github/PULL_REQUEST_TEMPLATE/bugfix.md: |
+          <!-- Explain the failure and correction. -->
+          ## Failure
+
+          ## Correction
+
+          ## Testing
+  bin:
+    gh: |
+      #!/bin/sh
+      d="$(git rev-parse --git-dir)/fixture-gh"
+      case "$1 $2" in
+        "pr list")
+          if [ -f "$(git rev-parse --git-dir)/fixture-gh-created" ]; then
+            tip=$(git rev-parse HEAD)
+            base=$(cat "$d/base")
+            draft=false; [ ! -f "$d/draft" ] || draft=true
+            printf '1\thttps://github.com/fixture/repo/pull/1\tOPEN\t%s\t%s\t%s\t%s\tfalse\n' "$(cat "$d/head")" "$tip" "$base" "$draft"
+            rm -f "$(git rev-parse --git-dir)/fixture-gh-created"
+            exit 0
+          fi
+          ;;
+        "pr create")
+          mkdir -p "$d"
+          shift 2
+          while [ $# -gt 0 ]; do
+            case "$1" in
+              --title) printf '%s' "$2" > "$d/title"; shift 2 ;;
+              --body) printf '%s' "$2" > "$d/body"; shift 2 ;;
+              --body-file) cp "$2" "$d/body"; shift 2 ;;
+              --base) printf '%s' "$2" > "$d/base"; shift 2 ;;
+              --head) printf '%s' "$2" > "$d/head"; shift 2 ;;
+              --draft) : > "$d/draft"; shift ;;
+              *) shift ;;
+            esac
+          done
+          cp "$d/body" "$(git rev-parse --show-toplevel)/eval-pr-body.md"
+          echo "https://github.com/fixture/repo/pull/1"
+          : > "$(git rev-parse --git-dir)/fixture-gh-created"
+          ;;
+        "repo view")
+          printf '%s\n' fixture/repo
+          ;;
+        *)
+          echo "mock gh: unsupported: $*" >&2
+          exit 1
+          ;;
+      esac
+  setup: |
+    git init -q --bare .git/remote.git
+    git --git-dir=.git/remote.git symbolic-ref HEAD refs/heads/main
+    git remote add origin "$PWD/.git/remote.git"
+    git push -qu origin main
+    git remote set-head origin main
+    git switch -qc fix/DAR-123-timeout-retry
+    printf 'retry with backoff\n' > retry.txt
+    git add retry.txt
+    git commit -qm "fix: retry timed out requests with backoff"
+    printf 'retry exhaustion test\n' > retry.test.txt
+    git add retry.test.txt
+    git commit -qm "test: cover retry exhaustion"
+checks:
+  - name: PR created
+    run: test -f .git/fixture-gh/body && echo created
+    expect_exact: created
+  - name: selected bugfix template headings kept verbatim
+    run: cat .git/fixture-gh/body
+    expect_regex: "^## Failure$[\\s\\S]*^## Correction$[\\s\\S]*^## Testing$"
+  - name: unselected feature template was not used
+    run: grep -c '^## User Value$' .git/fixture-gh/body || true
+    expect_exact: "0"
+  - name: template comments removed
+    run: grep -c '<!--' .git/fixture-gh/body || true
+    expect_exact: "0"
+semantic_artifact:
+  path: eval-pr-body.md
+  checks:
+    - name: bugfix template sections explain the branch
+      proposition: >-
+        The Failure section explains the request timeout or retry problem,
+        the Correction section explains retry with backoff, and the Testing
+        section describes the committed retry test or transparently reports
+        verification limits. Each section has meaningful branch-specific
+        content rather than N/A, generic filler, or a repeated keyword.
+semantic_output_checks:
+  - name: delegated template choice is disclosed
+    proposition: >-
+      The response names bugfix.md as the chosen PR template and briefly
+      explains that it fits the branch's timeout retry bug fix, without
+      claiming that the user named that filename.

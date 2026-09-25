@@ -63,11 +63,11 @@ def select_multiple(
     if len(choices) > 1:
         require(
             inspecting,
-            "multiple PR templates require --template <filename>; run inspect and ask the user which one to follow",
+            "multiple PR templates require --template <filename>; run inspect and establish a user choice or explicit delegation",
             7,
         )
         print(
-            "## note: multiple PR templates in .github/PULL_REQUEST_TEMPLATE/ — ask the user which one to follow"
+            "## note: multiple PR templates in .github/PULL_REQUEST_TEMPLATE/ — use a user-named template or explicit delegation"
         )
         emit("\n".join(choices), 50)
     return None
