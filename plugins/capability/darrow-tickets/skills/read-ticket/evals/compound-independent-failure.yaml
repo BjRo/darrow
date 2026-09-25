@@ -1,0 +1,50 @@
+id: read-ticket-compound-independent-failure
+invariant: TM-R2,TM-R4,LC-C2
+activation: positive
+mount_plugin_skills: true
+prompt: "Read ticket #404. Separately, inspect src/retry.py and suggest a fix for its dropped headers, even if the ticket cannot be fetched."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        src/retry.py: "def retry(request):\n    return send(Request(url=request.url))\n"
+  bin:
+    uv: |
+      #!/bin/sh
+      d="$(git rev-parse --git-dir)"
+      case " $* " in
+        *" darrow-ticket "*) printf '%s\n' "$*" >>"$d/fixture-ticket-cli-calls" ;;
+      esac
+      real_uv=$(awk '!/fixture-bin/ && !seen {print; seen=1}' "$d/fixture-uv-paths")
+      exec "$real_uv" "$@"
+    gh: |
+      #!/bin/sh
+      d="$(git rev-parse --git-dir)"
+      printf '%s\n' "$*" >>"$d/fixture-gh-calls"
+      case "$1 $2" in
+        "issue view") echo 'GraphQL: Could not resolve to an Issue with the number of 404.' >&2; exit 1 ;;
+        *) echo "unexpected gh call: $*" >&2; exit 1 ;;
+      esac
+  setup: |
+    which -a uv > .git/fixture-uv-paths
+    git remote add origin https://github.test/o/r.git
+checks:
+  - name: complete retrieval diagnostic is disclosed
+    run: cat .git/last-message.md
+    expect_regex: "GraphQL: Could not resolve to an Issue with the number of 404\\."
+  - name: exact ticket is fetched once
+    run: |-
+      awk '/--no-project .*darrow-ticket get #?404( --provider github)?$/ {n++} END {print n+0}' .git/fixture-ticket-cli-calls
+    expect_exact: "1"
+  - name: only one tracker read occurs
+    run: sed -n '$=' .git/fixture-gh-calls
+    expect_exact: "1"
+  - name: no tracker mutation
+    run: cat .git/fixture-gh-calls
+    not_regex: "(^| )(create|edit|comment|close|reopen|delete|transfer|fork)( |$)|(^| )(-X|--method) (POST|PUT|PATCH|DELETE)( |$)"
+  - name: suggestion does not edit the repository
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+semantic_output_checks:
+  - name: independent advice continues
+    proposition: Despite the ticket retrieval failure, the response identifies that retry rebuilds Request from only request.url and recommends forwarding request.headers into the new Request. Merely relaying the error does not meet this check.

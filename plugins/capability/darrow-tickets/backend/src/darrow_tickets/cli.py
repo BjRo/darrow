@@ -4,12 +4,14 @@ import io
 import sys
 from collections.abc import Sequence
 
-from .arguments import parse
+from .arguments import Arguments, parse
 from .errors import TicketError
 from .selection import select_provider
+from .temporary import allocate_temp_file
 
 COMMANDS = frozenset(
     {
+        "temp-file",
         "inspect",
         "list",
         "get",
@@ -25,6 +27,7 @@ COMMANDS = frozenset(
 
 USAGE = """usage: ticket <command> [args] [--provider <name>]
 
+  temp-file   # allocate a private body draft; no tracker access
   inspect
   list [--state open|closed|all] [--type <t>] [--label <l>]... [--search <q>]
        [--milestone <m>] [--limit <n>]
@@ -48,6 +51,15 @@ create enforces body structure per type:
 "## Open questions" is optional on every type."""
 
 
+def execute_command(arguments: Arguments) -> None:
+    if arguments.command == "temp-file":
+        if arguments.options:
+            raise TicketError("error: temp-file accepts no options")
+        print(allocate_temp_file())
+    else:
+        select_provider(arguments).execute(arguments)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     if not args or args[0] not in COMMANDS:
@@ -56,7 +68,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         command = args.pop(0)
         arguments = parse(command, args)
-        select_provider(arguments).execute(arguments)
+        execute_command(arguments)
     except TicketError as exc:
         sys.stdout.flush()
         text = str(exc)

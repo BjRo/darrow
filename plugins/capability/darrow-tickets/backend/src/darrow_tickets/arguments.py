@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from .errors import TicketError
 
 OPTIONS = {
+    "temp-file": (),
     "inspect": (),
     "get": (),
     "list": ("state", "type", "label", "search", "milestone", "limit"),

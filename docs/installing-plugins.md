@@ -73,6 +73,15 @@ to UV or the caller. Review evidence uses a separate retained state directory
 under `$HOME/.darrow/reviews` or `%LOCALAPPDATA%\Darrow\Reviews` and follows
 the cleanup rules documented by `darrow-review`.
 
+Ticket body drafts and the temporary copy passed to the GitHub CLI use
+`$HOME/.darrow/tmp` on Linux and macOS or `%LOCALAPPDATA%\Darrow\Tmp` on
+native Windows. Set `DARROW_TMP_DIR` to a non-empty absolute directory to
+choose another root for antivirus exclusions. The ticket plugin creates it
+on demand, requires private ownership and permissions on Linux/macOS, and
+uses the selected directory's ACL on Windows. Choose a Windows override with
+an appropriate ACL. Drafts are deleted after use; the GitHub CLI copy is
+removed automatically.
+
 Allow network access for Python, build requirements, and runtime dependency
 downloads, plus write access to the Darrow and UV caches. Subsequent runs reuse
 the backend-specific environment; plugin updates, moves, lock changes, and

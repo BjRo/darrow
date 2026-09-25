@@ -1,0 +1,49 @@
+id: create-ticket-truncated-duplicate
+invariant: TM-C1
+activation: competition
+mount_plugin_skills: true
+prompt: >-
+  File a bug ticket: the ticket list crashes with SIGPIPE when a repository
+  has hundreds of open tickets. It should finish listing. Reproduce by running
+  ticket list in a repository with hundreds of open tickets.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+  bin:
+    gh: |
+      #!/bin/sh
+      backend="$(git rev-parse --absolute-git-dir)/tickets-fixture"
+      exec uv run --quiet --frozen --no-dev --project "$backend" python "$backend/tests/eval_gh.py" "$@"
+  setup: |
+    mkdir -p .git/tickets-fixture/tests
+    cp "{{case_dir}}/../../../backend/pyproject.toml" "{{case_dir}}/../../../backend/uv.lock" .git/tickets-fixture/
+    cp -R "{{case_dir}}/../../../backend/src" .git/tickets-fixture/
+    cp "{{case_dir}}/../../../backend/tests/eval_gh.py" .git/tickets-fixture/tests/
+    git remote add origin https://github.test/o/r.git
+    mkdir -p .git/fixture-gh
+    printf 'bug\n' > .git/fixture-gh/labels
+    n=1
+    while [ "$n" -le 20 ]; do
+      printf '#%s open  SIGPIPE in ticket archive telemetry during CSV import %s (bug)\n' "$n" "$n"
+      n=$((n + 1))
+    done > .git/fixture-gh/list
+    printf '#30 open  ticket list crashes with SIGPIPE on repos with hundreds of open tickets (bug)\n' >> .git/fixture-gh/list
+    printf 'open' > .git/fixture-gh/issue-30-state
+    printf 'ticket list crashes with SIGPIPE on repos with hundreds of open tickets' > .git/fixture-gh/issue-30-title
+    printf 'Running ticket list in a repository with hundreds of open issues crashes with SIGPIPE.\n' > .git/fixture-gh/issue-30-body
+    printf 'bug\n' > .git/fixture-gh/issue-30-labels
+checks:
+  - name: duplicate was not created
+    run: cat .git/fixture-gh/created-ids 2>/dev/null || true
+    not_regex: "[0-9]"
+  - name: no creation command
+    run: cat .git/fixture-gh/calls
+    not_regex: "^issue create "
+semantic_output_checks:
+  - name: exact duplicate beyond default page is reported
+    proposition: >-
+      The response identifies issue #30 as the plausible matching ticket and
+      makes clear that no new ticket was created. It does not claim that the
+      first twenty ticket-archive telemetry tickets are duplicates.

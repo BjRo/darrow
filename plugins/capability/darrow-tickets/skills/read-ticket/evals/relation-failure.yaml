@@ -52,7 +52,7 @@ checks:
     expect_exact: "backend relation endpoint unavailable"
   - name: bundled CLI owns the failed retrieval
     run: cat .git/fixture-ticket-cli-calls
-    expect_regex: "darrow-ticket get #?31$"
+    expect_regex: "darrow-ticket get #?31( --provider github)?$"
   - name: relation failure stops without partial ticket output or later calls
     run: cat .git/fixture-gh/protocol
     expect_exact: |-
