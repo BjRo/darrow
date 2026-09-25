@@ -1,0 +1,22 @@
+id: work-through-decisions-feature-only
+invariant: PI-C1,DC-E1,DC-C1
+activation: positive
+prompt: >-
+  Help me discover what a customer-facing audit-export feature should do. Its
+  users, included events, privacy boundary, and success criteria are all
+  unsettled. Do not produce an implementation plan and do not modify files.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Audit service\nAudit events are internal today.\n"
+checks:
+  - name: feature discovery remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+semantic_output_checks:
+  - name: feature request stays in discovery mode
+    proposition: >-
+      The response asks the user about material audit-export product behavior
+      with advisory recommendations and waits, without drafting an
+      implementation plan or deciding the privacy boundary for the user.

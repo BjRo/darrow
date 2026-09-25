@@ -3,20 +3,19 @@
 This suite compares the installed `darrow-discovery` skill surface with an
 uncontaminated no-skill baseline. Both modes use the same prompts, fixtures,
 hidden checks, harness, model, effort, threshold, and trial count. The only
-difference is whether the case's skill or plugin skills are mounted.
+difference is whether the unified skill is mounted.
 
 The primary suite covers direct discovery behavior, incomplete input, adjacent
 planning intent, pressure to invent product choices, direct implementation
-planning with an unresolved frontier, and competition between feature
-discovery and implementation planning. The separate
+planning with an unresolved frontier, and separation between feature,
+planning, and standalone grilling modes. The separate
 `implementation-negative-suite.yaml` keeps the settled implementation request
 visible without forcing its materially higher execution cost into every
 repeated activation run.
 
-`activation-suite.yaml` isolates selection evidence for four representative
-fresh-context routes: a direct grilling trigger, adjacent planning intent that
-must not select grilling, feature discovery competing with its sibling skills,
-and implementation planning competing with the same sibling set. Activation
+`activation-suite.yaml` isolates selection evidence for representative
+fresh-context routes: explicit grilling, natural grilling, feature discovery,
+implementation planning, and ordinary advice that must not select the skill. Activation
 is reported independently from each case's existing outcome checks. Claude's
 structured harness stream exposes the direct `Skill` tool event; Codex reports
 the first completed mounted `SKILL.md` body read as an explicitly labeled

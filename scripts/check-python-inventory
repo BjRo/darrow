@@ -30,6 +30,8 @@ done
 
 files=$(git -C "$repo_root" ls-files --cached --others --exclude-standard -- '*.py' 'pyproject.toml' 'uv.lock')
 for file in $files; do
+  # A tracked file moved in the working tree remains in the index until staged.
+  [ -e "$repo_root/$file" ] || [ -L "$repo_root/$file" ] || continue
   covered=false
   for package in $packages; do
     case "$file" in

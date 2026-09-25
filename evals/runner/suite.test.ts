@@ -80,7 +80,7 @@ describe("evaluation suite ablation", () => {
     expect(byMode.candidate[0]).toEqual(
       expect.objectContaining({
         activationClass: "positive",
-        activationTargetSkill: "grilling",
+        activationTargetSkill: "work-through-decisions",
         activationPassRate: null,
         model: "gpt-5.6-luna",
         ownerEvaluationMode: "passive",
@@ -440,7 +440,7 @@ describe("evaluation suite ablation", () => {
     await expect(readFile(output, "utf8")).rejects.toThrow();
   });
 
-  test("skill overrides preserve the colocated activation owner and required siblings", async () => {
+  test("skill overrides preserve the colocated activation owner", async () => {
     const root = await mkdtemp(join(tmpdir(), "darrow-run-"));
     roots.push(root);
     const output = join(root, "result.json");
@@ -455,7 +455,7 @@ describe("evaluation suite ablation", () => {
         "--skill-dir",
         resolve(
           import.meta.dir,
-          "../../plugins/capability/darrow-discovery/skills/grilling",
+          "../../plugins/capability/darrow-discovery/skills/work-through-decisions",
         ),
         "--trials",
         "1",
@@ -473,9 +473,9 @@ describe("evaluation suite ablation", () => {
     const [value] = JSON.parse(await readFile(output, "utf8"));
     expect(value).toEqual(
       expect.objectContaining({
-        activationClass: "competition",
-        activationTargetSkill: "discover-feature",
-        mountPluginSkills: true,
+        activationClass: "positive",
+        activationTargetSkill: "work-through-decisions",
+        mountPluginSkills: false,
       }),
     );
 
@@ -504,7 +504,7 @@ describe("evaluation suite ablation", () => {
     ]);
     expect(incompatibleCode).toBe(1);
     expect(incompatibleStderr).toContain(
-      "activation target discover-feature is absent from the mounted skill set",
+      "activation target work-through-decisions is absent from the mounted skill set",
     );
   });
 });

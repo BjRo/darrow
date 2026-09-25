@@ -1,0 +1,25 @@
+id: work-through-decisions-implementation-plan
+invariant: DG-C1,DC-E1,DC-C1,SE-C9,SE-C10,SE-C11
+activation: positive
+prompt: >-
+  Draft a concise implementation plan for adding configurable request timeouts
+  to this service. Identify the public seam, likely work areas, and verification
+  strategy. Do not modify the repository and do not interview me.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Service\nRequests use a fixed timeout.\n"
+        src/config.js: "export const DEFAULT_TIMEOUT_MS = 1000;\n"
+checks:
+  - name: ordinary planning remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+semantic_output_checks:
+  - name: planning request uses planning mode
+    proposition: >-
+      The response treats this as implementation planning, uses the repository
+      evidence about the fixed timeout, and either resolves a material open
+      choice with a recommended question or presents an evidence-grounded
+      implementation plan. It does not turn into a feature-discovery brief or
+      generic standalone grilling.

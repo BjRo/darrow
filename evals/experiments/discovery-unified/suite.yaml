@@ -1,0 +1,12 @@
+version: 1
+experiment: discovery-unified
+case_filter:
+  - unified-discovery-feature
+  - unified-discovery-plan
+  - unified-discovery-grill
+  - unified-discovery-ordinary-advice
+harnesses:
+  - codex
+modes:
+  unified:
+    skill_dir: plugin/skills/work-through-decisions

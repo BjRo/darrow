@@ -1,0 +1,22 @@
+id: unified-discovery-grill
+invariant: DU-X1
+prompt: >-
+  Grill me on this personal decision: should I take meeting notes on paper or
+  digitally? Ask rigorous questions with recommendations, but do not modify
+  the repository.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Unrelated repository\n"
+checks:
+  - name: conversation remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+semantic_output_checks:
+  - name: chooses standalone grilling behavior
+    proposition: >-
+      The response treats paper versus digital notes as a personal decision,
+      asks at least one concrete decision question with an advisory
+      recommendation and rationale, and waits for the user's answer. It does
+      not produce a feature brief or implementation plan.

@@ -1,0 +1,25 @@
+id: plan-implementation-negated-grilling-unknowns
+invariant: PI-C1,PI-C2,DG-C1,DC-E1,DC-C1
+activation: positive
+prompt: >-
+  Draft an implementation plan for configurable request timeouts. The public
+  outcome is understood, but one material choice is unresolved: should timeout
+  configuration be service-wide or per request? Do not interview me; just give
+  me the plan. Do not modify the repository.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Service\nRequests use a fixed timeout.\n"
+        src/config.js: "export const DEFAULT_TIMEOUT_MS = 1000;\n"
+checks:
+  - name: unresolved planning remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+semantic_output_checks:
+  - name: planner retains the canonical unresolved-choice frontier
+    proposition: >-
+      The response treats this as implementation planning, asks the user to
+      choose between service-wide and per-request timeout configuration with a
+      concrete advisory recommendation and rationale, and stops without
+      assuming the answer or presenting implementation steps as a final plan.
