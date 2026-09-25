@@ -94,7 +94,7 @@ checks:
     expect_regex: "parent: #7[\\s\\S]*depends-on: #3"
   - name: bundled CLI owns the one retrieval
     run: cat .git/fixture-ticket-cli-calls
-    expect_regex: "darrow-ticket get #?12(?: --provider github)?$"
+    expect_regex: "darrow-ticket get #?12( --provider github)?$"
   - name: retrieval uses only the bundled read protocol
     run: cat .git/fixture-gh/protocol
     expect_exact: |-

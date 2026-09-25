@@ -27,6 +27,5 @@ checks:
 semantic_output_checks:
   - name: both candidate references are disambiguated
     proposition: >-
-      The response identifies ticket #12 and ticket #21 as the two plausible
-      references and asks the user to choose exactly one before retrieval,
-      without claiming that either ticket was retrieved.
+      The response asks the user to choose exactly one of ticket #12 and #21
+      and does not claim that either ticket was retrieved.
