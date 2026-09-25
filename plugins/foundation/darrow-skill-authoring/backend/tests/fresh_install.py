@@ -34,16 +34,17 @@ def installed_runtime(backend: Path, fixture: Path) -> None:
 
 
 def validate(backend: Path, fixture: Path) -> None:
-    skill = backend.parent
-    inspection = command(
-        fixture,
-        *launcher(backend),
-        "inspect-skill",
-        "inspect",
-        str(skill),
-        str(fixture / "plugin copy"),
-    ).decode()
-    assert "status\tvalid" in inspection.splitlines(), inspection
+    plugin = fixture / "plugin copy"
+    for name in ("create-agent-skill", "audit-agent-skill"):
+        inspection = command(
+            fixture,
+            *launcher(backend),
+            "inspect-skill",
+            "inspect",
+            str(plugin / "skills" / name),
+            str(plugin),
+        ).decode()
+        assert "status\tvalid" in inspection.splitlines(), inspection
     scripts = [
         "inspect-skill.test.sh",
         "verify-shell-tests.test.sh",
@@ -90,8 +91,8 @@ def make_writable(root: Path) -> None:
 
 
 def main() -> None:
-    plugin = Path(__file__).resolve().parents[4]
-    with tempfile.TemporaryDirectory(prefix="darrow author-agent-skill ") as temporary:
+    plugin = Path(__file__).resolve().parents[2]
+    with tempfile.TemporaryDirectory(prefix="darrow skill-authoring ") as temporary:
         fixture = Path(temporary).resolve()
         copy = fixture / "plugin copy"
         shutil.copytree(
@@ -108,7 +109,7 @@ def main() -> None:
                 "coverage.json",
             ),
         )
-        backend = copy / "skills" / "author-agent-skill" / "backend"
+        backend = copy / "backend"
         os.environ["DARROW_CACHE_DIR"] = str(fixture / "darrow-cache")
         make_read_only(copy)
         installed_runtime(backend, fixture)
@@ -116,7 +117,7 @@ def main() -> None:
         assert not list(copy.rglob(".venv"))
         assert not list(copy.rglob("__pycache__"))
         make_writable(copy)
-    print("author-agent-skill fresh install passed")
+    print("darrow-skill-authoring fresh install passed")
 
 
 if __name__ == "__main__":

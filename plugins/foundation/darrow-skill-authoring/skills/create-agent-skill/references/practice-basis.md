@@ -1,7 +1,7 @@
 # Practice basis
 
 This reference records how the workflow adapts its sources. Read it only when a
-design trade-off is unclear or when maintaining `author-agent-skill`; ordinary
+design trade-off is unclear or when maintaining `create-agent-skill`; ordinary
 skill runs should follow `SKILL.md` directly.
 
 ## Adopted
@@ -103,9 +103,9 @@ inspected 2026-08-09.
   assume another skill, plugin, or machine-local checkout exists.
 - Mandatory commit, push, contribution, installation, or deployment steps:
   authoring evidence never broadens the user's delivery authority.
-- A router skill or a family of loosely related skills: this plugin has one
-  memorable goal and one focused workflow, so another always-loaded pointer
-  would add context without improving reachability.
+- A router skill: creation and read-only audit have different triggers and
+  authority boundaries, so they are separate skills in one plugin rather
+  than modes behind an always-loaded pointer.
 - Sequence splitting through subagents by default: isolation is useful for the
   final adversarial evaluation, but ordinary phases stay visible unless observed
   premature completion justifies a real context boundary.

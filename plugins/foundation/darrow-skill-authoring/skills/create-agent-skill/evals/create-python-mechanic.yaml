@@ -1,9 +1,11 @@
-id: author-agent-skill-create-python-mechanic
+id: create-agent-skill-create-python-mechanic
 invariant: SA-C5,SA-C6,SA-C7,SA-C8
 activation: positive
+mount_plugin_skills: true
 prompt: >-
-  Create one cross-platform agent skill named validate-capability-manifest in
-  the existing plugins/schema-helper plugin. It should validate JSON capability
+  Create one agent skill for Claude Code and Codex named
+  validate-capability-manifest in the existing plugins/schema-helper plugin.
+  It should validate JSON capability
   manifests before review. A valid manifest is an object with non-empty string
   `name` and `description` fields and no unknown top-level fields. This is a
   native Windows, macOS, and Linux workflow, so put the substantial validation
@@ -23,7 +25,9 @@ fixture:
           invoked from the host-provided installed skill directory. Do not add
           a launcher solely to locate the package or forward arguments. Runtime
           and development dependencies stay separate. Runtime entrypoints use
-          uv with frozen resolution and no development group. Support Python
+          uv with frozen resolution and no development group. Expose the
+          validator as a [project.scripts] console command. Use pytest for
+          package tests and declare it as a development dependency. Support Python
           3.10 through 3.13. Never commit automatically.
         plugins/schema-helper/.claude-plugin/plugin.json: |
           {"name":"schema-helper","version":"0.1.0","description":"Schema review helpers","author":{"name":"Example"}}
@@ -42,22 +46,23 @@ checks:
     run: |
       skill=plugins/schema-helper/skills/validate-capability-manifest
       project=$(find plugins/schema-helper -name pyproject.toml -type f | sed -n '1p')
-      test -n "$project"
+      test -n "$project" || { echo 'missing pyproject.toml'; exit 1; }
       backend=$(dirname "$project")
-      case "$backend" in "$skill"/*) ;; *) exit 1 ;; esac
-      test -r "$backend/uv.lock"
-      grep -F 'requires-python = ">=3.10,<3.14"' "$project" >/dev/null
-      grep -F 'default-groups = []' "$project" >/dev/null
-      ! find "$skill" -type f -name '*.sh' | grep .
+      case "$backend" in "$skill"|"$skill"/*) ;; *) echo "package outside skill: $backend"; exit 1 ;; esac
+      test -r "$backend/uv.lock" || { echo 'missing uv.lock'; exit 1; }
+      grep -F 'requires-python = ">=3.10,<3.14"' "$project" >/dev/null || { echo 'wrong Python range'; exit 1; }
+      grep -F -- '--frozen' "$skill/SKILL.md" >/dev/null || { echo 'runtime command is not frozen'; exit 1; }
+      grep -F -- '--no-dev' "$skill/SKILL.md" >/dev/null || { echo 'runtime command includes development group'; exit 1; }
+      ! find "$skill" -type f -name '*.sh' | grep . || { echo 'unexpected shell launcher'; exit 1; }
       test ! -d plugins/schema-helper/bin ||
-        test -z "$(find plugins/schema-helper/bin -type f -print -quit)"
+        test -z "$(find plugins/schema-helper/bin -type f -print -quit)" || { echo 'unexpected plugin bin file'; exit 1; }
   - name: locked runtime entrypoint validates success and failure
     run: |
       backend=$(dirname "$(find plugins/schema-helper -name pyproject.toml -type f | sed -n '1p')")
       entrypoint=$(sed -n '/^\[project.scripts\]/,/^\[/ { /^[a-z][a-z0-9-]*[[:space:]]*=/ { s/[[:space:]]*=.*//; p; q; }; }' "$backend/pyproject.toml")
-      test -n "$entrypoint"
-      output=$(uv run --quiet --frozen --no-dev --project "$backend" "$entrypoint" valid.json)
-      case "$output" in *"$(pwd -P)/valid.json"*) ;; *) exit 1 ;; esac
+      test -n "$entrypoint" || { echo 'missing script entrypoint'; exit 1; }
+      output=$(uv run --quiet --frozen --no-dev --project "$backend" "$entrypoint" valid.json) || { echo 'valid input rejected'; exit 1; }
+      case "$output" in *"$(pwd -P)/valid.json"*) ;; *) echo 'valid output missing absolute path'; exit 1 ;; esac
       for invalid in \
         '{"name":"missing-description"}' \
         '{"name":"","description":"empty name"}' \
@@ -65,7 +70,10 @@ checks:
         '{"name":"unknown-field","description":"reject extras","extra":true}'
       do
         printf '%s\n' "$invalid" >.git/invalid.json
-        ! uv run --quiet --frozen --no-dev --project "$backend" "$entrypoint" .git/invalid.json
+        if uv run --quiet --frozen --no-dev --project "$backend" "$entrypoint" .git/invalid.json; then
+          echo "invalid input accepted: $invalid"
+          exit 1
+        fi
       done
   - name: package tests pass without repository dependencies
     run: |

@@ -1,6 +1,7 @@
-id: author-agent-skill-indirect-discovery
+id: create-agent-skill-indirect-discovery
 invariant: SA-C1,SA-C2,SA-C3
 activation: positive
+mount_plugin_skills: true
 prompt: >-
   We keep pasting the same release-triage checklist into chat. Turn it into a
   reusable capability in the existing plugins/triage package for both Claude

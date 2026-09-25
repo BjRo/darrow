@@ -37,8 +37,12 @@ between capabilities and orchestration, read [`docs/design.md`](docs/design.md).
 
 ## Skill development
 
-For skill creation, revision, or validation, follow
-[`author-agent-skill`](plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/SKILL.md).
+For new skill creation, follow
+[`create-agent-skill`](plugins/foundation/darrow-skill-authoring/skills/create-agent-skill/SKILL.md).
+For a read-only skill audit, follow
+[`audit-agent-skill`](plugins/foundation/darrow-skill-authoring/skills/audit-agent-skill/SKILL.md).
+Implement audit findings or other changes to an existing skill as ordinary
+engineering work against the findings and this repository's instructions.
 Add or adjust the applicable invariant under `docs/specs/` before implementation.
 Keep contextual judgment in the skill. Put repeatable, error-prone command and
 tool-protocol mechanics behind narrow bundled scripts so the model supplies

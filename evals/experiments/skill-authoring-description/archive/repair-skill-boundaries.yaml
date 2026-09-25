@@ -2,8 +2,10 @@ id: author-agent-skill-repair-skill-boundaries
 invariant: SA-C2,SA-C3,SA-C4,SA-C5,SA-C7
 activation: positive
 prompt: >-
-  Improve the existing deploy-checklist skill so it is focused, independently
-  installable, and reliable in both Claude Code and Codex. Preserve its actual
+  Promote and improve the deploy-checklist draft at
+  plugins/ops/skills/deploy-checklist/SKILL.draft.md so it is focused,
+  independently installable, and reliable in both Claude Code and Codex.
+  Write the finished skill as SKILL.md and remove the draft. Preserve its actual
   preflight behavior, but remove reliance on another plugin and separate
   checkable configuration mechanics from deployment judgment. Add appropriate
   local tests. Do not deploy or commit.
@@ -20,7 +22,7 @@ fixture:
           {"name":"ops","version":"0.1.0","description":"Operations workflows","author":{"name":"Example"}}
         plugins/ops/.codex-plugin/plugin.json: |
           {"name":"ops","version":"0.1.0","description":"Operations workflows","author":{"name":"Example"},"skills":"./skills/"}
-        plugins/ops/skills/deploy-checklist/SKILL.md: |
+        plugins/ops/skills/deploy-checklist/SKILL.draft.md: |
           ---
           name: deploy-checklist
           description: Helps with deployments.
@@ -35,10 +37,6 @@ fixture:
           REGION=eu-west-1
           SERVICE=api
 checks:
-  - name: discovery metadata names concrete deployment triggers
-    run: cat plugins/ops/skills/deploy-checklist/SKILL.md
-    expect_regex: "description:[^\\n]*(deploy|deployment)[^\\n]*(preflight|checklist|readiness)|description:[^\\n]*(preflight|checklist|readiness)[^\\n]*(deploy|deployment)"
-    flags: i
   - name: sibling-plugin dependency is removed
     run: >-
       backend_file=$(find . -path '*/author-agent-skill/backend/pyproject.toml' -type f | sed -n '1p');
@@ -97,6 +95,15 @@ checks:
   - name: authoring neither deploys nor commits
     run: >-
       test ! -e .git/deployed && test "$(git rev-list --all --reflog --count)" -eq 1
+semantic_artifact:
+  path: plugins/ops/skills/deploy-checklist/SKILL.md
+  checks:
+    - name: discovery metadata names concrete deployment review triggers
+      proposition: >-
+        The description names a concrete pre-deployment check or review goal,
+        such as checking configuration and reviewing deployment evidence.
+        It does not merely say that the skill helps with deployments or
+        imply that it performs deployment itself.
 semantic_output_checks:
   - name: shell evidence distinguishes observed runs from unverified coverage
     proposition: >-

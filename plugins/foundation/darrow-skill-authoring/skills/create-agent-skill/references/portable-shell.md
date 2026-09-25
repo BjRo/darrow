@@ -52,7 +52,7 @@ When the target specifically requires both Bash 3.2 and Bash 5, the authoring
 skill's bundled matrix helper can supply that evidence:
 
 ```text
-uv run --quiet --no-project "<skill-dir>/backend/scripts/run_locked.py" verify-shell-tests -- "<test-script>"...
+uv run --quiet --no-project "<plugin-root>/backend/scripts/run_locked.py" verify-shell-tests -- "<test-script>"...
 ```
 
 This helper discovers actual Bash 3.2 and Bash 5 interpreters, queries their

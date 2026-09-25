@@ -1,6 +1,7 @@
-id: author-agent-skill-refuse-undefined-skill
+id: create-agent-skill-refuse-undefined-skill
 invariant: SA-C1,SA-C3
 activation: positive
+mount_plugin_skills: true
 prompt: >-
   Create a reusable skill for my team. Pick whatever capability you think is
   useful and put it wherever you think is best.

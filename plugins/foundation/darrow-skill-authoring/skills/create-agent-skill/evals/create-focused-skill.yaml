@@ -1,6 +1,7 @@
-id: author-agent-skill-create-focused-skill
+id: create-agent-skill-create-focused-skill
 invariant: SA-C1,SA-C2,SA-C3,SA-C5,SA-C7,SA-C8,SA-C11
 activation: positive
+mount_plugin_skills: true
 prompt: >-
   Create one cross-runtime agent skill named validate-release-note in the
   existing plugins/release-helper plugin. It should help when someone asks to
@@ -69,10 +70,16 @@ checks:
             ;;
         esac
       done
-  - name: deterministic validator rejects a missing section under both shells
+  - name: deterministic validator rejects missing or empty sections under both shells
     run: |
       validator=plugins/release-helper/skills/validate-release-note/scripts/validate-release-note
       printf '# Summary\n\nOnly summary.\n' >.git/invalid-note.md
+      ! bash "$validator" .git/invalid-note.md
+      ! /bin/bash "$validator" .git/invalid-note.md
+      printf '# Summary\n\n# Testing\n\nRan tests.\n' >.git/invalid-note.md
+      ! bash "$validator" .git/invalid-note.md
+      ! /bin/bash "$validator" .git/invalid-note.md
+      printf '# Summary\n\nAdd retry reporting.\n\n# Testing\n\n' >.git/invalid-note.md
       ! bash "$validator" .git/invalid-note.md
       ! /bin/bash "$validator" .git/invalid-note.md
   - name: bundled tests pass with both shells and temp path forms
@@ -104,7 +111,7 @@ checks:
     flags: i
   - name: result is self-contained
     run: >-
-      backend_file=$(find . -path '*/author-agent-skill/backend/pyproject.toml' -type f | sed -n '1p');
+      backend_file=$(find . -path '*/backend/pyproject.toml' -type f | sed -n '1p');
       test -n "$backend_file";
       backend=${backend_file%/pyproject.toml};
       uv run --quiet --frozen --no-dev --project "$backend" inspect-skill inspect plugins/release-helper/skills/validate-release-note plugins/release-helper >/dev/null;
@@ -117,11 +124,12 @@ semantic_output_checks:
     proposition: >-
       The response gives an evidence status for each required target, Bash 3.2
       and Bash 5: an observed version and test outcome, or an explicit statement
-      that the target was unavailable or unexecuted and remains unverified.
-      Observed passing runs of both targets establish complete coverage; no
-      unavailable-target statement is needed in that situation. Command names
-      alone (bash and /bin/bash) or simulated version labels do not establish
-      actual version coverage.
+      that the target remains unverified when no run of that version was
+      observed. Observed passing runs of both targets establish complete
+      coverage. Identifying both available commands as Bash 3.2 and stating
+      Bash 5 remains unverified is sufficient; the response need not use the
+      exact words unavailable or unexecuted. Command names alone (bash and
+      /bin/bash) or simulated version labels do not establish coverage.
   - name: authoring report is concise clear and complete
     proposition: >-
       The response leads with the created skill's result and any next action,

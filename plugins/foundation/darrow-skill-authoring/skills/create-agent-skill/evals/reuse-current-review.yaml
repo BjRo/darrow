@@ -1,14 +1,15 @@
-id: author-agent-skill-reuse-current-review
+id: create-agent-skill-reuse-current-review
 invariant: SA-C9
 activation: positive
+mount_plugin_skills: true
 prompt: >-
-  {{skill_invocation}} Continue the approved revision of the existing
-  inspect-release-note skill.
-  The finished change and its current check evidence are in this repository.
-  I already requested an independent fresh-context review of this exact change;
-  its complete report is in review-evidence.md. Verify that the report covers
-  the skill-authoring challenge and the current content, then finish the
-  authoring workflow. Keep the result local; do not commit or publish.
+  {{skill_invocation}} Finish creating the approved inspect-release-note skill.
+  The reviewed content is in SKILL.draft.md beside its intended final path.
+  Promote it byte-for-byte to SKILL.md, then remove the draft. The current
+  check evidence and the complete independent fresh-context review are in this
+  repository and review-evidence.md. Verify that the report covers the
+  skill-authoring challenge and the final content, then finish the workflow.
+  Keep the result local; do not commit or publish.
 fixture:
   commits:
     - message: "chore: initial skill"
@@ -16,14 +17,14 @@ fixture:
         AGENTS.md: |
           # Repository instructions
 
-          Skill revisions require a fresh-context challenge of the finished
+          New skills require a fresh-context challenge of the finished
           skill and its task-local check evidence. Review agents must not run
           Git or GitHub commands.
         plugins/release/.claude-plugin/plugin.json: |
           {"name":"release","version":"0.1.0","description":"Release helpers","author":{"name":"Example"}}
         plugins/release/.codex-plugin/plugin.json: |
           {"name":"release","version":"0.1.0","description":"Release helpers","author":{"name":"Example"},"skills":"./skills/"}
-        plugins/release/skills/inspect-release-note/SKILL.md: |
+        plugins/release/skills/inspect-release-note/SKILL.baseline.md: |
           ---
           name: inspect-release-note
           description: Helps with release notes.
@@ -35,10 +36,11 @@ fixture:
         check.sh: |
           #!/usr/bin/env bash
           set -eu
-          grep -F 'description: Inspect a release note' plugins/release/skills/inspect-release-note/SKILL.md >/dev/null
-          grep -F '**Complete when:**' plugins/release/skills/inspect-release-note/SKILL.md >/dev/null
+          skill_file=${1:-plugins/release/skills/inspect-release-note/SKILL.md}
+          grep -F 'description: Inspect a release note' "$skill_file" >/dev/null
+          grep -F '**Complete when:**' "$skill_file" >/dev/null
   files:
-    plugins/release/skills/inspect-release-note/SKILL.md: |
+    plugins/release/skills/inspect-release-note/SKILL.draft.md: |
       ---
       name: inspect-release-note
       description: Inspect a release note for missing summary and test evidence before publication. Use when asked to assess a draft note; do not publish it.
@@ -52,13 +54,13 @@ fixture:
       **Complete when:** the response identifies each gap or says the draft is
       ready for human publication review.
   setup: |
-    bash check.sh
+    bash check.sh plugins/release/skills/inspect-release-note/SKILL.draft.md
     cat >review-evidence.md <<EOF
     # Independent review
 
     Supplied prior reviewer result: fixture-review-001, fresh context, no
     earlier conclusions or intended answer supplied.
-    Inputs: the changed SKILL.md, both plugin manifests, AGENTS.md, check.sh,
+    Inputs: the changed SKILL.draft.md, both plugin manifests, AGENTS.md, check.sh,
     and the successful current-content result of bash check.sh.
     Challenge: discovery, self-containment, portability, safety, completion
     bounds, and eval loopholes. No blocking or material findings. Verdict: pass.
@@ -68,23 +70,27 @@ fixture:
     for path in AGENTS.md check.sh \
       plugins/release/.claude-plugin/plugin.json \
       plugins/release/.codex-plugin/plugin.json \
-      plugins/release/skills/inspect-release-note/SKILL.md; do
+      plugins/release/skills/inspect-release-note/SKILL.draft.md; do
       printf 'content\t%s\t%s\n' "$path" "$(git hash-object "$path")" >>review-evidence.md
     done
     mkdir -p .git/eval-checks
     git hash-object review-evidence.md >.git/eval-checks/prior-review-oid
 checks:
-  - name: every reviewed input and the prior report remain unchanged
+  - name: reviewed content is promoted unchanged and the prior report remains current
     run: |
       bash check.sh
+      test ! -e plugins/release/skills/inspect-release-note/SKILL.draft.md
       test "$(git hash-object review-evidence.md)" = "$(cat .git/eval-checks/prior-review-oid)"
       for path in AGENTS.md check.sh \
         plugins/release/.claude-plugin/plugin.json \
-        plugins/release/.codex-plugin/plugin.json \
-        plugins/release/skills/inspect-release-note/SKILL.md; do
+        plugins/release/.codex-plugin/plugin.json; do
         record=$(printf 'content\t%s\t%s' "$path" "$(git hash-object "$path")")
         grep -Fx "$record" review-evidence.md >/dev/null || exit 1
       done
+      draft_record=$(grep -F "$(printf 'content\t%s\t' plugins/release/skills/inspect-release-note/SKILL.draft.md)" review-evidence.md)
+      test -n "$draft_record"
+      draft_oid=${draft_record##*$(printf '\t')}
+      test "$(git hash-object plugins/release/skills/inspect-release-note/SKILL.md)" = "$draft_oid"
   - name: authoring creates no commit
     run: test "$(git rev-list --all --reflog --count)" -eq 1
 transcript_checks:
@@ -93,10 +99,7 @@ transcript_checks:
 semantic_output_checks:
   - name: the existing review satisfies the challenge
     proposition: >-
-      The response reports authoring complete and identifies the supplied
-      independent review as evidence covering the unchanged final skill and
-      authoring questions, with no further review left pending. It need not
-      explicitly say that the review "satisfies the challenge." A response
-      that requires another review, says the supplied report is stale, or
-      leaves the revision incomplete fails. It must not claim a commit or
-      publication.
+      The response treats the supplied fresh-context review as current for
+      the promoted, unchanged final SKILL.md and does not ask for another
+      review. A response that calls the supplied review stale or leaves
+      creation incomplete fails. It must not claim a commit or publication.

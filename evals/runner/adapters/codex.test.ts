@@ -966,6 +966,92 @@ describe("Codex skill activation observation", () => {
     ).toContain('"skill":"list-tickets"');
   });
 
+  test("counts an installed plugin's identical marketplace source read, but not a fixture draft", async () => {
+    const repo = await mkdtemp(join(tmpdir(), "darrow-staged-skill-"));
+    const installed = join(repo, ".git", "installed", "skills");
+    const staged = join(repo, ".git", "eval-marketplace", "plugin", "skills");
+    const draft = join(
+      repo,
+      "plugins",
+      "release",
+      "skills",
+      "author-agent-skill",
+    );
+    const body =
+      "---\nname: author-agent-skill\ndescription: Author a skill\n---\n\n# Author\n";
+    const event = (path: string, output = body) =>
+      [
+        JSON.stringify({
+          type: "item.completed",
+          item: {
+            type: "command_execution",
+            command: `cat ${path}`,
+            aggregated_output: output,
+            exit_code: 0,
+            status: "completed",
+          },
+        }),
+        JSON.stringify({ type: "turn.completed" }),
+      ].join("\n");
+    try {
+      await mkdir(join(installed, "author-agent-skill"), { recursive: true });
+      await mkdir(join(staged, "author-agent-skill"), { recursive: true });
+      await mkdir(draft, { recursive: true });
+      await mkdir(join(repo, ".git", "eval-marketplace", ".claude-plugin"), {
+        recursive: true,
+      });
+      await writeFile(join(installed, "author-agent-skill", "SKILL.md"), body);
+      await writeFile(join(staged, "author-agent-skill", "SKILL.md"), body);
+      await writeFile(join(draft, "SKILL.md"), body);
+      await writeFile(
+        join(
+          repo,
+          ".git",
+          "eval-marketplace",
+          ".claude-plugin",
+          "marketplace.json",
+        ),
+        JSON.stringify({
+          plugins: [{ name: "authoring", source: "./plugin" }],
+        }),
+      );
+      expect(
+        codexSkillActivation(
+          event(join(staged, "author-agent-skill", "SKILL.md")),
+          repo,
+          installed,
+        ).observedSkills,
+      ).toEqual(["author-agent-skill"]);
+      expect(
+        codexSkillActivation(event(join(draft, "SKILL.md")), repo, installed)
+          .observedSkills,
+      ).toEqual([]);
+      expect(
+        codexSkillActivation(
+          event(
+            join(staged, "author-agent-skill", "SKILL.md"),
+            body.slice(0, 45),
+          ),
+          repo,
+          installed,
+        ).observedSkills,
+      ).toEqual([]);
+      await writeFile(
+        join(staged, "author-agent-skill", "SKILL.md"),
+        `${body}\nextra staging content\n`,
+      );
+      expect(
+        codexSkillActivation(
+          event(join(staged, "author-agent-skill", "SKILL.md")),
+          repo,
+          installed,
+        ).observedSkills,
+      ).toEqual([]);
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
   test("observes project capability reads alongside an installed orchestrator", () => {
     const installedSkillsRoot =
       "/tmp/eval-home/plugins/cache/darrow/darrow-adaptive-delivery/0.13.0/skills";

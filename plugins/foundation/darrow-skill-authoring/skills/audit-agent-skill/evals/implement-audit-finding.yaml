@@ -1,0 +1,44 @@
+id: audit-agent-skill-implement-audit-finding
+invariant: SA-C2,SA-C3
+activation: negative
+mount_plugin_skills: true
+activation_excludes:
+  - audit-agent-skill
+  - create-agent-skill
+prompt: >-
+  Implement the audit finding for the existing release-note draft at
+  plugins/release/skills/check-release-note/SKILL.draft.md. Its description
+  says only "Helps with release notes"; make the description say when to check
+  a draft release note for a missing summary or test evidence. Keep the rest
+  of the draft unchanged. This is a fix to an existing file, not an audit or
+  new skill request. Do not commit.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Repository instructions
+
+          Apply requested edits to existing files without committing.
+        plugins/release/skills/check-release-note/SKILL.draft.md: |
+          ---
+          name: check-release-note
+          description: Helps with release notes.
+          ---
+
+          # Check release note
+
+          Read the draft note and report any missing summary or test evidence.
+checks:
+  - name: existing draft has a concrete trigger and unchanged body
+    run: |
+      file=plugins/release/skills/check-release-note/SKILL.draft.md
+      grep -Ei '^description:.*(draft|release note).*(summary|test evidence)|(summary|test evidence).*(draft|release note)' "$file" >/dev/null
+      grep -Fx '# Check release note' "$file" >/dev/null
+      grep -Fx 'Read the draft note and report any missing summary or test evidence.' "$file" >/dev/null
+  - name: only the requested draft changes
+    run: |
+      set -e
+      test "$(git diff --name-only HEAD)" = plugins/release/skills/check-release-note/SKILL.draft.md
+      test -z "$(git ls-files --others --exclude-standard)"
+      test "$(git rev-list --all --reflog --count)" -eq 1

@@ -1,6 +1,7 @@
-id: author-agent-skill-respect-target-toolchain
+id: create-agent-skill-respect-target-toolchain
 invariant: SA-C5,SA-C7,SA-C8
 activation: positive
+mount_plugin_skills: true
 prompt: >-
   Create one cross-platform agent skill named validate-capability-manifest in
   the existing plugins/schema-helper plugin. It should validate JSON capability

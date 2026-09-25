@@ -1,0 +1,4 @@
+interface:
+  display_name: "Audit Agent Skill"
+  short_description: "Review an existing agent skill without edits"
+  default_prompt: "Use $audit-agent-skill to audit this agent skill."

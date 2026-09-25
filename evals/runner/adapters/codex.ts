@@ -736,28 +736,97 @@ function codexTrackedSkillRoots(
   const installedSkillsRoots = Array.isArray(installedSkillsRoot)
     ? installedSkillsRoot
     : [installedSkillsRoot];
-  const repoRelativeInstalledRoots = installedSkillsRoots.flatMap(
-    (skillsRoot) => {
-      if (!isAbsolute(skillsRoot)) return [];
-      const repoRelativeRoot = relative(repoDir, skillsRoot);
-      if (
-        !repoRelativeRoot ||
-        repoRelativeRoot === ".." ||
-        repoRelativeRoot.startsWith(`..${sep}`) ||
-        isAbsolute(repoRelativeRoot)
-      )
-        return [];
-      return [repoRelativeRoot];
-    },
+  const stagedSkillsRoots = codexStagedSkillRoots(
+    repoDir,
+    mountedSkillBodies(repoDir, installedSkillsRoots),
   );
+  const trackedRoots = [...installedSkillsRoots, ...stagedSkillsRoots];
+  const repoRelativeInstalledRoots = trackedRoots.flatMap((skillsRoot) => {
+    if (!isAbsolute(skillsRoot)) return [];
+    const repoRelativeRoot = relative(repoDir, skillsRoot);
+    if (
+      !repoRelativeRoot ||
+      repoRelativeRoot === ".." ||
+      repoRelativeRoot.startsWith(`..${sep}`) ||
+      isAbsolute(repoRelativeRoot)
+    )
+      return [];
+    return [repoRelativeRoot];
+  });
   return [
     ...new Set([
-      ...installedSkillsRoots,
+      ...trackedRoots,
       ...repoRelativeInstalledRoots,
       join(repoDir, ".agents", "skills"),
       join(".agents", "skills"),
     ]),
   ];
+}
+
+function codexStagedSkillRoots(
+  repoDir: string,
+  installed: MountedSkillBody[],
+): string[] {
+  const marketplace = join(repoDir, ".git", "eval-marketplace");
+  let catalog: unknown;
+  try {
+    catalog = JSON.parse(
+      readFileSync(
+        join(marketplace, ".claude-plugin", "marketplace.json"),
+        "utf8",
+      ),
+    );
+  } catch {
+    return [];
+  }
+  if (!isRecord(catalog) || !Array.isArray(catalog.plugins)) return [];
+  return catalog.plugins.flatMap((entry) => {
+    const root = stagedRootForCatalogEntry(entry, marketplace);
+    return root && stagedRootMatchesInstalled(root, installed) ? [root] : [];
+  });
+}
+
+function stagedRootForCatalogEntry(
+  entry: unknown,
+  marketplace: string,
+): string | undefined {
+  if (!isRecord(entry) || typeof entry.source !== "string") return undefined;
+  if (!entry.source.startsWith("./")) return undefined;
+  const root = resolve(marketplace, entry.source, "skills");
+  const within = relative(marketplace, root);
+  if (
+    !within ||
+    within === ".." ||
+    within.startsWith(`..${sep}`) ||
+    isAbsolute(within) ||
+    !existsSync(root)
+  )
+    return undefined;
+  return root;
+}
+
+function stagedRootMatchesInstalled(
+  root: string,
+  installed: MountedSkillBody[],
+): boolean {
+  let entries: Dirent[];
+  try {
+    entries = readdirSync(root, { withFileTypes: true });
+  } catch {
+    return false;
+  }
+  const staged = entries.flatMap((item) => {
+    const skill = mountedSkillBody(root, item);
+    return skill ? [skill] : [];
+  });
+  return (
+    staged.length > 0 &&
+    staged.every((source) =>
+      installed.some(
+        (target) => target.name === source.name && target.body === source.body,
+      ),
+    )
+  );
 }
 
 function codexActivationStreamComplete(

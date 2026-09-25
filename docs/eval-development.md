@@ -72,6 +72,11 @@ constraints for producing and interpreting that evidence.
 - A Codex case without the placeholder remains an implicit-discovery probe and
   requires a completed mounted-skill body read. Do not use the explicit path to
   make implicit selection pass.
+  A complete read of the byte-identical marketplace staging copy of an
+  installed plugin skill also counts: the staging path must come from that
+  eval's installed marketplace catalog, and the observed output must match
+  the installed body. Prepared target skill drafts elsewhere in the fixture
+  never count as activation.
 - Missing, repeated, malformed, or unverified observation evidence stays
   unknown. A failed compound shell command may still prove an earlier skill
   read only when the command names a mounted skill path and its output contains
