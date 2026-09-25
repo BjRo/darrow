@@ -14,6 +14,9 @@ def test_queries_and_field_selection(tmp_path: Path) -> None:
     assert dispatch(tmp_path, ["issue", "list"]) == []
     assert dispatch(tmp_path, ["label", "list"]) == []
     assert dispatch(tmp_path, ["repo", "view"]) == {"hasIssuesEnabled": True}
+    assert dispatch(tmp_path, ["repo", "view", "--json", "url"]) == {
+        "url": "https://github.test/o/r"
+    }
     (tmp_path / "labels").write_text("bug\nmaintenance\n")
     (tmp_path / "list").write_text(
         "#12 open  A title (bug, maintenance)\n#13 closed  Plain\n"
@@ -31,6 +34,19 @@ def test_queries_and_field_selection(tmp_path: Path) -> None:
         },
         {"number": 13, "state": "CLOSED", "title": "Plain", "labels": []},
     ]
+    assert [
+        item["number"]
+        for item in dispatch(
+            tmp_path,
+            ["issue", "list", "--state", "open", "--search", "title", "--limit", "1"],
+        )
+    ] == [12]
+    assert [
+        item["number"]
+        for item in dispatch(
+            tmp_path, ["issue", "list", "--state", "closed", "--limit", "1"]
+        )
+    ] == [13]
     (tmp_path / "issue-12-state").write_text("open")
     (tmp_path / "issue-12-title").write_text('Quoted "title"')
     assert dispatch(
@@ -89,6 +105,53 @@ def test_creation_comments_edits_and_transitions(tmp_path: Path) -> None:
     assert (tmp_path / "transitions").read_text() == "close 99\nreopen 99\n"
 
 
+def test_distinct_created_issues_are_listed_and_readable(tmp_path: Path) -> None:
+    body = tmp_path / "body.md"
+    body.write_text("First body", encoding="utf-8")
+    first = dispatch(
+        tmp_path,
+        [
+            "issue",
+            "create",
+            "--title",
+            "First",
+            "--body-file",
+            str(body),
+            "--label",
+            "task",
+        ],
+    )
+    body.write_text("Second body", encoding="utf-8")
+    second = dispatch(
+        tmp_path,
+        [
+            "issue",
+            "create",
+            "--title",
+            "Second",
+            "--body-file",
+            str(body),
+            "--label",
+            "bug",
+        ],
+    )
+    assert first == "https://github.test/o/r/issues/99"
+    assert second == "https://github.test/o/r/issues/100"
+    assert (tmp_path / "created-ids").read_text() == "99\n100\n"
+    assert [record["title"] for record in dispatch(tmp_path, ["issue", "list"])] == [
+        "First",
+        "Second",
+    ]
+    assert dispatch(tmp_path, ["issue", "view", "99", "--json", "body,labels"]) == {
+        "body": "First body",
+        "labels": [{"name": "task"}],
+    }
+    assert dispatch(tmp_path, ["issue", "view", "100", "--json", "body,labels"]) == {
+        "body": "Second body",
+        "labels": [{"name": "bug"}],
+    }
+
+
 def test_relationships(tmp_path: Path) -> None:
     (tmp_path / "issue-7-state").write_text("open")
     endpoint = "repos/o/r/issues/7"
@@ -125,6 +188,23 @@ def test_relationships(tmp_path: Path) -> None:
         tmp_path,
         ["api", "-X", "DELETE", endpoint + "/sub_issue", "-F", "sub_issue_id=10099"],
     )
+    assert not (tmp_path / "issue-99-parent").exists()
+
+
+def test_parent_write_refusal_does_not_record_relation(tmp_path: Path) -> None:
+    (tmp_path / "reject-parent-for").write_text("99\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="rejected parent write"):
+        dispatch(
+            tmp_path,
+            [
+                "api",
+                "-X",
+                "POST",
+                "repos/o/r/issues/7/sub_issues",
+                "-F",
+                "sub_issue_id=10099",
+            ],
+        )
     assert not (tmp_path / "issue-99-parent").exists()
 
 

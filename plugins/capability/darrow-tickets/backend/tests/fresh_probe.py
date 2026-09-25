@@ -2,11 +2,14 @@
 
 import json
 import subprocess
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
 from darrow_tickets.cli import main
 from darrow_tickets.providers.github import provider
+from darrow_tickets.temporary import temporary_root
 
 REAL_EXECUTE = provider.execute
 ISSUE = {
@@ -48,7 +51,11 @@ def fake_gh(
 
 
 def run() -> None:
-    body = Path("payload ü with spaces.md").resolve()
+    output = StringIO()
+    with redirect_stdout(output):
+        assert main(["temp-file"]) == 0
+    body = Path(output.getvalue().strip())
+    assert body.parent == temporary_root()
     body.write_text(
         "## Outcome\nVerified.\n## Done criteria\nAll commands.\n", encoding="utf-8"
     )
@@ -69,7 +76,9 @@ def run() -> None:
             commands, [0, 0, 0, 0, 0, 0, 0, 9, 8, 0], strict=True
         ):
             assert main(args) == expected, args
-    print("fresh ticket probe: all ten commands passed")
+    body.unlink()
+    assert not list(temporary_root().glob("darrow-ticket-*/body.md"))
+    print("fresh ticket probe: all eleven commands passed")
 
 
 if __name__ == "__main__":

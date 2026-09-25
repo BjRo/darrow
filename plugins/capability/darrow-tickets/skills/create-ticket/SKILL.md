@@ -1,25 +1,33 @@
 ---
 name: create-ticket
-description: Create one evidence-grounded GitHub Issues ticket after checking for a plausible duplicate. Use for creating, filing, opening, or tracking one ticket when GitHub Issues is selected or no tracker is established. The bundled adapter currently supports GitHub Issues; do not select for unsupported trackers such as Jira or Linear, bulk creation, updating an existing ticket, or planning the work.
+description: Create one evidence-grounded GitHub Issues ticket or an explicitly requested finite batch of distinct tickets. Use for requests to create, file, open, or track tickets when GitHub is selected or no tracker is established, including a batch whose intended items need clarification. Do not select for unsupported trackers such as Jira or Linear, planning a ticket breakdown without a creation request, or updating tickets.
 ---
 
-# Create one ticket
+# Create requested tickets
 
 Record the problem or desired outcome already known. Do not refine, decompose,
 review, or start the work.
 
 ## Working model
 
-- **One ticket:** one invocation creates at most one tracker object. A bulk
-  request needs the user to select one item first.
+- **Explicit batch:** a singular request creates at most one ticket. Create
+  several only when the caller identifies a finite set of distinct intended
+  tickets. Multiple acceptance criteria for one outcome remain one ticket.
+  Do not turn a broad request into a ticket breakdown.
 - **Plausible duplicate:** an open ticket appears to describe the same problem
   or desired outcome, not merely the same component or keyword. Report it and
-  stop; the user decides whether to file anyway.
+  skip that item until the user decides whether to file anyway. Continue with
+  independent requested items.
 - **Evidence-grounded body:** facts come from the request, conversation, or
   repository. Unknowns stay explicit questions; they never become invented
   reproduction steps, versions, paths, or acceptance criteria.
 - **Caller-owned structure:** dependency, parent, milestone, and assignee
-  choices are recorded only when the user names them.
+  choices are recorded only when the user names them. The caller may delegate
+  the order of an already defined batch; that does not authorize new tickets
+  or inferred relations.
+- **Whole-batch failure stop:** after any backend refusal, failed relation
+  write, or failed relation readback, create no later ticket in this invocation.
+  Report every remaining item as not attempted, including independent items.
 
 ## Tracker boundary
 
@@ -47,13 +55,28 @@ restricts labels to the existing taxonomy, verifies relation targets, owns
 backend relation syntax, and rejects tool attribution. Never use raw tracker
 commands or another plugin's files.
 
-Correct and retry a CLI input error caused by your title/body/arguments. Relay
-a backend refusal—missing backend, remote, ticket target, milestone, assignee,
-or tracker operation—verbatim and stop; do not invent a fallback.
+Correct and retry a CLI input error caused by your title/body/arguments before
+that item has been created. Relay a backend refusal—missing backend, remote,
+ticket target, milestone, assignee, or tracker operation—verbatim. End the
+entire batch immediately: do not create any later requested ticket. Retain
+completed effects and account for every remaining item; do not invent a
+fallback or retry an uncertain creation.
 
 ## Workflow
 
-### 1. Inspect taxonomy and classify the request
+### 1. Establish the requested set and inspect taxonomy
+
+Identify one intended ticket, or the explicit finite list of distinct tickets.
+If the count, an item's outcome, or a requested relation is ambiguous, clarify
+before any tracker mutation. Do not decompose a feature or choose parent and
+dependency structure on the caller's behalf. Identify items that need a ticket
+created earlier in the batch and put their creation after that target. Other
+items may be processed in the order the caller gave or delegated. Repeat the
+search, draft, create, and relation check for one item before moving to the
+next; retain their outcomes for the final report. Do not search every item up
+front and then create them all. The required sequence is search item 1 →
+create item 1 → verify its relations → search item 2 → create item 2 → verify
+its relations, continuing in that order until every item has an outcome.
 
 Run:
 
@@ -61,8 +84,7 @@ Run:
 uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-ticket inspect
 ```
 
-Require exactly one intended ticket. Choose its type from the described work,
-not the user's vocabulary:
+Choose each item's type from its described work, not the user's vocabulary:
 
 - `bug`: observed behavior violates an expected behavior;
 - `feature`: a new user/product capability or outcome;
@@ -73,31 +95,46 @@ Note existing labels. The CLI maps the type to an existing type label
 automatically; select additional labels only when inspect showed the exact
 label and the evidence clearly matches it.
 
-**Complete when:** one ticket outcome, deliberate type, and usable backend are
-known—or the request/backend has stopped before mutation.
+**Complete when:** the finite requested set, each item's type and named
+relations, and a usable backend are known—or clarification/refusal has stopped
+the request before mutation.
 
 ### 2. Search before creating
 
-Choose the few most distinctive outcome, error, command, or component terms
-and run one focused open-ticket search:
+For each item, after any previous item's creation and relation readback,
+compare its outcome with all earlier batch items and choose the few most
+distinctive outcome, error, command, or component terms for a focused
+open-ticket search. Run this search even if an earlier search covered similar
+terms:
 
 ```sh
 uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-ticket list --search "<distinctive terms>"
 ```
 
-Compare the returned titles to the requested problem/outcome. If any is a
-plausible duplicate, report its ID and title plus why it may match, create
-nothing, and stop for the user's decision. Do not dismiss a match merely
-because its wording differs, and do not block on tickets that only share a
-broad area.
+Compare the returned titles to this item's requested problem/outcome. If any
+is a plausible duplicate, record its ID and title plus why it may match, do
+not create that item, and continue with independent items. Do not silently
+reuse the candidate as a target for another requested relation. Mark an item
+whose named relation target was skipped as not attempted. Do not dismiss a
+match merely because its wording differs, and do not block on tickets that
+only share a broad area or error word. Compare which operation fails, under
+what condition, and the desired outcome.
 
-**Complete when:** either one or more plausible candidates are reported with
-zero creations, or the search evidence supports creating exactly one ticket.
+If the CLI reports a truncated list, narrow the query or raise `--limit` and
+search again before deciding the item is clear. If plausible candidates still
+cannot be assessed from a complete result, leave that item uncreated and report
+why. Continue independent items. A prior batch item with the same outcome is a
+duplicate even if the tracker search omits it.
+
+**Complete when:** each item reached has been compared with prior batch
+outcomes and has an assessable tracker search, or is left uncreated with an
+explicit reason; every plausible duplicate is marked skipped before creation.
 
 ### 3. Draft only what is known
 
-Write a concise searchable title that states the problem or desired outcome,
-not a speculative implementation. Keep it one line with no trailing period.
+For each item that passed its duplicate check, write a concise searchable
+title that states its problem or desired outcome, not a speculative
+implementation. Keep it one line with no trailing period.
 
 Use exactly the required body structure for the chosen type:
 
@@ -132,12 +169,17 @@ Do not add AI/tool attribution, co-author credit, or attribution emoji to the
 ticket—even when requested. Keep it no more elaborate than the supplied
 evidence.
 
-**Complete when:** title and required sections are specific, non-empty,
-non-invented, and sufficient to record the user's current knowledge.
+**Complete when:** every item to create has its own specific, non-empty,
+non-invented title and required sections sufficient to record the caller's
+current knowledge.
 
 ### 4. Apply only caller-authorized metadata and create
 
-Write the body to a private temporary file outside the repository, then run:
+For each item to create, run the locked `darrow-ticket temp-file` command and
+write its body to the absolute draft path it returns. The command allocates a
+private file under `$HOME/.darrow/tmp` on Linux/macOS or
+`%LOCALAPPDATA%\Darrow\Tmp` on Windows (`DARROW_TMP_DIR` overrides the root).
+It makes no tracker call. Run one `create` command for that item:
 
 ```sh
 uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-ticket create --title <title> --type <type> --body-file <absolute-file> \
@@ -146,23 +188,46 @@ uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" da
   [--parent <caller-named-id>]
 ```
 
+Delete the allocated draft after the final create attempt, including a refusal.
+If a local input error needs correction, reuse the draft and delete it after
+the corrected attempt. The CLI removes its separate provider copy itself.
+Do not leave ticket bodies in the repository or a system temp directory.
+
 Never infer `depends-on` or `parent` from content, and never hand-write relation
-markers into the body. Include milestone or assignee only when explicitly
-requested. Never create a label, milestone, or alternative value. If a desired
-extra label does not exist, omit it and retain that omission for the report.
+markers into the body. Use the ID returned by an earlier creation only when
+the caller named that item as this item's relation target. Include milestone or
+assignee only when explicitly requested for this item. Never create a label,
+milestone, or alternative value. If a desired extra label does not exist, omit
+it and retain that omission for the report.
 
-**Complete when:** the CLI creates exactly one ticket and verifies every
-requested relation, or reports a verbatim refusal with no second creation
-attempt.
+If `create` reports a refusal after printing a created ID, record the ticket
+as created with the reported partial relations and stop all further ticket
+creations in this invocation, even for independent items. If the creation
+effect is uncertain, say so and never issue a second `create` attempt for that
+item.
 
-### 5. Report the authoritative result
+**Complete when:** every non-skipped item reached has exactly one verified
+creation attempt and its CLI result is recorded, or a refusal has stopped
+pending mutations.
 
-Return the CLI output verbatim so the report includes backend, created ID,
-canonical URL, type, labels, and relations. Then name any dedup candidates or
-requested labels/metadata omitted and the evidence-based reason. Do not add a
-plan, implementation advice, suggested tracker configuration, attribution, or
-another tracker mutation. If attribution was requested, say only that ticket
-policy required omitting it.
+### 5. Verify requested relations and report every outcome
 
-**Complete when:** the user can identify the created ticket and every applied
-or omitted field—or can see exactly why no ticket was created.
+After each successful `create` that requested relations, run `get
+<created-id>` through the same locked CLI and compare its `parent:` and
+`depends-on:` lines with the requested targets. A failed read or mismatch
+means the ticket was created but its relation is unverified or wrong; report
+that evidence and create no later ticket in this invocation. Never report a
+relation as verified solely because its write returned successfully.
+
+Report one outcome for every requested item in the caller's order: created
+(with the CLI's authoritative creation output, ID, canonical URL, type, labels,
+and verified relations), skipped as a plausible duplicate (ID, title, reason),
+refused or creation uncertain (verbatim diagnostic and any completed effect),
+or not attempted (reason). Name any requested labels or metadata omitted and
+why. Do not add a plan, implementation advice, suggested tracker
+configuration, attribution, or another tracker mutation. If attribution was
+requested, say only that ticket policy required omitting it.
+
+**Complete when:** the user can identify the outcome and applied or omitted
+fields of every requested item, including any created ticket with an
+unverified relation and every item left unattempted after a failure.

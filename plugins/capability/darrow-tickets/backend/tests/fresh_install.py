@@ -61,7 +61,7 @@ def validate(copy: Path, fixture: Path) -> None:
     command(repo, "git", "init", "-q")
     command(repo, "git", "remote", "add", "origin", "https://github.test/o/r.git")
     output = command(repo, *uv, "python", str(backend / "tests" / "fresh_probe.py"))
-    assert "all ten commands passed" in output
+    assert "all eleven commands passed" in output
 
 
 def make_read_only(root: Path) -> None:
@@ -94,6 +94,7 @@ def main() -> None:
         copy = fixture / "plugin copy ü"
         shutil.copytree(plugin, copy, ignore=ignored)
         os.environ["DARROW_CACHE_DIR"] = str(fixture / "darrow-cache")
+        os.environ["DARROW_TMP_DIR"] = str(fixture / "darrow-tmp")
         make_read_only(copy)
         validate(copy, fixture)
         assert not list(copy.rglob(".venv"))

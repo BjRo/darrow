@@ -99,8 +99,12 @@ requested mutation and no drive-by change is planned.
 
 ### 3. Prepare evidence payloads without invention
 
-For a comment or description edit, write the payload to a private temporary
-file outside the repository. Preserve quoted errors and known ticket, commit,
+For a comment or description edit, run the locked `darrow-ticket temp-file`
+command and write the payload to its returned absolute path. The local command
+allocates a private file under `$HOME/.darrow/tmp` on Linux/macOS or
+`%LOCALAPPDATA%\Darrow\Tmp` on Windows (`DARROW_TMP_DIR` overrides the root)
+without tracker access. Delete the draft after the mutation attempt, including
+a refusal. Preserve quoted errors and known ticket, commit,
 branch, and pull-request identifiers verbatim. Record only user/conversation or
 repository evidence; do not editorialize, assess the work, pad the update, or
 invent status.

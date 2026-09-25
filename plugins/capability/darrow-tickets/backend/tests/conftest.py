@@ -123,7 +123,7 @@ class Backend:
 
 
 @pytest.fixture
-def backend(monkeypatch: pytest.MonkeyPatch) -> Backend:
+def backend(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Backend:
     fake = Backend()
     monkeypatch.setattr(provider, "execute", fake.execute)
     monkeypatch.setattr(
@@ -131,6 +131,7 @@ def backend(monkeypatch: pytest.MonkeyPatch) -> Backend:
     )
     monkeypatch.setenv("GH_HOST", "foreign.test")
     monkeypatch.setenv("GH_REPO", "foreign.test/other/repo")
+    monkeypatch.setenv("DARROW_TMP_DIR", str(tmp_path / "darrow-tmp"))
     return fake
 
 

@@ -37,6 +37,6 @@ checks:
 semantic_output_checks:
   - name: plausible duplicate is reported before stopping
     proposition: >-
-      The response reports issue #12 and its ticket-list SIGPIPE title as a
-      plausible duplicate, briefly explains why it matches the requested
-      problem, and makes clear that no new ticket was created.
+      The response identifies issue #12 and its ticket-list SIGPIPE title as
+      an apparent duplicate of the requested failure on large repositories,
+      and says this requested ticket was skipped or not created.

@@ -54,4 +54,4 @@ checks:
     not_regex: "(^| )(create|edit|comment|close|reopen|delete|transfer|fork)( |$)|(^| )(-X|--method) (POST|PUT|PATCH|DELETE)( |$)"
 semantic_output_checks:
   - name: completes the follow-on recommendation
-    proposition: The response identifies X-Trace-ID as the header named by ticket #12 and recommends passing request.headers into the new Request in src/retry.py. A raw ticket relay or source-only answer does not meet this check.
+    proposition: The response recommends passing request.headers into the new retry Request to preserve headers across retries. A raw ticket relay without a code recommendation does not meet this check.

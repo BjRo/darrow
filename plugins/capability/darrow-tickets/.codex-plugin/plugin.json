@@ -1,6 +1,6 @@
 {
   "name": "darrow-tickets",
-  "version": "0.5.2",
+  "version": "0.6.4",
   "description": "Ticket skills with a bundled GitHub Issues adapter: create-ticket, read-ticket, update-ticket, list-tickets",
   "author": {
     "name": "Björn Rochel"
@@ -9,7 +9,7 @@
   "interface": {
     "displayName": "Darrow -> Tickets",
     "shortDescription": "Create, read, find, and update tickets",
-    "longDescription": "Create well-formed tickets, retrieve one exact ticket, find relevant open work, and apply one verified update through the bundled GitHub Issues adapter.",
+    "longDescription": "Create one well-formed ticket or an explicit finite batch, retrieve one exact ticket, find relevant open work, and apply one verified update through the bundled GitHub Issues adapter.",
     "developerName": "Björn Rochel",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],
