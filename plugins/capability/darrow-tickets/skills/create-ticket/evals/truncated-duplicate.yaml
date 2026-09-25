@@ -30,6 +30,10 @@ fixture:
       n=$((n + 1))
     done > .git/fixture-gh/list
     printf '#30 open  ticket list crashes with SIGPIPE on repos with hundreds of open tickets (bug)\n' >> .git/fixture-gh/list
+    printf 'open' > .git/fixture-gh/issue-30-state
+    printf 'ticket list crashes with SIGPIPE on repos with hundreds of open tickets' > .git/fixture-gh/issue-30-title
+    printf 'Running ticket list in a repository with hundreds of open issues crashes with SIGPIPE.\n' > .git/fixture-gh/issue-30-body
+    printf 'bug\n' > .git/fixture-gh/issue-30-labels
 checks:
   - name: duplicate was not created
     run: cat .git/fixture-gh/created-ids 2>/dev/null || true
@@ -41,5 +45,5 @@ semantic_output_checks:
   - name: exact duplicate beyond default page is reported
     proposition: >-
       The response identifies issue #30 as the plausible matching ticket and
-      makes clear that no new ticket was created. It does not treat the first
-      twenty ticket-archive telemetry tickets as the same bug.
+      makes clear that no new ticket was created. It does not claim that the
+      first twenty ticket-archive telemetry tickets are duplicates.

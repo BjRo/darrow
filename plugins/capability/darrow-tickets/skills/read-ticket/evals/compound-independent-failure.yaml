@@ -42,6 +42,9 @@ checks:
   - name: no tracker mutation
     run: cat .git/fixture-gh-calls
     not_regex: "(^| )(create|edit|comment|close|reopen|delete|transfer|fork)( |$)|(^| )(-X|--method) (POST|PUT|PATCH|DELETE)( |$)"
+  - name: suggestion does not edit the repository
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
 semantic_output_checks:
   - name: independent advice continues
     proposition: Despite the ticket retrieval failure, the response identifies that retry rebuilds Request from only request.url and recommends forwarding request.headers into the new Request. Merely relaying the error does not meet this check.
