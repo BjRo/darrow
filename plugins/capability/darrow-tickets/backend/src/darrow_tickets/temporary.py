@@ -4,6 +4,7 @@ import ntpath
 import os
 import posixpath
 import stat
+import sys
 import tempfile
 from collections.abc import Mapping
 from pathlib import Path
@@ -37,7 +38,8 @@ def temporary_root() -> Path:
         raise TicketError(f"error: Darrow temp directory is a symlink: {root}")
     if not root.is_dir():
         raise TicketError(f"error: Darrow temp path is not a directory: {root}")
-    if os.name != "nt" and (
+    # sys.platform also lets mypy exclude getuid on native Windows.
+    if sys.platform != "win32" and (
         root.stat().st_uid != os.getuid() or stat.S_IMODE(root.stat().st_mode) & 0o077
     ):
         raise TicketError(f"error: Darrow temp directory must be private: {root}")
