@@ -1,0 +1,43 @@
+id: create-ticket-singular-multiple-criteria
+invariant: TM-C1
+activation: competition
+mount_plugin_skills: true
+prompt: >-
+  File one feature ticket for CSV export from the transactions view. Our
+  accountant needs offline copies. Accept when the Export control downloads a
+  CSV, the CSV includes all visible columns, and the download preserves the
+  displayed column order. These are three criteria for the same feature.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+  bin:
+    gh: |
+      #!/bin/sh
+      backend="$(git rev-parse --absolute-git-dir)/tickets-fixture"
+      exec uv run --quiet --frozen --no-dev --project "$backend" python "$backend/tests/eval_gh.py" "$@"
+  setup: |
+    mkdir -p .git/tickets-fixture/tests
+    cp "{{case_dir}}/../../../backend/pyproject.toml" "{{case_dir}}/../../../backend/uv.lock" .git/tickets-fixture/
+    cp -R "{{case_dir}}/../../../backend/src" .git/tickets-fixture/
+    cp "{{case_dir}}/../../../backend/tests/eval_gh.py" .git/tickets-fixture/tests/
+    git remote add origin https://github.test/o/r.git
+    mkdir -p .git/fixture-gh
+    printf 'enhancement\n' > .git/fixture-gh/labels
+    : > .git/fixture-gh/list
+checks:
+  - name: exactly one ticket was created
+    run: cat .git/fixture-gh/created-ids
+    expect_regex: "^99$"
+  - name: all criteria belong to the one ticket
+    run: cat .git/fixture-gh/issue-99-body
+    expect_regex: "CSV"
+  - name: no second creation
+    run: |
+      test "$(grep -c '^issue create ' .git/fixture-gh/calls)" -eq 1
+semantic_output_checks:
+  - name: singular result
+    proposition: >-
+      The response identifies one created feature ticket and does not split
+      the three acceptance criteria into separate tickets.

@@ -47,7 +47,7 @@ checks:
     expect_exact: "error: ticket #12 has unsupported foreign parent: https://github.test/other/repo/issues/7 — cross-repository parent relations are not supported"
   - name: bundled CLI owns the failed retrieval
     run: cat .git/fixture-ticket-cli-calls
-    expect_regex: "darrow-ticket get #?12$"
+    expect_regex: "darrow-ticket get #?12(?: --provider github)?$"
   - name: read stops without fallback or mutation
     run: cat .git/fixture-gh/calls
     not_regex: "issue (list|edit|comment|close|reopen)|-X (POST|DELETE)|issues/7/|blocked_by"

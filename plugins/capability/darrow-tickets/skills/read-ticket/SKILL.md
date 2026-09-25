@@ -1,6 +1,6 @@
 ---
 name: read-ticket
-description: 'Read one current-project GitHub Issues ticket and relay it verbatim. Use for exact-ticket requests, IDs, supplied ticket URLs, indirect references, missing IDs, and ambiguous references to multiple named tickets. Use when GitHub Issues is selected or no tracker is established. The bundled adapter currently supports GitHub Issues; its CLI validates URLs, including foreign or invalid ones. Do not select for unsupported trackers such as Jira or Linear, listing tickets, mutations, readiness assessment, or implementation.'
+description: 'Read one current-project ticket through GitHub Issues when GitHub is selected or no tracker is established. Do not select for an explicitly requested Jira, Linear, or other unsupported tracker. Use for exact-ticket requests, IDs, supplied ticket URLs, indirect references, missing IDs, and ambiguity among named tickets; the bundled CLI validates URLs after tracker selection. Do not select for listing tickets, mutations, readiness assessment, or implementation.'
 ---
 
 # Read one ticket

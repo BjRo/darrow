@@ -79,7 +79,7 @@ checks:
       Preserve CONVERSATION-TOKEN-12 exactly.
   - name: bundled CLI resolves the bound reference exactly once
     run: cat .git/fixture-ticket-cli-calls
-    expect_regex: "^.*?darrow-ticket get #?12$"
+    expect_regex: "^.*?darrow-ticket get #?12(?: --provider github)?$"
   - name: conversation-bound retrieval uses only the read protocol
     run: cat .git/fixture-gh/protocol
     expect_exact: |-

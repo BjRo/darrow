@@ -1,0 +1,104 @@
+id: create-ticket-explicit-batch
+invariant: TM-C1, TM-C2, TM-C3, TM-C9, TM-C10
+activation: competition
+mount_plugin_skills: true
+prompt: >-
+  File these three separate child tickets under existing umbrella #7 in one go.
+  1. Feature: add CSV export to the transactions view. Our accountant needs an
+  offline copy. Accept when Export downloads a CSV with the visible columns.
+  2. Bug: the nightly report job exits with `MissingReportError` after CSV
+  generation. It should attach the CSV and finish. Reproduce with
+  `bun run report:nightly` after generating a CSV.
+  3. Task: document CSV export in the operator guide. Operators need the export
+  procedure. Done when the guide explains how to run the export and where the
+  file is saved. These are distinct tickets; use #7 as each parent.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+  bin:
+    gh: |
+      #!/bin/sh
+      backend="$(git rev-parse --absolute-git-dir)/tickets-fixture"
+      exec uv run --quiet --frozen --no-dev --project "$backend" python "$backend/tests/eval_gh.py" "$@"
+  setup: |
+    mkdir -p .git/tickets-fixture/tests
+    cp "{{case_dir}}/../../../backend/pyproject.toml" "{{case_dir}}/../../../backend/uv.lock" .git/tickets-fixture/
+    cp -R "{{case_dir}}/../../../backend/src" .git/tickets-fixture/
+    cp "{{case_dir}}/../../../backend/tests/eval_gh.py" .git/tickets-fixture/tests/
+    git remote add origin https://github.test/o/r.git
+    mkdir -p .git/fixture-gh
+    printf 'bug\nenhancement\ntask\n' > .git/fixture-gh/labels
+    : > .git/fixture-gh/list
+    printf 'open' > .git/fixture-gh/issue-7-state
+    printf 'Transactions umbrella' > .git/fixture-gh/issue-7-title
+checks:
+  - name: three distinct tickets were created
+    run: cat .git/fixture-gh/created-ids
+    expect_regex: "^99\n100\n101$"
+  - name: each ticket has the requested parent
+    run: |
+      for id in 99 100 101; do
+        test "$(cat ".git/fixture-gh/issue-$id-parent")" = 7 || exit 1
+      done
+  - name: each requested relation was read back
+    run: |
+      for id in 99 100 101; do
+        grep -q "api repos/{owner}/{repo}/issues/$id/parent" .git/fixture-gh/calls || exit 1
+      done
+  - name: each relation readback preceded the next creation
+    run: |
+      awk '
+        /^issue create / {
+          if (created && !verified) exit 1
+          created++
+          id = 98 + created
+          verified = 0
+          next
+        }
+        {
+          if (created && index($0, "api repos/{owner}/{repo}/issues/" id "/parent") == 1)
+            verified = 1
+        }
+        END { if (created != 3 || !verified) exit 1 }
+      ' .git/fixture-gh/calls || {
+        cat .git/fixture-gh/calls
+        exit 1
+      }
+  - name: each ticket has its own type label and body
+    run: |
+      for kind in enhancement bug task; do
+        test "$(grep -l "^$kind$" .git/fixture-gh/issue-*-labels | wc -l)" -eq 1 || exit 1
+      done
+      for id in 99 100 101; do
+        kind="$(cat ".git/fixture-gh/issue-$id-labels")"
+        case "$kind" in
+          enhancement) grep -q '^## Acceptance criteria$' ".git/fixture-gh/issue-$id-body" &&
+                       grep -q 'CSV' ".git/fixture-gh/issue-$id-body" || exit 1 ;;
+          bug) grep -q '^## Reproduction$' ".git/fixture-gh/issue-$id-body" &&
+               grep -q 'MissingReportError' ".git/fixture-gh/issue-$id-body" || exit 1 ;;
+          task) grep -q '^## Done criteria$' ".git/fixture-gh/issue-$id-body" &&
+                grep -qi 'operator guide' ".git/fixture-gh/issue-$id-body" || exit 1 ;;
+          *) exit 1 ;;
+        esac
+      done
+  - name: each creation followed its own duplicate search
+    run: |
+      awk '
+        /^issue list .*--search / { searched = 1; count++; next }
+        /^issue create / {
+          if (!searched) exit 1
+          searched = 0
+          created++
+        }
+        END { if (count < 3 || created != 3) exit 1 }
+      ' .git/fixture-gh/calls || {
+        cat .git/fixture-gh/calls
+        exit 1
+      }
+semantic_output_checks:
+  - name: all batch outcomes are reported
+    proposition: >-
+      The response identifies all three created tickets with distinct canonical
+      URLs and reports that each is a child of #7.

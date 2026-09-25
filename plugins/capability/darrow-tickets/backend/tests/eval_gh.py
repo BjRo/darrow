@@ -26,7 +26,7 @@ def append(path: Path, text: str) -> None:
         stream.write(text + "\n")
 
 
-def issue_list(directory: Path) -> list[dict[str, Any]]:
+def issue_list(directory: Path, arguments: list[str]) -> list[dict[str, Any]]:
     records = []
     for line in read(directory / "list").splitlines():
         match = re.fullmatch(r"#([0-9]+) (open|closed)  (.*?)(?: \((.*)\))?", line)
@@ -40,6 +40,63 @@ def issue_list(directory: Path) -> list[dict[str, Any]]:
                 "labels": [{"name": n} for n in labels],
             }
         )
+    for number in read(directory / "created-ids").splitlines():
+        records.append(
+            {
+                "number": int(number),
+                "state": read(directory / f"issue-{number}-state").upper(),
+                "title": read(directory / f"issue-{number}-title"),
+                "labels": [
+                    {"name": name}
+                    for name in read(directory / f"issue-{number}-labels").splitlines()
+                ],
+            }
+        )
+    return select_issues(directory, arguments, records)
+
+
+def select_issues(
+    directory: Path, arguments: list[str], records: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    state = flag(arguments, "--state", "all").upper()
+    if state != "ALL":
+        records = [record for record in records if record["state"] == state]
+    labels = [
+        arguments[index + 1]
+        for index, argument in enumerate(arguments)
+        if argument == "--label"
+    ]
+    if labels:
+        records = [
+            record
+            for record in records
+            if all(
+                label in {item["name"] for item in record["labels"]} for label in labels
+            )
+        ]
+    query = flag(arguments, "--search").casefold()
+    terms = [
+        term
+        for term in re.findall(r"[a-z0-9]+", query)
+        if term not in {"a", "an", "and", "for", "in", "of", "on", "the", "to", "with"}
+    ]
+    if terms:
+        records = [
+            record
+            for record in records
+            if any(
+                term
+                in (
+                    str(record["title"])
+                    + " "
+                    + read(directory / f"issue-{record['number']}-body")
+                ).casefold()
+                for term in terms
+            )
+        ]
+    limit = flag(arguments, "--limit")
+    if limit:
+        records = records[: int(limit)]
     return records
 
 
@@ -72,6 +129,7 @@ def copy_body(directory: Path, arguments: list[str], *names: str) -> None:
 
 
 def create_issue(directory: Path, arguments: list[str]) -> str:
+    number = str(99 + len(read(directory / "created-ids").splitlines()))
     copy_body(directory, arguments, "created-body")
     title = flag(arguments, "--title")
     if "--title" in arguments:
@@ -80,12 +138,13 @@ def create_issue(directory: Path, arguments: list[str]) -> str:
     (directory / "created-labels").write_text(
         "".join(label + "\n" for label in labels), encoding="utf-8"
     )
-    (directory / "issue-99-state").write_text("open", encoding="utf-8")
-    for name in ("title", "body"):
+    (directory / f"issue-{number}-state").write_text("open", encoding="utf-8")
+    for name in ("title", "body", "labels"):
         source = directory / f"created-{name}"
         if source.exists():
-            shutil.copyfile(source, directory / f"issue-99-{name}")
-    return "https://github.test/o/r/issues/99"
+            shutil.copyfile(source, directory / f"issue-{number}-{name}")
+    append(directory / "created-ids", number)
+    return f"https://github.test/o/r/issues/{number}"
 
 
 def mutate_issue(directory: Path, arguments: list[str]) -> str | None:
@@ -149,7 +208,13 @@ def api_mutate(
             encoding="utf-8",
         )
     else:
-        parent = directory / f"issue-{int(fields['sub_issue_id']) - 10000}-parent"
+        child = str(int(fields["sub_issue_id"]) - 10000)
+        if (
+            method == "POST"
+            and child in read(directory / "reject-parent-for").splitlines()
+        ):
+            raise ValueError("gh: rejected parent write")
+        parent = directory / f"issue-{child}-parent"
         if method == "POST":
             parent.write_text(number + "\n", encoding="utf-8")
         else:
@@ -179,11 +244,15 @@ def api(directory: Path, arguments: list[str]) -> Any:
 def dispatch(directory: Path, arguments: list[str]) -> Any:
     pair = tuple(arguments[:2])
     queries: dict[tuple[str, ...], Callable[[], Any]] = {
-        ("repo", "view"): lambda: {"hasIssuesEnabled": True},
+        ("repo", "view"): lambda: (
+            {"url": "https://github.test/o/r"}
+            if flag(arguments, "--json") == "url"
+            else {"hasIssuesEnabled": True}
+        ),
         ("label", "list"): lambda: [
             {"name": n} for n in read(directory / "labels").splitlines()
         ],
-        ("issue", "list"): lambda: issue_list(directory),
+        ("issue", "list"): lambda: issue_list(directory, arguments),
         ("issue", "view"): lambda: issue_view(directory, arguments),
         ("issue", "create"): lambda: create_issue(directory, arguments),
     }

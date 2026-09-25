@@ -84,7 +84,7 @@ checks:
     expect_regex: "ticket-token: 21[\\s\\S]*#21 closed.*Canonical URL intake[\\s\\S]*URL-TOKEN-21"
   - name: bundled CLI owns the URL retrieval
     run: cat .git/fixture-ticket-cli-calls
-    expect_regex: "darrow-ticket get https://github.test/o/r/issues/21$"
+    expect_regex: "darrow-ticket get https://github.test/o/r/issues/21(?: --provider github)?$"
   - name: URL retrieval uses only the bundled read protocol
     run: cat .git/fixture-gh/protocol
     expect_exact: |-

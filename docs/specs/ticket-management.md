@@ -51,7 +51,9 @@ stable intent ("create a ticket for X") while the backend stays swappable.
   the skills state the selected tracker's prerequisites. Provider-specific CLI
   calls, field mappings, identifiers, and linking syntax stay in its bundled
   adapter. Consumers request operations by intent and select a tracker matching
-  the user's explicit choice or established project context. The CLI accepts an
+  the user's explicit choice or established project context. A skill backed
+  only by GitHub must not activate for an explicitly requested unsupported
+  tracker. The CLI accepts an
   explicit provider option. With only one bundled adapter, it is the default;
   when several are bundled and no provider is selected, refuse before tracker
   access. The caller must clarify unresolved ambiguity. A failed selected
@@ -103,16 +105,27 @@ breaks down under an umbrella, belongs to the planning capabilities.
 
 ### Contract
 
-Produce exactly one well-formed ticket that captures the problem or desired
-outcome. Search for existing tickets first, choose the type deliberately,
-build the body from real evidence, then create.
+Produce one well-formed ticket, or the explicitly requested finite set of
+distinct tickets, capturing only the problems or outcomes the caller already
+identified. Search for existing tickets, choose types deliberately, and build
+each body from real evidence before creating it. A request with several
+acceptance criteria for one outcome remains one ticket. The capability does not
+decompose a broad request into tickets on its own.
 
 ### Invariants
 
-- **TM-C1 — One ticket, deduped.** Search open tickets for the same problem
-  before creating. A plausible existing match is reported (id + title) and
-  nothing is created — the user decides whether to file anyway. Exactly one
-  ticket per invocation.
+- **TM-C1 — Explicit finite batch, individually deduped.** An ordinary singular
+  request creates at most one ticket. Create several only when the caller
+  explicitly identifies a finite set of distinct intended tickets; clarify an
+  ambiguous count, outcome, or requested relationship before any mutation.
+  Search open tickets for the same problem separately for each item, after any
+  earlier item was created and before creating this one, and compare it with
+  earlier batch outcomes. A capped search cannot clear an item: narrow
+  the query or raise the limit until plausible candidates can be assessed; if
+  the result remains incomplete, leave that item uncreated. A plausible
+  existing match is reported with id and title; skip that item until the user
+  decides whether to file anyway, while continuing independent items. A shared
+  component or keyword alone does not make two tickets duplicates.
 - **TM-C2 — Deliberate type.** The type (bug, feature, task, chore) is
   chosen from the request and evidence, stated in the report, and mapped to
   the backend's taxonomy by the script.
@@ -142,13 +155,24 @@ build the body from real evidence, then create.
   TM-C1/TM-C6.
 - **TM-C9 — Relations by request.** `depends-on` and `parent` relations are
   set at creation only when the caller names them, per the relations
-  contract (TM-2/TM-3).
+  contract (TM-2/TM-3). Verify each requested relation by reading the created
+  ticket after the write. If a relation cannot be confirmed, report the ticket
+  as created with an unverified or failed relation, not as absent.
+- **TM-C10 — Complete batch accounting.** Classify, deduplicate, ground the
+  body, validate metadata, and verify relations separately for every requested
+  item. Report each item as created with its id and canonical URL, skipped as a
+  plausible duplicate, refused, or not attempted, including omissions and
+  reasons. A provider failure stops pending mutations under TM-P3; already
+  created tickets remain visible, and no automatic rollback or second creation
+  attempt occurs. A skipped item does not prevent independent items from
+  proceeding. Never substitute a missing batch relation target.
 
 ### Non-goals
 
 Refining or elaborating the request beyond what is already known (TM-C4),
 planning or breaking down the work, deciding dependency or parent/child
-structure (recording caller-named relations is TM-C9), bulk creation,
+structure (recording caller-named relations is TM-C9), unbounded or inferred
+bulk creation,
 sprint/board placement, creating labels or milestones, updating existing
 tickets (see update-ticket), starting the work itself (branching goes
 through the git capability's intents).

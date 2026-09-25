@@ -1,0 +1,64 @@
+id: create-ticket-batch-duplicate
+invariant: TM-C1, TM-C10
+activation: competition
+mount_plugin_skills: true
+prompt: >-
+  Create two separate bug tickets in this request. First: ticket listing dies
+  with SIGPIPE when a repository has hundreds of open tickets. Expected: the
+  list finishes; reproduce by running the ticket list in a repository with
+  hundreds of open issues. Second: CSV import crashes with
+  `TypeError: undefined is not a function at parseAccounts (sync.ts:42)`.
+  Expected: import finishes and prints a summary. Reproduce with
+  `bun run sync` on accounts imported from CSV.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+  bin:
+    gh: |
+      #!/bin/sh
+      backend="$(git rev-parse --absolute-git-dir)/tickets-fixture"
+      exec uv run --quiet --frozen --no-dev --project "$backend" python "$backend/tests/eval_gh.py" "$@"
+  setup: |
+    mkdir -p .git/tickets-fixture/tests
+    cp "{{case_dir}}/../../../backend/pyproject.toml" "{{case_dir}}/../../../backend/uv.lock" .git/tickets-fixture/
+    cp -R "{{case_dir}}/../../../backend/src" .git/tickets-fixture/
+    cp "{{case_dir}}/../../../backend/tests/eval_gh.py" .git/tickets-fixture/tests/
+    git remote add origin https://github.test/o/r.git
+    mkdir -p .git/fixture-gh
+    printf 'bug\n' > .git/fixture-gh/labels
+    printf '#12 open  ticket list crashes with SIGPIPE on repos with many tickets (bug)\n' > .git/fixture-gh/list
+checks:
+  - name: only the distinct second ticket was created
+    run: cat .git/fixture-gh/created-ids
+    expect_regex: "^99$"
+  - name: created ticket covers the CSV import crash
+    run: cat .git/fixture-gh/issue-99-body
+    expect_regex: "TypeError: undefined is not a function at parseAccounts"
+  - name: each item was searched before the distinct creation
+    run: |
+      awk '
+        /^issue list .*--search / {
+          searches++
+          if ($0 ~ /SIGPIPE/) duplicate_searched = 1
+          if (searches > 1 && duplicate_searched &&
+              tolower($0) ~ /(csv|parseaccounts|typeerror|import)/)
+            distinct_searched = 1
+          next
+        }
+        /^issue create / {
+          if (!duplicate_searched || !distinct_searched) exit 1
+          created++
+        }
+        END { if (created != 1) exit 1 }
+      ' .git/fixture-gh/calls || {
+        cat .git/fixture-gh/calls
+        exit 1
+      }
+semantic_output_checks:
+  - name: duplicate and created item both have outcomes
+    proposition: >-
+      The response reports #12 and its ticket-list SIGPIPE title as a plausible
+      duplicate that was not created, and identifies the distinct CSV import
+      ticket with its canonical URL.
