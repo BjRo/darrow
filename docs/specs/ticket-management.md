@@ -30,6 +30,14 @@ stable intent ("create a ticket for X") while the backend stays swappable.
   output records, refusals, and exit codes of the existing GitHub provider.
   Use argument-vector subprocesses, explicit UTF-8 JSON decoding and validation,
   and native filesystem and temporary-file handling on Linux, macOS, and Windows.
+  Ticket body drafts allocated by the CLI and its separate copy passed to the
+  provider use `$HOME/.darrow/tmp` on Linux/macOS or
+  `%LOCALAPPDATA%\Darrow\Tmp` on Windows. `DARROW_TMP_DIR` may select another
+  absolute directory. Create the root on demand, require user-owned private
+  access on POSIX, and use the selected directory's ACL on Windows. Refuse
+  unusable roots without falling back to a system temp directory,
+  and remove per-operation files after use. Draft allocation is local and
+  requires no tracker selection or contact.
   Provider failures must stop pending mutations; completed mutations remain
   visible if a later relation write or read fails. Validate with mocked provider
   operations, generated boundary cases, and fresh copied-plugin execution;

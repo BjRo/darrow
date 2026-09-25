@@ -80,12 +80,16 @@ adapter explicitly. Unsupported choices, including `--provider linear`, refuse
 before tracker access. A supplied URL is validated by the selected adapter;
 its appearance does not select a tracker.
 
-The commands remain `inspect`, `list`, `get`, `create`, `comment`, `describe`,
+The commands include local `temp-file`, plus `inspect`, `list`, `get`, `create`, `comment`, `describe`,
 `close`, `reopen`, `label`, and `relate`. Existing GitHub options, compact reports,
 refusals, and exit codes are preserved. There is no Bash compatibility launcher.
 GitHub JSON is decoded and validated in Python; subprocesses use argument
 vectors and the resolved origin's host/repository. Temporary creation payloads
-are closed before `gh` opens them and removed after success or failure.
+use `$HOME/.darrow/tmp` on Linux/macOS or `%LOCALAPPDATA%\Darrow\Tmp` on Windows.
+Set `DARROW_TMP_DIR` to another absolute directory if needed. `temp-file`
+allocates a private skill draft without contacting the tracker; the skill
+deletes it after use. The separate provider copy is closed before `gh` opens
+it and removed after success or failure.
 
 Exit codes: 2 input/filesystem error, 3 unusable backend, 4 provider failure,
 5 invalid title, 6 attribution, 7 body structure, 8 label error, 9 state refusal,
@@ -126,7 +130,7 @@ uv run --quiet --no-project "<plugin-root>/backend/scripts/run_locked.py" python
 ```
 
 It checks the installed entrypoint, absence of development dependencies and old
-launchers, and all ten commands from a fresh copy. Git runs natively and `gh`
+launchers, and all eleven commands from a fresh copy. Git runs natively and `gh`
 must be installed; provider operations are mocked so validation cannot write
 to live GitHub state. The colocated skill evals exercise judgment separately.
 

@@ -1,4 +1,6 @@
+import os
 from collections.abc import Callable
+from pathlib import Path
 
 import pytest
 
@@ -58,6 +60,10 @@ def test_create_metadata(
     assert "created: #99 https://github.test/o/r/issues/99" in output
     assert ("no existing label" in output) != mapped
     assert all(not path.exists() for path in backend.paths)
+    assert all(
+        path.parent.parent == Path(os.environ["DARROW_TMP_DIR"])
+        for path in backend.paths
+    )
     assert not backend.replies
 
 

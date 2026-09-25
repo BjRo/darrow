@@ -6,6 +6,7 @@ from pathlib import Path
 
 from ...arguments import Arguments
 from ...errors import TicketError
+from ...temporary import temporary_root
 from ...validation import (
     check_attribution,
     check_structure,
@@ -50,7 +51,9 @@ def create_issue(
     args: Arguments, provider: Provider, body: str, labels: list[str]
 ) -> str:
     # Close before gh opens the file (required on native Windows); always clean up.
-    with tempfile.TemporaryDirectory(prefix="darrow-ticket-") as directory:
+    with tempfile.TemporaryDirectory(
+        prefix="darrow-ticket-", dir=temporary_root()
+    ) as directory:
         path = Path(directory) / "body.md"
         path.write_bytes((body + "\n").encode("utf-8"))
         command = [

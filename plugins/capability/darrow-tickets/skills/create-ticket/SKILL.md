@@ -175,8 +175,11 @@ current knowledge.
 
 ### 4. Apply only caller-authorized metadata and create
 
-For each item to create, write its body to a private temporary file outside
-the repository, then run one `create` command for that item:
+For each item to create, run the locked `darrow-ticket temp-file` command and
+write its body to the absolute draft path it returns. The command allocates a
+private file under `$HOME/.darrow/tmp` on Linux/macOS or
+`%LOCALAPPDATA%\Darrow\Tmp` on Windows (`DARROW_TMP_DIR` overrides the root).
+It makes no tracker call. Run one `create` command for that item:
 
 ```sh
 uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-ticket create --title <title> --type <type> --body-file <absolute-file> \
@@ -184,6 +187,11 @@ uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" da
   [--assignee <named-value>] [--depends-on <caller-named-id>]... \
   [--parent <caller-named-id>]
 ```
+
+Delete the allocated draft after the final create attempt, including a refusal.
+If a local input error needs correction, reuse the draft and delete it after
+the corrected attempt. The CLI removes its separate provider copy itself.
+Do not leave ticket bodies in the repository or a system temp directory.
 
 Never infer `depends-on` or `parent` from content, and never hand-write relation
 markers into the body. Use the ID returned by an earlier creation only when
