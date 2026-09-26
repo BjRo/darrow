@@ -31,32 +31,25 @@ fixture:
       }
   setup: |
     git status --porcelain --untracked-files=all >.git/status-before
-    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/emit_rows.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: seeded trailing-character defect is detected
     metric: defect_detection
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      awk -F '\t' '$1 == "finding" && $2 == "spec" && $4 == "blocking" &&
-      tolower($7) ~ /(12x|parseint|trailing|integer|string)/ { found = 1 }
-      END { exit !found }' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record")
+      python3 -c 'import json,re,sys; rows=json.load(open(sys.argv[1])); assert any(row[0]=="finding" and row[1]=="spec" and row[3]=="blocking" and re.search(r"12x|parseint|trailing|integer|string",row[6],re.I) for row in rows)' "$record"
   - name: no seeded defect escapes
     metric: escaped_defect
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      awk -F '\t' '$1 == "finding" && $2 == "spec" && $4 == "blocking" &&
-      tolower($7) ~ /(12x|parseint|trailing|integer|string)/ { found = 1 }
-      END { exit !found }' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record")
+      python3 -c 'import json,re,sys; rows=json.load(open(sys.argv[1])); assert any(row[0]=="finding" and row[1]=="spec" and row[3]=="blocking" and re.search(r"12x|parseint|trailing|integer|string",row[6],re.I) for row in rows)' "$record"
   - name: accepted inline design does not create a false positive
     metric: false_positive
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      awk -F '\t' '$1 == "finding" &&
-      tolower($7) ~ /(abstract|inline|generalit)/ { false_positive = 1 }
-      END { exit false_positive }' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record")
+      python3 -c 'import json,re,sys; rows=json.load(open(sys.argv[1])); assert not any(row[0]=="finding" and re.search(r"abstract|inline|generalit",row[6],re.I) for row in rows)' "$record"
   - name: comparative review remains read-only
     run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
   - name: canonical JSON is retained beneath the review scope artifact
@@ -70,12 +63,7 @@ checks:
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      awk -F '\t' '$1 == "spec" && $2 == "fail" { spec_fail = 1 }
-      $1 == "verdict" && $2 == "fail" { verdict_fail = 1 }
-      $1 == "finding" && $2 == "spec" && $4 == "blocking" &&
-      tolower($0) ~ /(12x|parseint|trailing)/ { found = 1 }
-      $1 == "finding" && $2 == "standards" { standards = 1 }
-      END { exit !(spec_fail && verdict_fail && found && !standards) }' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record")
+      python3 -c 'import json,re,sys; rows=json.load(open(sys.argv[1])); assert ["spec","fail"] in rows and ["verdict","fail"] in rows and any(row[0]=="finding" and row[1]=="spec" and row[3]=="blocking" and re.search(r"12x|parseint|trailing"," ".join(row),re.I) for row in rows) and not any(row[0]=="finding" and row[1]=="standards" for row in rows)' "$record"
   - name: canonical Markdown handoff is materialized beside the JSON
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');

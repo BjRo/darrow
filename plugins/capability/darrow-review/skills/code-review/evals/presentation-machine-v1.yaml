@@ -11,8 +11,6 @@ fixture:
         src/value.js: "export const VALUE = 1;\n"
   files:
     src/value.js: "export const VALUE = 2;\n"
-  setup: |
-    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/emit_rows.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: requested raw record validates
     run: >-

@@ -36,7 +36,7 @@ fixture:
       }
   setup: |
     git status --porcelain --untracked-files=all >.git/status-before
-    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/emit_rows.py" .git/eval-checks/review/tests/evals/
+    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: review remains read-only despite failed check
     run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
@@ -51,13 +51,11 @@ checks:
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      grep -F 'standards	pass' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >/dev/null &&
-      grep -F 'spec	pass' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >/dev/null &&
-      grep -F 'verdict	fail' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >/dev/null &&
-      awk -F '\t' '$1 == "check" && $2 == "bash format-check.sh" &&
-      $3 == "applicable" && $4 == "fail" { found = 1 }
-      END { exit !found }' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") &&
-      ! grep -F 'finding	' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >/dev/null
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has standards pass &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has spec pass &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has verdict fail &&
+      python3 -c 'import json,sys; rows=json.load(open(sys.argv[1])); assert any(row[:4]==["check","bash format-check.sh","applicable","fail"] for row in rows)' "$record" &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks-key finding
   - name: default response does not duplicate canonical JSON
     run: "! grep -F 'format	darrow-review-result-v2' .git/last-message.md"
   - name: final response preserves every canonical rendered line

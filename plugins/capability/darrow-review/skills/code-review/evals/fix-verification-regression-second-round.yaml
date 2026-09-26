@@ -37,34 +37,44 @@ fixture:
     original_target=ORIGINAL-TARGET-SECOND-ROUND
     original_key=standards:1:$original_target
     regression_key=regression:1:$original_key
-    {
-      printf 'format\tdarrow-review-verification-v2\n'
-      printf 'original_target\t%s\n' "$original_target"
-      printf 'prior_target\t%s\n' "$original_target"
-      printf 'current_target\t%s\n' "$prior_target"
-      printf 'previous_verification\tnone\tnone\n'
-      printf 'original_finding\t%s\tstandards\t1\thigh\tblocking\tconfig.env:1\t%s/AGENTS.md\tMODE was bad\n' "$original_key" "$PWD"
-      printf 'attempt\t%s\tresolved\tresolved\tMODE is good\n' "$original_key"
-      printf 'regression\t%s\t%s\t1\tstandards\thigh\tunresolved\tprogressing\tconfig.env:2\t%s/AGENTS.md\tRESULT is missing after the repair\n' "$regression_key" "$original_key" "$PWD"
-      printf 'check\tbash check.sh\tapplicable\tfail\tRESULT is missing\n'
-      printf 'outcome\tcontinue\n'
-      printf 'next_action\trepair the carried regression\n'
-    } | python3 "{{case_dir}}/../../../backend/tests/evals/assemble_fixture.py" >"$prior_verification"
+    python3 - "$original_target" "$prior_target" "$original_key" "$regression_key" "$PWD" <<'PY' >"$prior_verification"
+    import json, sys
+    original, prior, original_key, regression_key, repo = sys.argv[1:]
+    rows = [
+        ["format", "darrow-review-verification-v2"],
+        ["original_target", original],
+        ["prior_target", original],
+        ["current_target", prior],
+        ["previous_verification", "none", "none"],
+        ["original_finding", original_key, "standards", "1", "high", "blocking", "config.env:1", f"{repo}/AGENTS.md", "MODE was bad"],
+        ["attempt", original_key, "resolved", "resolved", "MODE is good"],
+        ["regression", regression_key, original_key, "1", "standards", "high", "unresolved", "progressing", "config.env:2", f"{repo}/AGENTS.md", "RESULT is missing after the repair"],
+        ["check", "bash check.sh", "applicable", "fail", "RESULT is missing"],
+        ["outcome", "continue"],
+        ["next_action", "repair the carried regression"],
+    ]
+    json.dump(rows, sys.stdout)
+    PY
     uv run --quiet --frozen --no-dev --project "$backend" review-result validate-verification "$prior_verification"
     prior_hash=$(git hash-object --no-filters "$prior_verification")
-    {
-      printf 'original_target\t%s\n' "$original_target"
-      printf 'prior_target\t%s\n' "$prior_target"
-      printf 'prior_manifest\t%s\n' "$prior_manifest"
-      printf 'previous_verification\t%s\t%s\n' "$prior_hash" "$prior_verification"
-      printf 'original_key\t%s\n' "$original_key"
-      printf 'regression_key\t%s\n' "$regression_key"
-    } | python3 "{{case_dir}}/../../../backend/tests/evals/assemble_fixture.py" >.git/verification-input
+    python3 - "$original_target" "$prior_target" "$prior_manifest" "$prior_hash" "$prior_verification" "$original_key" "$regression_key" <<'PY' >.git/verification-input
+    import json, sys
+    original, prior, manifest, prior_hash, verification, original_key, regression_key = sys.argv[1:]
+    rows = [
+        ["original_target", original],
+        ["prior_target", prior],
+        ["prior_manifest", manifest],
+        ["previous_verification", prior_hash, verification],
+        ["original_key", original_key],
+        ["regression_key", regression_key],
+    ]
+    json.dump(rows, sys.stdout)
+    PY
     cp .git/current-config config.env
     git hash-object config.env >.git/config-before
     git status --porcelain --untracked-files=all >.git/status-before
     printf '%s\n' "$backend" >.git/review-backend
-    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/emit_rows.py" .git/eval-checks/review/tests/evals/
+    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: second verification remains read only
     run: >-
@@ -82,16 +92,14 @@ checks:
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' ! -path "$previous_relative" -name verification.json -type f -print) &&
       test -n "$record" && test "$record" != "$previous_path" &&
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-verification "$record" &&
-      awk -F '\t' -v key="$regression_key" '$1 == "regression" && $2 == key && $7 == "resolved" && $8 == "resolved" { found=1 } END { exit found ? 0 : 1 }' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") &&
-      awk -F '\t' '$1 == "outcome" && $2 == "clear" { found=1 } END { exit found ? 0 : 1 }' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record")
+      python3 -c 'import json,sys; rows=json.load(open(sys.argv[1])); assert any(row[0]=="regression" and row[1]==sys.argv[2] and row[6:8]==["resolved","resolved"] for row in rows)' "$record" "$regression_key" &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has outcome clear
   - name: verification binds the previous artifact
     run: >-
       previous_path=$(python3 -c 'import json; print(next(row[2] for row in json.load(open(".git/verification-input")) if row[0] == "previous_verification"))') &&
       previous_relative=${previous_path#"$PWD"/} &&
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' ! -path "$previous_relative" -name verification.json -type f -print) &&
-      expected=$(awk -F '\t' '$1 == "previous_verification" { print $2 "\t" $3 }' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py .git/verification-input)) &&
-      actual=$(awk -F '\t' '$1 == "previous_verification" { print $2 "\t" $3 }' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record")) &&
-      test "$actual" = "$expected"
+      python3 -c 'import json,sys; expected=[row for row in json.load(open(sys.argv[1])) if row[0]=="previous_verification"]; actual=[row for row in json.load(open(sys.argv[2])) if row[0]=="previous_verification"]; assert len(expected)==len(actual)==1 and expected==actual' .git/verification-input "$record"
   - name: final response is the complete rendered verification report
     run: >-
       previous_path=$(python3 -c 'import json; print(next(row[2] for row in json.load(open(".git/verification-input")) if row[0] == "previous_verification"))') &&

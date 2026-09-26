@@ -29,18 +29,18 @@ fixture:
     cp "{{case_dir}}/../../../backend/pyproject.toml" "{{case_dir}}/../../../backend/uv.lock" .git/eval-checks/review/
     cp -R "{{case_dir}}/../../../backend/src" .git/eval-checks/review/
     cp "{{case_dir}}/../../../backend/tests/evals/eval_routes.py" .git/eval-checks/review/tests/evals/
-    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/emit_rows.py" .git/eval-checks/review/tests/evals/
+    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: repository reviewer policy is retained with the pinned scope
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name reviewer-route.json -type f | sort | tail -n '1');
-      test -n "$record" && grep -F 'route_source	repository' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >/dev/null
+      test -n "$record" && python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has route_source repository
   - name: configured host route is selected without inheritance
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name reviewer-route.json -type f | sort | tail -n '1');
       test -n "$record" && case "$DARROW_EVAL_HARNESS" in
-      codex) grep -F 'selected_route	codex	openai	gpt-5.5	xhigh' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >/dev/null ;;
-      claude) grep -F 'selected_route	claude	anthropic	claude-sonnet-5	high' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >/dev/null ;;
+      codex) python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has selected_route codex openai gpt-5.5 xhigh ;;
+      claude) python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has selected_route claude anthropic claude-sonnet-5 high ;;
       *) exit 2 ;; esac
   - name: both isolated axes retain exact route application evidence
     run: >-

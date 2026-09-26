@@ -13,7 +13,7 @@ fixture:
       files:
         after.txt: "after\n"
   setup: |
-    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/emit_rows.py" .git/eval-checks/review/tests/evals/
+    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: fixed-point review remains clean
     run: test -z "$(git status --porcelain --untracked-files=all)"
@@ -29,11 +29,10 @@ checks:
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       base=$(git rev-parse HEAD~1) && target=$(git rev-parse HEAD) &&
-      grep -F "base	$base" <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >/dev/null &&
-      grep -F "target	$target" <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >/dev/null &&
-      grep -F 'spec	not_available' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >/dev/null &&
-      awk -F '\t' '$1 == "changed_file" { count++; if ($2 ~ /\/after[.]txt$/) found = 1 }
-      END { exit !(count == 1 && found) }' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record")
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has "base" "$base" &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has "target" "$target" &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has spec not_available &&
+      python3 -c 'import json,sys; files=[row[1] for row in json.load(open(sys.argv[1])) if row[0]=="changed_file"]; assert len(files)==1 and files[0].endswith("/after.txt")' "$record"
   - name: default response does not duplicate canonical JSON
     run: "! grep -F 'format	darrow-review-result-v2' .git/last-message.md"
   - name: final response preserves every canonical rendered line

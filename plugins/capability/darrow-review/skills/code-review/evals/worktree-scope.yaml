@@ -21,7 +21,7 @@ fixture:
     printf 'staged\nunstaged\n' >staged.txt
     printf 'untracked\n' >untracked.txt
     git status --porcelain --untracked-files=all >.git/status-before
-    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/emit_rows.py" .git/eval-checks/review/tests/evals/
+    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: every declared layer remains unchanged
     run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
@@ -38,12 +38,8 @@ checks:
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      grep -F 'spec	not_available' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >/dev/null &&
-      awk -F '\t' '$1 == "changed_file" {
-      count++; if ($2 ~ /\/committed[.]txt$/) committed++;
-      if ($2 ~ /\/staged[.]txt$/) staged++;
-      if ($2 ~ /\/untracked[.]txt$/) untracked++ }
-      END { exit !(count == 3 && committed == 1 && staged == 1 && untracked == 1) }' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record")
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has spec not_available &&
+      python3 -c 'import json,sys; files=[row[1] for row in json.load(open(sys.argv[1])) if row[0]=="changed_file"]; assert len(files)==3 and all(sum(path.endswith("/"+name+".txt") for path in files)==1 for name in ("committed","staged","untracked"))' "$record"
   - name: default response does not duplicate canonical JSON
     run: "! grep -F 'format	darrow-review-result-v2' .git/last-message.md"
   - name: final response preserves every canonical rendered line

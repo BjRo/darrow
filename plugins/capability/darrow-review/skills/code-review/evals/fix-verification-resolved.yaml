@@ -43,22 +43,27 @@ fixture:
     prior_output=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
     prior_manifest=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; key=sys.argv[1]; print(next(row[1] for row in json.load(sys.stdin) if row[0] == key))' manifest)
     original_target=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; key=sys.argv[1]; print(next(row[1] for row in json.load(sys.stdin) if row[0] == key))' target)
-    {
-      printf 'original_target\t%s\n' "$original_target"
-      printf 'prior_target\t%s\n' "$original_target"
-      printf 'prior_manifest\t%s\n' "$prior_manifest"
-      printf 'previous_verification\tnone\tnone\n'
-      printf 'original_finding\tstandards:1:%s\tstandards\t1\thigh\tblocking\tsrc/config.js:1\t%s/AGENTS.md\tDEBUG remained enabled\n' "$original_target" "$PWD"
-      printf 'original_finding\tspec:2:%s\tspec\t2\thigh\tblocking\tsrc/config.js:2\trequirement: TIMEOUT_MS must be 2500\tTIMEOUT_MS was 1000\n' "$original_target"
-      printf 'original_finding\tspec:3:%s\tspec\t3\tlow\tadvisory\tsrc/config.js:3\tmaintenance note\tLEGACY was retained\n' "$original_target"
-      printf 'attempted\tstandards:1:%s\n' "$original_target"
-      printf 'attempted\tspec:2:%s\n' "$original_target"
-      printf 'attempted\tspec:3:%s\n' "$original_target"
-    } | python3 "{{case_dir}}/../../../backend/tests/evals/assemble_fixture.py" >.git/verification-input
+    python3 - "$original_target" "$prior_manifest" "$PWD" <<'PY' >.git/verification-input
+    import json, sys
+    target, manifest, repo = sys.argv[1:]
+    rows = [
+        ["original_target", target],
+        ["prior_target", target],
+        ["prior_manifest", manifest],
+        ["previous_verification", "none", "none"],
+        ["original_finding", f"standards:1:{target}", "standards", "1", "high", "blocking", "src/config.js:1", f"{repo}/AGENTS.md", "DEBUG remained enabled"],
+        ["original_finding", f"spec:2:{target}", "spec", "2", "high", "blocking", "src/config.js:2", "requirement: TIMEOUT_MS must be 2500", "TIMEOUT_MS was 1000"],
+        ["original_finding", f"spec:3:{target}", "spec", "3", "low", "advisory", "src/config.js:3", "maintenance note", "LEGACY was retained"],
+        ["attempted", f"standards:1:{target}"],
+        ["attempted", f"spec:2:{target}"],
+        ["attempted", f"spec:3:{target}"],
+    ]
+    json.dump(rows, sys.stdout)
+    PY
     git status --porcelain --untracked-files=all >.git/status-before
     git hash-object src/config.js >.git/config-before
     printf '%s\n' "$backend" >.git/review-backend
-    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/emit_rows.py" .git/eval-checks/review/tests/evals/
+    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: verification preserves the repair bytes
     run: git hash-object src/config.js >.git/config-after; cmp .git/config-before .git/config-after
@@ -74,7 +79,7 @@ checks:
       expected_repo=$(pwd -P) &&
       git_dir=$(git rev-parse --absolute-git-dir) &&
       git_dir=$(cd "$git_dir" && pwd -P) &&
-      test "$(awk -F '\t' '$1 == "repository" { print $2 }' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$manifest"))" = "$expected_repo" &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$manifest" has repository "$expected_repo" &&
       case "$manifest" in "$git_dir"/*) ;; *) exit 1 ;; esac
   - name: additive verification artifact validates and clears
     run: |

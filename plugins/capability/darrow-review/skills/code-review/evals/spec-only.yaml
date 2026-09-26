@@ -27,7 +27,6 @@ fixture:
       }
   setup: |
     git status --porcelain --untracked-files=all >.git/status-before
-    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/emit_rows.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: review is read-only
     run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after

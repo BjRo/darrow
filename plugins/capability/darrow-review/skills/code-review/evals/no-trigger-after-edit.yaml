@@ -9,8 +9,6 @@ fixture:
     - message: "chore: init"
       files:
         src/config.js: "export const DEFAULT_TIMEOUT_MS = 1000;\n"
-  setup: |
-    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/emit_rows.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: ordinary edit intent is fulfilled
     run: grep -F 'DEFAULT_TIMEOUT_MS = 2500' src/config.js

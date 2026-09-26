@@ -13,7 +13,7 @@ fixture:
     value.txt: "after\n"
   setup: |
     git status --porcelain --untracked-files=all >.git/status-before
-    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/emit_rows.py" .git/eval-checks/review/tests/evals/
+    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: invalid preflight preserves the working tree
     run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
@@ -28,11 +28,12 @@ checks:
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      grep -F 'base	release/does-not-exist' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >/dev/null &&
-      grep -F 'standards	blocked' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >/dev/null &&
-      grep -F 'spec	not_available' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >/dev/null &&
-      grep -F 'verdict	blocked' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >/dev/null &&
-      ! grep -E '^(changed_file|finding)	' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >/dev/null
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has base release/does-not-exist &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has standards blocked &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has spec not_available &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has verdict blocked &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks-key changed_file &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks-key finding
   - name: invalid scope invokes no reviewer
     run: >-
       case "$DARROW_EVAL_HARNESS" in

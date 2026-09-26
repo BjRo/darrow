@@ -1,6 +1,11 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join } from "node:path";
+import {
+  oneRow as row,
+  oneValue as value,
+  parseRecords,
+} from "./review-records";
 
 type JsonObject = Record<string, unknown>;
 type JsonEntry = { line: number; value: JsonObject };
@@ -48,38 +53,6 @@ function jsonLines(content: string, label: string): JsonEntry[] {
       line: index + 1,
       value: object(JSON.parse(line), `${label} line ${index + 1}`),
     }));
-}
-
-function parseRecords(content: string): Map<string, string[][]> {
-  const parsed: unknown = JSON.parse(content);
-  if (!Array.isArray(parsed))
-    throw new Error("review record must be a JSON array");
-  const rows = new Map<string, string[][]>();
-  for (const item of parsed) {
-    if (
-      !Array.isArray(item) ||
-      !item.length ||
-      item.some((field) => typeof field !== "string")
-    )
-      throw new Error("review rows must be nonempty string arrays");
-    const [key, ...values] = item as string[];
-    if (!key) throw new Error("record contains an empty key");
-    rows.set(key, [...(rows.get(key) ?? []), values]);
-  }
-  return rows;
-}
-
-function row(rows: Map<string, string[][]>, key: string): string[] {
-  const found = rows.get(key) ?? [];
-  if (found.length !== 1) throw new Error(`record must contain one ${key} row`);
-  return found[0] ?? [];
-}
-
-function value(rows: Map<string, string[][]>, key: string): string {
-  const found = row(rows, key);
-  if (found.length !== 1 || !found[0])
-    throw new Error(`${key} must contain one non-empty value`);
-  return found[0];
 }
 
 function selectedRoute(content: string): Route {

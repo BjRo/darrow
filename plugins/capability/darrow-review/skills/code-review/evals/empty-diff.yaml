@@ -10,7 +10,7 @@ fixture:
       files:
         README.md: "# Clean fixture\n"
   setup: |
-    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/emit_rows.py" .git/eval-checks/review/tests/evals/
+    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: clean repository remains clean
     run: test -z "$(git status --porcelain --untracked-files=all)"
@@ -25,10 +25,11 @@ checks:
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      grep -F 'standards	blocked' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >/dev/null &&
-      grep -F 'spec	not_available' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >/dev/null &&
-      grep -F 'verdict	blocked' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >/dev/null &&
-      ! grep -E '^(changed_file|finding)	' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >/dev/null
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has standards blocked &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has spec not_available &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has verdict blocked &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks-key changed_file &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks-key finding
   - name: terminal scope failure invokes no reviewer
     run: >-
       case "$DARROW_EVAL_HARNESS" in

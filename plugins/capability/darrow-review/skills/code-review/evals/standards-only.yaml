@@ -28,7 +28,6 @@ fixture:
     cp -R "{{case_dir}}/../../../backend/src" .git/eval-checks/review/
     cp "{{case_dir}}/../../../backend/tests/evals/eval_routes.py" .git/eval-checks/review/tests/evals/
     git status --porcelain --untracked-files=all >.git/status-before
-    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/emit_rows.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: review preserves the complete working tree
     run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after

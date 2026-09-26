@@ -25,8 +25,6 @@ fixture:
         console.log("<token> & `debug`", value);
         return Number(value);
       }
-  setup: |
-    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/emit_rows.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: raw JSON stays beneath the review artifact
     run: test "$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name '*.json' | wc -l | tr -d ' ')" -ge 1

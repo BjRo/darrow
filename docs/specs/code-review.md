@@ -504,7 +504,8 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
     advisory, progressing and unchanged blockers, repeated and oscillating
     targets, a repair-caused regression, an unrelated observation excluded from
     scope, unavailable evidence, and exact-target read-only operation.
-    Acceptance checks compare finding states by JSON field, rather than matching
+    Acceptance checks read JSON fields directly without converting records to
+    a delimiter-based format, and compare finding states rather than matching
     state words inside free-form evidence. Verification presentation checks
     independently render the validated JSON and compare both the retained report
     and final response with that rendering; matching two coordinator-authored
