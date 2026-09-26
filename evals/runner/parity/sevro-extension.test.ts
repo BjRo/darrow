@@ -183,6 +183,28 @@ test("Darrow activation needs a complete and consistent host observation", async
   expect(passed.value.result.domainOutcomes).toMatchObject([
     { status: "passed", evidenceRefs: ["darrow.activation"] },
   ]);
+  const native = {
+    ...observation,
+    id: "sevro.codex.skill-reads",
+    source: "sevro.host.codex",
+    data: { ...observation.data, method: "skill_file_read_probe" },
+  };
+  const nativePassed = await evaluate([native]);
+  expect(nativePassed.value.result.domainOutcomes).toMatchObject([
+    { status: "passed", evidenceRefs: ["sevro.codex.skill-reads"] },
+  ]);
+  const foreign = await evaluate([
+    { ...native, source: "darrow.host.synthetic" },
+  ]);
+  expect(foreign.value.result.domainOutcomes[0]!.status).toBe("unavailable");
+  const unsupportedMethod = await evaluate([
+    { ...native, data: { ...native.data, method: "unverified" } },
+  ]);
+  expect(unsupportedMethod.value.result.domainOutcomes[0]!.status).toBe(
+    "unavailable",
+  );
+  const ambiguous = await evaluate([observation, native]);
+  expect(ambiguous.value.result.domainOutcomes[0]!.status).toBe("unavailable");
   const missed = await evaluate([]);
   expect(missed.value.result.domainOutcomes[0]!.status).toBe("unavailable");
   const partial = await evaluate([{ ...observation, completeness: "partial" }]);
@@ -624,6 +646,33 @@ export default {
   expect(missed.value.cases[0]!.trials[0]!.domainOutcomes[0]!.status).toBe(
     "failed",
   );
+  const nativeAdapter = join(root, "candidate-native-observation.ts");
+  await writeFile(
+    nativeAdapter,
+    (await readFile(adapter, "utf8"))
+      .replace('id: "darrow.host.synthetic"', 'id: "sevro.host.codex"')
+      .replace('id: "darrow.activation"', 'id: "sevro.codex.skill-reads"')
+      .replace(
+        'data: { primarySkill: "example"',
+        'data: { method: "skill_file_read_probe", primarySkill: "example"',
+      ),
+  );
+  const native = await command<CliReply>([
+    ...commonArgs,
+    "--adapter-module",
+    nativeAdapter,
+    "--shell-isolation",
+    "--results-root",
+    join(root, "native-observation-results"),
+  ]);
+  expect(native.code, native.stderr).toBe(0);
+  expect(native.value.cases[0]!.trials[0]!.domainOutcomes).toMatchObject([
+    {
+      id: "darrow.evals.activation",
+      status: "passed",
+      evidenceRefs: ["sevro.codex.skill-reads"],
+    },
+  ]);
   const evidence = JSON.parse(await readFile(run.value.evidencePath, "utf8"));
   expect(
     evidence.trials[0].artifactRefs.filter(

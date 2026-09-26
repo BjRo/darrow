@@ -451,7 +451,10 @@ function activationObservation(value: unknown): RecordValue | null {
     throw new Error("evaluation observations must be an array");
   const matches = value.filter(
     (item) =>
-      item && typeof item === "object" && item.id === "darrow.activation",
+      item &&
+      typeof item === "object" &&
+      (item.id === "darrow.activation" ||
+        item.id === "sevro.codex.skill-reads"),
   );
   return matches.length === 1
     ? record(matches[0], "activation observation")
@@ -471,10 +474,23 @@ function skillSequence(value: unknown): string[] | null {
   return value as string[];
 }
 
+function supportedActivationSource(
+  observation: RecordValue,
+  data: RecordValue,
+): boolean {
+  if (observation.id === "darrow.activation") return true;
+  return (
+    observation.id === "sevro.codex.skill-reads" &&
+    observation.source === "sevro.host.codex" &&
+    data.method === "skill_file_read_probe"
+  );
+}
+
 function observedActivation(observation: RecordValue | null) {
   if (observation?.completeness !== "complete") return null;
   const data = activationData(observation.data);
   if (!data) return null;
+  if (!supportedActivationSource(observation, data)) return null;
   const observedSkills = skillSequence(data.observedSkills);
   if (!observedSkills) return null;
   const primarySkill = data.primarySkill;
@@ -518,7 +534,9 @@ function evaluateCase(params: RecordValue) {
       {
         id: "darrow.evals.activation",
         status,
-        evidenceRefs: observation ? ["darrow.activation"] : [],
+        evidenceRefs: observation
+          ? [string(observation.id, "activation evidence ID")]
+          : [],
         detail: observed
           ? "Activation graded from complete host observation"
           : "Activation observation unavailable or incomplete",

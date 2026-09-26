@@ -17,12 +17,14 @@ bytes enter the fixture identity through their retained artifact digests.
 Executable skill files keep owner execute permission in the fixture and retained
 artifact copy.
 Implicit positive and negative activation cases are supported when they mount
-their owning skill. A complete host observation named `darrow.activation` with
-`primarySkill` and ordered `observedSkills` yields a separate
-`darrow.evals.activation` domain outcome. Missing, partial, duplicate, or
+their owning skill. A complete host observation with `primarySkill` and ordered
+`observedSkills` yields a separate `darrow.evals.activation` domain outcome.
+The bundled Codex route supplies `sevro.codex.skill-reads` for completed direct
+reads of a mounted skill body. Synthetic adapters can supply
+`darrow.activation` for parity tests. Missing, partial, duplicate, foreign, or
 inconsistent observations make activation unavailable without changing the task
-verdict. The synthetic parity adapter proves this protocol path; the bundled
-Codex route does not yet produce the required activation observation.
+verdict. Codex read patterns beyond the bundled host's direct `cat` probe still
+need parity work before focused live validation.
 
 The extension preserves the invariant, source path, and check names in
 namespaced extension data. Other case fields and fixture mechanics fail
