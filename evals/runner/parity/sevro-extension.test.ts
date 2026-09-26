@@ -48,7 +48,11 @@ interface ExtensionReply {
     protocols: string[];
     cases: Array<{
       fixture: { kind: string; commits: Array<{ message: string }> };
-      checks: Array<{ grader: string }>;
+      checks: Array<{
+        id: string;
+        grader: string;
+        configuration: Record<string, unknown>;
+      }>;
       extensionData: { "darrow.case": { invariant: string } };
     }>;
   };
@@ -244,6 +248,117 @@ test("Darrow extension grades combined shell and final-message assertions", asyn
   expect(
     failed.value.cases[0]!.trials[0]!.checks.map((check) => check.status),
   ).toEqual(["passed", "failed"]);
+});
+
+test("Darrow extension grades semantic propositions through an isolated route", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-semantic-"));
+  roots.push(root);
+  const caseDir = join(root, "evals/experiments/example/cases");
+  await mkdir(caseDir, { recursive: true });
+  await writeFile(
+    join(caseDir, "semantic.yaml"),
+    JSON.stringify({
+      id: "semantic-case",
+      invariant: "EXAMPLE-S1",
+      prompt: "Report readiness.",
+      fixture: {
+        commits: [{ message: "Initialize", files: { "README.md": "ready\n" } }],
+      },
+      checks: [],
+      semantic_output_checks: [
+        { name: "readiness", proposition: "The response promises readiness." },
+      ],
+    }),
+  );
+  const resolved = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(root).href,
+      selectors: { caseIds: ["semantic-case"] },
+      configuration: {},
+    }),
+  );
+  expect(resolved.value.result.cases[0]!.checks).toEqual([
+    {
+      id: "darrow.semantic.1",
+      grader: "sevro.semantic",
+      configuration: { proposition: "The response promises readiness." },
+    },
+  ]);
+
+  const checkout = process.env.SEVRO_CHECKOUT;
+  if (!checkout || !checkout.startsWith("/"))
+    throw new Error("SEVRO_CHECKOUT must name an absolute local checkout");
+  const commandFile = join(root, "extension-command.json");
+  const candidate = join(root, "candidate.ts");
+  const semantic = join(root, "semantic.ts");
+  await writeFile(commandFile, JSON.stringify([process.execPath, extension]));
+  await writeFile(
+    semantic,
+    `export default {
+  id: "darrow.host.semantic-synthetic", model: "synthetic-v1", effort: "none",
+  async run({ prompt }) {
+    if (!prompt.includes("The response promises readiness.")) throw new Error("missing proposition");
+    const passed = prompt.includes("The change is ready.");
+    return { finalMessage: JSON.stringify({ checks: [{ id: "darrow.semantic.1", verdict: passed ? "pass" : "fail", reason: "Synthetic semantic verdict" }] }), complete: true };
+  },
+};
+`,
+  );
+  const invoke = async (response: string) => {
+    await writeFile(
+      candidate,
+      `export default {
+  id: "darrow.host.candidate-synthetic", model: "synthetic-v1", effort: "none",
+  async run() { return { finalMessage: ${JSON.stringify(response)}, complete: true }; },
+};
+`,
+    );
+    return command<CliReply>([
+      process.execPath,
+      join(checkout, "src/cli.ts"),
+      "run",
+      "--json",
+      "--extension-command-file",
+      commandFile,
+      "--extension-source-file",
+      extension,
+      "--extension-source-file",
+      join(projectRoot, "package.json"),
+      "--extension-source-file",
+      join(projectRoot, "bun.lock"),
+      "--case-id",
+      "semantic-case",
+      "--adapter-module",
+      candidate,
+      "--semantic-adapter-module",
+      semantic,
+      "--project-root",
+      root,
+      "--results-root",
+      join(root, "results"),
+      "--runner-build-digest",
+      digest,
+      "--project-digest",
+      digest,
+      "--condition",
+      "passive",
+      "--trials",
+      "1",
+      "--threshold",
+      "1",
+    ]);
+  };
+  const passed = await invoke("The change is ready.");
+  expect(passed.code, passed.stderr).toBe(0);
+  expect(passed.value.cases[0]!.trials[0]!.checks).toMatchObject([
+    { id: "darrow.semantic.1", status: "passed" },
+  ]);
+  const failed = await invoke("The change needs work.");
+  expect(failed.code, failed.stderr).toBe(1);
+  expect(failed.value.cases[0]!.trials[0]!.checks).toMatchObject([
+    { id: "darrow.semantic.1", status: "failed" },
+  ]);
 });
 
 test("Sevro runs an existing Darrow case through the extension protocol", async () => {

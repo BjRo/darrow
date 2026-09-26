@@ -168,11 +168,40 @@ function outputChecks(value: unknown) {
   });
 }
 
+function semanticOutputChecks(value: unknown) {
+  if (value === undefined) return [];
+  if (!Array.isArray(value))
+    throw new Error("case semantic_output_checks must be an array");
+  return value.map((entry, index) => {
+    const check = record(entry, `semantic output check ${index + 1}`);
+    keys(check, ["name", "proposition"], `semantic output check ${index + 1}`);
+    string(check.name, `semantic output check ${index + 1} name`);
+    return {
+      id: `darrow.semantic.${index + 1}`,
+      grader: "sevro.semantic",
+      configuration: {
+        proposition: string(
+          check.proposition,
+          `semantic output check ${index + 1} proposition`,
+        ),
+      },
+    };
+  });
+}
+
 function neutralCase(value: unknown, source: string) {
   const selected = record(value, "case");
   keys(
     selected,
-    ["id", "invariant", "prompt", "fixture", "checks", "output_checks"],
+    [
+      "id",
+      "invariant",
+      "prompt",
+      "fixture",
+      "checks",
+      "output_checks",
+      "semantic_output_checks",
+    ],
     "case",
   );
   const id = string(selected.id, "case ID");
@@ -183,6 +212,7 @@ function neutralCase(value: unknown, source: string) {
   const checks = [
     ...shellChecks(selected.checks),
     ...outputChecks(selected.output_checks),
+    ...semanticOutputChecks(selected.semantic_output_checks),
   ];
   return {
     id,
@@ -197,6 +227,9 @@ function neutralCase(value: unknown, source: string) {
         checkNames: [
           ...(selected.checks as RecordValue[]).map((check) => check.name),
           ...((selected.output_checks ?? []) as RecordValue[]).map(
+            (check) => check.name,
+          ),
+          ...((selected.semantic_output_checks ?? []) as RecordValue[]).map(
             (check) => check.name,
           ),
         ],
