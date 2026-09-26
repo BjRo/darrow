@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import io
-import json
+from copy import deepcopy
 from pathlib import Path
+from typing import Any
 
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from darrow_review import cli, report, result
-from darrow_review.common import ReviewError, rows, serialize
+from darrow_review.common import ReviewError, document, serialize
 from darrow_review.records import (
     Records,
     validate_axis,
@@ -17,134 +18,193 @@ from darrow_review.records import (
     validate_result,
 )
 from darrow_review.verification import validate_verification
-from fixtures import change, result_rows, verification_rows, write
+from fixtures import result_record, verification_record, write
+
+
+def axis_record(status: str = "pass", disposition: str = "advisory") -> dict[str, Any]:
+    return {
+        "format": "darrow-review-axis-v3",
+        "axis": "spec",
+        "status": status,
+        "sources": ["request"],
+        "findings": [
+            {
+                "severity": "high",
+                "disposition": disposition,
+                "location": "f:1",
+                "source": "request",
+                "evidence": "evidence",
+            }
+        ],
+    }
+
+
+def fix_axis_record() -> dict[str, Any]:
+    return {
+        "format": "darrow-review-fix-axis-v3",
+        "axis": "spec",
+        "originals": ["key"],
+        "prior_regressions": [{"key": "prior", "caused_by": "key"}],
+        "attempts": [
+            {
+                "key": "key",
+                "status": "resolved",
+                "progress": "resolved",
+                "evidence": "fixed",
+            }
+        ],
+        "regression_attempts": [
+            {
+                "key": "prior",
+                "status": "unresolved",
+                "progress": "progressing",
+                "evidence": "improved",
+            }
+        ],
+        "regressions": [
+            {
+                "caused_by": "key",
+                "severity": "high",
+                "location": "f:1",
+                "source": "request",
+                "evidence": "new failure",
+                "repair_guidance": "repair",
+                "resolution_evidence": "test",
+            }
+        ],
+    }
 
 
 def test_result_wire_format_uses_named_objects() -> None:
-    record = json.loads(serialize(result_rows()))
-    assert record["format"] == "darrow-review-result-v3"
-    assert record["changed_files"] == [str(Path.cwd() / "file.txt")]
-    assert record["findings"] == [
-        {
-            "axis": "spec",
-            "severity": "high",
-            "disposition": "blocking",
-            "location": "file.txt:1",
-            "source": "request",
-            "evidence": "wrong value",
-            "repair_guidance": "restore value",
-            "resolution_evidence": "test value",
-        }
-    ]
-    assert record["checks"] == [
-        {
-            "command": "test",
-            "applicability": "applicable",
-            "status": "pass",
-            "evidence": "exited 0",
-        }
-    ]
+    data = result_record()
+    assert document(serialize(data)) == data
+    assert data["format"] == "darrow-review-result-v3"
+    assert data["changed_files"] == [str(Path.cwd() / "file.txt")]
+    assert data["findings"][0]["repair_guidance"] == "restore value"
+    assert data["checks"][0]["status"] == "pass"
 
 
 def test_original_report_and_handoff(tmp_path: Path) -> None:
-    original = write(tmp_path / "original.json", result_rows())
-    verification = write(tmp_path / "verification.json", verification_rows())
+    original = write(tmp_path / "original.json", result_record())
+    verification = write(tmp_path / "verification.json", verification_record())
     assert "preserved" in cli.result_command(
         ["validate-original", original, verification]
     )
-    assert Records(cli.result_command(["original-findings", original])).get(
-        "original_finding"
-    )[0][:2] == ["original_finding", "spec:1:original"]
+    packet = Records(cli.result_command(["original-findings", original]))
+    assert packet.items("original_findings")[0]["key"] == "spec:1:original"
     assert "valid:" in cli.result_command(["validate", original])
     assert "valid:" in cli.result_command(["validate-verification", verification])
-    text = cli.report_command(["render", original])
-    assert "# Code review — FAIL" in text
-    assert "Repair guidance (advisory)" in text
+    rendered = cli.report_command(["render", original])
+    assert "# Code review — FAIL" in rendered
+    assert "Repair guidance (advisory)" in rendered
     assert (
-        text.index("## Next action")
-        < text.index("## Findings")
-        < text.index("## Scope")
-        < text.index("## Sources")
+        rendered.index("## Next action")
+        < rendered.index("## Findings")
+        < rendered.index("## Scope")
+        < rendered.index("## Sources")
     )
-    rendered = cli.report_command(["render-verification", verification])
-    assert "# Repair verification — CLEAR" in rendered
-    assert "Original evidence" in rendered and "Closed original finding set" in rendered
-    assert rendered.index("## Next action") < rendered.index("## Attempted findings")
-    changed = write(
-        tmp_path / "changed.json",
-        change(
-            verification_rows(),
-            "original_finding",
-            "spec:1:original",
-            "spec",
-            "1",
-            "high",
-            "blocking",
-            "file.txt:1",
-            "request",
-            "rewritten",
-            "restore value",
-            "test value",
-        ),
-    )
+    verified = cli.report_command(["render-verification", verification])
+    assert "# Repair verification — CLEAR" in verified
+    assert "Original evidence" in verified and "Closed original finding set" in verified
+    assert verified.index("## Next action") < verified.index("## Attempted findings")
+    changed = verification_record()
+    changed["original_findings"][0]["evidence"] = "rewritten"
+    path = write(tmp_path / "changed.json", changed)
     with pytest.raises(ReviewError, match="complete ordered finding set"):
-        result.validate_original(original, changed)
+        result.validate_original(original, path)
 
 
-@pytest.mark.parametrize("row_index", range(len(result_rows())))
-def test_required_result_records_reject_extra_fields(row_index: int) -> None:
-    records = result_rows()
-    records[row_index].append("unexpected")
+@pytest.mark.parametrize("container", ["root", "finding", "check"])
+def test_result_schema_rejects_extra_fields(container: str) -> None:
+    data = result_record()
+    target = (
+        data
+        if container == "root"
+        else data["findings" if container == "finding" else "checks"][0]
+    )
+    target["unexpected"] = "value"
     with pytest.raises(ReviewError):
-        validate_result(serialize(records))
-
-
-@pytest.mark.parametrize("row_index", range(len(verification_rows())))
-def test_verification_records_reject_missing_fields(row_index: int) -> None:
-    records = verification_rows()
-    records[row_index] = records[row_index][:1]
-    with pytest.raises(ReviewError):
-        validate_verification(serialize(records))
+        validate_result(serialize(data))
 
 
 @pytest.mark.parametrize(
-    ("kind", "fields"),
+    "field",
     [
-        ("format", ["other"]),
-        ("base", [""]),
-        ("changed_file", ["relative"]),
-        ("standards", ["unknown"]),
-        ("spec", ["not_available"]),
-        ("spec_source", ["not_available"]),
-        ("verdict", ["pass"]),
-        ("finding", ["spec", "high", "blocking", "f:1", "heuristic:guess", "bad"]),
-        ("check", ["test", "unknown", "pass", "evidence"]),
-        ("check", ["test", "not_applicable", "pass", "evidence"]),
-        ("check", ["test", "applicable", "unknown", "evidence"]),
+        "format",
+        "original_target",
+        "prior_target",
+        "current_target",
+        "previous_verification",
+        "checks",
+        "outcome",
+        "next_action",
     ],
 )
-def test_invalid_result_records(kind: str, fields: list[str]) -> None:
+def test_verification_rejects_missing_required_fields(field: str) -> None:
+    data = verification_record()
+    del data[field]
     with pytest.raises(ReviewError):
-        validate_result(serialize(change(result_rows(), kind, *fields)))
+        validate_verification(serialize(data))
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("format", "other"),
+        ("base", ""),
+        ("changed_files", ["relative"]),
+        ("standards", "unknown"),
+        ("spec", "not_available"),
+        ("spec_source", "not_available"),
+        ("verdict", "pass"),
+    ],
+)
+def test_invalid_result_fields(field: str, value: object) -> None:
+    data = result_record()
+    data[field] = value
+    with pytest.raises(ReviewError):
+        validate_result(serialize(data))
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("source", "heuristic:guess"),
+        ("applicability", "unknown"),
+        ("status", "unknown"),
+    ],
+)
+def test_invalid_nested_result_fields(field: str, value: str) -> None:
+    data = result_record()
+    target = data["findings"][0] if field == "source" else data["checks"][0]
+    target[field] = value
+    with pytest.raises(ReviewError):
+        validate_result(serialize(data))
 
 
 def test_unavailable_spec_and_blocked_scope() -> None:
-    records = [
-        row for row in result_rows() if row[0] not in ("finding", "changed_file")
-    ]
-    records = change(records, "standards", "blocked")
-    records = change(records, "spec", "not_available")
-    records = change(records, "spec_source", "not_available")
-    records = change(records, "verdict", "blocked")
-    records = change(
-        records, "check", "none", "not_applicable", "not_applicable", "no check"
+    data = result_record()
+    data.update(
+        standards="blocked",
+        spec="not_available",
+        spec_source="not_available",
+        verdict="blocked",
+        findings=[],
+        changed_files=[],
+        checks=[
+            {
+                "command": "none",
+                "applicability": "not_applicable",
+                "status": "not_applicable",
+                "evidence": "no check",
+            }
+        ],
     )
-    text = report.comprehensive(validate_result(serialize(records)))
-    assert "No findings." in text
+    rendered = report.comprehensive(validate_result(serialize(data)))
+    assert "No findings." in rendered
+    data.update(standards="pass", verdict="pass")
     with pytest.raises(ReviewError, match="non-blocked result"):
-        validate_result(
-            serialize(change(change(records, "standards", "pass"), "verdict", "pass"))
-        )
+        validate_result(serialize(data))
 
 
 @pytest.mark.parametrize(
@@ -158,87 +218,66 @@ def test_unavailable_spec_and_blocked_scope() -> None:
     ],
 )
 def test_axis_verdicts(status: str, disposition: str, valid: bool) -> None:
-    text = serialize(
-        [
-            ["format", "darrow-review-axis-v3"],
-            ["axis", "spec"],
-            ["status", status],
-            ["source", "request"],
-            ["finding", "high", disposition, "f:1", "request", "evidence"],
-        ]
-    )
+    data = axis_record(status, disposition)
     if valid:
-        assert validate_axis(text, "spec").value("status") == status
+        assert validate_axis(serialize(data), "spec").value("status") == status
     else:
         with pytest.raises(ReviewError):
-            validate_axis(text, "spec")
+            validate_axis(serialize(data), "spec")
 
 
 def test_fix_axis_closed_membership(tmp_path: Path) -> None:
-    records = [
-        ["format", "darrow-review-fix-axis-v3"],
-        ["axis", "spec"],
-        ["original", "key"],
-        ["prior_regression", "prior", "key"],
-        ["attempt", "key", "resolved", "resolved", "fixed"],
-        ["regression_attempt", "prior", "unresolved", "progressing", "improved"],
-        [
-            "regression",
-            "key",
-            "high",
-            "f:1",
-            "request",
-            "new failure",
-            "repair",
-            "test",
-        ],
-    ]
-    path = write(tmp_path / "axis.json", records)
+    data = fix_axis_record()
+    path = write(tmp_path / "axis.json", data)
     assert "(spec)" in cli.result_command(["validate-fix-axis", "spec", path])
-    for kind in ("original", "attempt", "prior_regression", "regression_attempt"):
+    for field in ("originals", "attempts", "prior_regressions", "regression_attempts"):
+        variant = deepcopy(data)
+        del variant[field]
         with pytest.raises(ReviewError):
-            validate_fix_axis(
-                serialize([row for row in records if row[0] != kind]), "spec"
-            )
+            validate_fix_axis(serialize(variant), "spec")
     with pytest.raises(ReviewError, match="axis does not match"):
-        validate_fix_axis(serialize(records), "standards")
+        validate_fix_axis(serialize(data), "standards")
     for status, progress in (
         ("wrong", "wrong"),
         ("resolved", "unavailable"),
         ("blocked", "resolved"),
         ("unresolved", "resolved"),
     ):
+        variant = deepcopy(data)
+        variant["attempts"][0].update(status=status, progress=progress)
         with pytest.raises(ReviewError):
-            validate_fix_axis(
-                serialize(
-                    change(records, "attempt", "key", status, progress, "evidence")
-                ),
-                "spec",
-            )
-    gaps = [*records[:4], ["evidence_gap", "missing repair"]]
-    validate_fix_axis(serialize(gaps), "spec")
+            validate_fix_axis(serialize(variant), "spec")
+    gap = {
+        "format": data["format"],
+        "axis": "spec",
+        "originals": ["key"],
+        "prior_regressions": data["prior_regressions"],
+        "evidence_gaps": ["missing repair"],
+    }
+    validate_fix_axis(serialize(gap), "spec")
     with pytest.raises(ReviewError, match="action or evidence gap"):
-        validate_fix_axis(serialize(records[:2]), "spec")
+        validate_fix_axis(serialize({"format": data["format"], "axis": "spec"}), "spec")
 
 
-def test_stdin_and_legacy_guidance(
+def test_stdin_and_optional_guidance(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    records = result_rows()
-    records = [row[:7] if row[0] == "finding" else row for row in records]
-    monkeypatch.setattr("sys.stdin", io.StringIO(serialize(records)))
+    data = result_record()
+    del data["findings"][0]["repair_guidance"]
+    del data["findings"][0]["resolution_evidence"]
+    monkeypatch.setattr("sys.stdin", io.StringIO(serialize(data)))
     assert "result-v3" in cli.result_command(["validate", "-"])
-    original = validate_result(serialize(records))
-    assert len(result.original_findings(original)[0]) == 9
+    original = validate_result(serialize(data))
+    assert len(result.original_findings(original)[0]) == 8
     assert "Repair guidance" not in report.comprehensive(original)
     axis = write(
         tmp_path / "axis.json",
-        [
-            ["format", "darrow-review-axis-v3"],
-            ["axis", "spec"],
-            ["status", "pass"],
-            ["source", "request"],
-        ],
+        {
+            "format": "darrow-review-axis-v3",
+            "axis": "spec",
+            "status": "pass",
+            "sources": ["request"],
+        },
     )
     assert "(spec)" in cli.result_command(["validate-axis", "spec", axis])
     with pytest.raises(ReviewError):
@@ -257,20 +296,20 @@ def test_stdin_and_legacy_guidance(
     )
 )
 def test_evidence_round_trip(evidence: str) -> None:
-    records = result_rows()
-    records[8][6] = evidence
-    parsed = validate_result(serialize(records))
-    assert parsed.get("finding")[0][6] == evidence
+    data = result_record()
+    data["findings"][0]["evidence"] = evidence
+    parsed = validate_result(serialize(data))
+    assert parsed.items("findings")[0]["evidence"] == evidence
     assert report.escape(evidence) in report.comprehensive(parsed)
 
 
-def test_json_records_preserve_multiline_fields() -> None:
-    records = result_rows()
-    records[8][6] = "first\tcolumn\nsecond line\rthird"
-    records[9][1] = "printf 'one\ntwo\tthree'"
-    serialized = serialize(records)
-    assert rows(serialized) == records
-    assert validate_result(serialized).get("finding")[0][6] == records[8][6]
+def test_json_preserves_multiline_fields() -> None:
+    data = result_record()
+    data["findings"][0]["evidence"] = "first\tcolumn\nsecond line\rthird"
+    data["checks"][0]["command"] = "printf 'one\ntwo\tthree'"
+    serialized = serialize(data)
+    assert document(serialized) == data
+    validate_result(serialized)
     rendered = report.comprehensive(validate_result(serialized))
     assert "first\\tcolumn\\nsecond line\\rthird" in rendered
 
@@ -294,17 +333,20 @@ def test_json_records_preserve_multiline_fields() -> None:
         '{"format":"darrow-review-result-v3","checks":[{"command":2}]}',
     ],
 )
-def test_json_records_reject_malformed_shapes(content: str) -> None:
+def test_json_schema_rejects_malformed_shapes(content: str) -> None:
     with pytest.raises(ReviewError):
-        rows(content)
+        validate_result(content)
 
 
-def test_unknown_duplicate_and_absent_records() -> None:
-    for records in (
-        [*result_rows(), ["unexpected", "value"]],
-        [*result_rows(), ["base", "extra"]],
-        [],
-        [row for row in result_rows() if row[0] != "risk"],
-    ):
+def test_unknown_duplicate_and_absent_fields() -> None:
+    variants = [
+        result_record() | {"unexpected": "value"},
+        result_record() | {"base": ["base", "extra"]},
+        {},
+    ]
+    missing_risk = result_record()
+    del missing_risk["risks"]
+    variants.append(missing_risk)
+    for data in variants:
         with pytest.raises(ReviewError):
-            validate_result(serialize(records))
+            validate_result(serialize(data))

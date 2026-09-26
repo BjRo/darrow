@@ -30,19 +30,22 @@ fixture:
     prior_output=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
     prior_manifest=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' manifest)
     original_target=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' target)
-    PYTHONPATH="$backend/src" python3 - "$original_target" "$prior_manifest" "$PWD" <<'PY' >.git/verification-input
+    python3 - "$original_target" "$prior_manifest" "$PWD" <<'PY' >.git/verification-input
     import json, sys
-    from darrow_review.json_records import to_object
     target, manifest, repo = sys.argv[1:]
-    rows = [
-        ["original_target", target],
-        ["prior_target", target],
-        ["prior_manifest", manifest],
-        ["previous_verification", "none", "none"],
-        ["original_finding", f"standards:1:{target}", "standards", "1", "high", "blocking", "endpoint.txt:1", f"{repo}/AGENTS.md", "endpoint remained on v1"],
-        ["attempted", f"standards:1:{target}"],
-    ]
-    json.dump(to_object(rows), sys.stdout)
+    json.dump({
+        "original_target": target,
+        "prior_target": target,
+        "prior_manifest": manifest,
+        "previous_verification": {"checksum": "none", "path": "none"},
+        "original_findings": [{
+            "key": f"standards:1:{target}", "axis": "standards", "order": "1",
+            "severity": "high", "disposition": "blocking",
+            "location": "endpoint.txt:1", "source": f"{repo}/AGENTS.md",
+            "evidence": "endpoint remained on v1",
+        }],
+        "attempted": [f"standards:1:{target}"],
+    }, sys.stdout)
     PY
     git status --porcelain --untracked-files=all >.git/status-before
     git hash-object endpoint.txt >.git/endpoint-before
@@ -67,7 +70,7 @@ checks:
       checks = [item for item in record['checks'] if item['command'] == 'bash external-check.sh' and item['applicability'] == 'applicable' and item['status'] == 'blocked']
       assert len(checks) == 1
       assert any(
-          (capture := json.loads(file.read_text()))['format'] == 'darrow-review-check-v3' and checks[0] in capture['checks']
+          (capture := json.loads(file.read_text()))['format'] == 'darrow-review-check-v3' and checks[0] == capture['check']
           for file in path.parent.glob('check-*.json')
       )
       assert record['evidence_gaps']

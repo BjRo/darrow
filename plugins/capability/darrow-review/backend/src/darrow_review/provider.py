@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import json
 import os
 import re
 from pathlib import Path
 
-from .common import ReviewError, new_record, read_text, require, serialize
+from .common import ReviewError, document, new_record, read_text, require, serialize
 
 SELECTORS = (
     "CLAUDE_CODE_USE_BEDROCK",
@@ -30,35 +29,11 @@ def direct() -> str:
         "Claude provider is not observably direct Anthropic: ANTHROPIC_BASE_URL is custom",
     )
     return serialize(
-        [
-            ["provider", "claude", "anthropic"],
-            ["provider_evidence", "current-host-environment-default"],
-        ]
+        {
+            "provider": {"host": "claude", "provider": "anthropic"},
+            "provider_evidence": "current-host-environment-default",
+        }
     )
-
-
-def object_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
-    result: dict[str, object] = {}
-    for key, value in pairs:
-        require(key not in result, f"duplicate JSON field: {key}")
-        result[key] = value
-    return result
-
-
-def invalid_constant(value: str) -> object:
-    raise ReviewError(f"invalid JSON constant: {value}")
-
-
-def json_object(text: str) -> dict[str, object]:
-    try:
-        value: object = json.loads(
-            text, object_pairs_hook=object_pairs, parse_constant=invalid_constant
-        )
-    except (ValueError, RecursionError) as exc:
-        raise ReviewError(f"invalid JSON: {exc}") from exc
-    if not isinstance(value, dict):
-        raise ReviewError("JSON root must be an object")
-    return {str(key): item for key, item in value.items()}
 
 
 def assistant_observation(
@@ -89,7 +64,7 @@ def assistant_observation(
 def observe_transcript(path: Path, agent: str) -> tuple[str, str]:
     observations = []
     for number, line in enumerate(read_text(path, "transcript").splitlines(), 1):
-        row = json_object(line)
+        row = document(line)
         if row.get("type") == "assistant":
             observations.append(assistant_observation(row, agent, number))
     require(observations, "no assistant observations")
@@ -139,17 +114,22 @@ def verify(repo: str, agent: str, projects: str = "", record: str = "") -> str:
         f"unsupported reviewer effort: {effort}",
     )
     body = serialize(
-        [
-            ["format", "darrow-review-claude-route-v3"],
-            ["agent_id", agent],
-            ["transcript", str(transcript)],
-            ["provider_evidence", "current-host-environment-default"],
-            ["observed_route", "claude", "anthropic", model, effort],
-        ]
+        {
+            "format": "darrow-review-claude-route-v3",
+            "agent_id": agent,
+            "transcript": str(transcript),
+            "provider_evidence": "current-host-environment-default",
+            "observed_route": {
+                "host": "claude",
+                "provider": "anthropic",
+                "model": model,
+                "effort": effort,
+            },
+        }
     )
     if not record:
         return body
     path = new_record(record, body)
     return serialize(
-        [["format", "darrow-reviewer-record-location-v3"], ["record", str(path)]]
+        {"format": "darrow-reviewer-record-location-v3", "record": str(path)}
     )

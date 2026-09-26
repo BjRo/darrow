@@ -10,11 +10,11 @@ import signal
 import subprocess
 import sys
 import tempfile
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from contextlib import ExitStack, suppress
 from pathlib import Path
+from typing import cast
 
-from .json_records import from_object, to_object, unique_fields
 from .windows_job import WindowsJob
 
 
@@ -44,28 +44,32 @@ def read_text(path: str | Path, label: str = "record") -> str:
         raise ReviewError(f"{label} is not a readable regular file: {path}") from exc
 
 
-def rows(text: str) -> list[list[str]]:
-    try:
-        value = json.loads(text, object_pairs_hook=unique_fields)
-        return from_object(value)
-    except (json.JSONDecodeError, ValueError) as exc:
-        raise ReviewError(f"invalid JSON record: {exc}") from exc
-
-
-def serialize(records: Sequence[Sequence[str]]) -> str:
-    try:
-        value = to_object(records)
-    except ValueError as exc:
-        raise ReviewError(str(exc)) from exc
-    return json.dumps(value, ensure_ascii=False, indent=2) + "\n"
-
-
-def unique_records(text: str, label: str) -> dict[str, list[str]]:
-    result: dict[str, list[str]] = {}
-    for row in rows(text):
-        require(row[0] not in result, f"incomplete or duplicate {label} record")
-        result[row[0]] = row[1:]
+def unique_fields(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for name, value in pairs:
+        if name in result:
+            raise ValueError(f"duplicate JSON field: {name}")
+        result[name] = value
     return result
+
+
+def invalid_constant(value: str) -> object:
+    raise ValueError(f"invalid JSON constant: {value}")
+
+
+def document(text: str) -> dict[str, object]:
+    try:
+        value: object = json.loads(
+            text, object_pairs_hook=unique_fields, parse_constant=invalid_constant
+        )
+    except (json.JSONDecodeError, ValueError, RecursionError) as exc:
+        raise ReviewError(f"invalid JSON record: {exc}") from exc
+    require(isinstance(value, dict), "JSON record must be an object")
+    return cast(dict[str, object], value)
+
+
+def serialize(value: Mapping[str, object]) -> str:
+    return json.dumps(value, ensure_ascii=False, indent=2) + "\n"
 
 
 def new_record(path: str, body: str) -> Path:

@@ -188,6 +188,7 @@ async function runFixtureSetup(
         GIT_CONFIG_GLOBAL: "/dev/null",
         GIT_CONFIG_SYSTEM: "/dev/null",
         DARROW_EVAL_CASE_DIR: caseDir,
+        DARROW_REVIEW_STATE_DIR: trialReviewStateDir(repoDir),
       },
     }),
   );

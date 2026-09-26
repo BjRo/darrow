@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from darrow_review import cli, provider, routing
-from darrow_review.common import ReviewError, new_record, serialize
+from darrow_review.common import ReviewError, document, new_record, serialize
 from darrow_review.records import Records
 
 
@@ -32,7 +32,8 @@ def config(repo: Path, value: object) -> Path:
 
 def test_bundled_override_and_application(repo: Path, tmp_path: Path) -> None:
     default = cli.route_command(["resolve", "--repo", str(repo), "--host", "codex"])
-    assert Records(default).get("selected_route")[0][-2:] == ["gpt-6-sol", "xhigh"]
+    assert Records(default).object("selected_route")["model"] == "gpt-6-sol"
+    assert Records(default).object("selected_route")["effort"] == "xhigh"
     config(
         repo,
         {"routes": [{"unrelated": [False, None, 12.5]}], "reviewers": [reviewer()]},
@@ -58,10 +59,13 @@ def test_bundled_override_and_application(repo: Path, tmp_path: Path) -> None:
         ]
     )
     body = Records(applied.read_text(encoding="utf-8"))
-    assert body.value("route_bound") == "true" and not body.get("route_verified")
-    assert body.get("requested_route") == [
-        ["requested_route", "codex", "openai", "gpt-5.5", "high"]
-    ]
+    assert body.value("route_bound") == "true" and "route_verified" not in body.data
+    assert body.object("requested_route") == {
+        "host": "codex",
+        "provider": "openai",
+        "model": "gpt-5.5",
+        "effort": "high",
+    }
     assert "claude-opus-5" in routing.resolve(str(repo), "claude").body()
     config(repo, {})
     assert routing.resolve(str(repo), "codex").source == "bundled"
@@ -224,9 +228,12 @@ def test_transcript_native_application(
         "--projects-dir",
         str(projects),
     ]
-    assert Records(cli.verify_command(arguments)).get("observed_route") == [
-        ["observed_route", "claude", "anthropic", "claude-opus-5", "xhigh"]
-    ]
+    assert Records(cli.verify_command(arguments)).object("observed_route") == {
+        "host": "claude",
+        "provider": "anthropic",
+        "model": "claude-opus-5",
+        "effort": "xhigh",
+    }
     cli.verify_command([*arguments, "--record", str(record)])
     route = tmp_path / "route.json"
     routing.select(str(repo), "claude", str(route))
@@ -302,16 +309,11 @@ def test_records_refuse_duplicates_unknown_and_incomplete(tmp_path: Path) -> Non
     route = routing.Route("codex", "openai", "gpt-5.5", "high")
     path = tmp_path / "route.json"
     variants = [
-        route.body() + serialize([["format", "darrow-reviewer-route-v3"]]),
-        serialize([*Records(route.body()).rows, ["unknown", "value"]]),
+        route.body().replace('  "format":', '  "format": "duplicate",\n  "format":', 1),
+        serialize(document(route.body()) | {"unknown": "value"}),
         route.body().replace("repository", "other").replace("bundled", "other"),
         route.body().replace("darrow-reviewer-route-v3", "wrong"),
-        serialize(
-            [
-                [row[0], *row[1:-1]] if row[0] == "selected_route" else row
-                for row in Records(route.body()).rows
-            ]
-        ),
+        serialize(document(route.body()) | {"selected_route": {"host": "codex"}}),
     ]
     for text in variants:
         path.write_text(text, encoding="utf-8")
@@ -343,7 +345,7 @@ def test_observed_record_validation(repo: Path, tmp_path: Path) -> None:
         path.write_text(text.replace(old, new), encoding="utf-8")
         with pytest.raises(ReviewError):
             routing.observed(str(path))
-    path.write_text(serialize([["format", "wrong"]]), encoding="utf-8")
+    path.write_text(serialize({"format": "wrong"}), encoding="utf-8")
     with pytest.raises(ReviewError):
         routing.observed(str(path))
 
@@ -362,10 +364,8 @@ def test_empty_or_unrelated_policy_uses_bundled_route(repo: Path, text: str) -> 
     path.write_text(text, encoding="utf-8")
     selected = routing.resolve(str(repo), "codex")
     assert selected.source == "bundled"
-    assert Records(selected.body()).get("selected_route")[0][-2:] == [
-        "gpt-6-sol",
-        "xhigh",
-    ]
+    assert Records(selected.body()).object("selected_route")["model"] == "gpt-6-sol"
+    assert Records(selected.body()).object("selected_route")["effort"] == "xhigh"
 
 
 def test_partial_transcript_and_substring_identity_are_rejected(

@@ -37,40 +37,53 @@ fixture:
     original_target=ORIGINAL-TARGET-SECOND-ROUND
     original_key=standards:1:$original_target
     regression_key=regression:1:$original_key
-    PYTHONPATH="$backend/src" python3 - "$original_target" "$prior_target" "$original_key" "$regression_key" "$PWD" <<'PY' >"$prior_verification"
+    python3 - "$original_target" "$prior_target" "$original_key" "$regression_key" "$PWD" <<'PY' >"$prior_verification"
     import json, sys
-    from darrow_review.json_records import to_object
     original, prior, original_key, regression_key, repo = sys.argv[1:]
-    rows = [
-        ["format", "darrow-review-verification-v3"],
-        ["original_target", original],
-        ["prior_target", original],
-        ["current_target", prior],
-        ["previous_verification", "none", "none"],
-        ["original_finding", original_key, "standards", "1", "high", "blocking", "config.env:1", f"{repo}/AGENTS.md", "MODE was bad"],
-        ["attempt", original_key, "resolved", "resolved", "MODE is good"],
-        ["regression", regression_key, original_key, "1", "standards", "high", "unresolved", "progressing", "config.env:2", f"{repo}/AGENTS.md", "RESULT is missing after the repair"],
-        ["check", "bash check.sh", "applicable", "fail", "RESULT is missing"],
-        ["outcome", "continue"],
-        ["next_action", "repair the carried regression"],
-    ]
-    json.dump(to_object(rows), sys.stdout)
+    json.dump({
+        "format": "darrow-review-verification-v3",
+        "original_target": original,
+        "prior_target": original,
+        "current_target": prior,
+        "previous_verification": {"checksum": "none", "path": "none"},
+        "original_findings": [{
+            "key": original_key, "axis": "standards", "order": "1",
+            "severity": "high", "disposition": "blocking",
+            "location": "config.env:1", "source": f"{repo}/AGENTS.md",
+            "evidence": "MODE was bad",
+        }],
+        "attempts": [{
+            "key": original_key, "status": "resolved",
+            "progress": "resolved", "evidence": "MODE is good",
+        }],
+        "regressions": [{
+            "key": regression_key, "caused_by": original_key, "order": "1",
+            "axis": "standards", "severity": "high",
+            "status": "unresolved", "progress": "progressing",
+            "location": "config.env:2", "source": f"{repo}/AGENTS.md",
+            "evidence": "RESULT is missing after the repair",
+        }],
+        "checks": [{
+            "command": "bash check.sh", "applicability": "applicable",
+            "status": "fail", "evidence": "RESULT is missing",
+        }],
+        "outcome": "continue",
+        "next_action": "repair the carried regression",
+    }, sys.stdout)
     PY
     uv run --quiet --frozen --no-dev --project "$backend" review-result validate-verification "$prior_verification"
     prior_hash=$(git hash-object --no-filters "$prior_verification")
-    PYTHONPATH="$backend/src" python3 - "$original_target" "$prior_target" "$prior_manifest" "$prior_hash" "$prior_verification" "$original_key" "$regression_key" <<'PY' >.git/verification-input
+    python3 - "$original_target" "$prior_target" "$prior_manifest" "$prior_hash" "$prior_verification" "$original_key" "$regression_key" <<'PY' >.git/verification-input
     import json, sys
-    from darrow_review.json_records import to_object
     original, prior, manifest, prior_hash, verification, original_key, regression_key = sys.argv[1:]
-    rows = [
-        ["original_target", original],
-        ["prior_target", prior],
-        ["prior_manifest", manifest],
-        ["previous_verification", prior_hash, verification],
-        ["original_key", original_key],
-        ["regression_key", regression_key],
-    ]
-    json.dump(to_object(rows), sys.stdout)
+    json.dump({
+        "original_target": original,
+        "prior_target": prior,
+        "prior_manifest": manifest,
+        "previous_verification": {"checksum": prior_hash, "path": verification},
+        "original_key": original_key,
+        "regression_key": regression_key,
+    }, sys.stdout)
     PY
     cp .git/current-config config.env
     git hash-object config.env >.git/config-before

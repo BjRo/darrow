@@ -7,8 +7,7 @@ from pathlib import Path
 import pytest
 
 from darrow_review import cli, report
-from darrow_review.common import blob_hash, rows
-from fixtures import change, write
+from darrow_review.common import blob_hash, document, serialize
 
 GOLDEN = Path(__file__).with_name("golden")
 
@@ -29,19 +28,22 @@ def test_complete_report_bytes(name: str, operation: str, tmp_path: Path) -> Non
 
 
 def test_checksum_bound_report_bytes(tmp_path: Path) -> None:
-    original = rows((GOLDEN / "verification.json").read_text(encoding="utf-8"))
-    previous = Path(write(tmp_path / "previous.json", original))
-    current = change(original, "prior_target", "WORKTREE@base+repair-one")
-    current = change(current, "current_target", "WORKTREE@base+repair-two")
-    current = change(
-        current,
-        "previous_verification",
-        blob_hash(previous.read_bytes()),
-        str(previous),
-    )
-    current.append(["history_target", "WORKTREE@base+original"])
-    path = write(tmp_path / "current.json", current)
-    actual = cli.report_command(["render-verification", path])
+    original = document((GOLDEN / "verification.json").read_text(encoding="utf-8"))
+    previous = tmp_path / "previous.json"
+    previous.write_text(serialize(original), encoding="utf-8")
+    current = {
+        **original,
+        "prior_target": "WORKTREE@base+repair-one",
+        "current_target": "WORKTREE@base+repair-two",
+        "previous_verification": {
+            "checksum": blob_hash(previous.read_bytes()),
+            "path": str(previous),
+        },
+        "history_targets": ["WORKTREE@base+original"],
+    }
+    path = tmp_path / "current.json"
+    path.write_text(serialize(current), encoding="utf-8")
+    actual = cli.report_command(["render-verification", str(path)])
     assert actual.replace(report.escape(str(previous)), "PREVIOUS_ARTIFACT") == (
         GOLDEN / "verification-next.txt"
     ).read_text(encoding="utf-8").replace(

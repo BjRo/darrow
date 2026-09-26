@@ -46,19 +46,23 @@ fixture:
     prior_output=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
     prior_manifest=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' manifest)
     original_target=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' target)
-    PYTHONPATH="$backend/src" python3 - "$original_target" "$prior_manifest" <<'PY' >.git/verification-input
+    python3 - "$original_target" "$prior_manifest" <<'PY' >.git/verification-input
     import json, sys
-    from darrow_review.json_records import to_object
     target, manifest = sys.argv[1:]
-    rows = [
-        ["original_target", target],
-        ["prior_target", target],
-        ["prior_manifest", manifest],
-        ["previous_verification", "none", "none"],
-        ["original_finding", f"spec:1:{target}", "spec", "1", "high", "blocking", "src/math.js:1", "requirement: multiplier must be 2", "multiplier was 1"],
-        ["attempted", f"spec:1:{target}"],
-    ]
-    json.dump(to_object(rows), sys.stdout)
+    json.dump({
+        "original_target": target,
+        "prior_target": target,
+        "prior_manifest": manifest,
+        "previous_verification": {"checksum": "none", "path": "none"},
+        "original_findings": [{
+            "key": f"spec:1:{target}", "axis": "spec", "order": "1",
+            "severity": "high", "disposition": "blocking",
+            "location": "src/math.js:1",
+            "source": "requirement: multiplier must be 2",
+            "evidence": "multiplier was 1",
+        }],
+        "attempted": [f"spec:1:{target}"],
+    }, sys.stdout)
     PY
     printf '%s\n' "$backend" >.git/review-backend
     git status --porcelain --untracked-files=all >.git/status-before

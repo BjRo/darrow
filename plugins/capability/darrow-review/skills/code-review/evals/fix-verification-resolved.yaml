@@ -43,23 +43,23 @@ fixture:
     prior_output=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
     prior_manifest=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' manifest)
     original_target=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' target)
-    PYTHONPATH="$backend/src" python3 - "$original_target" "$prior_manifest" "$PWD" <<'PY' >.git/verification-input
+    python3 - "$original_target" "$prior_manifest" "$PWD" <<'PY' >.git/verification-input
     import json, sys
-    from darrow_review.json_records import to_object
     target, manifest, repo = sys.argv[1:]
-    rows = [
-        ["original_target", target],
-        ["prior_target", target],
-        ["prior_manifest", manifest],
-        ["previous_verification", "none", "none"],
-        ["original_finding", f"standards:1:{target}", "standards", "1", "high", "blocking", "src/config.js:1", f"{repo}/AGENTS.md", "DEBUG remained enabled"],
-        ["original_finding", f"spec:2:{target}", "spec", "2", "high", "blocking", "src/config.js:2", "requirement: TIMEOUT_MS must be 2500", "TIMEOUT_MS was 1000"],
-        ["original_finding", f"spec:3:{target}", "spec", "3", "low", "advisory", "src/config.js:3", "maintenance note", "LEGACY was retained"],
-        ["attempted", f"standards:1:{target}"],
-        ["attempted", f"spec:2:{target}"],
-        ["attempted", f"spec:3:{target}"],
-    ]
-    json.dump(to_object(rows), sys.stdout)
+    json.dump({
+        "original_target": target,
+        "prior_target": target,
+        "prior_manifest": manifest,
+        "previous_verification": {"checksum": "none", "path": "none"},
+        "original_findings": [
+            {"key": f"standards:1:{target}", "axis": "standards", "order": "1", "severity": "high", "disposition": "blocking", "location": "src/config.js:1", "source": f"{repo}/AGENTS.md", "evidence": "DEBUG remained enabled"},
+            {"key": f"spec:2:{target}", "axis": "spec", "order": "2", "severity": "high", "disposition": "blocking", "location": "src/config.js:2", "source": "requirement: TIMEOUT_MS must be 2500", "evidence": "TIMEOUT_MS was 1000"},
+            {"key": f"spec:3:{target}", "axis": "spec", "order": "3", "severity": "low", "disposition": "advisory", "location": "src/config.js:3", "source": "maintenance note", "evidence": "LEGACY was retained"},
+        ],
+        "attempted": [
+            f"standards:1:{target}", f"spec:2:{target}", f"spec:3:{target}",
+        ],
+    }, sys.stdout)
     PY
     git status --porcelain --untracked-files=all >.git/status-before
     git hash-object src/config.js >.git/config-before

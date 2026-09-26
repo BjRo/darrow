@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import errno
-import json
 import os
 import shutil
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
@@ -96,42 +95,6 @@ def test_locate_returns_none_before_any_review(repo: Path) -> None:
 def test_locate_ignores_incomplete_run(repo: Path) -> None:
     storage.allocate(repo)
     assert storage.locate(repo, "unseen") is None
-
-
-def test_retained_v2_state_does_not_block_v3_review(repo: Path) -> None:
-    old_run = storage.allocate(repo)
-    (old_run / "scope.json").write_text(
-        json.dumps(
-            [
-                ["format", "darrow-review-scope-v2"],
-                ["repository", str(repo)],
-                ["target", "old-target"],
-            ]
-        ),
-        encoding="utf-8",
-    )
-    assert storage.locate(repo, "old-target") is None
-    assert packet(repo).exists()
-
-
-def test_prune_preserves_legacy_v2_dependency(repo: Path) -> None:
-    original = storage.allocate(repo)
-    newer = storage.allocate(repo)
-    (original / "scope.json").write_text(
-        json.dumps([["format", "darrow-review-scope-v2"]]), encoding="utf-8"
-    )
-    (newer / "scope.json").write_text(
-        json.dumps(
-            [
-                ["format", "darrow-review-scope-v2"],
-                ["prior_manifest", str(original / "scope.json")],
-            ]
-        ),
-        encoding="utf-8",
-    )
-    os.utime(original, (1_600_000_000, 1_600_000_000))
-    assert storage.prune(repo) == []
-    assert original.exists()
 
 
 def test_locate_refuses_ambiguous_target(repo: Path) -> None:
@@ -288,11 +251,14 @@ def test_prune_preserves_prior_verification_record(repo: Path) -> None:
     original = packet(repo, content="first")
     previous = original.parent / "verification.json"
     previous.write_text(
-        serialize([["format", "darrow-review-verification-v3"]]), encoding="utf-8"
+        serialize({"format": "darrow-review-verification-v3"}), encoding="utf-8"
     )
     current = packet(repo, content="second")
     (current.parent / "verification.json").write_text(
-        serialize([["previous_verification", "hash", str(previous)]]), encoding="utf-8"
+        serialize(
+            {"previous_verification": {"checksum": "hash", "path": str(previous)}}
+        ),
+        encoding="utf-8",
     )
     old = 1_600_000_000
     os.utime(original.parent, (old, old))

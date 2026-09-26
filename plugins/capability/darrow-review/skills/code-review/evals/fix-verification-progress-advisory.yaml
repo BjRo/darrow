@@ -34,21 +34,20 @@ fixture:
     prior_output=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
     prior_manifest=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' manifest)
     original_target=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' target)
-    PYTHONPATH="$backend/src" python3 - "$original_target" "$prior_manifest" "$PWD" <<'PY' >.git/verification-input
+    python3 - "$original_target" "$prior_manifest" "$PWD" <<'PY' >.git/verification-input
     import json, sys
-    from darrow_review.json_records import to_object
     target, manifest, repo = sys.argv[1:]
-    rows = [
-        ["original_target", target],
-        ["prior_target", target],
-        ["prior_manifest", manifest],
-        ["previous_verification", "none", "none"],
-        ["original_finding", f"spec:1:{target}", "spec", "1", "high", "blocking", "src/value.js:1", "requirement: value must be numeric and at least 2", "value was non-numeric"],
-        ["original_finding", f"standards:2:{target}", "standards", "2", "low", "advisory", "src/value.js:2", f"{repo}/AGENTS.md", "the legacy comment remained"],
-        ["attempted", f"spec:1:{target}"],
-        ["attempted", f"standards:2:{target}"],
-    ]
-    json.dump(to_object(rows), sys.stdout)
+    json.dump({
+        "original_target": target,
+        "prior_target": target,
+        "prior_manifest": manifest,
+        "previous_verification": {"checksum": "none", "path": "none"},
+        "original_findings": [
+            {"key": f"spec:1:{target}", "axis": "spec", "order": "1", "severity": "high", "disposition": "blocking", "location": "src/value.js:1", "source": "requirement: value must be numeric and at least 2", "evidence": "value was non-numeric"},
+            {"key": f"standards:2:{target}", "axis": "standards", "order": "2", "severity": "low", "disposition": "advisory", "location": "src/value.js:2", "source": f"{repo}/AGENTS.md", "evidence": "the legacy comment remained"},
+        ],
+        "attempted": [f"spec:1:{target}", f"standards:2:{target}"],
+    }, sys.stdout)
     PY
     printf '%s\n' "$backend" >.git/review-backend
     git status --porcelain --untracked-files=all >.git/status-before

@@ -41,41 +41,47 @@ fixture:
     prior_manifest=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' manifest)
     original_target=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' target)
     original_result=$(dirname "$prior_manifest")/result.json
-    scope_rows=$(uv run --quiet --frozen --no-dev --project "$backend" review-result scope-records "$prior_manifest")
-    PYTHONPATH="$backend/src" python3 - "$PWD" "$scope_rows" <<'PY' >"$original_result"
+    scope_json=$(uv run --quiet --frozen --no-dev --project "$backend" review-result scope-records "$prior_manifest")
+    python3 - "$PWD" "$scope_json" <<'PY' >"$original_result"
     import json, sys
-    from darrow_review.json_records import from_object, to_object
     repo, scope_json = sys.argv[1:]
-    rows = [
-        ["format", "darrow-review-result-v3"],
-        *from_object(json.loads(scope_json)),
-        ["standards", "pass"],
-        ["standards_source", f"{repo}/AGENTS.md"],
-        ["spec", "fail"],
-        ["spec_source", f"{repo}/requirements.md"],
-        ["finding", "spec", "high", "blocking", f"{repo}/src/name.js:2", f"{repo}/requirements.md", "Direct trim returns an empty string for whitespace-only input instead of Anonymous", "Advisory: store value.trim() in a local variable and return the variable or Anonymous; this supplies the missing fallback while preserving trimming", "Whitespace-only and empty input return Anonymous; padded Ada returns Ada"],
-        ["check", "none", "not_applicable", "not_applicable", "No configured command"],
-        ["verdict", "fail"],
-        ["risk", "none"],
-        ["next_action", "return findings"],
-    ]
-    json.dump(to_object(rows), sys.stdout)
+    json.dump({
+        "format": "darrow-review-result-v3",
+        **json.loads(scope_json),
+        "standards": "pass",
+        "standards_sources": [f"{repo}/AGENTS.md"],
+        "spec": "fail",
+        "spec_source": f"{repo}/requirements.md",
+        "findings": [{
+            "axis": "spec", "severity": "high", "disposition": "blocking",
+            "location": f"{repo}/src/name.js:2",
+            "source": f"{repo}/requirements.md",
+            "evidence": "Direct trim returns an empty string for whitespace-only input instead of Anonymous",
+            "repair_guidance": "Advisory: store value.trim() in a local variable and return the variable or Anonymous; this supplies the missing fallback while preserving trimming",
+            "resolution_evidence": "Whitespace-only and empty input return Anonymous; padded Ada returns Ada",
+        }],
+        "checks": [{
+            "command": "none", "applicability": "not_applicable",
+            "status": "not_applicable", "evidence": "No configured command",
+        }],
+        "verdict": "fail",
+        "risks": ["none"],
+        "next_action": "return findings",
+    }, sys.stdout)
     PY
-    finding_rows=$(uv run --quiet --frozen --no-dev --project "$backend" review-result original-findings "$original_result")
-    PYTHONPATH="$backend/src" python3 - "$original_target" "$prior_manifest" "$original_result" "$finding_rows" <<'PY' >.git/verification-input
+    finding_json=$(uv run --quiet --frozen --no-dev --project "$backend" review-result original-findings "$original_result")
+    python3 - "$original_target" "$prior_manifest" "$original_result" "$finding_json" <<'PY' >.git/verification-input
     import json, sys
-    from darrow_review.json_records import from_object, to_object
     target, manifest, result, finding_json = sys.argv[1:]
-    rows = [
-        ["original_target", target],
-        ["prior_target", target],
-        ["prior_manifest", manifest],
-        ["original_result", result],
-        ["previous_verification", "none", "none"],
-        *from_object(json.loads(finding_json)),
-        ["attempted", f"spec:1:{target}"],
-    ]
-    json.dump(to_object(rows), sys.stdout)
+    json.dump({
+        "original_target": target,
+        "prior_target": target,
+        "prior_manifest": manifest,
+        "original_result": result,
+        "previous_verification": {"checksum": "none", "path": "none"},
+        "original_findings": json.loads(finding_json)["original_findings"],
+        "attempted": [f"spec:1:{target}"],
+    }, sys.stdout)
     PY
     git hash-object src/name.js >.git/before
 checks:

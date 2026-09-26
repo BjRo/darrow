@@ -5,7 +5,6 @@ from __future__ import annotations
 import errno
 import hashlib
 import importlib
-import json
 import ntpath
 import os
 import posixpath
@@ -15,9 +14,8 @@ import time
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from pathlib import Path
-from typing import cast
 
-from .common import ReviewError, require, rows, safe_line, serialize
+from .common import ReviewError, document, require, safe_line, serialize
 
 RETENTION_DAYS = 30
 RUN_PREFIX = "darrow-review."
@@ -110,7 +108,7 @@ def allocate_terminal(repo: Path) -> Path:
     try:
         manifest = run / "scope.json"
         body = serialize(
-            [["format", "darrow-review-terminal-v3"], ["repository", str(repo)]]
+            {"format": "darrow-review-terminal-v3", "repository": str(repo)}
         )
         descriptor = os.open(manifest, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
         with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as stream:
@@ -161,36 +159,9 @@ def fields_at(path: Path) -> dict[str, str]:
         content = path.read_text(encoding="utf-8")
     except (OSError, UnicodeError) as exc:
         raise ReviewError(f"review state is unreadable: {path}") from exc
-    return {row[0]: row[1] for row in state_rows(content) if len(row) == 2}
-
-
-def state_rows(content: str) -> list[list[str]]:
-    """Read retained v2 state for pruning; public record parsing stays v3-only."""
-    try:
-        value = json.loads(content)
-    except json.JSONDecodeError:
-        return rows(content)
-    if (
-        isinstance(value, list)
-        and value
-        and value[0]
-        in (
-            ["format", "darrow-review-scope-v2"],
-            ["format", "darrow-review-verification-v2"],
-            ["format", "darrow-review-terminal-v2"],
-        )
-    ):
-        require(
-            all(
-                isinstance(row, list)
-                and row
-                and all(isinstance(field, str) for field in row)
-                for row in value
-            ),
-            "invalid retained v2 review state",
-        )
-        return cast(list[list[str]], value)
-    return rows(content)
+    return {
+        key: value for key, value in document(content).items() if isinstance(value, str)
+    }
 
 
 def runs(bucket: Path) -> list[Path]:
@@ -232,29 +203,27 @@ def locate(repo: Path, target: str) -> Path | None:
 
 def dependencies(run: Path, by_file: dict[Path, Path]) -> set[Path]:
     result: set[Path] = set()
-    for file, field, index in (
-        (run / "scope.json", "prior_manifest", 1),
-        (run / "verification.json", "previous_verification", 2),
+    for file, field in (
+        (run / "scope.json", "prior_manifest"),
+        (run / "verification.json", "previous_verification"),
     ):
-        result.update(references(file, field, index, by_file))
+        result.update(references(file, field, by_file))
     return result
 
 
-def references(
-    file: Path, field: str, index: int, by_file: dict[Path, Path]
-) -> set[Path]:
+def references(file: Path, field: str, by_file: dict[Path, Path]) -> set[Path]:
     if not file.is_file() or file.is_symlink():
         return set()
     try:
-        lines = state_rows(file.read_text(encoding="utf-8"))
+        data = document(file.read_text(encoding="utf-8"))
     except (OSError, UnicodeError) as exc:
         raise ReviewError(f"review dependency is unreadable: {file}") from exc
-    paths = (
-        by_file.get(Path(row[index]).resolve())
-        for row in lines
-        if len(row) > index and row[0] == field
-    )
-    return {path for path in paths if path is not None}
+    value = data.get(field)
+    path = value.get("path") if isinstance(value, dict) else value
+    if not isinstance(path, str) or path == "none":
+        return set()
+    owner = by_file.get(Path(path).resolve())
+    return {owner} if owner is not None else set()
 
 
 def retained_runs(all_runs: list[Path], cutoff: float) -> set[Path]:

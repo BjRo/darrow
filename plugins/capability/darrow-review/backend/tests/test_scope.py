@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -9,7 +10,12 @@ from conftest import git
 from darrow_review import cli, result, scope
 from darrow_review.common import ReviewError, command_line, entrypoint, run, serialize
 from darrow_review.records import Records
-from fixtures import change, result_rows, write
+from fixtures import result_record
+
+
+def write_json(path: Path, value: dict[str, object]) -> str:
+    path.write_text(serialize(value), encoding="utf-8")
+    return str(path)
 
 
 def prepared(repo: Path, *extra: str) -> Records:
@@ -54,15 +60,13 @@ def test_all_layers_and_scope_binding(
     assert manifest.value("changed_count") == "2"
     patch = cli.scope_command(["show", "--manifest", manifest.value("manifest")])
     assert isinstance(patch, bytes) and b"+untracked" in patch and b"+unstaged" in patch
-    source = [
-        row for row in result_rows() if row[0] not in ("base", "target", "changed_file")
-    ]
-    source += result.scope_records(manifest.value("manifest"))
-    path = write(tmp_path / "result.json", source)
+    source = result_record()
+    source.update(result.scope_records(manifest.value("manifest")))
+    path = write_json(tmp_path / "result.json", source)
     assert "matches pinned scope" in cli.result_command(
         ["validate-scope", manifest.value("manifest"), path]
     )
-    wrong = write(tmp_path / "wrong.json", change(source, "target", "wrong"))
+    wrong = write_json(tmp_path / "wrong.json", source | {"target": "wrong"})
     with pytest.raises(ReviewError, match="differs from pinned scope"):
         result.validate_scope(manifest.value("manifest"), wrong)
     assert Records(
@@ -129,20 +133,22 @@ def test_scope_refusals_and_tampering(repo: Path, tmp_path: Path) -> None:
 
 def test_scope_identity_records(repo: Path, tmp_path: Path) -> None:
     (repo / "file.txt").write_text("changed", encoding="utf-8")
-    records = prepared(repo)
+    records = prepared(repo).data
+    files = cast(list[str], records["changed_files"])
     variants = [
-        change(records.rows, "changed_count", "2"),
-        change(records.rows, "changed_count", "0"),
-        change(records.rows, "changed_file", "relative"),
-        records.rows,
-        records.rows + records.get("changed_file"),
-        change(records.rows, "format", "wrong"),
-        change(records.rows, "repository", "relative"),
-        change(records.rows, "diff", "relative"),
+        records | {"changed_count": "2"},
+        records | {"changed_count": "0"},
+        records | {"changed_count": "01"},
+        records | {"changed_files": ["relative"]},
+        records,
+        records | {"changed_files": [*files, *files]},
+        records | {"format": "wrong"},
+        records | {"repository": "relative"},
+        records | {"diff": "relative"},
     ]
     for index, variant in enumerate(variants):
         path = tmp_path / f"scope-{index}.json"
-        if index == 3:
+        if variant is records:
             path.write_text(
                 serialize(variant).replace(
                     '  "base":', '  "base": "duplicate",\n  "base":', 1
@@ -150,7 +156,7 @@ def test_scope_identity_records(repo: Path, tmp_path: Path) -> None:
                 encoding="utf-8",
             )
         else:
-            write(path, variant)
+            write_json(path, variant)
         with pytest.raises(ReviewError):
             result.scope_records(str(path))
 
@@ -176,24 +182,23 @@ def test_scope_set_requires_exact_binding(
     (repo / "file.txt").write_text("changed", encoding="utf-8")
     (repo / "extra.txt").write_text("untracked", encoding="utf-8")
     manifest = prepared(repo).value("manifest")
-    records = [
-        row for row in result_rows() if row[0] not in ("base", "target", "changed_file")
-    ]
-    records += result.scope_records(manifest)
-    original = write(tmp_path / "original.json", [records[0], *reversed(records[1:])])
+    records = result_record()
+    records.update(result.scope_records(manifest))
+    original = write_json(tmp_path / "original.json", records)
     result.validate_scope(manifest, original)
     variants = {
-        "base": change(records, "base", "wrong"),
-        "target": change(records, "target", "wrong"),
-        "omitted": [
-            row for row in records if row != ["changed_file", str(repo / "extra.txt")]
-        ],
-        "duplicate": [*records, ["changed_file", str(repo / "extra.txt")]],
-        "extra": [*records, ["changed_file", str(tmp_path / "unrelated")]],
+        "base": records | {"base": "wrong"},
+        "target": records | {"target": "wrong"},
+        "omitted": records | {"changed_files": [str(repo / "file.txt")]},
+        "duplicate": records
+        | {"changed_files": [*records["changed_files"], str(repo / "extra.txt")]},
+        "extra": records
+        | {"changed_files": [*records["changed_files"], str(tmp_path / "unrelated")]},
     }
-    path = write(tmp_path / "changed.json", variants[mutation])
+    path = write_json(tmp_path / "changed.json", variants[mutation])
     # Format validity alone cannot prove the scope identity or full file set.
-    cli.result_command(["validate", path])
+    if mutation != "duplicate":
+        cli.result_command(["validate", path])
     with pytest.raises(ReviewError) as error:
         result.validate_scope(manifest, path)
     assert error.value.code == 4
@@ -207,15 +212,15 @@ def test_incomplete_manifests_never_emit_scope_records(
 ) -> None:
     (repo / "file.txt").write_text("changed", encoding="utf-8")
     (repo / "extra.txt").write_text("untracked", encoding="utf-8")
-    records = prepared(repo).rows
+    records = prepared(repo).data
     variants = {
-        "target": [row for row in records if row[0] != "target"],
-        "count": [row for row in records if row[0] != "changed_count"],
+        "target": {key: value for key, value in records.items() if key != "target"},
+        "count": {
+            key: value for key, value in records.items() if key != "changed_count"
+        },
         "duplicate": records,
-        "invalid": change(records, "changed_count", "invalid"),
-        "file": [
-            row for row in records if row != ["changed_file", str(repo / "extra.txt")]
-        ],
+        "invalid": records | {"changed_count": "invalid"},
+        "file": records | {"changed_files": [str(repo / "file.txt")]},
     }
     path = tmp_path / "bad.json"
     if mutation == "duplicate":
@@ -228,7 +233,7 @@ def test_incomplete_manifests_never_emit_scope_records(
             encoding="utf-8",
         )
     else:
-        write(path, variants[mutation])
+        write_json(path, variants[mutation])
     with pytest.raises(ReviewError):
         cli.result_command(["scope-records", str(path)])
 
@@ -249,4 +254,4 @@ def test_merge_base_excludes_main_only_paths(repo: Path) -> None:
     )
     assert packet.value("base") == base
     assert packet.value("target") == target
-    assert packet.get("changed_file") == [["changed_file", str(repo / "feature.txt")]]
+    assert packet.strings("changed_files") == [str(repo / "feature.txt")]

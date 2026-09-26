@@ -63,6 +63,10 @@ Output:
   explicitly asks for the machine format. JSON remains the canonical
   mechanical artifact beneath the review scope artifact directory.
 
+Review JSON is parsed as named objects and validated against its format schema
+before semantic checks. The backend uses those named fields directly; it does
+not translate them into positional record rows.
+
 Fix verification returns a human-readable Markdown report by default, or the
 validated additive `darrow-review-verification-v3` JSON only when explicitly
 requested as machine output. Initial `darrow-review-result-v3` validation and
