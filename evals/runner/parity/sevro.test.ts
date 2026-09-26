@@ -11,7 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { sevroCommand } from "./sevro-command";
+import { sevroCommand } from "../../sevro-extension/sevro-command";
 
 const roots: string[] = [];
 const runnerRoot = resolve(import.meta.dir, "..");

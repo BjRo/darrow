@@ -12,7 +12,8 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { sevroCommand } from "./sevro-command";
+import { sevroCommand } from "../../sevro-extension/sevro-command";
+import { invocation } from "../../sevro-extension/run";
 
 const extension = resolve(import.meta.dir, "../../sevro-extension/index.ts");
 const projectRoot = resolve(import.meta.dir, "../../..");
@@ -817,12 +818,9 @@ SEVRO_EVENTS
 }, 20_000);
 
 test("Sevro runs an existing Darrow case through the extension protocol", async () => {
-  const sevroRoute = sevroCommand();
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-extension-"));
   roots.push(root);
-  const commandFile = join(root, "extension-command.json");
   const adapter = join(root, "candidate.ts");
-  await writeFile(commandFile, JSON.stringify([process.execPath, extension]));
   await writeFile(
     adapter,
     `import { writeFile } from "node:fs/promises";
@@ -837,27 +835,16 @@ export default {
 `,
   );
   const result = await command<CliReply>([
-    ...sevroRoute.launch,
-    "run",
-    "--json",
-    ...sevroRoute.extraArgs,
-    "--extension-command-file",
-    commandFile,
-    "--extension-source-file",
-    extension,
-    "--extension-source-file",
-    join(projectRoot, "package.json"),
-    "--extension-source-file",
-    join(projectRoot, "bun.lock"),
+    process.execPath,
+    resolve(import.meta.dir, "../../sevro-extension/run.ts"),
     "--case-id",
     "orchestration-routing-localized-mechanical",
+    "--results-root",
+    join(root, "results"),
+    "--",
     "--adapter-module",
     adapter,
     "--shell-isolation",
-    "--project-root",
-    projectRoot,
-    "--results-root",
-    join(root, "results"),
     "--condition",
     "passive",
     "--trials",
@@ -893,4 +880,20 @@ export default {
     "a".repeat(64),
   );
   expect(evidence.trials[0].condition.requested).toBe("passive");
+});
+
+test("Darrow command reserves extension and identity options", () => {
+  const args = [
+    "--case-id",
+    "example",
+    "--results-root",
+    "/tmp/darrow-sevro-results",
+    "--",
+  ];
+  expect(() =>
+    invocation([...args, "--project-digest", "a".repeat(64)]),
+  ).toThrow(/owned by Darrow/);
+  expect(() => invocation([...args, "--extension-command-file=other"])).toThrow(
+    /owned by Darrow/,
+  );
 });
