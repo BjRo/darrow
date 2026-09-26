@@ -119,15 +119,71 @@ function shellChecks(value: unknown) {
   });
 }
 
+function outputChecks(value: unknown) {
+  if (value === undefined) return [];
+  if (!Array.isArray(value))
+    throw new Error("case output_checks must be an array");
+  return value.map((entry, index) => {
+    const check = record(entry, `output check ${index + 1}`);
+    keys(
+      check,
+      [
+        "name",
+        "valid_json",
+        "json_path",
+        "expect_json",
+        "contains_json",
+        "expect_exact",
+        "expect_regex",
+        "not_regex",
+        "flags",
+      ],
+      `output check ${index + 1}`,
+    );
+    string(check.name, `output check ${index + 1} name`);
+    return {
+      id: `darrow.output.${index + 1}`,
+      grader: "sevro.output",
+      configuration: {
+        ...(check.valid_json === undefined
+          ? {}
+          : { validJson: check.valid_json }),
+        ...(check.json_path === undefined ? {} : { jsonPath: check.json_path }),
+        ...(Object.hasOwn(check, "expect_json")
+          ? { expectJson: check.expect_json }
+          : {}),
+        ...(Object.hasOwn(check, "contains_json")
+          ? { containsJson: check.contains_json }
+          : {}),
+        ...(check.expect_exact === undefined
+          ? {}
+          : { expectExact: check.expect_exact }),
+        ...(check.expect_regex === undefined
+          ? {}
+          : { expectRegex: check.expect_regex }),
+        ...(check.not_regex === undefined ? {} : { notRegex: check.not_regex }),
+        ...(check.flags === undefined ? {} : { flags: check.flags }),
+      },
+    };
+  });
+}
+
 function neutralCase(value: unknown, source: string) {
   const selected = record(value, "case");
-  keys(selected, ["id", "invariant", "prompt", "fixture", "checks"], "case");
+  keys(
+    selected,
+    ["id", "invariant", "prompt", "fixture", "checks", "output_checks"],
+    "case",
+  );
   const id = string(selected.id, "case ID");
   const prompt = string(selected.prompt, "case prompt");
   if (prompt.includes("{{skill_invocation}}"))
     throw new Error("case needs a host-specific skill invocation");
   const invariant = string(selected.invariant, "case invariant");
-  const checks = shellChecks(selected.checks);
+  const checks = [
+    ...shellChecks(selected.checks),
+    ...outputChecks(selected.output_checks),
+  ];
   return {
     id,
     prompt,
@@ -138,9 +194,12 @@ function neutralCase(value: unknown, source: string) {
       "darrow.case": {
         invariant,
         source,
-        checkNames: (selected.checks as RecordValue[]).map(
-          (check) => check.name,
-        ),
+        checkNames: [
+          ...(selected.checks as RecordValue[]).map((check) => check.name),
+          ...((selected.output_checks ?? []) as RecordValue[]).map(
+            (check) => check.name,
+          ),
+        ],
       },
     },
   };

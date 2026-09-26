@@ -115,7 +115,7 @@ test("Darrow extension resolves an existing skill-free case and rejects unsuppor
   );
 });
 
-test("Darrow extension carries stdout assertions into Sevro shell checks", async () => {
+test("Darrow extension grades combined shell and final-message assertions", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-stdout-"));
   roots.push(root);
   const caseDir = join(root, "evals/experiments/example/cases");
@@ -140,6 +140,17 @@ test("Darrow extension carries stdout assertions into Sevro shell checks", async
           exit_code: 0,
         },
       ],
+      output_checks: [
+        {
+          name: "final response contract",
+          valid_json: true,
+          json_path: "/status",
+          expect_json: "ready",
+          expect_exact: '{"status":"ready"}',
+          expect_regex: "ready",
+          not_regex: "secret",
+        },
+      ],
     }),
   );
   const resolved = await command<ExtensionReply>(
@@ -161,6 +172,78 @@ test("Darrow extension carries stdout assertions into Sevro shell checks", async
       expectedExitCode: 0,
     },
   });
+  expect(resolved.value.result.cases[0]!.checks[1]).toMatchObject({
+    id: "darrow.output.1",
+    grader: "sevro.output",
+    configuration: {
+      validJson: true,
+      jsonPath: "/status",
+      expectJson: "ready",
+      expectExact: '{"status":"ready"}',
+      expectRegex: "ready",
+      notRegex: "secret",
+    },
+  });
+
+  const checkout = process.env.SEVRO_CHECKOUT;
+  if (!checkout || !checkout.startsWith("/"))
+    throw new Error("SEVRO_CHECKOUT must name an absolute local checkout");
+  const commandFile = join(root, "extension-command.json");
+  const adapter = join(root, "candidate.ts");
+  await writeFile(commandFile, JSON.stringify([process.execPath, extension]));
+  const invoke = async (status: string) => {
+    await writeFile(
+      adapter,
+      `export default {
+  id: "darrow.host.output-synthetic", model: "synthetic-v1", effort: "none",
+  async run() { return { finalMessage: JSON.stringify({ status: ${JSON.stringify(status)} }), complete: true }; },
+};
+`,
+    );
+    return command<CliReply>([
+      process.execPath,
+      join(checkout, "src/cli.ts"),
+      "run",
+      "--json",
+      "--extension-command-file",
+      commandFile,
+      "--extension-source-file",
+      extension,
+      "--extension-source-file",
+      join(projectRoot, "package.json"),
+      "--extension-source-file",
+      join(projectRoot, "bun.lock"),
+      "--case-id",
+      "stdout-case",
+      "--adapter-module",
+      adapter,
+      "--shell-isolation",
+      "--project-root",
+      root,
+      "--results-root",
+      join(root, "results"),
+      "--runner-build-digest",
+      digest,
+      "--project-digest",
+      digest,
+      "--condition",
+      "passive",
+      "--trials",
+      "1",
+      "--threshold",
+      "1",
+    ]);
+  };
+  const passed = await invoke("ready");
+  expect(passed.code, passed.stderr).toBe(0);
+  expect(
+    passed.value.cases[0]!.trials[0]!.checks.map((check) => check.status),
+  ).toEqual(["passed", "passed"]);
+  const failed = await invoke("wait");
+  expect(failed.code, failed.stderr).toBe(1);
+  expect(
+    failed.value.cases[0]!.trials[0]!.checks.map((check) => check.status),
+  ).toEqual(["passed", "failed"]);
 });
 
 test("Sevro runs an existing Darrow case through the extension protocol", async () => {

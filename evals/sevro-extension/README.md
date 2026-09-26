@@ -7,8 +7,9 @@ retained results.
 
 This first migration slice resolves one selected skill-free case from
 `evals/experiments/*/cases/*.yaml`. It accepts generated Git commits, optional
-working-tree and staged files, and hidden shell checks with exit-code and
-stdout assertions. It preserves the invariant, source path, and check names in
+working-tree and staged files, hidden shell checks with exit-code and stdout
+assertions, and combined final-message checks without external schema files.
+It preserves the invariant, source path, and check names in
 namespaced extension data. Other case fields and fixture mechanics fail
 explicitly. In particular, this slice does not mount skills, run setup scripts,
 or grade activation. Those cases still use Darrow's existing runner.
