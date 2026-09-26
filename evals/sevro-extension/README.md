@@ -41,7 +41,9 @@ SEVRO_CHECKOUT=/absolute/path/to/sevro bun test evals/runner/parity/sevro-extens
 
 The parity test also prepares the mounted skill through Sevro's bundled Codex
 route with `--dry`, validating its protocol identity and retained artifacts
-without starting a model turn.
+without starting a model turn. On macOS with Codex installed, it also drives a
+controlled JSONL turn through the bundled host to verify complete and partial
+native activation receipts end to end without a model call.
 
 An invocation supplies `index.ts`, the repository `package.json`, and
 `bun.lock` as extension source files so the executable and YAML parser version

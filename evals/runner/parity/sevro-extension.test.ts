@@ -711,6 +711,110 @@ export default {
   );
   expect(codexEvidence.routes[0].host).toBe("sevro.host.codex");
   expect(codexEvidence.trials[0].artifactRefs).toHaveLength(3);
+  const installedCodex = Bun.which("codex");
+  if (process.platform === "darwin" && installedCodex) {
+    const fakeRoot = await mkdtemp(join(tmpdir(), "darrow-sevro-codex-"));
+    roots.push(fakeRoot);
+    const fakeCodex = join(fakeRoot, "fake-codex");
+    const quotedCodex = `'${installedCodex.replaceAll("'", `'"'"'`)}'`;
+    const skillBody = await readFile(join(skillDir, "SKILL.md"), "utf8");
+    const events = [
+      { type: "thread.started", thread_id: "synthetic-codex-turn" },
+      {
+        type: "item.completed",
+        item: {
+          type: "command_execution",
+          command: "cat .agents/skills/example/SKILL.md",
+          aggregated_output: skillBody,
+          exit_code: 0,
+          status: "completed",
+        },
+      },
+      {
+        type: "item.completed",
+        item: { type: "agent_message", text: "ready" },
+      },
+      { type: "turn.completed", usage: { input_tokens: 12, output_tokens: 4 } },
+    ]
+      .map((event) => JSON.stringify(event))
+      .join("\n");
+    const fakeSource = `#!/bin/sh
+if [ "$1" = sandbox ]; then exec ${quotedCodex} "$@"; fi
+if [ "$1" = --version ]; then printf 'synthetic-codex\\n'; exit 0; fi
+if [ "$1" != exec ]; then exit 99; fi
+/bin/cat >/dev/null
+/bin/cat <<'SEVRO_EVENTS'
+${events}
+SEVRO_EVENTS
+`;
+    await writeFile(fakeCodex, fakeSource, { mode: 0o700 });
+    await chmod(fakeCodex, 0o700);
+    const authFile = join(root, "auth.json");
+    await writeFile(authFile, "test-only-auth\n", { mode: 0o600 });
+    const nativeHost = await command<CliReply>([
+      ...commonArgs,
+      "--host",
+      "codex",
+      "--codex-bin",
+      fakeCodex,
+      "--codex-auth-file",
+      authFile,
+      "--model",
+      "synthetic-codex",
+      "--effort",
+      "low",
+      "--shell-isolation",
+      "--results-root",
+      join(root, "codex-native-results"),
+    ]);
+    expect(nativeHost.code, nativeHost.stderr).toBe(0);
+    expect(nativeHost.value.task.verdict).toBe("passed");
+    expect(nativeHost.value.cases[0]!.trials[0]!.domainOutcomes).toMatchObject([
+      {
+        id: "darrow.evals.activation",
+        status: "passed",
+        evidenceRefs: ["sevro.codex.skill-reads"],
+      },
+    ]);
+    const nativeEvidence = JSON.parse(
+      await readFile(nativeHost.value.evidencePath, "utf8"),
+    );
+    expect(nativeEvidence.trials[0].observations).toContainEqual({
+      id: "sevro.codex.skill-reads",
+      source: "sevro.host.codex",
+      completeness: "complete",
+      data: {
+        method: "skill_file_read_probe",
+        primarySkill: "example",
+        observedSkills: ["example"],
+      },
+    });
+    await writeFile(
+      fakeCodex,
+      fakeSource.replace(JSON.stringify(skillBody), JSON.stringify("summary")),
+    );
+    const partialHost = await command<CliReply>([
+      ...commonArgs,
+      "--host",
+      "codex",
+      "--codex-bin",
+      fakeCodex,
+      "--codex-auth-file",
+      authFile,
+      "--model",
+      "synthetic-codex",
+      "--effort",
+      "low",
+      "--shell-isolation",
+      "--results-root",
+      join(root, "codex-partial-results"),
+    ]);
+    expect(partialHost.code, partialHost.stderr).toBe(0);
+    expect(partialHost.value.task.verdict).toBe("passed");
+    expect(
+      partialHost.value.cases[0]!.trials[0]!.domainOutcomes[0]!.status,
+    ).toBe("unavailable");
+  }
   await writeFile(join(root, "secret.txt"), "private source\n");
   await symlink(join(root, "secret.txt"), join(skillDir, "references/leak.md"));
   const unsafe = await command<ExtensionReply>(
@@ -723,7 +827,7 @@ export default {
     }),
   );
   expect(unsafe.value.error.message).toMatch(/unsafe entry/);
-});
+}, 20_000);
 
 test("Sevro runs an existing Darrow case through the extension protocol", async () => {
   const sevroRoute = sevroCommand();
