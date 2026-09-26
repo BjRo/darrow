@@ -1,4 +1,4 @@
-"""Compare aggregate review guidance with its reader-authored JSON records."""
+"""Compare aggregate guidance with reader-authored JSON fields."""
 
 from __future__ import annotations
 
@@ -8,60 +8,82 @@ from pathlib import Path
 
 from assert_records import load
 
+GUIDANCE = ("repair_guidance", "resolution_evidence")
+REGRESSION_FIELDS = (
+    "caused_by",
+    "severity",
+    "location",
+    "source",
+    "evidence",
+    *GUIDANCE,
+)
 
-def shape(kind: str) -> tuple[str, int, tuple[int, int]]:
+
+def shape(kind: str) -> tuple[str, str, tuple[str, ...]]:
     if kind == "finding":
-        return "darrow-review-axis-v2", 9, (7, 8)
+        return (
+            "darrow-review-axis-v3",
+            "findings",
+            (
+                "axis",
+                "severity",
+                "disposition",
+                "location",
+                "source",
+                "evidence",
+                *GUIDANCE,
+            ),
+        )
     if kind == "regression":
-        return "darrow-review-fix-axis-v2", 13, (11, 12)
+        return "darrow-review-fix-axis-v3", "regressions", REGRESSION_FIELDS
     raise ValueError(f"unknown guidance kind: {kind}")
 
 
-def aggregate_rows(
-    path: Path, kind: str, size: int, guidance: tuple[int, int]
-) -> list[list[str]]:
-    aggregate = [row for row in load(path) if row[0] == kind]
+def entries(record: dict[str, object], name: str) -> list[dict[str, object]]:
+    value = record.get(name)
+    if not isinstance(value, list) or any(not isinstance(item, dict) for item in value):
+        raise ValueError(f"invalid {name} array")
+    return value
+
+
+def projected(item: dict[str, object], fields: tuple[str, ...]) -> dict[str, object]:
+    return {name: item.get(name) for name in fields}
+
+
+def complete(aggregate: list[dict[str, object]], kind: str) -> None:
     if not aggregate or any(
-        len(row) != size or any(not row[index] for index in guidance)
-        for row in aggregate
+        any(
+            not isinstance(item.get(field), str) or not item[field]
+            for field in GUIDANCE
+        )
+        for item in aggregate
     ):
         raise ValueError(f"aggregate has incomplete {kind} guidance")
-    return aggregate
 
 
-def reader_rows(path: Path, kind: str, format_name: str) -> list[list[str]]:
-    candidate = json.loads(path.read_text(encoding="utf-8"))
-    if (
-        not isinstance(candidate, list)
-        or not candidate
-        or candidate[0] != ["format", format_name]
-    ):
-        return []
-    records = load(path)
-    if kind == "finding":
-        axes = [row[1] for row in records if row[0] == "axis"]
-        if len(axes) != 1:
-            raise ValueError(f"{path} has no unique axis")
-        return [[axes[0], *row[1:]] for row in records if row[0] == kind]
-    return [row[1:] for row in records if row[0] == kind]
-
-
-def projection(row: list[str], kind: str) -> list[str]:
-    if kind == "finding":
-        return row[1:]
-    return [row[index] for index in (2, 5, 8, 9, 10, 11, 12)]
+def reader_entries(
+    aggregate_path: Path, name: str, format_name: str
+) -> list[dict[str, object]]:
+    readers = []
+    for path in aggregate_path.parent.glob("*.json"):
+        candidate = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(candidate, dict) or candidate.get("format") != format_name:
+            continue
+        for item in entries(candidate, name):
+            readers.append({"axis": candidate.get("axis"), **item})
+    return readers
 
 
 def check(aggregate_path: Path, kind: str) -> None:
-    format_name, size, guidance = shape(kind)
-    aggregate = aggregate_rows(aggregate_path, kind, size, guidance)
-    reader = [
-        row
-        for path in aggregate_path.parent.glob("*.json")
-        for row in reader_rows(path, kind, format_name)
+    format_name, name, fields = shape(kind)
+    aggregate = entries(load(aggregate_path), name)
+    complete(aggregate, kind)
+    readers = [
+        projected(item, fields)
+        for item in reader_entries(aggregate_path, name, format_name)
     ]
-    for row in aggregate:
-        if projection(row, kind) not in reader:
+    for item in aggregate:
+        if projected(item, fields) not in readers:
             raise ValueError(f"aggregate {kind} guidance differs from a reader")
 
 

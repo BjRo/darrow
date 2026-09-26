@@ -1,4 +1,4 @@
-"""Read eval artifacts as JSON and check exact record fields."""
+"""Check named fields in hidden review eval JSON artifacts."""
 
 from __future__ import annotations
 
@@ -6,66 +6,74 @@ import json
 import sys
 from pathlib import Path
 
+ROUTE_FIELDS = ("host", "provider", "model", "effort")
 
-def load(path: Path) -> list[list[str]]:
+
+def load(path: Path) -> dict[str, object]:
     value = json.loads(path.read_text(encoding="utf-8"))
-    if (
-        not isinstance(value, list)
-        or not value
-        or any(
-            not isinstance(row, list)
-            or not row
-            or any(not isinstance(field, str) for field in row)
-            for row in value
-        )
-    ):
-        raise ValueError(f"{path} must contain JSON arrays of strings")
+    if not isinstance(value, dict) or not value:
+        raise ValueError(f"{path} must contain a JSON object")
     return value
 
 
-def exact(records: list[list[str]], operation: str, fields: list[str]) -> None:
-    if not fields:
-        raise ValueError("an exact record needs at least one field")
-    if operation == "has" and fields not in records:
-        raise ValueError(f"missing record: {fields!r}")
-    if operation == "lacks" and fields in records:
-        raise ValueError(f"unexpected record: {fields!r}")
+def expected(fields: list[str]) -> tuple[str, object]:
+    if len(fields) == 2:
+        return fields[0], fields[1]
+    if len(fields) == 5 and fields[0].endswith("_route"):
+        return fields[0], {
+            field: fields[index + 1] for index, field in enumerate(ROUTE_FIELDS)
+        }
+    raise ValueError(f"invalid field assertion: {fields!r}")
 
 
-def lacks_key(records: list[list[str]], fields: list[str]) -> None:
+def exact(record: dict[str, object], operation: str, fields: list[str]) -> None:
+    key, value = expected(fields)
+    if (record.get(key) == value) != (operation == "has"):
+        raise ValueError(f"{operation} failed for {fields!r}")
+
+
+def lacks_key(record: dict[str, object], fields: list[str]) -> None:
     if len(fields) != 1:
         raise ValueError("lacks-key needs one field")
-    if any(row[0] == fields[0] for row in records):
-        raise ValueError(f"unexpected record key: {fields[0]}")
+    name = fields[0]
+    if name in record and record[name] != []:
+        raise ValueError(f"unexpected field: {name}")
 
 
-def contains(records: list[list[str]], operation: str, fields: list[str]) -> None:
+def strings(value: object) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, dict):
+        return [part for item in value.values() for part in strings(item)]
+    if isinstance(value, list):
+        return [part for item in value for part in strings(item)]
+    return []
+
+
+def contains(record: dict[str, object], operation: str, fields: list[str]) -> None:
     if len(fields) != 1:
         raise ValueError(f"{operation} needs one field")
-    present = any(fields[0] in field for row in records for field in row)
+    present = any(fields[0] in field for field in strings(record))
     if present != (operation == "contains"):
         raise ValueError(f"{operation} failed for {fields[0]!r}")
 
 
-def value(records: list[list[str]], fields: list[str]) -> str:
-    if len(fields) != 1:
-        raise ValueError("value needs one field")
-    matches = [row for row in records if row[0] == fields[0]]
-    if len(matches) != 1 or len(matches[0]) != 2:
-        raise ValueError(f"expected one two-field {fields[0]} record")
-    return matches[0][1]
+def value(record: dict[str, object], fields: list[str]) -> str:
+    if len(fields) != 1 or not isinstance(record.get(fields[0]), str):
+        raise ValueError(f"expected one string field: {fields!r}")
+    return str(record[fields[0]])
 
 
 def check(path: Path, operation: str, fields: list[str]) -> str | None:
-    records = load(path)
+    record = load(path)
     if operation in ("has", "lacks"):
-        exact(records, operation, fields)
+        exact(record, operation, fields)
     elif operation == "lacks-key":
-        lacks_key(records, fields)
+        lacks_key(record, fields)
     elif operation in ("contains", "not-contains"):
-        contains(records, operation, fields)
+        contains(record, operation, fields)
     elif operation == "value":
-        return value(records, fields)
+        return value(record, fields)
     else:
         raise ValueError(f"invalid record operation: {operation} {fields!r}")
     return None

@@ -20,7 +20,7 @@ checks:
       test -n "$record" || exit 1;
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
       test -n "$tool" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record"
-    expect_regex: "^valid: darrow-review-result-v2$"
+    expect_regex: "^valid: darrow-review-result-v3$"
   - name: empty scope blocks without changed files or findings
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
@@ -28,8 +28,8 @@ checks:
       python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has standards blocked &&
       python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has spec not_available &&
       python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has verdict blocked &&
-      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks-key changed_file &&
-      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks-key finding
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks-key changed_files &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks-key findings
   - name: terminal scope failure invokes no reviewer
     run: >-
       case "$DARROW_EVAL_HARNESS" in
@@ -37,7 +37,7 @@ checks:
       claude) ! grep -F '"type":"darrow.review_agent_launch"' .git/retained-harness.jsonl >/dev/null ;;
       *) exit 2 ;; esac
   - name: default response does not duplicate canonical JSON
-    run: "! grep -F 'format	darrow-review-result-v2' .git/last-message.md"
+    run: "! grep -F 'format	darrow-review-result-v3' .git/last-message.md"
   - name: final response preserves every canonical rendered line
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');

@@ -5,17 +5,32 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
+
+
+def unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for name, value in pairs:
+        assert name not in result, f"duplicate JSON field: {name}"
+        result[name] = value
+    return result
 
 
 def row(path: Path, key: str) -> list[str]:
-    matches = [
-        record[1:]
-        for record in json.loads(path.read_text(encoding="utf-8"))
-        if record[0] == key
-    ]
-    assert len(matches) == 1, f"{path}: expected one {key}"
-    return cast(list[str], matches[0])
+    record = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique)
+    assert isinstance(record, dict) and key in record, f"{path}: expected one {key}"
+    value = record[key]
+    if isinstance(value, str):
+        return [value]
+    assert isinstance(value, dict) and set(value) == {
+        "host",
+        "provider",
+        "model",
+        "effort",
+    }, f"{path}: invalid {key}"
+    fields = [value[name] for name in ("host", "provider", "model", "effort")]
+    assert all(isinstance(field, str) for field in fields)
+    return fields
 
 
 def route(host: str, profile: str) -> list[str]:

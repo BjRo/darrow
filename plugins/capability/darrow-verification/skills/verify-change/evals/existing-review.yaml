@@ -59,7 +59,7 @@ checks:
     run:
       record=$(find .git -name result.json -type f) && test -n "$record" && test
       "$(printf '%s\n' "$record" | wc -l | tr -d ' ')" = 1 && python3 -c
-      'import json, sys; assert ["verdict", "fail"] in json.load(open(sys.argv[1]))' "$record" && test -s "$(dirname
+      'import json, sys; assert json.load(open(sys.argv[1]))["verdict"] == "fail"' "$record" && test -s "$(dirname
       "$record")/review.md"
   - name: existing result and complete provider report validate
     run: >

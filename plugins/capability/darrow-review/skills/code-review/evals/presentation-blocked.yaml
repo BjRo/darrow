@@ -21,11 +21,11 @@ checks:
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record" &&
       python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has verdict blocked &&
       python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" contains 'declared review scope is empty' &&
-      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks-key changed_file &&
-      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks-key finding
-    expect_regex: "^valid: darrow-review-result-v2$"
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks-key changed_files &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks-key findings
+    expect_regex: "^valid: darrow-review-result-v3$"
   - name: terminal scope response does not leak JSON
-    run: "! grep -F 'format	darrow-review-result-v2' .git/last-message.md"
+    run: "! grep -F 'format	darrow-review-result-v3' .git/last-message.md"
   - name: final response preserves every canonical rendered line
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');

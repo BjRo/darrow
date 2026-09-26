@@ -68,7 +68,7 @@ def capture(output: str, command: str) -> str:
     status = "pass" if code == 0 else "blocked" if code in (126, 127) else "fail"
     body = serialize(
         [
-            ["format", "darrow-review-check-v2"],
+            ["format", "darrow-review-check-v3"],
             ["check", command, "applicable", status, f"exited {code}: {first}"],
             ["exit_code", str(code)],
         ]

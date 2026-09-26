@@ -7,8 +7,8 @@ description: Review bounded code changes and verify attempted repairs against pr
 
 Return one independent, read-only comprehensive review or fix verification of
 a pinned change. Comprehensive mode preserves the existing
-`darrow-review-result-v2`; fix-verification mode uses the additive
-`darrow-review-verification-v2`. By default return one complete Markdown report.
+`darrow-review-result-v3`; fix-verification mode uses the additive
+`darrow-review-verification-v3`. By default return one complete Markdown report.
 Return only the applicable validated JSON when the requester explicitly asks for
 raw JSON, the named protocol, or machine format. Never emit both forms. For an
 explicit clause inside a larger goal, return the same normal report to the
@@ -193,7 +193,7 @@ unique `check-N.json` beneath the scope artifact directory and run:
 uv run --quiet --no-project "$backend/scripts/run_locked.py" review-check run --output "$check_record" --command "$literal_command"
 ```
 
-Read the retained `darrow-review-check-v2` record and preserve its `check` row field values exactly in the aggregate result and reader evidence. Never infer,
+Read the retained `darrow-review-check-v3` object and preserve its `checks` entry values exactly in the aggregate result and reader evidence. Never infer,
 restate, or override its status from memory. Never execute an applicable
 command directly: `review-check` is its sole execution boundary. Exit 0 is
 `pass`, an ordinary nonzero exit is `fail`, and an unavailable command is
@@ -255,7 +255,7 @@ third recommendation. For a duplicate, retain one complete reader-authored
 record. Legacy records may lack guidance; do not manufacture it.
 
 Assemble the JSON result beneath the scope artifact directory. Copy its base,
-target, and changed-file records using `scope-records`; never retype their
+target, and `changed_files` fields using `scope-records`; never retype their
 identifiers. Run `validate-scope` with the pinned manifest and result before
 rendering, as specified in the result protocol. A schema-only pass cannot
 establish scope binding.
@@ -277,7 +277,7 @@ uv run --quiet --no-project "$backend/scripts/run_locked.py" review-report rende
 
 Copy its complete stdout as the entire response. The renderer validates the
 JSON, preserves every semantic field, and escapes hostile Markdown content. Only
-when the requester explicitly asked for raw JSON, v2, or machine format, copy
+when the requester explicitly asked for raw JSON, v3, or machine format, copy
 the validated JSON bytes verbatim instead. Never concatenate the Markdown and
 JSON forms.
 

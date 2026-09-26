@@ -55,9 +55,9 @@ checks:
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n 1)
       test -n "$tool"
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-verification "$record"
-      # Retain the bounded immutable finding rows when diagnosing a history loss.
-      find .git -maxdepth 2 -name result.json -path '*/darrow-review.*/*' -exec python3 -c 'import json, sys; print(*(row for row in json.load(open(sys.argv[1])) if row[0] in ("target", "finding")), sep="\n")' {} \;
-      python3 -c 'import json, sys; rows = json.load(open(sys.argv[1])); print(*(row for row in rows if row[0] in ("original_target", "original_finding")), sep="\n"); assert ["outcome", "clear"] in rows' "$record"
+      # Retain the bounded immutable findings when diagnosing a history loss.
+      find .git -maxdepth 2 -name result.json -path '*/darrow-review.*/*' -exec python3 -c 'import json, sys; record = json.load(open(sys.argv[1])); print(record["target"], *record.get("findings", []), sep="\n")' {} \;
+      python3 -c 'import json, sys; record = json.load(open(sys.argv[1])); print(record["original_target"], *record.get("original_findings", []), sep="\n"); assert record["outcome"] == "clear"' "$record"
       uv run --quiet --frozen --no-dev --project .git/fixture-backend adaptive-delivery-fixture proof complete "$record"
       uv run --quiet --frozen --no-dev --project .git/fixture-backend adaptive-delivery-fixture proof current
 semantic_output_checks:

@@ -140,7 +140,7 @@ def verify(repo: str, agent: str, projects: str = "", record: str = "") -> str:
     )
     body = serialize(
         [
-            ["format", "darrow-review-claude-route-v2"],
+            ["format", "darrow-review-claude-route-v3"],
             ["agent_id", agent],
             ["transcript", str(transcript)],
             ["provider_evidence", "current-host-environment-default"],
@@ -151,5 +151,5 @@ def verify(repo: str, agent: str, projects: str = "", record: str = "") -> str:
         return body
     path = new_record(record, body)
     return serialize(
-        [["format", "darrow-reviewer-record-location-v2"], ["record", str(path)]]
+        [["format", "darrow-reviewer-record-location-v3"], ["record", str(path)]]
     )

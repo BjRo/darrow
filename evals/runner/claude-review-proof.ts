@@ -1,11 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join } from "node:path";
-import {
-  oneRow as row,
-  oneValue as value,
-  parseRecords,
-} from "./review-records";
+import { routeFields, oneValue as value, parseRecords } from "./review-records";
 
 type JsonObject = Record<string, unknown>;
 type JsonEntry = { line: number; value: JsonObject };
@@ -56,23 +52,18 @@ function jsonLines(content: string, label: string): JsonEntry[] {
 }
 
 function selectedRoute(content: string): Route {
-  const selected = row(parseRecords(content), "selected_route");
-  if (selected.length !== 4 || selected.some((field) => !field))
-    throw new Error("selected_route must contain four fields");
-  const [host, provider, model, effort] = selected as [
-    string,
-    string,
-    string,
-    string,
-  ];
+  const [host, provider, model, effort] = routeFields(
+    parseRecords(content),
+    "selected_route",
+  );
   if (host !== "claude" || provider !== "anthropic")
     throw new Error("native Claude proof requires claude/anthropic");
   return { host, provider, model, effort };
 }
 
-function sameRoute(rows: Map<string, string[][]>, key: string, route: Route) {
+function sameRoute(rows: Record<string, unknown>, key: string, route: Route) {
   const expected = [route.host, route.provider, route.model, route.effort];
-  if (JSON.stringify(row(rows, key)) !== JSON.stringify(expected))
+  if (JSON.stringify(routeFields(rows, key)) !== JSON.stringify(expected))
     throw new Error(`${key} does not match the selected route`);
 }
 

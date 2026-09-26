@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute } from "node:path";
-import { oneRow, oneValue, parseRecords } from "./review-records";
+import { oneValue, parseRecords, routeFields } from "./review-records";
 
 type JsonObject = Record<string, unknown>;
 type SessionEntry = { ordinal: number; timestamp: string; value: JsonObject };
@@ -125,18 +125,8 @@ function parseSession(content: string): SessionEntry[] {
     });
 }
 
-function routeFrom(rows: Map<string, string[][]>): Route {
-  const selected = oneRow(rows, "selected_route");
-  if (selected.length !== 4 || selected.some((value) => !value))
-    throw new Error(
-      "selected_route must contain host, provider, model, effort",
-    );
-  const [host, provider, model, effort] = selected as [
-    string,
-    string,
-    string,
-    string,
-  ];
+function routeFrom(rows: Record<string, unknown>): Route {
+  const [host, provider, model, effort] = routeFields(rows, "selected_route");
   if (host !== "codex")
     throw new Error("native Codex proof requires a codex route");
   if (provider !== "openai")
@@ -176,7 +166,7 @@ function verifyApplicationRecord(
   const rows = parseRecords(content);
   const expected = [route.host, route.provider, route.model, route.effort];
   for (const key of ["selected_route", "requested_route"])
-    if (JSON.stringify(oneRow(rows, key)) !== JSON.stringify(expected))
+    if (JSON.stringify(routeFields(rows, key)) !== JSON.stringify(expected))
       throw new Error(`${axis} ${key} does not match the selected route`);
   if (oneValue(rows, "route_bound") !== "true")
     throw new Error(`${axis} application record is not route_bound`);

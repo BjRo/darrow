@@ -5,6 +5,7 @@ from __future__ import annotations
 import errno
 import hashlib
 import importlib
+import json
 import ntpath
 import os
 import posixpath
@@ -14,6 +15,7 @@ import time
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from pathlib import Path
+from typing import cast
 
 from .common import ReviewError, require, rows, safe_line, serialize
 
@@ -108,7 +110,7 @@ def allocate_terminal(repo: Path) -> Path:
     try:
         manifest = run / "scope.json"
         body = serialize(
-            [["format", "darrow-review-terminal-v2"], ["repository", str(repo)]]
+            [["format", "darrow-review-terminal-v3"], ["repository", str(repo)]]
         )
         descriptor = os.open(manifest, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
         with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as stream:
@@ -125,7 +127,7 @@ def run_for_manifest(manifest: Path) -> Path:
     require(manifest.name == "scope.json", "review manifest must name scope.json")
     fields = fields_at(manifest)
     require(
-        fields.get("format") in ("darrow-review-scope-v2", "darrow-review-terminal-v2"),
+        fields.get("format") in ("darrow-review-scope-v3", "darrow-review-terminal-v3"),
         "invalid review manifest",
     )
     repo = Path(fields.get("repository", ""))
@@ -159,7 +161,36 @@ def fields_at(path: Path) -> dict[str, str]:
         content = path.read_text(encoding="utf-8")
     except (OSError, UnicodeError) as exc:
         raise ReviewError(f"review state is unreadable: {path}") from exc
-    return {row[0]: row[1] for row in rows(content) if len(row) == 2}
+    return {row[0]: row[1] for row in state_rows(content) if len(row) == 2}
+
+
+def state_rows(content: str) -> list[list[str]]:
+    """Read retained v2 state for pruning; public record parsing stays v3-only."""
+    try:
+        value = json.loads(content)
+    except json.JSONDecodeError:
+        return rows(content)
+    if (
+        isinstance(value, list)
+        and value
+        and value[0]
+        in (
+            ["format", "darrow-review-scope-v2"],
+            ["format", "darrow-review-verification-v2"],
+            ["format", "darrow-review-terminal-v2"],
+        )
+    ):
+        require(
+            all(
+                isinstance(row, list)
+                and row
+                and all(isinstance(field, str) for field in row)
+                for row in value
+            ),
+            "invalid retained v2 review state",
+        )
+        return cast(list[list[str]], value)
+    return rows(content)
 
 
 def runs(bucket: Path) -> list[Path]:
@@ -167,6 +198,15 @@ def runs(bucket: Path) -> list[Path]:
         path
         for path in bucket.iterdir()
         if path.name.startswith(RUN_PREFIX) and path.is_dir() and not path.is_symlink()
+    )
+
+
+def matches_v3_scope(candidate: Path, repo: Path, target: str) -> bool:
+    fields = fields_at(candidate)
+    return (
+        fields.get("format") == "darrow-review-scope-v3"
+        and fields.get("repository") == str(repo)
+        and fields.get("target") == target
     )
 
 
@@ -182,8 +222,7 @@ def locate(repo: Path, target: str) -> Path | None:
         candidate = run / "scope.json"
         if not candidate.is_file() or candidate.is_symlink():
             continue
-        fields = fields_at(candidate)
-        if fields.get("repository") != str(repo) or fields.get("target") != target:
+        if not matches_v3_scope(candidate, repo, target):
             continue
         scope.show(str(candidate))
         matches.append(candidate)
@@ -207,7 +246,7 @@ def references(
     if not file.is_file() or file.is_symlink():
         return set()
     try:
-        lines = rows(file.read_text(encoding="utf-8"))
+        lines = state_rows(file.read_text(encoding="utf-8"))
     except (OSError, UnicodeError) as exc:
         raise ReviewError(f"review dependency is unreadable: {file}") from exc
     paths = (

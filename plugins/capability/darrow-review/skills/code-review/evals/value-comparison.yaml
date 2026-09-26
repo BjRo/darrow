@@ -37,19 +37,19 @@ checks:
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      python3 -c 'import json,re,sys; rows=json.load(open(sys.argv[1])); assert any(row[0]=="finding" and row[1]=="spec" and row[3]=="blocking" and re.search(r"12x|parseint|trailing|integer|string",row[6],re.I) for row in rows)' "$record"
+      python3 -c 'import json,re,sys; record=json.load(open(sys.argv[1])); assert any(item["axis"]=="spec" and item["disposition"]=="blocking" and re.search(r"12x|parseint|trailing|integer|string",item["evidence"],re.I) for item in record["findings"])' "$record"
   - name: no seeded defect escapes
     metric: escaped_defect
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      python3 -c 'import json,re,sys; rows=json.load(open(sys.argv[1])); assert any(row[0]=="finding" and row[1]=="spec" and row[3]=="blocking" and re.search(r"12x|parseint|trailing|integer|string",row[6],re.I) for row in rows)' "$record"
+      python3 -c 'import json,re,sys; record=json.load(open(sys.argv[1])); assert any(item["axis"]=="spec" and item["disposition"]=="blocking" and re.search(r"12x|parseint|trailing|integer|string",item["evidence"],re.I) for item in record["findings"])' "$record"
   - name: accepted inline design does not create a false positive
     metric: false_positive
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      python3 -c 'import json,re,sys; rows=json.load(open(sys.argv[1])); assert not any(row[0]=="finding" and re.search(r"abstract|inline|generalit",row[6],re.I) for row in rows)' "$record"
+      python3 -c 'import json,re,sys; record=json.load(open(sys.argv[1])); assert not any(re.search(r"abstract|inline|generalit",item["evidence"],re.I) for item in record["findings"])' "$record"
   - name: comparative review remains read-only
     run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
   - name: canonical JSON is retained beneath the review scope artifact
@@ -58,12 +58,12 @@ checks:
       test -n "$tool" || exit 1;
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record"
-    expect_regex: "^valid: darrow-review-result-v2$"
+    expect_regex: "^valid: darrow-review-result-v3$"
   - name: canonical result preserves the seeded Spec defect without a design false positive
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      python3 -c 'import json,re,sys; rows=json.load(open(sys.argv[1])); assert ["spec","fail"] in rows and ["verdict","fail"] in rows and any(row[0]=="finding" and row[1]=="spec" and row[3]=="blocking" and re.search(r"12x|parseint|trailing"," ".join(row),re.I) for row in rows) and not any(row[0]=="finding" and row[1]=="standards" for row in rows)' "$record"
+      python3 -c 'import json,re,sys; record=json.load(open(sys.argv[1])); assert record["spec"]=="fail" and record["verdict"]=="fail" and any(item["axis"]=="spec" and item["disposition"]=="blocking" and re.search(r"12x|parseint|trailing"," ".join(item.values()),re.I) for item in record["findings"]) and not any(item["axis"]=="standards" for item in record["findings"])' "$record"
   - name: canonical Markdown handoff is materialized beside the JSON
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
@@ -74,7 +74,7 @@ checks:
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render "$record" >.git/expected-review.md &&
       cmp .git/expected-review.md "$report"
   - name: default response does not expose canonical JSON
-    run: "! grep -F 'darrow-review-result-v2' .git/last-message.md"
+    run: "! grep -F 'darrow-review-result-v3' .git/last-message.md"
   - name: final response preserves every canonical rendered line
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');

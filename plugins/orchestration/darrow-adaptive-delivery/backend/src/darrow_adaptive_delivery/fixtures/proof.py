@@ -16,17 +16,13 @@ class InvalidProofError(Exception):
 
 def field(path: Path, name: str) -> str:
     try:
-        records = json.loads(path.read_text(encoding="utf-8"))
+        record = json.loads(path.read_text(encoding="utf-8"))
     except (ValueError, RecursionError) as exc:
         raise InvalidProofError(f"invalid review JSON: {path}") from exc
-    if not isinstance(records, list) or any(
-        not isinstance(row, list)
-        or not row
-        or any(not isinstance(value, str) for value in row)
-        for row in records
-    ):
-        raise InvalidProofError(f"invalid review JSON records: {path}")
-    return "\n".join(row[1] for row in records if row[0] == name and len(row) > 1)
+    value = record.get(name) if isinstance(record, dict) else None
+    if not isinstance(value, str):
+        raise InvalidProofError(f"invalid review JSON field {name}: {path}")
+    return value
 
 
 def provider(git_dir: Path) -> Path:
@@ -114,9 +110,9 @@ def original_record(git_dir: Path, target: str) -> Path:
 
 def reviewed_target(backend: Path, repo: Path, git_dir: Path, path: Path) -> str:
     format_name = field(path, "format")
-    if format_name == "darrow-review-result-v2":
+    if format_name == "darrow-review-result-v3":
         return comprehensive_target(backend, repo, path)
-    if format_name == "darrow-review-verification-v2":
+    if format_name == "darrow-review-verification-v3":
         return verification_target(backend, repo, git_dir, path)
     raise InvalidProofError(f"unsupported format: {format_name}")
 
@@ -161,8 +157,11 @@ def current(backend: Path, repo: Path, target: str) -> None:
         "WORKTREE",
     )
     try:
-        actual = next(row[1] for row in json.loads(scope) if row[0] == "target")
-    except (ValueError, IndexError, StopIteration, TypeError) as exc:
+        value = json.loads(scope)
+        actual = value["target"]
+        if not isinstance(actual, str):
+            raise TypeError("target must be a string")
+    except (ValueError, KeyError, TypeError) as exc:
         raise InvalidProofError("invalid review scope JSON") from exc
     if not target or target != actual:
         raise InvalidProofError(f"stale review target: {target}; current: {actual}")

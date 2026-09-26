@@ -30,7 +30,7 @@ def calls(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, ...]]:
         result.append(args)
         if args[0] == "review-report":
             return "Canonical human report\n"
-        return json.dumps([["target", "WORKTREE@current"]])
+        return json.dumps({"target": "WORKTREE@current"})
 
     monkeypatch.setattr(proof, "invoke", invoke)
     return result
@@ -40,12 +40,12 @@ def comprehensive(repo: Path) -> Path:
     return write(
         repo / ".git/darrow-review.original/result.json",
         json.dumps(
-            [
-                ["format", "darrow-review-result-v2"],
-                ["verdict", "pass"],
-                ["next_action", "return control to enclosing goal"],
-                ["target", "WORKTREE@current"],
-            ]
+            {
+                "format": "darrow-review-result-v3",
+                "verdict": "pass",
+                "next_action": "return control to enclosing goal",
+                "target": "WORKTREE@current",
+            }
         ),
     )
 
@@ -54,12 +54,12 @@ def verification(repo: Path) -> Path:
     return write(
         repo / ".git/darrow-review.repair/verification.json",
         json.dumps(
-            [
-                ["format", "darrow-review-verification-v2"],
-                ["outcome", "clear"],
-                ["original_target", "WORKTREE@current"],
-                ["current_target", "WORKTREE@current"],
-            ]
+            {
+                "format": "darrow-review-verification-v3",
+                "outcome": "clear",
+                "original_target": "WORKTREE@current",
+                "current_target": "WORKTREE@current",
+            }
         ),
     )
 
@@ -152,17 +152,17 @@ def test_bad_modes_and_missing_saved_evidence(repo: Path) -> None:
 @pytest.mark.parametrize(
     "replacement,error",
     [
-        (('"verdict", "pass"', '"verdict", "fail"'), "not clear"),
+        (('"verdict": "pass"', '"verdict": "fail"'), "not clear"),
         (
             (
-                '"next_action", "return control to enclosing goal"',
-                '"next_action", "continue"',
+                '"next_action": "return control to enclosing goal"',
+                '"next_action": "continue"',
             ),
             "did not return",
         ),
-        (('"target", "WORKTREE@current"', '"target", "WORKTREE@old"'), "stale review"),
+        (('"target": "WORKTREE@current"', '"target": "WORKTREE@old"'), "stale review"),
         (
-            ('"format", "darrow-review-result-v2"', '"format", "unknown"'),
+            ('"format": "darrow-review-result-v3"', '"format": "unknown"'),
             "unsupported format",
         ),
     ],
@@ -176,6 +176,25 @@ def test_comprehensive_refusals(
     with pytest.raises(proof.InvalidProofError, match=error):
         proof.validate(repo, "complete", str(path))
     assert not (repo / ".git/goal-complete").exists()
+
+
+def test_proof_rejects_legacy_array_record(repo: Path) -> None:
+    provider(repo)
+    record = comprehensive(repo)
+    record.write_text(
+        json.dumps(
+            [
+                ["format", "darrow-review-result-v2"],
+                ["target", "WORKTREE@current"],
+                ["verdict", "pass"],
+            ]
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(
+        proof.InvalidProofError, match="invalid review JSON field format"
+    ):
+        proof.validate(repo, "complete", str(record))
 
 
 def test_artifact_names(repo: Path, calls: list[tuple[str, ...]]) -> None:
@@ -207,7 +226,7 @@ def test_verification_requires_clear_and_original(
     with pytest.raises(proof.InvalidProofError, match=r"original.*ambiguous"):
         proof.validate(repo, "complete", str(record))
     record.write_text(
-        record.read_text().replace('"outcome", "clear"', '"outcome", "continue"')
+        record.read_text().replace('"outcome": "clear"', '"outcome": "continue"')
     )
     with pytest.raises(proof.InvalidProofError, match="verification is not clear"):
         proof.validate(repo, "complete", str(record))

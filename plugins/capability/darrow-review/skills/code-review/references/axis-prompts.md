@@ -39,35 +39,22 @@ mark it as advisory, separate from the required outcome. If you lack evidence
 for a safe recommendation, explicitly say why without inventing a solution or
 withholding the supported finding. Identify observable behavior or a regression
 test that would demonstrate resolution. Encode every field as a JSON string; preserve tabs and newlines inside strings.
-Return at most 8 findings as one valid JSON array of records, with no prose or code fence. Replace placeholders, omit absent findings, and repeat source and finding rows as needed:
-[
-  [
-    "format",
-    "darrow-review-axis-v2"
-  ],
-  [
-    "axis",
-    "standards"
-  ],
-  [
-    "status",
-    "pass|fail|blocked"
-  ],
-  [
-    "source",
-    "one exact repository source (repeat as needed)"
-  ],
-  [
-    "finding",
-    "critical|high|medium|low",
-    "blocking|advisory",
-    "changed path:line or command",
-    "violated source or heuristic:<name>",
-    "failure and cause evidence",
-    "advisory repair guidance or explicit limitation",
-    "resolution behavior or regression test"
-  ]
-]
+Return at most 8 findings as one valid JSON object, with no prose or code fence. Replace placeholders and repeat array entries as needed:
+{
+  "format": "darrow-review-axis-v3",
+  "axis": "standards",
+  "status": "pass|fail|blocked",
+  "sources": ["one exact repository source"],
+  "findings": [{
+    "severity": "critical|high|medium|low",
+    "disposition": "blocking|advisory",
+    "location": "changed path:line or command",
+    "source": "violated source or heuristic:name",
+    "evidence": "failure and cause evidence",
+    "repair_guidance": "advisory repair guidance or explicit limitation",
+    "resolution_evidence": "resolution behavior or regression test"
+  }]
+}
 ```
 
 ## Spec reviewer
@@ -104,35 +91,22 @@ mark it as advisory, separate from the required outcome. If you lack evidence
 for a safe recommendation, explicitly say why without inventing a solution or
 withholding the supported finding. Identify observable behavior or a regression
 test that would demonstrate resolution. Encode every field as a JSON string; preserve tabs and newlines inside strings.
-Return at most 8 findings as one valid JSON array of records, with no prose or code fence. Replace placeholders, omit absent findings, and repeat source and finding rows as needed:
-[
-  [
-    "format",
-    "darrow-review-axis-v2"
-  ],
-  [
-    "axis",
-    "spec"
-  ],
-  [
-    "status",
-    "pass|fail|blocked"
-  ],
-  [
-    "source",
-    "one exact originating source (repeat as needed)"
-  ],
-  [
-    "finding",
-    "critical|high|medium|low",
-    "blocking|advisory",
-    "changed path:line or command",
-    "exact requirement citation",
-    "failure and cause evidence",
-    "advisory repair guidance or explicit limitation",
-    "resolution behavior or regression test"
-  ]
-]
+Return at most 8 findings as one valid JSON object, with no prose or code fence. Replace placeholders and repeat array entries as needed:
+{
+  "format": "darrow-review-axis-v3",
+  "axis": "spec",
+  "status": "pass|fail|blocked",
+  "sources": ["one exact originating source"],
+  "findings": [{
+    "severity": "critical|high|medium|low",
+    "disposition": "blocking|advisory",
+    "location": "changed path:line or command",
+    "source": "exact requirement citation",
+    "evidence": "failure and cause evidence",
+    "repair_guidance": "advisory repair guidance or explicit limitation",
+    "resolution_evidence": "resolution behavior or regression test"
+  }]
+}
 ```
 
 ## Standards fix verifier
@@ -183,54 +157,35 @@ and resolution behavior or regression test. If a safe recommendation is not
 supported, state that limitation and why without suppressing the regression.
 Encode every field as a JSON string; preserve tabs and newlines inside strings.
 
-Return one valid JSON array of records, with no prose or code fence. Replace placeholders, omit absent optional rows, and repeat finding and evidence rows as needed:
-[
-  [
-    "format",
-    "darrow-review-fix-axis-v2"
-  ],
-  [
-    "axis",
-    "standards"
-  ],
-  [
-    "original",
-    "original finding key"
-  ],
-  [
-    "prior_regression",
-    "stable regression key",
-    "causing original finding key"
-  ],
-  [
-    "attempt",
-    "original finding key",
-    "resolved|unresolved|blocked",
-    "resolved|progressing|unchanged|unavailable",
-    "current evidence"
-  ],
-  [
-    "regression_attempt",
-    "stable prior regression key",
-    "resolved|unresolved|blocked",
-    "resolved|progressing|unchanged|unavailable",
-    "current evidence"
-  ],
-  [
-    "regression",
-    "causing original finding key",
-    "critical|high|medium|low",
-    "location",
-    "source",
-    "failure and cause evidence",
-    "advisory repair guidance or explicit limitation",
-    "resolution behavior or regression test"
-  ],
-  [
-    "evidence_gap",
-    "missing or inconsistent required evidence"
-  ]
-]
+Return one valid JSON object, with no prose or code fence. Replace placeholders, omit absent optional arrays, and repeat array entries as needed:
+{
+  "format": "darrow-review-fix-axis-v3",
+  "axis": "standards",
+  "originals": ["original finding key"],
+  "prior_regressions": [{"key": "stable regression key", "caused_by": "original finding key"}],
+  "attempts": [{
+    "key": "original finding key",
+    "status": "resolved|unresolved|blocked",
+    "progress": "resolved|progressing|unchanged|unavailable",
+    "evidence": "current evidence"
+  }],
+  "regression_attempts": [{
+    "key": "stable prior regression key",
+    "status": "resolved|unresolved|blocked",
+    "progress": "resolved|progressing|unchanged|unavailable",
+    "evidence": "current evidence"
+  }],
+  "regressions": [{
+    "caused_by": "original finding key",
+    "severity": "critical|high|medium|low",
+    "location": "location",
+    "source": "source",
+    "evidence": "failure and cause evidence",
+    "repair_guidance": "advisory repair guidance or explicit limitation",
+    "resolution_evidence": "resolution behavior or regression test"
+  }],
+  "evidence_gaps": ["missing or inconsistent required evidence"]
+}
 ```
 
 ## Spec fix verifier
@@ -282,52 +237,33 @@ and resolution behavior or regression test. If a safe recommendation is not
 supported, state that limitation and why without suppressing the regression.
 Encode every field as a JSON string; preserve tabs and newlines inside strings.
 
-Return one valid JSON array of records, with no prose or code fence. Replace placeholders, omit absent optional rows, and repeat finding and evidence rows as needed:
-[
-  [
-    "format",
-    "darrow-review-fix-axis-v2"
-  ],
-  [
-    "axis",
-    "spec"
-  ],
-  [
-    "original",
-    "original finding key"
-  ],
-  [
-    "prior_regression",
-    "stable regression key",
-    "causing original finding key"
-  ],
-  [
-    "attempt",
-    "original finding key",
-    "resolved|unresolved|blocked",
-    "resolved|progressing|unchanged|unavailable",
-    "current evidence"
-  ],
-  [
-    "regression_attempt",
-    "stable prior regression key",
-    "resolved|unresolved|blocked",
-    "resolved|progressing|unchanged|unavailable",
-    "current evidence"
-  ],
-  [
-    "regression",
-    "causing original finding key",
-    "critical|high|medium|low",
-    "location",
-    "source",
-    "failure and cause evidence",
-    "advisory repair guidance or explicit limitation",
-    "resolution behavior or regression test"
-  ],
-  [
-    "evidence_gap",
-    "missing or inconsistent required evidence"
-  ]
-]
+Return one valid JSON object, with no prose or code fence. Replace placeholders, omit absent optional arrays, and repeat array entries as needed:
+{
+  "format": "darrow-review-fix-axis-v3",
+  "axis": "spec",
+  "originals": ["original finding key"],
+  "prior_regressions": [{"key": "stable regression key", "caused_by": "original finding key"}],
+  "attempts": [{
+    "key": "original finding key",
+    "status": "resolved|unresolved|blocked",
+    "progress": "resolved|progressing|unchanged|unavailable",
+    "evidence": "current evidence"
+  }],
+  "regression_attempts": [{
+    "key": "stable prior regression key",
+    "status": "resolved|unresolved|blocked",
+    "progress": "resolved|progressing|unchanged|unavailable",
+    "evidence": "current evidence"
+  }],
+  "regressions": [{
+    "caused_by": "original finding key",
+    "severity": "critical|high|medium|low",
+    "location": "location",
+    "source": "source",
+    "evidence": "failure and cause evidence",
+    "repair_guidance": "advisory repair guidance or explicit limitation",
+    "resolution_evidence": "resolution behavior or regression test"
+  }],
+  "evidence_gaps": ["missing or inconsistent required evidence"]
+}
 ```

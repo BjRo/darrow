@@ -7,7 +7,7 @@ import pytest
 
 from conftest import git
 from darrow_review import cli, result, scope
-from darrow_review.common import ReviewError, command_line, entrypoint, run
+from darrow_review.common import ReviewError, command_line, entrypoint, run, serialize
 from darrow_review.records import Records
 from fixtures import change, result_rows, write
 
@@ -134,16 +134,25 @@ def test_scope_identity_records(repo: Path, tmp_path: Path) -> None:
         change(records.rows, "changed_count", "2"),
         change(records.rows, "changed_count", "0"),
         change(records.rows, "changed_file", "relative"),
-        records.rows + records.get("base"),
+        records.rows,
         records.rows + records.get("changed_file"),
         change(records.rows, "format", "wrong"),
         change(records.rows, "repository", "relative"),
         change(records.rows, "diff", "relative"),
     ]
     for index, variant in enumerate(variants):
-        path = write(tmp_path / f"scope-{index}.json", variant)
+        path = tmp_path / f"scope-{index}.json"
+        if index == 3:
+            path.write_text(
+                serialize(variant).replace(
+                    '  "base":', '  "base": "duplicate",\n  "base":', 1
+                ),
+                encoding="utf-8",
+            )
+        else:
+            write(path, variant)
         with pytest.raises(ReviewError):
-            result.scope_records(path)
+            result.scope_records(str(path))
 
 
 def test_fixed_command_from_unrelated_directory(repo: Path, tmp_path: Path) -> None:
@@ -202,15 +211,26 @@ def test_incomplete_manifests_never_emit_scope_records(
     variants = {
         "target": [row for row in records if row[0] != "target"],
         "count": [row for row in records if row[0] != "changed_count"],
-        "duplicate": [*records, ["changed_count", "2"]],
+        "duplicate": records,
         "invalid": change(records, "changed_count", "invalid"),
         "file": [
             row for row in records if row != ["changed_file", str(repo / "extra.txt")]
         ],
     }
-    path = write(tmp_path / "bad.json", variants[mutation])
+    path = tmp_path / "bad.json"
+    if mutation == "duplicate":
+        path.write_text(
+            serialize(records).replace(
+                '  "changed_count":',
+                '  "changed_count": "2",\n  "changed_count":',
+                1,
+            ),
+            encoding="utf-8",
+        )
+    else:
+        write(path, variants[mutation])
     with pytest.raises(ReviewError):
-        cli.result_command(["scope-records", path])
+        cli.result_command(["scope-records", str(path)])
 
 
 def test_merge_base_excludes_main_only_paths(repo: Path) -> None:

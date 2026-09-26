@@ -60,7 +60,7 @@ checks:
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n 1)
       test -n "$record" && test -n "$original" && test -n "$tool" || exit 1
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-original "$original" "$record" || exit 1
-      python3 -c 'import json,sys; findings=[row for row in json.load(open(sys.argv[1])) if row[0]=="original_finding"]; assert findings and all(len(row)==11 and row[9] and row[10] for row in findings)' "$record"
+      python3 -c 'import json,sys; findings=json.load(open(sys.argv[1]))["original_findings"]; assert findings and all(row["repair_guidance"] and row["resolution_evidence"] for row in findings)' "$record"
   - name: authorized repair reaches the originating requirement
     run: bash check.sh
   - name: clear fix verification returns control to the enclosing goal
@@ -84,7 +84,7 @@ checks:
   - name: composed repair creates no commit
     run: test "$(git rev-list --count HEAD)" -eq 1
   - name: default response does not expose raw verification JSON
-    run: "! grep -F 'format	darrow-review-verification-v2' .git/last-message.md"
+    run: "! grep -F 'format	darrow-review-verification-v3' .git/last-message.md"
 semantic_output_checks:
   - name: enclosing goal reports completion
     proposition: The response says the bounded goal completed successfully.

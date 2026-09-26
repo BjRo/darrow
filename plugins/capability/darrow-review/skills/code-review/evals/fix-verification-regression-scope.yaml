@@ -44,10 +44,11 @@ fixture:
     set -eu
     backend=$(cd "{{case_dir}}/../../../backend" && pwd -P)
     prior_output=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
-    prior_manifest=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; key=sys.argv[1]; print(next(row[1] for row in json.load(sys.stdin) if row[0] == key))' manifest)
-    original_target=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; key=sys.argv[1]; print(next(row[1] for row in json.load(sys.stdin) if row[0] == key))' target)
-    python3 - "$original_target" "$prior_manifest" <<'PY' >.git/verification-input
+    prior_manifest=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' manifest)
+    original_target=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' target)
+    PYTHONPATH="$backend/src" python3 - "$original_target" "$prior_manifest" <<'PY' >.git/verification-input
     import json, sys
+    from darrow_review.json_records import to_object
     target, manifest = sys.argv[1:]
     rows = [
         ["original_target", target],
@@ -57,7 +58,7 @@ fixture:
         ["original_finding", f"spec:1:{target}", "spec", "1", "high", "blocking", "src/math.js:1", "requirement: multiplier must be 2", "multiplier was 1"],
         ["attempted", f"spec:1:{target}"],
     ]
-    json.dump(rows, sys.stdout)
+    json.dump(to_object(rows), sys.stdout)
     PY
     printf '%s\n' "$backend" >.git/review-backend
     git status --porcelain --untracked-files=all >.git/status-before
@@ -82,9 +83,9 @@ checks:
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1') &&
       test -n "$tool" &&
       test -n "$record" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-verification "$record" &&
-      python3 -c 'import json,sys; rows=json.load(open(sys.argv[1])); assert any(row[:4]==["check","bash check.sh","applicable","fail"] and "scale(-2)" in row[4] for row in rows)' "$record" &&
-      original_target=$(python3 -c 'import json; print(next(row[1] for row in json.load(open(".git/verification-input")) if row[0] == "original_target"))') &&
-      python3 -c 'import json,sys; rows=json.load(open(sys.argv[1])); cause=sys.argv[2]; assert any(row[:4]==["regression","regression:1:"+cause,cause,"1"] for row in rows)' "$record" "spec:1:$original_target" &&
+      python3 -c 'import json,sys; record=json.load(open(sys.argv[1])); assert any(item["command"]=="bash check.sh" and item["applicability"]=="applicable" and item["status"]=="fail" and "scale(-2)" in item["evidence"] for item in record["checks"])' "$record" &&
+      original_target=$(python3 -c 'import json; print(json.load(open(".git/verification-input"))["original_target"])') &&
+      python3 -c 'import json,sys; record=json.load(open(sys.argv[1])); cause=sys.argv[2]; assert any(item["key"]=="regression:1:"+cause and item["caused_by"]==cause and item["order"]=="1" for item in record["regressions"])' "$record" "spec:1:$original_target" &&
       python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has outcome continue
   - name: unrelated observation is excluded
     run: >-

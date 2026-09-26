@@ -38,7 +38,7 @@ checks:
       test -n "$record" || exit 1
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n 1)
       test -n "$tool" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record" || exit 1
-      python3 -c 'import json,sys; rows=json.load(open(sys.argv[1])); assert any(len(row)==9 and row[0]=="finding" and row[1]=="spec" and row[3]=="blocking" for row in rows)' "$record"
+      python3 -c 'import json,sys; record=json.load(open(sys.argv[1])); assert any(item["axis"]=="spec" and item["disposition"]=="blocking" and item["repair_guidance"] and item["resolution_evidence"] for item in record["findings"])' "$record"
   - name: review does not implement its advice
     run: git hash-object src/send.js >.git/after && cmp .git/before .git/after
 semantic_output_checks:

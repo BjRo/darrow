@@ -2,7 +2,7 @@ id: code-review-presentation-machine-v1
 activation: positive
 invariant: CR-C15,CR-E12
 prompt: >-
-  Review my uncommitted changes and return only the raw darrow-review-result-v2
+  Review my uncommitted changes and return only the raw darrow-review-result-v3
   machine format. Do not repair the change.
 fixture:
   commits:
@@ -17,7 +17,7 @@ checks:
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
       test -n "$tool" || exit 1;
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate .git/last-message.md
-    expect_regex: "^valid: darrow-review-result-v2$"
+    expect_regex: "^valid: darrow-review-result-v3$"
   - name: explicit machine response preserves the retained canonical record
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');

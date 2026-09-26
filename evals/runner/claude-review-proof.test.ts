@@ -4,7 +4,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildClaudeReviewProof } from "./claude-review-proof";
 
-const route = ["claude", "anthropic", "claude-opus-5", "xhigh"];
+const routeObject = {
+  host: "claude",
+  provider: "anthropic",
+  model: "claude-opus-5",
+  effort: "xhigh",
+};
 
 type FixtureOptions = {
   splitTurns?: boolean;
@@ -42,7 +47,7 @@ async function fixture(root: string, overrides: FixtureOptions = {}) {
   await mkdir(artifacts);
   await writeFile(
     join(artifacts, "reviewer-route.json"),
-    JSON.stringify([["selected_route", ...route]]),
+    JSON.stringify({ selected_route: routeObject }),
   );
   const calls: Record<string, unknown>[] = [];
   const results: Record<string, unknown>[] = [];
@@ -56,23 +61,23 @@ async function fixture(root: string, overrides: FixtureOptions = {}) {
     );
     await writeFile(
       join(artifacts, `${axis}-observed-route.json`),
-      JSON.stringify([
-        ["agent_id", id],
-        ["transcript", transcript],
-        ["provider_evidence", "current-host-environment-default"],
-        ["observed_route", ...route],
-      ]),
+      JSON.stringify({
+        agent_id: id,
+        transcript,
+        provider_evidence: "current-host-environment-default",
+        observed_route: routeObject,
+      }),
     );
     await writeFile(
       join(artifacts, `${axis}-route.json`),
-      JSON.stringify([
-        ["selected_route", ...route],
-        ["observed_route", ...route],
-        ["provider_evidence", "current-host-environment-default"],
-        ["route_bound", "true"],
-        ["axis", axis],
-        ["agent_id", id],
-      ]),
+      JSON.stringify({
+        selected_route: routeObject,
+        observed_route: routeObject,
+        provider_evidence: "current-host-environment-default",
+        route_bound: "true",
+        axis,
+        agent_id: id,
+      }),
     );
     const call = {
       type: "assistant",

@@ -32,10 +32,11 @@ fixture:
     set -eu
     backend=$(cd "{{case_dir}}/../../../backend" && pwd -P)
     prior_output=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
-    prior_manifest=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; key=sys.argv[1]; print(next(row[1] for row in json.load(sys.stdin) if row[0] == key))' manifest)
-    original_target=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; key=sys.argv[1]; print(next(row[1] for row in json.load(sys.stdin) if row[0] == key))' target)
-    python3 - "$original_target" "$prior_manifest" "$PWD" <<'PY' >.git/verification-input
+    prior_manifest=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' manifest)
+    original_target=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' target)
+    PYTHONPATH="$backend/src" python3 - "$original_target" "$prior_manifest" "$PWD" <<'PY' >.git/verification-input
     import json, sys
+    from darrow_review.json_records import to_object
     target, manifest, repo = sys.argv[1:]
     rows = [
         ["original_target", target],
@@ -47,7 +48,7 @@ fixture:
         ["attempted", f"spec:1:{target}"],
         ["attempted", f"standards:2:{target}"],
     ]
-    json.dump(rows, sys.stdout)
+    json.dump(to_object(rows), sys.stdout)
     PY
     printf '%s\n' "$backend" >.git/review-backend
     git status --porcelain --untracked-files=all >.git/status-before
@@ -67,13 +68,13 @@ checks:
       test -n "$tool" &&
       test -n "$record" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-verification "$record" &&
       python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has outcome continue &&
-      original_target=$(python3 -c 'import json; print(next(row[1] for row in json.load(open(".git/verification-input")) if row[0] == "original_target"))') &&
-      python3 -c 'import json,sys; rows=json.load(open(sys.argv[1])); assert any(row[:4]==["attempt",sys.argv[2],"unresolved","progressing"] for row in rows)' "$record" "spec:1:$original_target"
+      original_target=$(python3 -c 'import json; print(json.load(open(".git/verification-input"))["original_target"])') &&
+      python3 -c 'import json,sys; record=json.load(open(sys.argv[1])); assert any(item["key"]==sys.argv[2] and item["status"]=="unresolved" and item["progress"]=="progressing" for item in record["attempts"])' "$record" "spec:1:$original_target"
   - name: unresolved advisory does not become a blocker
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
-      original_target=$(python3 -c 'import json; print(next(row[1] for row in json.load(open(".git/verification-input")) if row[0] == "original_target"))') &&
-      python3 -c 'import json,sys; rows=json.load(open(sys.argv[1])); assert any(row[:4]==["attempt",sys.argv[2],"unresolved","unchanged"] for row in rows)' "$record" "standards:2:$original_target"
+      original_target=$(python3 -c 'import json; print(json.load(open(".git/verification-input"))["original_target"])') &&
+      python3 -c 'import json,sys; record=json.load(open(sys.argv[1])); assert any(item["key"]==sys.argv[2] and item["status"]=="unresolved" and item["progress"]=="unchanged" for item in record["attempts"])' "$record" "standards:2:$original_target"
   - name: final response is the complete rendered verification report
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&

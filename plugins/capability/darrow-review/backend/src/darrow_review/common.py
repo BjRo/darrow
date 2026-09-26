@@ -13,8 +13,8 @@ import tempfile
 from collections.abc import Sequence
 from contextlib import ExitStack, suppress
 from pathlib import Path
-from typing import cast
 
+from .json_records import from_object, to_object, unique_fields
 from .windows_job import WindowsJob
 
 
@@ -46,24 +46,18 @@ def read_text(path: str | Path, label: str = "record") -> str:
 
 def rows(text: str) -> list[list[str]]:
     try:
-        value = json.loads(text)
-    except json.JSONDecodeError as exc:
-        raise ReviewError(f"invalid JSON record: {exc.msg}") from exc
-    require(isinstance(value, list), "JSON record must be an array")
-    require(
-        all(
-            isinstance(row, list)
-            and bool(row)
-            and all(isinstance(field, str) for field in row)
-            for row in value
-        ),
-        "JSON records must be nonempty arrays of strings",
-    )
-    return cast(list[list[str]], value)
+        value = json.loads(text, object_pairs_hook=unique_fields)
+        return from_object(value)
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise ReviewError(f"invalid JSON record: {exc}") from exc
 
 
 def serialize(records: Sequence[Sequence[str]]) -> str:
-    return json.dumps(records, ensure_ascii=False, indent=2) + "\n"
+    try:
+        value = to_object(records)
+    except ValueError as exc:
+        raise ReviewError(str(exc)) from exc
+    return json.dumps(value, ensure_ascii=False, indent=2) + "\n"
 
 
 def unique_records(text: str, label: str) -> dict[str, list[str]]:

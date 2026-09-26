@@ -56,29 +56,41 @@ async function fixture(root: string) {
   };
   await writeFile(
     paths.scope,
-    JSON.stringify([
-      ["target", "WORKTREE@abc+def"],
-      ["scope_checksum", "def"],
-    ]),
+    JSON.stringify({ target: "WORKTREE@abc+def", scope_checksum: "def" }),
   );
   await writeFile(
     paths.routeRecord,
-    JSON.stringify([
-      ["selected_route", "codex", "openai", "gpt-5.6-sol", "xhigh"],
-      ["route_source", "bundled"],
-    ]),
+    JSON.stringify({
+      selected_route: {
+        host: "codex",
+        provider: "openai",
+        model: "gpt-5.6-sol",
+        effort: "xhigh",
+      },
+      route_source: "bundled",
+    }),
   );
   for (const axis of ["standards", "spec"]) {
     await writeFile(
       paths[axis === "standards" ? "standardsRecord" : "specRecord"],
-      JSON.stringify([
-        ["selected_route", "codex", "openai", "gpt-5.6-sol", "xhigh"],
-        ["requested_route", "codex", "openai", "gpt-5.6-sol", "xhigh"],
-        ["route_applied_by", "native-subagent"],
-        ["route_bound", "true"],
-        ["axis", axis],
-        ["agent_id", `/root/proof_${axis}`],
-      ]),
+      JSON.stringify({
+        selected_route: {
+          host: "codex",
+          provider: "openai",
+          model: "gpt-5.6-sol",
+          effort: "xhigh",
+        },
+        requested_route: {
+          host: "codex",
+          provider: "openai",
+          model: "gpt-5.6-sol",
+          effort: "xhigh",
+        },
+        route_applied_by: "native-subagent",
+        route_bound: "true",
+        axis,
+        agent_id: `/root/proof_${axis}`,
+      }),
     );
   }
   return paths;

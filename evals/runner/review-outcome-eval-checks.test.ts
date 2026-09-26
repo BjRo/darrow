@@ -52,15 +52,12 @@ for (const name of [
           join(repo, ".git/verification-input"),
           "utf8",
         );
-        const records = JSON.parse(input) as string[][];
-        const manifest = records.find(
-          (row) => row[0] === "prior_manifest",
-        )?.[1];
+        const records = JSON.parse(input) as Record<string, string>;
+        const manifest = records.prior_manifest;
         expect(manifest).toBeTruthy();
-        expect(JSON.parse(await readFile(manifest!, "utf8"))).toContainEqual([
-          "repository",
+        expect(JSON.parse(await readFile(manifest!, "utf8")).repository).toBe(
           repo,
-        ]);
+        );
       }
     } finally {
       await destroyFixture(repo);
@@ -112,45 +109,49 @@ function verification(
   checkEvidence = "exited 0: no output",
 ) {
   const target = "a".repeat(40);
-  const rows: string[][] = [
-    ["format", "darrow-review-verification-v2"],
-    ["original_target", target],
-    ["prior_target", target],
-    ["current_target", "b".repeat(40)],
-    ["previous_verification", "none", "none"],
-  ];
+  const record = {
+    format: "darrow-review-verification-v3",
+    original_target: target,
+    prior_target: target,
+    current_target: "b".repeat(40),
+    previous_verification: { checksum: "none", path: "none" },
+    original_findings: [] as Record<string, string>[],
+    attempts: [] as Record<string, string>[],
+    checks: [
+      {
+        command: "bash check.sh",
+        applicability: "applicable",
+        status: "pass",
+        evidence: checkEvidence,
+      },
+    ],
+    outcome: "clear",
+    next_action: "none",
+  };
   for (const [index, axis] of ["standards", "spec", "spec"].entries()) {
     const order = index + 1;
-    rows.push([
-      "original_finding",
-      `${axis}:${order}:${target}`,
+    record.original_findings.push({
+      key: `${axis}:${order}:${target}`,
       axis,
-      String(order),
-      order === 3 ? "low" : "high",
-      order === 3 ? "advisory" : "blocking",
-      `src/config.js:${order}`,
-      "requirement",
-      "Original evidence",
-    ]);
+      order: String(order),
+      severity: order === 3 ? "low" : "high",
+      disposition: order === 3 ? "advisory" : "blocking",
+      location: `src/config.js:${order}`,
+      source: "requirement",
+      evidence: "Original evidence",
+    });
   }
   for (const [index, axis] of ["standards", "spec", "spec"].entries()) {
-    const state =
-      index === 2 && !advisoryResolved
-        ? ["unresolved", "unchanged"]
-        : ["resolved", "resolved"];
-    rows.push([
-      "attempt",
-      `${axis}:${index + 1}:${target}`,
-      ...state,
-      "Whether resolved or unresolved, evidence prose is not the state",
-    ]);
+    const unresolved = index === 2 && !advisoryResolved;
+    record.attempts.push({
+      key: `${axis}:${index + 1}:${target}`,
+      status: unresolved ? "unresolved" : "resolved",
+      progress: unresolved ? "unchanged" : "resolved",
+      evidence:
+        "Whether resolved or unresolved, evidence prose is not the state",
+    });
   }
-  return JSON.stringify([
-    ...rows,
-    ["check", "bash check.sh", "applicable", "pass", checkEvidence],
-    ["outcome", "clear"],
-    ["next_action", "none"],
-  ]);
+  return JSON.stringify(record);
 }
 
 async function render(
@@ -194,36 +195,34 @@ for (const shell of ["bash", "/bin/bash"]) {
           variant === "different diagnostic"
             ? "exited 127: verifier service cannot be reached"
             : "exited 127: required external verifier is unavailable";
-        const row = [
-          "check",
-          "bash external-check.sh",
-          "applicable",
-          "blocked",
-          diagnostic,
-        ];
-        const records = JSON.parse(verification()) as string[][];
-        const record = JSON.stringify(
-          records.flatMap((entry) =>
-            entry[0] === "check"
-              ? [row]
-              : entry[0] === "outcome"
-                ? [
-                    ["evidence_gap", "Required check unavailable"],
-                    ["outcome", "blocked"],
-                  ]
-                : [entry],
-          ),
-        );
+        const check = {
+          command: "bash external-check.sh",
+          applicability: "applicable",
+          status: "blocked",
+          evidence: diagnostic,
+        };
+        const records = JSON.parse(verification());
+        const record = JSON.stringify({
+          ...records,
+          checks: [check],
+          evidence_gaps: ["Required check unavailable"],
+          outcome: "blocked",
+        });
         await writeFile(join(setup.artifacts, "verification.json"), record);
         if (variant !== "missing capture") {
           await writeFile(
             join(setup.artifacts, "check-1.json"),
-            JSON.stringify([
-              ["format", "darrow-review-check-v2"],
-              variant === "invented evidence"
-                ? [...row.slice(0, 4), "exited 127: a different observation"]
-                : row,
-            ]),
+            JSON.stringify({
+              format: "darrow-review-check-v3",
+              checks: [
+                variant === "invented evidence"
+                  ? {
+                      ...check,
+                      evidence: "exited 127: a different observation",
+                    }
+                  : check,
+              ],
+            }),
           );
         }
         expect(
@@ -282,9 +281,12 @@ for (const shell of ["bash", "/bin/bash"]) {
             );
             await writeFile(
               join(setup.root, ".git/verification-input"),
-              JSON.stringify([
-                ["previous_verification", "prior-checksum", previous],
-              ]),
+              JSON.stringify({
+                previous_verification: {
+                  checksum: "prior-checksum",
+                  path: previous,
+                },
+              }),
             );
           }
           const output = await render(setup, verification());

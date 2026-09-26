@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import json
 from pathlib import Path
 
 import pytest
@@ -17,6 +18,32 @@ from darrow_review.records import (
 )
 from darrow_review.verification import validate_verification
 from fixtures import change, result_rows, verification_rows, write
+
+
+def test_result_wire_format_uses_named_objects() -> None:
+    record = json.loads(serialize(result_rows()))
+    assert record["format"] == "darrow-review-result-v3"
+    assert record["changed_files"] == [str(Path.cwd() / "file.txt")]
+    assert record["findings"] == [
+        {
+            "axis": "spec",
+            "severity": "high",
+            "disposition": "blocking",
+            "location": "file.txt:1",
+            "source": "request",
+            "evidence": "wrong value",
+            "repair_guidance": "restore value",
+            "resolution_evidence": "test value",
+        }
+    ]
+    assert record["checks"] == [
+        {
+            "command": "test",
+            "applicability": "applicable",
+            "status": "pass",
+            "evidence": "exited 0",
+        }
+    ]
 
 
 def test_original_report_and_handoff(tmp_path: Path) -> None:
@@ -133,7 +160,7 @@ def test_unavailable_spec_and_blocked_scope() -> None:
 def test_axis_verdicts(status: str, disposition: str, valid: bool) -> None:
     text = serialize(
         [
-            ["format", "darrow-review-axis-v2"],
+            ["format", "darrow-review-axis-v3"],
             ["axis", "spec"],
             ["status", status],
             ["source", "request"],
@@ -149,7 +176,7 @@ def test_axis_verdicts(status: str, disposition: str, valid: bool) -> None:
 
 def test_fix_axis_closed_membership(tmp_path: Path) -> None:
     records = [
-        ["format", "darrow-review-fix-axis-v2"],
+        ["format", "darrow-review-fix-axis-v3"],
         ["axis", "spec"],
         ["original", "key"],
         ["prior_regression", "prior", "key"],
@@ -200,14 +227,14 @@ def test_stdin_and_legacy_guidance(
     records = result_rows()
     records = [row[:7] if row[0] == "finding" else row for row in records]
     monkeypatch.setattr("sys.stdin", io.StringIO(serialize(records)))
-    assert "result-v2" in cli.result_command(["validate", "-"])
+    assert "result-v3" in cli.result_command(["validate", "-"])
     original = validate_result(serialize(records))
     assert len(result.original_findings(original)[0]) == 9
     assert "Repair guidance" not in report.comprehensive(original)
     axis = write(
         tmp_path / "axis.json",
         [
-            ["format", "darrow-review-axis-v2"],
+            ["format", "darrow-review-axis-v3"],
             ["axis", "spec"],
             ["status", "pass"],
             ["source", "request"],
@@ -248,7 +275,25 @@ def test_json_records_preserve_multiline_fields() -> None:
     assert "first\\tcolumn\\nsecond line\\rthird" in rendered
 
 
-@pytest.mark.parametrize("content", ["", "{}", "null", "[[]]", '[["format", 2]]'])
+@pytest.mark.parametrize(
+    "content",
+    [
+        "",
+        "{}",
+        "null",
+        "[[]]",
+        '[["format", 2]]',
+        '{"format":"a","format":"b"}',
+        '{"format":["darrow-review-result-v3"]}',
+        '{"format":"darrow-review-result-v3","changed_file":"file.txt"}',
+        '{"format":"darrow-review-result-v3","changed_files":"file.txt"}',
+        '{"format":"darrow-review-result-v3","base":{"_fields":["x"]}}',
+        '{"format":"darrow-review-result-v3","checks":[{"command":"x","_extra":["y"]}]}',
+        '{"format":"darrow-review-result-v3","checks":["x"]}',
+        '{"format":"darrow-review-result-v3","checks":[{"status":"pass"}]}',
+        '{"format":"darrow-review-result-v3","checks":[{"command":2}]}',
+    ],
+)
 def test_json_records_reject_malformed_shapes(content: str) -> None:
     with pytest.raises(ReviewError):
         rows(content)

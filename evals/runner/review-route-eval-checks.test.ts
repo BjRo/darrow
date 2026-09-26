@@ -106,28 +106,28 @@ async function runGate(
   await mkdir(artifacts, { recursive: true });
   await copyOracle(root);
   const [model, effort] = entry[host];
-  const route = [
+  const route = {
     host,
-    host === "claude" ? "anthropic" : "openai",
+    provider: host === "claude" ? "anthropic" : "openai",
     model,
     effort,
-  ];
+  };
   await writeFile(
     join(artifacts, "reviewer-route.json"),
-    JSON.stringify([["selected_route", ...route]]),
+    JSON.stringify({ selected_route: route }),
   );
   const launches: Record<string, unknown>[] = [];
   const calls: Record<string, unknown>[] = [];
   for (const [index, axis] of ["standards", "spec"].entries()) {
     const id = mutation === "reused child" ? "shared-child" : `${axis}-child`;
-    const record = JSON.stringify([
-      ["axis", axis],
-      ["agent_id", id],
-      ["observed_route", ...route],
-      ["requested_route", ...route],
-      ["route_bound", "true"],
-      ["provider_evidence", "current-host-environment-default"],
-    ]);
+    const record = JSON.stringify({
+      axis,
+      agent_id: id,
+      observed_route: route,
+      requested_route: route,
+      route_bound: "true",
+      provider_evidence: "current-host-environment-default",
+    });
     await writeFile(join(artifacts, `${axis}-route.json`), record);
     await writeFile(join(artifacts, `${axis}-observed-route.json`), record);
     const subagent = `darrow-review:review-reader-${model}-${effort}`;

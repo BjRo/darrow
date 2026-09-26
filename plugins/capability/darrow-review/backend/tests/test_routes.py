@@ -302,10 +302,10 @@ def test_records_refuse_duplicates_unknown_and_incomplete(tmp_path: Path) -> Non
     route = routing.Route("codex", "openai", "gpt-5.5", "high")
     path = tmp_path / "route.json"
     variants = [
-        route.body() + serialize([["format", "darrow-reviewer-route-v2"]]),
+        route.body() + serialize([["format", "darrow-reviewer-route-v3"]]),
         serialize([*Records(route.body()).rows, ["unknown", "value"]]),
         route.body().replace("repository", "other").replace("bundled", "other"),
-        route.body().replace("darrow-reviewer-route-v2", "wrong"),
+        route.body().replace("darrow-reviewer-route-v3", "wrong"),
         serialize(
             [
                 [row[0], *row[1:-1]] if row[0] == "selected_route" else row
@@ -337,8 +337,8 @@ def test_observed_record_validation(repo: Path, tmp_path: Path) -> None:
     for old, new in (
         ('"abc1"', '"unsafe/id"'),
         ("current-host-environment-default", "invented"),
-        ("darrow-review-claude-route-v2", "wrong"),
-        ('"observed_route",\n    "claude"', '"observed_route",\n    "codex"'),
+        ("darrow-review-claude-route-v3", "wrong"),
+        ('"host": "claude"', '"host": "codex"'),
     ):
         path.write_text(text.replace(old, new), encoding="utf-8")
         with pytest.raises(ReviewError):

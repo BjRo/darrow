@@ -15,20 +15,20 @@ def evidence(root: Path, host: str, axes: list[str]) -> list[dict[str, Any]]:
     model, provider = (
         ("gpt-6-sol", "openai") if host == "codex" else ("claude-opus-5", "anthropic")
     )
-    route = [host, provider, model, "xhigh"]
+    route = {"host": host, "provider": provider, "model": model, "effort": "xhigh"}
     subagent = f"darrow-review:review-reader-{model}-xhigh"
     events: list[dict[str, Any]] = []
     calls = []
     for index, axis in enumerate(axes, 1):
         record = json.dumps(
-            [
-                ["axis", axis],
-                ["agent_id", f"{axis}-child"],
-                ["requested_route", *route],
-                ["observed_route", *route],
-                ["route_bound", "true"],
-                ["provider_evidence", "current-host-environment-default"],
-            ]
+            {
+                "axis": axis,
+                "agent_id": f"{axis}-child",
+                "requested_route": route,
+                "observed_route": route,
+                "route_bound": "true",
+                "provider_evidence": "current-host-environment-default",
+            }
         )
         for suffix in ("route", "observed-route"):
             (directory / f"{axis}-{suffix}.json").write_text(record)
@@ -116,8 +116,8 @@ def test_single_axis_rejects_uncorrelated_launches(
 
 def test_duplicate_json_identity_is_not_evidence(tmp_path: Path) -> None:
     path = tmp_path / "route.json"
-    path.write_text(json.dumps([["agent_id", "first"], ["agent_id", "second"]]))
-    with pytest.raises(AssertionError, match="expected one agent_id"):
+    path.write_text('{"agent_id":"first","agent_id":"second"}')
+    with pytest.raises(AssertionError, match="duplicate JSON field"):
         row(path, "agent_id")
 
 

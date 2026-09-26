@@ -99,7 +99,7 @@ check_record="$(dirname "$manifest")/check-1.json" # increment for later checks
 uv run --quiet --no-project "$backend/scripts/run_locked.py" review-check run --output "$check_record" --command "$literal_command"
 ```
 
-Preserve the retained record's canonical `check` row field values exactly in reader
+Preserve the retained record's canonical `checks` entry values exactly in reader
 evidence and `verification.json`; never reinterpret the observed status. A check
 failure belongs in the convergence set only as evidence for a direct
 repair-caused regression tied to an attempted original finding. An unavailable
@@ -219,7 +219,7 @@ uv run --quiet --no-project "$backend/scripts/run_locked.py" review-report rende
 Confirm that the report is a readable, nonempty regular file before the second
 renderer invocation. Make that second invocation the last tool command and
 copy its stdout verbatim as the entire final response. For an explicit
-verification-v2, raw JSON, or machine request, return the validated JSON bytes
+verification-v3, raw JSON, or machine request, return the validated JSON bytes
 only. In composed use, return the selected presentation and exit this read-only
 capability. The enclosing goal interprets the semantic outcome and owns every
 repair, stop, goal-status, completion, and publication decision.

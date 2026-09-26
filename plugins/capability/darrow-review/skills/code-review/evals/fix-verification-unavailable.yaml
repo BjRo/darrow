@@ -28,10 +28,11 @@ fixture:
     set -eu
     backend=$(cd "{{case_dir}}/../../../backend" && pwd -P)
     prior_output=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
-    prior_manifest=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; key=sys.argv[1]; print(next(row[1] for row in json.load(sys.stdin) if row[0] == key))' manifest)
-    original_target=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; key=sys.argv[1]; print(next(row[1] for row in json.load(sys.stdin) if row[0] == key))' target)
-    python3 - "$original_target" "$prior_manifest" "$PWD" <<'PY' >.git/verification-input
+    prior_manifest=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' manifest)
+    original_target=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' target)
+    PYTHONPATH="$backend/src" python3 - "$original_target" "$prior_manifest" "$PWD" <<'PY' >.git/verification-input
     import json, sys
+    from darrow_review.json_records import to_object
     target, manifest, repo = sys.argv[1:]
     rows = [
         ["original_target", target],
@@ -41,7 +42,7 @@ fixture:
         ["original_finding", f"standards:1:{target}", "standards", "1", "high", "blocking", "endpoint.txt:1", f"{repo}/AGENTS.md", "endpoint remained on v1"],
         ["attempted", f"standards:1:{target}"],
     ]
-    json.dump(rows, sys.stdout)
+    json.dump(to_object(rows), sys.stdout)
     PY
     git status --porcelain --untracked-files=all >.git/status-before
     git hash-object endpoint.txt >.git/endpoint-before
@@ -62,16 +63,16 @@ checks:
       python3 - "$record" <<'PY'
       import json, pathlib, sys
       path = pathlib.Path(sys.argv[1])
-      rows = json.loads(path.read_text())
-      checks = [row for row in rows if row[0] == 'check' and row[1:4] == ['bash external-check.sh', 'applicable', 'blocked']]
+      record = json.loads(path.read_text())
+      checks = [item for item in record['checks'] if item['command'] == 'bash external-check.sh' and item['applicability'] == 'applicable' and item['status'] == 'blocked']
       assert len(checks) == 1
       assert any(
-          ['format', 'darrow-review-check-v2'] in (capture := json.loads(file.read_text())) and checks[0] in capture
+          (capture := json.loads(file.read_text()))['format'] == 'darrow-review-check-v3' and checks[0] in capture['checks']
           for file in path.parent.glob('check-*.json')
       )
-      assert any(row[0] == 'evidence_gap' for row in rows)
-      assert not any(row[0] == 'regression' for row in rows)
-      assert ['outcome', 'blocked'] in rows
+      assert record['evidence_gaps']
+      assert not record.get('regressions')
+      assert record['outcome'] == 'blocked'
       PY
   - name: final response is the complete rendered verification report
     run: >-

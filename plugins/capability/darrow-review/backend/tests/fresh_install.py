@@ -95,7 +95,7 @@ def verify_scope(backend: Path, repo: Path) -> None:
     )
     text = json.dumps(
         [
-            ["format", "darrow-review-result-v2"],
+            ["format", "darrow-review-result-v3"],
             *scope_records,
             ["standards", "pass"],
             ["standards_source", "fixture"],

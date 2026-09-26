@@ -38,16 +38,17 @@ fixture:
     set -eu
     backend=$(cd "{{case_dir}}/../../../backend" && pwd -P)
     prior_output=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
-    prior_manifest=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; key=sys.argv[1]; print(next(row[1] for row in json.load(sys.stdin) if row[0] == key))' manifest)
-    original_target=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; key=sys.argv[1]; print(next(row[1] for row in json.load(sys.stdin) if row[0] == key))' target)
+    prior_manifest=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' manifest)
+    original_target=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' target)
     original_result=$(dirname "$prior_manifest")/result.json
     scope_rows=$(uv run --quiet --frozen --no-dev --project "$backend" review-result scope-records "$prior_manifest")
-    python3 - "$PWD" "$scope_rows" <<'PY' >"$original_result"
+    PYTHONPATH="$backend/src" python3 - "$PWD" "$scope_rows" <<'PY' >"$original_result"
     import json, sys
+    from darrow_review.json_records import from_object, to_object
     repo, scope_json = sys.argv[1:]
     rows = [
-        ["format", "darrow-review-result-v2"],
-        *json.loads(scope_json),
+        ["format", "darrow-review-result-v3"],
+        *from_object(json.loads(scope_json)),
         ["standards", "pass"],
         ["standards_source", f"{repo}/AGENTS.md"],
         ["spec", "fail"],
@@ -58,11 +59,12 @@ fixture:
         ["risk", "none"],
         ["next_action", "return findings"],
     ]
-    json.dump(rows, sys.stdout)
+    json.dump(to_object(rows), sys.stdout)
     PY
     finding_rows=$(uv run --quiet --frozen --no-dev --project "$backend" review-result original-findings "$original_result")
-    python3 - "$original_target" "$prior_manifest" "$original_result" "$finding_rows" <<'PY' >.git/verification-input
+    PYTHONPATH="$backend/src" python3 - "$original_target" "$prior_manifest" "$original_result" "$finding_rows" <<'PY' >.git/verification-input
     import json, sys
+    from darrow_review.json_records import from_object, to_object
     target, manifest, result, finding_json = sys.argv[1:]
     rows = [
         ["original_target", target],
@@ -70,20 +72,20 @@ fixture:
         ["prior_manifest", manifest],
         ["original_result", result],
         ["previous_verification", "none", "none"],
-        *json.loads(finding_json),
+        *from_object(json.loads(finding_json)),
         ["attempted", f"spec:1:{target}"],
     ]
-    json.dump(rows, sys.stdout)
+    json.dump(to_object(rows), sys.stdout)
     PY
     git hash-object src/name.js >.git/before
 checks:
   - name: following the advice does not excuse a remaining required case
     run: |
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
-      original=$(python3 -c 'import json; print(next(row[1] for row in json.load(open(".git/verification-input")) if row[0] == "original_result"))')
+      original=$(python3 -c 'import json; print(json.load(open(".git/verification-input"))["original_result"])')
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n 1)
       test -n "$record" && test -n "$tool" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-original "$original" "$record" || exit 1
-      python3 -c 'import json,sys; rows=json.load(open(sys.argv[1])); assert any(row in rows for row in (["outcome","continue"],["outcome","no_progress"])) and any(row[0]=="attempt" and row[2]=="unresolved" for row in rows)' "$record"
+      python3 -c 'import json,sys; record=json.load(open(sys.argv[1])); assert record["outcome"] in ("continue","no_progress") and any(item["status"]=="unresolved" for item in record["attempts"])' "$record"
   - name: repair remains read only
     run: git hash-object src/name.js >.git/after && cmp .git/before .git/after
 semantic_output_checks:
