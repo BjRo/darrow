@@ -14,6 +14,8 @@ For a plugin-local case, `prepare` mounts the selected skill's files under
 `.agents/skills/` and excludes their exact paths from Git status. Colocated
 `evals/` files and generated caches stay out of the candidate fixture. Skill
 bytes enter the fixture identity through their retained artifact digests.
+Executable skill files keep owner execute permission in the fixture and retained
+artifact copy.
 
 The extension preserves the invariant, source path, and check names in
 namespaced extension data. Other case fields and fixture mechanics fail

@@ -278,6 +278,7 @@ interface SkillArtifact {
   sha256: string;
   contentBase64: string;
   gitExclude: true;
+  executable?: true;
 }
 
 function portableName(name: string): boolean {
@@ -313,16 +314,17 @@ async function skillMountSource(details: RecordValue) {
 
 function skillArtifact(
   bytes: Buffer,
-  skillName: string,
-  parts: string[],
+  relativePath: string,
   index: number,
+  executable: boolean,
 ): SkillArtifact {
   return {
     id: `darrow.skill.${index}`,
-    relativePath: [".agents", "skills", skillName, ...parts].join("/"),
+    relativePath,
     sha256: createHash("sha256").update(bytes).digest("hex"),
     contentBase64: bytes.toString("base64"),
     gitExclude: true,
+    ...(executable ? { executable: true } : {}),
   };
 }
 
@@ -353,10 +355,12 @@ async function skillArtifacts(skillRoot: string, skillName: string) {
       }
       if (!entry.isFile()) throw new Error("skill mount contains a non-file");
       const bytes = await readFile(path);
+      const executable = ((await stat(path)).mode & 0o111) !== 0;
       totalBytes += bytes.byteLength;
       checkSkillArtifactLimit(bytes, totalBytes, artifacts.length);
+      const relativePath = [".agents", "skills", skillName, ...next].join("/");
       artifacts.push(
-        skillArtifact(bytes, skillName, next, artifacts.length + 1),
+        skillArtifact(bytes, relativePath, artifacts.length + 1, executable),
       );
     }
   }

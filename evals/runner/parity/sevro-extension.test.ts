@@ -1,5 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import {
+  chmod,
   mkdir,
   mkdtemp,
   readFile,
@@ -371,12 +372,16 @@ test("Darrow extension mounts a plugin skill without exposing its evals", async 
   roots.push(root);
   const skillDir = join(root, "plugins/capability/example/skills/example");
   await mkdir(join(skillDir, "references"), { recursive: true });
+  await mkdir(join(skillDir, "scripts"), { recursive: true });
   await mkdir(join(skillDir, "evals"), { recursive: true });
   await writeFile(
     join(skillDir, "SKILL.md"),
     "---\nname: example\ndescription: Example skill\n---\n\nRead references/guide.md.\n",
   );
   await writeFile(join(skillDir, "references/guide.md"), "Visible guidance.\n");
+  const script = join(skillDir, "scripts/run.sh");
+  await writeFile(script, "#!/bin/sh\nprintf 'ready\\n'\n");
+  await chmod(script, 0o755);
   await writeFile(join(skillDir, "evals/hidden.txt"), "hidden pass criteria\n");
   await writeFile(
     join(skillDir, "evals/mount.yaml"),
@@ -418,7 +423,11 @@ test("Darrow extension mounts a plugin skill without exposing its evals", async 
   });
   const prepared = await command<{
     result: {
-      artifacts: Array<{ relativePath: string; gitExclude: boolean }>;
+      artifacts: Array<{
+        relativePath: string;
+        gitExclude: boolean;
+        executable?: boolean;
+      }>;
     };
   }>(
     [process.execPath, extension],
@@ -435,10 +444,12 @@ test("Darrow extension mounts a plugin skill without exposing its evals", async 
   ).toEqual([
     ".agents/skills/example/SKILL.md",
     ".agents/skills/example/references/guide.md",
+    ".agents/skills/example/scripts/run.sh",
   ]);
   expect(prepared.value.result.artifacts.every((item) => item.gitExclude)).toBe(
     true,
   );
+  expect(prepared.value.result.artifacts[2]!.executable).toBe(true);
 
   const sevroRoute = sevroCommand();
   const commandFile = join(root, "extension-command.json");
@@ -455,6 +466,8 @@ export default {
     if (!(await readFile(join(skill, "SKILL.md"), "utf8")).includes("Example skill")) throw new Error("skill missing");
     if ((await readFile(join(skill, "references/guide.md"), "utf8")) !== "Visible guidance.\\n") throw new Error("reference missing");
     if (await Bun.file(join(skill, "evals/hidden.txt")).exists()) throw new Error("eval criteria exposed");
+    const script = Bun.spawn([join(skill, "scripts/run.sh")], { stdout: "pipe" });
+    if ((await new Response(script.stdout).text()) !== "ready\\n" || (await script.exited) !== 0) throw new Error("script not executable");
     return { finalMessage: "ready", complete: true };
   },
 };
@@ -502,7 +515,12 @@ export default {
     evidence.trials[0].artifactRefs.filter(
       (item: { gitExclude?: boolean }) => item.gitExclude,
     ),
-  ).toHaveLength(2);
+  ).toHaveLength(3);
+  expect(
+    evidence.trials[0].artifactRefs.filter(
+      (item: { executable?: boolean }) => item.executable,
+    ),
+  ).toHaveLength(1);
   await writeFile(join(root, "secret.txt"), "private source\n");
   await symlink(join(root, "secret.txt"), join(skillDir, "references/leak.md"));
   const unsafe = await command<ExtensionReply>(
