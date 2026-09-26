@@ -118,13 +118,184 @@ The [final shipped-skill snapshot](../../evals/experiments/discovery/snapshots/2
 
 ### darrow-explanation
 
-| Case                                                                                                                                                             | What failed                                                                                                      | Assessment         | Recommended next step                                                              |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------ | ---------------------------------------------------------------------------------- |
-| [explain-visually-algorithm-pseudocode](../../plugins/capability/darrow-explanation/skills/explain-visually/evals/algorithm-pseudocode.yaml)                     | Activation missed explain-visually; observed none.                                                               | Skill activation   | Check trigger and mounted-skill discovery; rerun this case with a matched control. |
-| [explain-visually-file-responsibility](../../plugins/capability/darrow-explanation/skills/explain-visually/evals/file-responsibility.yaml)                       | Response is a shallow visual rather than a prose tour failed. Activation missed explain-visually; observed none. | Skill + activation | Repair the failed behavior and trigger; rerun this case and its matched control.   |
-| [explain-visually-indirect-state-transitions](../../plugins/capability/darrow-explanation/skills/explain-visually/evals/indirect-state-transitions.yaml)         | Response uses a state-oriented visual shape failed. Activation missed explain-visually; observed none.           | Skill + activation | Repair the failed behavior and trigger; rerun this case and its matched control.   |
-| [explain-visually-no-trigger-implementation](../../plugins/capability/darrow-explanation/skills/explain-visually/evals/no-trigger-implementation.yaml)           | Implementation request changes the requested code failed.                                                        | Skill likely       | Repair the visual form or activation boundary, then rerun this case.               |
-| [explain-visually-pressure-insufficient-evidence](../../plugins/capability/darrow-explanation/skills/explain-visually/evals/pressure-insufficient-evidence.yaml) | Activation missed explain-visually; observed none.                                                               | Skill activation   | Check trigger and mounted-skill discovery; rerun this case with a matched control. |
+| Case                                                                                                                                                             | What failed                                                                                                      | Assessment                | Recommended next step                                                              |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------- | ---------------------------------------------------------------------------------- |
+| [explain-visually-algorithm-pseudocode](../../plugins/capability/darrow-explanation/skills/explain-visually/evals/algorithm-pseudocode.yaml)                     | Activation missed explain-visually; observed none.                                                               | Skill activation          | Check trigger and mounted-skill discovery; rerun this case with a matched control. |
+| [explain-visually-file-responsibility](../../plugins/capability/darrow-explanation/skills/explain-visually/evals/file-responsibility.yaml)                       | Response is a shallow visual rather than a prose tour failed. Activation missed explain-visually; observed none. | Skill + activation        | Repair the failed behavior and trigger; rerun this case and its matched control.   |
+| [explain-visually-indirect-state-transitions](../../plugins/capability/darrow-explanation/skills/explain-visually/evals/indirect-state-transitions.yaml)         | Response uses a state-oriented visual shape failed. Activation missed explain-visually; observed none.           | Skill + activation        | Repair the failed behavior and trigger; rerun this case and its matched control.   |
+| [explain-visually-no-trigger-implementation](../../plugins/capability/darrow-explanation/skills/explain-visually/evals/no-trigger-implementation.yaml)           | Implementation request changes the requested code failed.                                                        | Agent / harness uncertain | Inspect write and fixture evidence; the visual skill was correctly avoided.        |
+| [explain-visually-pressure-insufficient-evidence](../../plugins/capability/darrow-explanation/skills/explain-visually/evals/pressure-insufficient-evidence.yaml) | Activation missed explain-visually; observed none.                                                               | Skill activation          | Check trigger and mounted-skill discovery; rerun this case with a matched control. |
+
+Follow-up: The public contract now names indirect responsibility, state, and
+pseudocode intents explicitly. The skill has a shorter discovery description and
+directs ownership views to start at the owning directory rather than a barrel
+file. The state-shape check now accepts `▶` arrows; it accepts all five retained
+valid state answers from a matched pre-change run. The responsibility case now
+grades one compact ownership tree semantically, accepting a fresh valid answer
+and rejecting bullet-list, duplicate-tour, and table variants in fresh trials.
+The implementation-exclusion check now prints the resulting fixture source on
+a failed code-state assertion. A fresh single trial passed both task and skill
+exclusion. A later [five-trial run](../../evals/results/2026-09-26T14-12-34-885Z-codex-gpt-6-luna-medium.json)
+passed task **3/5** and skill exclusion **5/5**: in the two failed trials the
+answer claimed `src/math.js` was updated, but the fixture still contained the
+original function. The retained result does not establish whether the edit was
+attempted or lost, so this needs candidate tool and fixture investigation
+outside the visual skill. The HTML-artifact exclusion passed one fresh trial.
+
+Codex `gpt-6-luna`/medium five-trial controls on the old skill content
+showed [responsibility](../../evals/results/2026-09-26T13-52-26-780Z-codex-gpt-6-luna-medium.json)
+at **0/5 task, 2/5 activation** and [state transitions](../../evals/results/2026-09-26T13-54-07-166Z-codex-gpt-6-luna-medium.json)
+at **2/5 task, 2/5 activation** under the original assertions. On the final
+description and revised checks, [responsibility](../../evals/results/2026-09-26T14-02-25-570Z-codex-gpt-6-luna-medium.json)
+passed **2/5 task and 2/5 activation**; both activated trials produced the
+required view. [State transitions](../../evals/results/2026-09-26T14-01-00-788Z-codex-gpt-6-luna-medium.json)
+passed **5/5 task and 4/5 activation**. [Pseudocode](../../evals/results/2026-09-26T14-05-15-682Z-codex-gpt-6-luna-medium.json)
+passed **4/5 task and 1/5 activation**; the task miss omitted randomization.
+[Insufficient-evidence pressure](../../evals/results/2026-09-26T14-07-21-642Z-codex-gpt-6-luna-medium.json)
+passed **5/5 task and 3/5 activation**. The before and after runs used the same
+fixtures, prompts, model, effort, trial count, and threshold, but the task
+checks changed; task percentages are not a like-for-like behavior comparison.
+These are distinct samples, not a single full-suite result or proof of long-run
+stability. The output repairs accept valid views, and the skill's ownership
+guidance produced the required view in both activated responsibility trials.
+Implicit activation remains intermittent; wording alone has not met the 5/5
+selection goal. The overview counts remain the historical sweep.
+
+Further eval-design follow-up: The visual-explanation contract now centers on
+requests to explain or show technical relationships visually, including natural
+paraphrases rather than exact keywords. A pseudocode-only format request no
+longer requires implicit selection. The pseudocode and insufficient-evidence
+pressure cases now invoke the skill explicitly to test their task behavior;
+the responsibility prompt now asks for a visual view. A new
+[canonical implicit case](../../plugins/capability/darrow-explanation/skills/explain-visually/evals/implicit-visual-explanation.yaml)
+asks to explain a code path visually without naming the skill. This changes the
+active suite from nine to ten cases; the historical overview remains unchanged.
+
+The new canonical case passed a first Codex `gpt-6-luna`/medium trial for task
+and activation. A subsequent [five-trial run](../../evals/results/2026-09-26T14-51-44-936Z-codex-gpt-6-luna-medium.json)
+recorded **0/5 activation** despite the direct visual-explanation wording.
+Its original helper-name assertion rejected one otherwise correct answer.
+A semantic draft also proved ambiguous, so the final check uses bounded
+deterministic evidence for the named source, visual form, validation, storage,
+and queue steps. [Regrading all five retained answers](../../evals/results/explanation-canonical-deterministic-regrade.json)
+accepted **5/5**, while a missing-step counterexample failed. A
+[fresh trial](../../evals/results/2026-09-26T15-00-16-341Z-codex-gpt-6-luna-medium.json)
+passed task and activation under that final check. The retained five-trial
+activation result is unchanged. This rules out the missing words “explain
+visually” as the sole explanation for missed selection, and the new suite has
+not passed a full n:5 run.
+
+A metadata-only probe compared the current description with the user-supplied
+original wording and a short hybrid. The skill body, prompts, fixtures,
+Codex `gpt-6-luna`/medium route, and checks stayed fixed. Activation results:
+
+| Request                              |                                                                           Current |                                                                          Original |                                                                            Hybrid |
+| ------------------------------------ | --------------------------------------------------------------------------------: | --------------------------------------------------------------------------------: | --------------------------------------------------------------------------------: |
+| Simple visual code flow              | [4/10](../../evals/results/2026-09-26T15-16-21-242Z-codex-gpt-6-luna-medium.json) | [8/10](../../evals/results/2026-09-26T15-30-49-793Z-codex-gpt-6-luna-medium.json) | [8/10](../../evals/results/2026-09-26T15-42-26-963Z-codex-gpt-6-luna-medium.json) |
+| Complex visual code flow             | [6/10](../../evals/results/2026-09-26T15-17-44-332Z-codex-gpt-6-luna-medium.json) | [7/10](../../evals/results/2026-09-26T15-32-06-180Z-codex-gpt-6-luna-medium.json) | [4/10](../../evals/results/2026-09-26T15-43-39-578Z-codex-gpt-6-luna-medium.json) |
+| HTML artifact request: skill avoided |  [5/5](../../evals/results/2026-09-26T15-27-25-597Z-codex-gpt-6-luna-medium.json) |  [4/5](../../evals/results/2026-09-26T15-33-36-446Z-codex-gpt-6-luna-medium.json) |  [5/5](../../evals/results/2026-09-26T15-45-16-536Z-codex-gpt-6-luna-medium.json) |
+
+All task checks passed, but the positive probes checked only basic visual
+form, not full explanation quality. The original wording selected the skill
+once for an HTML artifact request, though the artifact was still created.
+These small samples do not establish a reliable improvement or meet the 5/5
+goal. The hybrid was reverted; the probe fixtures and results are gitignored.
+
+A follow-up used the exact original sentence with only “and focused HTML
+artifacts” removed. It activated [8/10 on the simple flow](../../evals/results/2026-09-26T15-50-41-707Z-codex-gpt-6-luna-medium.json)
+and [3/10 on the complex flow](../../evals/results/2026-09-26T15-52-22-539Z-codex-gpt-6-luna-medium.json),
+and avoided the skill in [5/5 HTML requests](../../evals/results/2026-09-26T15-53-47-998Z-codex-gpt-6-luna-medium.json).
+The HTML run's apparent task miss was an eval defect: “only inline HTML”
+matched a refusal regex despite the artifact being created. Removing that
+overbroad phrase accepted all five retained answers and rejected a refusal
+counterexample. A fresh trial then [passed](../../evals/results/2026-09-26T15-58-06-206Z-codex-gpt-6-luna-medium.json);
+an earlier fresh trial avoided the skill but [claimed to create an absent
+artifact](../../evals/results/2026-09-26T15-57-40-211Z-codex-gpt-6-luna-medium.json),
+which is separate from the regex defect. The description variant was reverted
+because its visual-request activation was only 11/20.
+
+A follow-up separated task value from activation, using Codex
+`gpt-6-luna`/medium and five trials per completed condition. For the same
+responsibility fixture, an [unmounted control](../../evals/results/2026-09-26T16-24-58-683Z-codex-gpt-6-luna-medium-without-skill.json)
+passed the task checks **2/5**; answers sometimes centered `src/index.ts`
+instead of the owning directories or repeated the map. An
+[explicitly invoked variant](../../evals/results/2026-09-26T16-24-09-558Z-codex-gpt-6-luna-medium.json)
+passed task and activation **5/5**. The normal
+[implicit responsibility case](../../evals/results/2026-09-26T16-28-42-024Z-codex-gpt-6-luna-medium.json)
+also passed task and activation **5/5**. The explicit variant added the
+host-native skill token to the same task, so its prompt was not byte-identical
+to the control; the result supports task value but does not isolate the skill
+body's causal effect from that token.
+
+For the insufficient-evidence fixture, both the
+[unmounted control](../../evals/results/2026-09-26T16-27-04-239Z-codex-gpt-6-luna-medium-without-skill.json)
+and the [explicit skill case](../../evals/results/2026-09-26T16-27-52-550Z-codex-gpt-6-luna-medium.json)
+passed **5/5**; this fixture does not show added value from loading the skill.
+The [generic `submitJob` visual request](../../evals/results/2026-09-26T16-29-52-326Z-codex-gpt-6-luna-medium.json)
+passed the task checks **5/5** but implicitly loaded the skill **3/5**.
+These small samples show stronger selection when the request specifies the
+skill's distinctive responsibility view and source anchors; they do not
+establish a stable implicit activation rate.
+
+An isolated Codex App Server
+[catalog preflight](../../evals/results/explanation-catalog-probe.json) using
+the runner's fixture, home, and plugin-install functions listed the enabled
+`darrow-explanation:explain-visually` skill with its complete description,
+six system skills, and no catalog errors. This checks installation and catalog
+discovery in a replicated setup, not the exact model-facing initial prompt in
+each retained trial. The two temporary research cases were removed after the
+comparison. A serial baseline attempt hit the shell tool's 120-second limit
+after four retained trials; only the completed five-trial result above is
+counted.
+
+A relationship-first description probe replaced only the frontmatter
+description with: “Use when the user asks to explain visually how a technical
+subject fits together—what calls what, who owns what, how state changes, or
+what changed. Show one source-grounded inline view. Do not use for
+implementation or requests to create HTML, images, slides, or documentation.”
+Codex `gpt-6-luna`/medium results, five trials per completed condition:
+
+| Case                                                  | Current description                                                                    | Relationship-first description                                                         |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Generic `submitJob` visual request: task / activation | [5/5 / 3/5](../../evals/results/2026-09-26T16-29-52-326Z-codex-gpt-6-luna-medium.json) | [5/5 / 3/5](../../evals/results/2026-09-26T16-54-47-700Z-codex-gpt-6-luna-medium.json) |
+| Responsibility view: task / activation                | [5/5 / 5/5](../../evals/results/2026-09-26T16-28-42-024Z-codex-gpt-6-luna-medium.json) | [5/5 / 5/5](../../evals/results/2026-09-26T16-55-33-145Z-codex-gpt-6-luna-medium.json) |
+| State transitions: task / activation                  | [5/5 / 1/5](../../evals/results/2026-09-26T17-01-58-746Z-codex-gpt-6-luna-medium.json) | [5/5 / 1/5](../../evals/results/2026-09-26T17-00-48-182Z-codex-gpt-6-luna-medium.json) |
+| HTML artifact: task / skill avoided                   | [5/5 / 5/5](../../evals/results/2026-09-26T15-27-25-597Z-codex-gpt-6-luna-medium.json) | [5/5 / 5/5](../../evals/results/2026-09-26T16-58-55-416Z-codex-gpt-6-luna-medium.json) |
+
+The state-transition control was rerun after restoring the current
+description because its older 4/5 activation result might have been sampling
+variation. The fresh control also loaded only 1/5, so that result cannot be
+attributed to the description variant. In the generic request, the two misses
+had complete activation observations and valid visual answers. The candidate
+showed no measured improvement on these probes; it was reverted byte-for-byte
+to the pre-probe skill file. A first HTML candidate run was interrupted by the
+shell tool's 120-second limit after three passing trials; only the completed
+five-trial rerun above is counted. Five trials per condition remain too small
+to establish equal long-run activation rates.
+
+A second probe used the distinct prose-to-view description: “Use when the user
+wants a technical explanation turned into a visual view, especially when prose
+obscures a flow, structure, or state transition. Keep the view compact and
+source-grounded.” Only the frontmatter description changed. Codex
+`gpt-6-luna`/medium results, five trials per completed condition:
+
+| Case                                                  | Current description                                                                    | Prose-to-view description                                                              |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Generic `submitJob` visual request: task / activation | [5/5 / 3/5](../../evals/results/2026-09-26T16-29-52-326Z-codex-gpt-6-luna-medium.json) | [5/5 / 4/5](../../evals/results/2026-09-26T17-05-55-053Z-codex-gpt-6-luna-medium.json) |
+| Responsibility view: task / activation                | [5/5 / 5/5](../../evals/results/2026-09-26T16-28-42-024Z-codex-gpt-6-luna-medium.json) | [5/5 / 5/5](../../evals/results/2026-09-26T17-06-45-832Z-codex-gpt-6-luna-medium.json) |
+| State transitions: task / activation                  | [5/5 / 1/5](../../evals/results/2026-09-26T17-01-58-746Z-codex-gpt-6-luna-medium.json) | [5/5 / 1/5](../../evals/results/2026-09-26T17-07-45-110Z-codex-gpt-6-luna-medium.json) |
+| HTML artifact: task / skill avoided                   | [5/5 / 5/5](../../evals/results/2026-09-26T16-58-55-416Z-codex-gpt-6-luna-medium.json) | [5/5 / 4/5](../../evals/results/2026-09-26T17-08-24-611Z-codex-gpt-6-luna-medium.json) |
+
+The candidate's generic improvement is one trial in a small sample and still
+misses the 5/5 selection goal. Its HTML miss is a complete observed skill read,
+not an instrumentation gap; the agent still created the artifact. The
+prose-to-view description was restored to the pre-probe wording. These results
+do not establish a reliable gain and show a possible exclusion regression.
+The selected `0.1.4` state keeps that restored description, the grounded
+ownership guidance, and the corrected intent and behavior evals. The plugin
+README documents the observed Codex implicit-activation limit and the explicit
+invocation path. No description variant established reliable 5/5 implicit
+selection across the visual cases.
 
 ### darrow-git
 
@@ -134,13 +305,40 @@ The [final shipped-skill snapshot](../../evals/experiments/discovery/snapshots/2
 
 ### darrow-information-architecture
 
-| Case                                                                                                                                                                                                                      | What failed                                                                                                                                                                                                | Assessment   | Recommended next step                                                 |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | --------------------------------------------------------------------- |
-| [doctor-information-architecture-confirm-before-mutation](../../plugins/foundation/darrow-information-architecture/skills/doctor-information-architecture/evals/confirm-before-mutation.yaml)                             | It proposes keeping items, gives numeric byte metrics, and requests confirmation, but does not explain why removing the package-manager fact is safe or identify package.json or another canonical source. | Skill likely | Preserve the required guidance and source rationale; rerun this case. |
-| [doctor-information-architecture-preserve-settled-abandoned-experiment](../../plugins/foundation/darrow-information-architecture/skills/doctor-information-architecture/evals/preserve-settled-abandoned-experiment.yaml) | The response does not mention storage guidance or the ORM-versus-raw-SQL choice, so it does not clearly establish that the policy remains settled.                                                         | Skill likely | Preserve the required guidance and source rationale; rerun this case. |
-| [doctor-information-architecture-trim-derived-keep-contracts](../../plugins/foundation/darrow-information-architecture/skills/doctor-information-architecture/evals/trim-derived-keep-contracts.yaml)                     | Manifest-derived stack inventory is trimmed failed. Also: response reports exact per-runtime before and after bytes and tokens.                                                                            | Skill likely | Preserve the required guidance and source rationale; rerun this case. |
-| [setup-information-architecture-move-procedure-to-skill](../../plugins/foundation/darrow-information-architecture/skills/setup-information-architecture/evals/move-procedure-to-skill.yaml)                               | Full ordered procedure leaves the resident root failed.                                                                                                                                                    | Skill likely | Preserve the required guidance and source rationale; rerun this case. |
-| [setup-information-architecture-scoped-router](../../plugins/foundation/darrow-information-architecture/skills/setup-information-architecture/evals/scoped-router.yaml)                                                   | Universal merge safety stays resident failed. Also: universal merge rule is not duplicated into scoped guidance.                                                                                           | Skill likely | Preserve the required guidance and source rationale; rerun this case. |
+| Case                                                                                                                                                                                                                      | What failed                                                                                                                                                                 | Assessment                                | Recommended next step                                                                          |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| [doctor-information-architecture-confirm-before-mutation](../../plugins/foundation/darrow-information-architecture/skills/doctor-information-architecture/evals/confirm-before-mutation.yaml)                             | The doctor kept the manifest-derived package-manager fact despite `package.json` being available, then asked for confirmation.                                              | Skill behavior                            | Reinforce derived-fact classification and the source-backed proposal.                          |
+| [doctor-information-architecture-preserve-settled-abandoned-experiment](../../plugins/foundation/darrow-information-architecture/skills/doctor-information-architecture/evals/preserve-settled-abandoned-experiment.yaml) | The settled ORM guidance and its route survived unchanged, but the response did not repeat the decision; only the semantic output check failed.                             | Eval expectation                          | Grade preservation and reachability; require a decision recap only when relevant to a finding. |
+| [doctor-information-architecture-trim-derived-keep-contracts](../../plugins/foundation/darrow-information-architecture/skills/doctor-information-architecture/evals/trim-derived-keep-contracts.yaml)                     | The doctor identified the correct rewrite but stopped because the eval mount omitted the plugin's required `references/file-updates.md`; no edit or after-metrics followed. | Eval runner package mount                 | Mount plugin-local references, then rerun before judging the rewrite.                          |
+| [setup-information-architecture-move-procedure-to-skill](../../plugins/foundation/darrow-information-architecture/skills/setup-information-architecture/evals/move-procedure-to-skill.yaml)                               | The new skill preserved the release steps, but the full procedure also remained in `AGENTS.md`; the eval mount also lacked the required writer reference.                   | Incomplete eval mount; task miss observed | Restore the complete plugin mount, then check the post-edit root comparison.                   |
+| [setup-information-architecture-scoped-router](../../plugins/foundation/darrow-information-architecture/skills/setup-information-architecture/evals/scoped-router.yaml)                                                   | Root kept “Agents must never merge their own pull requests” once and scoped files held the domain rules; both failed checks missed this valid paraphrase.                   | Eval regex                                | Accept this universal-rule wording in both checks.                                             |
+
+All five historical runs loaded the intended skill. The two failed cases that
+mentioned a missing atomic writer reflect the eval runner's filtered plugin
+mount: it copied skills and selected mechanics but omitted the tracked
+plugin-local `references/` directory. The initial sweep's blanket “Skill likely”
+assessment therefore overstated the skill failures.
+
+Follow-up on Codex `gpt-6-luna`/medium: the runner now mounts plugin-local
+references for project, Claude, and Codex fixtures. The settled-decision case
+grades policy preservation and reachability without requiring an unprompted
+decision recap. The scoped-router checks accept the observed prohibited
+“merge their own pull requests” wording while rejecting a positive permission.
+All five formerly failed cases passed a fresh single trial. The
+[procedure-move case](../../evals/results/2026-09-26T17-44-41-164Z-codex-gpt-6-luna-medium.json)
+then passed **5/5 task and 5/5 activation** with the complete mount, so its
+historical miss does not justify a setup-skill change on this evidence.
+
+The doctor proposal case still kept the manifest-derived package-manager fact
+in a fresh trial after the mount repair. Its classification step now explicitly
+separates derived manifest facts from adjacent behavioral rules. A first
+five-trial [run](../../evals/results/2026-09-26T17-37-04-610Z-codex-gpt-6-luna-medium.json)
+passed **4/5 task and 5/5 activation**: the remaining answer
+made the right removal proposal but gave only a directional, nonnumeric size
+estimate. After clarifying the numeric proposal requirement, the
+[fresh five-trial run](../../evals/results/2026-09-26T17-40-47-766Z-codex-gpt-6-luna-medium.json)
+passed **5/5 task and 5/5 activation**. These targeted runs do not constitute
+a new full-plugin sweep or establish long-run reliability.
 
 ### darrow-observability-langfuse
 

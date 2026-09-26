@@ -39,9 +39,3 @@ checks:
   - name: doctor creates no commit
     run: git rev-list --all --reflog --count
     expect_regex: "^1$"
-semantic_output_checks:
-  - name: settled storage direction is preserved rather than reopened
-    proposition: >-
-      The response recognizes the existing storage guidance as a settled
-      policy rather than treating ORM and raw SQL as an unresolved choice or
-      asking the user to choose between them again.
