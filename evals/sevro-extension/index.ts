@@ -213,15 +213,52 @@ function checkNames(selected: RecordValue) {
   ];
 }
 
-function caseActivation(value: unknown, skillDir: string | null) {
+function caseActivation(
+  value: unknown,
+  skillDir: string | null,
+  mountPluginSkills: boolean,
+) {
   if (value === undefined) return {};
-  if (value !== "positive" && value !== "negative")
+  if (value !== "positive" && value !== "negative" && value !== "competition")
     throw new Error("case uses an unsupported activation class");
   if (!skillDir)
     throw new Error("activation requires a colocated owning skill");
+  if (value === "competition" && !mountPluginSkills)
+    throw new Error("competition activation requires sibling skill mounts");
   return {
     activation: { class: value, targetSkill: skillDir.split("/").at(-1) },
   };
+}
+
+function caseMount(value: unknown, source: string, root: string) {
+  const skillDir = skillDirForSource(source);
+  if (value !== undefined && typeof value !== "boolean")
+    throw new Error("mount_plugin_skills must be a boolean");
+  const mountPluginSkills = value === true;
+  if (mountPluginSkills && !skillDir)
+    throw new Error("sibling skill mounts require a colocated owning skill");
+  return {
+    skillDir,
+    mountPluginSkills,
+    ...(skillDir
+      ? {
+          mount: {
+            projectRoot: pathToFileURL(root).href,
+            skillDir,
+            mountPluginSkills,
+          },
+        }
+      : {}),
+  };
+}
+
+function casePrompt(value: unknown) {
+  const prompt = string(value, "case prompt");
+  if (prompt.includes("{{skill_invocation}}"))
+    throw new Error("case needs a host-specific skill invocation");
+  if (prompt.replaceAll("{{repo_dir}}", "").includes("{{"))
+    throw new Error("case uses an unsupported prompt template");
+  return prompt.replaceAll("{{repo_dir}}", "{{sevro.workspace}}");
 }
 
 function neutralCase(value: unknown, source: string, root: string) {
@@ -237,18 +274,18 @@ function neutralCase(value: unknown, source: string, root: string) {
       "output_checks",
       "semantic_output_checks",
       "activation",
+      "mount_plugin_skills",
     ],
     "case",
   );
   const id = string(selected.id, "case ID");
-  const rawPrompt = string(selected.prompt, "case prompt");
-  if (rawPrompt.includes("{{skill_invocation}}"))
-    throw new Error("case needs a host-specific skill invocation");
-  if (rawPrompt.replaceAll("{{repo_dir}}", "").includes("{{"))
-    throw new Error("case uses an unsupported prompt template");
-  const prompt = rawPrompt.replaceAll("{{repo_dir}}", "{{sevro.workspace}}");
+  const prompt = casePrompt(selected.prompt);
   const invariant = string(selected.invariant, "case invariant");
-  const skillDir = skillDirForSource(source);
+  const { skillDir, mountPluginSkills, ...mount } = caseMount(
+    selected.mount_plugin_skills,
+    source,
+    root,
+  );
   const checks = [
     ...shellChecks(selected.checks),
     ...outputChecks(selected.output_checks),
@@ -264,10 +301,8 @@ function neutralCase(value: unknown, source: string, root: string) {
       "darrow.case": {
         invariant,
         source,
-        ...(skillDir
-          ? { mount: { projectRoot: pathToFileURL(root).href, skillDir } }
-          : {}),
-        ...caseActivation(selected.activation, skillDir),
+        ...mount,
+        ...caseActivation(selected.activation, skillDir, mountPluginSkills),
         checkNames: checkNames(selected),
       },
     },
@@ -308,6 +343,27 @@ function portableName(name: string): boolean {
   );
 }
 
+async function siblingSkillSources(root: string, skillRoot: string) {
+  const siblings = await readdir(join(skillRoot, ".."), {
+    withFileTypes: true,
+  });
+  const sources: { skillRoot: string; skillName: string }[] = [];
+  for (const entry of siblings.sort((left, right) =>
+    left.name < right.name ? -1 : left.name > right.name ? 1 : 0,
+  )) {
+    if (entry.isSymbolicLink())
+      throw new Error("sibling skill mount contains a symbolic link");
+    if (!entry.isDirectory()) continue;
+    if (!portableName(entry.name))
+      throw new Error("sibling skill name is not a portable fixture path");
+    const siblingRoot = await realpath(join(skillRoot, "..", entry.name));
+    if (!within(root, siblingRoot))
+      throw new Error("sibling skill mount escapes the project root");
+    sources.push({ skillRoot: siblingRoot, skillName: entry.name });
+  }
+  return sources;
+}
+
 async function skillMountSource(details: RecordValue) {
   const mount = record(details.mount, "skill mount");
   const rootUrl = string(mount.projectRoot, "mount project root");
@@ -323,7 +379,10 @@ async function skillMountSource(details: RecordValue) {
   const skillName = skillDir.split("/").at(-1)!;
   if (!portableName(skillName))
     throw new Error("skill name is not a portable fixture path");
-  return { skillRoot, skillName };
+  if (typeof mount.mountPluginSkills !== "boolean")
+    throw new Error("skill mount must declare sibling selection");
+  if (!mount.mountPluginSkills) return [{ skillRoot, skillName }];
+  return siblingSkillSources(root, skillRoot);
 }
 
 function skillArtifact(
@@ -347,10 +406,17 @@ function checkSkillArtifactLimit(bytes: Buffer, total: number, count: number) {
     throw new Error("skill mount exceeds the artifact limit");
 }
 
-async function skillArtifacts(skillRoot: string, skillName: string) {
+async function skillArtifacts(
+  sources: { skillRoot: string; skillName: string }[],
+) {
   const artifacts: SkillArtifact[] = [];
   let totalBytes = 0;
-  async function collect(directory: string, parts: string[]): Promise<void> {
+  async function collect(
+    skillRoot: string,
+    skillName: string,
+    directory: string,
+    parts: string[],
+  ): Promise<void> {
     const entries = (await readdir(directory, { withFileTypes: true })).sort(
       (left, right) =>
         left.name < right.name ? -1 : left.name > right.name ? 1 : 0,
@@ -364,7 +430,7 @@ async function skillArtifacts(skillRoot: string, skillName: string) {
       if (!within(skillRoot, await realpath(path)))
         throw new Error("skill mount escapes its source directory");
       if (entry.isDirectory()) {
-        await collect(path, next);
+        await collect(skillRoot, skillName, path, next);
         continue;
       }
       if (!entry.isFile()) throw new Error("skill mount contains a non-file");
@@ -378,14 +444,16 @@ async function skillArtifacts(skillRoot: string, skillName: string) {
       );
     }
   }
-  await collect(skillRoot, []);
-  if (
-    !artifacts.some(
-      (artifact) =>
-        artifact.relativePath === `.agents/skills/${skillName}/SKILL.md`,
+  for (const { skillRoot, skillName } of sources) {
+    await collect(skillRoot, skillName, skillRoot, []);
+    if (
+      !artifacts.some(
+        (artifact) =>
+          artifact.relativePath === `.agents/skills/${skillName}/SKILL.md`,
+      )
     )
-  )
-    throw new Error("selected skill has no SKILL.md");
+      throw new Error("selected skill has no SKILL.md");
+  }
   return artifacts;
 }
 
@@ -395,8 +463,8 @@ async function prepareCase(params: RecordValue) {
   const details = record(data["darrow.case"], "Darrow case data");
   if (details.mount === undefined)
     return { artifacts: [], requestedInstrumentation: [], extensionData: {} };
-  const { skillRoot, skillName } = await skillMountSource(details);
-  const artifacts = await skillArtifacts(skillRoot, skillName);
+  const sources = await skillMountSource(details);
+  const artifacts = await skillArtifacts(sources);
   return { artifacts, requestedInstrumentation: [], extensionData: {} };
 }
 
@@ -441,7 +509,11 @@ function activationExpectation(value: unknown) {
   const activation = record(value, "activation expectation");
   const activationClass = string(activation.class, "activation class");
   const targetSkill = string(activation.targetSkill, "activation target skill");
-  if (activationClass !== "positive" && activationClass !== "negative")
+  if (
+    activationClass !== "positive" &&
+    activationClass !== "negative" &&
+    activationClass !== "competition"
+  )
     throw new Error("unsupported activation expectation");
   return { activationClass, targetSkill };
 }
@@ -510,7 +582,7 @@ function activationStatus(
 ) {
   if (!observed) return "unavailable";
   const selected = observed.primarySkill === targetSkill;
-  return (activationClass === "positive") === selected ? "passed" : "failed";
+  return (activationClass !== "negative") === selected ? "passed" : "failed";
 }
 
 function evaluateCase(params: RecordValue) {

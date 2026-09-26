@@ -144,6 +144,20 @@ test("Darrow extension resolves an existing skill-free case and rejects unsuppor
     class: "positive",
     targetSkill: "author-agent-skill",
   });
+  const siblingCase = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", resolveParams("readiness-no-trigger-implementation")),
+  );
+  expect(siblingCase.code, siblingCase.stderr).toBe(0);
+  expect(siblingCase.value.result.cases[0]!.extensionData).toMatchObject({
+    "darrow.case": {
+      activation: {
+        class: "negative",
+        targetSkill: "assess-implementation-readiness",
+      },
+      mount: { mountPluginSkills: true },
+    },
+  });
   const unsupported = await command<ExtensionReply>(
     [process.execPath, extension],
     request("resolve", resolveParams("orchestration-oss-requests-proxy")),
@@ -226,6 +240,112 @@ test("Darrow activation needs a complete and consistent host observation", async
     },
   });
   expect(negative.value.result.domainOutcomes[0]!.status).toBe("failed");
+});
+
+test("Darrow mounts sibling skills for a competition activation case", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-siblings-"));
+  roots.push(root);
+  const skills = join(root, "plugins/capability/example/skills");
+  await mkdir(join(skills, "primary/evals"), { recursive: true });
+  await mkdir(join(skills, "rival/evals"), { recursive: true });
+  await writeFile(join(skills, "primary/SKILL.md"), "Primary skill\n");
+  await writeFile(join(skills, "rival/SKILL.md"), "Rival skill\n");
+  await writeFile(
+    join(skills, "primary/evals/competition.yaml"),
+    JSON.stringify({
+      id: "sibling-competition",
+      invariant: "EXAMPLE-C1",
+      activation: "competition",
+      mount_plugin_skills: true,
+      prompt: "Use the best skill for this request.",
+      fixture: {
+        commits: [
+          { message: "Initialize", files: { "README.md": "fixture\n" } },
+        ],
+      },
+      checks: [],
+    }),
+  );
+  const resolved = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(root).href,
+      selectors: { caseIds: ["sibling-competition"] },
+      configuration: {},
+    }),
+  );
+  expect(resolved.code, resolved.stderr).toBe(0);
+  expect(resolved.value.result.cases[0]!.extensionData).toMatchObject({
+    "darrow.case": {
+      activation: { class: "competition", targetSkill: "primary" },
+      mount: { mountPluginSkills: true },
+    },
+  });
+  const prepared = await command<{
+    result: { artifacts: Array<{ id: string; relativePath: string }> };
+  }>(
+    [process.execPath, extension],
+    request("prepare", {
+      case: resolved.value.result.cases[0],
+      host: { id: "darrow.host.synthetic", capabilities: [] },
+      condition: "passive",
+      configuration: {},
+    }),
+  );
+  expect(prepared.code, prepared.stderr).toBe(0);
+  expect(prepared.value.result.artifacts).toMatchObject([
+    { id: "darrow.skill.1", relativePath: ".agents/skills/primary/SKILL.md" },
+    { id: "darrow.skill.2", relativePath: ".agents/skills/rival/SKILL.md" },
+  ]);
+  const adapter = join(root, "candidate.ts");
+  await writeFile(
+    adapter,
+    `export default {
+  id: "darrow.host.synthetic", model: "synthetic-v1", effort: "none",
+  async run({ workspace }) {
+    for (const name of ["primary", "rival"])
+      if (!(await Bun.file(workspace + "/.agents/skills/" + name + "/SKILL.md").exists())) throw new Error("sibling missing");
+    return { finalMessage: "ready", complete: true, observations: [{ id: "darrow.activation", completeness: "complete", data: { primarySkill: "primary", observedSkills: ["primary", "rival"] } }] };
+  },
+};
+`,
+  );
+  const run = await command<CliReply>([
+    process.execPath,
+    resolve(import.meta.dir, "../../sevro-extension/run.ts"),
+    "--case-id",
+    "sibling-competition",
+    "--project-root",
+    root,
+    "--results-root",
+    join(root, "results"),
+    "--",
+    "--adapter-module",
+    adapter,
+    "--condition",
+    "passive",
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+  ]);
+  expect(run.code, run.stderr).toBe(0);
+  expect(run.value.cases[0]!.trials[0]!.domainOutcomes).toMatchObject([
+    { id: "darrow.evals.activation", status: "passed" },
+  ]);
+  const evidence = JSON.parse(await readFile(run.value.evidencePath, "utf8"));
+  expect(evidence.trials[0].artifactRefs).toHaveLength(2);
+  await symlink(join(root, "outside"), join(skills, "linked"));
+  const unsafe = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("prepare", {
+      case: resolved.value.result.cases[0],
+      host: { id: "darrow.host.synthetic", capabilities: [] },
+      condition: "passive",
+      configuration: {},
+    }),
+  );
+  expect(unsafe.value.error.message).toMatch(/symbolic link/);
 });
 
 test("Darrow extension grades combined shell and final-message assertions", async () => {
