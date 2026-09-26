@@ -21,6 +21,9 @@ review, or start the work.
 - **Evidence-grounded body:** facts come from the request, conversation, or
   repository. Unknowns stay explicit questions; they never become invented
   reproduction steps, versions, paths, or acceptance criteria.
+- **Installed template:** use a matching GitHub issue template from the current
+  repository, whether it came from Darrow or its users. Preserve its criteria
+  and customizations while grounding every factual field in evidence.
 - **Caller-owned structure:** dependency, parent, milestone, and assignee
   choices are recorded only when the user names them. The caller may delegate
   the order of an already defined batch; that does not authorize new tickets
@@ -136,6 +139,42 @@ For each item that passed its duplicate check, write a concise searchable
 title that states its problem or desired outcome, not a speculative
 implementation. Keep it one line with no trailing period.
 
+When GitHub is the selected tracker, list the current repository's installed
+issue templates before drafting. The command lists Markdown templates and YAML
+issue forms with their absolute paths and available names and descriptions:
+
+```sh
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-ticket-templates list --repo <absolute-current-repository-root>
+```
+
+Use the template the caller named, or one whose stated purpose clearly matches
+the requested ticket. The bundled names cover dependency upgrades, retirement,
+and bug fixes with regression coverage; user-defined templates can cover any
+other purpose. If several plausibly match, ask which one before creation. If
+none matches or the list reports `missing` or `empty`, use the ordinary type
+structure below. Do not load a bundled copy instead of an installed template.
+An ordinary bug report without a requested fix need not use the bundled
+regression-fix template.
+
+For a selected filename from that list, inspect its installed content:
+
+```sh
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-ticket-templates show --repo <absolute-current-repository-root> --file <exact-listed-filename>
+```
+
+These local commands do not contact GitHub. Use applicable headings, prompts,
+acceptance criteria and evidence requests from the exact installed Markdown
+template or YAML form. Express a YAML form's requirements as a Markdown issue
+body rather than copying its form syntax. Remove frontmatter, HTML prompts,
+and blank placeholders from the drafted body. Keep the required type headings
+below, adding them if the template uses different headings. An unreadable or
+unsafe installed template stops that item's creation.
+
+Before creation, compare the drafted body with every applicable template
+criterion and evidence request. Keep each requirement as a checkable ticket
+condition or name why it cannot yet be stated. A request for evidence is a
+future acceptance condition, not a claim that the work has already passed.
+
 Use exactly the required body structure for the chosen type:
 
 | Type | Required sections |
@@ -160,7 +199,8 @@ requested.
 
 Do not derive secondary requirements such as pagination, filtering, naming,
 performance, rollout, or compatibility merely because an implementation might
-need to consider them. Open questions are not discovery prompts: include one
+need to consider them; an installed matching template may supply explicit
+criteria for its own task. Open questions are not discovery prompts: include one
 only when the caller explicitly identified an uncertainty, supplied sources
 conflict, or a fact required to truthfully populate a mandatory section is
 missing. An unstated optional behavior or possible design choice stays omitted.

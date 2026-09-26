@@ -60,6 +60,30 @@ def validate(copy: Path, fixture: Path) -> None:
     repo.mkdir()
     command(repo, "git", "init", "-q")
     command(repo, "git", "remote", "add", "origin", "https://github.test/o/r.git")
+    installed = command(
+        repo, *uv, "darrow-ticket-templates", "install", "--repo", str(repo)
+    )
+    assert installed.count("created:") == 3
+    templates = repo / ".github" / "ISSUE_TEMPLATE"
+    assert (
+        "name: Dependency upgrade" in (templates / "dependency-upgrade.md").read_text()
+    )
+    (templates / "custom.yml").write_text(
+        "name: Custom issue\ndescription: Local concern\nbody: []\n"
+    )
+    listed = command(repo, *uv, "darrow-ticket-templates", "list", "--repo", str(repo))
+    assert "custom.yml" in listed and "Custom issue" in listed
+    shown = command(
+        repo,
+        *uv,
+        "darrow-ticket-templates",
+        "show",
+        "--repo",
+        str(repo),
+        "--file",
+        "custom.yml",
+    )
+    assert "description: Local concern" in shown
     output = command(repo, *uv, "python", str(backend / "tests" / "fresh_probe.py"))
     assert "all eleven commands passed" in output
 

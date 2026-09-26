@@ -1,8 +1,9 @@
 # Darrow Tickets
 
-This independently installable plugin provides everyday ticket operations. Four
-skills decide what the user means and how to present evidence; one contained
-Python package selects a tracker adapter and performs the requested operation.
+This independently installable plugin provides everyday ticket operations and
+reusable GitHub issue templates. Five skills decide what the user means and how
+to present evidence; one contained Python package supplies the tracker adapter
+and local template operations.
 GitHub Issues through `gh` is the only bundled adapter in this release.
 
 The operation skills and CLI shape remain stable as adapters are added inside
@@ -31,8 +32,20 @@ distinct tickets. It checks each item for a plausible duplicate, selects its
 type, uses the tracker's existing label taxonomy, structures its body,
 preserves unknowns as open questions, and records only caller-named relations.
 It verifies requested relations after creation and reports every batch outcome.
+For a matching issue, it reads an installed Markdown template or YAML issue
+form, including user-defined templates and local customizations, and retains
+its acceptance and evidence requirements.
 
 Example: _“File a bug for the failing CSV import.”_
+
+### `install-ticket-templates`
+
+Adds three GitHub Markdown templates to a target repository's
+`.github/ISSUE_TEMPLATE/`: dependency upgrade, retirement, and bug fix with
+regression coverage. It preserves existing files and customizations, reports
+each resulting path, and does not create an issue or start delivery.
+
+Example: _“Install Darrow's issue templates in this repository.”_
 
 ### `list-tickets`
 
@@ -61,7 +74,7 @@ Example: _“Comment on #42 with the failing command.”_
 
 ### `darrow-ticket`
 
-A contained Python facade used by all four skills. Its public argument parser
+A contained Python facade used by the four ticket-operation skills. Its public argument parser
 preserves provider-owned identifiers, selects one bundled adapter, and then
 dispatches one operation. Shared validation covers ticket body structure and
 attribution. The GitHub adapter owns numeric IDs, repository resolution, `gh`
@@ -95,6 +108,22 @@ Exit codes: 2 input/filesystem error, 3 unusable backend, 4 provider failure,
 5 invalid title, 6 attribution, 7 body structure, 8 label error, 9 state refusal,
 64 unknown or missing command.
 
+### `darrow-ticket-templates`
+
+The same contained package exposes local template commands, without tracker
+access:
+
+```text
+uv run --quiet --no-project "<plugin-root>/backend/scripts/run_locked.py" darrow-ticket-templates install --repo <absolute-repository-root>
+uv run --quiet --no-project "<plugin-root>/backend/scripts/run_locked.py" darrow-ticket-templates list --repo <absolute-repository-root>
+uv run --quiet --no-project "<plugin-root>/backend/scripts/run_locked.py" darrow-ticket-templates show --repo <absolute-repository-root> --file <installed-filename>
+```
+
+`install` creates absent bundled files and leaves identical, modified, and
+unrelated files alone. `list` and `show` read the repository's installed
+Markdown templates and YAML forms, including user-defined ones. `create-ticket`
+does not silently use a bundled default when a repository has not adopted it.
+
 ## Design boundaries
 
 - `create-ticket` may create an explicitly requested finite batch of distinct
@@ -105,6 +134,8 @@ Exit codes: 2 input/filesystem error, 3 unusable backend, 4 provider failure,
   milestone, or assignee.
 - Ticket content contains repository or user evidence, never invented versions,
   reproduction steps, acceptance criteria, or AI attribution.
+- Matching installed templates supply task-specific acceptance criteria, not
+  factual values or permission to start the work in a ticket.
 - `read-ticket` and `list-tickets` are strictly read-only, and `update-ticket`
   applies only the single mutation requested.
 - A selected adapter is the only tracker contacted. Adding another adapter must
@@ -167,7 +198,8 @@ or use `/darrow-tickets:read-ticket` in Claude Code, followed by your request.
 ## Expected result
 
 Read and list return tracker evidence without changes. Create reports each
-requested ticket outcome; update performs one requested mutation.
+requested ticket outcome; update performs one requested mutation. Template
+installation reports local file changes without contacting GitHub.
 
 ## Troubleshooting
 
