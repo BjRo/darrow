@@ -1,0 +1,16 @@
+id: install-ticket-templates-list-only
+invariant: TM-T2
+activation: negative
+mount_plugin_skills: true
+activation_excludes:
+  - install-ticket-templates
+prompt: "Which GitHub issue templates are already present in this repository? Just list them."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+        .github/ISSUE_TEMPLATE/custom-triage.md: "---\nname: Custom triage\nabout: Triage reports\n---\n"
+checks:
+  - name: no template files are installed
+    run: test ! -e .github/ISSUE_TEMPLATE/dependency-upgrade.md && test ! -e .github/ISSUE_TEMPLATE/retirement.md && test ! -e .github/ISSUE_TEMPLATE/bug-fix-regression.md

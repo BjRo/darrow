@@ -33,7 +33,7 @@
     {
       "name": "darrow-tickets",
       "source": "./plugins/capability/darrow-tickets",
-      "description": "Ticket skills with a bundled GitHub Issues adapter: create-ticket, read-ticket, update-ticket, list-tickets"
+      "description": "Ticket operations and reusable GitHub issue templates with a bundled GitHub Issues adapter"
     },
     {
       "name": "darrow-readiness-gate",

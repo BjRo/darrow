@@ -5,8 +5,9 @@ creating and updating tickets is consistent, traceable, and backend-neutral
 regardless of which agent runtime executes them and which tracker backs them.
 
 Plugin: `darrow-tickets`. Skills: `create-ticket`, `read-ticket`,
-`update-ticket`, `list-tickets`. The bundled GitHub Issues provider is the
-only shipped tracker adapter. Other trackers may be added inside this plugin.
+`update-ticket`, `list-tickets`, and `install-ticket-templates`. The bundled
+GitHub Issues provider is the only shipped tracker adapter. Other trackers may
+be added inside this plugin.
 
 Scope: mechanics only. These skills record and mutate tickets; they do not
 refine requirements, plan or break down work, or review solutions. Those
@@ -47,7 +48,7 @@ stable intent ("create a ticket for X") while the backend stays swappable.
   remain static and nonmutating, perform no repository or tracker inspection,
   preserve provider boundaries, and leave workflow and authority in the skill.
 
-- **TM-P1 — One self-contained ticket plugin.** The four skills and all tracker
+- **TM-P1 — One self-contained ticket plugin.** The five skills and all tracker
   adapters live in `darrow-tickets`. The shipped adapter is GitHub Issues via
   `gh`. Future trackers extend this contained Python package; no sibling plugin,
   shared runtime, or external provider registry is required. Only the selected
@@ -75,6 +76,50 @@ stable intent ("create a ticket for X") while the backend stays swappable.
   Every GitHub call, including native relation API reads and mutations, is
   bound to the resolved origin host and repository independently of ambient
   `GH_HOST` or `GH_REPO` configuration.
+
+## GitHub issue templates
+
+The plugin bundles three GitHub Markdown issue templates. Installation is a
+separate, explicitly requested local repository operation; it does not create a
+ticket or authorize delivery. The templates use the ordinary `create-ticket`
+body headings so both human-authored and agent-created issues can carry the
+same task requirements.
+
+- **TM-T1 — Task-specific requirements.** The dependency-upgrade template asks
+  for the dependency and target version, relevant changelog or release notes,
+  repository-relevant breaking changes and migration work, and compatibility
+  evidence for affected behavior. The retirement template asks for the exact
+  removal target and authorized scope, covers implementation, configuration,
+  tests, documentation and migration obligations, and calls for evidence that
+  removal is complete and retained behavior works. The bug-fix template asks
+  for incident evidence, observed and expected behavior, a reproducer, a
+  bounded fix, durable regression coverage and before/after evidence. Missing
+  reproduction evidence remains an explicit blocker to a verified repair.
+- **TM-T2 — Additive installation.** `install-ticket-templates` installs the
+  bundled templates into the named repository's `.github/ISSUE_TEMPLATE/`.
+  It creates absent files, leaves identical files unchanged, and preserves
+  differing files, symlinks, directories, and unrelated templates without
+  overwriting them. It reports absolute paths and each created, unchanged or
+  preserved result. An unreadable or unusable target, including a case-variant
+  filename that conflicts with a bundled path, refuses the operation.
+  Installing templates changes local files only; it does not create issues,
+  commit, push, or start `ticket-to-pr`.
+- **TM-T3 — Installed template is authoritative.** `create-ticket` discovers
+  the current repository's GitHub Markdown templates and YAML issue forms,
+  including files supplied or customized by its users. It inspects an explicitly
+  named template, or selects one whose stated purpose matches the requested
+  issue; ambiguous matches require a caller choice. The created ticket retains
+  the selected template's applicable criteria and evidence requests. It never
+  substitutes the bundled copy for a missing or unreadable installed template.
+  Without a matching installed template, the existing type-based drafting rules
+  apply. Factual inputs come only from the request, conversation or repository;
+  missing versions, removal scope, reproduction details and other facts remain
+  explicit rather than invented. Template inspection does not create a ticket
+  or start delivery.
+- **TM-T4 — Same-path adoption.** Darrow installs the bundled templates with
+  the same public installation operation offered to other repositories. The
+  resulting checked-in templates are ordinary repository files, not a plugin
+  runtime dependency or a separate ticket store.
 
 ## Relations contract
 
@@ -174,6 +219,15 @@ decompose a broad request into tickets on its own.
   created tickets remain visible, and no automatic rollback or second creation
   attempt occurs. A skipped item does not prevent independent items from
   proceeding. Never substitute a missing batch relation target.
+- **TM-C11 — Installed template use.** After duplicate checking and before
+  drafting each GitHub issue, inspect available repository templates and any
+  requested or matching template. Retain its applicable criteria, evidence
+  requests, and local customizations in the created body while satisfying the
+  chosen ticket type's required headings. A missing template uses TM-C3; an
+  unreadable or unsafe installed template stops that item before creation.
+  Ordinary bug reports without a requested fix need not select the bundled
+  regression-fix template. Unknown factual inputs remain open questions,
+  never guessed values or claimed evidence.
 
 ### Non-goals
 
