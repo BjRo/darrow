@@ -23,11 +23,11 @@ def test_check_capture_and_refusals(
     manifest = Records(scope.prepare(scope.ScopeOptions(str(repo), "HEAD", "WORKTREE")))
     path = Path(manifest.value("manifest")).parent / "check.json"
     output = cli.check_command(["run", "--output", str(path), "--command", command])
-    assert str(path) in output
+    assert Records(output).value("check_record") == str(path)
     assert Records(path.read_text(encoding="utf-8")).get("check")[0][2:] == [
         "applicable",
         "pass",
-        "exited 0: checked\n",
+        f"exited 0: checked{os.linesep}",
     ]
     with pytest.raises(ReviewError, match="already exists"):
         check.capture(str(path), command)

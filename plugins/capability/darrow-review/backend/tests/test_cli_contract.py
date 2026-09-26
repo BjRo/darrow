@@ -99,7 +99,7 @@ def test_check_capture_preserves_status_and_exit_code(
     assert process.stdout == serialize([["check_record", str(destination)]])
     evidence = Records(destination.read_text(encoding="utf-8"))
     assert evidence.get("check") == [
-        ["check", command, "applicable", status, f"exited {code}: observed\n"]
+        ["check", command, "applicable", status, f"exited {code}: observed{os.linesep}"]
     ]
     assert evidence.value("exit_code") == str(code)
 

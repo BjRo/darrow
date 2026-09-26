@@ -246,7 +246,7 @@ def test_transcript_native_application(
     )
     assert Records(application.read_text(encoding="utf-8")).value("agent_id") == "abc1"
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(projects.parent))
-    assert str(path) in provider.verify(str(repo), "abc1")
+    assert Records(provider.verify(str(repo), "abc1")).value("transcript") == str(path)
     route.write_text(
         route.read_text(encoding="utf-8").replace("claude-opus-5", "claude-sonnet-5"),
         encoding="utf-8",

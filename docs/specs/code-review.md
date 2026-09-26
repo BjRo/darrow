@@ -433,6 +433,8 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
    UTF-8 records, native temporary files, and cancellation that terminates
    owned subprocesses. The deliberately literal `review-check --command`
    boundary uses the host shell (Bash on Unix, PowerShell on native Windows);
+   capture preserves that shell's native output line endings, and regression
+   checks compare decoded JSON path fields instead of serialized text;
    all other commands execute without shell interpolation. Preserve public
    command names, JSON formats, scope/repair binding, diagnostics, and exit
    codes. Register the locked package in the Python inventory, enforce the
