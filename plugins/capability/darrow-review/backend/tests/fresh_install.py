@@ -48,7 +48,9 @@ def repository(path: Path) -> None:
 
 
 def field(text: str, name: str) -> str:
-    return str(next(row[1] for row in json.loads(text) if row[0] == name))
+    value = json.loads(text)[name]
+    assert isinstance(value, str)
+    return value
 
 
 def verify_scope(backend: Path, repo: Path) -> None:
@@ -85,27 +87,23 @@ def verify_scope(backend: Path, repo: Path) -> None:
         "--command",
         literal,
     )
-    check = next(
-        row
-        for row in json.loads((artifact / "check.json").read_text())
-        if row[0] == "check"
-    )
+    check = json.loads((artifact / "check.json").read_text())["checks"][0]
     scope_records = json.loads(
         runtime(backend, repo, "review-result", "scope-records", manifest)
     )
     text = json.dumps(
-        [
-            ["format", "darrow-review-result-v3"],
-            *scope_records,
-            ["standards", "pass"],
-            ["standards_source", "fixture"],
-            ["spec", "not_available"],
-            ["spec_source", "not_available"],
-            check,
-            ["verdict", "pass"],
-            ["risk", "none"],
-            ["next_action", "return"],
-        ]
+        {
+            "format": "darrow-review-result-v3",
+            **scope_records,
+            "standards": "pass",
+            "standards_sources": ["fixture"],
+            "spec": "not_available",
+            "spec_source": "not_available",
+            "checks": [check],
+            "verdict": "pass",
+            "risks": ["none"],
+            "next_action": "return",
+        }
     )
     result = artifact / "result.json"
     result.write_text(text, encoding="utf-8", newline="\n")
@@ -132,9 +130,9 @@ def verify_routes(backend: Path, repo: Path) -> None:
     assert "claude-opus-5" in runtime(
         backend, repo, "review-route", "claude-agent", "--route-record", str(route)
     )
-    assert ["provider", "claude", "anthropic"] in json.loads(
-        runtime(backend, repo, "claude-provider", "observe-direct")
-    )
+    assert json.loads(runtime(backend, repo, "claude-provider", "observe-direct"))[
+        "provider"
+    ] == {"host": "claude", "provider": "anthropic"}
     projects = repo.parent / "mock-provider/projects"
     slug = (
         re.sub(r"[^A-Za-z0-9]", "-", str(repo))
@@ -184,9 +182,7 @@ def verify_routes(backend: Path, repo: Path) -> None:
         "--application-record",
         str(application),
     )
-    assert ["route_bound", "true"] in json.loads(
-        application.read_text(encoding="utf-8")
-    )
+    assert json.loads(application.read_text(encoding="utf-8"))["route_bound"] == "true"
 
 
 def validate(copy: Path, fixture: Path) -> None:
