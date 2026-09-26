@@ -351,12 +351,31 @@ each argument. The configured launcher must connect its synthetic adapter to
 the `pass`, `fail`, `incomplete-usage`, `throw-after-first`, and `wait` values supplied through
 `DARROW_EVAL_COMPAT_SCENARIO`; the wait scenario also receives
 `DARROW_EVAL_COMPAT_READY_PATH` and `DARROW_EVAL_COMPAT_CHILD_PID_PATH`.
-This launcher seam lets the same expectations target a local Sevro command
-without changing Darrow's baseline.
+This launcher seam permits a compatible command adapter; Sevro's current CLI
+uses different case and argument formats, so it cannot be substituted as a
+direct command prefix.
 When comparing both implementations, inspect any failed assertion before
 changing the fixture. Normalize variable timestamps, paths, and attempt IDs;
 keep case selection, named check outcomes, completeness flags, condition
 labels, and exit categories visible. Record any deliberate migration separately.
+
+Run the first cross-runner command comparison with an explicit local Sevro
+checkout:
+
+```sh
+SEVRO_CHECKOUT=/absolute/path/to/sevro bun run test:eval-runner-sevro-parity
+```
+
+This development test launches Darrow's runner and Sevro's CLI as separate
+processes against one synthetic case definition. It compares the selected
+case, shell and output check outcomes, passive condition evidence, incomplete
+usage, retained raw output, and success or failure exits. Darrow's additional
+activation check is outside this first shared surface. The fixture uses the
+explicit local-checkout path while Sevro is unreleased; it does not establish
+parity for enforced conditions, suite selection, run ownership, cancellation,
+or packaged installation. Keep the original compatibility baseline as the
+reference for those behaviors until equivalent public-command comparisons
+pass.
 
 - Use one trial per invocation while diagnosing so stop-at-first-failure is
   real:
