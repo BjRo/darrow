@@ -34,6 +34,7 @@ import { trialReviewStateDir } from "./environment";
 import {
   configureSandboxConfigurationRoot,
   configureSandboxProjectRoot,
+  configureSandboxStorageRoots,
 } from "./sandbox";
 import { resolveCorpusSource } from "./corpus";
 import { runQualityJudge } from "./judge";
@@ -1482,6 +1483,8 @@ const { values } = parseArgs({
   options: {
     "project-root": { type: "string" },
     "config-root": { type: "string" },
+    "results-root": { type: "string" },
+    "run-state-root": { type: "string" },
     harness: { type: "string" },
     model: { type: "string" },
     effort: {
@@ -1537,7 +1540,12 @@ const CONFIG_ROOT = values["config-root"]
 configureCodexEvalRoot(CONFIG_ROOT);
 configureSandboxProjectRoot(PROJECT_ROOT);
 configureSandboxConfigurationRoot(CONFIG_ROOT);
-const RESULTS_ROOT = join(PROJECT_ROOT, "evals", "results");
+const RESULTS_ROOT = values["results-root"]
+  ? resolve(process.cwd(), values["results-root"])
+  : join(PROJECT_ROOT, "evals", "results");
+const RUN_STATE_ROOT = values["run-state-root"]
+  ? resolve(process.cwd(), values["run-state-root"])
+  : RESULTS_ROOT;
 const DEFAULT_CORPUS_MANIFEST = join(
   PROJECT_ROOT,
   "evals",
@@ -1862,8 +1870,12 @@ const runIdentity = new Bun.CryptoHasher("sha256")
     }),
   )
   .digest("hex");
-const activeRunPath = join(RESULTS_ROOT, "active", `${runIdentity}.json`);
+const activeRunPath = join(RUN_STATE_ROOT, "active", `${runIdentity}.json`);
 await mkdir(dirname(activeRunPath), { recursive: true });
+await configureSandboxStorageRoots(
+  [RESULTS_ROOT, RUN_STATE_ROOT],
+  [outPath, `${outPath}.diagnostic.json`],
+);
 const activeRun = await startActiveRun(activeRunPath, outPath);
 const results: CaseResult[] = [];
 const unpersistedTrials = new Map<string, unknown>();

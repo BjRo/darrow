@@ -45,6 +45,15 @@ source checkout, the evaluated project root, or a separate configuration root.
 Git worktrees belonging to those roots receive the same protection. A
 packaged runner source without Git metadata remains usable.
 
+The direct runner accepts `--results-root <directory>` for its default result
+bundles and `--run-state-root <directory>` for active ownership records,
+checkpoints, and retained attempts. The results root defaults to
+`<project-root>/evals/results`; the run-state root defaults to the results root.
+`--output <file>` still selects one explicit result bundle independently of
+those roots. Relative paths resolve from the caller's working directory.
+Candidate execution and shell grading cannot read or write either storage root
+or the selected result and diagnostic files.
+
 ### Direct case selection
 
 The direct runner accepts `--skill <skill-name>` to select discovered cases
@@ -530,6 +539,12 @@ not prove equivalence or savings.
   an explicit configuration root controls imported Codex settings. Candidate
   execution and shell grading protect both roots, their Git worktrees, and the
   runner's own source. Normal execution does not require runner Git metadata.
+
+- **SE-C30 — Independent direct runner storage.** The results and run-state
+  roots may be configured separately from the runner installation and project
+  checkout. Result bundles, ownership records, and trial checkpoints land in
+  their configured locations. Candidate execution and shell grading protect
+  both storage roots and any explicit result and diagnostic files.
 
 ## Evaluation requirements
 

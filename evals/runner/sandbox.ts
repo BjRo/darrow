@@ -1,12 +1,13 @@
 import { existsSync } from "node:fs";
 import { mkdir, readdir, realpath, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { trialReviewStateDir } from "./environment";
 
 const SOURCE_ROOT = resolve(import.meta.dir, "..", "..");
 let projectRoot = SOURCE_ROOT;
 let configurationRoot = SOURCE_ROOT;
+let storageRoots: string[] = [];
 const SANDBOX_EXEC = "/usr/bin/sandbox-exec";
 
 export function configureSandboxProjectRoot(root: string): void {
@@ -15,6 +16,20 @@ export function configureSandboxProjectRoot(root: string): void {
 
 export function configureSandboxConfigurationRoot(root: string): void {
   configurationRoot = root;
+}
+
+export async function configureSandboxStorageRoots(
+  roots: string[],
+  outputPaths: string[] = [],
+): Promise<void> {
+  storageRoots = [
+    ...(await Promise.all(roots.map((root) => realpath(root)))),
+    ...(await Promise.all(
+      outputPaths.map(async (path) =>
+        join(await realpath(dirname(path)), basename(path)),
+      ),
+    )),
+  ];
 }
 
 function quote(value: string): string {
@@ -159,6 +174,7 @@ export async function sandboxedCommand(
     ...(await repositoryWorktrees(SOURCE_ROOT)),
     ...(await repositoryWorktrees(projectRoot)),
     ...(await repositoryWorktrees(configurationRoot)),
+    ...storageRoots,
     ...(await siblingFixtures(repoDir)),
     ...(await globalHarnessConfigs()),
     ...(options.deniedPaths ?? []),

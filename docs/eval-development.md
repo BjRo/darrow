@@ -340,6 +340,9 @@ remains explicit while independently passing task checks remain passing.
 Separate-root cases run the direct command with `--project-root` and
 `--config-root`, check project-local supporting skills and source protection,
 and remove the runner's Git metadata to exercise packaged installation.
+Storage cases use `--results-root` and `--run-state-root` independently, then
+verify result, ownership, and checkpoint paths plus their isolation from shell
+checks. A separate `--output` file receives the same protection.
 
 To exercise another implementation, set `DARROW_EVAL_RUNNER_COMMAND` to a JSON
 argv array. The suite appends the runner CLI arguments and expands

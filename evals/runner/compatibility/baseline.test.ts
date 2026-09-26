@@ -484,6 +484,157 @@ test("runs shell checks when the runner installation has no Git metadata", async
   );
 });
 
+test("writes default result and run state under an explicit results root", async () => {
+  const fixture = await runnerFixture(true);
+  const resultsRoot = await realpath(
+    await mkdtemp(join(tmpdir(), "darrow-runner-results-")),
+  );
+  roots.push(resultsRoot);
+  const run = await runRunner(
+    fixture,
+    commonArguments(
+      "--project-root",
+      fixture.projectRoot,
+      "--results-root",
+      resultsRoot,
+      "--case",
+      "compat-selected",
+    ),
+  );
+  expect(run.code, run.stderr).toBe(0);
+  const resultPath = await onlyResultPath(resultsRoot);
+  const [result] = JSON.parse(await readFile(resultPath, "utf8"));
+  expect(result.caseId).toBe("compat-selected");
+  expect(await Bun.file(fixture.resultsRoot).exists()).toBeFalse();
+  const active = await onlyActiveRecord(resultsRoot);
+  expect(active.artifactPath).toBe(resultPath);
+  expect(containedBy(resultsRoot, active.evidenceDirectory)).toBeTrue();
+});
+
+test("stores active ownership and checkpoints separately from results", async () => {
+  const fixture = await runnerFixture(true);
+  const resultsRoot = await realpath(
+    await mkdtemp(join(tmpdir(), "darrow-runner-results-")),
+  );
+  const runStateRoot = await realpath(
+    await mkdtemp(join(tmpdir(), "darrow-runner-state-")),
+  );
+  roots.push(resultsRoot, runStateRoot);
+  const run = await runRunner(
+    fixture,
+    commonArguments(
+      "--project-root",
+      fixture.projectRoot,
+      "--results-root",
+      resultsRoot,
+      "--run-state-root",
+      runStateRoot,
+      "--case",
+      "compat-selected",
+    ),
+  );
+  expect(run.code, run.stderr).toBe(0);
+  const resultPath = await onlyResultPath(resultsRoot);
+  const active = await onlyActiveRecord(runStateRoot);
+  expect(active.artifactPath).toBe(resultPath);
+  expect(containedBy(runStateRoot, active.evidenceDirectory)).toBeTrue();
+  expect(await Bun.file(join(resultsRoot, "active")).exists()).toBeFalse();
+});
+
+test("shell checks cannot read separate result and run-state roots", async () => {
+  const fixture = await runnerFixture(true);
+  const resultsRoot = await realpath(
+    await mkdtemp(join(tmpdir(), "darrow-runner-results-")),
+  );
+  const runStateRoot = await realpath(
+    await mkdtemp(join(tmpdir(), "darrow-runner-state-")),
+  );
+  roots.push(resultsRoot, runStateRoot);
+  const resultSecret = join(resultsRoot, "retained-secret.txt");
+  const stateSecret = join(runStateRoot, "active-secret.txt");
+  await writeFile(resultSecret, "retained evidence\n");
+  await writeFile(stateSecret, "active owner\n");
+  const casePath = join(
+    fixture.projectRoot,
+    "plugins/capability/compatibility/skills/compatibility-primary/evals/compat-selected.yaml",
+  );
+  const evalCase = JSON.parse(await readFile(casePath, "utf8"));
+  for (const [name, path] of [
+    ["retained results hidden", resultSecret],
+    ["active state hidden", stateSecret],
+  ]) {
+    evalCase.checks.push({
+      name,
+      run: `if cat '${path}' >/dev/null 2>&1; then exit 1; fi`,
+    });
+  }
+  await writeFile(casePath, JSON.stringify(evalCase));
+  const run = await runRunner(
+    fixture,
+    commonArguments(
+      "--project-root",
+      fixture.projectRoot,
+      "--results-root",
+      resultsRoot,
+      "--run-state-root",
+      runStateRoot,
+      "--case",
+      "compat-selected",
+    ),
+  );
+  const [result] = JSON.parse(
+    await readFile(await onlyResultPath(resultsRoot), "utf8"),
+  );
+  expect(result.trials[0].checks).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        name: "retained results hidden",
+        passed: true,
+      }),
+      expect.objectContaining({ name: "active state hidden", passed: true }),
+    ]),
+  );
+  expect(run.code, run.stderr).toBe(0);
+});
+
+test("shell checks cannot read an explicit result path outside the results root", async () => {
+  const fixture = await runnerFixture(true);
+  const outputRoot = await realpath(
+    await mkdtemp(join(tmpdir(), "darrow-runner-output-")),
+  );
+  roots.push(outputRoot);
+  const output = join(outputRoot, "custom.json");
+  await writeFile(output, "prior retained evidence\n");
+  const casePath = join(
+    fixture.projectRoot,
+    "plugins/capability/compatibility/skills/compatibility-primary/evals/compat-selected.yaml",
+  );
+  const evalCase = JSON.parse(await readFile(casePath, "utf8"));
+  evalCase.checks.push({
+    name: "explicit result hidden",
+    run: `if cat '${output}' >/dev/null 2>&1; then exit 1; fi`,
+  });
+  await writeFile(casePath, JSON.stringify(evalCase));
+  const run = await runRunner(
+    fixture,
+    commonArguments(
+      "--project-root",
+      fixture.projectRoot,
+      "--output",
+      output,
+      "--case",
+      "compat-selected",
+    ),
+  );
+  const [result] = JSON.parse(await readFile(output, "utf8"));
+  expect(result.trials[0].checks).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ name: "explicit result hidden", passed: true }),
+    ]),
+  );
+  expect(run.code, run.stderr).toBe(0);
+});
+
 test("selects cases from the project and keeps result evidence under its result root", async () => {
   const fixture = await runnerFixture();
   const run = await runRunner(
