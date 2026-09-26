@@ -368,8 +368,9 @@ SEVRO_CHECKOUT=/absolute/path/to/sevro bun run test:eval-runner-sevro-parity
 
 This development test launches Darrow's runner and Sevro's CLI as separate
 processes against one synthetic case definition. It compares the selected
-case, shell and output check outcomes, passive condition evidence, incomplete
-usage, retained raw output, and success or failure exits. Darrow's additional
+case, shell and output check outcomes, source and configuration-root isolation,
+passive condition evidence, incomplete usage, retained raw output, and success
+or failure exits. Darrow's additional
 activation check is outside this first shared surface. The fixture uses the
 explicit local-checkout path while Sevro is unreleased; it does not establish
 parity for enforced conditions, suite selection, run ownership, cancellation,
