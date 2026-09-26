@@ -44,6 +44,7 @@ route with `--dry`, validating its protocol identity and retained artifacts
 without starting a model turn. On macOS with Codex installed, it also drives a
 controlled JSONL turn through the bundled host to verify complete and partial
 native activation receipts end to end without a model call.
+The first focused live run is recorded in [live-validation.md](live-validation.md).
 
 An invocation supplies `index.ts`, the repository `package.json`, and
 `bun.lock` as extension source files so the executable and YAML parser version
