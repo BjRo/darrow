@@ -28,6 +28,10 @@ For local protocol and public CLI validation, run:
 SEVRO_CHECKOUT=/absolute/path/to/sevro bun test evals/runner/parity/sevro-extension.test.ts
 ```
 
+The parity test also prepares the mounted skill through Sevro's bundled Codex
+route with `--dry`, validating its protocol identity and retained artifacts
+without starting a model turn.
+
 An invocation supplies `index.ts`, the repository `package.json`, and
 `bun.lock` as extension source files so the executable and YAML parser version
 are included in Sevro's source digest. Case content enters the selected case,

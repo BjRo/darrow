@@ -473,7 +473,7 @@ export default {
 };
 `,
   );
-  const run = await command<CliReply>([
+  const commonArgs = [
     ...sevroRoute.launch,
     "run",
     "--json",
@@ -488,13 +488,8 @@ export default {
     join(projectRoot, "bun.lock"),
     "--case-id",
     "example-skill-mount",
-    "--adapter-module",
-    adapter,
-    "--shell-isolation",
     "--project-root",
     root,
-    "--results-root",
-    join(root, "results"),
     "--runner-build-digest",
     digest,
     "--project-digest",
@@ -505,6 +500,14 @@ export default {
     "1",
     "--threshold",
     "1",
+  ];
+  const run = await command<CliReply>([
+    ...commonArgs,
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+    "--results-root",
+    join(root, "results"),
   ]);
   expect(run.code, run.stderr).toBe(0);
   expect(
@@ -521,6 +524,33 @@ export default {
       (item: { executable?: boolean }) => item.executable,
     ),
   ).toHaveLength(1);
+  const codexDry = await command<{
+    execution: { status: string };
+    evidencePath: string;
+  }>([
+    ...commonArgs,
+    "--dry",
+    "--host",
+    "codex",
+    "--codex-bin",
+    process.execPath,
+    "--codex-auth-file",
+    join(root, "unused-auth.json"),
+    "--model",
+    "synthetic-codex",
+    "--effort",
+    "low",
+    "--shell-isolation",
+    "--results-root",
+    join(root, "codex-dry-results"),
+  ]);
+  expect(codexDry.code, codexDry.stderr).toBe(0);
+  expect(codexDry.value.execution.status).toBe("not_run");
+  const codexEvidence = JSON.parse(
+    await readFile(codexDry.value.evidencePath, "utf8"),
+  );
+  expect(codexEvidence.routes[0].host).toBe("sevro.host.codex");
+  expect(codexEvidence.trials[0].artifactRefs).toHaveLength(3);
   await writeFile(join(root, "secret.txt"), "private source\n");
   await symlink(join(root, "secret.txt"), join(skillDir, "references/leak.md"));
   const unsafe = await command<ExtensionReply>(
