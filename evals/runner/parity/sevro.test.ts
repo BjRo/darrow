@@ -35,10 +35,18 @@ function credentialFreeEnvironment(
   return { ...Object.fromEntries(retained), ...extra };
 }
 
-async function command(argv: string[], scenario: string, cwd: string) {
+async function command(
+  argv: string[],
+  scenario: string,
+  cwd: string,
+  condition: "passive" | "enforced",
+) {
   const proc = Bun.spawn(argv, {
     cwd,
-    env: credentialFreeEnvironment({ SEVRO_PARITY_SCENARIO: scenario }),
+    env: credentialFreeEnvironment({
+      SEVRO_PARITY_SCENARIO: scenario,
+      SEVRO_PARITY_CONDITION: condition,
+    }),
     stdout: "pipe",
     stderr: "pipe",
   });
@@ -179,9 +187,10 @@ codexAdapter.run = async ({ control }) => {
   id: "codex", model: "synthetic", effort: "low",
   async run() {
     const scenario = process.env.SEVRO_PARITY_SCENARIO ?? "pass";
+    const condition = process.env.SEVRO_PARITY_CONDITION ?? "passive";
     return {
       finalMessage: scenario === "fail" ? "synthetic behavioral failure" : ${JSON.stringify(response)},
-      complete: true, actualCondition: "passive",
+      complete: true, actualCondition: condition,
       inputTokens: 2, outputTokens: 3, costUsd: null,
       usageComplete: scenario !== "incomplete-usage",
     };
@@ -203,7 +212,11 @@ codexAdapter.run = async ({ control }) => {
 
 type FixturePaths = Awaited<ReturnType<typeof fixture>>;
 
-function legacyArguments(paths: FixturePaths, oldOutput: string): string[] {
+function legacyArguments(
+  paths: FixturePaths,
+  oldOutput: string,
+  condition: "passive" | "enforced",
+): string[] {
   return [
     process.execPath,
     "--preload",
@@ -236,7 +249,7 @@ function legacyArguments(paths: FixturePaths, oldOutput: string): string[] {
     "--case",
     "selected",
     "--owner-evaluation",
-    "passive",
+    condition,
     "--output",
     oldOutput,
   ];
@@ -245,6 +258,7 @@ function legacyArguments(paths: FixturePaths, oldOutput: string): string[] {
 function sevroArguments(
   paths: FixturePaths,
   route: ReturnType<typeof sevroCommand>,
+  condition: "passive" | "enforced",
 ): string[] {
   return [
     ...route.launch,
@@ -269,7 +283,7 @@ function sevroArguments(
     "--project-digest",
     digest,
     "--condition",
-    "passive",
+    condition,
     "--trials",
     "1",
     "--threshold",
@@ -327,20 +341,23 @@ async function assertParity(
   scenario: "pass" | "fail" | "incomplete-usage",
   isolation = false,
   separateStorage = false,
+  condition: "passive" | "enforced" = "passive",
 ): Promise<void> {
   const sevroRoute = sevroCommand();
   expect(await Bun.file(sevroRoute.launch.at(-1)!).exists()).toBeTrue();
   const paths = await fixture(isolation, separateStorage);
   const oldOutput = join(paths.projectRoot, `legacy-${scenario}.json`);
   const legacy = await command(
-    legacyArguments(paths, oldOutput),
+    legacyArguments(paths, oldOutput, condition),
     scenario,
     paths.projectRoot,
+    condition,
   );
   const sevro = await command(
-    sevroArguments(paths, sevroRoute),
+    sevroArguments(paths, sevroRoute, condition),
     scenario,
     paths.projectRoot,
+    condition,
   );
   expect(legacy.code, legacy.stderr).toBe(scenario === "fail" ? 1 : 0);
   expect(sevro.code, sevro.stderr).toBe(legacy.code);
@@ -412,4 +429,8 @@ test("public commands hide project and configuration sources", async () => {
 
 test("public commands keep run state apart from results", async () => {
   await assertParity("pass", false, true);
+});
+
+test("public commands retain enforced condition evidence", async () => {
+  await assertParity("pass", false, false, "enforced");
 });
