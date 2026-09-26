@@ -43,8 +43,9 @@ checks:
     run: test "$(git rev-list --count HEAD)" = 1
   - name: full nonready and ready assessments survive the caller handoff
     run: >-
-      bun -e 'const a=await Bun.file(".git/readiness-first.json").json();
-      const b=await Bun.file(".git/readiness-resolved.json").json();
+      bun -e 'const load=async stage=>{const text=await Bun.file(`.git/readiness-${stage}.json`).text();
+      try{return JSON.parse(text)}catch{console.error(`${stage} assessment is not JSON`);process.exit(1)}};
+      const a=await load("first"); const b=await load("resolved");
       if(a.format!=="darrow-implementation-readiness-v1" || a.verdict!=="needs-decision" ||
       !a.findings.length || a.required_next_action.type!=="decision" ||
       b.format!==a.format || b.verdict!=="ready" || !b.quality_bar.length ||

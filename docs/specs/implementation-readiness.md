@@ -22,9 +22,10 @@ planning inside `adaptive-delivery` or hard-coding a tracker or sibling plugin.
 ## Intent
 
 Use the capability when the user asks whether a ticket, specification, plan,
-or other authoritative request is ready for implementation, or when an
-explicit larger goal contract requires an implementation-readiness gate before
-mutation.
+or other authoritative request is ready for implementation, including an
+indirect question about whether engineering can safely start without inventing
+intent or acceptance evidence, or when an explicit larger goal contract
+requires an implementation-readiness gate before mutation.
 
 Do not select it merely because the user asks to implement a change. Ordinary
 implementation intent remains implementation unless the user, an accepted
@@ -79,6 +80,11 @@ replace observable acceptance evidence. Mechanical and documentation work may
 use exact transformation constraints and deterministic checks without
 inventing a behavioral test.
 
+Evidence required from a separate pre-implementation discovery is an input to
+the gate, not work the assessment performs. A runnable command establishes a
+feasible way to gather that evidence; its output during the assessment does not
+become a previously recorded, accepted discovery result.
+
 ## Verdicts
 
 Return exactly one primary verdict based on the next action that must occur
@@ -97,6 +103,14 @@ before implementation:
 When several findings exist, choose the verdict for the action that must occur
 first and preserve the remaining gaps in `findings`. Request only the smallest
 next action needed to make progress.
+
+Before selecting a non-ready verdict, check whether permitted discovery or a
+decision by an authorized party can resolve the prerequisite now. A conflict
+that can be reconciled only after a future governance or permission event is
+`blocked` until that event, even when the eventual reconciliation will require
+a decision. For `needs-decision`, the required next action identifies a
+decision by an authorized party without assuming the requester has that
+authority.
 
 For mixed gaps, `blocked` comes first when an unavailable prerequisite would
 still prevent implementation after every currently possible discovery or
@@ -223,7 +237,10 @@ unavailable.
    independent oracle or reference, and feasible verification method.
 4. **IRG-C4 — Actionable verdict.** The four verdicts retain their defined
    meaning, and the primary verdict follows the first action required before
-   implementation.
+   implementation. Deferred authoritative reconciliation is `blocked` until
+   permitted action can resolve it; an available material choice is
+   `needs-decision` and names an authorized decision maker. A required separate
+   discovery result remains `needs-discovery` until that result exists.
 5. **IRG-C5 — Smallest next action.** A non-ready result names the smallest
    discovery, decision, or unblock action rather than manufacturing intent or
    expanding into a plan.
@@ -252,9 +269,10 @@ unavailable.
 
 1. **IRG-P1 — Independent plugin.** `darrow-readiness-gate` is independently
    installable and does not reference or require a sibling plugin.
-2. **IRG-P2 — Model invocation.** Discovery metadata distinguishes readiness
-   assessment from implementation, planning, discovery, ticket maintenance,
-   and code review.
+2. **IRG-P2 — Model invocation.** Discovery metadata covers direct and indirect
+   questions about whether implementation can safely start while
+   distinguishing assessment from implementation, planning, discovery, ticket
+   maintenance, and code review.
 3. **IRG-P3 — Host-portable result.** Claude Code and Codex receive the same
    field meanings and verdict semantics in the default human-readable result;
    both may produce the same versioned JSON representation when it is

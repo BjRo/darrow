@@ -1,6 +1,6 @@
 {
   "name": "darrow-readiness-gate",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Read-only implementation-readiness assessment with composable gate verdicts",
   "author": {
     "name": "Björn Rochel",
