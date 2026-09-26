@@ -1,8 +1,9 @@
 import { afterEach, expect, test } from "bun:test";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { isAbsolute, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { sevroCommand } from "./sevro-command";
 
 const roots: string[] = [];
 const runnerRoot = resolve(import.meta.dir, "..");
@@ -14,13 +15,6 @@ afterEach(async () => {
     roots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
   );
 });
-
-function sevroCli(): string {
-  const checkout = process.env.SEVRO_CHECKOUT;
-  if (!checkout || !isAbsolute(checkout))
-    throw new Error("SEVRO_CHECKOUT must name an absolute local checkout");
-  return join(checkout, "src/cli.ts");
-}
 
 function credentialFreeEnvironment(
   extra: Record<string, string>,
@@ -185,8 +179,8 @@ async function assertParity(
   scenario: "pass" | "fail" | "incomplete-usage",
   isolation = false,
 ): Promise<void> {
-  const cli = sevroCli();
-  expect(await Bun.file(cli).exists()).toBeTrue();
+  const sevroRoute = sevroCommand();
+  expect(await Bun.file(sevroRoute.launch.at(-1)!).exists()).toBeTrue();
   const paths = await fixture(isolation);
   const oldOutput = join(paths.projectRoot, `legacy-${scenario}.json`);
   const legacy = await command(
@@ -223,10 +217,10 @@ async function assertParity(
   );
   const sevro = await command(
     [
-      process.execPath,
-      cli,
+      ...sevroRoute.launch,
       "run",
       "--json",
+      ...sevroRoute.extraArgs,
       "--case-file",
       paths.caseFile,
       "--adapter-module",
@@ -257,6 +251,10 @@ async function assertParity(
   const newResult = JSON.parse(sevro.stdout);
   const newTrial = newResult.cases[0].trials[0];
   const newArtifact = JSON.parse(await readFile(newTrial.artifactPath, "utf8"));
+  const runEvidence = JSON.parse(
+    await readFile(newResult.evidencePath, "utf8"),
+  );
+  expect(runEvidence.runner.source).toBe(sevroRoute.source);
   expect(oldResult.caseId).toBe(newResult.cases[0].caseId);
   expect(oldResult.ownerEvaluationMode).toBe(
     newArtifact.evidence.condition.requested,

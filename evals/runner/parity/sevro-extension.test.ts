@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { sevroCommand } from "./sevro-command";
 
 const extension = resolve(import.meta.dir, "../../sevro-extension/index.ts");
 const projectRoot = resolve(import.meta.dir, "../../..");
@@ -189,9 +190,7 @@ test("Darrow extension grades combined shell and final-message assertions", asyn
     },
   });
 
-  const checkout = process.env.SEVRO_CHECKOUT;
-  if (!checkout || !checkout.startsWith("/"))
-    throw new Error("SEVRO_CHECKOUT must name an absolute local checkout");
+  const sevroRoute = sevroCommand();
   const commandFile = join(root, "extension-command.json");
   const adapter = join(root, "candidate.ts");
   await writeFile(commandFile, JSON.stringify([process.execPath, extension]));
@@ -205,10 +204,10 @@ test("Darrow extension grades combined shell and final-message assertions", asyn
 `,
     );
     return command<CliReply>([
-      process.execPath,
-      join(checkout, "src/cli.ts"),
+      ...sevroRoute.launch,
       "run",
       "--json",
+      ...sevroRoute.extraArgs,
       "--extension-command-file",
       commandFile,
       "--extension-source-file",
@@ -286,9 +285,7 @@ test("Darrow extension grades semantic propositions through an isolated route", 
     },
   ]);
 
-  const checkout = process.env.SEVRO_CHECKOUT;
-  if (!checkout || !checkout.startsWith("/"))
-    throw new Error("SEVRO_CHECKOUT must name an absolute local checkout");
+  const sevroRoute = sevroCommand();
   const commandFile = join(root, "extension-command.json");
   const candidate = join(root, "candidate.ts");
   const semantic = join(root, "semantic.ts");
@@ -315,10 +312,10 @@ test("Darrow extension grades semantic propositions through an isolated route", 
 `,
     );
     return command<CliReply>([
-      process.execPath,
-      join(checkout, "src/cli.ts"),
+      ...sevroRoute.launch,
       "run",
       "--json",
+      ...sevroRoute.extraArgs,
       "--extension-command-file",
       commandFile,
       "--extension-source-file",
@@ -362,9 +359,7 @@ test("Darrow extension grades semantic propositions through an isolated route", 
 });
 
 test("Sevro runs an existing Darrow case through the extension protocol", async () => {
-  const checkout = process.env.SEVRO_CHECKOUT;
-  if (!checkout || !checkout.startsWith("/"))
-    throw new Error("SEVRO_CHECKOUT must name an absolute local checkout");
+  const sevroRoute = sevroCommand();
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-extension-"));
   roots.push(root);
   const commandFile = join(root, "extension-command.json");
@@ -384,10 +379,10 @@ export default {
 `,
   );
   const result = await command<CliReply>([
-    process.execPath,
-    join(checkout, "src/cli.ts"),
+    ...sevroRoute.launch,
     "run",
     "--json",
+    ...sevroRoute.extraArgs,
     "--extension-command-file",
     commandFile,
     "--extension-source-file",

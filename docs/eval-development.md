@@ -366,7 +366,19 @@ checkout:
 SEVRO_CHECKOUT=/absolute/path/to/sevro bun run test:eval-runner-sevro-parity
 ```
 
-This development test launches Darrow's runner and Sevro's CLI as separate
+To verify a packed Sevro build from a separate installation, provide its
+tarball without a source checkout:
+
+```sh
+SEVRO_PACKAGE_TARBALL=/absolute/path/to/sevro-version.tgz bun run test:eval-runner-sevro-package
+```
+
+The package test installs Sevro in a temporary consumer project, runs its
+installed `sevro` command through the same Darrow parity fixtures, checks
+package provenance in retained evidence, and clears `SEVRO_CHECKOUT` for the
+child tests. The local-checkout path records Sevro revision and patch state.
+
+The checkout test launches Darrow's runner and Sevro's CLI as separate
 processes against one synthetic case definition. It compares the selected
 case, shell and output check outcomes, source and configuration-root isolation,
 passive condition evidence, incomplete usage, retained raw output, and success
@@ -374,7 +386,7 @@ or failure exits. Darrow's additional
 activation check is outside this first shared surface. The fixture uses the
 explicit local-checkout path while Sevro is unreleased; it does not establish
 parity for enforced conditions, suite selection, run ownership, cancellation,
-or packaged installation. Keep the original compatibility baseline as the
+or all packaged workflows. Keep the original compatibility baseline as the
 reference for those behaviors until equivalent public-command comparisons
 pass.
 

@@ -18,6 +18,7 @@
     "eval": "bun evals/runner/run.ts",
     "test:eval-runner-compatibility": "bun test evals/runner/compatibility",
     "test:eval-runner-sevro-parity": "bun test evals/runner/parity",
+    "test:eval-runner-sevro-package": "bun scripts/test-sevro-package-install.ts",
     "eval:coverage": "bun evals/runner/coverage.ts",
     "eval:orchestration:prepare": "bun evals/corpus/orchestration/prepare.ts",
     "eval:orchestration": "bun evals/runner/suite.ts",
