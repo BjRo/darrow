@@ -337,6 +337,9 @@ The fixture also exercises a shell check, an output check, incomplete usage
 evidence, and both requested and observed passive/enforced modes. The two modes
 must have different evaluation digests. An incomplete optional measurement
 remains explicit while independently passing task checks remain passing.
+Separate-root cases run the direct command with `--project-root` and
+`--config-root`, check project-local supporting skills and source protection,
+and remove the runner's Git metadata to exercise packaged installation.
 
 To exercise another implementation, set `DARROW_EVAL_RUNNER_COMMAND` to a JSON
 argv array. The suite appends the runner CLI arguments and expands

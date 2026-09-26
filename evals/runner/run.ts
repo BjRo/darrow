@@ -1,6 +1,9 @@
-import { readFile, mkdir, writeFile } from "node:fs/promises";
+import { readFile, mkdir, realpath, writeFile } from "node:fs/promises";
 import { atomicWriteJson } from "./artifacts";
-import { codexAgentConcurrencyEvidence } from "./codex-config";
+import {
+  codexAgentConcurrencyEvidence,
+  configureCodexEvalRoot,
+} from "./codex-config";
 import {
   checkpointActiveRun,
   finalizeActiveRun,
@@ -28,6 +31,10 @@ import {
 import { parse as parseYaml } from "yaml";
 import { buildFixture, destroyFixture } from "./fixture";
 import { trialReviewStateDir } from "./environment";
+import {
+  configureSandboxConfigurationRoot,
+  configureSandboxProjectRoot,
+} from "./sandbox";
 import { resolveCorpusSource } from "./corpus";
 import { runQualityJudge } from "./judge";
 import {
@@ -168,16 +175,6 @@ const ADAPTERS: Record<string, HarnessAdapter> = {
   codex: codexAdapter,
 };
 
-const ROOT = resolve(import.meta.dir, "..", "..");
-const RESULTS_ROOT = join(ROOT, "evals", "results");
-const DEFAULT_CORPUS_MANIFEST = join(
-  ROOT,
-  "evals",
-  "corpus",
-  "orchestration",
-  "manifest.yaml",
-);
-
 function p95(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
   return (
@@ -234,10 +231,10 @@ async function scanCases(
 ): Promise<EvalCase[]> {
   const cases: EvalCase[] = [];
   for await (const rel of new Bun.Glob(pattern).scan({
-    cwd: ROOT,
+    cwd: PROJECT_ROOT,
     dot: true,
   })) {
-    const path = join(ROOT, rel);
+    const path = join(PROJECT_ROOT, rel);
     const evalCase: EvalCase = parseYaml(await readFile(path, "utf8"));
     evalCase.skillDir = skillDirOf(path);
     evalCase.owningSkillName = evalCase.skillDir
@@ -289,7 +286,7 @@ function validateCompositionPaths(evalCase: EvalCase): void {
         typeof path !== "string" ||
         !path.trim() ||
         isAbsolute(path) ||
-        relative(ROOT, resolve(ROOT, path)).startsWith("..")
+        relative(PROJECT_ROOT, resolve(PROJECT_ROOT, path)).startsWith("..")
       ) {
         throw new Error(
           `${evalCase.id}: ${field} entries must be non-empty repository-relative paths`,
@@ -1067,13 +1064,13 @@ function trialFixtureOptions(
         : adapter.skillMounts,
     mountPluginSkills: evalCase.mount_plugin_skills ?? false,
     sourcePluginRoot: evalCase.source_plugin
-      ? resolve(ROOT, evalCase.source_plugin)
+      ? resolve(PROJECT_ROOT, evalCase.source_plugin)
       : undefined,
     additionalSkillDirs: (evalCase.additional_skills ?? []).map((path) =>
-      resolve(ROOT, path),
+      resolve(PROJECT_ROOT, path),
     ),
     additionalPluginRoots: (evalCase.additional_plugins ?? []).map((path) =>
-      resolve(ROOT, path),
+      resolve(PROJECT_ROOT, path),
     ),
     sourceClaudePlugin: adapter.sourceClaudePlugin,
     sourceCodexPlugin: adapter.sourceCodexPlugin,
@@ -1483,6 +1480,8 @@ function evaluationRecordChecks(resultText: string): CheckResult[] {
 
 const { values } = parseArgs({
   options: {
+    "project-root": { type: "string" },
+    "config-root": { type: "string" },
     harness: { type: "string" },
     model: { type: "string" },
     effort: {
@@ -1528,6 +1527,24 @@ const { values } = parseArgs({
     },
   },
 });
+
+const PROJECT_ROOT = values["project-root"]
+  ? await realpath(resolve(process.cwd(), values["project-root"]))
+  : resolve(import.meta.dir, "..", "..");
+const CONFIG_ROOT = values["config-root"]
+  ? await realpath(resolve(process.cwd(), values["config-root"]))
+  : PROJECT_ROOT;
+configureCodexEvalRoot(CONFIG_ROOT);
+configureSandboxProjectRoot(PROJECT_ROOT);
+configureSandboxConfigurationRoot(CONFIG_ROOT);
+const RESULTS_ROOT = join(PROJECT_ROOT, "evals", "results");
+const DEFAULT_CORPUS_MANIFEST = join(
+  PROJECT_ROOT,
+  "evals",
+  "corpus",
+  "orchestration",
+  "manifest.yaml",
+);
 
 const trials = Number(values.trials);
 const ownerEvaluationMode = values["owner-evaluation"];
@@ -1738,7 +1755,11 @@ for (const evalCase of cases) {
     !values["skill-dir"] &&
     !values["without-skill"]
   ) {
-    evalCase.skillDir = join(ROOT, ".claude/skills", evalCase.owningSkillName!);
+    evalCase.skillDir = join(
+      PROJECT_ROOT,
+      ".claude/skills",
+      evalCase.owningSkillName!,
+    );
     await readFile(join(evalCase.skillDir, "SKILL.md"), "utf8");
   }
 }
@@ -1753,7 +1774,7 @@ if (values["skill-dir"]) {
 for (const evalCase of cases) {
   const activationErrors = [
     ...validateActivationCase(evalCase),
-    ...(await validateMountedActivationTarget(evalCase)),
+    ...(await validateMountedActivationTarget(evalCase, PROJECT_ROOT)),
   ];
   if (activationErrors.length) throw new Error(activationErrors.join("; "));
 }

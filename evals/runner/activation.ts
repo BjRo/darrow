@@ -136,6 +136,7 @@ export function validateActivationCase(evalCase: EvalCase): string[] {
 
 export async function validateMountedActivationTarget(
   evalCase: EvalCase,
+  projectRoot = resolve(import.meta.dir, "../.."),
 ): Promise<string[]> {
   if (evalCase.activation === undefined) return [];
   const target = activationTargetSkill(evalCase);
@@ -153,11 +154,12 @@ export async function validateMountedActivationTarget(
   ];
   for (const { skill, kind } of requirements) {
     const available = await Promise.all(
-      mountedActivationDirectories(evalCase, skill).map((directory) =>
-        access(join(directory, "SKILL.md")).then(
-          () => true,
-          () => false,
-        ),
+      mountedActivationDirectories(evalCase, skill, projectRoot).map(
+        (directory) =>
+          access(join(directory, "SKILL.md")).then(
+            () => true,
+            () => false,
+          ),
       ),
     );
     if (!available.some(Boolean)) {
@@ -172,8 +174,8 @@ export async function validateMountedActivationTarget(
 function mountedActivationDirectories(
   evalCase: EvalCase,
   skill: string,
+  projectRoot: string,
 ): string[] {
-  const root = resolve(import.meta.dir, "../..");
   const primary =
     basename(evalCase.skillDir) === skill
       ? [evalCase.skillDir]
@@ -184,9 +186,9 @@ function mountedActivationDirectories(
     ...primary,
     ...(evalCase.additional_skills ?? [])
       .filter((directory) => basename(directory) === skill)
-      .map((directory) => resolve(root, directory)),
+      .map((directory) => resolve(projectRoot, directory)),
     ...(evalCase.additional_plugins ?? []).map((plugin) =>
-      resolve(root, plugin, "skills", skill),
+      resolve(projectRoot, plugin, "skills", skill),
     ),
   ];
 }

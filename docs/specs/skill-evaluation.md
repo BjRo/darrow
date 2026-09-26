@@ -30,6 +30,21 @@ distinct from task outcomes and skill-value ablation.
 
 ## Public contract
 
+### Direct runner roots
+
+The direct runner accepts `--project-root <directory>` for case discovery,
+supporting plugin and skill paths, repository skill mirrors, and the default
+corpus and result locations. It accepts `--config-root <directory>` for the
+evaluated project's Codex configuration. Relative root arguments resolve from
+the caller's working directory. The configuration root defaults to the project
+root; without either option, both default to the runner's source checkout for
+existing in-repository commands.
+
+The evaluated candidate and shell checks cannot read or write the runner's
+source checkout, the evaluated project root, or a separate configuration root.
+Git worktrees belonging to those roots receive the same protection. A
+packaged runner source without Git metadata remains usable.
+
 ### Direct case selection
 
 The direct runner accepts `--skill <skill-name>` to select discovered cases
@@ -509,6 +524,12 @@ not prove equivalence or savings.
   evidence completeness, passive/enforced conditions, retained artifacts, and
   exit categories. Normalize only variable fields and document intentional
   contract changes separately.
+
+- **SE-C29 — Independent direct runner roots.** An explicit project root
+  controls case and supporting-asset resolution and the default result path;
+  an explicit configuration root controls imported Codex settings. Candidate
+  execution and shell grading protect both roots, their Git worktrees, and the
+  runner's own source. Normal execution does not require runner Git metadata.
 
 ## Evaluation requirements
 

@@ -2,8 +2,14 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parse } from "smol-toml";
 
-const repositoryConfig = resolve(import.meta.dir, "../../.codex/config.toml");
+let repositoryConfig = resolve(import.meta.dir, "../../.codex/config.toml");
 let capturedConcurrency: number | null | undefined;
+
+export function configureCodexEvalRoot(root: string): void {
+  if (capturedConcurrency !== undefined)
+    throw new Error("Cannot change Codex eval configuration after capture");
+  repositoryConfig = resolve(root, ".codex/config.toml");
+}
 
 function readConfiguration(configPath: string): Record<string, unknown> | null {
   let source: string;

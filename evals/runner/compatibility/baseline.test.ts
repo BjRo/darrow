@@ -113,6 +113,12 @@ codexAdapter.run = async ({ control }) => {
     costUsd: null,
     tokenUsageComplete: scenario !== "incomplete-usage",
     evaluationEnforcement: control?.ownerEvaluationMode ?? "enforced",
+    skillActivation: {
+      source: "harness_event",
+      complete: true,
+      primarySkill: "compatibility-primary",
+      observedSkills: ["compatibility-primary", "support"],
+    },
     resultText,
     raw: \`synthetic retained evidence \${call}\`,
   };
@@ -120,18 +126,22 @@ codexAdapter.run = async ({ control }) => {
 `;
 }
 
-async function runnerFixture(): Promise<RunnerFixture> {
-  const root = await realpath(
+async function runnerFixture(separateTooling = false): Promise<RunnerFixture> {
+  const projectRoot = await realpath(
     await mkdtemp(join(tmpdir(), "darrow-runner-compatibility-")),
   );
-  roots.push(root);
+  roots.push(projectRoot);
+  const root = separateTooling
+    ? await realpath(await mkdtemp(join(tmpdir(), "darrow-runner-tooling-")))
+    : projectRoot;
+  if (separateTooling) roots.push(root);
   expect(Bun.spawnSync(["git", "init", "--quiet", root]).exitCode).toBe(0);
   const runnerPath = join(root, "evals/runner/run.ts");
-  const resultsRoot = join(root, "evals/results");
+  const resultsRoot = join(projectRoot, "evals/results");
   const syntheticAdapter = join(root, "synthetic-adapter.ts");
   const fixture = {
     root,
-    projectRoot: root,
+    projectRoot,
     resultsRoot,
     runnerPath,
     syntheticAdapter,
@@ -142,9 +152,9 @@ async function runnerFixture(): Promise<RunnerFixture> {
       !path.endsWith(".test.ts") && !path.includes("/compatibility"),
   });
   await symlink(nodeModules, join(root, "node_modules"));
-  await writeSkillCase(root, "compatibility-primary", "compat-selected");
-  await writeSkillCase(root, "compatibility-primary", "compat-sibling");
-  await writeSkillCase(root, "compatibility-other", "compat-other");
+  await writeSkillCase(projectRoot, "compatibility-primary", "compat-selected");
+  await writeSkillCase(projectRoot, "compatibility-primary", "compat-sibling");
+  await writeSkillCase(projectRoot, "compatibility-other", "compat-other");
   await writeFile(syntheticAdapter, syntheticAdapterSource(fixture));
   return fixture;
 }
@@ -268,6 +278,210 @@ test("runner command configuration expands fixture paths without shell parsing",
     "--results-root",
     "/project/evals/results",
   ]);
+});
+
+test("selects and evaluates cases from an explicit project root outside runner source", async () => {
+  const fixture = await runnerFixture(true);
+  const run = await runRunner(
+    fixture,
+    commonArguments(
+      "--project-root",
+      fixture.projectRoot,
+      "--skill",
+      "compatibility-primary",
+      "--case",
+      "selected",
+    ),
+  );
+  expect(run.code, run.stderr).toBe(0);
+  const [result] = JSON.parse(
+    await readFile(await onlyResultPath(fixture.resultsRoot), "utf8"),
+  );
+  expect(result.caseId).toBe("compat-selected");
+  expect(result.skillDirectory).toBe(
+    join(
+      fixture.projectRoot,
+      "plugins/capability/compatibility/skills/compatibility-primary",
+    ),
+  );
+  expect(result.trials[0].checks).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ name: "fixture file", passed: true }),
+      expect.objectContaining({ name: "synthetic response", passed: true }),
+    ]),
+  );
+});
+
+test("reads Codex evaluation configuration from an explicit configuration root", async () => {
+  const fixture = await runnerFixture(true);
+  const configRoot = await realpath(
+    await mkdtemp(join(tmpdir(), "darrow-runner-configuration-")),
+  );
+  roots.push(configRoot);
+  await mkdir(join(configRoot, ".codex"));
+  await mkdir(join(fixture.projectRoot, ".codex"));
+  await writeFile(
+    join(configRoot, ".codex/config.toml"),
+    "[agents]\nmax_concurrent_threads_per_session = 7\n",
+  );
+  await writeFile(
+    join(fixture.projectRoot, ".codex/config.toml"),
+    "[agents]\nmax_concurrent_threads_per_session = 3\n",
+  );
+  const run = await runRunner(
+    fixture,
+    commonArguments(
+      "--project-root",
+      fixture.projectRoot,
+      "--config-root",
+      configRoot,
+      "--case",
+      "compat-selected",
+    ),
+  );
+  expect(run.code, run.stderr).toBe(0);
+  const [result] = JSON.parse(
+    await readFile(await onlyResultPath(fixture.resultsRoot), "utf8"),
+  );
+  expect(result.codexAgentConcurrencyLimit).toBe(7);
+});
+
+test("resolves supporting activation skills from the project root", async () => {
+  const fixture = await runnerFixture(true);
+  const supportPath = "plugins/capability/support/skills/support";
+  await mkdir(join(fixture.projectRoot, supportPath), { recursive: true });
+  await writeFile(
+    join(fixture.projectRoot, supportPath, "SKILL.md"),
+    "---\nname: support\ndescription: Supporting fixture\n---\n",
+  );
+  const casePath = join(
+    fixture.projectRoot,
+    "plugins/capability/compatibility/skills/compatibility-primary/evals/compat-selected.yaml",
+  );
+  const evalCase = JSON.parse(await readFile(casePath, "utf8"));
+  await writeFile(
+    casePath,
+    JSON.stringify({
+      ...evalCase,
+      activation: "positive",
+      activation_includes: ["support"],
+      additional_skills: [supportPath],
+    }),
+  );
+  const run = await runRunner(
+    fixture,
+    commonArguments(
+      "--project-root",
+      fixture.projectRoot,
+      "--case",
+      "compat-selected",
+    ),
+  );
+  expect(run.code, run.stderr).toBe(0);
+  const [result] = JSON.parse(
+    await readFile(await onlyResultPath(fixture.resultsRoot), "utf8"),
+  );
+  expect(result.trials[0].activation.passed).toBe(true);
+});
+
+test("shell checks cannot read the separately located project source", async () => {
+  const fixture = await runnerFixture(true);
+  const secret = join(fixture.projectRoot, "private-check.txt");
+  await writeFile(secret, "hidden evaluator content\n");
+  const casePath = join(
+    fixture.projectRoot,
+    "plugins/capability/compatibility/skills/compatibility-primary/evals/compat-selected.yaml",
+  );
+  const evalCase = JSON.parse(await readFile(casePath, "utf8"));
+  evalCase.checks.push({
+    name: "project source hidden",
+    run: `if cat '${secret}' >/dev/null 2>&1; then exit 1; fi`,
+  });
+  await writeFile(casePath, JSON.stringify(evalCase));
+  const run = await runRunner(
+    fixture,
+    commonArguments(
+      "--project-root",
+      fixture.projectRoot,
+      "--case",
+      "compat-selected",
+    ),
+  );
+  const [result] = JSON.parse(
+    await readFile(await onlyResultPath(fixture.resultsRoot), "utf8"),
+  );
+  expect(result.trials[0].checks).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ name: "project source hidden", passed: true }),
+    ]),
+  );
+  expect(run.code, run.stderr).toBe(0);
+});
+
+test("shell checks cannot read a separate configuration root", async () => {
+  const fixture = await runnerFixture(true);
+  const configRoot = await realpath(
+    await mkdtemp(join(tmpdir(), "darrow-runner-configuration-")),
+  );
+  roots.push(configRoot);
+  const secret = join(configRoot, "private-credential.txt");
+  await writeFile(secret, "hidden evaluator credential\n");
+  const casePath = join(
+    fixture.projectRoot,
+    "plugins/capability/compatibility/skills/compatibility-primary/evals/compat-selected.yaml",
+  );
+  const evalCase = JSON.parse(await readFile(casePath, "utf8"));
+  evalCase.checks.push({
+    name: "configuration source hidden",
+    run: `if cat '${secret}' >/dev/null 2>&1; then exit 1; fi`,
+  });
+  await writeFile(casePath, JSON.stringify(evalCase));
+  const run = await runRunner(
+    fixture,
+    commonArguments(
+      "--project-root",
+      fixture.projectRoot,
+      "--config-root",
+      configRoot,
+      "--case",
+      "compat-selected",
+    ),
+  );
+  const [result] = JSON.parse(
+    await readFile(await onlyResultPath(fixture.resultsRoot), "utf8"),
+  );
+  expect(result.trials[0].checks).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        name: "configuration source hidden",
+        passed: true,
+      }),
+    ]),
+  );
+  expect(run.code, run.stderr).toBe(0);
+});
+
+test("runs shell checks when the runner installation has no Git metadata", async () => {
+  const fixture = await runnerFixture(true);
+  await rm(join(fixture.root, ".git"), { recursive: true });
+  const run = await runRunner(
+    fixture,
+    commonArguments(
+      "--project-root",
+      fixture.projectRoot,
+      "--case",
+      "compat-selected",
+    ),
+  );
+  expect(run.code, run.stderr).toBe(0);
+  const [result] = JSON.parse(
+    await readFile(await onlyResultPath(fixture.resultsRoot), "utf8"),
+  );
+  expect(result.trials[0].checks).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ name: "fixture file", passed: true }),
+    ]),
+  );
 });
 
 test("selects cases from the project and keeps result evidence under its result root", async () => {

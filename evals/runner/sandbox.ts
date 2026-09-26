@@ -5,7 +5,17 @@ import { basename, join, resolve } from "node:path";
 import { trialReviewStateDir } from "./environment";
 
 const SOURCE_ROOT = resolve(import.meta.dir, "..", "..");
+let projectRoot = SOURCE_ROOT;
+let configurationRoot = SOURCE_ROOT;
 const SANDBOX_EXEC = "/usr/bin/sandbox-exec";
+
+export function configureSandboxProjectRoot(root: string): void {
+  projectRoot = root;
+}
+
+export function configureSandboxConfigurationRoot(root: string): void {
+  configurationRoot = root;
+}
 
 function quote(value: string): string {
   return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
@@ -76,9 +86,18 @@ async function globalHarnessConfigs(): Promise<string[]> {
   return roots;
 }
 
-async function repositoryWorktrees(): Promise<string[]> {
+async function repositoryWorktrees(root: string): Promise<string[]> {
+  const canonicalRoot = await realpath(root);
+  const probe = Bun.spawn(
+    ["git", "-C", canonicalRoot, "rev-parse", "--git-dir"],
+    {
+      stdout: "ignore",
+      stderr: "ignore",
+    },
+  );
+  if ((await probe.exited) !== 0) return [canonicalRoot];
   const proc = Bun.spawn(
-    ["git", "-C", SOURCE_ROOT, "worktree", "list", "--porcelain"],
+    ["git", "-C", canonicalRoot, "worktree", "list", "--porcelain"],
     { stdout: "pipe", stderr: "pipe" },
   );
   const [out, err, code] = await Promise.all([
@@ -87,15 +106,15 @@ async function repositoryWorktrees(): Promise<string[]> {
     proc.exited,
   ]);
   if (code !== 0)
-    throw new Error(`cannot resolve eval source worktrees: ${err.trim()}`);
+    throw new Error(
+      `cannot resolve eval protected worktrees for ${canonicalRoot}: ${err.trim()}`,
+    );
 
-  const roots: string[] = [];
+  const roots: string[] = [canonicalRoot];
   for (const line of out.split("\n")) {
     if (!line.startsWith("worktree ")) continue;
     roots.push(await realpath(line.slice("worktree ".length)));
   }
-  if (!roots.length)
-    throw new Error("cannot resolve eval source worktrees: inventory is empty");
   return roots;
 }
 
@@ -137,7 +156,9 @@ export async function sandboxedCommand(
   }
 
   const denied = [
-    ...(await repositoryWorktrees()),
+    ...(await repositoryWorktrees(SOURCE_ROOT)),
+    ...(await repositoryWorktrees(projectRoot)),
+    ...(await repositoryWorktrees(configurationRoot)),
     ...(await siblingFixtures(repoDir)),
     ...(await globalHarnessConfigs()),
     ...(options.deniedPaths ?? []),
