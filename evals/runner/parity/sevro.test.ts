@@ -1,5 +1,13 @@
 import { afterEach, expect, test } from "bun:test";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  realpath,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -52,7 +60,7 @@ function shellQuote(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
-async function fixture(isolation = false) {
+async function fixture(isolation = false, separateStorage = false) {
   const projectRoot = await mkdtemp(join(tmpdir(), "darrow-sevro-parity-"));
   roots.push(projectRoot);
   expect(Bun.spawnSync(["git", "init", "--quiet", projectRoot]).exitCode).toBe(
@@ -71,6 +79,23 @@ async function fixture(isolation = false) {
     ? await mkdtemp(join(tmpdir(), "darrow-sevro-config-"))
     : null;
   if (configRoot) roots.push(configRoot);
+  const storage = separateStorage
+    ? {
+        legacyResultsRoot: await realpath(
+          await mkdtemp(join(tmpdir(), "darrow-legacy-results-")),
+        ),
+        legacyStateRoot: await realpath(
+          await mkdtemp(join(tmpdir(), "darrow-legacy-state-")),
+        ),
+        sevroResultsRoot: await realpath(
+          await mkdtemp(join(tmpdir(), "darrow-sevro-results-")),
+        ),
+        sevroStateRoot: await realpath(
+          await mkdtemp(join(tmpdir(), "darrow-sevro-state-")),
+        ),
+      }
+    : null;
+  if (storage) roots.push(...Object.values(storage));
   const shellChecks = [
     { name: "fixture file", id: "fixture-file", run: "test -f README.md" },
   ];
@@ -178,76 +203,145 @@ codexAdapter.run = async ({ control }) => {
     sevroAdapter,
     shellChecks,
     hiddenSources,
+    storage,
   };
+}
+
+type FixturePaths = Awaited<ReturnType<typeof fixture>>;
+
+function legacyArguments(paths: FixturePaths, oldOutput: string): string[] {
+  return [
+    process.execPath,
+    "--preload",
+    paths.legacyAdapter,
+    join(runnerRoot, "run.ts"),
+    "--harness",
+    "codex",
+    "--model",
+    "synthetic",
+    "--trials",
+    "1",
+    "--jobs",
+    "1",
+    "--no-color",
+    "--no-emoji",
+    "--no-progress",
+    "--project-root",
+    paths.projectRoot,
+    ...(paths.configRoot ? ["--config-root", paths.configRoot] : []),
+    ...(paths.storage
+      ? [
+          "--results-root",
+          paths.storage.legacyResultsRoot,
+          "--run-state-root",
+          paths.storage.legacyStateRoot,
+        ]
+      : []),
+    "--skill",
+    "compatibility-primary",
+    "--case",
+    "selected",
+    "--owner-evaluation",
+    "passive",
+    "--output",
+    oldOutput,
+  ];
+}
+
+function sevroArguments(paths: FixturePaths, cli: string): string[] {
+  return [
+    process.execPath,
+    cli,
+    "run",
+    "--json",
+    "--case-file",
+    paths.caseFile,
+    "--adapter-module",
+    paths.sevroAdapter,
+    "--shell-isolation",
+    ...(paths.configRoot ? ["--protected-root", paths.configRoot] : []),
+    "--project-root",
+    paths.projectRoot,
+    "--results-root",
+    paths.storage?.sevroResultsRoot ?? join(paths.projectRoot, "sevro-results"),
+    ...(paths.storage
+      ? ["--run-state-root", paths.storage.sevroStateRoot]
+      : []),
+    "--runner-build-digest",
+    digest,
+    "--project-digest",
+    digest,
+    "--condition",
+    "passive",
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+  ];
+}
+
+async function assertStorageParity(
+  paths: FixturePaths,
+  oldOutput: string,
+  newResult: { runId: string; evidencePath: string },
+  newTrial: { artifactPath: string },
+): Promise<void> {
+  if (!paths.storage) return;
+  const oldActiveNames = await readdir(
+    join(paths.storage.legacyStateRoot, "active"),
+  );
+  expect(oldActiveNames.filter((name) => name.endsWith(".json"))).toHaveLength(
+    1,
+  );
+  const oldActive = JSON.parse(
+    await readFile(
+      join(paths.storage.legacyStateRoot, "active", oldActiveNames[0]!),
+      "utf8",
+    ),
+  );
+  expect(oldActive.artifactPath).toBe(oldOutput);
+  expect(
+    oldActive.evidenceDirectory.startsWith(paths.storage.legacyStateRoot),
+  ).toBeTrue();
+  const newActive = JSON.parse(
+    await readFile(
+      join(paths.storage.sevroStateRoot, "active", `${newResult.runId}.json`),
+      "utf8",
+    ),
+  );
+  expect(newActive).toMatchObject({
+    status: "complete",
+    artifactPath: newResult.evidencePath,
+    completedTrials: [{ trial: 1, artifactPath: newTrial.artifactPath }],
+  });
+  expect(
+    newActive.evidenceDirectory.startsWith(paths.storage.sevroStateRoot),
+  ).toBeTrue();
+  expect(await Bun.file(newActive.checkpointPath).exists()).toBeTrue();
+  expect(
+    await Bun.file(join(paths.storage.legacyResultsRoot, "active")).exists(),
+  ).toBeFalse();
+  expect(
+    await Bun.file(join(paths.storage.sevroResultsRoot, "active")).exists(),
+  ).toBeFalse();
 }
 
 async function assertParity(
   scenario: "pass" | "fail" | "incomplete-usage",
   isolation = false,
+  separateStorage = false,
 ): Promise<void> {
   const cli = sevroCli();
   expect(await Bun.file(cli).exists()).toBeTrue();
-  const paths = await fixture(isolation);
+  const paths = await fixture(isolation, separateStorage);
   const oldOutput = join(paths.projectRoot, `legacy-${scenario}.json`);
   const legacy = await command(
-    [
-      process.execPath,
-      "--preload",
-      paths.legacyAdapter,
-      join(runnerRoot, "run.ts"),
-      "--harness",
-      "codex",
-      "--model",
-      "synthetic",
-      "--trials",
-      "1",
-      "--jobs",
-      "1",
-      "--no-color",
-      "--no-emoji",
-      "--no-progress",
-      "--project-root",
-      paths.projectRoot,
-      ...(paths.configRoot ? ["--config-root", paths.configRoot] : []),
-      "--skill",
-      "compatibility-primary",
-      "--case",
-      "selected",
-      "--owner-evaluation",
-      "passive",
-      "--output",
-      oldOutput,
-    ],
+    legacyArguments(paths, oldOutput),
     scenario,
     paths.projectRoot,
   );
   const sevro = await command(
-    [
-      process.execPath,
-      cli,
-      "run",
-      "--json",
-      "--case-file",
-      paths.caseFile,
-      "--adapter-module",
-      paths.sevroAdapter,
-      "--shell-isolation",
-      ...(paths.configRoot ? ["--protected-root", paths.configRoot] : []),
-      "--project-root",
-      paths.projectRoot,
-      "--results-root",
-      join(paths.projectRoot, "sevro-results"),
-      "--runner-build-digest",
-      digest,
-      "--project-digest",
-      digest,
-      "--condition",
-      "passive",
-      "--trials",
-      "1",
-      "--threshold",
-      "1",
-    ],
+    sevroArguments(paths, cli),
     scenario,
     paths.projectRoot,
   );
@@ -302,6 +396,7 @@ async function assertParity(
   expect(await readFile(rawPath, "utf8")).toBe(
     scenario === "fail" ? "synthetic behavioral failure" : response,
   );
+  await assertStorageParity(paths, oldOutput, newResult, newTrial);
 }
 
 for (const scenario of ["pass", "fail", "incomplete-usage"] as const) {
@@ -312,4 +407,8 @@ for (const scenario of ["pass", "fail", "incomplete-usage"] as const) {
 
 test("public commands hide project and configuration sources", async () => {
   await assertParity("pass", true);
+});
+
+test("public commands keep run state apart from results", async () => {
+  await assertParity("pass", false, true);
 });
