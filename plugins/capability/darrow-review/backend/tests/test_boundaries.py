@@ -24,12 +24,14 @@ def test_check_capture_and_refusals(
     path = Path(manifest.value("manifest")).parent / "check.json"
     output = cli.check_command(["run", "--output", str(path), "--command", command])
     assert Records(output).value("check_record") == str(path)
-    assert Records(path.read_text(encoding="utf-8")).object("check") == {
-        "command": command,
-        "applicability": "applicable",
-        "status": "pass",
-        "evidence": f"exited 0: checked{os.linesep}",
-    }
+    assert Records(path.read_text(encoding="utf-8")).items("checks") == [
+        {
+            "command": command,
+            "applicability": "applicable",
+            "status": "pass",
+            "evidence": f"exited 0: checked{os.linesep}",
+        }
+    ]
     with pytest.raises(ReviewError, match="already exists"):
         check.capture(str(path), command)
     for output_path, value in (

@@ -69,12 +69,14 @@ def capture(output: str, command: str) -> str:
     body = serialize(
         {
             "format": "darrow-review-check-v3",
-            "check": {
-                "command": command,
-                "applicability": "applicable",
-                "status": status,
-                "evidence": f"exited {code}: {first}",
-            },
+            "checks": [
+                {
+                    "command": command,
+                    "applicability": "applicable",
+                    "status": status,
+                    "evidence": f"exited {code}: {first}",
+                }
+            ],
             "exit_code": str(code),
         }
     )

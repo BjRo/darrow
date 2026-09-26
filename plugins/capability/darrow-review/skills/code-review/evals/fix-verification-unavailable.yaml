@@ -70,7 +70,7 @@ checks:
       checks = [item for item in record['checks'] if item['command'] == 'bash external-check.sh' and item['applicability'] == 'applicable' and item['status'] == 'blocked']
       assert len(checks) == 1
       assert any(
-          (capture := json.loads(file.read_text()))['format'] == 'darrow-review-check-v3' and checks[0] == capture['check']
+          (capture := json.loads(file.read_text()))['format'] == 'darrow-review-check-v3' and checks[0] in capture['checks']
           for file in path.parent.glob('check-*.json')
       )
       assert record['evidence_gaps']

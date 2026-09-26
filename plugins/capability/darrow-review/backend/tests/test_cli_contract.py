@@ -98,12 +98,14 @@ def test_check_capture_preserves_status_and_exit_code(
     assert process.returncode == 0, process.stderr
     assert process.stdout == serialize({"check_record": str(destination)})
     evidence = Records(destination.read_text(encoding="utf-8"))
-    assert evidence.object("check") == {
-        "command": command,
-        "applicability": "applicable",
-        "status": status,
-        "evidence": f"exited {code}: observed{os.linesep}",
-    }
+    assert evidence.items("checks") == [
+        {
+            "command": command,
+            "applicability": "applicable",
+            "status": status,
+            "evidence": f"exited {code}: observed{os.linesep}",
+        }
+    ]
     assert evidence.value("exit_code") == str(code)
 
 
@@ -116,7 +118,7 @@ def test_unavailable_command_retains_real_diagnostic(repo: Path) -> None:
     assert process.returncode == 0, process.stderr
     evidence = Records(destination.read_text(encoding="utf-8"))
     assert evidence.value("exit_code") == "127"
-    check = evidence.object("check")
+    check = evidence.items("checks")[0]
     assert check["command"] == command
     assert check["applicability"] == "applicable"
     assert check["status"] == "blocked"
