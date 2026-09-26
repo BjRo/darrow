@@ -43,7 +43,7 @@ append_package() {
   package_selected=true
 
   case "$package" in
-    plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend)
+    plugins/foundation/darrow-skill-authoring/backend)
       skill_authoring=true
       ;;
     plugins/capability/darrow-observability-langfuse/backend)
