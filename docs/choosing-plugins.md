@@ -15,6 +15,7 @@ alone; its README owns its prerequisites, behavior, and safety rules.
 | Verify implementation acceptance through independent assessment             | [Verification](../plugins/capability/darrow-verification/README.md)                                              |
 | Create a branch, commit, or pull request                                    | [Git](../plugins/capability/darrow-git/README.md)                                                                |
 | Read, list, create, or update GitHub issues                                 | [Tickets](../plugins/capability/darrow-tickets/README.md)                                                        |
+| Install reusable GitHub issue templates                                     | [Tickets](../plugins/capability/darrow-tickets/README.md#install-ticket-templates)                               |
 | Understand technical structure in a compact visual                          | [Explanation](../plugins/capability/darrow-explanation/README.md)                                                |
 | Export Codex turn telemetry to Langfuse                                     | [Langfuse observability](../plugins/capability/darrow-observability-langfuse/README.md)                          |
 | Organize repository agent guidance                                          | [Information architecture](../plugins/foundation/darrow-information-architecture/README.md)                      |
