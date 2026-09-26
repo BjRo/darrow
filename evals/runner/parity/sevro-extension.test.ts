@@ -17,7 +17,6 @@ import { sevroCommand } from "./sevro-command";
 const extension = resolve(import.meta.dir, "../../sevro-extension/index.ts");
 const projectRoot = resolve(import.meta.dir, "../../..");
 const roots: string[] = [];
-const digest = "a".repeat(64);
 
 afterEach(async () => {
   await Promise.all(
@@ -333,10 +332,6 @@ test("Darrow extension grades combined shell and final-message assertions", asyn
       root,
       "--results-root",
       join(root, "results"),
-      "--runner-build-digest",
-      digest,
-      "--project-digest",
-      digest,
       "--condition",
       "passive",
       "--trials",
@@ -442,10 +437,6 @@ test("Darrow extension grades semantic propositions through an isolated route", 
       root,
       "--results-root",
       join(root, "results"),
-      "--runner-build-digest",
-      digest,
-      "--project-digest",
-      digest,
       "--condition",
       "passive",
       "--trials",
@@ -594,10 +585,6 @@ export default {
     "example-skill-mount",
     "--project-root",
     root,
-    "--runner-build-digest",
-    digest,
-    "--project-digest",
-    digest,
     "--condition",
     "passive",
     "--trials",
@@ -871,10 +858,6 @@ export default {
     projectRoot,
     "--results-root",
     join(root, "results"),
-    "--runner-build-digest",
-    digest,
-    "--project-digest",
-    digest,
     "--condition",
     "passive",
     "--trials",
@@ -897,5 +880,17 @@ export default {
     id: "darrow.evals",
     protocol: "sevro.extension.v1",
   });
+  expect(evidence.evaluationIdentity.dimensions.runnerBuildDigest).toMatch(
+    /^[a-f0-9]{64}$/,
+  );
+  expect(evidence.evaluationIdentity.dimensions.runnerBuildDigest).toBe(
+    evidence.runner.buildDigest,
+  );
+  expect(evidence.evaluationIdentity.dimensions.projectDigest).toMatch(
+    /^[a-f0-9]{64}$/,
+  );
+  expect(evidence.evaluationIdentity.dimensions.projectDigest).not.toBe(
+    "a".repeat(64),
+  );
   expect(evidence.trials[0].condition.requested).toBe("passive");
 });

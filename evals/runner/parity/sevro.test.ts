@@ -16,7 +16,6 @@ import { sevroCommand } from "./sevro-command";
 const roots: string[] = [];
 const runnerRoot = resolve(import.meta.dir, "..");
 const response = "synthetic compatibility response";
-const digest = "a".repeat(64);
 
 afterEach(async () => {
   await Promise.all(
@@ -278,10 +277,6 @@ function sevroArguments(
     ...(paths.storage
       ? ["--run-state-root", paths.storage.sevroStateRoot]
       : []),
-    "--runner-build-digest",
-    digest,
-    "--project-digest",
-    digest,
     "--condition",
     condition,
     "--trials",
