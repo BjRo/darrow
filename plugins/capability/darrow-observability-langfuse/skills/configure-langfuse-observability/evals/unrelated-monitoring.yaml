@@ -21,7 +21,8 @@ output_checks:
 semantic_output_checks:
   - name: response identifies missing service context
     proposition: >-
-      The response explains that the repository does not contain enough service
-      implementation, runtime, deployment, or existing observability context
-      to add Datadog host CPU metrics, and requests the missing bounded context
-      without redirecting the user to Codex or Langfuse observability.
+      The response says this repository lacks enough implementation context for
+      the requested Datadog monitoring, grounded in its empty service shell or
+      missing service and metrics code. It need not ask follow-up questions or
+      design the monitoring implementation. It must not redirect the user to
+      Codex or Langfuse observability.
