@@ -24,6 +24,7 @@ Rebuild it with `decision catalog rebuild` and verify it with `decision catalog 
 | [ADR-0008: Allow Python and UV for Langfuse observability](ADR-0008-allow-python-and-uv-for-langfuse-observability.md) | Accepted | 2026-08-24 | Permit the independently installable Langfuse observability plugin to use a locked Python backend managed by UV while retaining a portable Bash hook launcher and keeping the exception scoped to that plugin. | Revisit when: Codex exposes equivalent native Langfuse export, the Langfuse SDK no longer requires Python, or the plugin can meet its rollout-reconstruction and export contract with the portable Bash baseline alone. |
 | [ADR-0009: Adopt Python and UV for substantial plugin mechanics](ADR-0009-adopt-python-and-uv-for-substantial-plugin-mechanics.md) | Accepted | 2026-09-17 | Adopt contained Python packages managed by UV incrementally for substantial cross-platform plugin mechanics, invoking them directly from installed skill-relative paths. | Supersedes: ADR-0005; Revisit when: UV and supported Python cannot provide independently installable helpers across every supported native host, or a lighter common runtime offers materially better portability and containment. |
 | [ADR-0010: Extract the evaluation runner into Sevro](ADR-0010-extract-the-evaluation-runner-into-sevro.md) | Accepted | 2026-09-19 | Move generic evaluation infrastructure into the versioned Sevro package while Darrow retains its evaluation policy, cases, and product integration. | Supersedes: ADR-0001 |
+| [ADR-0011: Negotiate evaluation extensions across the runner boundary](ADR-0011-negotiate-evaluation-extensions-across-the-runner-boundary.md) | Accepted | 2026-09-26 | Keep evaluation execution and host observation in Sevro while a negotiated, versioned Darrow extension supplies repository policy without concealing failed or unavailable evidence. | None |
 
 <!-- darrow-source: cd9996efb2f66b1602ead9a405a48686e14f67a9 1820997609 370 ADR-0002-separate-capabilities-from-orchestration.md -->
 <!-- darrow-source: 452327e39a9dff558c6897356d0e1e85cf65906f 3673420192 418 ADR-0003-treat-plugins-as-optionality-boundaries.md -->
@@ -33,6 +34,7 @@ Rebuild it with `decision catalog rebuild` and verify it with `decision catalog 
 <!-- darrow-source: aab600b869cf357f81f4424f1813a75596d0a64c 2479862079 646 ADR-0008-allow-python-and-uv-for-langfuse-observability.md -->
 <!-- darrow-source: 152ebad0159783e7f2299a3abb6df5b3d3ae6176 3731273062 623 ADR-0009-adopt-python-and-uv-for-substantial-plugin-mechanics.md -->
 <!-- darrow-source: 7e9e833caf7a83145daacfa932b43da384f1ef93 4046602581 376 ADR-0010-extract-the-evaluation-runner-into-sevro.md -->
+<!-- darrow-source: bd4a23b83d93c1b0c9604930b2743bfda84bbb04 1485653912 455 ADR-0011-negotiate-evaluation-extensions-across-the-runner-boundary.md -->
 
 ## Rejected
 
