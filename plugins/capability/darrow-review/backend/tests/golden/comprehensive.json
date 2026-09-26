@@ -1,0 +1,48 @@
+{
+  "format": "darrow-review-result-v3",
+  "base": "base-oid",
+  "target": "target-fingerprint",
+  "changed_files": [
+    "/workspace/src/one.js",
+    "/workspace/C:\\(draft\\) file.js"
+  ],
+  "standards": "fail",
+  "standards_sources": ["/workspace/AGENTS.md"],
+  "spec": "pass",
+  "spec_source": "objective <v1> & details",
+  "findings": [
+    {
+      "axis": "standards",
+      "severity": "high",
+      "disposition": "blocking",
+      "location": "src/one.js:1",
+      "source": "/workspace/AGENTS.md",
+      "evidence": "Avoid `debug` output"
+    },
+    {
+      "axis": "spec",
+      "severity": "medium",
+      "disposition": "advisory",
+      "location": "src/two_file.js:2",
+      "source": "objective <v1> & details",
+      "evidence": "Keep [evidence] intact"
+    }
+  ],
+  "checks": [
+    {
+      "command": "bash check_[review].sh --label `nightly`",
+      "applicability": "applicable",
+      "status": "pass",
+      "evidence": "All tests passed"
+    },
+    {
+      "command": "none",
+      "applicability": "not_applicable",
+      "status": "not_applicable",
+      "evidence": "No typecheck applies"
+    }
+  ],
+  "verdict": "fail",
+  "risks": ["Risk <one> & two", "Second risk"],
+  "next_action": "Return `findings` to owner"
+}

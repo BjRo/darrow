@@ -1,0 +1,25 @@
+id: install-ticket-templates-preserve-existing
+invariant: TM-T2
+activation: positive
+mount_plugin_skills: true
+prompt: "{{skill_invocation}} Add Darrow's issue templates here, keeping our customizations."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+        .github/ISSUE_TEMPLATE/dependency-upgrade.md: "CUSTOM DEPENDENCY WORKFLOW\n"
+        .github/ISSUE_TEMPLATE/custom-triage.md: "CUSTOM TRIAGE\n"
+        .github/ISSUE_TEMPLATE/config.yml: "blank_issues_enabled: false\n"
+checks:
+  - name: customized upgrade template is preserved
+    run: test "$(cat .github/ISSUE_TEMPLATE/dependency-upgrade.md)" = 'CUSTOM DEPENDENCY WORKFLOW'
+  - name: unrelated custom files are preserved
+    run: >-
+      test "$(cat .github/ISSUE_TEMPLATE/custom-triage.md)" = 'CUSTOM TRIAGE' &&
+      test "$(cat .github/ISSUE_TEMPLATE/config.yml)" = 'blank_issues_enabled: false'
+  - name: remaining bundled templates are installed
+    run: test -f .github/ISSUE_TEMPLATE/retirement.md && test -f .github/ISSUE_TEMPLATE/bug-fix-regression.md
+output_checks:
+  - name: preserved customization is reported
+    expect_regex: '[Pp]reserved.*dependency-upgrade\.md|dependency-upgrade\.md.*[Pp]reserved'

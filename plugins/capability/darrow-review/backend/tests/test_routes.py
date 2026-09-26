@@ -7,7 +7,8 @@ from pathlib import Path
 import pytest
 
 from darrow_review import cli, provider, routing
-from darrow_review.common import ReviewError, new_record, serialize
+from darrow_review.common import ReviewError, document, new_record, serialize
+from darrow_review.records import Records
 
 
 def reviewer(
@@ -31,17 +32,19 @@ def config(repo: Path, value: object) -> Path:
 
 def test_bundled_override_and_application(repo: Path, tmp_path: Path) -> None:
     default = cli.route_command(["resolve", "--repo", str(repo), "--host", "codex"])
-    assert "gpt-6-sol\txhigh" in default
+    assert Records(default).object("selected_route")["model"] == "gpt-6-sol"
+    assert Records(default).object("selected_route")["effort"] == "xhigh"
     config(
         repo,
         {"routes": [{"unrelated": [False, None, 12.5]}], "reviewers": [reviewer()]},
     )
-    selected = tmp_path / "route.tsv"
+    selected = tmp_path / "route.json"
     output = cli.route_command(
         ["select", "--repo", str(repo), "--host", "codex", "--record", str(selected)]
     )
-    assert "route_source\trepository" in output and "model\tgpt-5.5" in output
-    applied = tmp_path / "applied.tsv"
+    assert Records(output).value("route_source") == "repository"
+    assert Records(output).value("model") == "gpt-5.5"
+    applied = tmp_path / "applied.json"
     cli.route_command(
         [
             "confirm-codex",
@@ -55,9 +58,14 @@ def test_bundled_override_and_application(repo: Path, tmp_path: Path) -> None:
             str(applied),
         ]
     )
-    body = applied.read_text(encoding="utf-8")
-    assert "route_bound\ttrue" in body and "route_verified" not in body
-    assert "requested_route\tcodex\topenai\tgpt-5.5\thigh" in body
+    body = Records(applied.read_text(encoding="utf-8"))
+    assert body.value("route_bound") == "true" and "route_verified" not in body.data
+    assert body.object("requested_route") == {
+        "host": "codex",
+        "provider": "openai",
+        "model": "gpt-5.5",
+        "effort": "high",
+    }
     assert "claude-opus-5" in routing.resolve(str(repo), "claude").body()
     config(repo, {})
     assert routing.resolve(str(repo), "codex").source == "bundled"
@@ -148,7 +156,7 @@ def test_custom_endpoint_and_route_fields(monkeypatch: pytest.MonkeyPatch) -> No
 def test_claude_native_agent(
     repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    route = tmp_path / "claude.tsv"
+    route = tmp_path / "claude.json"
     routing.select(str(repo), "claude", str(route))
     assert "darrow-review:review-reader-claude-opus-5-xhigh" in cli.route_command(
         ["claude-agent", "--route-record", str(route)]
@@ -211,7 +219,7 @@ def test_transcript_native_application(
     repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     projects, path = transcript(repo, tmp_path)
-    record = tmp_path / "observed.tsv"
+    record = tmp_path / "observed.json"
     arguments = [
         "--repo",
         str(repo),
@@ -220,14 +228,16 @@ def test_transcript_native_application(
         "--projects-dir",
         str(projects),
     ]
-    assert (
-        "observed_route\tclaude\tanthropic\tclaude-opus-5\txhigh"
-        in cli.verify_command(arguments)
-    )
+    assert Records(cli.verify_command(arguments)).object("observed_route") == {
+        "host": "claude",
+        "provider": "anthropic",
+        "model": "claude-opus-5",
+        "effort": "xhigh",
+    }
     cli.verify_command([*arguments, "--record", str(record)])
-    route = tmp_path / "route.tsv"
+    route = tmp_path / "route.json"
     routing.select(str(repo), "claude", str(route))
-    application = tmp_path / "application.tsv"
+    application = tmp_path / "application.json"
     cli.route_command(
         [
             "confirm-claude",
@@ -241,9 +251,9 @@ def test_transcript_native_application(
             str(application),
         ]
     )
-    assert "agent_id\tabc1" in application.read_text(encoding="utf-8")
+    assert Records(application.read_text(encoding="utf-8")).value("agent_id") == "abc1"
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(projects.parent))
-    assert str(path) in provider.verify(str(repo), "abc1")
+    assert Records(provider.verify(str(repo), "abc1")).value("transcript") == str(path)
     route.write_text(
         route.read_text(encoding="utf-8").replace("claude-opus-5", "claude-sonnet-5"),
         encoding="utf-8",
@@ -252,7 +262,7 @@ def test_transcript_native_application(
         routing.confirm(
             str(route),
             "spec",
-            str(tmp_path / "mismatch.tsv"),
+            str(tmp_path / "mismatch.json"),
             observed_path=str(record),
         )
 
@@ -297,13 +307,13 @@ def test_transcript_cardinality_and_route_changes(repo: Path, tmp_path: Path) ->
 
 def test_records_refuse_duplicates_unknown_and_incomplete(tmp_path: Path) -> None:
     route = routing.Route("codex", "openai", "gpt-5.5", "high")
-    path = tmp_path / "route.tsv"
+    path = tmp_path / "route.json"
     variants = [
-        route.body() + "format\tdarrow-reviewer-route-v1\n",
-        route.body() + "unknown\tvalue\n",
+        route.body().replace('  "format":', '  "format": "duplicate",\n  "format":', 1),
+        serialize(document(route.body()) | {"unknown": "value"}),
         route.body().replace("repository", "other").replace("bundled", "other"),
-        route.body().replace("darrow-reviewer-route-v1", "wrong"),
-        route.body().replace("\txhigh", "").replace("\thigh", ""),
+        route.body().replace("darrow-reviewer-route-v3", "wrong"),
+        serialize(document(route.body()) | {"selected_route": {"host": "codex"}}),
     ]
     for text in variants:
         path.write_text(text, encoding="utf-8")
@@ -325,17 +335,17 @@ def test_records_refuse_duplicates_unknown_and_incomplete(tmp_path: Path) -> Non
 def test_observed_record_validation(repo: Path, tmp_path: Path) -> None:
     projects, _ = transcript(repo, tmp_path)
     text = provider.verify(str(repo), "abc1", str(projects))
-    path = tmp_path / "record.tsv"
+    path = tmp_path / "record.json"
     for old, new in (
-        ("agent_id\tabc1", "agent_id\tunsafe/id"),
+        ('"abc1"', '"unsafe/id"'),
         ("current-host-environment-default", "invented"),
-        ("darrow-review-claude-route-v1", "wrong"),
-        ("observed_route\tclaude", "observed_route\tcodex"),
+        ("darrow-review-claude-route-v3", "wrong"),
+        ('"host": "claude"', '"host": "codex"'),
     ):
         path.write_text(text.replace(old, new), encoding="utf-8")
         with pytest.raises(ReviewError):
             routing.observed(str(path))
-    path.write_text(serialize([["format", "wrong"]]), encoding="utf-8")
+    path.write_text(serialize({"format": "wrong"}), encoding="utf-8")
     with pytest.raises(ReviewError):
         routing.observed(str(path))
 
@@ -354,7 +364,8 @@ def test_empty_or_unrelated_policy_uses_bundled_route(repo: Path, text: str) -> 
     path.write_text(text, encoding="utf-8")
     selected = routing.resolve(str(repo), "codex")
     assert selected.source == "bundled"
-    assert "gpt-6-sol\txhigh" in selected.body()
+    assert Records(selected.body()).object("selected_route")["model"] == "gpt-6-sol"
+    assert Records(selected.body()).object("selected_route")["effort"] == "xhigh"
 
 
 def test_partial_transcript_and_substring_identity_are_rejected(
@@ -383,7 +394,7 @@ def test_transcript_verification_refuses_third_party_provider(
     repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, selector: str
 ) -> None:
     projects, _ = transcript(repo, tmp_path)
-    record = tmp_path / "observed.tsv"
+    record = tmp_path / "observed.json"
     monkeypatch.setenv(selector, "1")
     with pytest.raises(ReviewError, match=selector):
         cli.verify_command(

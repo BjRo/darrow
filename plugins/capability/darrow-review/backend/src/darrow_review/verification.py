@@ -5,14 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 
 from .common import ReviewError, blob_hash, read_text, require
-from .records import VERIFICATION_SHAPES, Records, check_records, state
+from .records import Record, Records, check_records, state
 
 
-def originals(result: Records) -> dict[str, list[str]]:
-    findings = result.keyed("original_finding", label="original finding key")
-    result.keyed("original_finding", 3, "original finding order")
+def originals(result: Records) -> dict[str, Record]:
+    findings = result.keyed("original_findings", label="original finding key")
+    result.keyed("original_findings", "order", "original finding order")
     for key, row in findings.items():
-        expected = f"{row[2]}:{row[3]}:{result.value('original_target')}"
+        expected = f"{row['axis']}:{row['order']}:{result.value('original_target')}"
         result.check(
             key == expected,
             f"original finding key must be derived as axis:order:original_target: {expected}",
@@ -20,28 +20,30 @@ def originals(result: Records) -> dict[str, list[str]]:
     return findings
 
 
-def attempts(result: Records, findings: dict[str, list[str]]) -> dict[str, list[str]]:
-    actions = result.keyed("attempt", label="attempt finding key")
+def attempts(result: Records, findings: dict[str, Record]) -> dict[str, Record]:
+    actions = result.keyed("attempts", label="attempt finding key")
     for key, row in actions.items():
         result.check(
             key in findings, f"attempt references an unknown original finding: {key}"
         )
-        state(result, row[2], row[3], "attempt")
+        state(result, row["status"], row["progress"], "attempt")
     for key, finding in findings.items():
         result.check(
-            finding[5] != "blocking" or key in actions or result.get("evidence_gap"),
+            finding["disposition"] != "blocking"
+            or key in actions
+            or result.strings("evidence_gaps"),
             f"every blocking original finding requires one attempt: {key}",
         )
     return actions
 
 
 def regressions(
-    result: Records, findings: dict[str, list[str]], actions: dict[str, list[str]]
+    result: Records, findings: dict[str, Record], actions: dict[str, Record]
 ) -> None:
-    carried = result.keyed("regression", label="regression key")
-    result.keyed("regression", 3, "regression order")
+    carried = result.keyed("regressions", label="regression key")
+    result.keyed("regressions", "order", "regression order")
     for key, row in carried.items():
-        cause = row[2]
+        cause = row["caused_by"]
         result.check(
             cause in findings,
             f"regression caused_by references an unknown original finding: {cause}",
@@ -51,39 +53,41 @@ def regressions(
             f"regression caused_by references an unattempted original finding: {cause}",
         )
         result.check(
-            cause in findings and row[4] == findings[cause][2],
+            cause in findings and row["axis"] == findings[cause]["axis"],
             f"regression axis must match its causing original finding: {key}",
         )
-        expected = f"regression:{row[3]}:{cause}"
+        expected = f"regression:{row['order']}:{cause}"
         result.check(
             key == expected,
             f"regression key must be derived as regression:order:caused_by: {expected}",
         )
-        state(result, row[6], row[7], "regression")
+        state(result, row["status"], row["progress"], "regression")
 
 
 def outcome(
-    result: Records, findings: dict[str, list[str]], actions: dict[str, list[str]]
+    result: Records, findings: dict[str, Record], actions: dict[str, Record]
 ) -> str:
     states = [
-        (row[2], row[3])
+        (row["status"], row["progress"])
         for key, row in actions.items()
-        if key in findings and findings[key][5] == "blocking"
+        if key in findings and findings[key]["disposition"] == "blocking"
     ]
-    regression_states = [(row[6], row[7]) for row in result.get("regression")]
+    regression_states = [
+        (row["status"], row["progress"]) for row in result.items("regressions")
+    ]
     states += regression_states
-    checks = [row[3] for row in result.get("check")]
+    checks = [row["status"] for row in result.items("checks")]
     result.check(
         "fail" not in checks
         or any(status != "resolved" for status, _ in regression_states),
         "a failing deterministic check requires an unresolved or blocked repair-caused regression",
     )
     blocked = (
-        bool(result.get("evidence_gap"))
+        bool(result.strings("evidence_gaps"))
         or "blocked" in checks
         or any(s == "blocked" for s, _ in states)
     )
-    history = {row[1] for row in result.get("history_target")}
+    history = set(result.strings("history_targets"))
     history.update((result.value("prior_target"), result.value("original_target")))
     stagnant = (
         result.value("current_target") in history
@@ -102,19 +106,11 @@ def derive_outcome(blocked: bool, stagnant: bool, active: bool) -> str:
 
 def validate_verification(text: str, path: str = "-", depth: int = 0) -> Records:
     result = Records(text)
-    result.shape("darrow-review-verification-v1", VERIFICATION_SHAPES, "verification ")
-    result.exactly(
-        "original_target",
-        "prior_target",
-        "current_target",
-        "previous_verification",
-        "outcome",
-        "next_action",
-    )
+    result.shape("darrow-review-verification-v3")
     check_records(result)
-    result.keyed("history_target", label="history target")
+    result.unique_strings("history_targets", "history target")
     result.check(
-        result.get("original_finding") or result.get("evidence_gap"),
+        result.items("original_findings") or result.strings("evidence_gaps"),
         "at least one original_finding or evidence_gap is required",
     )
     findings = originals(result)
@@ -131,10 +127,8 @@ def validate_verification(text: str, path: str = "-", depth: int = 0) -> Records
 
 
 def validate_previous(result: Records, path: str, depth: int) -> None:
-    checksum, previous = (
-        result.value("previous_verification"),
-        result.value("previous_verification", 2),
-    )
+    previous_record = result.object("previous_verification")
+    checksum, previous = previous_record["checksum"], previous_record["path"]
     if "none" in (checksum, previous):
         first_verification(result, checksum, previous)
         return
@@ -180,7 +174,7 @@ def first_verification(result: Records, checksum: str, previous: str) -> None:
         4,
     )
     require(
-        not result.get("history_target"),
+        not result.strings("history_targets"),
         "first verification must not contain repair target history",
         4,
     )
@@ -191,8 +185,8 @@ def preserve_history(result: Records, prior: Records) -> None:
         result.value("original_target") == prior.value("original_target"),
         "original_target changed across verification artifacts",
     )
-    old = prior.keyed("original_finding")
-    current = result.keyed("original_finding")
+    old = prior.keyed("original_findings")
+    current = result.keyed("original_findings")
     for key, row in current.items():
         result.check(
             key in old, f"new original finding appeared in later verification: {key}"
@@ -210,13 +204,17 @@ def preserve_history(result: Records, prior: Records) -> None:
     preserve_targets(result, prior)
 
 
-def immutable_regression(row: list[str]) -> list[str]:
-    return row[2:6] + row[8:10] + row[11:]
+def immutable_regression(row: Record) -> Record:
+    return {
+        key: value
+        for key, value in row.items()
+        if key not in ("status", "progress", "evidence")
+    }
 
 
 def preserve_regressions(result: Records, prior: Records) -> None:
-    current = result.keyed("regression")
-    for key, row in prior.keyed("regression").items():
+    current = result.keyed("regressions")
+    for key, row in prior.keyed("regressions").items():
         result.check(
             key in current,
             f"prior regression is missing from current verification: {key}",
@@ -229,10 +227,8 @@ def preserve_regressions(result: Records, prior: Records) -> None:
 
 
 def preserve_targets(result: Records, prior: Records) -> None:
-    expected = {row[1] for row in prior.get("history_target")} | {
-        prior.value("prior_target")
-    }
-    current = {row[1] for row in result.get("history_target")}
+    expected = set(prior.strings("history_targets")) | {prior.value("prior_target")}
+    current = set(result.strings("history_targets"))
     for target in expected - current:
         result.check(
             False, f"prior repair target is missing from target history: {target}"

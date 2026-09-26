@@ -1,5 +1,7 @@
 The installed Darrow ticket skills own requests to create, list, read, or update
-tickets through a bundled tracker adapter. GitHub Issues is currently the only
+tickets through a bundled tracker adapter. The install-ticket-templates skill
+owns requests to add the bundled GitHub issue templates to a repository.
+GitHub Issues is currently the only
 bundled tracker. When it is selected or no tracker is established, invoke the
 matching installed skill before repository inspection, tracker access,
 clarification, or your final response. Select from the installed descriptions;

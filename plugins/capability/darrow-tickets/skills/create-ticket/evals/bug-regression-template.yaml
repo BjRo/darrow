@@ -1,0 +1,40 @@
+id: create-ticket-bug-regression-template
+invariant: TM-T1,TM-T3,TM-C4,TM-C11
+activation: competition
+mount_plugin_skills: true
+prompt: >-
+  File a bug-fix ticket with regression coverage. `bun test csv-import
+  --case empty-header` crashes with `TypeError: missing header`. It should
+  report a validation error. Require the same case to fail before the fix and
+  pass afterward, and keep a regression test. We do not yet know which commit
+  introduced it.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+  bin:
+    gh: |
+      #!/bin/sh
+      backend="$(git rev-parse --absolute-git-dir)/tickets-fixture"
+      exec uv run --quiet --frozen --no-dev --project "$backend" python "$backend/tests/eval_gh.py" "$@"
+  setup: |
+    mkdir -p .git/tickets-fixture/tests .github/ISSUE_TEMPLATE .git/fixture-gh
+    cp "{{case_dir}}/../../../backend/pyproject.toml" "{{case_dir}}/../../../backend/uv.lock" .git/tickets-fixture/
+    cp -R "{{case_dir}}/../../../backend/src" .git/tickets-fixture/
+    cp "{{case_dir}}/../../../backend/tests/eval_gh.py" .git/tickets-fixture/tests/
+    cp "{{case_dir}}/../../../backend/src/darrow_tickets/template_assets/bug-fix-regression.md" .github/ISSUE_TEMPLATE/
+    git remote add origin https://github.test/o/r.git
+    printf 'bug\n' > .git/fixture-gh/labels
+    : > .git/fixture-gh/list
+checks:
+  - name: one bug issue is created
+    run: test "$(wc -l < .git/fixture-gh/created-ids | tr -d ' ')" -eq 1 && rg -q '^bug$' .git/fixture-gh/created-labels
+  - name: incident and expected behavior are grounded
+    run: >-
+      rg -q 'TypeError: missing header' .git/fixture-gh/created-body &&
+      rg -qi 'validation error' .git/fixture-gh/created-body
+  - name: same reproducer and regression coverage remain required
+    run: rg -q 'bun test csv-import' .git/fixture-gh/created-body && rg -qi 'regression' .git/fixture-gh/created-body
+  - name: before and after evidence remains required
+    run: rg -qi 'before|original failure' .git/fixture-gh/created-body && rg -qi 'after|passing result' .git/fixture-gh/created-body

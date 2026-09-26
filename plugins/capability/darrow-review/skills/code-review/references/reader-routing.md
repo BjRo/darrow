@@ -9,7 +9,7 @@ fix-verification reader in one invocation.
 Resolve the bundled helper from the code-review skill directory:
 
 ```sh
-route_record="$(dirname "$manifest")/reviewer-route.tsv"
+route_record="$(dirname "$manifest")/reviewer-route.json"
 uv run --quiet --no-project "$backend/scripts/run_locked.py" review-route select --repo "$repo" --host <codex|claude> \
   --record "$route_record"
 ```
@@ -27,7 +27,7 @@ provider. For Codex, an accepted native spawn therefore proves the provider as
 well as explicit model and effort; configuration alone never establishes an
 effective provider.
 
-Keep `reviewer-route.tsv` beside the scope manifest as route-selection
+Keep `reviewer-route.json` beside the scope manifest as route-selection
 evidence. Repository configuration comes only from the active worktree root.
 
 ## Codex readers
@@ -48,7 +48,7 @@ each exact child, collect only its final axis record, and then write that axis's
 route evidence beside the manifest:
 
 ```sh
-axis_route="$(dirname "$manifest")/<axis>-route.tsv"
+axis_route="$(dirname "$manifest")/<axis>-route.json"
 uv run --quiet --no-project "$backend/scripts/run_locked.py" review-route confirm-codex --route-record "$route_record" \
   --axis <axis> --agent-id '<host-reported-child-id>' \
   --application-record "$axis_route"
@@ -73,7 +73,7 @@ child ID are internally consistent. It is not launch evidence by itself. A
 Codex result is admissible only while the coordinator also retains the host's
 accepted `spawn_agent` event for that same child ID, exact model and effort,
 `fork_turns: none`, and a host-visible axis marker in the native task name or
-retained prompt. `confirm-codex` therefore writes a `route_bound<TAB>true`
+retained prompt. `confirm-codex` therefore writes a `["route_bound", "true"]`
 binding record, never a standalone verification claim. Missing native evidence
 still blocks the axis.
 
@@ -111,7 +111,7 @@ After each exact Agent call terminates, take its host-reported agent ID and
 derive the effective route from that child's transcript:
 
 ```sh
-observed_record="$(dirname "$manifest")/<axis>-observed-route.tsv"
+observed_record="$(dirname "$manifest")/<axis>-observed-route.json"
 uv run --quiet --no-project "$backend/scripts/run_locked.py" review-claude-verify --repo "$repo" --agent-id '<agent-id>' \
   --record "$observed_record"
 ```
@@ -120,7 +120,7 @@ Feed both record paths into the confirmation gate. The helper parses and
 compares the selected and transcript-observed values:
 
 ```sh
-axis_route="$(dirname "$manifest")/<axis>-route.tsv"
+axis_route="$(dirname "$manifest")/<axis>-route.json"
 uv run --quiet --no-project "$backend/scripts/run_locked.py" review-route confirm-claude --route-record "$route_record" \
   --observed-record "$observed_record" --axis <axis> \
   --application-record "$axis_route"
@@ -137,7 +137,7 @@ transcript is insufficient.
 ## Bind route failure
 
 In comprehensive mode, materialize a schema-valid axis record with
-`status<TAB>blocked` and a `source` naming the exact route evidence gap. In
+`["status", "blocked"]` and a `source` naming the exact route evidence gap. In
 fix-verification mode, materialize a schema-valid fix-axis record containing an
 `evidence_gap` naming it. Preserve the selected route record and any observed
 route record. Never replace unavailable independent judgment with coordinator

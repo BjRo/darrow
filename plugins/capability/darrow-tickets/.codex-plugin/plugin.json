@@ -1,15 +1,15 @@
 {
   "name": "darrow-tickets",
-  "version": "0.6.4",
-  "description": "Ticket skills with a bundled GitHub Issues adapter: create-ticket, read-ticket, update-ticket, list-tickets",
+  "version": "0.7.0",
+  "description": "Ticket operations and reusable GitHub issue templates with a bundled GitHub Issues adapter",
   "author": {
     "name": "Björn Rochel"
   },
   "skills": "./skills/",
   "interface": {
     "displayName": "Darrow -> Tickets",
-    "shortDescription": "Create, read, find, and update tickets",
-    "longDescription": "Create one well-formed ticket or an explicit finite batch, retrieve one exact ticket, find relevant open work, and apply one verified update through the bundled GitHub Issues adapter.",
+    "shortDescription": "Manage tickets and install issue templates",
+    "longDescription": "Create, read, find, and update GitHub tickets, and install reusable issue templates for dependency upgrades, retirement, and regression fixes.",
     "developerName": "Björn Rochel",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],
@@ -17,7 +17,8 @@
       "Create a ticket for this problem.",
       "Read ticket #42.",
       "List the open bugs for this project.",
-      "Close the ticket for this completed work."
+      "Close the ticket for this completed work.",
+      "Install Darrow's GitHub issue templates in this repository."
     ]
   }
 }

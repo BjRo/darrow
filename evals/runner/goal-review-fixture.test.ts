@@ -149,13 +149,19 @@ function fixtureGuidance(
   ];
 }
 
+function guidanceFields(values: string[]) {
+  return values.length === 2
+    ? { repair_guidance: values[0], resolution_evidence: values[1] }
+    : {};
+}
+
 async function selectedArtifact(
   repo: string,
   record: string,
   scenario: { markdown?: boolean; tampered?: boolean },
 ): Promise<string> {
   if (!scenario.markdown) return record;
-  const verification = record.endsWith("verification.tsv");
+  const verification = record.endsWith("verification.json");
   const rendered = Bun.spawnSync(
     reviewCommand(
       "review-report",
@@ -166,7 +172,7 @@ async function selectedArtifact(
   );
   expect(rendered.exitCode).toBe(0);
   const artifact = record.replace(
-    /(?:verification|result)\.tsv$/,
+    /(?:verification|result)\.json$/,
     verification ? "verification.md" : "review.md",
   );
   await Bun.write(
@@ -252,39 +258,39 @@ for (const scenario of [
         entry.name === "independent review artifact is canonical and clear",
     );
     expect(check).toBeDefined();
-    const records = [
-      ["format", "darrow-review-result-v1"],
-      ["base", "HEAD"],
-      ["target", "WORKTREE@synthetic"],
-      ["changed_file", "/synthetic/auth-config.js"],
-      ["standards", scenario.standards],
-      ["standards_source", "AGENTS.md"],
-      ["spec", "pass"],
-      ["spec_source", "user request"],
-      ...(scenario.disposition
+    const records = {
+      format: "darrow-review-result-v3",
+      base: "HEAD",
+      target: "WORKTREE@synthetic",
+      changed_files: ["/synthetic/auth-config.js"],
+      standards: scenario.standards,
+      standards_sources: ["AGENTS.md"],
+      spec: "pass",
+      spec_source: "user request",
+      findings: scenario.disposition
         ? [
-            [
-              "finding",
-              "standards",
-              "low",
-              scenario.disposition,
-              "/synthetic/auth-config.js:1",
-              "AGENTS.md",
-              "Synthetic finding for oracle regression",
-            ],
+            {
+              axis: "standards",
+              severity: "low",
+              disposition: scenario.disposition,
+              location: "/synthetic/auth-config.js:1",
+              source: "AGENTS.md",
+              evidence: "Synthetic finding for oracle regression",
+            },
           ]
-        : []),
-      [
-        "check",
-        "bash test.sh",
-        "applicable",
-        scenario.check,
-        "Synthetic check evidence",
+        : [],
+      checks: [
+        {
+          command: "bash test.sh",
+          applicability: "applicable",
+          status: scenario.check,
+          evidence: "Synthetic check evidence",
+        },
       ],
-      ["verdict", scenario.verdict],
-      ["risk", "Synthetic risk record"],
-      ["next_action", "return control to enclosing goal"],
-    ];
+      verdict: scenario.verdict,
+      risks: ["Synthetic risk record"],
+      next_action: "return control to enclosing goal",
+    };
     const repo = await buildFixture({
       fixture: {
         commits: [
@@ -294,8 +300,7 @@ for (const scenario of [
           },
         ],
         files: {
-          ".git/darrow-review.fixture/result.tsv":
-            records.map((row) => row.join("\t")).join("\n") + "\n",
+          ".git/darrow-review.fixture/result.json": JSON.stringify(records),
           ...(await reviewFiles()),
           ...(await proofFiles()),
         },
@@ -306,7 +311,7 @@ for (const scenario of [
     try {
       const artifact = await selectedArtifact(
         repo,
-        `${repo}/.git/darrow-review.fixture/result.tsv`,
+        `${repo}/.git/darrow-review.fixture/result.json`,
         scenario,
       );
       await Bun.write(
@@ -403,10 +408,10 @@ for (const scenario of [
         "WORKTREE",
       );
       expect(result.exitCode).toBe(0);
-      return result.stdout.toString().match(/^target\t(.+)$/m)![1]!;
+      return (JSON.parse(result.stdout.toString()) as { target: string })
+        .target;
     };
-    const serialize = (rows: string[][]) =>
-      rows.map((row) => row.join("\t")).join("\n") + "\n";
+    const serialize = (record: object) => JSON.stringify(record);
     try {
       if (scenario.duplicate) {
         await duplicateReview(repo, scenario.conflict);
@@ -430,70 +435,114 @@ for (const scenario of [
         "user request",
         "optional clarity",
       ];
-      const resultPath = `${repo}/.git/darrow-review.original/result.tsv`;
+      const resultPath = `${repo}/.git/darrow-review.original/result.json`;
       if (!scenario.missing)
         await Bun.write(
           resultPath,
-          serialize([
-            ["format", "darrow-review-result-v1"],
-            ["base", "HEAD"],
-            ["target", original],
-            ["changed_file", `${repo}/value.txt`],
-            ["standards", "fail"],
-            ["standards_source", "user request"],
-            ["spec", "pass"],
-            ["spec_source", "user request"],
-            ["finding", ...finding, ...guidance],
-            ...(scenario.advisory || scenario.omitted
-              ? [["finding", ...advisory]]
-              : []),
-            ["check", "test value", "applicable", "pass", "checked"],
-            ["verdict", "fail"],
-            ["risk", "incorrect value"],
-            ["next_action", "return findings to enclosing goal"],
-          ]),
+          serialize({
+            format: "darrow-review-result-v3",
+            base: "HEAD",
+            target: original,
+            changed_files: [`${repo}/value.txt`],
+            standards: "fail",
+            standards_sources: ["user request"],
+            spec: "pass",
+            spec_source: "user request",
+            findings: [
+              {
+                axis: finding[0],
+                severity: finding[1],
+                disposition: finding[2],
+                location: finding[3],
+                source: finding[4],
+                evidence: finding[5],
+                ...guidanceFields(guidance),
+              },
+              ...(scenario.advisory || scenario.omitted
+                ? [
+                    {
+                      axis: advisory[0],
+                      severity: advisory[1],
+                      disposition: advisory[2],
+                      location: advisory[3],
+                      source: advisory[4],
+                      evidence: advisory[5],
+                    },
+                  ]
+                : []),
+            ],
+            checks: [
+              {
+                command: "test value",
+                applicability: "applicable",
+                status: "pass",
+                evidence: "checked",
+              },
+            ],
+            verdict: "fail",
+            risks: ["incorrect value"],
+            next_action: "return findings to enclosing goal",
+          }),
         );
       await Bun.write(`${repo}/value.txt`, "correct change\n");
       const current = scope();
       const key = `standards:1:${original}`;
       const [state, progress, outcome] = repairState(scenario);
-      const record = `${repo}/.git/darrow-review.repaired/verification.tsv`;
+      const record = `${repo}/.git/darrow-review.repaired/verification.json`;
       await Bun.write(
         record,
-        serialize([
-          ["format", "darrow-review-verification-v1"],
-          ["original_target", original],
-          ["prior_target", original],
-          ["current_target", current],
-          ["previous_verification", "none", "none"],
-          [
-            "original_finding",
-            key,
-            finding[0]!,
-            "1",
-            ...finding.slice(1, -1),
-            scenario.forged ? "different original evidence" : finding.at(-1)!,
-            ...fixtureGuidance(scenario, true),
+        serialize({
+          format: "darrow-review-verification-v3",
+          original_target: original,
+          prior_target: original,
+          current_target: current,
+          previous_verification: { checksum: "none", path: "none" },
+          original_findings: [
+            {
+              key,
+              axis: finding[0],
+              order: "1",
+              severity: finding[1],
+              disposition: finding[2],
+              location: finding[3],
+              source: finding[4],
+              evidence: scenario.forged
+                ? "different original evidence"
+                : finding.at(-1),
+              ...guidanceFields(fixtureGuidance(scenario, true)),
+            },
+            ...(scenario.advisory
+              ? [
+                  {
+                    key: `spec:2:${original}`,
+                    axis: advisory[0],
+                    order: "2",
+                    severity: advisory[1],
+                    disposition: advisory[2],
+                    location: advisory[3],
+                    source: advisory[4],
+                    evidence: advisory[5],
+                  },
+                ]
+              : []),
           ],
-          ...(scenario.advisory
-            ? [
-                [
-                  "original_finding",
-                  `spec:2:${original}`,
-                  advisory[0]!,
-                  "2",
-                  ...advisory.slice(1),
-                ],
-              ]
-            : []),
-          ["attempt", key, state, progress, "repair evidence"],
-          ["check", "test value", "applicable", "pass", "checked"],
-          ["outcome", outcome],
-          ["next_action", "resume the enclosing goal"],
-        ]),
+          attempts: [
+            { key, status: state, progress, evidence: "repair evidence" },
+          ],
+          checks: [
+            {
+              command: "test value",
+              applicability: "applicable",
+              status: "pass",
+              evidence: "checked",
+            },
+          ],
+          outcome,
+          next_action: "resume the enclosing goal",
+        }),
       );
       // Every negative is a valid public artifact: rejection must be the gate's
-      // outcome, current-content, or original-evidence check, not bad test TSV.
+      // outcome, current-content, or original-evidence check, not bad test JSON.
       expect(
         run("review-result", "validate-verification", record).exitCode,
       ).toBe(0);

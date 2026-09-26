@@ -7,6 +7,7 @@ dependencies = []
 
 [project.scripts]
 darrow-ticket = "darrow_tickets.cli:entrypoint"
+darrow-ticket-templates = "darrow_tickets.templates:entrypoint"
 darrow-tickets-claude-context = "darrow_tickets.claude_context:main"
 
 [dependency-groups]

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join } from "node:path";
+import { routeFields, oneValue as value, parseRecords } from "./review-records";
 
 type JsonObject = Record<string, unknown>;
 type JsonEntry = { line: number; value: JsonObject };
@@ -50,49 +51,19 @@ function jsonLines(content: string, label: string): JsonEntry[] {
     }));
 }
 
-function parseTsv(content: string): Map<string, string[][]> {
-  const rows = new Map<string, string[][]>();
-  for (const line of content.trimEnd().split("\n")) {
-    const [key, ...values] = line.split("\t");
-    if (!key) throw new Error("record contains an empty key");
-    rows.set(key, [...(rows.get(key) ?? []), values]);
-  }
-  return rows;
-}
-
-function row(rows: Map<string, string[][]>, key: string): string[] {
-  const found = rows.get(key) ?? [];
-  if (found.length !== 1) throw new Error(`record must contain one ${key} row`);
-  return found[0] ?? [];
-}
-
-function value(rows: Map<string, string[][]>, key: string): string {
-  const found = row(rows, key);
-  if (found.length !== 1 || !found[0])
-    throw new Error(`${key} must contain one non-empty value`);
-  return found[0];
-}
-
 function selectedRoute(content: string): Route {
-  const selected = row(parseTsv(content), "selected_route");
-  if (selected.length !== 4 || selected.some((field) => !field))
-    throw new Error("selected_route must contain four fields");
-  const [host, provider, model, effort] = selected as [
-    string,
-    string,
-    string,
-    string,
-  ];
+  const [host, provider, model, effort] = routeFields(
+    parseRecords(content),
+    "selected_route",
+  );
   if (host !== "claude" || provider !== "anthropic")
     throw new Error("native Claude proof requires claude/anthropic");
   return { host, provider, model, effort };
 }
 
-function sameRoute(rows: Map<string, string[][]>, key: string, route: Route) {
-  const expected = [route.host, route.provider, route.model, route.effort].join(
-    "\t",
-  );
-  if (row(rows, key).join("\t") !== expected)
+function sameRoute(rows: Record<string, unknown>, key: string, route: Route) {
+  const expected = [route.host, route.provider, route.model, route.effort];
+  if (JSON.stringify(routeFields(rows, key)) !== JSON.stringify(expected))
     throw new Error(`${key} does not match the selected route`);
 }
 
@@ -127,11 +98,11 @@ async function axisRecords(
   route: Route,
 ): Promise<AxisRecords> {
   const [observedText, applicationText] = await Promise.all([
-    readFile(join(artifactDir, `${axis}-observed-route.tsv`), "utf8"),
-    readFile(join(artifactDir, `${axis}-route.tsv`), "utf8"),
+    readFile(join(artifactDir, `${axis}-observed-route.json`), "utf8"),
+    readFile(join(artifactDir, `${axis}-route.json`), "utf8"),
   ]);
-  const observed = parseTsv(observedText);
-  const application = parseTsv(applicationText);
+  const observed = parseRecords(observedText);
+  const application = parseRecords(applicationText);
   sameRoute(observed, "observed_route", route);
   sameRoute(application, "selected_route", route);
   sameRoute(application, "observed_route", route);
@@ -318,7 +289,7 @@ export async function buildClaudeReviewProof(
     throw new Error("parent and artifactDir must be absolute paths");
   const [parentText, routeText] = await Promise.all([
     readFile(options.parent, "utf8"),
-    readFile(join(options.artifactDir, "reviewer-route.tsv"), "utf8"),
+    readFile(join(options.artifactDir, "reviewer-route.json"), "utf8"),
   ]);
   const route = selectedRoute(routeText);
   const entries = jsonLines(parentText, "parent transcript");

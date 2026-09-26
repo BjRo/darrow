@@ -11,13 +11,13 @@ from pathlib import Path
 from . import storage
 from .common import (
     command_line,
+    document,
     entrypoint,
     git,
     git_environment,
     read_text,
     require,
     root_directory,
-    rows,
     run,
     safe_line,
     serialize,
@@ -39,10 +39,10 @@ class ScopeOptions:
 
 def manifest(path: str) -> dict[str, str]:
     require(Path(path).is_absolute(), "manifest path must be absolute")
-    records = rows(read_text(path, "manifest"))
-    values = {row[0]: row[1] for row in records if len(row) == 2}
+    records = document(read_text(path, "manifest"))
+    values = {key: value for key, value in records.items() if isinstance(value, str)}
     require(
-        values.get("format") == "darrow-review-scope-v1",
+        values.get("format") == "darrow-review-scope-v3",
         "unsupported scope manifest format",
     )
     for key in ("repository", "diff"):
@@ -87,14 +87,14 @@ def compare(prior: str, current: str) -> str:
         "repair scope manifests do not share the same effective base",
     )
     header = serialize(
-        [
-            ["format", "darrow-review-repair-delta-v1"],
-            ["repository", old["repository"]],
-            ["prior_target", old["target"]],
-            ["current_target", new["target"]],
-            ["prior_manifest", prior],
-            ["current_manifest", current],
-        ]
+        {
+            "format": "darrow-review-repair-delta-v3",
+            "repository": old["repository"],
+            "prior_target": old["target"],
+            "current_target": new["target"],
+            "prior_manifest": prior,
+            "current_manifest": current,
+        }
     )
     delta = difflib.unified_diff(
         before.decode("utf-8", errors="replace").splitlines(True),
@@ -330,48 +330,38 @@ def write_scope(
     label = target
     if any((options.staged, options.unstaged, options.untracked)):
         label = f"WORKTREE@{target}+{checksum}"
-    path = str(artifact / "scope.tsv")
-    records = [
-        ["format", "darrow-review-scope-v1"],
-        ["repository", str(repo)],
-        ["base_input", options.base],
-        ["base", base],
-        ["target_input", options.target],
-        ["target_commit", target],
-        ["target", label],
-        ["merge_base", str(int(options.merge_base))],
-        ["layers", " ".join(layers)],
-        ["diff", str(diff)],
-        ["scope_checksum", checksum],
-        ["changed_count", str(len(names))],
-    ]
-    records.extend(["changed_file", str(repo / name)] for name in names)
-    records.append(
-        [
-            "show_command",
-            command_line(entrypoint("review-scope", "show", "--manifest", path)),
-        ]
-    )
+    path = str(artifact / "scope.json")
+    records: dict[str, object] = {
+        "format": "darrow-review-scope-v3",
+        "repository": str(repo),
+        "base_input": options.base,
+        "base": base,
+        "target_input": options.target,
+        "target_commit": target,
+        "target": label,
+        "merge_base": str(int(options.merge_base)),
+        "layers": " ".join(layers),
+        "diff": str(diff),
+        "scope_checksum": checksum,
+        "changed_count": str(len(names)),
+        "changed_files": [str(repo / name) for name in names],
+        "show_command": command_line(
+            entrypoint("review-scope", "show", "--manifest", path)
+        ),
+    }
     if options.prior_manifest:
-        records.extend(
-            [
-                ["prior_manifest", options.prior_manifest],
-                [
-                    "repair_show_command",
-                    command_line(
-                        entrypoint(
-                            "review-scope",
-                            "compare",
-                            "--prior-manifest",
-                            options.prior_manifest,
-                            "--current-manifest",
-                            path,
-                        )
-                    ),
-                ],
-            ]
+        records["prior_manifest"] = options.prior_manifest
+        records["repair_show_command"] = command_line(
+            entrypoint(
+                "review-scope",
+                "compare",
+                "--prior-manifest",
+                options.prior_manifest,
+                "--current-manifest",
+                path,
+            )
         )
-    records.append(["manifest", path])
+    records["manifest"] = path
     body = serialize(records)
     descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
     with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as stream:

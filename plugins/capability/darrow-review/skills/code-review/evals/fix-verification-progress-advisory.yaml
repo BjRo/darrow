@@ -32,21 +32,27 @@ fixture:
     set -eu
     backend=$(cd "{{case_dir}}/../../../backend" && pwd -P)
     prior_output=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
-    prior_manifest=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "manifest" { print $2 }')
-    original_target=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "target" { print $2 }')
-    {
-      printf 'original_target\t%s\n' "$original_target"
-      printf 'prior_target\t%s\n' "$original_target"
-      printf 'prior_manifest\t%s\n' "$prior_manifest"
-      printf 'previous_verification\tnone\tnone\n'
-      printf 'original_finding\tspec:1:%s\tspec\t1\thigh\tblocking\tsrc/value.js:1\trequirement: value must be numeric and at least 2\tvalue was non-numeric\n' "$original_target"
-      printf 'original_finding\tstandards:2:%s\tstandards\t2\tlow\tadvisory\tsrc/value.js:2\t%s/AGENTS.md\tthe legacy comment remained\n' "$original_target" "$PWD"
-      printf 'attempted\tspec:1:%s\n' "$original_target"
-      printf 'attempted\tstandards:2:%s\n' "$original_target"
-    } >.git/verification-input
+    prior_manifest=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' manifest)
+    original_target=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' target)
+    python3 - "$original_target" "$prior_manifest" "$PWD" <<'PY' >.git/verification-input
+    import json, sys
+    target, manifest, repo = sys.argv[1:]
+    json.dump({
+        "original_target": target,
+        "prior_target": target,
+        "prior_manifest": manifest,
+        "previous_verification": {"checksum": "none", "path": "none"},
+        "original_findings": [
+            {"key": f"spec:1:{target}", "axis": "spec", "order": "1", "severity": "high", "disposition": "blocking", "location": "src/value.js:1", "source": "requirement: value must be numeric and at least 2", "evidence": "value was non-numeric"},
+            {"key": f"standards:2:{target}", "axis": "standards", "order": "2", "severity": "low", "disposition": "advisory", "location": "src/value.js:2", "source": f"{repo}/AGENTS.md", "evidence": "the legacy comment remained"},
+        ],
+        "attempted": [f"spec:1:{target}", f"standards:2:{target}"],
+    }, sys.stdout)
+    PY
     printf '%s\n' "$backend" >.git/review-backend
     git status --porcelain --untracked-files=all >.git/status-before
     git hash-object src/value.js >.git/value-before
+    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: progress verification remains read only
     run: >-
@@ -56,21 +62,21 @@ checks:
       cmp .git/value-before .git/value-after
   - name: progressing blocker keeps convergence open
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1') &&
       test -n "$tool" &&
       test -n "$record" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-verification "$record" &&
-      grep -F 'outcome	continue' "$record" >/dev/null &&
-      original_target=$(awk -F '\t' '$1 == "original_target" { print $2 }' .git/verification-input) &&
-      awk -F '\t' -v key="spec:1:$original_target" '$1 == "attempt" && $2 == key && $3 == "unresolved" && $4 == "progressing" { found=1 } END { exit found ? 0 : 1 }' "$record"
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has outcome continue &&
+      original_target=$(python3 -c 'import json; print(json.load(open(".git/verification-input"))["original_target"])') &&
+      python3 -c 'import json,sys; record=json.load(open(sys.argv[1])); assert any(item["key"]==sys.argv[2] and item["status"]=="unresolved" and item["progress"]=="progressing" for item in record["attempts"])' "$record" "spec:1:$original_target"
   - name: unresolved advisory does not become a blocker
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
-      original_target=$(awk -F '\t' '$1 == "original_target" { print $2 }' .git/verification-input) &&
-      awk -F '\t' -v key="standards:2:$original_target" '$1 == "attempt" && $2 == key && $3 == "unresolved" && $4 == "unchanged" { found=1 } END { exit found ? 0 : 1 }' "$record"
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
+      original_target=$(python3 -c 'import json; print(json.load(open(".git/verification-input"))["original_target"])') &&
+      python3 -c 'import json,sys; record=json.load(open(sys.argv[1])); assert any(item["key"]==sys.argv[2] and item["status"]=="unresolved" and item["progress"]=="unchanged" for item in record["attempts"])' "$record" "standards:2:$original_target"
   - name: final response is the complete rendered verification report
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
       test -n "$record" &&
       report=$(dirname "$record")/verification.md &&
       test -r "$report" && test -s "$report" &&

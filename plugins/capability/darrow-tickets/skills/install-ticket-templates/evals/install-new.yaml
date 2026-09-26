@@ -1,0 +1,25 @@
+id: install-ticket-templates-new
+invariant: TM-T1,TM-T2,TM-T4
+activation: positive
+mount_plugin_skills: true
+prompt: "{{skill_invocation}} Install Darrow's issue templates in this repository."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+checks:
+  - name: three templates installed
+    run: >-
+      test -f .github/ISSUE_TEMPLATE/dependency-upgrade.md &&
+      test -f .github/ISSUE_TEMPLATE/retirement.md &&
+      test -f .github/ISSUE_TEMPLATE/bug-fix-regression.md
+  - name: upgrade and regression criteria are present
+    run: >-
+      rg -q 'compatibility evidence' .github/ISSUE_TEMPLATE/dependency-upgrade.md &&
+      rg -q 'before/after evidence' .github/ISSUE_TEMPLATE/bug-fix-regression.md
+  - name: installation does not start delivery
+    run: test "$(git branch --show-current)" = main && test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: local file results are reported
+    expect_regex: 'dependency-upgrade\.md'

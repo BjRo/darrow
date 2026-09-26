@@ -27,30 +27,32 @@ fixture:
         const parsed = Number(value.trim());
         return Number.isFinite(parsed) ? parsed : null;
       }
-  setup: git status --porcelain --untracked-files=all >.git/status-before
+  setup: |
+    git status --porcelain --untracked-files=all >.git/status-before
+    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: review is read-only
     run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
-  - name: canonical TSV is retained beneath the review scope artifact
+  - name: canonical JSON is retained beneath the review scope artifact
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
       test -n "$tool" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record"
-    expect_regex: "^valid: darrow-review-result-v1$"
+    expect_regex: "^valid: darrow-review-result-v3$"
   - name: both axes pass without findings
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      grep -F 'standards	pass' "$record" >/dev/null &&
-      grep -F 'spec	pass' "$record" >/dev/null &&
-      grep -F 'verdict	pass' "$record" >/dev/null &&
-      ! grep -F 'finding	' "$record" >/dev/null
-  - name: default response does not duplicate canonical TSV
-    run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has standards pass &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has spec pass &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has verdict pass &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks-key findings
+  - name: default response does not duplicate canonical JSON
+    run: "! grep -F 'format	darrow-review-result-v3' .git/last-message.md"
   - name: final response preserves every canonical rendered line
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n '1');
       test -n "$tool" || exit 1;

@@ -18,7 +18,7 @@ Reviews a pull request, branch, fixed-point diff, or selected working-tree
 layer. It pins the base, target, and complete changed-file set before review;
 runs applicable deterministic checks; delegates standards and specification
 analysis independently; then returns one complete Markdown report with only
-evidence-backed findings. The validated `darrow-review-result-v1` remains the
+evidence-backed findings. The validated `darrow-review-result-v3` remains the
 canonical artifact beneath the review scope and is returned only when explicitly
 requested as raw machine format.
 
@@ -31,7 +31,7 @@ supported finding and explains that limitation.
 
 After that comprehensive review, the same skill can fix-verify authorized
 repairs against its closed original finding set. The additive
-`darrow-review-verification-v1` binds original, prior, history, and current
+`darrow-review-verification-v3` binds original, prior, history, and current
 target fingerprints and a checksum-linked prior verification chain; records
 resolved, unresolved, or blocked attempts; ties direct repair-caused
 regressions to attempted findings in a mechanically pinned prior-to-current
@@ -74,7 +74,7 @@ Return findings to the requester.
 - The requested rate limit remains unavailable.
 ```
 
-Ask for “raw v1 TSV” or “machine format” only when an integration needs the
+Ask for “raw v3 JSON” or “machine format” only when an integration needs the
 canonical record rather than this Markdown report.
 
 The same canonical skill supports both invocation modes. A composed review is
@@ -109,7 +109,7 @@ The next review invocation prunes unpinned runs whose directories have not
 changed for 30 days across the
 user's review-state root. A retained fix-verification run keeps every prior
 scope and verification run it references. Use `review-scope pin --manifest
-<absolute-scope.tsv>` to retain a run and its dependencies, or `unpin` with the
+<absolute-scope.json>` to retain a run and its dependencies, or `unpin` with the
 same argument to return it to normal retention. `review-scope prune --all`
 applies the 30-day rule immediately; `--older-than-days 0` removes all unpinned
 runs without retained dependents. These commands remove only generated review
@@ -127,9 +127,9 @@ aggregate, each fix-verification axis, and additive repair-verification records.
 This keeps status, severity, lifecycle identity, progress, prior-artifact
 continuity, evidence, and target binding mechanically consistent while leaving
 code judgment to the reviewers.
-`original-findings` copies the complete original finding rows with stable
+`original-findings` copies the complete original finding entries with stable
 cross-axis keys; `validate-original` checks a follow-up against that retained
-comprehensive result, including advisory rows and exact source/evidence text,
+comprehensive result, including advisory entries and exact source/evidence text,
 repair guidance, and resolution evidence. The guidance fields are a paired
 additive extension; legacy v1 records without them remain valid.
 
@@ -244,7 +244,7 @@ uv run --quiet --no-project /absolute/path/to/darrow-review/backend/scripts/run_
 
 The public entrypoints are `review-scope`, `review-result`, `review-report`,
 `review-check`, `review-route`, `review-claude-verify`, and `claude-provider`.
-They retain their subcommands and TSV protocols; the old `bin/` runtime is
+They retain their subcommands and JSON protocols; the old `bin/` runtime is
 removed. Runtime dependencies are empty; development tools are separately
 locked. All deterministic plugin tests live in the Python package, including
 CLI contracts, exact report fixtures, and quoted-path command execution.

@@ -114,7 +114,7 @@ def allocate_terminal_scope(args: list[str]) -> str:
     parsed = options("review-scope allocate-terminal", args, ("repo",))
     repo = root_directory(parsed.repo)
     run = storage.allocate_terminal(repo)
-    return serialize([["artifact_dir", str(run)], ["manifest", str(run / "scope.tsv")]])
+    return serialize({"artifact_dir": str(run), "manifest": str(run / "scope.json")})
 
 
 def locate_scope(args: list[str]) -> str:
@@ -125,7 +125,7 @@ def locate_scope(args: list[str]) -> str:
         f"review artifact is unavailable for target: {parsed.target}",
         4,
     )
-    return serialize([["manifest", str(candidate)]])
+    return serialize({"manifest": str(candidate)})
 
 
 def prune_scope(args: list[str]) -> str:
@@ -144,18 +144,18 @@ def prune_scope(args: list[str]) -> str:
         else storage.prune(root_directory(parsed.repo), age)
     )
     return serialize(
-        [["pruned", str(len(removed))], *[["removed", str(p)] for p in removed]]
+        {"pruned": str(len(removed)), "removed": [str(p) for p in removed]}
     )
 
 
 def pin_scope(args: list[str]) -> str:
     parsed = options("review-scope pin", args, ("manifest",))
-    return serialize([["pinned", str(storage.pin(Path(parsed.manifest)))]])
+    return serialize({"pinned": str(storage.pin(Path(parsed.manifest)))})
 
 
 def unpin_scope(args: list[str]) -> str:
     parsed = options("review-scope unpin", args, ("manifest",))
-    return serialize([["unpinned", str(storage.unpin(Path(parsed.manifest)))]])
+    return serialize({"unpinned": str(storage.unpin(Path(parsed.manifest)))})
 
 
 def result_command(args: list[str]) -> str:
@@ -183,9 +183,11 @@ def result_operation(command: str, args: list[str]) -> str:
         "scope-records": lambda: serialize(result.scope_records(args[0])),
         "validate-scope": lambda: result.validate_scope(args[0], args[1]),
         "original-findings": lambda: serialize(
-            result.original_findings(
-                validate_result(read_text(args[0], "original result"))
-            )
+            {
+                "original_findings": result.original_findings(
+                    validate_result(read_text(args[0], "original result"))
+                )
+            }
         ),
         "validate-original": lambda: result.validate_original(args[0], args[1]),
     }

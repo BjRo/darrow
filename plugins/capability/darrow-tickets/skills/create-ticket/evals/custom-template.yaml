@@ -1,0 +1,55 @@
+id: create-ticket-custom-template
+invariant: TM-T3,TM-C11
+activation: competition
+mount_plugin_skills: true
+prompt: >-
+  File a feature issue for customer data export. Our support team needs a CSV
+  of account records for authorized requests. Use the repository's issue
+  template for this feature. We do not know whether audit logging is required.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+  files:
+    .github/ISSUE_TEMPLATE/customer-export.yml: |
+      name: Customer data export
+      description: Requests for authorized account export
+      body:
+        - type: textarea
+          attributes:
+            label: Outcome
+            description: Identify who needs the export and which records it contains.
+        - type: textarea
+          attributes:
+            label: Acceptance criteria
+            description: Require an authorization check and evidence that unauthorized callers cannot export.
+        - type: textarea
+          attributes:
+            label: Audit logging
+            description: Record whether logging is required or remains open.
+  bin:
+    gh: |
+      #!/bin/sh
+      backend="$(git rev-parse --absolute-git-dir)/tickets-fixture"
+      exec uv run --quiet --frozen --no-dev --project "$backend" python "$backend/tests/eval_gh.py" "$@"
+  setup: |
+    mkdir -p .git/tickets-fixture/tests .git/fixture-gh
+    cp "{{case_dir}}/../../../backend/pyproject.toml" "{{case_dir}}/../../../backend/uv.lock" .git/tickets-fixture/
+    cp -R "{{case_dir}}/../../../backend/src" .git/tickets-fixture/
+    cp "{{case_dir}}/../../../backend/tests/eval_gh.py" .git/tickets-fixture/tests/
+    git remote add origin https://github.test/o/r.git
+    printf 'enhancement\n' > .git/fixture-gh/labels
+    : > .git/fixture-gh/list
+checks:
+  - name: one issue is created
+    run: test "$(wc -l < .git/fixture-gh/created-ids | tr -d ' ')" -eq 1
+  - name: custom authorization requirement survives
+    run: >-
+      rg -qi 'authoriz(s|e|ation)' .git/fixture-gh/created-body &&
+      rg -qi 'unauthori[sz]ed' .git/fixture-gh/created-body &&
+      rg -qi 'cannot export|can.t export|den(y|ied)|reject|block|prevent' .git/fixture-gh/created-body
+  - name: logging uncertainty remains explicit
+    run: >-
+      rg -qi 'audit[ -]logging|audit logging' .git/fixture-gh/created-body &&
+      rg -Uqi '(?s)audit[ -]logging.{0,200}(open|unknown|undecided|whether|not decided|to be determined|pending)|## Open questions.{0,500}audit[ -]logging' .git/fixture-gh/created-body

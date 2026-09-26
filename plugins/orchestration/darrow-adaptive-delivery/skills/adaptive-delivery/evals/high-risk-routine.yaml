@@ -47,7 +47,7 @@ fixture:
           node auth-config.test.js
           git_dir=$(git rev-parse --git-dir)
           mkdir -p "$git_dir/fixture-state"
-          scope_count=$(find "$git_dir" -maxdepth 2 -name scope.tsv -path '*/darrow-review.*/*' | wc -l | tr -d ' ')
+          scope_count=$(find "$git_dir" -maxdepth 2 -name scope.json -path '*/darrow-review.*/*' | wc -l | tr -d ' ')
           printf 'check\t%s\n' "$scope_count" >>"$git_dir/fixture-state/high-risk-review-events"
         mark-complete.sh: |
           #!/usr/bin/env bash

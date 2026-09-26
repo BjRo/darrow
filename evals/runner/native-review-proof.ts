@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute } from "node:path";
+import { oneValue, parseRecords, routeFields } from "./review-records";
 
 type JsonObject = Record<string, unknown>;
 type SessionEntry = { ordinal: number; timestamp: string; value: JsonObject };
@@ -124,41 +125,8 @@ function parseSession(content: string): SessionEntry[] {
     });
 }
 
-function parseTsv(content: string): Map<string, string[][]> {
-  const rows = new Map<string, string[][]>();
-  for (const line of content.trimEnd().split("\n")) {
-    const [key, ...values] = line.split("\t");
-    if (!key) throw new Error("record contains an empty key");
-    rows.set(key, [...(rows.get(key) ?? []), values]);
-  }
-  return rows;
-}
-
-function oneRow(rows: Map<string, string[][]>, key: string): string[] {
-  const found = rows.get(key) ?? [];
-  if (found.length !== 1) throw new Error(`record must contain one ${key} row`);
-  return found[0] ?? [];
-}
-
-function oneValue(rows: Map<string, string[][]>, key: string): string {
-  const values = oneRow(rows, key);
-  if (values.length !== 1 || !values[0])
-    throw new Error(`${key} must contain one non-empty value`);
-  return values[0];
-}
-
-function routeFrom(rows: Map<string, string[][]>): Route {
-  const selected = oneRow(rows, "selected_route");
-  if (selected.length !== 4 || selected.some((value) => !value))
-    throw new Error(
-      "selected_route must contain host, provider, model, effort",
-    );
-  const [host, provider, model, effort] = selected as [
-    string,
-    string,
-    string,
-    string,
-  ];
+function routeFrom(rows: Record<string, unknown>): Route {
+  const [host, provider, model, effort] = routeFields(rows, "selected_route");
   if (host !== "codex")
     throw new Error("native Codex proof requires a codex route");
   if (provider !== "openai")
@@ -195,10 +163,10 @@ function verifyApplicationRecord(
   route: Route,
   axis: string,
 ): string {
-  const rows = parseTsv(content);
+  const rows = parseRecords(content);
   const expected = [route.host, route.provider, route.model, route.effort];
   for (const key of ["selected_route", "requested_route"])
-    if (oneRow(rows, key).join("\t") !== expected.join("\t"))
+    if (JSON.stringify(routeFields(rows, key)) !== JSON.stringify(expected))
       throw new Error(`${axis} ${key} does not match the selected route`);
   if (oneValue(rows, "route_bound") !== "true")
     throw new Error(`${axis} application record is not route_bound`);
@@ -456,8 +424,8 @@ export async function buildNativeReviewProof(
   const { session, scopeText, routeText, standardsText, specText } =
     await readInputs(options);
   const entries = parseSession(session);
-  const scope = parseTsv(scopeText);
-  const route = routeFrom(parseTsv(routeText));
+  const scope = parseRecords(scopeText);
+  const route = routeFrom(parseRecords(routeText));
   const launches = reviewLaunches(entries, route, options, {
     standards: standardsText,
     spec: specText,

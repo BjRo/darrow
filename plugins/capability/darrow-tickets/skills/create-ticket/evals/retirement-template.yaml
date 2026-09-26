@@ -1,0 +1,40 @@
+id: create-ticket-retirement-template
+invariant: TM-T1,TM-T3,TM-C11
+activation: competition
+mount_plugin_skills: true
+prompt: >-
+  Create one ticket to retire the LEGACY_READER flag and its old reader path.
+  Remove its configuration and old reader tests and documentation. The modern
+  reader must keep working. We have not decided whether existing callers need
+  a migration note.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+        reader.py: "LEGACY_READER = True\n"
+  bin:
+    gh: |
+      #!/bin/sh
+      backend="$(git rev-parse --absolute-git-dir)/tickets-fixture"
+      exec uv run --quiet --frozen --no-dev --project "$backend" python "$backend/tests/eval_gh.py" "$@"
+  setup: |
+    mkdir -p .git/tickets-fixture/tests .github/ISSUE_TEMPLATE .git/fixture-gh
+    cp "{{case_dir}}/../../../backend/pyproject.toml" "{{case_dir}}/../../../backend/uv.lock" .git/tickets-fixture/
+    cp -R "{{case_dir}}/../../../backend/src" .git/tickets-fixture/
+    cp "{{case_dir}}/../../../backend/tests/eval_gh.py" .git/tickets-fixture/tests/
+    cp "{{case_dir}}/../../../backend/src/darrow_tickets/template_assets/retirement.md" .github/ISSUE_TEMPLATE/
+    git remote add origin https://github.test/o/r.git
+    printf 'enhancement\n' > .git/fixture-gh/labels
+    : > .git/fixture-gh/list
+checks:
+  - name: one issue is created
+    run: test "$(wc -l < .git/fixture-gh/created-ids | tr -d ' ')" -eq 1
+  - name: named retirement target is present
+    run: rg -q 'LEGACY_READER' .git/fixture-gh/created-body
+  - name: removal scope covers implementation and configuration
+    run: rg -qi 'implementation|old reader' .git/fixture-gh/created-body && rg -qi 'config' .git/fixture-gh/created-body
+  - name: retained behavior and completion evidence remain required
+    run: rg -qi 'modern reader|retained behavior' .git/fixture-gh/created-body && rg -qi 'complete|evidence' .git/fixture-gh/created-body
+  - name: migration uncertainty is explicit
+    run: rg -qi 'migration' .git/fixture-gh/created-body && rg -qi 'open questions|undecided|unknown|not decided' .git/fixture-gh/created-body

@@ -38,7 +38,7 @@ No evidence gaps.
 - **Original target:** WORKTREE@base+original
 - **Prior target:** WORKTREE@base+repair-one
 - **Current target:** WORKTREE@base+repair-two
-- **Previous verification checksum:** e8bb6e5a862e67c2af0c0c997fc7e4ecdde176a5
+- **Previous verification checksum:** PREVIOUS_CHECKSUM
 - **Previous verification artifact:** PREVIOUS_ARTIFACT
 - **Earlier targets:**
   - WORKTREE@base+original

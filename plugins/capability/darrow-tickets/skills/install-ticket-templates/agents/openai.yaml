@@ -1,0 +1,4 @@
+interface:
+  display_name: "Install Ticket Templates"
+  short_description: "Add reusable GitHub issue templates"
+  default_prompt: "Use $install-ticket-templates to add the Darrow issue templates to this repository."

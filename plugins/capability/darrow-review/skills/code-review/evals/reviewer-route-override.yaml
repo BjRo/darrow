@@ -29,17 +29,18 @@ fixture:
     cp "{{case_dir}}/../../../backend/pyproject.toml" "{{case_dir}}/../../../backend/uv.lock" .git/eval-checks/review/
     cp -R "{{case_dir}}/../../../backend/src" .git/eval-checks/review/
     cp "{{case_dir}}/../../../backend/tests/evals/eval_routes.py" .git/eval-checks/review/tests/evals/
+    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: repository reviewer policy is retained with the pinned scope
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name reviewer-route.tsv -type f | sort | tail -n '1');
-      test -n "$record" && grep -F 'route_source	repository' "$record" >/dev/null
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name reviewer-route.json -type f | sort | tail -n '1');
+      test -n "$record" && python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has route_source repository
   - name: configured host route is selected without inheritance
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name reviewer-route.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name reviewer-route.json -type f | sort | tail -n '1');
       test -n "$record" && case "$DARROW_EVAL_HARNESS" in
-      codex) grep -F 'selected_route	codex	openai	gpt-5.5	xhigh' "$record" >/dev/null ;;
-      claude) grep -F 'selected_route	claude	anthropic	claude-sonnet-5	high' "$record" >/dev/null ;;
+      codex) python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has selected_route codex openai gpt-5.5 xhigh ;;
+      claude) python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has selected_route claude anthropic claude-sonnet-5 high ;;
       *) exit 2 ;; esac
   - name: both isolated axes retain exact route application evidence
     run: >-
@@ -48,18 +49,18 @@ checks:
       --host "$DARROW_EVAL_HARNESS" --profile override --axes standards spec
   - name: review remains read-only
     run: test "$(git status --porcelain --untracked-files=all)" = ' M src/config.js'
-  - name: canonical TSV is retained beneath the review scope artifact
+  - name: canonical JSON is retained beneath the review scope artifact
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
       test -n "$tool" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record"
-    expect_regex: "^valid: darrow-review-result-v1$"
-  - name: default response does not duplicate canonical TSV
-    run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
+    expect_regex: "^valid: darrow-review-result-v3$"
+  - name: default response does not duplicate canonical JSON
+    run: "! grep -F 'format	darrow-review-result-v3' .git/last-message.md"
   - name: final response preserves every canonical rendered line
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n '1');
       test -n "$tool" || exit 1;
