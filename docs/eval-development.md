@@ -381,14 +381,14 @@ child tests. The local-checkout path records Sevro revision and patch state.
 The checkout test launches Darrow's runner and Sevro's CLI as separate
 processes against one synthetic case definition. It compares the selected
 case, shell and output check outcomes, source and configuration-root isolation,
-passive condition evidence, incomplete usage, retained raw output, and success
-or failure exits. Darrow's additional
+separate result and run-state roots, passive condition evidence, incomplete
+usage, retained raw output, and success or failure exits. Darrow's additional
 activation check is outside this first shared surface. The fixture uses the
 explicit local-checkout path while Sevro is unreleased; it does not establish
-parity for enforced conditions, suite selection, run ownership, cancellation,
-or all packaged workflows. Keep the original compatibility baseline as the
-reference for those behaviors until equivalent public-command comparisons
-pass.
+parity for enforced conditions, suite selection, exclusive run ownership,
+cancellation, or published releases. Keep the original compatibility baseline
+as the reference for those behaviors until equivalent public-command
+comparisons pass.
 
 - Use one trial per invocation while diagnosing so stop-at-first-failure is
   real:
