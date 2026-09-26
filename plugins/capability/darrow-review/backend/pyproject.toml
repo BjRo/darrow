@@ -1,6 +1,6 @@
 [project]
 name = "darrow-review"
-version = "0.5.1"
+version = "0.7.2"
 description = "Contained read-only review mechanics for Darrow"
 requires-python = ">=3.10,<3.14"
 dependencies = []
@@ -15,7 +15,13 @@ review-claude-verify = "darrow_review.cli:review_claude_verify"
 claude-provider = "darrow_review.cli:claude_provider"
 
 [dependency-groups]
-dev = ["coverage[toml]>=7.10,<8", "hypothesis>=6.138,<7", "mypy>=1.18,<2", "pytest>=8.4,<9", "ruff>=0.12,<1"]
+dev = [
+    "coverage[toml]>=7.10,<8",
+    "hypothesis>=6.138,<7",
+    "mypy>=1.18,<2",
+    "pytest>=8.4,<9",
+    "ruff>=0.12,<1",
+]
 
 [build-system]
 requires = ["hatchling"]

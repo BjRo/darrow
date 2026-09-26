@@ -39,9 +39,9 @@ fixture:
           #!/usr/bin/env bash
           set -eu
           git_dir=$(git rev-parse --git-dir)
-          record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1)
+          record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
           test -n "$record"
-          grep -F 'outcome	clear' "$record" >/dev/null
+          python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has outcome clear
           printf '%s\n' complete >"$git_dir/goal-complete"
   files:
     src/config.js: |
@@ -51,39 +51,40 @@ fixture:
     set -eu
     backend=$(cd "{{case_dir}}/../../../backend" && pwd -P)
     printf '%s\n' "$backend" >.git/review-backend
+    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: original guidance survives the real review and repair chain
     run: |
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1)
-      original=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n 1)
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
+      original=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n 1)
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n 1)
       test -n "$record" && test -n "$original" && test -n "$tool" || exit 1
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-original "$original" "$record" || exit 1
-      awk -F '\t' '$1 == "original_finding" { n++; if (NF != 11 || $10 == "" || $11 == "") bad=1 }
-        END { exit !(n && !bad) }' "$record"
+      python3 -c 'import json,sys; findings=json.load(open(sys.argv[1]))["original_findings"]; assert findings and all(row["repair_guidance"] and row["resolution_evidence"] for row in findings)' "$record"
   - name: authorized repair reaches the originating requirement
     run: bash check.sh
   - name: clear fix verification returns control to the enclosing goal
     run: test "$(cat .git/goal-complete)" = complete
   - name: repair causes an initial scope and a fix-verification scope
-    run: test "$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -maxdepth 3 -name scope.tsv -path '*/darrow-review.*/*' | wc -l | tr -d ' ')" -ge 2
+    run: test "$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -maxdepth 3 -name scope.json -path '*/darrow-review.*/*' | wc -l | tr -d ' ')" -ge 2
   - name: fix verification uses a new target fingerprint
     run: >-
-      find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -maxdepth 3 -name scope.tsv -path '*/darrow-review.*/*' -exec
-      awk -F '\t' '$1 == "target" { print $2 }' {} + | sort -u >.git/review-targets &&
+      find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -maxdepth 3 -name scope.json -path '*/darrow-review.*/*' -exec
+      python3 .git/eval-checks/review/tests/evals/assert_records.py {} value target \; |
+      sort -u >.git/review-targets &&
       test "$(wc -l <.git/review-targets | tr -d ' ')" -ge 2
   - name: additive verification artifact validates beside the repaired scope
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -maxdepth 3 -name verification.tsv -path '*/darrow-review.*/*' | sort | tail -n 1) &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -maxdepth 3 -name verification.json -path '*/darrow-review.*/*' | sort | tail -n 1) &&
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1') &&
       test -n "$tool" &&
       test -n "$record" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-verification "$record" &&
-      grep -F 'outcome	clear' "$record" >/dev/null &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has outcome clear &&
       grep -F 'RETRY_COUNT = 3' "$(dirname "$record")/diff.patch" >/dev/null
   - name: composed repair creates no commit
     run: test "$(git rev-list --count HEAD)" -eq 1
-  - name: default response does not expose raw verification TSV
-    run: "! grep -F 'format	darrow-review-verification-v1' .git/last-message.md"
+  - name: default response does not expose raw verification JSON
+    run: "! grep -F 'format	darrow-review-verification-v3' .git/last-message.md"
 semantic_output_checks:
   - name: enclosing goal reports completion
     proposition: The response says the bounded goal completed successfully.

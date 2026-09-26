@@ -15,7 +15,7 @@ from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from pathlib import Path
 
-from .common import ReviewError, require, rows, safe_line
+from .common import ReviewError, document, require, safe_line, serialize
 
 RETENTION_DAYS = 30
 RUN_PREFIX = "darrow-review."
@@ -106,8 +106,10 @@ def allocate_terminal(repo: Path) -> Path:
     safe_line(str(repo), "repository path")
     run = allocate(repo)
     try:
-        manifest = run / "scope.tsv"
-        body = f"format\tdarrow-review-terminal-v1\nrepository\t{repo}\n"
+        manifest = run / "scope.json"
+        body = serialize(
+            {"format": "darrow-review-terminal-v3", "repository": str(repo)}
+        )
         descriptor = os.open(manifest, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
         with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as stream:
             stream.write(body)
@@ -120,10 +122,10 @@ def allocate_terminal(repo: Path) -> Path:
 
 def run_for_manifest(manifest: Path) -> Path:
     require(manifest.is_absolute(), "review manifest path must be absolute")
-    require(manifest.name == "scope.tsv", "review manifest must name scope.tsv")
+    require(manifest.name == "scope.json", "review manifest must name scope.json")
     fields = fields_at(manifest)
     require(
-        fields.get("format") in ("darrow-review-scope-v1", "darrow-review-terminal-v1"),
+        fields.get("format") in ("darrow-review-scope-v3", "darrow-review-terminal-v3"),
         "invalid review manifest",
     )
     repo = Path(fields.get("repository", ""))
@@ -144,7 +146,7 @@ def check_output(repo: Path, output: Path) -> Path:
     require(output.is_absolute(), "output must be an absolute path")
     require(output.name not in ("", ".", ".."), "output must name a file")
     path = output.parent.resolve(strict=True) / output.name
-    run = run_for_manifest(path.parent / "scope.tsv")
+    run = run_for_manifest(path.parent / "scope.json")
     require(
         run.parent == repository_state(repo, create=False),
         "output must be beneath this repository's review-state directory",
@@ -157,7 +159,9 @@ def fields_at(path: Path) -> dict[str, str]:
         content = path.read_text(encoding="utf-8")
     except (OSError, UnicodeError) as exc:
         raise ReviewError(f"review state is unreadable: {path}") from exc
-    return {row[0]: row[1] for row in rows(content) if len(row) == 2}
+    return {
+        key: value for key, value in document(content).items() if isinstance(value, str)
+    }
 
 
 def runs(bucket: Path) -> list[Path]:
@@ -165,6 +169,15 @@ def runs(bucket: Path) -> list[Path]:
         path
         for path in bucket.iterdir()
         if path.name.startswith(RUN_PREFIX) and path.is_dir() and not path.is_symlink()
+    )
+
+
+def matches_v3_scope(candidate: Path, repo: Path, target: str) -> bool:
+    fields = fields_at(candidate)
+    return (
+        fields.get("format") == "darrow-review-scope-v3"
+        and fields.get("repository") == str(repo)
+        and fields.get("target") == target
     )
 
 
@@ -177,11 +190,10 @@ def locate(repo: Path, target: str) -> Path | None:
     from . import scope
 
     for run in runs(bucket):
-        candidate = run / "scope.tsv"
+        candidate = run / "scope.json"
         if not candidate.is_file() or candidate.is_symlink():
             continue
-        fields = fields_at(candidate)
-        if fields.get("repository") != str(repo) or fields.get("target") != target:
+        if not matches_v3_scope(candidate, repo, target):
             continue
         scope.show(str(candidate))
         matches.append(candidate)
@@ -191,36 +203,34 @@ def locate(repo: Path, target: str) -> Path | None:
 
 def dependencies(run: Path, by_file: dict[Path, Path]) -> set[Path]:
     result: set[Path] = set()
-    for file, field, index in (
-        (run / "scope.tsv", "prior_manifest", 1),
-        (run / "verification.tsv", "previous_verification", 2),
+    for file, field in (
+        (run / "scope.json", "prior_manifest"),
+        (run / "verification.json", "previous_verification"),
     ):
-        result.update(references(file, field, index, by_file))
+        result.update(references(file, field, by_file))
     return result
 
 
-def references(
-    file: Path, field: str, index: int, by_file: dict[Path, Path]
-) -> set[Path]:
+def references(file: Path, field: str, by_file: dict[Path, Path]) -> set[Path]:
     if not file.is_file() or file.is_symlink():
         return set()
     try:
-        lines = rows(file.read_text(encoding="utf-8"))
+        data = document(file.read_text(encoding="utf-8"))
     except (OSError, UnicodeError) as exc:
         raise ReviewError(f"review dependency is unreadable: {file}") from exc
-    paths = (
-        by_file.get(Path(row[index]).resolve())
-        for row in lines
-        if len(row) > index and row[0] == field
-    )
-    return {path for path in paths if path is not None}
+    value = data.get(field)
+    path = value.get("path") if isinstance(value, dict) else value
+    if not isinstance(path, str) or path == "none":
+        return set()
+    owner = by_file.get(Path(path).resolve())
+    return {owner} if owner is not None else set()
 
 
 def retained_runs(all_runs: list[Path], cutoff: float) -> set[Path]:
     by_file = {
         run / name: run
         for run in all_runs
-        for name in ("scope.tsv", "verification.tsv")
+        for name in ("scope.json", "verification.json")
     }
     keep = {
         run

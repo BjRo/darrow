@@ -1,6 +1,6 @@
 {
   "name": "darrow-review",
-  "version": "0.5.8",
+  "version": "0.7.2",
   "description": "Read-only comprehensive code review and fix-scoped repair verification",
   "author": {
     "name": "Björn Rochel",

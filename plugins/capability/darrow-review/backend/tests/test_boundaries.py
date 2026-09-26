@@ -21,16 +21,23 @@ def test_check_capture_and_refusals(
     command = 'Write-Output "checked"' if os.name == "nt" else 'printf "checked\\n"'
     (repo / "file.txt").write_text("changed", encoding="utf-8")
     manifest = Records(scope.prepare(scope.ScopeOptions(str(repo), "HEAD", "WORKTREE")))
-    path = Path(manifest.value("manifest")).parent / "check.tsv"
+    path = Path(manifest.value("manifest")).parent / "check.json"
     output = cli.check_command(["run", "--output", str(path), "--command", command])
-    assert str(path) in output
-    assert "applicable\tpass\texited 0: checked" in path.read_text(encoding="utf-8")
+    assert Records(output).value("check_record") == str(path)
+    assert Records(path.read_text(encoding="utf-8")).items("checks") == [
+        {
+            "command": command,
+            "applicability": "applicable",
+            "status": "pass",
+            "evidence": f"exited 0: checked{os.linesep}",
+        }
+    ]
     with pytest.raises(ReviewError, match="already exists"):
         check.capture(str(path), command)
     for output_path, value in (
         (str(tmp_path / "outside"), command),
         ("relative", command),
-        (str(path), "bad\ncommand"),
+        (str(path), "bad\0command"),
     ):
         with pytest.raises(ReviewError):
             check.capture(output_path, value)
@@ -46,7 +53,7 @@ def test_check_capture_and_refusals(
 def test_ordered_check_output_and_signal_status() -> None:
     assert check.execute('printf "first\\tline\\r\\n" >&2; printf "second\\n"') == (
         0,
-        "first line",
+        "first\tline\r\nsecond\n",
     )
     assert check.execute("kill -TERM $$")[0] == 143
 

@@ -26,42 +26,30 @@ fixture:
         console.log("parsing", value);
         return Number(value);
       }
-  setup: git status --porcelain --untracked-files=all >.git/status-before
+  setup: |
+    git status --porcelain --untracked-files=all >.git/status-before
+    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
+    cp "{{case_dir}}/../../../backend/tests/evals/assert_guidance.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: each finding retains guidance from its originating reader
     run: |
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n 1)
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n 1)
       test -n "$record" || exit 1
-      artifact_dir=$(dirname "$record")
-      awk -F '\t' 'BEGIN { OFS="\t" }
-        $1 == "finding" { if (NF != 9 || $8 == "" || $9 == "") exit 1; print $2,$3,$4,$5,$6,$7,$8,$9; n++ }
-        END { if (!n) exit 1 }' "$record" >.git/aggregate-guidance || exit 1
-      : >.git/reader-guidance
-      for file in "$artifact_dir"/*; do
-        test -f "$file" || continue
-        if test "$(sed -n 1p "$file")" = "$(printf 'format\tdarrow-review-axis-v1')"; then
-          awk -F '\t' 'BEGIN { OFS="\t" }
-            $1 == "axis" { axis=$2 }
-            $1 == "finding" { print axis,$2,$3,$4,$5,$6,$7,$8 }' "$file" >>.git/reader-guidance
-        fi
-      done
-      while IFS= read -r finding; do
-        grep -Fx -- "$finding" .git/reader-guidance >/dev/null || exit 1
-      done <.git/aggregate-guidance
+      python3 .git/eval-checks/review/tests/evals/assert_guidance.py "$record" finding
   - name: review is read-only
     run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
-  - name: canonical TSV is retained beneath the review scope artifact
+  - name: canonical JSON is retained beneath the review scope artifact
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
       test -n "$tool" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record"
-    expect_regex: "^valid: darrow-review-result-v1$"
-  - name: default response does not duplicate canonical TSV
-    run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
-  - name: canonical Markdown handoff is materialized beside the TSV
+    expect_regex: "^valid: darrow-review-result-v3$"
+  - name: default response does not duplicate canonical JSON
+    run: "! grep -F 'format	darrow-review-result-v3' .git/last-message.md"
+  - name: canonical Markdown handoff is materialized beside the JSON
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       report=$(dirname "$record")/review.md;
       tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n '1');
@@ -70,7 +58,7 @@ checks:
       cmp .git/expected-review.md "$report"
   - name: final response preserves every canonical rendered line
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n '1');
       test -n "$tool" || exit 1;

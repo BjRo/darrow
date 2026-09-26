@@ -23,24 +23,24 @@ fixture:
   files:
     src/config.js: |
       export const mode = "unsafe";
+  setup: |
+    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: unavailable repository policy is retained without fallback
     run: >-
-      selection=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name reviewer-route.tsv -type f | sort | tail -n '1');
+      selection=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name reviewer-route.json -type f | sort | tail -n '1');
       test -n "$selection" && case "$DARROW_EVAL_HARNESS" in
-      codex) grep -F 'selected_route	codex	openai	gpt-5.5	xhigh' "$selection" >/dev/null ;;
-      claude) grep -F 'selected_route	claude	anthropic	claude-sonnet-5	high' "$selection" >/dev/null ;;
+      codex) python3 .git/eval-checks/review/tests/evals/assert_records.py "$selection" has selected_route codex openai gpt-5.5 xhigh ;;
+      claude) python3 .git/eval-checks/review/tests/evals/assert_records.py "$selection" has selected_route claude anthropic claude-sonnet-5 high ;;
       *) exit 2 ;; esac
   - name: no reader accepts inherited or substituted route evidence
     run: >-
-      selection=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name reviewer-route.tsv -type f | sort | tail -n '1');
+      selection=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name reviewer-route.json -type f | sort | tail -n '1');
       test -n "$selection" || exit 1; artifact_dir=$(dirname "$selection");
-      for axis in standards spec; do record="$artifact_dir/$axis-route.tsv";
+      for axis in standards spec; do record="$artifact_dir/$axis-route.json";
       if test -e "$record"; then
-      ! awk -F '\t' '$1 == "route_verified" && $2 == "true" { found = 1 } END { exit !found }'
-      "$record" || exit 1;
-      ! awk -F '\t' '$1 == "route_bound" && $2 == "true" { found = 1 } END { exit !found }'
-      "$record" || exit 1; fi; done
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks route_verified true || exit 1;
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks route_bound true || exit 1; fi; done
   - name: unavailable route retains zero native reader launch attempts
     run: >-
       case "$DARROW_EVAL_HARNESS" in codex)
@@ -53,19 +53,19 @@ checks:
       *) exit 2 ;; esac
   - name: blocked aggregate remains canonical and read only
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
       test -n "$tool" || exit 1;
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record" &&
-      grep -F 'verdict	blocked' "$record" >/dev/null &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has verdict blocked &&
       test "$(git status --porcelain --untracked-files=all)" = ' M src/config.js'
-    expect_regex: "^valid: darrow-review-result-v1$"
-  - name: default response does not duplicate canonical TSV
-    run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
+    expect_regex: "^valid: darrow-review-result-v3$"
+  - name: default response does not duplicate canonical JSON
+    run: "! grep -F 'format	darrow-review-result-v3' .git/last-message.md"
   - name: final response preserves every canonical rendered line
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n '1');
       test -n "$tool" || exit 1;

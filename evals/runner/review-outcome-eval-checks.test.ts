@@ -52,10 +52,11 @@ for (const name of [
           join(repo, ".git/verification-input"),
           "utf8",
         );
-        const manifest = input.match(/^prior_manifest\t(.+)$/m)?.[1];
+        const records = JSON.parse(input) as Record<string, string>;
+        const manifest = records.prior_manifest;
         expect(manifest).toBeTruthy();
-        expect(await readFile(manifest!, "utf8")).toContain(
-          `repository\t${repo}`,
+        expect(JSON.parse(await readFile(manifest!, "utf8")).repository).toBe(
+          repo,
         );
       }
     } finally {
@@ -97,6 +98,7 @@ async function gate(root: string, file: string, name: string, shell: string) {
   const result = spawnSync(shell, ["-c", check.run], {
     cwd: root,
     encoding: "utf8",
+    env: { ...process.env, DARROW_REVIEW_STATE_DIR: ".git" },
   });
   if (result.error) throw result.error;
   return result.status;
@@ -107,42 +109,56 @@ function verification(
   checkEvidence = "exited 0: no output",
 ) {
   const target = "a".repeat(40);
-  const rows = [
-    "format\tdarrow-review-verification-v1",
-    `original_target\t${target}`,
-    `prior_target\t${target}`,
-    `current_target\t${"b".repeat(40)}`,
-    "previous_verification\tnone\tnone",
-  ];
+  const record = {
+    format: "darrow-review-verification-v3",
+    original_target: target,
+    prior_target: target,
+    current_target: "b".repeat(40),
+    previous_verification: { checksum: "none", path: "none" },
+    original_findings: [] as Record<string, string>[],
+    attempts: [] as Record<string, string>[],
+    checks: [
+      {
+        command: "bash check.sh",
+        applicability: "applicable",
+        status: "pass",
+        evidence: checkEvidence,
+      },
+    ],
+    outcome: "clear",
+    next_action: "none",
+  };
   for (const [index, axis] of ["standards", "spec", "spec"].entries()) {
     const order = index + 1;
-    rows.push(
-      `original_finding\t${axis}:${order}:${target}\t${axis}\t${order}\t${order === 3 ? "low\tadvisory" : "high\tblocking"}\tsrc/config.js:${order}\trequirement\tOriginal evidence`,
-    );
+    record.original_findings.push({
+      key: `${axis}:${order}:${target}`,
+      axis,
+      order: String(order),
+      severity: order === 3 ? "low" : "high",
+      disposition: order === 3 ? "advisory" : "blocking",
+      location: `src/config.js:${order}`,
+      source: "requirement",
+      evidence: "Original evidence",
+    });
   }
   for (const [index, axis] of ["standards", "spec", "spec"].entries()) {
-    const state =
-      index === 2 && !advisoryResolved
-        ? "unresolved\tunchanged"
-        : "resolved\tresolved";
-    rows.push(
-      `attempt\t${axis}:${index + 1}:${target}\t${state}\tWhether resolved or unresolved, evidence prose is not the state`,
-    );
+    const unresolved = index === 2 && !advisoryResolved;
+    record.attempts.push({
+      key: `${axis}:${index + 1}:${target}`,
+      status: unresolved ? "unresolved" : "resolved",
+      progress: unresolved ? "unchanged" : "resolved",
+      evidence:
+        "Whether resolved or unresolved, evidence prose is not the state",
+    });
   }
-  return [
-    ...rows,
-    `check\tbash check.sh\tapplicable\tpass\t${checkEvidence}`,
-    "outcome\tclear",
-    "next_action\tnone",
-    "",
-  ].join("\n");
+  return JSON.stringify(record);
 }
 
 async function render(
   setup: Awaited<ReturnType<typeof fixture>>,
   record: string,
 ) {
-  const path = join(setup.artifacts, "verification.tsv");
+  const path = join(setup.artifacts, "verification.json");
   await writeFile(path, record);
   const rendered = spawnSync(
     "uv",
@@ -179,18 +195,34 @@ for (const shell of ["bash", "/bin/bash"]) {
           variant === "different diagnostic"
             ? "exited 127: verifier service cannot be reached"
             : "exited 127: required external verifier is unavailable";
-        const row = `check\tbash external-check.sh\tapplicable\tblocked\t${diagnostic}`;
-        const record = verification()
-          .replace(/check\tbash check[.]sh[^\n]+/, row)
-          .replace(
-            "outcome\tclear",
-            "evidence_gap\tRequired check unavailable\noutcome\tblocked",
-          );
-        await writeFile(join(setup.artifacts, "verification.tsv"), record);
+        const check = {
+          command: "bash external-check.sh",
+          applicability: "applicable",
+          status: "blocked",
+          evidence: diagnostic,
+        };
+        const records = JSON.parse(verification());
+        const record = JSON.stringify({
+          ...records,
+          checks: [check],
+          evidence_gaps: ["Required check unavailable"],
+          outcome: "blocked",
+        });
+        await writeFile(join(setup.artifacts, "verification.json"), record);
         if (variant !== "missing capture") {
           await writeFile(
-            join(setup.artifacts, "check-1.tsv"),
-            `format\tdarrow-review-check-v1\n${variant === "invented evidence" ? row.replace(diagnostic, "exited 127: a different observation") : row}\n`,
+            join(setup.artifacts, "check-1.json"),
+            JSON.stringify({
+              format: "darrow-review-check-v3",
+              checks: [
+                variant === "invented evidence"
+                  ? {
+                      ...check,
+                      evidence: "exited 127: a different observation",
+                    }
+                  : check,
+              ],
+            }),
           );
         }
         expect(
@@ -240,7 +272,7 @@ for (const shell of ["bash", "/bin/bash"]) {
             // The prior artifact sorts after the current one and has no report.
             const previous = join(
               setup.root,
-              ".git/darrow-review.zz-previous/verification.tsv",
+              ".git/darrow-review.zz-previous/verification.json",
             );
             await mkdir(join(previous, ".."), { recursive: true });
             await writeFile(
@@ -249,7 +281,12 @@ for (const shell of ["bash", "/bin/bash"]) {
             );
             await writeFile(
               join(setup.root, ".git/verification-input"),
-              `previous_verification\tprior-checksum\t${previous}\n`,
+              JSON.stringify({
+                previous_verification: {
+                  checksum: "prior-checksum",
+                  path: previous,
+                },
+              }),
             );
           }
           const output = await render(setup, verification());
@@ -262,7 +299,7 @@ for (const shell of ["bash", "/bin/bash"]) {
             await writeFile(join(setup.root, ".git/last-message.md"), summary);
           } else if (variant === "stale artifact") {
             await writeFile(
-              join(setup.artifacts, "verification.tsv"),
+              join(setup.artifacts, "verification.json"),
               verification(true, "exited 0: fresh check output"),
             );
           } else {

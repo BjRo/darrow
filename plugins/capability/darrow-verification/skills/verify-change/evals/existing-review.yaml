@@ -50,20 +50,20 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
   - name: retained report handoff is rendered last
     run: |
-      record=$(find .git -name result.tsv -type f)
+      record=$(find .git -name result.json -type f)
       test -n "$record" || exit 1
       report=$(cd "$(dirname "$record")" && pwd -P)/review.md
       last=$(awk 'NF { line=$0 } END { print line }' .git/last-message.md)
       test "$last" = "Complete provider result: [report](<$report>)"
   - name: existing provider retains a canonical failing current review
     run:
-      record=$(find .git -name result.tsv -type f) && test -n "$record" && test
-      "$(printf '%s\n' "$record" | wc -l | tr -d ' ')" = 1 && grep -q
-      '^verdict[[:space:]]fail' "$record" && test -s "$(dirname
+      record=$(find .git -name result.json -type f) && test -n "$record" && test
+      "$(printf '%s\n' "$record" | wc -l | tr -d ' ')" = 1 && python3 -c
+      'import json, sys; assert json.load(open(sys.argv[1]))["verdict"] == "fail"' "$record" && test -s "$(dirname
       "$record")/review.md"
   - name: existing result and complete provider report validate
     run: >
-      record=$(find .git -name result.tsv -type f 2>/dev/null | sort | tail -n
+      record=$(find .git -name result.json -type f 2>/dev/null | sort | tail -n
       1)
 
       result_tool=$(find .git/eval-marketplace .git/eval-plugins -path
@@ -79,7 +79,7 @@ checks:
       "$record" >.git/expected-review.md && cmp .git/expected-review.md
       "$(dirname "$record")/review.md"
   - name: complete existing report remains accessible to caller
-    run: record=$(find .git -name result.tsv -type f) && report=$(cd "$(dirname
+    run: record=$(find .git -name result.json -type f) && report=$(cd "$(dirname
       "$record")" && pwd -P)/review.md && grep -F "$report" .git/last-message.md
 semantic_output_checks:
   - name: consume actual provider finding

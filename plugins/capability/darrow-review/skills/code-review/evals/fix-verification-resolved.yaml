@@ -41,23 +41,30 @@ fixture:
     set -eu
     backend=$(cd "{{case_dir}}/../../../backend" && pwd -P)
     prior_output=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
-    prior_manifest=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "manifest" { print $2 }')
-    original_target=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "target" { print $2 }')
-    {
-      printf 'original_target\t%s\n' "$original_target"
-      printf 'prior_target\t%s\n' "$original_target"
-      printf 'prior_manifest\t%s\n' "$prior_manifest"
-      printf 'previous_verification\tnone\tnone\n'
-      printf 'original_finding\tstandards:1:%s\tstandards\t1\thigh\tblocking\tsrc/config.js:1\t%s/AGENTS.md\tDEBUG remained enabled\n' "$original_target" "$PWD"
-      printf 'original_finding\tspec:2:%s\tspec\t2\thigh\tblocking\tsrc/config.js:2\trequirement: TIMEOUT_MS must be 2500\tTIMEOUT_MS was 1000\n' "$original_target"
-      printf 'original_finding\tspec:3:%s\tspec\t3\tlow\tadvisory\tsrc/config.js:3\tmaintenance note\tLEGACY was retained\n' "$original_target"
-      printf 'attempted\tstandards:1:%s\n' "$original_target"
-      printf 'attempted\tspec:2:%s\n' "$original_target"
-      printf 'attempted\tspec:3:%s\n' "$original_target"
-    } >.git/verification-input
+    prior_manifest=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' manifest)
+    original_target=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' target)
+    python3 - "$original_target" "$prior_manifest" "$PWD" <<'PY' >.git/verification-input
+    import json, sys
+    target, manifest, repo = sys.argv[1:]
+    json.dump({
+        "original_target": target,
+        "prior_target": target,
+        "prior_manifest": manifest,
+        "previous_verification": {"checksum": "none", "path": "none"},
+        "original_findings": [
+            {"key": f"standards:1:{target}", "axis": "standards", "order": "1", "severity": "high", "disposition": "blocking", "location": "src/config.js:1", "source": f"{repo}/AGENTS.md", "evidence": "DEBUG remained enabled"},
+            {"key": f"spec:2:{target}", "axis": "spec", "order": "2", "severity": "high", "disposition": "blocking", "location": "src/config.js:2", "source": "requirement: TIMEOUT_MS must be 2500", "evidence": "TIMEOUT_MS was 1000"},
+            {"key": f"spec:3:{target}", "axis": "spec", "order": "3", "severity": "low", "disposition": "advisory", "location": "src/config.js:3", "source": "maintenance note", "evidence": "LEGACY was retained"},
+        ],
+        "attempted": [
+            f"standards:1:{target}", f"spec:2:{target}", f"spec:3:{target}",
+        ],
+    }, sys.stdout)
+    PY
     git status --porcelain --untracked-files=all >.git/status-before
     git hash-object src/config.js >.git/config-before
     printf '%s\n' "$backend" >.git/review-backend
+    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: verification preserves the repair bytes
     run: git hash-object src/config.js >.git/config-after; cmp .git/config-before .git/config-after
@@ -65,25 +72,29 @@ checks:
     run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
   - name: current verification scope remains in the requested repository
     run: >-
-      verification=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
+      verification=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
       test -n "$verification" &&
       artifact_dir=$(cd "$(dirname "$verification")" && pwd -P) &&
-      manifest=$artifact_dir/scope.tsv &&
+      manifest=$artifact_dir/scope.json &&
       test -r "$manifest" &&
       expected_repo=$(pwd -P) &&
       git_dir=$(git rev-parse --absolute-git-dir) &&
       git_dir=$(cd "$git_dir" && pwd -P) &&
-      test "$(awk -F '\t' '$1 == "repository" { print $2 }' "$manifest")" = "$expected_repo" &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$manifest" has repository "$expected_repo" &&
       case "$manifest" in "$git_dir"/*) ;; *) exit 1 ;; esac
   - name: additive verification artifact validates and clears
-    run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
-      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1') &&
-      test -n "$tool" &&
-      test -n "$record" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-verification "$record" &&
-      grep -F 'outcome	clear' "$record" >/dev/null &&
-      awk -F '\t' '$1 == "attempt" { count++; if ($3 != "resolved" || $4 != "resolved") invalid=1 }
-      END { exit !(count == 3 && !invalid) }' "$record"
+    run: |
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
+      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n 1)
+      test -n "$tool" && test -n "$record" || exit 1
+      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-verification "$record" || exit 1
+      python3 - "$record" <<'PY'
+      import json, sys
+      record = json.load(open(sys.argv[1]))
+      attempts = record['attempts']
+      assert record['outcome'] == 'clear'
+      assert len(attempts) == 3 and all(item['status'] == item['progress'] == 'resolved' for item in attempts)
+      PY
   - name: both fix verifiers retain exact default route evidence
     run: >-
       uv run --quiet --frozen --no-dev --project .git/eval-checks/review
@@ -91,7 +102,7 @@ checks:
       --host "$DARROW_EVAL_HARNESS" --profile default --axes standards spec
   - name: final response is the complete rendered verification report
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
       test -n "$record" &&
       report=$(dirname "$record")/verification.md &&
       test -r "$report" && test -s "$report" &&

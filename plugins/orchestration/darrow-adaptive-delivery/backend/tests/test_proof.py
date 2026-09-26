@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -29,7 +30,7 @@ def calls(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, ...]]:
         result.append(args)
         if args[0] == "review-report":
             return "Canonical human report\n"
-        return "target\tWORKTREE@current\n"
+        return json.dumps({"target": "WORKTREE@current"})
 
     monkeypatch.setattr(proof, "invoke", invoke)
     return result
@@ -37,15 +38,29 @@ def calls(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, ...]]:
 
 def comprehensive(repo: Path) -> Path:
     return write(
-        repo / ".git/darrow-review.original/result.tsv",
-        "format\tdarrow-review-result-v1\nverdict\tpass\nnext_action\treturn control to enclosing goal\ntarget\tWORKTREE@current\n",
+        repo / ".git/darrow-review.original/result.json",
+        json.dumps(
+            {
+                "format": "darrow-review-result-v3",
+                "verdict": "pass",
+                "next_action": "return control to enclosing goal",
+                "target": "WORKTREE@current",
+            }
+        ),
     )
 
 
 def verification(repo: Path) -> Path:
     return write(
-        repo / ".git/darrow-review.repair/verification.tsv",
-        "format\tdarrow-review-verification-v1\noutcome\tclear\noriginal_target\tWORKTREE@current\ncurrent_target\tWORKTREE@current\n",
+        repo / ".git/darrow-review.repair/verification.json",
+        json.dumps(
+            {
+                "format": "darrow-review-verification-v3",
+                "outcome": "clear",
+                "original_target": "WORKTREE@current",
+                "current_target": "WORKTREE@current",
+            }
+        ),
     )
 
 
@@ -114,8 +129,8 @@ def test_provider_discovery_and_conflicts(repo: Path) -> None:
     "relative,error",
     [
         ("missing", "unreadable"),
-        ("outside.tsv", "not a canonical"),
-        (".git/darrow-review.test/other.tsv", "not a canonical"),
+        ("outside.json", "not a canonical"),
+        (".git/darrow-review.test/other.json", "not a canonical"),
     ],
 )
 def test_proof_path_refusals(repo: Path, relative: str, error: str) -> None:
@@ -137,13 +152,19 @@ def test_bad_modes_and_missing_saved_evidence(repo: Path) -> None:
 @pytest.mark.parametrize(
     "replacement,error",
     [
-        (("verdict\tpass", "verdict\tfail"), "not clear"),
+        (('"verdict": "pass"', '"verdict": "fail"'), "not clear"),
         (
-            ("next_action\treturn control to enclosing goal", "next_action\tcontinue"),
+            (
+                '"next_action": "return control to enclosing goal"',
+                '"next_action": "continue"',
+            ),
             "did not return",
         ),
-        (("target\tWORKTREE@current", "target\tWORKTREE@old"), "stale review"),
-        (("format\tdarrow-review-result-v1", "format\tunknown"), "unsupported format"),
+        (('"target": "WORKTREE@current"', '"target": "WORKTREE@old"'), "stale review"),
+        (
+            ('"format": "darrow-review-result-v3"', '"format": "unknown"'),
+            "unsupported format",
+        ),
     ],
 )
 def test_comprehensive_refusals(
@@ -157,15 +178,34 @@ def test_comprehensive_refusals(
     assert not (repo / ".git/goal-complete").exists()
 
 
+def test_proof_rejects_legacy_array_record(repo: Path) -> None:
+    provider(repo)
+    record = comprehensive(repo)
+    record.write_text(
+        json.dumps(
+            [
+                ["format", "darrow-review-result-v2"],
+                ["target", "WORKTREE@current"],
+                ["verdict", "pass"],
+            ]
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(
+        proof.InvalidProofError, match="invalid review JSON field format"
+    ):
+        proof.validate(repo, "complete", str(record))
+
+
 def test_artifact_names(repo: Path, calls: list[tuple[str, ...]]) -> None:
     backend = provider(repo)
     original = comprehensive(repo)
-    wrong = original.with_name("verification.tsv")
+    wrong = original.with_name("verification.json")
     original.rename(wrong)
     with pytest.raises(proof.InvalidProofError, match="wrong comprehensive"):
         proof.validate(repo, "complete", str(wrong))
     repaired = verification(repo)
-    wrong = repaired.with_name("result.tsv")
+    wrong = repaired.with_name("result.json")
     repaired.rename(wrong)
     with pytest.raises(proof.InvalidProofError, match="wrong verification"):
         proof.validate(repo, "complete", str(wrong))
@@ -182,10 +222,12 @@ def test_verification_requires_clear_and_original(
     with pytest.raises(proof.InvalidProofError, match=r"original.*missing"):
         proof.validate(repo, "complete", str(record))
     original = comprehensive(repo)
-    write(repo / ".git/darrow-review.duplicate/result.tsv", original.read_text())
+    write(repo / ".git/darrow-review.duplicate/result.json", original.read_text())
     with pytest.raises(proof.InvalidProofError, match=r"original.*ambiguous"):
         proof.validate(repo, "complete", str(record))
-    record.write_text(record.read_text().replace("outcome\tclear", "outcome\tcontinue"))
+    record.write_text(
+        record.read_text().replace('"outcome": "clear"', '"outcome": "continue"')
+    )
     with pytest.raises(proof.InvalidProofError, match="verification is not clear"):
         proof.validate(repo, "complete", str(record))
 

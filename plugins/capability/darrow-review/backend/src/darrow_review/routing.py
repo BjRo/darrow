@@ -6,9 +6,11 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import cast
 
 from .common import (
     ReviewError,
+    document,
     new_record,
     package_root,
     read_text,
@@ -16,9 +18,8 @@ from .common import (
     require,
     root_directory,
     serialize,
-    unique_records,
 )
-from .provider import direct, json_object
+from .provider import direct
 
 
 @dataclass(frozen=True)
@@ -31,6 +32,11 @@ class Route:
 
     def fields(self) -> list[str]:
         return [self.host, self.provider, self.model, self.effort]
+
+    def as_object(self) -> dict[str, str]:
+        return dict(
+            zip(("host", "provider", "model", "effort"), self.fields(), strict=True)
+        )
 
     def validate(self) -> None:
         require(
@@ -63,11 +69,11 @@ class Route:
 
     def body(self) -> str:
         return serialize(
-            [
-                ["format", "darrow-reviewer-route-v1"],
-                ["selected_route", *self.fields()],
-                ["route_source", self.source],
-            ]
+            {
+                "format": "darrow-reviewer-route-v3",
+                "selected_route": self.as_object(),
+                "route_source": self.source,
+            }
         )
 
 
@@ -101,7 +107,7 @@ def parse_reviewer(value: object, source: str) -> Route:
 
 
 def catalog(path: Path, source: str) -> dict[str, Route]:
-    config = json_object(read_text(path, "reviewer configuration"))
+    config = document(read_text(path, "reviewer configuration"))
     require(
         set(config) <= {"reviewers", "routes"},
         "invalid reviewer configuration: unknown root field",
@@ -147,23 +153,33 @@ def resolve(repo: str, host: str) -> Route:
 
 
 def load_route(path: str, expected_host: str = "") -> Route:
-    records = unique_records(record_file(path), "route")
+    records = document(record_file(path))
     require(
         set(records) == {"format", "selected_route", "route_source"},
         f"incomplete or duplicate route record: {path}",
     )
     require(
-        records["format"] == ["darrow-reviewer-route-v1"],
+        records["format"] == "darrow-reviewer-route-v3",
         f"invalid route format record: {path}",
     )
     fields = records["selected_route"]
-    require(len(fields) == 4 and all(fields), f"invalid selected route record: {path}")
     require(
-        records["route_source"] in (["bundled"], ["repository"]),
+        isinstance(fields, dict)
+        and set(fields) == {"host", "provider", "model", "effort"}
+        and all(isinstance(value, str) and value for value in fields.values()),
+        f"invalid selected route record: {path}",
+    )
+    require(
+        records["route_source"] in ("bundled", "repository"),
         f"invalid route source: {path}",
     )
+    selected = cast(dict[str, str], fields)
     route = Route(
-        fields[0], fields[1], fields[2], fields[3], records["route_source"][0]
+        selected["host"],
+        selected["provider"],
+        selected["model"],
+        selected["effort"],
+        cast(str, records["route_source"]),
     )
     route.validate()
     require(
@@ -177,14 +193,14 @@ def select(repo: str, host: str, record: str) -> str:
     route = resolve(repo, host)
     path = new_record(record, route.body())
     return serialize(
-        [
-            ["format", "darrow-reviewer-route-selection-v1"],
-            ["record", str(path)],
-            ["selected_route", *route.fields()],
-            ["route_source", route.source],
-            ["model", route.model],
-            ["reasoning_effort", route.effort],
-        ]
+        {
+            "format": "darrow-reviewer-route-selection-v3",
+            "record": str(path),
+            "selected_route": route.as_object(),
+            "route_source": route.source,
+            "model": route.model,
+            "reasoning_effort": route.effort,
+        }
     )
 
 
@@ -213,14 +229,14 @@ def claude_agent(route: Route) -> str:
         )
     validate_overrides(route)
     return serialize(
-        [
-            ["format", "darrow-review-claude-agent-v1"],
-            ["selected_route", *route.fields()],
-            ["subagent_type", "darrow-review:" + name],
-            ["model", route.model],
-            ["effort", route.effort],
-            ["agent_file", str(path)],
-        ]
+        {
+            "format": "darrow-review-claude-agent-v3",
+            "selected_route": route.as_object(),
+            "subagent_type": "darrow-review:" + name,
+            "model": route.model,
+            "effort": route.effort,
+            "agent_file": str(path),
+        }
     )
 
 
@@ -237,36 +253,50 @@ def validate_overrides(route: Route) -> None:
 
 
 def observed(path: str) -> tuple[Route, str]:
-    records = unique_records(record_file(path), "observed-route")
+    records = document(record_file(path))
     require(
         set(records)
         == {"format", "agent_id", "transcript", "provider_evidence", "observed_route"},
         f"incomplete or duplicate observed-route record: {path}",
     )
     require(
-        records["format"] == ["darrow-review-claude-route-v1"],
+        records["format"] == "darrow-review-claude-route-v3",
         f"invalid observed-route format: {path}",
     )
     for field in ("agent_id", "transcript", "provider_evidence"):
-        require(len(records[field]) == 1, f"invalid observed {field} record: {path}")
-    require(
-        re.fullmatch("[A-Za-z0-9]+", records["agent_id"][0]), "unsafe observed agent ID"
-    )
-    transcript = records["transcript"][0]
+        require(
+            isinstance(records[field], str) and records[field],
+            f"invalid observed {field} record: {path}",
+        )
+    agent_id = cast(str, records["agent_id"])
+    require(re.fullmatch("[A-Za-z0-9]+", agent_id), "unsafe observed agent ID")
+    transcript = cast(str, records["transcript"])
     require(
         Path(transcript).is_absolute(),
         f"observed transcript path is not absolute: {path}",
     )
     read_text(transcript, "observed transcript")
     require(
-        records["provider_evidence"] == ["current-host-environment-default"],
+        records["provider_evidence"] == "current-host-environment-default",
         f"invalid observed provider evidence: {path}",
     )
-    require(len(records["observed_route"]) == 4, f"invalid observed route: {path}")
-    route = Route(*records["observed_route"])
+    observed_route = records["observed_route"]
+    require(
+        isinstance(observed_route, dict)
+        and set(observed_route) == {"host", "provider", "model", "effort"}
+        and all(isinstance(value, str) and value for value in observed_route.values()),
+        f"invalid observed route: {path}",
+    )
+    fields = cast(dict[str, str], observed_route)
+    route = Route(
+        fields["host"],
+        fields["provider"],
+        fields["model"],
+        fields["effort"],
+    )
     route.validate()
     require(route.host == "claude", "observed route is not a Claude route")
-    return route, records["agent_id"][0]
+    return route, agent_id
 
 
 def confirm(
@@ -279,37 +309,33 @@ def confirm(
 ) -> str:
     require(axis in ("standards", "spec"), f"unsupported review axis: {axis}")
     route = load_route(route_path, "claude" if observed_path else "codex")
-    records = [
-        ["format", "darrow-reviewer-route-application-v1"],
-        ["selected_route", *route.fields()],
-    ]
+    records: dict[str, object] = {
+        "format": "darrow-reviewer-route-application-v3",
+        "selected_route": route.as_object(),
+    }
     if observed_path:
         actual, agent = observed(observed_path)
         require(
             actual.fields() == route.fields(),
             "selected reviewer route does not match transcript-observed route",
         )
-        records.extend(
-            [
-                ["observed_route", *actual.fields()],
-                ["provider_evidence", "current-host-environment-default"],
-            ]
-        )
+        records["observed_route"] = actual.as_object()
+        records["provider_evidence"] = "current-host-environment-default"
     else:
         require(
             re.fullmatch("[A-Za-z0-9._/@:-]+", agent),
             f"unsafe reviewer agent ID: {agent}",
         )
-        records.append(["requested_route", *route.fields()])
-    records.extend(
-        [
-            ["route_applied_by", "native-subagent"],
-            ["route_bound", "true"],
-            ["axis", axis],
-            ["agent_id", agent],
-        ]
+        records["requested_route"] = route.as_object()
+    records.update(
+        {
+            "route_applied_by": "native-subagent",
+            "route_bound": "true",
+            "axis": axis,
+            "agent_id": agent,
+        }
     )
     path = new_record(application, serialize(records))
     return serialize(
-        [["format", "darrow-reviewer-record-location-v1"], ["record", str(path)]]
+        {"format": "darrow-reviewer-record-location-v3", "record": str(path)}
     )

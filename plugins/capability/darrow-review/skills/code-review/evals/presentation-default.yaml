@@ -26,17 +26,17 @@ fixture:
         return Number(value);
       }
 checks:
-  - name: raw TSV stays beneath the review artifact
-    run: test "$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name '*.tsv' | wc -l | tr -d ' ')" -ge 1
-  - name: canonical TSV is valid
+  - name: raw JSON stays beneath the review artifact
+    run: test "$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name '*.json' | wc -l | tr -d ' ')" -ge 1
+  - name: canonical JSON is valid
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
       test -n "$tool" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record"
-    expect_regex: "^valid: darrow-review-result-v1$"
-  - name: human response does not duplicate raw TSV
-    run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
+    expect_regex: "^valid: darrow-review-result-v3$"
+  - name: human response does not duplicate raw JSON
+    run: "! grep -F 'format	darrow-review-result-v3' .git/last-message.md"
   - name: human response renders values as ordinary Markdown text
     run: >-
       ! grep -F '<code>' .git/last-message.md &&
@@ -46,7 +46,7 @@ checks:
       esc=$(printf '\033]8;') && ! grep -F "$esc" .git/last-message.md
   - name: final response preserves every canonical rendered line
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n '1');
       test -n "$tool" || exit 1;

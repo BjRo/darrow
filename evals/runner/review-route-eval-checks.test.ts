@@ -24,7 +24,7 @@ const cases = [
     file: "fix-verification-resolved",
     check: "both fix verifiers retain exact default route evidence",
     claude: ["claude-opus-5", "xhigh"],
-    codex: ["gpt-5.6-sol", "xhigh"],
+    codex: ["gpt-6-sol", "xhigh"],
   },
 ] as const;
 type Mutation =
@@ -106,18 +106,30 @@ async function runGate(
   await mkdir(artifacts, { recursive: true });
   await copyOracle(root);
   const [model, effort] = entry[host];
-  const route = `${host}\t${host === "claude" ? "anthropic" : "openai"}\t${model}\t${effort}`;
+  const route = {
+    host,
+    provider: host === "claude" ? "anthropic" : "openai",
+    model,
+    effort,
+  };
   await writeFile(
-    join(artifacts, "reviewer-route.tsv"),
-    `selected_route\t${route}\n`,
+    join(artifacts, "reviewer-route.json"),
+    JSON.stringify({ selected_route: route }),
   );
   const launches: Record<string, unknown>[] = [];
   const calls: Record<string, unknown>[] = [];
   for (const [index, axis] of ["standards", "spec"].entries()) {
     const id = mutation === "reused child" ? "shared-child" : `${axis}-child`;
-    const record = `axis\t${axis}\nagent_id\t${id}\nobserved_route\t${route}\nrequested_route\t${route}\nroute_bound\ttrue\nprovider_evidence\tcurrent-host-environment-default\n`;
-    await writeFile(join(artifacts, `${axis}-route.tsv`), record);
-    await writeFile(join(artifacts, `${axis}-observed-route.tsv`), record);
+    const record = JSON.stringify({
+      axis,
+      agent_id: id,
+      observed_route: route,
+      requested_route: route,
+      route_bound: "true",
+      provider_evidence: "current-host-environment-default",
+    });
+    await writeFile(join(artifacts, `${axis}-route.json`), record);
+    await writeFile(join(artifacts, `${axis}-observed-route.json`), record);
     const subagent = `darrow-review:review-reader-${model}-${effort}`;
     calls.push({
       name: "Agent",
@@ -152,7 +164,11 @@ async function runGate(
   if (!check?.run) throw new Error(`missing gate: ${entry.check}`);
   return spawnSync("/bin/bash", ["-c", check.run], {
     cwd: root,
-    env: { ...process.env, DARROW_EVAL_HARNESS: host },
+    env: {
+      ...process.env,
+      DARROW_EVAL_HARNESS: host,
+      DARROW_REVIEW_STATE_DIR: join(root, ".git"),
+    },
     encoding: "utf8",
   });
 }
