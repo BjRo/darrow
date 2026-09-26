@@ -18,8 +18,10 @@ Executable skill files keep owner execute permission in the fixture and retained
 artifact copy. Cases with `mount_plugin_skills: true` mount all sibling skills
 from the owning plugin through the same project-discovery path, with a shared
 artifact limit. Competition activation requires that sibling set.
-Implicit positive and negative activation cases are supported when they mount
-their owning skill. A complete host observation with `primarySkill` and ordered
+Implicit positive, negative, and competition activation cases are supported
+when they mount their owning skill. A case can require an observed skill
+sequence, supporting skill membership, or exclusion; every named skill must be
+in the mounted set. A complete host observation with `primarySkill` and ordered
 `observedSkills` yields a separate `darrow.evals.activation` domain outcome.
 The bundled Codex route supplies `sevro.codex.skill-reads` for completed direct
 reads of a mounted skill body through direct `cat`, complete exact `sed` pages,

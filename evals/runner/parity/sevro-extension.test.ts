@@ -248,14 +248,19 @@ test("Darrow mounts sibling skills for a competition activation case", async () 
   const skills = join(root, "plugins/capability/example/skills");
   await mkdir(join(skills, "primary/evals"), { recursive: true });
   await mkdir(join(skills, "rival/evals"), { recursive: true });
+  await mkdir(join(skills, "spare/evals"), { recursive: true });
   await writeFile(join(skills, "primary/SKILL.md"), "Primary skill\n");
   await writeFile(join(skills, "rival/SKILL.md"), "Rival skill\n");
+  await writeFile(join(skills, "spare/SKILL.md"), "Spare skill\n");
   await writeFile(
     join(skills, "primary/evals/competition.yaml"),
     JSON.stringify({
       id: "sibling-competition",
       invariant: "EXAMPLE-C1",
       activation: "competition",
+      activation_sequence: ["primary", "rival"],
+      activation_includes: ["rival"],
+      activation_excludes: ["spare"],
       mount_plugin_skills: true,
       prompt: "Use the best skill for this request.",
       fixture: {
@@ -277,7 +282,13 @@ test("Darrow mounts sibling skills for a competition activation case", async () 
   expect(resolved.code, resolved.stderr).toBe(0);
   expect(resolved.value.result.cases[0]!.extensionData).toMatchObject({
     "darrow.case": {
-      activation: { class: "competition", targetSkill: "primary" },
+      activation: {
+        class: "competition",
+        targetSkill: "primary",
+        sequence: ["primary", "rival"],
+        includes: ["rival"],
+        excludes: ["spare"],
+      },
       mount: { mountPluginSkills: true },
     },
   });
@@ -296,6 +307,7 @@ test("Darrow mounts sibling skills for a competition activation case", async () 
   expect(prepared.value.result.artifacts).toMatchObject([
     { id: "darrow.skill.1", relativePath: ".agents/skills/primary/SKILL.md" },
     { id: "darrow.skill.2", relativePath: ".agents/skills/rival/SKILL.md" },
+    { id: "darrow.skill.3", relativePath: ".agents/skills/spare/SKILL.md" },
   ]);
   const adapter = join(root, "candidate.ts");
   await writeFile(
@@ -303,7 +315,7 @@ test("Darrow mounts sibling skills for a competition activation case", async () 
     `export default {
   id: "darrow.host.synthetic", model: "synthetic-v1", effort: "none",
   async run({ workspace }) {
-    for (const name of ["primary", "rival"])
+    for (const name of ["primary", "rival", "spare"])
       if (!(await Bun.file(workspace + "/.agents/skills/" + name + "/SKILL.md").exists())) throw new Error("sibling missing");
     return { finalMessage: "ready", complete: true, observations: [{ id: "darrow.activation", completeness: "complete", data: { primarySkill: "primary", observedSkills: ["primary", "rival"] } }] };
   },
@@ -334,7 +346,59 @@ test("Darrow mounts sibling skills for a competition activation case", async () 
     { id: "darrow.evals.activation", status: "passed" },
   ]);
   const evidence = JSON.parse(await readFile(run.value.evidencePath, "utf8"));
-  expect(evidence.trials[0].artifactRefs).toHaveLength(2);
+  expect(evidence.trials[0].artifactRefs).toHaveLength(3);
+  expect(evidence.trials[0].domainOutcomes[0].data).toMatchObject({
+    expectedSkills: ["primary", "rival"],
+    requiredSkills: ["rival"],
+    excludedSkills: ["spare"],
+  });
+  const violated = await command<{
+    result: { domainOutcomes: Array<{ status: string }> };
+  }>(
+    [process.execPath, extension],
+    request("evaluate", {
+      extensionData: resolved.value.result.cases[0]!.extensionData,
+      observations: [
+        {
+          id: "darrow.activation",
+          source: "darrow.host.synthetic",
+          completeness: "complete",
+          data: {
+            primarySkill: "primary",
+            observedSkills: ["primary", "spare"],
+          },
+        },
+      ],
+    }),
+  );
+  expect(violated.value.result.domainOutcomes[0]!.status).toBe("failed");
+  const unavailableCase = JSON.parse(
+    await readFile(join(skills, "primary/evals/competition.yaml"), "utf8"),
+  ) as Record<string, unknown>;
+  unavailableCase.id = "unmounted-inclusion";
+  unavailableCase.activation_includes = ["absent"];
+  await writeFile(
+    join(skills, "primary/evals/unmounted.yaml"),
+    JSON.stringify(unavailableCase),
+  );
+  const unavailableResolved = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(root).href,
+      selectors: { caseIds: ["unmounted-inclusion"] },
+      configuration: {},
+    }),
+  );
+  const unmounted = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("prepare", {
+      case: unavailableResolved.value.result.cases[0],
+      host: { id: "darrow.host.synthetic", capabilities: [] },
+      condition: "passive",
+      configuration: {},
+    }),
+  );
+  expect(unmounted.value.error.message).toMatch(/absent from the mounted set/);
   await symlink(join(root, "outside"), join(skills, "linked"));
   const unsafe = await command<ExtensionReply>(
     [process.execPath, extension],

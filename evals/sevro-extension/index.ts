@@ -213,20 +213,87 @@ function checkNames(selected: RecordValue) {
   ];
 }
 
-function caseActivation(
+function skillNames(value: unknown, label: string): string[] | undefined {
+  if (value === undefined) return undefined;
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    value.some((name) => typeof name !== "string" || !name.trim())
+  )
+    throw new Error(`${label} must be a non-empty skill-name list`);
+  return value as string[];
+}
+
+function caseActivationLists(selected: RecordValue) {
+  const sequence = skillNames(
+    selected.activation_sequence,
+    "activation_sequence",
+  );
+  const includes = skillNames(
+    selected.activation_includes,
+    "activation_includes",
+  );
+  const excludes = skillNames(
+    selected.activation_excludes,
+    "activation_excludes",
+  );
+  return {
+    ...(sequence ? { sequence } : {}),
+    ...(includes ? { includes } : {}),
+    ...(excludes ? { excludes } : {}),
+  };
+}
+
+function validateActivationSequence(
+  value: "positive" | "negative" | "competition",
+  targetSkill: string,
+  mountPluginSkills: boolean,
+  sequence: string[] | undefined,
+): void {
+  if (sequence && (value === "negative" || sequence[0] !== targetSkill))
+    throw new Error(
+      "activation_sequence must start with a positive owning skill",
+    );
+  if (sequence && sequence.length > 1 && !mountPluginSkills)
+    throw new Error(
+      "composed activation_sequence requires sibling skill mounts",
+    );
+}
+
+function validateActivationClass(
   value: unknown,
+  targetSkill: string,
+  mountPluginSkills: boolean,
+  sequence: string[] | undefined,
+): asserts value is "positive" | "negative" | "competition" {
+  if (value !== "positive" && value !== "negative" && value !== "competition")
+    throw new Error("case uses an unsupported activation class");
+  if (value === "competition" && !mountPluginSkills)
+    throw new Error("competition activation requires sibling skill mounts");
+  validateActivationSequence(value, targetSkill, mountPluginSkills, sequence);
+}
+
+function caseActivation(
+  selected: RecordValue,
   skillDir: string | null,
   mountPluginSkills: boolean,
 ) {
+  const value = selected.activation;
+  const lists = caseActivationLists(selected);
+  if (value === undefined && Object.keys(lists).length)
+    throw new Error("activation expectations require an activation class");
   if (value === undefined) return {};
-  if (value !== "positive" && value !== "negative" && value !== "competition")
-    throw new Error("case uses an unsupported activation class");
   if (!skillDir)
     throw new Error("activation requires a colocated owning skill");
-  if (value === "competition" && !mountPluginSkills)
-    throw new Error("competition activation requires sibling skill mounts");
+  const targetSkill = skillDir.split("/").at(-1)!;
+  validateActivationClass(
+    value,
+    targetSkill,
+    mountPluginSkills,
+    lists.sequence,
+  );
   return {
-    activation: { class: value, targetSkill: skillDir.split("/").at(-1) },
+    activation: { class: value, targetSkill, ...lists },
   };
 }
 
@@ -274,6 +341,9 @@ function neutralCase(value: unknown, source: string, root: string) {
       "output_checks",
       "semantic_output_checks",
       "activation",
+      "activation_sequence",
+      "activation_includes",
+      "activation_excludes",
       "mount_plugin_skills",
     ],
     "case",
@@ -302,7 +372,7 @@ function neutralCase(value: unknown, source: string, root: string) {
         invariant,
         source,
         ...mount,
-        ...caseActivation(selected.activation, skillDir, mountPluginSkills),
+        ...caseActivation(selected, skillDir, mountPluginSkills),
         checkNames: checkNames(selected),
       },
     },
@@ -464,6 +534,20 @@ async function prepareCase(params: RecordValue) {
   if (details.mount === undefined)
     return { artifacts: [], requestedInstrumentation: [], extensionData: {} };
   const sources = await skillMountSource(details);
+  if (details.activation !== undefined) {
+    const expected = activationExpectation(details.activation);
+    for (const skill of [
+      expected.targetSkill,
+      ...(expected.sequence ?? []),
+      ...(expected.includes ?? []),
+      ...(expected.excludes ?? []),
+    ]) {
+      if (!sources.some((source) => source.skillName === skill))
+        throw new Error(
+          `activation skill ${skill} is absent from the mounted set`,
+        );
+    }
+  }
   const artifacts = await skillArtifacts(sources);
   return { artifacts, requestedInstrumentation: [], extensionData: {} };
 }
@@ -515,7 +599,13 @@ function activationExpectation(value: unknown) {
     activationClass !== "competition"
   )
     throw new Error("unsupported activation expectation");
-  return { activationClass, targetSkill };
+  return {
+    activationClass,
+    targetSkill,
+    sequence: skillNames(activation.sequence, "activation sequence"),
+    includes: skillNames(activation.includes, "activation inclusion"),
+    excludes: skillNames(activation.excludes, "activation exclusion"),
+  };
 }
 
 function activationObservation(value: unknown): RecordValue | null {
@@ -575,14 +665,50 @@ function nonemptyString(value: unknown): value is string {
   return typeof value === "string" && value.length > 0;
 }
 
+function matchesSkillExpectations(
+  expected: ReturnType<typeof activationExpectation>,
+  observedSkills: string[],
+) {
+  const sequencePassed =
+    expected.sequence?.every(
+      (skill, index) => observedSkills[index] === skill,
+    ) ?? true;
+  const includesPassed =
+    expected.includes?.every((skill) => observedSkills.includes(skill)) ?? true;
+  const excludesPassed =
+    expected.excludes?.every((skill) => !observedSkills.includes(skill)) ??
+    true;
+  return sequencePassed && includesPassed && excludesPassed;
+}
+
 function activationStatus(
-  activationClass: string,
-  targetSkill: string,
+  expected: ReturnType<typeof activationExpectation>,
   observed: ReturnType<typeof observedActivation>,
 ) {
   if (!observed) return "unavailable";
-  const selected = observed.primarySkill === targetSkill;
-  return (activationClass !== "negative") === selected ? "passed" : "failed";
+  const selected = observed.primarySkill === expected.targetSkill;
+  const primaryPassed = (expected.activationClass !== "negative") === selected;
+  return primaryPassed &&
+    matchesSkillExpectations(expected, observed.observedSkills)
+    ? "passed"
+    : "failed";
+}
+
+function activationOutcomeData(
+  expected: ReturnType<typeof activationExpectation>,
+  observation: RecordValue | null,
+  observed: ReturnType<typeof observedActivation>,
+) {
+  return {
+    class: expected.activationClass,
+    targetSkill: expected.targetSkill,
+    ...(expected.sequence ? { expectedSkills: expected.sequence } : {}),
+    ...(expected.includes ? { requiredSkills: expected.includes } : {}),
+    ...(expected.excludes ? { excludedSkills: expected.excludes } : {}),
+    source: observation?.source ?? null,
+    primarySkill: observed?.primarySkill ?? null,
+    observedSkills: observed?.observedSkills ?? [],
+  };
 }
 
 function evaluateCase(params: RecordValue) {
@@ -593,12 +719,10 @@ function evaluateCase(params: RecordValue) {
   const details = record(extensionData["darrow.case"], "Darrow case data");
   if (details.activation === undefined)
     return { checks: [], metrics: [], domainOutcomes: [] };
-  const { activationClass, targetSkill } = activationExpectation(
-    details.activation,
-  );
+  const expected = activationExpectation(details.activation);
   const observation = activationObservation(params.observations);
   const observed = observedActivation(observation);
-  const status = activationStatus(activationClass, targetSkill, observed);
+  const status = activationStatus(expected, observed);
   return {
     checks: [],
     metrics: [],
@@ -612,13 +736,7 @@ function evaluateCase(params: RecordValue) {
         detail: observed
           ? "Activation graded from complete host observation"
           : "Activation observation unavailable or incomplete",
-        data: {
-          class: activationClass,
-          targetSkill,
-          source: observation?.source ?? null,
-          primarySkill: observed?.primarySkill ?? null,
-          observedSkills: observed?.observedSkills ?? [],
-        },
+        data: activationOutcomeData(expected, observation, observed),
       },
     ],
   };
