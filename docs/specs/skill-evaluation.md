@@ -281,6 +281,14 @@ checks remain inspectable but produce no behavioral success or comparative
 scores. Historical execution mode may be recovered from an explicit suite
 manifest; absent provenance stays unknown.
 
+Before Darrow switches to a packaged runner, the same command-level
+compatibility cases must run against the in-repository runner and the candidate
+package through their public commands. Compare case selection, named check
+outcomes, requested and observed policy-assistance modes, evidence completeness,
+artifact lifecycle, and exit categories. Normalize timestamps, temporary
+paths, attempt IDs, and other variable fields. Record deliberate contract
+changes separately; a changed result must not be hidden by normalization.
+
 Equivalent runs have one verifiable process owner. A live owner prevents a
 duplicate; a confirmed abandoned owner can be reclaimed atomically without
 discarding evidence. Process identity includes protection against PID reuse.
@@ -494,6 +502,13 @@ not prove equivalence or savings.
   A rejected or unavailable receipt keeps explicit activation unknown, even
   when later ordinary skill events name the same owner. Preserve those observed
   events without treating them as accepted native-command dispatch.
+
+- **SE-C28 — Public runner compatibility.** Before replacing the in-repository
+  runner with a packaged release, run the same deterministic command-level
+  cases against both public commands. Compare selected cases, check outcomes,
+  evidence completeness, passive/enforced conditions, retained artifacts, and
+  exit categories. Normalize only variable fields and document intentional
+  contract changes separately.
 
 ## Evaluation requirements
 

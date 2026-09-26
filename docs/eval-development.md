@@ -333,16 +333,24 @@ launches it with a synthetic adapter. It asserts public behavior through CLI
 arguments, exit categories, result and diagnostic artifacts, cancellation, and
 retained evidence. It does not assert terminal wording or import runner modules
 to inspect their state.
+The fixture also exercises a shell check, an output check, incomplete usage
+evidence, and both requested and observed passive/enforced modes. The two modes
+must have different evaluation digests. An incomplete optional measurement
+remains explicit while independently passing task checks remain passing.
 
 To exercise another implementation, set `DARROW_EVAL_RUNNER_COMMAND` to a JSON
 argv array. The suite appends the runner CLI arguments and expands
 `{projectRoot}`, `{resultsRoot}`, `{runnerPath}`, and `{syntheticAdapter}` in
 each argument. The configured launcher must connect its synthetic adapter to
-the `pass`, `fail`, `throw-after-first`, and `wait` values supplied through
+the `pass`, `fail`, `incomplete-usage`, `throw-after-first`, and `wait` values supplied through
 `DARROW_EVAL_COMPAT_SCENARIO`; the wait scenario also receives
 `DARROW_EVAL_COMPAT_READY_PATH` and `DARROW_EVAL_COMPAT_CHILD_PID_PATH`.
 This launcher seam lets the same expectations target a local Sevro command
 without changing Darrow's baseline.
+When comparing both implementations, inspect any failed assertion before
+changing the fixture. Normalize variable timestamps, paths, and attempt IDs;
+keep case selection, named check outcomes, completeness flags, condition
+labels, and exit categories visible. Record any deliberate migration separately.
 
 - Use one trial per invocation while diagnosing so stop-at-first-failure is
   real:

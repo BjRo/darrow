@@ -43,7 +43,7 @@ function caseRecord(id: string) {
       files: { "README.md": "compatibility fixture\n" },
       commit_files: true,
     },
-    checks: [],
+    checks: [{ name: "fixture file", run: "test -f README.md" }],
     output_checks: [
       {
         name: "synthetic response",
@@ -87,7 +87,7 @@ codexAdapter.skillMounts = [".agents/skills"];
 codexAdapter.version = async () => "synthetic-compatibility-v1";
 
 let call = 0;
-codexAdapter.run = async () => {
+codexAdapter.run = async ({ control }) => {
   call += 1;
   const scenario = process.env.DARROW_EVAL_COMPAT_SCENARIO ?? "pass";
   if (scenario === "throw-after-first" && call > 1)
@@ -111,6 +111,8 @@ codexAdapter.run = async () => {
     inputTokens: 2,
     outputTokens: 3,
     costUsd: null,
+    tokenUsageComplete: scenario !== "incomplete-usage",
+    evaluationEnforcement: control?.ownerEvaluationMode ?? "enforced",
     resultText,
     raw: \`synthetic retained evidence \${call}\`,
   };
@@ -123,6 +125,7 @@ async function runnerFixture(): Promise<RunnerFixture> {
     await mkdtemp(join(tmpdir(), "darrow-runner-compatibility-")),
   );
   roots.push(root);
+  expect(Bun.spawnSync(["git", "init", "--quiet", root]).exitCode).toBe(0);
   const runnerPath = join(root, "evals/runner/run.ts");
   const resultsRoot = join(root, "evals/results");
   const syntheticAdapter = join(root, "synthetic-adapter.ts");
@@ -284,6 +287,15 @@ test("selects cases from the project and keeps result evidence under its result 
     harness: "codex",
     harnessVersion: "synthetic-compatibility-v1",
     passRate: 1,
+    trials: [
+      {
+        passed: true,
+        checks: expect.arrayContaining([
+          expect.objectContaining({ name: "fixture file", passed: true }),
+          expect.objectContaining({ name: "synthetic response", passed: true }),
+        ]),
+      },
+    ],
   });
   expect(results[0].skillDirectory).toBe(
     join(
@@ -322,6 +334,54 @@ test("distinguishes invalid invocation and behavioral failure from success", asy
   expect(await Bun.file(`${output}.diagnostic.json`).exists()).toBeFalse();
   const [result] = JSON.parse(await readFile(output, "utf8"));
   expect(result).toMatchObject({ caseId: "compat-selected", passRate: 0 });
+  expect(result.trials[0].checks).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ name: "fixture file", passed: true }),
+      expect.objectContaining({ name: "synthetic response", passed: false }),
+    ]),
+  );
+});
+
+test("retains requested and observed evaluation conditions as separate evidence", async () => {
+  const results = [];
+  for (const mode of ["passive", "enforced"] as const) {
+    const fixture = await runnerFixture();
+    const output = join(fixture.root, `${mode}.json`);
+    const run = await runRunner(
+      fixture,
+      commonArguments(
+        "--case",
+        "compat-selected",
+        "--owner-evaluation",
+        mode,
+        "--output",
+        output,
+      ),
+    );
+    expect(run.code, run.stderr).toBe(0);
+    const [result] = JSON.parse(await readFile(output, "utf8"));
+    expect(result.ownerEvaluationMode).toBe(mode);
+    expect(result.trials[0].harness.evaluationEnforcement).toBe(mode);
+    results.push(result);
+  }
+  expect(results[0].evaluationDigest).not.toBe(results[1].evaluationDigest);
+});
+
+test("retains incomplete usage and unknown cost without changing task checks", async () => {
+  const fixture = await runnerFixture();
+  const output = join(fixture.root, "incomplete-usage.json");
+  const run = await runRunner(
+    fixture,
+    commonArguments("--case", "compat-selected", "--output", output),
+    { DARROW_EVAL_COMPAT_SCENARIO: "incomplete-usage" },
+  );
+  expect(run.code, run.stderr).toBe(0);
+  const [result] = JSON.parse(await readFile(output, "utf8"));
+  expect(result.passRate).toBe(1);
+  expect(result.trials[0].harness).toMatchObject({
+    tokenUsageComplete: false,
+    costUsd: null,
+  });
 });
 
 test("writes a diagnostic and retains completed trial evidence after a runner error", async () => {
