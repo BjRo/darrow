@@ -64,7 +64,12 @@ interface ExtensionReply {
         grader: string;
         configuration: Record<string, unknown>;
       }>;
-      extensionData: { "darrow.case": { invariant: string } };
+      extensionData: {
+        "darrow.case": {
+          invariant: string;
+          activation?: { class: string; targetSkill: string };
+        };
+      };
     }>;
   };
   error: { code: string; message: string };
@@ -73,7 +78,14 @@ interface ExtensionReply {
 interface CliReply {
   task: { verdict: string };
   cases: Array<{
-    trials: Array<{ checks: Array<{ id: string; status: string }> }>;
+    trials: Array<{
+      checks: Array<{ id: string; status: string }>;
+      domainOutcomes: Array<{
+        id: string;
+        status: string;
+        evidenceRefs: string[];
+      }>;
+    }>;
   }>;
   evidencePath: string;
 }
@@ -120,6 +132,18 @@ test("Darrow extension resolves an existing skill-free case and rejects unsuppor
   expect(selected.extensionData["darrow.case"].invariant).toBe(
     "ORCH-ROUTING-LOCALIZED-MECHANICAL",
   );
+  const activationCase = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", resolveParams("author-agent-skill-validate-read-only")),
+  );
+  expect(activationCase.code, activationCase.stderr).toBe(0);
+  expect(
+    activationCase.value.result.cases[0]!.extensionData["darrow.case"]
+      .activation,
+  ).toEqual({
+    class: "positive",
+    targetSkill: "author-agent-skill",
+  });
   const unsupported = await command<ExtensionReply>(
     [process.execPath, extension],
     request("resolve", resolveParams("orchestration-oss-requests-proxy")),
@@ -128,6 +152,58 @@ test("Darrow extension resolves an existing skill-free case and rejects unsuppor
   expect(unsupported.value.error.message).toMatch(
     /unsupported|generated Git history/,
   );
+});
+
+test("Darrow activation needs a complete and consistent host observation", async () => {
+  const extensionData = {
+    "darrow.case": {
+      activation: { class: "positive", targetSkill: "verify-change" },
+    },
+  };
+  const evaluate = (observations: unknown[], data = extensionData) =>
+    command<{
+      result: {
+        domainOutcomes: Array<{
+          status: string;
+          evidenceRefs: string[];
+          data: Record<string, unknown>;
+        }>;
+      };
+    }>(
+      [process.execPath, extension],
+      request("evaluate", { extensionData: data, observations }),
+    );
+  const observation = {
+    id: "darrow.activation",
+    source: "darrow.host.synthetic",
+    completeness: "complete",
+    data: { primarySkill: "verify-change", observedSkills: ["verify-change"] },
+  };
+  const passed = await evaluate([observation]);
+  expect(passed.value.result.domainOutcomes).toMatchObject([
+    { status: "passed", evidenceRefs: ["darrow.activation"] },
+  ]);
+  const missed = await evaluate([]);
+  expect(missed.value.result.domainOutcomes[0]!.status).toBe("unavailable");
+  const partial = await evaluate([{ ...observation, completeness: "partial" }]);
+  expect(partial.value.result.domainOutcomes[0]!.status).toBe("unavailable");
+  const inconsistent = await evaluate([
+    {
+      ...observation,
+      data: { primarySkill: "verify-change", observedSkills: [] },
+    },
+  ]);
+  expect(inconsistent.value.result.domainOutcomes[0]!.status).toBe(
+    "unavailable",
+  );
+  const duplicate = await evaluate([observation, observation]);
+  expect(duplicate.value.result.domainOutcomes[0]!.status).toBe("unavailable");
+  const negative = await evaluate([observation], {
+    "darrow.case": {
+      activation: { class: "negative", targetSkill: "verify-change" },
+    },
+  });
+  expect(negative.value.result.domainOutcomes[0]!.status).toBe("failed");
 });
 
 test("Darrow extension grades combined shell and final-message assertions", async () => {
@@ -389,6 +465,7 @@ test("Darrow extension mounts a plugin skill without exposing its evals", async 
     JSON.stringify({
       id: "example-skill-mount",
       invariant: "EXAMPLE-M1",
+      activation: "positive",
       prompt: "Use the example skill in {{repo_dir}} and return ready.",
       fixture: {
         commits: [
@@ -473,7 +550,7 @@ export default {
     if (await Bun.file(join(skill, "evals/hidden.txt")).exists()) throw new Error("eval criteria exposed");
     const script = Bun.spawn([join(skill, "scripts/run.sh")], { stdout: "pipe" });
     if ((await new Response(script.stdout).text()) !== "ready\\n" || (await script.exited) !== 0) throw new Error("script not executable");
-    return { finalMessage: "ready", complete: true };
+    return { finalMessage: "ready", complete: true, observations: [{ id: "darrow.activation", completeness: "complete", data: { primarySkill: "example", observedSkills: ["example"] } }] };
   },
 };
 `,
@@ -518,6 +595,35 @@ export default {
   expect(
     run.value.cases[0]!.trials[0]!.checks.map((check) => check.status),
   ).toEqual(["passed", "passed"]);
+  expect(run.value.task.verdict).toBe("passed");
+  expect(run.value.cases[0]!.trials[0]!.domainOutcomes).toMatchObject([
+    {
+      id: "darrow.evals.activation",
+      status: "passed",
+      evidenceRefs: ["darrow.activation"],
+    },
+  ]);
+  const missedAdapter = join(root, "candidate-missed.ts");
+  await writeFile(
+    missedAdapter,
+    (await readFile(adapter, "utf8")).replace(
+      'primarySkill: "example", observedSkills: ["example"]',
+      "primarySkill: null, observedSkills: []",
+    ),
+  );
+  const missed = await command<CliReply>([
+    ...commonArgs,
+    "--adapter-module",
+    missedAdapter,
+    "--shell-isolation",
+    "--results-root",
+    join(root, "missed-results"),
+  ]);
+  expect(missed.code, missed.stderr).toBe(0);
+  expect(missed.value.task.verdict).toBe("passed");
+  expect(missed.value.cases[0]!.trials[0]!.domainOutcomes[0]!.status).toBe(
+    "failed",
+  );
   const evidence = JSON.parse(await readFile(run.value.evidencePath, "utf8"));
   expect(
     evidence.trials[0].artifactRefs.filter(

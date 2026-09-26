@@ -213,6 +213,17 @@ function checkNames(selected: RecordValue) {
   ];
 }
 
+function caseActivation(value: unknown, skillDir: string | null) {
+  if (value === undefined) return {};
+  if (value !== "positive" && value !== "negative")
+    throw new Error("case uses an unsupported activation class");
+  if (!skillDir)
+    throw new Error("activation requires a colocated owning skill");
+  return {
+    activation: { class: value, targetSkill: skillDir.split("/").at(-1) },
+  };
+}
+
 function neutralCase(value: unknown, source: string, root: string) {
   const selected = record(value, "case");
   keys(
@@ -225,6 +236,7 @@ function neutralCase(value: unknown, source: string, root: string) {
       "checks",
       "output_checks",
       "semantic_output_checks",
+      "activation",
     ],
     "case",
   );
@@ -255,6 +267,7 @@ function neutralCase(value: unknown, source: string, root: string) {
         ...(skillDir
           ? { mount: { projectRoot: pathToFileURL(root).href, skillDir } }
           : {}),
+        ...caseActivation(selected.activation, skillDir),
         checkNames: checkNames(selected),
       },
     },
@@ -424,6 +437,103 @@ async function resolveCase(params: RecordValue) {
   return { cases: [neutralCase(matches[0]!.value, matches[0]!.source, root)] };
 }
 
+function activationExpectation(value: unknown) {
+  const activation = record(value, "activation expectation");
+  const activationClass = string(activation.class, "activation class");
+  const targetSkill = string(activation.targetSkill, "activation target skill");
+  if (activationClass !== "positive" && activationClass !== "negative")
+    throw new Error("unsupported activation expectation");
+  return { activationClass, targetSkill };
+}
+
+function activationObservation(value: unknown): RecordValue | null {
+  if (!Array.isArray(value))
+    throw new Error("evaluation observations must be an array");
+  const matches = value.filter(
+    (item) =>
+      item && typeof item === "object" && item.id === "darrow.activation",
+  );
+  return matches.length === 1
+    ? record(matches[0], "activation observation")
+    : null;
+}
+
+function activationData(value: unknown): RecordValue | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as RecordValue)
+    : null;
+}
+
+function skillSequence(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  if (!value.every((skill) => typeof skill === "string" && skill.length))
+    return null;
+  return value as string[];
+}
+
+function observedActivation(observation: RecordValue | null) {
+  if (observation?.completeness !== "complete") return null;
+  const data = activationData(observation.data);
+  if (!data) return null;
+  const observedSkills = skillSequence(data.observedSkills);
+  if (!observedSkills) return null;
+  const primarySkill = data.primarySkill;
+  if (primarySkill !== null && !nonemptyString(primarySkill)) return null;
+  if (primarySkill !== (observedSkills[0] ?? null)) return null;
+  return { primarySkill, observedSkills };
+}
+
+function nonemptyString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
+function activationStatus(
+  activationClass: string,
+  targetSkill: string,
+  observed: ReturnType<typeof observedActivation>,
+) {
+  if (!observed) return "unavailable";
+  const selected = observed.primarySkill === targetSkill;
+  return (activationClass === "positive") === selected ? "passed" : "failed";
+}
+
+function evaluateCase(params: RecordValue) {
+  const extensionData = record(
+    params.extensionData,
+    "evaluation extension data",
+  );
+  const details = record(extensionData["darrow.case"], "Darrow case data");
+  if (details.activation === undefined)
+    return { checks: [], metrics: [], domainOutcomes: [] };
+  const { activationClass, targetSkill } = activationExpectation(
+    details.activation,
+  );
+  const observation = activationObservation(params.observations);
+  const observed = observedActivation(observation);
+  const status = activationStatus(activationClass, targetSkill, observed);
+  return {
+    checks: [],
+    metrics: [],
+    domainOutcomes: [
+      {
+        id: "darrow.evals.activation",
+        status,
+        evidenceRefs: observation ? ["darrow.activation"] : [],
+        detail: observed
+          ? "Activation graded from complete host observation"
+          : "Activation observation unavailable or incomplete",
+        data: {
+          class: activationClass,
+          targetSkill,
+          source: observation?.source ?? null,
+          primarySkill: observed?.primarySkill ?? null,
+          observedSkills: observed?.observedSkills ?? [],
+        },
+      },
+    ],
+  };
+}
+
 const requestText = await Bun.stdin.text();
 if (Buffer.byteLength(requestText, "utf8") > 8 * 1024 * 1024)
   throw new Error("extension request is too large");
@@ -452,7 +562,7 @@ try {
         : method === "prepare"
           ? await prepareCase(params)
           : method === "evaluate"
-            ? { checks: [], metrics: [] }
+            ? evaluateCase(params)
             : (() => {
                 throw new Error("unsupported extension method");
               })();

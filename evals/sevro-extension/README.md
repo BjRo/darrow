@@ -16,11 +16,18 @@ For a plugin-local case, `prepare` mounts the selected skill's files under
 bytes enter the fixture identity through their retained artifact digests.
 Executable skill files keep owner execute permission in the fixture and retained
 artifact copy.
+Implicit positive and negative activation cases are supported when they mount
+their owning skill. A complete host observation named `darrow.activation` with
+`primarySkill` and ordered `observedSkills` yields a separate
+`darrow.evals.activation` domain outcome. Missing, partial, duplicate, or
+inconsistent observations make activation unavailable without changing the task
+verdict. The synthetic parity adapter proves this protocol path; the bundled
+Codex route does not yet produce the required activation observation.
 
 The extension preserves the invariant, source path, and check names in
 namespaced extension data. Other case fields and fixture mechanics fail
 explicitly. Plugin packaging, sibling skill mounts, setup scripts,
-`{{skill_invocation}}`, and activation grading remain on Darrow's existing
+`{{skill_invocation}}`, and other activation forms remain on Darrow's existing
 runner. The legacy `{{repo_dir}}` prompt token maps to Sevro's per-trial
 workspace token. Other prompt templates still fail explicitly.
 
