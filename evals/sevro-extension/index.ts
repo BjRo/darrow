@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { readFile, realpath } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { readFile, readdir, realpath, stat } from "node:fs/promises";
 import { isAbsolute, join, relative, sep } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { parse as parseYaml } from "yaml";
 
 type RecordValue = Record<string, unknown>;
@@ -189,7 +190,30 @@ function semanticOutputChecks(value: unknown) {
   });
 }
 
-function neutralCase(value: unknown, source: string) {
+function skillDirForSource(source: string): string | null {
+  const parts = source.split("/");
+  return parts.length === 7 &&
+    parts[0] === "plugins" &&
+    parts[3] === "skills" &&
+    parts[5] === "evals" &&
+    parts[6]?.endsWith(".yaml")
+    ? parts.slice(0, 5).join("/")
+    : null;
+}
+
+function checkNames(selected: RecordValue) {
+  return [
+    ...(selected.checks as RecordValue[]).map((check) => check.name),
+    ...((selected.output_checks ?? []) as RecordValue[]).map(
+      (check) => check.name,
+    ),
+    ...((selected.semantic_output_checks ?? []) as RecordValue[]).map(
+      (check) => check.name,
+    ),
+  ];
+}
+
+function neutralCase(value: unknown, source: string, root: string) {
   const selected = record(value, "case");
   keys(
     selected,
@@ -208,7 +232,10 @@ function neutralCase(value: unknown, source: string) {
   const prompt = string(selected.prompt, "case prompt");
   if (prompt.includes("{{skill_invocation}}"))
     throw new Error("case needs a host-specific skill invocation");
+  if (/\{\{[a-z_]+\}\}/.test(prompt))
+    throw new Error("case uses an unsupported prompt template");
   const invariant = string(selected.invariant, "case invariant");
+  const skillDir = skillDirForSource(source);
   const checks = [
     ...shellChecks(selected.checks),
     ...outputChecks(selected.output_checks),
@@ -224,18 +251,135 @@ function neutralCase(value: unknown, source: string) {
       "darrow.case": {
         invariant,
         source,
-        checkNames: [
-          ...(selected.checks as RecordValue[]).map((check) => check.name),
-          ...((selected.output_checks ?? []) as RecordValue[]).map(
-            (check) => check.name,
-          ),
-          ...((selected.semantic_output_checks ?? []) as RecordValue[]).map(
-            (check) => check.name,
-          ),
-        ],
+        ...(skillDir
+          ? { mount: { projectRoot: pathToFileURL(root).href, skillDir } }
+          : {}),
+        checkNames: checkNames(selected),
       },
     },
   };
+}
+
+const OMITTED_SKILL_ENTRIES = new Set([
+  ".coverage",
+  ".hypothesis",
+  ".mypy_cache",
+  ".pytest_cache",
+  ".ruff_cache",
+  ".venv",
+  "__pycache__",
+  "coverage.json",
+  "evals",
+]);
+
+interface SkillArtifact {
+  id: string;
+  relativePath: string;
+  sha256: string;
+  contentBase64: string;
+  gitExclude: true;
+}
+
+function portableName(name: string): boolean {
+  return (
+    name !== "." &&
+    name !== ".." &&
+    !name.includes(":") &&
+    !name.includes("\\") &&
+    ![...name].some((character) => {
+      const code = character.codePointAt(0)!;
+      return code < 32 || code === 127;
+    })
+  );
+}
+
+async function skillMountSource(details: RecordValue) {
+  const mount = record(details.mount, "skill mount");
+  const rootUrl = string(mount.projectRoot, "mount project root");
+  if (!rootUrl.startsWith("file:///"))
+    throw new Error("mount project root must be a file URL");
+  const root = await realpath(fileURLToPath(rootUrl));
+  const skillDir = string(mount.skillDir, "mount skill directory");
+  if (skillDir !== skillDirForSource(string(details.source, "case source")))
+    throw new Error("skill mount does not match the selected case");
+  const skillRoot = await realpath(join(root, skillDir));
+  if (!within(root, skillRoot) || !(await stat(skillRoot)).isDirectory())
+    throw new Error("skill mount escapes the project root");
+  const skillName = skillDir.split("/").at(-1)!;
+  if (!portableName(skillName))
+    throw new Error("skill name is not a portable fixture path");
+  return { skillRoot, skillName };
+}
+
+function skillArtifact(
+  bytes: Buffer,
+  skillName: string,
+  parts: string[],
+  index: number,
+): SkillArtifact {
+  return {
+    id: `darrow.skill.${index}`,
+    relativePath: [".agents", "skills", skillName, ...parts].join("/"),
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+    contentBase64: bytes.toString("base64"),
+    gitExclude: true,
+  };
+}
+
+function checkSkillArtifactLimit(bytes: Buffer, total: number, count: number) {
+  if (bytes.byteLength > 1024 * 1024 || total > 4 * 1024 * 1024 || count >= 128)
+    throw new Error("skill mount exceeds the artifact limit");
+}
+
+async function skillArtifacts(skillRoot: string, skillName: string) {
+  const artifacts: SkillArtifact[] = [];
+  let totalBytes = 0;
+  async function collect(directory: string, parts: string[]): Promise<void> {
+    const entries = (await readdir(directory, { withFileTypes: true })).sort(
+      (left, right) =>
+        left.name < right.name ? -1 : left.name > right.name ? 1 : 0,
+    );
+    for (const entry of entries) {
+      if (OMITTED_SKILL_ENTRIES.has(entry.name)) continue;
+      if (!portableName(entry.name) || entry.isSymbolicLink())
+        throw new Error("skill mount contains an unsafe entry");
+      const next = [...parts, entry.name];
+      const path = join(directory, entry.name);
+      if (!within(skillRoot, await realpath(path)))
+        throw new Error("skill mount escapes its source directory");
+      if (entry.isDirectory()) {
+        await collect(path, next);
+        continue;
+      }
+      if (!entry.isFile()) throw new Error("skill mount contains a non-file");
+      const bytes = await readFile(path);
+      totalBytes += bytes.byteLength;
+      checkSkillArtifactLimit(bytes, totalBytes, artifacts.length);
+      artifacts.push(
+        skillArtifact(bytes, skillName, next, artifacts.length + 1),
+      );
+    }
+  }
+  await collect(skillRoot, []);
+  if (
+    !artifacts.some(
+      (artifact) =>
+        artifact.relativePath === `.agents/skills/${skillName}/SKILL.md`,
+    )
+  )
+    throw new Error("selected skill has no SKILL.md");
+  return artifacts;
+}
+
+async function prepareCase(params: RecordValue) {
+  const selected = record(params.case, "prepared case");
+  const data = record(selected.extensionData, "case extension data");
+  const details = record(data["darrow.case"], "Darrow case data");
+  if (details.mount === undefined)
+    return { artifacts: [], requestedInstrumentation: [], extensionData: {} };
+  const { skillRoot, skillName } = await skillMountSource(details);
+  const artifacts = await skillArtifacts(skillRoot, skillName);
+  return { artifacts, requestedInstrumentation: [], extensionData: {} };
 }
 
 function within(root: string, path: string): boolean {
@@ -253,13 +397,18 @@ async function resolveCase(params: RecordValue) {
     throw new Error("resolve needs exactly one case ID");
   const target = string(selectors.caseIds[0], "selected case ID");
   const matches: { value: unknown; source: string }[] = [];
-  const glob = new Bun.Glob("evals/experiments/*/cases/*.yaml");
-  for await (const source of glob.scan({ cwd: root })) {
-    const path = await realpath(join(root, source));
-    if (!within(root, path))
-      throw new Error("case path escapes the project root");
-    const value = parseYaml(await readFile(path, "utf8")) as unknown;
-    if (record(value, "case").id === target) matches.push({ value, source });
+  for (const pattern of [
+    "evals/experiments/*/cases/*.yaml",
+    "plugins/*/*/skills/*/evals/*.yaml",
+  ]) {
+    const glob = new Bun.Glob(pattern);
+    for await (const source of glob.scan({ cwd: root })) {
+      const path = await realpath(join(root, source));
+      if (!within(root, path))
+        throw new Error("case path escapes the project root");
+      const value = parseYaml(await readFile(path, "utf8")) as unknown;
+      if (record(value, "case").id === target) matches.push({ value, source });
+    }
   }
   if (matches.length !== 1)
     throw new Error(
@@ -267,7 +416,7 @@ async function resolveCase(params: RecordValue) {
         ? "selected case ID is ambiguous"
         : "selected case ID was not found",
     );
-  return { cases: [neutralCase(matches[0]!.value, matches[0]!.source)] };
+  return { cases: [neutralCase(matches[0]!.value, matches[0]!.source, root)] };
 }
 
 const requestText = await Bun.stdin.text();
@@ -296,7 +445,7 @@ try {
       : method === "resolve"
         ? await resolveCase(params)
         : method === "prepare"
-          ? { artifacts: [], requestedInstrumentation: [], extensionData: {} }
+          ? await prepareCase(params)
           : method === "evaluate"
             ? { checks: [], metrics: [] }
             : (() => {

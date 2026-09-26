@@ -5,15 +5,20 @@ importing Sevro internals. Darrow owns case discovery and translation; Sevro
 owns fixture construction, host execution, built-in checks, isolation, and
 retained results.
 
-This first migration slice resolves one selected skill-free case from
-`evals/experiments/*/cases/*.yaml`. It accepts generated Git commits, optional
+This migration slice resolves one selected skill-free experiment case or
+plugin-local skill case. It accepts generated Git commits, optional
 working-tree and staged files, hidden shell checks with exit-code and stdout
 assertions, combined final-message checks without external schema files, and
 semantic propositions graded by Sevro's separate evaluator route.
-It preserves the invariant, source path, and check names in
+For a plugin-local case, `prepare` mounts the selected skill's files under
+`.agents/skills/` and excludes their exact paths from Git status. Colocated
+`evals/` files and generated caches stay out of the candidate fixture. Skill
+bytes enter the fixture identity through their retained artifact digests.
+
+The extension preserves the invariant, source path, and check names in
 namespaced extension data. Other case fields and fixture mechanics fail
-explicitly. In particular, this slice does not mount skills, run setup scripts,
-or grade activation. Those cases still use Darrow's existing runner.
+explicitly. Plugin packaging, sibling skill mounts, setup scripts, host-specific
+prompt templates, and activation grading remain on Darrow's existing runner.
 
 For local protocol and public CLI validation, run:
 
@@ -26,5 +31,5 @@ An invocation supplies `index.ts`, the repository `package.json`, and
 are included in Sevro's source digest. Case content enters the selected case,
 fixture, and check digests.
 
-This development path uses an explicit Sevro checkout until a package release
-is pinned. It does not replace the existing eval command yet.
+This development path uses an explicit Sevro checkout or local package tarball
+until a release is pinned. It does not replace the existing eval command yet.

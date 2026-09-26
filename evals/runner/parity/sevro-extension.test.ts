@@ -1,5 +1,13 @@
 import { afterEach, expect, test } from "bun:test";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -356,6 +364,157 @@ test("Darrow extension grades semantic propositions through an isolated route", 
   expect(failed.value.cases[0]!.trials[0]!.checks).toMatchObject([
     { id: "darrow.semantic.1", status: "failed" },
   ]);
+});
+
+test("Darrow extension mounts a plugin skill without exposing its evals", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-skill-"));
+  roots.push(root);
+  const skillDir = join(root, "plugins/capability/example/skills/example");
+  await mkdir(join(skillDir, "references"), { recursive: true });
+  await mkdir(join(skillDir, "evals"), { recursive: true });
+  await writeFile(
+    join(skillDir, "SKILL.md"),
+    "---\nname: example\ndescription: Example skill\n---\n\nRead references/guide.md.\n",
+  );
+  await writeFile(join(skillDir, "references/guide.md"), "Visible guidance.\n");
+  await writeFile(join(skillDir, "evals/hidden.txt"), "hidden pass criteria\n");
+  await writeFile(
+    join(skillDir, "evals/mount.yaml"),
+    JSON.stringify({
+      id: "example-skill-mount",
+      invariant: "EXAMPLE-M1",
+      prompt: "Use the example skill and return ready.",
+      fixture: {
+        commits: [
+          { message: "Initialize", files: { "README.md": "fixture\n" } },
+        ],
+      },
+      checks: [
+        {
+          name: "skill mount is not a candidate change",
+          run: "git status --porcelain --untracked-files=all",
+          expect_exact: "",
+        },
+      ],
+      output_checks: [{ name: "response", expect_exact: "ready" }],
+    }),
+  );
+  const resolved = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(root).href,
+      selectors: { caseIds: ["example-skill-mount"] },
+      configuration: {},
+    }),
+  );
+  expect(resolved.code).toBe(0);
+  expect(resolved.value.result.cases[0]!.extensionData).toMatchObject({
+    "darrow.case": {
+      mount: {
+        projectRoot: pathToFileURL(await realpath(root)).href,
+        skillDir: "plugins/capability/example/skills/example",
+      },
+    },
+  });
+  const prepared = await command<{
+    result: {
+      artifacts: Array<{ relativePath: string; gitExclude: boolean }>;
+    };
+  }>(
+    [process.execPath, extension],
+    request("prepare", {
+      case: resolved.value.result.cases[0],
+      host: { id: "darrow.host.synthetic", capabilities: [] },
+      condition: "passive",
+      configuration: {},
+    }),
+  );
+  expect(prepared.code).toBe(0);
+  expect(
+    prepared.value.result.artifacts.map((item) => item.relativePath),
+  ).toEqual([
+    ".agents/skills/example/SKILL.md",
+    ".agents/skills/example/references/guide.md",
+  ]);
+  expect(prepared.value.result.artifacts.every((item) => item.gitExclude)).toBe(
+    true,
+  );
+
+  const sevroRoute = sevroCommand();
+  const commandFile = join(root, "extension-command.json");
+  const adapter = join(root, "candidate.ts");
+  await writeFile(commandFile, JSON.stringify([process.execPath, extension]));
+  await writeFile(
+    adapter,
+    `import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+export default {
+  id: "darrow.host.synthetic", model: "synthetic-v1", effort: "none",
+  async run({ workspace }) {
+    const skill = join(workspace, ".agents/skills/example");
+    if (!(await readFile(join(skill, "SKILL.md"), "utf8")).includes("Example skill")) throw new Error("skill missing");
+    if ((await readFile(join(skill, "references/guide.md"), "utf8")) !== "Visible guidance.\\n") throw new Error("reference missing");
+    if (await Bun.file(join(skill, "evals/hidden.txt")).exists()) throw new Error("eval criteria exposed");
+    return { finalMessage: "ready", complete: true };
+  },
+};
+`,
+  );
+  const run = await command<CliReply>([
+    ...sevroRoute.launch,
+    "run",
+    "--json",
+    ...sevroRoute.extraArgs,
+    "--extension-command-file",
+    commandFile,
+    "--extension-source-file",
+    extension,
+    "--extension-source-file",
+    join(projectRoot, "package.json"),
+    "--extension-source-file",
+    join(projectRoot, "bun.lock"),
+    "--case-id",
+    "example-skill-mount",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+    "--project-root",
+    root,
+    "--results-root",
+    join(root, "results"),
+    "--runner-build-digest",
+    digest,
+    "--project-digest",
+    digest,
+    "--condition",
+    "passive",
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+  ]);
+  expect(run.code, run.stderr).toBe(0);
+  expect(
+    run.value.cases[0]!.trials[0]!.checks.map((check) => check.status),
+  ).toEqual(["passed", "passed"]);
+  const evidence = JSON.parse(await readFile(run.value.evidencePath, "utf8"));
+  expect(
+    evidence.trials[0].artifactRefs.filter(
+      (item: { gitExclude?: boolean }) => item.gitExclude,
+    ),
+  ).toHaveLength(2);
+  await writeFile(join(root, "secret.txt"), "private source\n");
+  await symlink(join(root, "secret.txt"), join(skillDir, "references/leak.md"));
+  const unsafe = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("prepare", {
+      case: resolved.value.result.cases[0],
+      host: { id: "darrow.host.synthetic", capabilities: [] },
+      condition: "passive",
+      configuration: {},
+    }),
+  );
+  expect(unsafe.value.error.message).toMatch(/unsafe entry/);
 });
 
 test("Sevro runs an existing Darrow case through the extension protocol", async () => {
