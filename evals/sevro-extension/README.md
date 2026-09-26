@@ -19,8 +19,10 @@ artifact copy.
 
 The extension preserves the invariant, source path, and check names in
 namespaced extension data. Other case fields and fixture mechanics fail
-explicitly. Plugin packaging, sibling skill mounts, setup scripts, host-specific
-prompt templates, and activation grading remain on Darrow's existing runner.
+explicitly. Plugin packaging, sibling skill mounts, setup scripts,
+`{{skill_invocation}}`, and activation grading remain on Darrow's existing
+runner. The legacy `{{repo_dir}}` prompt token maps to Sevro's per-trial
+workspace token. Other prompt templates still fail explicitly.
 
 For local protocol and public CLI validation, run:
 

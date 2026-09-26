@@ -229,11 +229,12 @@ function neutralCase(value: unknown, source: string, root: string) {
     "case",
   );
   const id = string(selected.id, "case ID");
-  const prompt = string(selected.prompt, "case prompt");
-  if (prompt.includes("{{skill_invocation}}"))
+  const rawPrompt = string(selected.prompt, "case prompt");
+  if (rawPrompt.includes("{{skill_invocation}}"))
     throw new Error("case needs a host-specific skill invocation");
-  if (/\{\{[a-z_]+\}\}/.test(prompt))
+  if (rawPrompt.replaceAll("{{repo_dir}}", "").includes("{{"))
     throw new Error("case uses an unsupported prompt template");
+  const prompt = rawPrompt.replaceAll("{{repo_dir}}", "{{sevro.workspace}}");
   const invariant = string(selected.invariant, "case invariant");
   const skillDir = skillDirForSource(source);
   const checks = [

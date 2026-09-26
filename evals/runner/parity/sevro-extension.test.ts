@@ -57,6 +57,7 @@ interface ExtensionReply {
     extension: { id: string };
     protocols: string[];
     cases: Array<{
+      prompt: string;
       fixture: { kind: string; commits: Array<{ message: string }> };
       checks: Array<{
         id: string;
@@ -388,7 +389,7 @@ test("Darrow extension mounts a plugin skill without exposing its evals", async 
     JSON.stringify({
       id: "example-skill-mount",
       invariant: "EXAMPLE-M1",
-      prompt: "Use the example skill and return ready.",
+      prompt: "Use the example skill in {{repo_dir}} and return ready.",
       fixture: {
         commits: [
           { message: "Initialize", files: { "README.md": "fixture\n" } },
@@ -413,6 +414,9 @@ test("Darrow extension mounts a plugin skill without exposing its evals", async 
     }),
   );
   expect(resolved.code).toBe(0);
+  expect(resolved.value.result.cases[0]!.prompt).toBe(
+    "Use the example skill in {{sevro.workspace}} and return ready.",
+  );
   expect(resolved.value.result.cases[0]!.extensionData).toMatchObject({
     "darrow.case": {
       mount: {
@@ -461,8 +465,9 @@ test("Darrow extension mounts a plugin skill without exposing its evals", async 
 import { join } from "node:path";
 export default {
   id: "darrow.host.synthetic", model: "synthetic-v1", effort: "none",
-  async run({ workspace }) {
+  async run({ workspace, prompt }) {
     const skill = join(workspace, ".agents/skills/example");
+    if (prompt !== \`Use the example skill in \${workspace} and return ready.\`) throw new Error("workspace token unresolved");
     if (!(await readFile(join(skill, "SKILL.md"), "utf8")).includes("Example skill")) throw new Error("skill missing");
     if ((await readFile(join(skill, "references/guide.md"), "utf8")) !== "Visible guidance.\\n") throw new Error("reference missing");
     if (await Bun.file(join(skill, "evals/hidden.txt")).exists()) throw new Error("eval criteria exposed");
