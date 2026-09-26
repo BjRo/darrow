@@ -38,13 +38,36 @@ Supply your own bounded repair approach, rationale, and important constraints;
 mark it as advisory, separate from the required outcome. If you lack evidence
 for a safe recommendation, explicitly say why without inventing a solution or
 withholding the supported finding. Identify observable behavior or a regression
-test that would demonstrate resolution. Keep each field on one line, no tabs.
-Return at most 8 findings and no prose outside this tab-separated schema:
-format<TAB>darrow-review-axis-v1
-axis<TAB>standards
-status<TAB>pass|fail|blocked
-source<TAB>one exact repository source (repeat as needed)
-finding<TAB>critical|high|medium|low<TAB>blocking|advisory<TAB>changed path:line or command<TAB>violated source or heuristic:<name><TAB>failure and cause evidence<TAB>advisory repair guidance or explicit limitation<TAB>resolution behavior or regression test
+test that would demonstrate resolution. Encode every field as a JSON string; preserve tabs and newlines inside strings.
+Return at most 8 findings as one valid JSON array of records, with no prose or code fence. Replace placeholders, omit absent findings, and repeat source and finding rows as needed:
+[
+  [
+    "format",
+    "darrow-review-axis-v2"
+  ],
+  [
+    "axis",
+    "standards"
+  ],
+  [
+    "status",
+    "pass|fail|blocked"
+  ],
+  [
+    "source",
+    "one exact repository source (repeat as needed)"
+  ],
+  [
+    "finding",
+    "critical|high|medium|low",
+    "blocking|advisory",
+    "changed path:line or command",
+    "violated source or heuristic:<name>",
+    "failure and cause evidence",
+    "advisory repair guidance or explicit limitation",
+    "resolution behavior or regression test"
+  ]
+]
 ```
 
 ## Spec reviewer
@@ -80,13 +103,36 @@ Supply your own bounded repair approach, rationale, and important constraints;
 mark it as advisory, separate from the required outcome. If you lack evidence
 for a safe recommendation, explicitly say why without inventing a solution or
 withholding the supported finding. Identify observable behavior or a regression
-test that would demonstrate resolution. Keep each field on one line, no tabs.
-Return at most 8 findings and no prose outside this tab-separated schema:
-format<TAB>darrow-review-axis-v1
-axis<TAB>spec
-status<TAB>pass|fail|blocked
-source<TAB>one exact originating source (repeat as needed)
-finding<TAB>critical|high|medium|low<TAB>blocking|advisory<TAB>changed path:line or command<TAB>exact requirement citation<TAB>failure and cause evidence<TAB>advisory repair guidance or explicit limitation<TAB>resolution behavior or regression test
+test that would demonstrate resolution. Encode every field as a JSON string; preserve tabs and newlines inside strings.
+Return at most 8 findings as one valid JSON array of records, with no prose or code fence. Replace placeholders, omit absent findings, and repeat source and finding rows as needed:
+[
+  [
+    "format",
+    "darrow-review-axis-v2"
+  ],
+  [
+    "axis",
+    "spec"
+  ],
+  [
+    "status",
+    "pass|fail|blocked"
+  ],
+  [
+    "source",
+    "one exact originating source (repeat as needed)"
+  ],
+  [
+    "finding",
+    "critical|high|medium|low",
+    "blocking|advisory",
+    "changed path:line or command",
+    "exact requirement citation",
+    "failure and cause evidence",
+    "advisory repair guidance or explicit limitation",
+    "resolution behavior or regression test"
+  ]
+]
 ```
 
 ## Standards fix verifier
@@ -135,17 +181,56 @@ For each new direct regression, explain failure and cause against its source;
 provide your own advisory bounded repair, rationale, important constraints,
 and resolution behavior or regression test. If a safe recommendation is not
 supported, state that limitation and why without suppressing the regression.
-Keep each field on one line, no tabs.
+Encode every field as a JSON string; preserve tabs and newlines inside strings.
 
-Return no prose outside this tab-separated schema:
-format<TAB>darrow-review-fix-axis-v1
-axis<TAB>standards
-original<TAB>original finding key
-prior_regression<TAB>stable regression key<TAB>causing original finding key
-attempt<TAB>original finding key<TAB>resolved|unresolved|blocked<TAB>resolved|progressing|unchanged|unavailable<TAB>current evidence
-regression_attempt<TAB>stable prior regression key<TAB>resolved|unresolved|blocked<TAB>resolved|progressing|unchanged|unavailable<TAB>current evidence
-regression<TAB>causing original finding key<TAB>critical|high|medium|low<TAB>location<TAB>source<TAB>failure and cause evidence<TAB>advisory repair guidance or explicit limitation<TAB>resolution behavior or regression test
-evidence_gap<TAB>missing or inconsistent required evidence
+Return one valid JSON array of records, with no prose or code fence. Replace placeholders, omit absent optional rows, and repeat finding and evidence rows as needed:
+[
+  [
+    "format",
+    "darrow-review-fix-axis-v2"
+  ],
+  [
+    "axis",
+    "standards"
+  ],
+  [
+    "original",
+    "original finding key"
+  ],
+  [
+    "prior_regression",
+    "stable regression key",
+    "causing original finding key"
+  ],
+  [
+    "attempt",
+    "original finding key",
+    "resolved|unresolved|blocked",
+    "resolved|progressing|unchanged|unavailable",
+    "current evidence"
+  ],
+  [
+    "regression_attempt",
+    "stable prior regression key",
+    "resolved|unresolved|blocked",
+    "resolved|progressing|unchanged|unavailable",
+    "current evidence"
+  ],
+  [
+    "regression",
+    "causing original finding key",
+    "critical|high|medium|low",
+    "location",
+    "source",
+    "failure and cause evidence",
+    "advisory repair guidance or explicit limitation",
+    "resolution behavior or regression test"
+  ],
+  [
+    "evidence_gap",
+    "missing or inconsistent required evidence"
+  ]
+]
 ```
 
 ## Spec fix verifier
@@ -195,15 +280,54 @@ For each new direct regression, explain failure and cause against its source;
 provide your own advisory bounded repair, rationale, important constraints,
 and resolution behavior or regression test. If a safe recommendation is not
 supported, state that limitation and why without suppressing the regression.
-Keep each field on one line, no tabs.
+Encode every field as a JSON string; preserve tabs and newlines inside strings.
 
-Return no prose outside this tab-separated schema:
-format<TAB>darrow-review-fix-axis-v1
-axis<TAB>spec
-original<TAB>original finding key
-prior_regression<TAB>stable regression key<TAB>causing original finding key
-attempt<TAB>original finding key<TAB>resolved|unresolved|blocked<TAB>resolved|progressing|unchanged|unavailable<TAB>current evidence
-regression_attempt<TAB>stable prior regression key<TAB>resolved|unresolved|blocked<TAB>resolved|progressing|unchanged|unavailable<TAB>current evidence
-regression<TAB>causing original finding key<TAB>critical|high|medium|low<TAB>location<TAB>source<TAB>failure and cause evidence<TAB>advisory repair guidance or explicit limitation<TAB>resolution behavior or regression test
-evidence_gap<TAB>missing or inconsistent required evidence
+Return one valid JSON array of records, with no prose or code fence. Replace placeholders, omit absent optional rows, and repeat finding and evidence rows as needed:
+[
+  [
+    "format",
+    "darrow-review-fix-axis-v2"
+  ],
+  [
+    "axis",
+    "spec"
+  ],
+  [
+    "original",
+    "original finding key"
+  ],
+  [
+    "prior_regression",
+    "stable regression key",
+    "causing original finding key"
+  ],
+  [
+    "attempt",
+    "original finding key",
+    "resolved|unresolved|blocked",
+    "resolved|progressing|unchanged|unavailable",
+    "current evidence"
+  ],
+  [
+    "regression_attempt",
+    "stable prior regression key",
+    "resolved|unresolved|blocked",
+    "resolved|progressing|unchanged|unavailable",
+    "current evidence"
+  ],
+  [
+    "regression",
+    "causing original finding key",
+    "critical|high|medium|low",
+    "location",
+    "source",
+    "failure and cause evidence",
+    "advisory repair guidance or explicit limitation",
+    "resolution behavior or regression test"
+  ],
+  [
+    "evidence_gap",
+    "missing or inconsistent required evidence"
+  ]
+]
 ```

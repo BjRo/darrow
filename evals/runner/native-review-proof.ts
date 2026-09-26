@@ -124,10 +124,19 @@ function parseSession(content: string): SessionEntry[] {
     });
 }
 
-function parseTsv(content: string): Map<string, string[][]> {
+function parseRecords(content: string): Map<string, string[][]> {
+  const parsed: unknown = JSON.parse(content);
+  if (!Array.isArray(parsed))
+    throw new Error("review record must be a JSON array");
   const rows = new Map<string, string[][]>();
-  for (const line of content.trimEnd().split("\n")) {
-    const [key, ...values] = line.split("\t");
+  for (const item of parsed) {
+    if (
+      !Array.isArray(item) ||
+      !item.length ||
+      item.some((field) => typeof field !== "string")
+    )
+      throw new Error("review rows must be nonempty string arrays");
+    const [key, ...values] = item as string[];
     if (!key) throw new Error("record contains an empty key");
     rows.set(key, [...(rows.get(key) ?? []), values]);
   }
@@ -195,10 +204,10 @@ function verifyApplicationRecord(
   route: Route,
   axis: string,
 ): string {
-  const rows = parseTsv(content);
+  const rows = parseRecords(content);
   const expected = [route.host, route.provider, route.model, route.effort];
   for (const key of ["selected_route", "requested_route"])
-    if (oneRow(rows, key).join("\t") !== expected.join("\t"))
+    if (JSON.stringify(oneRow(rows, key)) !== JSON.stringify(expected))
       throw new Error(`${axis} ${key} does not match the selected route`);
   if (oneValue(rows, "route_bound") !== "true")
     throw new Error(`${axis} application record is not route_bound`);
@@ -456,8 +465,8 @@ export async function buildNativeReviewProof(
   const { session, scopeText, routeText, standardsText, specText } =
     await readInputs(options);
   const entries = parseSession(session);
-  const scope = parseTsv(scopeText);
-  const route = routeFrom(parseTsv(routeText));
+  const scope = parseRecords(scopeText);
+  const route = routeFrom(parseRecords(routeText));
   const launches = reviewLaunches(entries, route, options, {
     standards: standardsText,
     spec: specText,

@@ -29,16 +29,18 @@ fixture:
       export function send(payload, tenant, vendorTransport) {
         return vendorTransport.send(payload);
       }
-  setup: git hash-object src/send.js >.git/before
+  setup: |
+    git hash-object src/send.js >.git/before
+    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/emit_rows.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: supported signing finding survives uncertainty
     run: |
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n 1)
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n 1)
       test -n "$record" || exit 1
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n 1)
       test -n "$tool" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record" || exit 1
       awk -F '\t' '$1 == "finding" && $2 == "spec" && $4 == "blocking" && NF == 9 { found=1 }
-        END { exit !found }' "$record"
+        END { exit !found }' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record")
   - name: review does not implement its advice
     run: git hash-object src/send.js >.git/after && cmp .git/before .git/after
 semantic_output_checks:

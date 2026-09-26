@@ -29,65 +29,67 @@ fixture:
         const port = Number.parseInt(value, 10);
         return port >= 1 && port <= 65535 ? port : null;
       }
-  setup: git status --porcelain --untracked-files=all >.git/status-before
+  setup: |
+    git status --porcelain --untracked-files=all >.git/status-before
+    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/emit_rows.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: seeded trailing-character defect is detected
     metric: defect_detection
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       awk -F '\t' '$1 == "finding" && $2 == "spec" && $4 == "blocking" &&
       tolower($7) ~ /(12x|parseint|trailing|integer|string)/ { found = 1 }
-      END { exit !found }' "$record"
+      END { exit !found }' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record")
   - name: no seeded defect escapes
     metric: escaped_defect
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       awk -F '\t' '$1 == "finding" && $2 == "spec" && $4 == "blocking" &&
       tolower($7) ~ /(12x|parseint|trailing|integer|string)/ { found = 1 }
-      END { exit !found }' "$record"
+      END { exit !found }' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record")
   - name: accepted inline design does not create a false positive
     metric: false_positive
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       awk -F '\t' '$1 == "finding" &&
       tolower($7) ~ /(abstract|inline|generalit)/ { false_positive = 1 }
-      END { exit false_positive }' "$record"
+      END { exit false_positive }' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record")
   - name: comparative review remains read-only
     run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
-  - name: canonical TSV is retained beneath the review scope artifact
+  - name: canonical JSON is retained beneath the review scope artifact
     run: >-
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
       test -n "$tool" || exit 1;
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record"
-    expect_regex: "^valid: darrow-review-result-v1$"
+    expect_regex: "^valid: darrow-review-result-v2$"
   - name: canonical result preserves the seeded Spec defect without a design false positive
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       awk -F '\t' '$1 == "spec" && $2 == "fail" { spec_fail = 1 }
       $1 == "verdict" && $2 == "fail" { verdict_fail = 1 }
       $1 == "finding" && $2 == "spec" && $4 == "blocking" &&
       tolower($0) ~ /(12x|parseint|trailing)/ { found = 1 }
       $1 == "finding" && $2 == "standards" { standards = 1 }
-      END { exit !(spec_fail && verdict_fail && found && !standards) }' "$record"
-  - name: canonical Markdown handoff is materialized beside the TSV
+      END { exit !(spec_fail && verdict_fail && found && !standards) }' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record")
+  - name: canonical Markdown handoff is materialized beside the JSON
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       report=$(dirname "$record")/review.md;
       tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n '1');
       test -r "$report" && test -s "$report" && test -n "$tool" &&
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render "$record" >.git/expected-review.md &&
       cmp .git/expected-review.md "$report"
-  - name: default response does not expose canonical TSV
-    run: "! grep -F 'format\tdarrow-review-result-v1' .git/last-message.md"
+  - name: default response does not expose canonical JSON
+    run: "! grep -F 'darrow-review-result-v2' .git/last-message.md"
   - name: final response preserves every canonical rendered line
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n '1');
       test -n "$tool" || exit 1;

@@ -5,17 +5,17 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 
 def row(path: Path, key: str) -> list[str]:
     matches = [
-        line.split("\t")[1:]
-        for line in path.read_text(encoding="utf-8").splitlines()
-        if line.split("\t")[0] == key
+        record[1:]
+        for record in json.loads(path.read_text(encoding="utf-8"))
+        if record[0] == key
     ]
     assert len(matches) == 1, f"{path}: expected one {key}"
-    return matches[0]
+    return cast(list[str], matches[0])
 
 
 def route(host: str, profile: str) -> list[str]:
@@ -32,7 +32,7 @@ def identities(directory: Path, axes: list[str], expected: list[str]) -> dict[st
     field = "requested_route" if expected[0] == "codex" else "observed_route"
     result = {}
     for axis in axes:
-        path = directory / f"{axis}-route.tsv"
+        path = directory / f"{axis}-route.json"
         assert row(path, "axis") == [axis]
         assert row(path, field) == expected
         assert row(path, "route_bound") == ["true"]
@@ -41,7 +41,7 @@ def identities(directory: Path, axes: list[str], expected: list[str]) -> dict[st
         result[axis] = agent[0]
     assert len(set(result.values())) == len(axes), "reader identities must be distinct"
     if axes == ["standards"]:
-        assert not (directory / "spec-route.tsv").exists()
+        assert not (directory / "spec-route.json").exists()
     return result
 
 
@@ -126,7 +126,7 @@ def claude_evidence(
     assert len(launches) == len(agents)
     batches = []
     for axis, agent in agents.items():
-        observed = directory / f"{axis}-observed-route.tsv"
+        observed = directory / f"{axis}-observed-route.json"
         assert row(observed, "agent_id") == [agent]
         assert row(observed, "observed_route") == expected
         verify_provider(directory, axis, len(agents))
@@ -144,7 +144,7 @@ def claude_evidence(
 def verify_provider(directory: Path, axis: str, count: int) -> None:
     if count > 1:
         for suffix in ("route", "observed-route"):
-            assert row(directory / f"{axis}-{suffix}.tsv", "provider_evidence") == [
+            assert row(directory / f"{axis}-{suffix}.json", "provider_evidence") == [
                 "current-host-environment-default"
             ]
 
@@ -157,7 +157,7 @@ def verify(
     review_state: Path | None = None,
 ) -> None:
     review_root = review_state if review_state is not None else git_dir
-    selections = sorted(review_root.glob("**/darrow-review.*/reviewer-route.tsv"))
+    selections = sorted(review_root.glob("**/darrow-review.*/reviewer-route.json"))
     assert selections, "missing reviewer route"
     directory = selections[-1].parent
     expected = route(host, profile)

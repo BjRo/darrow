@@ -9,11 +9,13 @@ fixture:
     - message: "chore: init"
       files:
         src/config.js: "export const DEFAULT_TIMEOUT_MS = 1000;\n"
+  setup: |
+    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/emit_rows.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: ordinary edit intent is fulfilled
     run: grep -F 'DEFAULT_TIMEOUT_MS = 2500' src/config.js
   - name: no review artifact was returned
-    run: "! grep -F 'darrow-review-result-v1' .git/last-message.md"
+    run: "! grep -F 'darrow-review-result-v2' .git/last-message.md"
 output_checks:
   - name: skill does not claim a review
-    not_regex: "darrow-review-result-v1|^standards\\t|^spec\\t"
+    not_regex: "darrow-review-result-v2|^standards\\t|^spec\\t"

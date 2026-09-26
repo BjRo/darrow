@@ -59,7 +59,7 @@ def first_round() -> list[list[str]]:
 
 
 def later_round(tmp_path: Path) -> tuple[list[list[str]], str]:
-    previous = Path(write(tmp_path / "previous.tsv", first_round()))
+    previous = Path(write(tmp_path / "previous.json", first_round()))
     later = change(
         first_round(),
         "previous_verification",

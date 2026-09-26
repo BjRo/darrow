@@ -44,8 +44,8 @@ fixture:
     set -eu
     backend=$(cd "{{case_dir}}/../../../backend" && pwd -P)
     prior_output=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
-    prior_manifest=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "manifest" { print $2 }')
-    original_target=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "target" { print $2 }')
+    prior_manifest=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; key=sys.argv[1]; print(next(row[1] for row in json.load(sys.stdin) if row[0] == key))' manifest)
+    original_target=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; key=sys.argv[1]; print(next(row[1] for row in json.load(sys.stdin) if row[0] == key))' target)
     {
       printf 'original_target\t%s\n' "$original_target"
       printf 'prior_target\t%s\n' "$original_target"
@@ -53,25 +53,26 @@ fixture:
       printf 'previous_verification\tnone\tnone\n'
       printf 'original_finding\tspec:1:%s\tspec\t1\thigh\tblocking\tsrc/math.js:1\trequirement: multiplier must be 2\tmultiplier was 1\n' "$original_target"
       printf 'attempted\tspec:1:%s\n' "$original_target"
-    } >.git/verification-input
+    } | python3 "{{case_dir}}/../../../backend/tests/evals/assemble_fixture.py" >.git/verification-input
     printf '%s\n' "$backend" >.git/review-backend
     git status --porcelain --untracked-files=all >.git/status-before
     git hash-object src/math.js >.git/math-before
+    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/emit_rows.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: new repair regression carries verifier-authored guidance
     run: |
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1)
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
       test -n "$record" || exit 1
       artifact_dir=$(dirname "$record")
       awk -F '\t' 'BEGIN { OFS="\t" }
         $1 == "regression" { n++; if (NF != 13 || $12 == "" || $13 == "") bad=1; print $3,$6,$9,$10,$11,$12,$13 }
-        END { exit !(n && !bad) }' "$record" >.git/aggregate-regression-guidance || exit 1
+        END { exit !(n && !bad) }' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >.git/aggregate-regression-guidance || exit 1
       : >.git/reader-regression-guidance
       for file in "$artifact_dir"/*; do
         test -f "$file" || continue
-        if test "$(sed -n 1p "$file")" = "$(printf 'format\tdarrow-review-fix-axis-v1')"; then
+        if test "$(sed -n 1p <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$file"))" = "$(printf 'format\tdarrow-review-fix-axis-v2')"; then
           awk -F '\t' 'BEGIN { OFS="\t" }
-            $1 == "regression" { print $2,$3,$4,$5,$6,$7,$8 }' "$file" >>.git/reader-regression-guidance
+            $1 == "regression" { print $2,$3,$4,$5,$6,$7,$8 }' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$file") >>.git/reader-regression-guidance
         fi
       done
       while IFS= read -r finding; do
@@ -85,22 +86,22 @@ checks:
       cmp .git/math-before .git/math-after
   - name: direct regression enters the closed convergence set
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1') &&
       test -n "$tool" &&
       test -n "$record" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-verification "$record" &&
       awk -F '\t' '$1 == "check" && $2 == "bash check.sh" && $3 == "applicable" &&
-      $4 == "fail" && $5 ~ /scale\(-2\)/ { found=1 } END { exit found ? 0 : 1 }' "$record" &&
-      original_target=$(awk -F '\t' '$1 == "original_target" { print $2 }' .git/verification-input) &&
-      awk -F '\t' -v cause="spec:1:$original_target" '$1 == "regression" && $2 == "regression:1:" cause && $3 == cause && $4 == 1 { found=1 } END { exit found ? 0 : 1 }' "$record" &&
-      grep -F 'outcome	continue' "$record" >/dev/null
+      $4 == "fail" && $5 ~ /scale\(-2\)/ { found=1 } END { exit found ? 0 : 1 }' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") &&
+      original_target=$(python3 -c 'import json; print(next(row[1] for row in json.load(open(".git/verification-input")) if row[0] == "original_target"))') &&
+      awk -F '\t' -v cause="spec:1:$original_target" '$1 == "regression" && $2 == "regression:1:" cause && $3 == cause && $4 == 1 { found=1 } END { exit found ? 0 : 1 }' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") &&
+      grep -F 'outcome	continue' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >/dev/null
   - name: unrelated observation is excluded
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
-      ! grep -F 'renaming scale' "$record" >/dev/null
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
+      ! grep -F 'renaming scale' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >/dev/null
   - name: final response is the complete rendered verification report
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
       test -n "$record" &&
       report=$(dirname "$record")/verification.md &&
       test -r "$report" && test -s "$report" &&

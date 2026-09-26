@@ -27,7 +27,12 @@ ESCAPES = str.maketrans(
 
 
 def escape(value: str) -> str:
-    return value.translate(ESCAPES)
+    return (
+        value.translate(ESCAPES)
+        .replace("\r", "\\r")
+        .replace("\n", "\\n")
+        .replace("\t", "\\t")
+    )
 
 
 def guidance(fields: list[str], prefix: str = "") -> str:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -14,11 +15,18 @@ class InvalidProofError(Exception):
 
 
 def field(path: Path, name: str) -> str:
-    return "\n".join(
-        row.split("\t")[1]
-        for row in path.read_text(encoding="utf-8").splitlines()
-        if row.startswith(name + "\t")
-    )
+    try:
+        records = json.loads(path.read_text(encoding="utf-8"))
+    except (ValueError, RecursionError) as exc:
+        raise InvalidProofError(f"invalid review JSON: {path}") from exc
+    if not isinstance(records, list) or any(
+        not isinstance(row, list)
+        or not row
+        or any(not isinstance(value, str) for value in row)
+        for row in records
+    ):
+        raise InvalidProofError(f"invalid review JSON records: {path}")
+    return "\n".join(row[1] for row in records if row[0] == name and len(row) > 1)
 
 
 def provider(git_dir: Path) -> Path:
@@ -65,8 +73,8 @@ def canonical_record(git_dir: Path, selected: str) -> Path:
     ):
         raise InvalidProofError(f"not a canonical fixture review artifact: {path}")
     if path.name not in {
-        "result.tsv",
-        "verification.tsv",
+        "result.json",
+        "verification.json",
         "review.md",
         "verification.md",
     }:
@@ -80,9 +88,9 @@ def machine_record(backend: Path, repo: Path, path: Path) -> Path:
     if not (backend / "src/darrow_review/report.py").is_file():
         raise InvalidProofError("installed review renderer is missing")
     name, render = (
-        ("result.tsv", "render")
+        ("result.json", "render")
         if path.name == "review.md"
-        else ("verification.tsv", "render-verification")
+        else ("verification.json", "render-verification")
     )
     record = path.with_name(name)
     rendered = invoke(backend, repo, "review-report", render, str(record))
@@ -94,7 +102,7 @@ def machine_record(backend: Path, repo: Path, path: Path) -> Path:
 def original_record(git_dir: Path, target: str) -> Path:
     matches = [
         path
-        for path in git_dir.rglob("result.tsv")
+        for path in git_dir.rglob("result.json")
         if path.parent.name.startswith("darrow-review.")
         and field(path, "target") == target
     ]
@@ -106,15 +114,15 @@ def original_record(git_dir: Path, target: str) -> Path:
 
 def reviewed_target(backend: Path, repo: Path, git_dir: Path, path: Path) -> str:
     format_name = field(path, "format")
-    if format_name == "darrow-review-result-v1":
+    if format_name == "darrow-review-result-v2":
         return comprehensive_target(backend, repo, path)
-    if format_name == "darrow-review-verification-v1":
+    if format_name == "darrow-review-verification-v2":
         return verification_target(backend, repo, git_dir, path)
     raise InvalidProofError(f"unsupported format: {format_name}")
 
 
 def comprehensive_target(backend: Path, repo: Path, path: Path) -> str:
-    if path.name != "result.tsv":
+    if path.name != "result.json":
         raise InvalidProofError("wrong comprehensive artifact name")
     invoke(backend, repo, "review-result", "validate", str(path))
     if field(path, "verdict") != "pass":
@@ -125,7 +133,7 @@ def comprehensive_target(backend: Path, repo: Path, path: Path) -> str:
 
 
 def verification_target(backend: Path, repo: Path, git_dir: Path, path: Path) -> str:
-    if path.name != "verification.tsv":
+    if path.name != "verification.json":
         raise InvalidProofError("wrong verification artifact name")
     invoke(backend, repo, "review-result", "validate-verification", str(path))
     if field(path, "outcome") != "clear":
@@ -152,9 +160,10 @@ def current(backend: Path, repo: Path, target: str) -> None:
         "--target",
         "WORKTREE",
     )
-    actual = "\n".join(
-        row.split("\t")[1] for row in scope.splitlines() if row.startswith("target\t")
-    )
+    try:
+        actual = next(row[1] for row in json.loads(scope) if row[0] == "target")
+    except (ValueError, IndexError, StopIteration, TypeError) as exc:
+        raise InvalidProofError("invalid review scope JSON") from exc
     if not target or target != actual:
         raise InvalidProofError(f"stale review target: {target}; current: {actual}")
 

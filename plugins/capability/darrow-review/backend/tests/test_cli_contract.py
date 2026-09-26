@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from darrow_review.common import entrypoint
+from darrow_review.common import entrypoint, serialize
 from darrow_review.records import Records
 
 
@@ -37,7 +37,7 @@ def check_destination(repo: Path) -> Path:
         "WORKTREE",
     )
     assert prepared.returncode == 0, prepared.stderr
-    return Path(Records(prepared.stdout).value("manifest")).parent / "check.tsv"
+    return Path(Records(prepared.stdout).value("manifest")).parent / "check.json"
 
 
 @pytest.mark.parametrize(
@@ -96,10 +96,10 @@ def test_check_capture_preserves_status_and_exit_code(
         repo, "review-check", "run", "--output", str(destination), "--command", command
     )
     assert process.returncode == 0, process.stderr
-    assert process.stdout == f"check_record\t{destination}\n"
+    assert process.stdout == serialize([["check_record", str(destination)]])
     evidence = Records(destination.read_text(encoding="utf-8"))
     assert evidence.get("check") == [
-        ["check", command, "applicable", status, f"exited {code}: observed"]
+        ["check", command, "applicable", status, f"exited {code}: observed\n"]
     ]
     assert evidence.value("exit_code") == str(code)
 
@@ -149,13 +149,13 @@ def test_review_state_lifecycle_commands(repo: Path) -> None:
         "--target",
         packet.value("target"),
     )
-    assert located.stdout == f"manifest\t{manifest}\n"
+    assert located.stdout == serialize([["manifest", manifest]])
 
     assert invoke(repo, "review-scope", "pin", "--manifest", manifest).returncode == 0
     pinned_prune = invoke(
         repo, "review-scope", "prune", "--all", "--older-than-days", "0"
     )
-    assert pinned_prune.stdout == "pruned\t0\n"
+    assert pinned_prune.stdout == serialize([["pruned", "0"]])
     assert Path(manifest).exists()
 
     assert invoke(repo, "review-scope", "unpin", "--manifest", manifest).returncode == 0
@@ -172,10 +172,10 @@ def test_terminal_scope_has_private_artifact_directory(repo: Path) -> None:
     assert run.parent.parent == Path(os.environ["DARROW_REVIEW_STATE_DIR"])
     assert not run.is_relative_to(repo)
     manifest = Records(terminal.stdout).value("manifest")
-    assert manifest == str(run / "scope.tsv")
+    assert manifest == str(run / "scope.json")
     assert invoke(repo, "review-scope", "pin", "--manifest", manifest).returncode == 0
     preserved = invoke(repo, "review-scope", "prune", "--all", "--older-than-days", "0")
-    assert preserved.stdout == "pruned\t0\n"
+    assert preserved.stdout == serialize([["pruned", "0"]])
     assert run.exists()
     assert invoke(repo, "review-scope", "unpin", "--manifest", manifest).returncode == 0
     pruned = invoke(repo, "review-scope", "prune", "--all", "--older-than-days", "0")

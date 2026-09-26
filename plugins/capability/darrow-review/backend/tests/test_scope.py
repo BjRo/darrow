@@ -58,14 +58,16 @@ def test_all_layers_and_scope_binding(
         row for row in result_rows() if row[0] not in ("base", "target", "changed_file")
     ]
     source += result.scope_records(manifest.value("manifest"))
-    path = write(tmp_path / "result.tsv", source)
+    path = write(tmp_path / "result.json", source)
     assert "matches pinned scope" in cli.result_command(
         ["validate-scope", manifest.value("manifest"), path]
     )
-    wrong = write(tmp_path / "wrong.tsv", change(source, "target", "wrong"))
+    wrong = write(tmp_path / "wrong.json", change(source, "target", "wrong"))
     with pytest.raises(ReviewError, match="differs from pinned scope"):
         result.validate_scope(manifest.value("manifest"), wrong)
-    assert "base\t" in cli.result_command(["scope-records", manifest.value("manifest")])
+    assert Records(
+        cli.result_command(["scope-records", manifest.value("manifest")])
+    ).value("base")
     for key in tuple(os.environ):
         if key.startswith("GIT_"):
             monkeypatch.delenv(key)
@@ -139,7 +141,7 @@ def test_scope_identity_records(repo: Path, tmp_path: Path) -> None:
         change(records.rows, "diff", "relative"),
     ]
     for index, variant in enumerate(variants):
-        path = write(tmp_path / f"scope-{index}.tsv", variant)
+        path = write(tmp_path / f"scope-{index}.json", variant)
         with pytest.raises(ReviewError):
             result.scope_records(path)
 
@@ -169,7 +171,7 @@ def test_scope_set_requires_exact_binding(
         row for row in result_rows() if row[0] not in ("base", "target", "changed_file")
     ]
     records += result.scope_records(manifest)
-    original = write(tmp_path / "original.tsv", [records[0], *reversed(records[1:])])
+    original = write(tmp_path / "original.json", [records[0], *reversed(records[1:])])
     result.validate_scope(manifest, original)
     variants = {
         "base": change(records, "base", "wrong"),
@@ -180,7 +182,7 @@ def test_scope_set_requires_exact_binding(
         "duplicate": [*records, ["changed_file", str(repo / "extra.txt")]],
         "extra": [*records, ["changed_file", str(tmp_path / "unrelated")]],
     }
-    path = write(tmp_path / "changed.tsv", variants[mutation])
+    path = write(tmp_path / "changed.json", variants[mutation])
     # Format validity alone cannot prove the scope identity or full file set.
     cli.result_command(["validate", path])
     with pytest.raises(ReviewError) as error:
@@ -206,7 +208,7 @@ def test_incomplete_manifests_never_emit_scope_records(
             row for row in records if row != ["changed_file", str(repo / "extra.txt")]
         ],
     }
-    path = write(tmp_path / "bad.tsv", variants[mutation])
+    path = write(tmp_path / "bad.json", variants[mutation])
     with pytest.raises(ReviewError):
         cli.result_command(["scope-records", path])
 

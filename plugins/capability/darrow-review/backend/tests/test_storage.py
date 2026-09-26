@@ -14,7 +14,7 @@ import pytest
 
 from conftest import git
 from darrow_review import scope, storage
-from darrow_review.common import ReviewError
+from darrow_review.common import ReviewError, serialize
 from darrow_review.records import Records
 
 
@@ -76,9 +76,14 @@ def test_scope_is_private_user_state_and_worktrees_are_distinct(repo: Path) -> N
     assert storage.locate(linked, Records(second.read_text()).value("target")) == second
 
 
-def test_terminal_manifest_refuses_tsv_unsafe_repository_path(repo: Path) -> None:
-    with pytest.raises(ReviewError, match="tab or newline"):
-        storage.allocate_terminal(repo.parent / "unsafe\tpath")
+def test_terminal_manifest_accepts_tab_and_newline_in_repository_path(
+    repo: Path,
+) -> None:
+    unusual = repo.parent / "tab\tand\nnewline"
+    run = storage.allocate_terminal(unusual)
+    assert storage.fields_at(run / "scope.json")["repository"] == str(unusual)
+    with pytest.raises(ReviewError, match="NUL byte"):
+        storage.allocate_terminal(repo.parent / "unsafe\0path")
 
 
 def test_locate_returns_none_before_any_review(repo: Path) -> None:
@@ -127,7 +132,7 @@ def test_prune_ignores_unrelated_entries(repo: Path) -> None:
 def test_prune_refuses_corrupt_retained_dependency(repo: Path) -> None:
     original = packet(repo, content="first")
     current = packet(repo, content="second", prior_manifest=str(original))
-    (current.parent / "verification.tsv").write_bytes(b"\xff")
+    (current.parent / "verification.json").write_bytes(b"\xff")
     old = 1_600_000_000
     os.utime(original.parent, (old, old))
     with pytest.raises(ReviewError, match="dependency is unreadable"):
@@ -244,11 +249,13 @@ def test_prune_preserves_referenced_history_then_removes_whole_chain(
 
 def test_prune_preserves_prior_verification_record(repo: Path) -> None:
     original = packet(repo, content="first")
-    previous = original.parent / "verification.tsv"
-    previous.write_text("format\tdarrow-review-verification-v1\n", encoding="utf-8")
+    previous = original.parent / "verification.json"
+    previous.write_text(
+        serialize([["format", "darrow-review-verification-v2"]]), encoding="utf-8"
+    )
     current = packet(repo, content="second")
-    (current.parent / "verification.tsv").write_text(
-        f"previous_verification\thash\t{previous}\n", encoding="utf-8"
+    (current.parent / "verification.json").write_text(
+        serialize([["previous_verification", "hash", str(previous)]]), encoding="utf-8"
     )
     old = 1_600_000_000
     os.utime(original.parent, (old, old))

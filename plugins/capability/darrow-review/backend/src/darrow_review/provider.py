@@ -29,7 +29,12 @@ def direct() -> str:
         in ("", "https://api.anthropic.com", "https://api.anthropic.com/"),
         "Claude provider is not observably direct Anthropic: ANTHROPIC_BASE_URL is custom",
     )
-    return "provider\tclaude\tanthropic\nprovider_evidence\tcurrent-host-environment-default\n"
+    return serialize(
+        [
+            ["provider", "claude", "anthropic"],
+            ["provider_evidence", "current-host-environment-default"],
+        ]
+    )
 
 
 def object_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
@@ -135,7 +140,7 @@ def verify(repo: str, agent: str, projects: str = "", record: str = "") -> str:
     )
     body = serialize(
         [
-            ["format", "darrow-review-claude-route-v1"],
+            ["format", "darrow-review-claude-route-v2"],
             ["agent_id", agent],
             ["transcript", str(transcript)],
             ["provider_evidence", "current-host-environment-default"],
@@ -146,5 +151,5 @@ def verify(repo: str, agent: str, projects: str = "", record: str = "") -> str:
         return body
     path = new_record(record, body)
     return serialize(
-        [["format", "darrow-reviewer-record-location-v1"], ["record", str(path)]]
+        [["format", "darrow-reviewer-record-location-v2"], ["record", str(path)]]
     )

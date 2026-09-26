@@ -19,32 +19,33 @@ fixture:
     git add main-only.txt
     git commit -qm 'feat: main side'
     git checkout -q feature
+    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/emit_rows.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: branch review remains read-only
     run: test -z "$(git status --porcelain --untracked-files=all)"
-  - name: canonical TSV is retained beneath the review scope artifact
+  - name: canonical JSON is retained beneath the review scope artifact
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
       test -n "$tool" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record"
-    expect_regex: "^valid: darrow-review-result-v1$"
+    expect_regex: "^valid: darrow-review-result-v2$"
   - name: scope uses the branch merge base and excludes main-only changes
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       base=$(git merge-base main HEAD) && target=$(git rev-parse HEAD) &&
-      grep -F "base	$base" "$record" >/dev/null &&
-      grep -F "target	$target" "$record" >/dev/null &&
-      grep -F 'spec	not_available' "$record" >/dev/null &&
+      grep -F "base	$base" <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >/dev/null &&
+      grep -F "target	$target" <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >/dev/null &&
+      grep -F 'spec	not_available' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >/dev/null &&
       awk -F '\t' '$1 == "changed_file" { count++; if ($2 ~ /\/feature[.]txt$/) found = 1 }
-      END { exit !(count == 1 && found) }' "$record" &&
-      ! grep -F 'main-only.txt' "$record" >/dev/null
-  - name: default response does not duplicate canonical TSV
-    run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
+      END { exit !(count == 1 && found) }' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") &&
+      ! grep -F 'main-only.txt' <(python3 .git/eval-checks/review/tests/evals/emit_rows.py "$record") >/dev/null
+  - name: default response does not duplicate canonical JSON
+    run: "! grep -F 'format	darrow-review-result-v2' .git/last-message.md"
   - name: final response preserves every canonical rendered line
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n '1');
       test -n "$tool" || exit 1;

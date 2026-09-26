@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildClaudeReviewProof } from "./claude-review-proof";
 
-const route = "claude\tanthropic\tclaude-opus-5\txhigh";
+const route = ["claude", "anthropic", "claude-opus-5", "xhigh"];
 
 type FixtureOptions = {
   splitTurns?: boolean;
@@ -41,8 +41,8 @@ async function fixture(root: string, overrides: FixtureOptions = {}) {
   const artifacts = join(root, "artifacts");
   await mkdir(artifacts);
   await writeFile(
-    join(artifacts, "reviewer-route.tsv"),
-    `selected_route\t${route}\n`,
+    join(artifacts, "reviewer-route.json"),
+    JSON.stringify([["selected_route", ...route]]),
   );
   const calls: Record<string, unknown>[] = [];
   const results: Record<string, unknown>[] = [];
@@ -55,12 +55,24 @@ async function fixture(root: string, overrides: FixtureOptions = {}) {
       `${JSON.stringify({ type: "assistant", agentId: id, effort: "xhigh", message: { model: "claude-opus-5", role: "assistant" } })}\n`,
     );
     await writeFile(
-      join(artifacts, `${axis}-observed-route.tsv`),
-      `agent_id\t${id}\ntranscript\t${transcript}\nprovider_evidence\tcurrent-host-environment-default\nobserved_route\t${route}\n`,
+      join(artifacts, `${axis}-observed-route.json`),
+      JSON.stringify([
+        ["agent_id", id],
+        ["transcript", transcript],
+        ["provider_evidence", "current-host-environment-default"],
+        ["observed_route", ...route],
+      ]),
     );
     await writeFile(
-      join(artifacts, `${axis}-route.tsv`),
-      `selected_route\t${route}\nobserved_route\t${route}\nprovider_evidence\tcurrent-host-environment-default\nroute_bound\ttrue\naxis\t${axis}\nagent_id\t${id}\n`,
+      join(artifacts, `${axis}-route.json`),
+      JSON.stringify([
+        ["selected_route", ...route],
+        ["observed_route", ...route],
+        ["provider_evidence", "current-host-environment-default"],
+        ["route_bound", "true"],
+        ["axis", axis],
+        ["agent_id", id],
+      ]),
     );
     const call = {
       type: "assistant",

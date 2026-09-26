@@ -49,31 +49,36 @@ function launchEntries(callId: string, taskName: string, ordinal: number) {
 async function fixture(root: string) {
   const paths = {
     session: join(root, "session.jsonl"),
-    scope: join(root, "scope.tsv"),
-    routeRecord: join(root, "route.tsv"),
-    standardsRecord: join(root, "standards.tsv"),
-    specRecord: join(root, "spec.tsv"),
+    scope: join(root, "scope.json"),
+    routeRecord: join(root, "route.json"),
+    standardsRecord: join(root, "standards.json"),
+    specRecord: join(root, "spec.json"),
   };
   await writeFile(
     paths.scope,
-    "target\tWORKTREE@abc+def\nscope_checksum\tdef\n",
+    JSON.stringify([
+      ["target", "WORKTREE@abc+def"],
+      ["scope_checksum", "def"],
+    ]),
   );
   await writeFile(
     paths.routeRecord,
-    "selected_route\tcodex\topenai\tgpt-5.6-sol\txhigh\nroute_source\tbundled\n",
+    JSON.stringify([
+      ["selected_route", "codex", "openai", "gpt-5.6-sol", "xhigh"],
+      ["route_source", "bundled"],
+    ]),
   );
   for (const axis of ["standards", "spec"]) {
     await writeFile(
       paths[axis === "standards" ? "standardsRecord" : "specRecord"],
-      [
-        "selected_route\tcodex\topenai\tgpt-5.6-sol\txhigh",
-        "requested_route\tcodex\topenai\tgpt-5.6-sol\txhigh",
-        "route_applied_by\tnative-subagent",
-        "route_bound\ttrue",
-        `axis\t${axis}`,
-        `agent_id\t/root/proof_${axis}`,
-        "",
-      ].join("\n"),
+      JSON.stringify([
+        ["selected_route", "codex", "openai", "gpt-5.6-sol", "xhigh"],
+        ["requested_route", "codex", "openai", "gpt-5.6-sol", "xhigh"],
+        ["route_applied_by", "native-subagent"],
+        ["route_bound", "true"],
+        ["axis", axis],
+        ["agent_id", `/root/proof_${axis}`],
+      ]),
     );
   }
   return paths;

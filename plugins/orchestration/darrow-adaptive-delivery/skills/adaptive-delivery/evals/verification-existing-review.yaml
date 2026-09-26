@@ -50,15 +50,14 @@ checks:
       test "$(git rev-list --count HEAD)" -eq 1
   - name: real provider returns a closed clear repair assessment
     run: |
-      record=$(find .git -maxdepth 2 -name verification.tsv -path '*/darrow-review.*/*' | sort | tail -n 1)
+      record=$(find .git -maxdepth 2 -name verification.json -path '*/darrow-review.*/*' | sort | tail -n 1)
       test -n "$record"
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n 1)
       test -n "$tool"
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-verification "$record"
       # Retain the bounded immutable finding rows when diagnosing a history loss.
-      find .git -maxdepth 2 -name result.tsv -path '*/darrow-review.*/*' -exec awk -F '\t' '$1 == "target" || $1 == "finding" { print FILENAME ":" $0 }' {} \;
-      awk -F '\t' '$1 == "original_target" || $1 == "original_finding" { print FILENAME ":" $0 }' "$record"
-      grep -F 'outcome	clear' "$record" >/dev/null
+      find .git -maxdepth 2 -name result.json -path '*/darrow-review.*/*' -exec python3 -c 'import json, sys; print(*(row for row in json.load(open(sys.argv[1])) if row[0] in ("target", "finding")), sep="\n")' {} \;
+      python3 -c 'import json, sys; rows = json.load(open(sys.argv[1])); print(*(row for row in rows if row[0] in ("original_target", "original_finding")), sep="\n"); assert ["outcome", "clear"] in rows' "$record"
       uv run --quiet --frozen --no-dev --project .git/fixture-backend adaptive-delivery-fixture proof complete "$record"
       uv run --quiet --frozen --no-dev --project .git/fixture-backend adaptive-delivery-fixture proof current
 semantic_output_checks:

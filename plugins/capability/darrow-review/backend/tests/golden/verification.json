@@ -1,0 +1,65 @@
+[
+  ["format", "darrow-review-verification-v2"],
+  ["original_target", "WORKTREE@base+original"],
+  ["prior_target", "WORKTREE@base+original"],
+  ["current_target", "WORKTREE@base+repair-one"],
+  ["previous_verification", "none", "none"],
+  [
+    "original_finding",
+    "standards:1:WORKTREE@base+original",
+    "standards",
+    "1",
+    "high",
+    "blocking",
+    "src/value.txt:1",
+    "/workspace/AGENTS.md#Review",
+    "Original standards evidence"
+  ],
+  [
+    "original_finding",
+    "spec:2:WORKTREE@base+original",
+    "spec",
+    "2",
+    "low",
+    "advisory",
+    "src/value with spaces.txt:2",
+    "user objective <v1> & [details]",
+    "Original advisory evidence"
+  ],
+  [
+    "attempt",
+    "standards:1:WORKTREE@base+original",
+    "resolved",
+    "resolved",
+    "The violation is absent from the repair"
+  ],
+  [
+    "attempt",
+    "spec:2:WORKTREE@base+original",
+    "unresolved",
+    "unchanged",
+    "The advisory remains"
+  ],
+  [
+    "regression",
+    "regression:1:standards:1:WORKTREE@base+original",
+    "standards:1:WORKTREE@base+original",
+    "1",
+    "standards",
+    "high",
+    "resolved",
+    "resolved",
+    "src/C:\\(repair\\) value_[repair].txt:3",
+    "/workspace/AGENTS_<repair>.md",
+    "The repair-caused regression is fixed"
+  ],
+  [
+    "check",
+    "bash verify_[repair].sh --label `fast`",
+    "applicable",
+    "pass",
+    "All tests passed"
+  ],
+  ["outcome", "clear"],
+  ["next_action", "return control to enclosing goal"]
+]

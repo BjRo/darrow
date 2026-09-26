@@ -7,10 +7,10 @@ description: Review bounded code changes and verify attempted repairs against pr
 
 Return one independent, read-only comprehensive review or fix verification of
 a pinned change. Comprehensive mode preserves the existing
-`darrow-review-result-v1`; fix-verification mode uses the additive
-`darrow-review-verification-v1`. By default return one complete Markdown report.
-Return only the applicable validated TSV when the requester explicitly asks for
-raw TSV, the named protocol, or machine format. Never emit both forms. For an
+`darrow-review-result-v2`; fix-verification mode uses the additive
+`darrow-review-verification-v2`. By default return one complete Markdown report.
+Return only the applicable validated JSON when the requester explicitly asks for
+raw JSON, the named protocol, or machine format. Never emit both forms. For an
 explicit clause inside a larger goal, return the same normal report to the
 current goal owner, then exit this capability so the enclosing contract can
 apply its continuation rule.
@@ -19,14 +19,14 @@ apply its continuation rule.
 
 The final response is a protocol output, not a conversational summary. In
 human mode, first materialize the bundled renderer's complete stdout as the
-named Markdown artifact beside the TSV and confirm that artifact is readable
+named Markdown artifact beside the JSON and confirm that artifact is readable
 and nonempty. Then invoke the renderer once more as a standalone final tool
 call. Copy that last invocation's stdout in full as the entire final response,
 including every section through Scope and Sources. Do not reconstruct the
-report from the TSV or reader findings. After that final renderer invocation,
+report from the JSON or reader findings. After that final renderer invocation,
 issue no more tool calls and add no preface, recap, interpretation, or
 follow-up. This applies equally to standalone and composed review. In machine
-mode, apply the same rule to the validated TSV bytes.
+mode, apply the same rule to the validated JSON bytes.
 
 The human renderer leads with the verdict or outcome and the next action, then
 retains findings, checks, risks, scope, sources, and binding evidence in later
@@ -115,8 +115,8 @@ them.
 
 In either mode, the final presentation comes from the bundled renderer, not
 coordinator prose. Materialize comprehensive output as `review.md` beside
-`result.tsv` and fix-verification output as `verification.md` beside
-`verification.tsv`. A shortened response that preserves the heading or outcome
+`result.json` and fix-verification output as `verification.md` beside
+`verification.json`. A shortened response that preserves the heading or outcome
 but omits a rendered section is incomplete.
 
 ### 1. Pin the comprehensive scope
@@ -153,7 +153,7 @@ Exit 2 means invalid/unreadable scope, exit 3 an empty declared diff, and exit
 4 an ambiguous merge base. For one of these terminal outcomes, read
 [`references/result-protocol.md`](references/result-protocol.md) completely,
 run `review-scope allocate-terminal --repo <bound-repo>` to obtain an absolute
-`artifact_dir`, then write and validate its blocked result TSV there,
+`artifact_dir`, then write and validate its blocked result JSON there,
 then return the selected presentation without invoking a reader.
 
 Otherwise treat the returned absolute manifest, changed paths, target
@@ -187,14 +187,13 @@ from implementation.
 Discover applicable, deterministic, non-destructive format, lint, type, build,
 and test commands from repository guidance and configuration. Run the narrowest
 commands that settle the changed scope. For every applicable command, choose a
-unique `check-N.tsv` beneath the scope artifact directory and run:
+unique `check-N.json` beneath the scope artifact directory and run:
 
 ```sh
 uv run --quiet --no-project "$backend/scripts/run_locked.py" review-check run --output "$check_record" --command "$literal_command"
 ```
 
-Read the retained `darrow-review-check-v1` record and copy its `check` row
-byte-for-byte into the aggregate result and reader evidence. Never infer,
+Read the retained `darrow-review-check-v2` record and preserve its `check` row field values exactly in the aggregate result and reader evidence. Never infer,
 restate, or override its status from memory. Never execute an applicable
 command directly: `review-check` is its sole execution boundary. Exit 0 is
 `pass`, an ordinary nonzero exit is `fail`, and an unavailable command is
@@ -255,7 +254,7 @@ Different repair advice is not a reason to merge two findings and synthesize a
 third recommendation. For a duplicate, retain one complete reader-authored
 record. Legacy records may lack guidance; do not manufacture it.
 
-Assemble the TSV result beneath the scope artifact directory. Copy its base,
+Assemble the JSON result beneath the scope artifact directory. Copy its base,
 target, and changed-file records using `scope-records`; never retype their
 identifiers. Run `validate-scope` with the pinned manifest and result before
 rendering, as specified in the result protocol. A schema-only pass cannot
@@ -277,10 +276,10 @@ uv run --quiet --no-project "$backend/scripts/run_locked.py" review-report rende
 ```
 
 Copy its complete stdout as the entire response. The renderer validates the
-TSV, preserves every semantic field, and escapes hostile Markdown content. Only
-when the requester explicitly asked for raw TSV, v1, or machine format, copy
-the validated TSV bytes verbatim instead. Never concatenate the Markdown and
-TSV forms.
+JSON, preserves every semantic field, and escapes hostile Markdown content. Only
+when the requester explicitly asked for raw JSON, v2, or machine format, copy
+the validated JSON bytes verbatim instead. Never concatenate the Markdown and
+JSON forms.
 
 For a composed invocation with `verdict=pass`, set `next_action` to return
 control to the enclosing goal, return the selected review presentation, and exit this

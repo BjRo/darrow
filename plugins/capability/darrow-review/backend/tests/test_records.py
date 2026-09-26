@@ -8,21 +8,26 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from darrow_review import cli, report, result
-from darrow_review.common import ReviewError, serialize
-from darrow_review.records import validate_axis, validate_fix_axis, validate_result
+from darrow_review.common import ReviewError, rows, serialize
+from darrow_review.records import (
+    Records,
+    validate_axis,
+    validate_fix_axis,
+    validate_result,
+)
 from darrow_review.verification import validate_verification
 from fixtures import change, result_rows, verification_rows, write
 
 
 def test_original_report_and_handoff(tmp_path: Path) -> None:
-    original = write(tmp_path / "original.tsv", result_rows())
-    verification = write(tmp_path / "verification.tsv", verification_rows())
+    original = write(tmp_path / "original.json", result_rows())
+    verification = write(tmp_path / "verification.json", verification_rows())
     assert "preserved" in cli.result_command(
         ["validate-original", original, verification]
     )
-    assert "original_finding\tspec:1:original" in cli.result_command(
-        ["original-findings", original]
-    )
+    assert Records(cli.result_command(["original-findings", original])).get(
+        "original_finding"
+    )[0][:2] == ["original_finding", "spec:1:original"]
     assert "valid:" in cli.result_command(["validate", original])
     assert "valid:" in cli.result_command(["validate-verification", verification])
     text = cli.report_command(["render", original])
@@ -39,7 +44,7 @@ def test_original_report_and_handoff(tmp_path: Path) -> None:
     assert "Original evidence" in rendered and "Closed original finding set" in rendered
     assert rendered.index("## Next action") < rendered.index("## Attempted findings")
     changed = write(
-        tmp_path / "changed.tsv",
+        tmp_path / "changed.json",
         change(
             verification_rows(),
             "original_finding",
@@ -128,7 +133,7 @@ def test_unavailable_spec_and_blocked_scope() -> None:
 def test_axis_verdicts(status: str, disposition: str, valid: bool) -> None:
     text = serialize(
         [
-            ["format", "darrow-review-axis-v1"],
+            ["format", "darrow-review-axis-v2"],
             ["axis", "spec"],
             ["status", status],
             ["source", "request"],
@@ -144,7 +149,7 @@ def test_axis_verdicts(status: str, disposition: str, valid: bool) -> None:
 
 def test_fix_axis_closed_membership(tmp_path: Path) -> None:
     records = [
-        ["format", "darrow-review-fix-axis-v1"],
+        ["format", "darrow-review-fix-axis-v2"],
         ["axis", "spec"],
         ["original", "key"],
         ["prior_regression", "prior", "key"],
@@ -161,7 +166,7 @@ def test_fix_axis_closed_membership(tmp_path: Path) -> None:
             "test",
         ],
     ]
-    path = write(tmp_path / "axis.tsv", records)
+    path = write(tmp_path / "axis.json", records)
     assert "(spec)" in cli.result_command(["validate-fix-axis", "spec", path])
     for kind in ("original", "attempt", "prior_regression", "regression_attempt"):
         with pytest.raises(ReviewError):
@@ -195,14 +200,14 @@ def test_stdin_and_legacy_guidance(
     records = result_rows()
     records = [row[:7] if row[0] == "finding" else row for row in records]
     monkeypatch.setattr("sys.stdin", io.StringIO(serialize(records)))
-    assert "result-v1" in cli.result_command(["validate", "-"])
+    assert "result-v2" in cli.result_command(["validate", "-"])
     original = validate_result(serialize(records))
     assert len(result.original_findings(original)[0]) == 9
     assert "Repair guidance" not in report.comprehensive(original)
     axis = write(
-        tmp_path / "axis.tsv",
+        tmp_path / "axis.json",
         [
-            ["format", "darrow-review-axis-v1"],
+            ["format", "darrow-review-axis-v2"],
             ["axis", "spec"],
             ["status", "pass"],
             ["source", "request"],
@@ -216,7 +221,10 @@ def test_stdin_and_legacy_guidance(
 @settings(max_examples=80, derandomize=True)
 @given(
     st.text(
-        alphabet=st.characters(blacklist_categories=("Cs", "Cc", "Zl", "Zp")),
+        alphabet=st.one_of(
+            st.characters(blacklist_categories=("Cs", "Cc", "Zl", "Zp")),
+            st.sampled_from(["\t", "\n", "\r"]),
+        ),
         min_size=1,
         max_size=100,
     )
@@ -227,6 +235,23 @@ def test_evidence_round_trip(evidence: str) -> None:
     parsed = validate_result(serialize(records))
     assert parsed.get("finding")[0][6] == evidence
     assert report.escape(evidence) in report.comprehensive(parsed)
+
+
+def test_json_records_preserve_multiline_fields() -> None:
+    records = result_rows()
+    records[8][6] = "first\tcolumn\nsecond line\rthird"
+    records[9][1] = "printf 'one\ntwo\tthree'"
+    serialized = serialize(records)
+    assert rows(serialized) == records
+    assert validate_result(serialized).get("finding")[0][6] == records[8][6]
+    rendered = report.comprehensive(validate_result(serialized))
+    assert "first\\tcolumn\\nsecond line\\rthird" in rendered
+
+
+@pytest.mark.parametrize("content", ["", "{}", "null", "[[]]", '[["format", 2]]'])
+def test_json_records_reject_malformed_shapes(content: str) -> None:
+    with pytest.raises(ReviewError):
+        rows(content)
 
 
 def test_unknown_duplicate_and_absent_records() -> None:

@@ -50,10 +50,19 @@ function jsonLines(content: string, label: string): JsonEntry[] {
     }));
 }
 
-function parseTsv(content: string): Map<string, string[][]> {
+function parseRecords(content: string): Map<string, string[][]> {
+  const parsed: unknown = JSON.parse(content);
+  if (!Array.isArray(parsed))
+    throw new Error("review record must be a JSON array");
   const rows = new Map<string, string[][]>();
-  for (const line of content.trimEnd().split("\n")) {
-    const [key, ...values] = line.split("\t");
+  for (const item of parsed) {
+    if (
+      !Array.isArray(item) ||
+      !item.length ||
+      item.some((field) => typeof field !== "string")
+    )
+      throw new Error("review rows must be nonempty string arrays");
+    const [key, ...values] = item as string[];
     if (!key) throw new Error("record contains an empty key");
     rows.set(key, [...(rows.get(key) ?? []), values]);
   }
@@ -74,7 +83,7 @@ function value(rows: Map<string, string[][]>, key: string): string {
 }
 
 function selectedRoute(content: string): Route {
-  const selected = row(parseTsv(content), "selected_route");
+  const selected = row(parseRecords(content), "selected_route");
   if (selected.length !== 4 || selected.some((field) => !field))
     throw new Error("selected_route must contain four fields");
   const [host, provider, model, effort] = selected as [
@@ -89,10 +98,8 @@ function selectedRoute(content: string): Route {
 }
 
 function sameRoute(rows: Map<string, string[][]>, key: string, route: Route) {
-  const expected = [route.host, route.provider, route.model, route.effort].join(
-    "\t",
-  );
-  if (row(rows, key).join("\t") !== expected)
+  const expected = [route.host, route.provider, route.model, route.effort];
+  if (JSON.stringify(row(rows, key)) !== JSON.stringify(expected))
     throw new Error(`${key} does not match the selected route`);
 }
 
@@ -127,11 +134,11 @@ async function axisRecords(
   route: Route,
 ): Promise<AxisRecords> {
   const [observedText, applicationText] = await Promise.all([
-    readFile(join(artifactDir, `${axis}-observed-route.tsv`), "utf8"),
-    readFile(join(artifactDir, `${axis}-route.tsv`), "utf8"),
+    readFile(join(artifactDir, `${axis}-observed-route.json`), "utf8"),
+    readFile(join(artifactDir, `${axis}-route.json`), "utf8"),
   ]);
-  const observed = parseTsv(observedText);
-  const application = parseTsv(applicationText);
+  const observed = parseRecords(observedText);
+  const application = parseRecords(applicationText);
   sameRoute(observed, "observed_route", route);
   sameRoute(application, "selected_route", route);
   sameRoute(application, "observed_route", route);
@@ -318,7 +325,7 @@ export async function buildClaudeReviewProof(
     throw new Error("parent and artifactDir must be absolute paths");
   const [parentText, routeText] = await Promise.all([
     readFile(options.parent, "utf8"),
-    readFile(join(options.artifactDir, "reviewer-route.tsv"), "utf8"),
+    readFile(join(options.artifactDir, "reviewer-route.json"), "utf8"),
   ]);
   const route = selectedRoute(routeText);
   const entries = jsonLines(parentText, "parent transcript");

@@ -64,7 +64,7 @@ class Route:
     def body(self) -> str:
         return serialize(
             [
-                ["format", "darrow-reviewer-route-v1"],
+                ["format", "darrow-reviewer-route-v2"],
                 ["selected_route", *self.fields()],
                 ["route_source", self.source],
             ]
@@ -153,7 +153,7 @@ def load_route(path: str, expected_host: str = "") -> Route:
         f"incomplete or duplicate route record: {path}",
     )
     require(
-        records["format"] == ["darrow-reviewer-route-v1"],
+        records["format"] == ["darrow-reviewer-route-v2"],
         f"invalid route format record: {path}",
     )
     fields = records["selected_route"]
@@ -178,7 +178,7 @@ def select(repo: str, host: str, record: str) -> str:
     path = new_record(record, route.body())
     return serialize(
         [
-            ["format", "darrow-reviewer-route-selection-v1"],
+            ["format", "darrow-reviewer-route-selection-v2"],
             ["record", str(path)],
             ["selected_route", *route.fields()],
             ["route_source", route.source],
@@ -214,7 +214,7 @@ def claude_agent(route: Route) -> str:
     validate_overrides(route)
     return serialize(
         [
-            ["format", "darrow-review-claude-agent-v1"],
+            ["format", "darrow-review-claude-agent-v2"],
             ["selected_route", *route.fields()],
             ["subagent_type", "darrow-review:" + name],
             ["model", route.model],
@@ -244,7 +244,7 @@ def observed(path: str) -> tuple[Route, str]:
         f"incomplete or duplicate observed-route record: {path}",
     )
     require(
-        records["format"] == ["darrow-review-claude-route-v1"],
+        records["format"] == ["darrow-review-claude-route-v2"],
         f"invalid observed-route format: {path}",
     )
     for field in ("agent_id", "transcript", "provider_evidence"):
@@ -280,7 +280,7 @@ def confirm(
     require(axis in ("standards", "spec"), f"unsupported review axis: {axis}")
     route = load_route(route_path, "claude" if observed_path else "codex")
     records = [
-        ["format", "darrow-reviewer-route-application-v1"],
+        ["format", "darrow-reviewer-route-application-v2"],
         ["selected_route", *route.fields()],
     ]
     if observed_path:
@@ -311,5 +311,5 @@ def confirm(
     )
     path = new_record(application, serialize(records))
     return serialize(
-        [["format", "darrow-reviewer-record-location-v1"], ["record", str(path)]]
+        [["format", "darrow-reviewer-record-location-v2"], ["record", str(path)]]
     )

@@ -28,29 +28,30 @@ fixture:
     cp -R "{{case_dir}}/../../../backend/src" .git/eval-checks/review/
     cp "{{case_dir}}/../../../backend/tests/evals/eval_routes.py" .git/eval-checks/review/tests/evals/
     git status --porcelain --untracked-files=all >.git/status-before
+    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/emit_rows.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: review preserves the complete working tree
     run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
   - name: review creates no commit
     run: test "$(git rev-list --all --reflog --count)" -eq 1
-  - name: canonical TSV is retained beneath the review scope artifact
+  - name: canonical JSON is retained beneath the review scope artifact
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
       test -n "$tool" || exit 1;
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record"
-    expect_regex: "^valid: darrow-review-result-v1$"
+    expect_regex: "^valid: darrow-review-result-v2$"
   - name: only the standards reader retains exact default route evidence
     run: >-
       uv run --quiet --frozen --no-dev --project .git/eval-checks/review
       python .git/eval-checks/review/tests/evals/eval_routes.py
       --host "$DARROW_EVAL_HARNESS" --profile default --axes standards
-  - name: default response does not duplicate canonical TSV
-    run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
+  - name: default response does not duplicate canonical JSON
+    run: "! grep -F 'format	darrow-review-result-v2' .git/last-message.md"
   - name: final response preserves every canonical rendered line
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n '1');
       test -n "$tool" || exit 1;

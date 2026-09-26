@@ -114,7 +114,9 @@ def allocate_terminal_scope(args: list[str]) -> str:
     parsed = options("review-scope allocate-terminal", args, ("repo",))
     repo = root_directory(parsed.repo)
     run = storage.allocate_terminal(repo)
-    return serialize([["artifact_dir", str(run)], ["manifest", str(run / "scope.tsv")]])
+    return serialize(
+        [["artifact_dir", str(run)], ["manifest", str(run / "scope.json")]]
+    )
 
 
 def locate_scope(args: list[str]) -> str:

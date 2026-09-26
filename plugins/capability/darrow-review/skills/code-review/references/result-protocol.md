@@ -5,31 +5,32 @@ Use the second additive protocol only for fix verification.
 
 ## Canonical artifact and output envelope
 
-Write and validate every result as `darrow-review-result-v1` TSV at the fixed
-`result.tsv` path directly beneath the scope artifact directory. It is the
-canonical mechanical artifact and every field is one line without tabs. Do not
-select an arbitrary TSV: `scope.tsv` and axis records are not aggregate results.
+Write and validate every result as `darrow-review-result-v2` JSON at the fixed
+`result.json` path directly beneath the scope artifact directory. It is the
+canonical mechanical artifact. JSON string escaping preserves tabs and newlines
+in fields. Do not select an arbitrary JSON: `scope.json` and axis records are
+not aggregate results.
 
 Default standalone and composed responses are a Markdown rendering of that
-validated artifact. Materialize it as `review.md` beside `result.tsv`, confirm
+validated artifact. Materialize it as `review.md` beside `result.json`, confirm
 that file is readable and nonempty, then use one dedicated final
 `uv run --quiet --no-project "$backend/scripts/run_locked.py" review-report render "$result_record"` invocation and return its complete
 stdout. The renderer preserves all fields, escapes hostile content, and does
-not include raw TSV. Only an explicit request for raw TSV, v1, or machine format
-returns the TSV bytes, beginning with `format<TAB>darrow-review-result-v1`,
-ending with the `next_action` record, and containing nothing else. This applies
+not include raw JSON. Only an explicit request for raw JSON, v2, or machine
+format returns the JSON bytes. The first record is
+`["format", "darrow-review-result-v2"]` and the last is `next_action`. This applies
 to `pass`, `fail`, `blocked`, invalid-base, ambiguous-base, and empty-diff
 outcomes.
 
 The human rendering presents the verdict or outcome and next action first,
 then retains findings, checks, risks, scope, sources, and binding evidence in
-later sections. This order changes no canonical TSV field or meaning.
+later sections. This order changes no canonical JSON field or meaning.
 
 For an explicit review clause inside a larger goal, return the selected normal
 presentation rather than the enclosing goal's response envelope. The goal owner
 interprets its findings and outcome, applies the enclosing continuation contract,
 and may summarize the review in its own final response. Consumers do not need
-to parse or reproduce the TSV serialization.
+to parse or reproduce the JSON serialization.
 
 Use `next_action=return control to enclosing goal` for a composed pass,
 `next_action=return findings to enclosing goal` for a composed fail, and
@@ -45,37 +46,87 @@ was resolved. Set Standards to `blocked`; set Spec to `blocked` when a Spec was
 available or `not_available` when genuinely absent. Add the literal failed
 prepare command as one applicable blocked `check`, set verdict `blocked`, and
 make `next_action` the exact remediation reported by the scope tool. Run
-`review-scope allocate-terminal --repo <bound-repo>` and write `result.tsv`
+`review-scope allocate-terminal --repo <bound-repo>` and write `result.json`
 directly beneath its returned `artifact_dir`; this command provides a private
 review-state run and terminal manifest when scope preparation stopped early.
 
 ## Completed result schema
 
-Create exactly this tab-separated record; repeat only marked collections:
+Create one valid JSON array of string arrays in this order. Replace placeholders and repeat marked collections:
 
 ```text
-format<TAB>darrow-review-result-v1
-base<TAB>resolved base OID
-target<TAB>resolved target OID or WORKTREE fingerprint
-changed_file<TAB>absolute path                         # repeat
-standards<TAB>pass|fail|blocked
-standards_source<TAB>absolute path or heuristic:name  # repeat
-spec<TAB>pass|fail|blocked|not_available
-spec_source<TAB>source identifier or not_available
-finding<TAB>standards|spec<TAB>critical|high|medium|low<TAB>blocking|advisory<TAB>changed path:line or command<TAB>violated source<TAB>failure and cause evidence<TAB>repair guidance<TAB>resolution evidence  # repeat
-check<TAB>literal command or none<TAB>applicable|not_applicable<TAB>pass|fail|blocked|not_applicable<TAB>evidence  # repeat
-verdict<TAB>pass|fail|blocked
-risk<TAB>concise residual risk or none observed       # repeat
-next_action<TAB>one authorized next step, or none
+[
+  [
+    "format",
+    "darrow-review-result-v2"
+  ],
+  [
+    "base",
+    "resolved base OID"
+  ],
+  [
+    "target",
+    "resolved target OID or WORKTREE fingerprint"
+  ],
+  [
+    "changed_file",
+    "absolute path                         # repeat"
+  ],
+  [
+    "standards",
+    "pass|fail|blocked"
+  ],
+  [
+    "standards_source",
+    "absolute path or heuristic:name  # repeat"
+  ],
+  [
+    "spec",
+    "pass|fail|blocked|not_available"
+  ],
+  [
+    "spec_source",
+    "source identifier or not_available"
+  ],
+  [
+    "finding",
+    "standards|spec",
+    "critical|high|medium|low",
+    "blocking|advisory",
+    "changed path:line or command",
+    "violated source",
+    "failure and cause evidence",
+    "repair guidance",
+    "resolution evidence  # repeat"
+  ],
+  [
+    "check",
+    "literal command or none",
+    "applicable|not_applicable",
+    "pass|fail|blocked|not_applicable",
+    "evidence  # repeat"
+  ],
+  [
+    "verdict",
+    "pass|fail|blocked"
+  ],
+  [
+    "risk",
+    "concise residual risk or none observed       # repeat"
+  ],
+  [
+    "next_action",
+    "one authorized next step, or none"
+  ]
+]
 ```
 
 For a resolved scope, obtain the complete `base`, `target`, and `changed_file`
-records with `uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result scope-records "$manifest"`. Insert those
-bytes into the aggregate; do not retype hashes or reconstruct the file list.
+records with `uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result scope-records "$manifest"`. Parse that JSON array and append its records to the aggregate; do not retype hashes or reconstruct the file list.
 This command validates the pinned diff and refuses incomplete scope records.
 
-Every applicable `check` row is copied byte-for-byte from a retained
-`darrow-review-check-v1` artifact produced beneath this scope. Coordinator prose
+Every applicable `check` row preserves the exact field values from a retained
+`darrow-review-check-v2` artifact produced beneath this scope. Coordinator prose
 must not replace the captured command, status, or evidence.
 
 A failing axis has at least one blocking finding; advisory findings alone do
@@ -140,10 +191,10 @@ or deploy action inside review.
 
 ## Fix-verification artifact
 
-Write fix verification to `verification.tsv` directly beneath the current
+Write fix verification to `verification.json` directly beneath the current
 scope artifact directory. Never overwrite or reinterpret an original
-`result.tsv`. The additive format is `darrow-review-verification-v1`; the
-initial `darrow-review-result-v1` records remain readable, including legacy
+`result.json`. The additive format is `darrow-review-verification-v2`; the
+initial `darrow-review-result-v2` records remain readable, including legacy
 findings without guidance.
 
 The caller must supply the original comprehensive review target, its complete
@@ -170,27 +221,99 @@ Regression order is independent of original-finding order: start at `1` when no
 regression is carried, then assign new orders after the highest carried
 regression order.
 
-Create this tab-separated record in the shown order:
+Create one valid JSON array of string arrays in this order. Replace placeholders, choose one `previous_verification` row, and repeat marked collections:
 
 ```text
-format<TAB>darrow-review-verification-v1
-original_target<TAB>original comprehensive-review target fingerprint
-prior_target<TAB>immediately prior repair target fingerprint
-current_target<TAB>current pinned target fingerprint
-history_target<TAB>earlier repair target fingerprint                 # repeat
-previous_verification<TAB>none<TAB>none                              # first verification
-previous_verification<TAB>Git blob checksum<TAB>absolute prior verification artifact # later verification
-original_finding<TAB>stable key<TAB>standards|spec<TAB>canonical positive order<TAB>critical|high|medium|low<TAB>blocking|advisory<TAB>location<TAB>source<TAB>original evidence<TAB>original repair guidance<TAB>original resolution evidence  # repeat
-attempt<TAB>original finding key<TAB>resolved|unresolved|blocked<TAB>resolved|progressing|unchanged|unavailable<TAB>current evidence  # repeat
-regression<TAB>stable regression key<TAB>causing original finding key<TAB>canonical positive order<TAB>standards|spec<TAB>critical|high|medium|low<TAB>resolved|unresolved|blocked<TAB>resolved|progressing|unchanged|unavailable<TAB>location<TAB>source<TAB>current evidence<TAB>repair guidance<TAB>resolution evidence  # repeat
-check<TAB>literal command or none<TAB>applicable|not_applicable<TAB>pass|fail|blocked|not_applicable<TAB>evidence  # repeat
-evidence_gap<TAB>missing or inconsistent required evidence           # repeat
-outcome<TAB>clear|continue|no_progress|blocked
-next_action<TAB>one authorized enclosing-goal action, or none
+[
+  [
+    "format",
+    "darrow-review-verification-v2"
+  ],
+  [
+    "original_target",
+    "original comprehensive-review target fingerprint"
+  ],
+  [
+    "prior_target",
+    "immediately prior repair target fingerprint"
+  ],
+  [
+    "current_target",
+    "current pinned target fingerprint"
+  ],
+  [
+    "history_target",
+    "earlier repair target fingerprint                 # repeat"
+  ],
+  [
+    "previous_verification",
+    "none",
+    "none                              # first verification"
+  ],
+  [
+    "previous_verification",
+    "Git blob checksum",
+    "absolute prior verification artifact # later verification"
+  ],
+  [
+    "original_finding",
+    "stable key",
+    "standards|spec",
+    "canonical positive order",
+    "critical|high|medium|low",
+    "blocking|advisory",
+    "location",
+    "source",
+    "original evidence",
+    "original repair guidance",
+    "original resolution evidence  # repeat"
+  ],
+  [
+    "attempt",
+    "original finding key",
+    "resolved|unresolved|blocked",
+    "resolved|progressing|unchanged|unavailable",
+    "current evidence  # repeat"
+  ],
+  [
+    "regression",
+    "stable regression key",
+    "causing original finding key",
+    "canonical positive order",
+    "standards|spec",
+    "critical|high|medium|low",
+    "resolved|unresolved|blocked",
+    "resolved|progressing|unchanged|unavailable",
+    "location",
+    "source",
+    "current evidence",
+    "repair guidance",
+    "resolution evidence  # repeat"
+  ],
+  [
+    "check",
+    "literal command or none",
+    "applicable|not_applicable",
+    "pass|fail|blocked|not_applicable",
+    "evidence  # repeat"
+  ],
+  [
+    "evidence_gap",
+    "missing or inconsistent required evidence           # repeat"
+  ],
+  [
+    "outcome",
+    "clear|continue|no_progress|blocked"
+  ],
+  [
+    "next_action",
+    "one authorized enclosing-goal action, or none"
+  ]
+]
 ```
 
-Every applicable verification `check` row likewise comes byte-for-byte from its
-retained `darrow-review-check-v1` artifact. The reader receives the same row, so
+Every applicable verification `check` row likewise preserves exact field values from its
+retained `darrow-review-check-v2` artifact. The reader receives the same row, so
 aggregation cannot turn a failed command into a pass.
 
 Every blocking original finding has exactly one attempt. An advisory may remain
@@ -263,7 +386,7 @@ uv run --quiet --no-project "$backend/scripts/run_locked.py" review-report rende
 After confirming `verification.md` is readable and nonempty, make the second
 renderer invocation the last tool command and copy its stdout verbatim as the
 entire response. A handwritten summary is incomplete. When the requester
-explicitly asks for verification TSV or machine format, return only the
-validated TSV bytes. A composed caller interprets `clear`, `continue`,
+explicitly asks for verification JSON or machine format, return only the
+validated JSON bytes. A composed caller interprets `clear`, `continue`,
 `no_progress`, or `blocked` semantically and retains all repair, stop,
 goal-status, and publication authority outside this read-only capability.

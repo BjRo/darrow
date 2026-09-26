@@ -20,8 +20,8 @@ GOLDEN = Path(__file__).with_name("golden")
 def test_complete_report_bytes(name: str, operation: str, tmp_path: Path) -> None:
     # Preserve the original Unix goldens; qualify their absolute root on Windows.
     root = f"{tmp_path.drive}/workspace/"
-    source = (GOLDEN / f"{name}.tsv").read_text(encoding="utf-8")
-    record = tmp_path / "result.tsv"
+    source = (GOLDEN / f"{name}.json").read_text(encoding="utf-8")
+    record = tmp_path / "result.json"
     record.write_text(source.replace("/workspace/", root), encoding="utf-8")
     actual = cli.report_command([operation, str(record)])
     expected = (GOLDEN / f"{name}.txt").read_text(encoding="utf-8")
@@ -29,8 +29,8 @@ def test_complete_report_bytes(name: str, operation: str, tmp_path: Path) -> Non
 
 
 def test_checksum_bound_report_bytes(tmp_path: Path) -> None:
-    original = rows((GOLDEN / "verification.tsv").read_text(encoding="utf-8"))
-    previous = Path(write(tmp_path / "previous.tsv", original))
+    original = rows((GOLDEN / "verification.json").read_text(encoding="utf-8"))
+    previous = Path(write(tmp_path / "previous.json", original))
     current = change(original, "prior_target", "WORKTREE@base+repair-one")
     current = change(current, "current_target", "WORKTREE@base+repair-two")
     current = change(
@@ -40,8 +40,10 @@ def test_checksum_bound_report_bytes(tmp_path: Path) -> None:
         str(previous),
     )
     current.append(["history_target", "WORKTREE@base+original"])
-    path = write(tmp_path / "current.tsv", current)
+    path = write(tmp_path / "current.json", current)
     actual = cli.report_command(["render-verification", path])
     assert actual.replace(report.escape(str(previous)), "PREVIOUS_ARTIFACT") == (
         GOLDEN / "verification-next.txt"
-    ).read_text(encoding="utf-8")
+    ).read_text(encoding="utf-8").replace(
+        "PREVIOUS_CHECKSUM", blob_hash(previous.read_bytes())
+    )

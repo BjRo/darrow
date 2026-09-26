@@ -59,13 +59,13 @@ Output:
   finding's axis, severity, disposition, changed location, violated source,
   and evidence, deterministic checks or an explicit evidence gap, risks, and
   next action;
-- the validated `darrow-review-result-v1` TSV only when the requester
-  explicitly asks for the machine format. The TSV remains the canonical
+- the validated `darrow-review-result-v2` JSON only when the requester
+  explicitly asks for the machine format. JSON remains the canonical
   mechanical artifact beneath the review scope artifact directory.
 
 Fix verification returns a human-readable Markdown report by default, or the
-validated additive `darrow-review-verification-v1` TSV only when explicitly
-requested as machine output. Initial `darrow-review-result-v1` validation and
+validated additive `darrow-review-verification-v2` JSON only when explicitly
+requested as machine output. Initial `darrow-review-result-v2` validation and
 rendering remain compatible.
 
 If several reasonable fixed points would produce materially different review
@@ -218,10 +218,10 @@ axis and report `not_available`. Do not invent requirements.
     independent review.
 15. **CR-C15 — Deliberate presentation.** Standalone and composed review use
     one human-readable Markdown report by default. An explicit request for
-    `darrow-review-result-v1`, raw TSV, or machine format returns only the
-    validated TSV. A response never contains both presentations.
+    `darrow-review-result-v2`, raw JSON, or machine format returns only the
+    validated JSON. A response never contains both presentations.
 16. **CR-C16 — Complete rendering.** Markdown preserves every semantic field
-    from the validated TSV, presents the verdict and next action first, renders
+    from the validated JSON, presents the verdict and next action first, renders
     findings and checks compactly, and presents detailed scope and sources
     later. It uses familiar words, active voice, and short sections without
     repeating conclusions or narrating the review process. Renderer
@@ -230,9 +230,9 @@ axis and report `not_available`. Do not invent requirements.
     sequences. Conventional `path:line` values remain bare, while hostile field
     content is escaped only as needed to preserve the report structure and its
     visible, copyable value. These presentation rules do not change the
-    canonical TSV.
+    canonical JSON.
     Human presentation is first materialized as a nonempty canonical Markdown
-    artifact beside the TSV, then emitted by one dedicated final renderer
+    artifact beside the JSON, then emitted by one dedicated final renderer
     invocation whose complete stdout is returned without coordinator rewriting.
 17. **CR-C17 — Explicit review modes.** Comprehensive initial review retains
     the complete-diff, isolated-axis behavior above. Fix verification requires
@@ -355,7 +355,13 @@ axis and report `not_available`. Do not invent requirements.
 
 ## Result shape and presentation
 
-The validated TSV is the canonical internal mechanical artifact and includes:
+The validated JSON is the canonical internal mechanical artifact. It is one
+UTF-8 JSON array of records. Each record is an array of strings whose first
+element names the record and whose remaining elements are its fields. The
+schema validates record names, field counts, order, and allowed values. JSON
+string escaping permits tabs and newlines in field values, including paths,
+commands, findings, and check evidence. Control characters need no lossy
+replacement solely for record transport. The artifact includes:
 
 ```text
 base
@@ -370,7 +376,7 @@ next_action
 ```
 
 The default user-facing result is a complete Markdown rendering of that
-artifact. The raw `darrow-review-result-v1` is user-facing only when explicitly
+artifact. The raw `darrow-review-result-v2` is user-facing only when explicitly
 requested as a machine format; the two forms are never concatenated.
 
 The additive fix-verification artifact includes:
@@ -428,7 +434,7 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
    owned subprocesses. The deliberately literal `review-check --command`
    boundary uses the host shell (Bash on Unix, PowerShell on native Windows);
    all other commands execute without shell interpolation. Preserve public
-   command names, TSV formats, scope/repair binding, diagnostics, and exit
+   command names, JSON formats, scope/repair binding, diagnostics, and exit
    codes. Register the locked package in the Python inventory, enforce the
    repository's strict quality gates, and exercise copied runtime-only plugins
    on all three native platforms with provider boundaries controlled. Keep
@@ -487,20 +493,20 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
     the review's serialization.
 12. **CR-E12 — Presentation contract.** Acceptance evidence covers default
     Markdown for passing, failing, and terminal blocked scope outcomes;
-    explicit raw-v1 negotiation; composed returns; semantic preservation;
+    explicit raw-v2 negotiation; composed returns; semantic preservation;
     hostile field escaping; bare conventional path references; faithful paths
     containing spaces or host-sensitive characters; absence of HTML code
     wrappers, Markdown code spans, generated links, terminal hyperlinks, and
-    duplicated TSV in human output; and a superficial summary that omits
+    duplicated JSON in human output; and a superficial summary that omits
     evidence.
 13. **CR-E13 — Fix verification convergence.** Evals cover several blockers
     resolved together, a first-rework advisory, an unresolved non-gating
     advisory, progressing and unchanged blockers, repeated and oscillating
     targets, a repair-caused regression, an unrelated observation excluded from
     scope, unavailable evidence, and exact-target read-only operation.
-    Acceptance checks compare finding states by TSV field, rather than matching
+    Acceptance checks compare finding states by JSON field, rather than matching
     state words inside free-form evidence. Verification presentation checks
-    independently render the validated TSV and compare both the retained report
+    independently render the validated JSON and compare both the retained report
     and final response with that rendering; matching two coordinator-authored
     summaries is insufficient. Unavailable-check evidence is compared with the
     captured canonical check row rather than a separately prescribed diagnostic

@@ -42,7 +42,7 @@ def manifest(path: str) -> dict[str, str]:
     records = rows(read_text(path, "manifest"))
     values = {row[0]: row[1] for row in records if len(row) == 2}
     require(
-        values.get("format") == "darrow-review-scope-v1",
+        values.get("format") == "darrow-review-scope-v2",
         "unsupported scope manifest format",
     )
     for key in ("repository", "diff"):
@@ -88,7 +88,7 @@ def compare(prior: str, current: str) -> str:
     )
     header = serialize(
         [
-            ["format", "darrow-review-repair-delta-v1"],
+            ["format", "darrow-review-repair-delta-v2"],
             ["repository", old["repository"]],
             ["prior_target", old["target"]],
             ["current_target", new["target"]],
@@ -330,9 +330,9 @@ def write_scope(
     label = target
     if any((options.staged, options.unstaged, options.untracked)):
         label = f"WORKTREE@{target}+{checksum}"
-    path = str(artifact / "scope.tsv")
+    path = str(artifact / "scope.json")
     records = [
-        ["format", "darrow-review-scope-v1"],
+        ["format", "darrow-review-scope-v2"],
         ["repository", str(repo)],
         ["base_input", options.base],
         ["base", base],

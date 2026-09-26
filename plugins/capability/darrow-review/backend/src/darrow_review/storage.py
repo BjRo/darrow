@@ -15,7 +15,7 @@ from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from pathlib import Path
 
-from .common import ReviewError, require, rows, safe_line
+from .common import ReviewError, require, rows, safe_line, serialize
 
 RETENTION_DAYS = 30
 RUN_PREFIX = "darrow-review."
@@ -106,8 +106,10 @@ def allocate_terminal(repo: Path) -> Path:
     safe_line(str(repo), "repository path")
     run = allocate(repo)
     try:
-        manifest = run / "scope.tsv"
-        body = f"format\tdarrow-review-terminal-v1\nrepository\t{repo}\n"
+        manifest = run / "scope.json"
+        body = serialize(
+            [["format", "darrow-review-terminal-v2"], ["repository", str(repo)]]
+        )
         descriptor = os.open(manifest, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
         with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as stream:
             stream.write(body)
@@ -120,10 +122,10 @@ def allocate_terminal(repo: Path) -> Path:
 
 def run_for_manifest(manifest: Path) -> Path:
     require(manifest.is_absolute(), "review manifest path must be absolute")
-    require(manifest.name == "scope.tsv", "review manifest must name scope.tsv")
+    require(manifest.name == "scope.json", "review manifest must name scope.json")
     fields = fields_at(manifest)
     require(
-        fields.get("format") in ("darrow-review-scope-v1", "darrow-review-terminal-v1"),
+        fields.get("format") in ("darrow-review-scope-v2", "darrow-review-terminal-v2"),
         "invalid review manifest",
     )
     repo = Path(fields.get("repository", ""))
@@ -144,7 +146,7 @@ def check_output(repo: Path, output: Path) -> Path:
     require(output.is_absolute(), "output must be an absolute path")
     require(output.name not in ("", ".", ".."), "output must name a file")
     path = output.parent.resolve(strict=True) / output.name
-    run = run_for_manifest(path.parent / "scope.tsv")
+    run = run_for_manifest(path.parent / "scope.json")
     require(
         run.parent == repository_state(repo, create=False),
         "output must be beneath this repository's review-state directory",
@@ -177,7 +179,7 @@ def locate(repo: Path, target: str) -> Path | None:
     from . import scope
 
     for run in runs(bucket):
-        candidate = run / "scope.tsv"
+        candidate = run / "scope.json"
         if not candidate.is_file() or candidate.is_symlink():
             continue
         fields = fields_at(candidate)
@@ -192,8 +194,8 @@ def locate(repo: Path, target: str) -> Path | None:
 def dependencies(run: Path, by_file: dict[Path, Path]) -> set[Path]:
     result: set[Path] = set()
     for file, field, index in (
-        (run / "scope.tsv", "prior_manifest", 1),
-        (run / "verification.tsv", "previous_verification", 2),
+        (run / "scope.json", "prior_manifest", 1),
+        (run / "verification.json", "previous_verification", 2),
     ):
         result.update(references(file, field, index, by_file))
     return result
@@ -220,7 +222,7 @@ def retained_runs(all_runs: list[Path], cutoff: float) -> set[Path]:
     by_file = {
         run / name: run
         for run in all_runs
-        for name in ("scope.tsv", "verification.tsv")
+        for name in ("scope.json", "verification.json")
     }
     keep = {
         run

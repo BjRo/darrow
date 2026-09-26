@@ -7,7 +7,7 @@ from darrow_review.common import serialize
 
 def result_rows() -> list[list[str]]:
     return [
-        ["format", "darrow-review-result-v1"],
+        ["format", "darrow-review-result-v2"],
         ["base", "base"],
         ["target", "original"],
         ["changed_file", str(Path.cwd() / "file.txt")],
@@ -35,7 +35,7 @@ def result_rows() -> list[list[str]]:
 
 def verification_rows() -> list[list[str]]:
     return [
-        ["format", "darrow-review-verification-v1"],
+        ["format", "darrow-review-verification-v2"],
         ["original_target", "original"],
         ["prior_target", "original"],
         ["current_target", "repaired"],

@@ -19,7 +19,7 @@ Require all of these caller-owned inputs before reader calls:
   verification exists, including all carried regression records; and
 - current deterministic-check commands and evidence.
 
-When the original comprehensive `result.tsv` is retained, bind its absolute
+When the original comprehensive `result.json` is retained, bind its absolute
 path as `original_result` and use its sibling scope manifest for the first
 follow-up. Obtain canonical original records through the bundled helper before
 passing them to readers:
@@ -95,12 +95,12 @@ one, never execute the literal command directly. Use the main skill's resolved
 `review-check` as its sole execution boundary:
 
 ```sh
-check_record="$(dirname "$manifest")/check-1.tsv" # increment for later checks
+check_record="$(dirname "$manifest")/check-1.json" # increment for later checks
 uv run --quiet --no-project "$backend/scripts/run_locked.py" review-check run --output "$check_record" --command "$literal_command"
 ```
 
-Copy the retained record's canonical `check` row byte-for-byte into reader
-evidence and `verification.tsv`; never reinterpret the observed status. A check
+Preserve the retained record's canonical `check` row field values exactly in reader
+evidence and `verification.json`; never reinterpret the observed status. A check
 failure belongs in the convergence set only as evidence for a direct
 repair-caused regression tied to an attempted original finding. An unavailable
 required check or failed evidence capture is an evidence gap and blocks
@@ -175,7 +175,7 @@ entered aggregation.
 ## 4. Derive and return verification
 
 Read [`result-protocol.md`](result-protocol.md) completely. Assemble
-`verification.tsv` beneath the current scope artifact directory. Preserve every
+`verification.json` beneath the current scope artifact directory. Preserve every
 original record and verifier state. Order direct regressions by causing
 original finding order, then by their reader order, and derive their stable
 regression keys mechanically. For a first verification write
@@ -198,7 +198,7 @@ This validates the verification schema and compares the complete original
 target and ordered findings against the comprehensive result. A mismatch is a
 serialization error: restore the helper's exact original rows without changing
 reader judgment. For a complete external handoff or validated prior verification,
-compare the original rows byte-for-byte with that authoritative input and run
+compare the original row field values and order exactly with that authoritative input and run
 ordinary `validate-verification`. Incomplete original evidence only permits a
 blocked record carrying that evidence gap.
 
@@ -219,7 +219,7 @@ uv run --quiet --no-project "$backend/scripts/run_locked.py" review-report rende
 Confirm that the report is a readable, nonempty regular file before the second
 renderer invocation. Make that second invocation the last tool command and
 copy its stdout verbatim as the entire final response. For an explicit
-verification-v1, raw TSV, or machine request, return the validated TSV bytes
+verification-v2, raw JSON, or machine request, return the validated JSON bytes
 only. In composed use, return the selected presentation and exit this read-only
 capability. The enclosing goal interprets the semantic outcome and owns every
 repair, stop, goal-status, completion, and publication decision.

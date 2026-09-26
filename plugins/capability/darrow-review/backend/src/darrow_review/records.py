@@ -1,4 +1,4 @@
-"""Strict TSV shapes shared by the four review protocols."""
+"""Strict JSON shapes shared by the four review protocols."""
 
 from __future__ import annotations
 
@@ -179,7 +179,7 @@ class Records:
     ) -> None:
         self.check(
             self.rows and self.rows[0] == ["format", format_name],
-            f"first record must be format<TAB>{format_name}",
+            f'first record must be ["format", "{format_name}"]',
         )
         for line, row in enumerate(self.rows, 1):
             shape = shapes.get(row[0])
@@ -253,7 +253,7 @@ def axis_status(records: Records, status: str, blocking: bool, label: str) -> No
 
 def validate_axis(text: str, expected: str) -> Records:
     result = Records(text)
-    result.shape("darrow-review-axis-v1", AXIS_SHAPES, "axis ")
+    result.shape("darrow-review-axis-v2", AXIS_SHAPES, "axis ")
     result.exactly("axis", "status")
     result.check(result.value("axis") == expected, f"axis does not match {expected}")
     result.at_least("source")
@@ -272,7 +272,7 @@ def validate_axis(text: str, expected: str) -> Records:
 
 def validate_result(text: str) -> Records:
     result = Records(text)
-    result.shape("darrow-review-result-v1", RESULT_SHAPES)
+    result.shape("darrow-review-result-v2", RESULT_SHAPES)
     result.exactly(
         "base", "target", "standards", "spec", "spec_source", "verdict", "next_action"
     )
@@ -354,7 +354,7 @@ def closed_attempts(
 
 def validate_fix_axis(text: str, expected: str) -> Records:
     result = Records(text)
-    result.shape("darrow-review-fix-axis-v1", FIX_SHAPES, "fix-axis ")
+    result.shape("darrow-review-fix-axis-v2", FIX_SHAPES, "fix-axis ")
     result.exactly("axis")
     result.check(result.value("axis") == expected, f"axis does not match {expected}")
     actions = sum(

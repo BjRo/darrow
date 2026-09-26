@@ -155,7 +155,7 @@ async function selectedArtifact(
   scenario: { markdown?: boolean; tampered?: boolean },
 ): Promise<string> {
   if (!scenario.markdown) return record;
-  const verification = record.endsWith("verification.tsv");
+  const verification = record.endsWith("verification.json");
   const rendered = Bun.spawnSync(
     reviewCommand(
       "review-report",
@@ -166,7 +166,7 @@ async function selectedArtifact(
   );
   expect(rendered.exitCode).toBe(0);
   const artifact = record.replace(
-    /(?:verification|result)\.tsv$/,
+    /(?:verification|result)\.json$/,
     verification ? "verification.md" : "review.md",
   );
   await Bun.write(
@@ -253,7 +253,7 @@ for (const scenario of [
     );
     expect(check).toBeDefined();
     const records = [
-      ["format", "darrow-review-result-v1"],
+      ["format", "darrow-review-result-v2"],
       ["base", "HEAD"],
       ["target", "WORKTREE@synthetic"],
       ["changed_file", "/synthetic/auth-config.js"],
@@ -294,8 +294,7 @@ for (const scenario of [
           },
         ],
         files: {
-          ".git/darrow-review.fixture/result.tsv":
-            records.map((row) => row.join("\t")).join("\n") + "\n",
+          ".git/darrow-review.fixture/result.json": JSON.stringify(records),
           ...(await reviewFiles()),
           ...(await proofFiles()),
         },
@@ -306,7 +305,7 @@ for (const scenario of [
     try {
       const artifact = await selectedArtifact(
         repo,
-        `${repo}/.git/darrow-review.fixture/result.tsv`,
+        `${repo}/.git/darrow-review.fixture/result.json`,
         scenario,
       );
       await Bun.write(
@@ -403,10 +402,11 @@ for (const scenario of [
         "WORKTREE",
       );
       expect(result.exitCode).toBe(0);
-      return result.stdout.toString().match(/^target\t(.+)$/m)![1]!;
+      return (JSON.parse(result.stdout.toString()) as string[][]).find(
+        (row) => row[0] === "target",
+      )![1]!;
     };
-    const serialize = (rows: string[][]) =>
-      rows.map((row) => row.join("\t")).join("\n") + "\n";
+    const serialize = (rows: string[][]) => JSON.stringify(rows);
     try {
       if (scenario.duplicate) {
         await duplicateReview(repo, scenario.conflict);
@@ -430,12 +430,12 @@ for (const scenario of [
         "user request",
         "optional clarity",
       ];
-      const resultPath = `${repo}/.git/darrow-review.original/result.tsv`;
+      const resultPath = `${repo}/.git/darrow-review.original/result.json`;
       if (!scenario.missing)
         await Bun.write(
           resultPath,
           serialize([
-            ["format", "darrow-review-result-v1"],
+            ["format", "darrow-review-result-v2"],
             ["base", "HEAD"],
             ["target", original],
             ["changed_file", `${repo}/value.txt`],
@@ -457,11 +457,11 @@ for (const scenario of [
       const current = scope();
       const key = `standards:1:${original}`;
       const [state, progress, outcome] = repairState(scenario);
-      const record = `${repo}/.git/darrow-review.repaired/verification.tsv`;
+      const record = `${repo}/.git/darrow-review.repaired/verification.json`;
       await Bun.write(
         record,
         serialize([
-          ["format", "darrow-review-verification-v1"],
+          ["format", "darrow-review-verification-v2"],
           ["original_target", original],
           ["prior_target", original],
           ["current_target", current],
@@ -493,7 +493,7 @@ for (const scenario of [
         ]),
       );
       // Every negative is a valid public artifact: rejection must be the gate's
-      // outcome, current-content, or original-evidence check, not bad test TSV.
+      // outcome, current-content, or original-evidence check, not bad test JSON.
       expect(
         run("review-result", "validate-verification", record).exitCode,
       ).toBe(0);

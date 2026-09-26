@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import shlex
 import signal
@@ -12,6 +13,7 @@ import tempfile
 from collections.abc import Sequence
 from contextlib import ExitStack, suppress
 from pathlib import Path
+from typing import cast
 
 from .windows_job import WindowsJob
 
@@ -29,8 +31,8 @@ def require(condition: object, message: str, code: int = 2) -> None:
 
 def safe_line(value: str, label: str) -> str:
     require(
-        not any(c in value for c in "\t\r\n\x00"),
-        f"{label} contains a tab or newline and cannot be represented safely",
+        "\x00" not in value,
+        f"{label} contains a NUL byte and cannot be represented safely",
     )
     return value
 
@@ -43,11 +45,25 @@ def read_text(path: str | Path, label: str = "record") -> str:
 
 
 def rows(text: str) -> list[list[str]]:
-    return [line.split("\t") for line in text.splitlines()]
+    try:
+        value = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ReviewError(f"invalid JSON record: {exc.msg}") from exc
+    require(isinstance(value, list), "JSON record must be an array")
+    require(
+        all(
+            isinstance(row, list)
+            and bool(row)
+            and all(isinstance(field, str) for field in row)
+            for row in value
+        ),
+        "JSON records must be nonempty arrays of strings",
+    )
+    return cast(list[list[str]], value)
 
 
 def serialize(records: Sequence[Sequence[str]]) -> str:
-    return "".join("\t".join(row) + "\n" for row in records)
+    return json.dumps(records, ensure_ascii=False, indent=2) + "\n"
 
 
 def unique_records(text: str, label: str) -> dict[str, list[str]]:

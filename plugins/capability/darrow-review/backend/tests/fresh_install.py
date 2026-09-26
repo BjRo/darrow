@@ -48,11 +48,7 @@ def repository(path: Path) -> None:
 
 
 def field(text: str, name: str) -> str:
-    return next(
-        row.split("\t", 1)[1]
-        for row in text.splitlines()
-        if row.startswith(name + "\t")
-    )
+    return str(next(row[1] for row in json.loads(text) if row[0] == name))
 
 
 def verify_scope(backend: Path, repo: Path) -> None:
@@ -85,24 +81,33 @@ def verify_scope(backend: Path, repo: Path) -> None:
         "review-check",
         "run",
         "--output",
-        str(artifact / "check.tsv"),
+        str(artifact / "check.json"),
         "--command",
         literal,
     )
     check = next(
-        line
-        for line in (artifact / "check.tsv").read_text(encoding="utf-8").splitlines()
-        if line.startswith("check\t")
+        row
+        for row in json.loads((artifact / "check.json").read_text())
+        if row[0] == "check"
     )
-    records = runtime(backend, repo, "review-result", "scope-records", manifest)
-    text = (
-        "format\tdarrow-review-result-v1\n"
-        + records
-        + "standards\tpass\nstandards_source\tfixture\nspec\tnot_available\nspec_source\tnot_available\n"
-        + check
-        + "\nverdict\tpass\nrisk\tnone\nnext_action\treturn\n"
+    scope_records = json.loads(
+        runtime(backend, repo, "review-result", "scope-records", manifest)
     )
-    result = artifact / "result.tsv"
+    text = json.dumps(
+        [
+            ["format", "darrow-review-result-v2"],
+            *scope_records,
+            ["standards", "pass"],
+            ["standards_source", "fixture"],
+            ["spec", "not_available"],
+            ["spec_source", "not_available"],
+            check,
+            ["verdict", "pass"],
+            ["risk", "none"],
+            ["next_action", "return"],
+        ]
+    )
+    result = artifact / "result.json"
     result.write_text(text, encoding="utf-8", newline="\n")
     runtime(backend, repo, "review-result", "validate-scope", manifest, str(result))
     assert "# Code review — PASS" in runtime(
@@ -111,7 +116,7 @@ def verify_scope(backend: Path, repo: Path) -> None:
 
 
 def verify_routes(backend: Path, repo: Path) -> None:
-    route = repo / ".git/route.tsv"
+    route = repo / ".git/route.json"
     runtime(
         backend,
         repo,
@@ -127,8 +132,8 @@ def verify_routes(backend: Path, repo: Path) -> None:
     assert "claude-opus-5" in runtime(
         backend, repo, "review-route", "claude-agent", "--route-record", str(route)
     )
-    assert "provider\tclaude\tanthropic" in runtime(
-        backend, repo, "claude-provider", "observe-direct"
+    assert ["provider", "claude", "anthropic"] in json.loads(
+        runtime(backend, repo, "claude-provider", "observe-direct")
     )
     projects = repo.parent / "mock-provider/projects"
     slug = (
@@ -150,7 +155,7 @@ def verify_routes(backend: Path, repo: Path) -> None:
         + "\n",
         encoding="utf-8",
     )
-    observed = repo / ".git/observed.tsv"
+    observed = repo / ".git/observed.json"
     runtime(
         backend,
         repo,
@@ -164,7 +169,7 @@ def verify_routes(backend: Path, repo: Path) -> None:
         "--record",
         str(observed),
     )
-    application = repo / ".git/application.tsv"
+    application = repo / ".git/application.json"
     runtime(
         backend,
         repo,
@@ -179,7 +184,9 @@ def verify_routes(backend: Path, repo: Path) -> None:
         "--application-record",
         str(application),
     )
-    assert "route_bound\ttrue" in application.read_text(encoding="utf-8")
+    assert ["route_bound", "true"] in json.loads(
+        application.read_text(encoding="utf-8")
+    )
 
 
 def validate(copy: Path, fixture: Path) -> None:

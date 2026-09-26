@@ -102,7 +102,7 @@ def derive_outcome(blocked: bool, stagnant: bool, active: bool) -> str:
 
 def validate_verification(text: str, path: str = "-", depth: int = 0) -> Records:
     result = Records(text)
-    result.shape("darrow-review-verification-v1", VERIFICATION_SHAPES, "verification ")
+    result.shape("darrow-review-verification-v2", VERIFICATION_SHAPES, "verification ")
     result.exactly(
         "original_target",
         "prior_target",

@@ -32,11 +32,10 @@ def followup_rows() -> list[list[str]]:
 
 
 def test_original_order_and_mixed_guidance(tmp_path: Path) -> None:
-    original = write(tmp_path / "original.tsv", original_rows())
-    current = write(tmp_path / "current.tsv", followup_rows())
-    expected = (
-        "original_finding\tstandards:1:original\tstandards\t1\tlow\tadvisory\tfile.txt:2\trule\tC:\\path\n"
-        "original_finding\tspec:2:original\tspec\t2\thigh\tblocking\tfile.txt:1\trequest\twrong value\trestore value\ttest value\n"
+    original = write(tmp_path / "original.json", original_rows())
+    current = write(tmp_path / "current.json", followup_rows())
+    expected = serialize(
+        result.original_findings(validate_result(serialize(original_rows())))
     )
     assert cli.result_command(["original-findings", original]) == expected
     assert "preserved" in cli.result_command(["validate-original", original, current])
@@ -44,7 +43,7 @@ def test_original_order_and_mixed_guidance(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("field", [4, 5, 6, 7, 8, 9, 10])
 def test_immutable_original_fields(tmp_path: Path, field: int) -> None:
-    original = write(tmp_path / "original.tsv", original_rows())
+    original = write(tmp_path / "original.json", original_rows())
     records = followup_rows()
     finding = next(
         row for row in records if row[:2] == ["original_finding", "spec:2:original"]
@@ -53,17 +52,17 @@ def test_immutable_original_fields(tmp_path: Path, field: int) -> None:
     finding[field] = replacements.get(field, "changed")
     # A valid record can still misrepresent its authoritative original.
     validate_verification(serialize(records))
-    changed = write(tmp_path / "changed.tsv", records)
+    changed = write(tmp_path / "changed.json", records)
     with pytest.raises(ReviewError, match="complete ordered finding set"):
         result.validate_original(original, changed)
 
 
 @pytest.mark.parametrize("mutation", ["omitted", "renumbered", "target"])
 def test_original_membership_and_target(tmp_path: Path, mutation: str) -> None:
-    original = write(tmp_path / "original.tsv", original_rows())
+    original = write(tmp_path / "original.json", original_rows())
     records = mutated_original(mutation)
     validate_verification(serialize(records))
-    changed = write(tmp_path / "changed.tsv", records)
+    changed = write(tmp_path / "changed.json", records)
     with pytest.raises(ReviewError):
         result.validate_original(original, changed)
 
@@ -117,10 +116,10 @@ def test_exact_guidance_survives_both_presentations(tmp_path: Path) -> None:
         r"Restore <3>; preserve C:\path and avoid [new API](url) changes",
         "Calling retry must make exactly 3 attempts",
     ]
-    original = write(tmp_path / "original.tsv", records)
+    original = write(tmp_path / "original.json", records)
     followup = [row for row in verification_rows() if row[0] != "original_finding"]
     followup += result.original_findings(validate_result(serialize(records)))
-    current = write(tmp_path / "current.tsv", followup)
+    current = write(tmp_path / "current.json", followup)
     comprehensive = cli.report_command(["render", original])
     verification = cli.report_command(["render-verification", current])
     attempted, closed = verification.split("## Closed original finding set", 1)
