@@ -54,14 +54,17 @@ Follow the reported mode:
 - `conflict`: report the in-progress operation or unmerged files and stop.
 - `empty` or `no-remote`: report the exact missing prerequisite and stop.
 
-Preserve every `## note:` for the final report. If inspection reports multiple
-PR templates, only an exact filename affirmatively named by the user resolves
-the choice. A request to pick whichever seems best, use the appropriate one, or
-avoid another question does not delegate that choice: ask the user to select
-one listed filename and stop without pushing or creating a PR. If the user
-already named a listed filename, or supplies one after that stop, rerun
+Preserve every applicable `## note:` for the final report. If inspection reports
+multiple PR templates, use an exact listed filename named by the user. The user
+may instead explicitly delegate selection with a request such as "pick whichever
+seems best" or "use the appropriate template." In that case, choose the
+template that fits the branch's committed change. If none fits, ask the user.
+A request merely to open a PR does not delegate selection: ask the user to
+choose one listed filename and stop
+without pushing or creating a PR. For a named or delegated choice, rerun
 inspection with `--template <filename>` and use the selected template content
-it reports. If inspection reports a single template, read
+it reports. The resolved multiple-template note does not need repeating in the
+final report. For any selected template, including a single template, read
 [`references/pr-template.md`](references/pr-template.md) completely before
 drafting the body.
 
@@ -98,8 +101,9 @@ uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" da
 ```
 
 Pass `--base` only when the user named that base. Pass `--draft` only when the
-user asked for a draft. Pass `--template` only with the exact user-selected
-filename reported by inspection; never infer, abbreviate, or substitute it.
+user asked for a draft. Pass `--template` only with the exact filename resolved
+through the user's named or delegated choice and reported by inspection; never
+abbreviate or substitute it.
 The script rechecks readiness and duplicates, pushes the current branch without
 force, creates the PR, and then observes the canonical PR and remote branch.
 Success prints the canonical URL, repository, head/base, draft state, intended,
@@ -122,7 +126,9 @@ For verified success, link the PR, state its base and draft state, and name the
 verified commit once. Keep the complete emitted record available as verification
 evidence; do not paste duplicate commit IDs, routine effect fields, or the whole
 record into the user-facing response unless requested. Name excluded local work
-and include every material `## note:`. For incomplete publication, explain the
+and include every material `## note:`. If the user delegated a choice among
+multiple PR templates, name the chosen filename and give one brief reason it
+fits the branch's change. For incomplete publication, explain the
 known effects and failed observation explicitly; brevity must not imply success.
 Leave reviewers, labels, milestones, merging and existing PR metadata updates
 outside this workflow. An existing-PR observation proves identity, not current

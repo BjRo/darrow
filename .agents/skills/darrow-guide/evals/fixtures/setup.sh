@@ -29,7 +29,7 @@ for category in "$source_root"/plugins/*; do
   mkdir -p "plugins/$(basename "$category")"
   if [ -f "$category/README.md" ]; then cp "$category/README.md" "plugins/$(basename "$category")/README.md"; fi
   for plugin in "$category"/*; do
-    [ -d "$plugin" ] || continue
+    [ -d "$plugin" ] && [ -f "$plugin/README.md" ] || continue
     destination="plugins/$(basename "$category")/$(basename "$plugin")"
     mkdir -p "$destination/.claude-plugin" "$destination/.codex-plugin"
     cp "$plugin/README.md" "$destination/README.md"

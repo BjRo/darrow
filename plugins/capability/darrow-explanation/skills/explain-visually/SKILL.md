@@ -1,6 +1,6 @@
 ---
 name: explain-visually
-description: Explain an existing codebase, change, design, runtime flow, state model, algorithm, or technical topic inline in conversation through a compact call tree, responsibility tree, state or sequence diagram, structural diff, pseudocode, signature sketch, or table. Use when the user asks to visualize, diagram, map, or show technical structure or flow, or says prose is too dense. Do not use to create or edit HTML pages, images, slides, UI mockups, documentation, or other artifact files; for implementation; or for an ordinary question that short prose answers directly.
+description: Use when the user asks to explain a technical subject visually in conversation. Includes “explain this visually,” “show me the structure or flow,” “draw or map the relationships,” and “this explanation is too much prose.” Choose one grounded inline view and expose evidence gaps. Exclude ordinary code or pseudocode explanations without visual intent, implementation, reviews, plans, short prose answers, and requests to create HTML, images, slides, mockups, or documentation.
 ---
 
 # Explain visually
@@ -137,7 +137,10 @@ For a responsibility view, show the nested directory shape with one concise
 ownership label per relevant entry rather than a file-by-file prose inventory.
 Stay at the ownership level the user requested: do not descend from files into
 exported symbols or implementation details unless that extra level answers the
-question. Keep source anchors on the same line as the entry they support.
+question. Root a directory ownership map at the owning directory, not an
+`index` or other export file. Mention a barrel file only when it resolves a
+material ambiguity; do not repeat the same map in a table or prose. Keep source
+anchors on the same line as the entry they support.
 
 For a structural diff, prefix the removed entry itself with `-` and each added
 entry itself with `+`; never put a change marker only on a blank connector line

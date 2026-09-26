@@ -95,7 +95,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-      - run: scripts/check-python --package plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend
+      - run: scripts/check-python --package plugins/foundation/darrow-skill-authoring/backend
 
   discovery-windows:
     name: Discovery Python ${{ matrix.python-version }} on windows-latest
@@ -119,7 +119,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-      - run: scripts/check-python --package plugins/capability/darrow-discovery/skills/plan-implementation/backend
+      - run: scripts/check-python --package plugins/capability/darrow-discovery/skills/work-through-decisions/backend
 
   verification-windows:
     name: Verification Python ${{ matrix.python-version }} on windows-latest
@@ -485,7 +485,7 @@ jobs:
         with:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v6
-      - run: uv run --quiet --frozen --no-dev --project plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend python plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend/tests/fresh_install.py
+      - run: uv run --quiet --frozen --no-dev --project plugins/foundation/darrow-skill-authoring/backend python plugins/foundation/darrow-skill-authoring/backend/tests/fresh_install.py
 
   observability-windows:
     name: Observability Langfuse Python ${{ matrix.python-version }} on windows-latest
@@ -543,7 +543,7 @@ jobs:
         with:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v6
-      - run: uv run --quiet --frozen --no-dev --project plugins/capability/darrow-discovery/skills/plan-implementation/backend python plugins/capability/darrow-discovery/skills/plan-implementation/backend/tests/fresh_install.py
+      - run: uv run --quiet --frozen --no-dev --project plugins/capability/darrow-discovery/skills/work-through-decisions/backend python plugins/capability/darrow-discovery/skills/work-through-decisions/backend/tests/fresh_install.py
 
   verification-fresh-install:
     name: Fresh install verification on ${{ matrix.os }}

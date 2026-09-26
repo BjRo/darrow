@@ -1,23 +1,23 @@
 # Darrow Discovery
 
-This plugin resolves material unknowns before implementation without turning
-the conversation into another orchestrator. It provides one reusable grilling
-method and two outcome-oriented skills that apply the same method to product
-discovery and implementation planning.
+This plugin resolves material unknowns before implementation through one
+read-only skill. It selects standalone grilling, feature discovery, or
+implementation planning from the outcome you ask for. The three modes share a
+dependency-aware decision method.
 
 ## What it provides
 
-### `grilling`
+### Standalone grilling
 
-When explicitly invoked, stress-tests a plan, decision, design, or idea through
+Stress-tests a plan, decision, design, or idea through
 dependency-aware question rounds. The skill investigates discoverable facts,
 asks the user only for decisions or confirmation, and gives a recommendation
-with every material question. It never activates from natural-language intent.
+with every material question. You can request it in ordinary language or invoke
+the skill explicitly.
 
-Example: explicitly invoke the installed `grilling` skill with _“Grill me on
-this API design before I commit to it.”_
+Example: _“Grill me on this API design before I commit to it.”_
 
-### `discover-feature`
+### Feature discovery
 
 Explores a new feature's users, behavior, scope, constraints, non-goals, and
 acceptance evidence. It uses the canonical grilling method while material
@@ -25,7 +25,7 @@ unknowns remain, then produces a concise discovery brief for confirmation.
 
 Example: _“Help me discover what scheduled reporting should do.”_
 
-### `plan-implementation`
+### Implementation planning
 
 Inspects the current repository and turns an understood outcome into ordered,
 independently verifiable implementation slices. It uses the same grilling
@@ -37,9 +37,9 @@ through consequential choices with me first.”_
 
 ## Design boundaries
 
-- All three skills are conversational and read-only.
-- Grilling is manual-only. The two outcome skills read its installed sibling
-  file as their shared method without selecting it as the primary skill.
+- The one skill and all three modes are conversational and read-only.
+- The skill reads only the requested mode's instructions and loads the shared
+  decision method when material unknowns require a human answer.
 - Feature discovery does not become implementation planning, and planning does
   not invent unresolved feature behavior.
 - The plugin does not write specifications or plans, record decisions, create
@@ -58,7 +58,9 @@ decisions.
 
 ## When to use
 
-Clarify a feature or develop an implementation plan. Grilling alone is manual-only. Do not use this plugin for implementation, readiness gates, or publication.
+Grill a decision, clarify a product feature, or develop an implementation
+plan. Do not use this plugin for ordinary advice, implementation, readiness
+gates, or publication.
 
 ## Hosts and prerequisites
 
@@ -77,8 +79,9 @@ An ordinary request can select the appropriate capability:
 
 > Help me discover what scheduled reporting should do.
 
-To select it explicitly, choose `discover-feature` from Codex's `$` skill menu,
-or use `/darrow-discovery:discover-feature` in Claude Code, followed by your request.
+To select it explicitly, choose `work-through-decisions` from Codex's `$` skill
+menu, or use `/darrow-discovery:work-through-decisions` in Claude Code, followed
+by your request.
 
 ## Expected result
 
@@ -88,8 +91,8 @@ without writing artifacts, tickets, or code.
 
 ## Troubleshooting
 
-Answer the current frontier when choices remain. A missing installed sibling
-method, backend, lock, UV installation, or supported Python runtime blocks
+Answer the current frontier when choices remain. A missing mode resource,
+backend, lock, UV installation, or supported Python runtime blocks
 progress; do not substitute an unrelated checkout's files.
 For a discovery or host problem, use the
 [documented installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md)

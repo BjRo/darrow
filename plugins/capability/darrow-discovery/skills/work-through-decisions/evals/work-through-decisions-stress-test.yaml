@@ -1,0 +1,24 @@
+id: work-through-decisions-stress-test
+invariant: DG-C1,DF-C1,PI-C1,DC-E1,DC-C1
+activation: positive
+prompt: >-
+  Stress-test my thinking relentlessly before I commit to this API design. The
+  proposal is a public bulk-delete endpoint, but its authorization behavior,
+  partial-failure semantics, and maximum batch size are unsettled. Challenge
+  me in decision rounds and do not modify the repository.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Bulk API\n"
+checks:
+  - name: generic stress-test remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+semantic_output_checks:
+  - name: API subject uses standalone grilling
+    proposition: >-
+      The response treats the bulk-delete API as a design to stress-test in
+      decision rounds. It asks one or more material current-frontier questions
+      with concrete advisory recommendations, waits for the user's answers,
+      and does not create a feature brief or implementation plan.

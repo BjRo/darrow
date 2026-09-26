@@ -1,7 +1,7 @@
 {
   "name": "darrow-discovery",
-  "version": "0.2.7",
-  "description": "Explicit grilling, feature discovery, and implementation planning",
+  "version": "0.3.0",
+  "description": "One conversational skill for grilling, feature discovery, and implementation planning",
   "author": {
     "name": "Björn Rochel",
     "email": "bjoern@bjro.de"
@@ -9,13 +9,13 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Darrow -> Discovery",
-    "shortDescription": "Resolve unknowns before implementation",
-    "longDescription": "Explicitly grill plans and ideas, discover feature behavior, and produce evidence-backed implementation plans without inventing unresolved choices.",
+    "shortDescription": "Grill decisions, discover features, and plan implementations",
+    "longDescription": "Use one read-only skill to grill a decision, define product-feature behavior, or plan implementation from matching user intent.",
     "developerName": "Björn Rochel",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read"],
     "defaultPrompt": [
-      "$darrow-discovery:grilling Grill me on this idea before I act on it.",
+      "$darrow-discovery:work-through-decisions Grill me on this idea before I act on it.",
       "Help me discover this feature before planning it.",
       "Plan the implementation and resolve material unknowns with me."
     ]

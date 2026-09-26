@@ -1,0 +1,19 @@
+id: unified-discovery-ordinary-advice
+invariant: DU-X1
+prompt: >-
+  What are the main trade-offs between paper and digital notes for meetings?
+  Give me a concise answer. Do not change files.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Unrelated repository\n"
+checks:
+  - name: conversation remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+semantic_output_checks:
+  - name: answers ordinary advice request
+    proposition: >-
+      The response concisely compares paper and digital meeting notes, without
+      starting a decision interview, feature discovery, or implementation plan.

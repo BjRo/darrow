@@ -1,0 +1,42 @@
+id: audit-agent-skill-ab-plugin-packaging
+invariant: SA-C2
+activation: negative
+mount_plugin_skills: true
+activation_excludes:
+  - audit-agent-skill
+  - create-agent-skill
+prompt: >-
+  In the release plugin, set the Claude manifest description to "Release
+  tools" and the Codex manifest displayName to "Release Tools". This is a
+  manifest metadata edit only. Do not create or edit a skill, and do not commit.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Repository instructions
+
+          Do not commit automatically.
+        plugins/release/.claude-plugin/plugin.json: |
+          {"name":"release","version":"0.1.0","description":"Old release label","author":{"name":"Example"}}
+        plugins/release/.codex-plugin/plugin.json: |
+          {"name":"release","version":"0.1.0","description":"Release workflows","author":{"name":"Example"},"skills":"./skills/","interface":{"displayName":"Old Label"}}
+checks:
+  - name: parsed manifest fields receive the requested values
+    run: |
+      bun -e '
+        const { readFileSync } = require("node:fs");
+        const claude = JSON.parse(readFileSync("plugins/release/.claude-plugin/plugin.json", "utf8"));
+        const codex = JSON.parse(readFileSync("plugins/release/.codex-plugin/plugin.json", "utf8"));
+        if (claude.description !== "Release tools" || codex.interface?.displayName !== "Release Tools") process.exit(1);
+      '
+  - name: only the two manifests change and no commit is created
+    run: |
+      set -e
+      changed=$(git diff --name-only HEAD)
+      expected=$(printf '%s\n' \
+        plugins/release/.claude-plugin/plugin.json \
+        plugins/release/.codex-plugin/plugin.json)
+      test "$changed" = "$expected"
+      test -z "$(git ls-files --others --exclude-standard)"
+      test "$(git rev-list --all --reflog --count)" -eq 1

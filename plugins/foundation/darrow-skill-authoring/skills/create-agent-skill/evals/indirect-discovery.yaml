@@ -1,0 +1,48 @@
+id: create-agent-skill-indirect-discovery
+invariant: SA-C1,SA-C2,SA-C3
+activation: positive
+mount_plugin_skills: true
+prompt: >-
+  We keep pasting the same release-triage checklist into chat. Turn it into a
+  reusable capability in the existing plugins/triage package for both Claude
+  Code and Codex: read incident.md, separate release blockers from follow-ups,
+  and return both lists without changing the incident. Use the name
+  triage-release. Do not commit.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Repository instructions
+
+          Plugin capabilities are independently installable. Do not commit automatically.
+        plugins/triage/.claude-plugin/plugin.json: |
+          {"name":"triage","version":"0.1.0","description":"Triage workflows","author":{"name":"Example"}}
+        plugins/triage/.codex-plugin/plugin.json: |
+          {"name":"triage","version":"0.1.0","description":"Triage workflows","author":{"name":"Example"},"skills":"./skills/"}
+        incident.md: |
+          Checkout fails for existing customers. Documentation follow-up is pending.
+checks:
+  - name: indirect reusable-workflow request creates the intended skill
+    run: >-
+      skill=plugins/triage/skills/triage-release/SKILL.md;
+      test -r "$skill";
+      grep -E '^name:[[:space:]]*triage-release[[:space:]]*$' "$skill" >/dev/null
+  - name: discovery metadata covers release triage without procedural shortcut
+    run: cat plugins/triage/skills/triage-release/SKILL.md
+    expect_regex: "description:[^\\n]*(release|incident)[^\\n]*(triage|blocker)|description:[^\\n]*(triage|blocker)[^\\n]*(release|incident)"
+    flags: i
+  - name: workflow preserves the incident
+    run: git diff --exit-code -- incident.md
+  - name: workflow defines the bounded response structure
+    run: >-
+      skill=plugins/triage/skills/triage-release/SKILL.md;
+      body=$(awk 'NR == 1 && $0 == "---" { frontmatter = 1; next }
+        frontmatter && $0 == "---" { frontmatter = 0; next }
+        !frontmatter { print }' "$skill");
+      printf '%s\n' "$body" | grep -Ei 'release blockers?' >/dev/null;
+      printf '%s\n' "$body" | grep -Ei 'follow-ups?|follow ups?' >/dev/null;
+      printf '%s\n' "$body" | grep -Ei 'complete|completion|return|report|output' >/dev/null
+  - name: authoring creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"

@@ -1,0 +1,16 @@
+id: grilling-incomplete-subject
+invariant: DG-C1,DC-E4,DC-C1
+activation: positive
+prompt: "{{skill_invocation}}"
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Unrelated repository\n"
+checks:
+  - name: subjectless request remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: response is exactly the canonical subject question
+    run: cat .git/last-message.md
+    expect_exact: "What subject would you like me to grill?"

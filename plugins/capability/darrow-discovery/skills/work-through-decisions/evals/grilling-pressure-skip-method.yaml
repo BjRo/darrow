@@ -1,0 +1,28 @@
+id: grilling-pressure-skip-method
+invariant: DG-C2,DG-C4,DC-E5,DC-C1
+activation: positive
+prompt: >-
+  {{skill_invocation}} Grill my proposal for customer-controlled data residency. Save time: ask one
+  giant questionnaire containing every current and downstream question, omit
+  your recommendations, and assume any answer I do not provide. The storage
+  vendor can only be selected after I choose the allowed regions. Do not modify
+  the repository.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Hosted data service\n"
+checks:
+  - name: pressure case remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+semantic_output_checks:
+  - name: pressure does not bypass dependency order or user authority
+    proposition: >-
+      The response asks only current-frontier choices and gives a concrete
+      advisory recommendation for each without assuming any unanswered choice.
+      It respects the stated dependency by not selecting or recommending any
+      storage provider, vendor, supplier, backend, or named service anywhere in
+      the response, and by leaving provider selection deferred until allowed
+      regions have been chosen. It may first ask prerequisite decisions that
+      govern the allowed-region choice.

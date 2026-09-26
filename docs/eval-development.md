@@ -16,6 +16,11 @@ constraints for producing and interpreting that evidence.
 - Prefer observable repository state, external effects, and user-visible
   outcomes over prose. When free-form text is the only public seam, assert the
   smallest semantic decision rather than parsing a complete explanation.
+- For a free-form saved document, use `semantic_artifact` to grade the artifact
+  itself. Its repository-relative `path` may contain one `*` in the filename and
+  must resolve to exactly one regular file. Keep deterministic checks for file
+  presence, status, and structural validation; `semantic_output_checks` grade
+  only the final response.
 - Give one case one concrete state and one decision. When success would require
   recognizing several conditional branches in one free-form answer, split the
   branches into separate concrete-state cases.
@@ -67,6 +72,11 @@ constraints for producing and interpreting that evidence.
 - A Codex case without the placeholder remains an implicit-discovery probe and
   requires a completed mounted-skill body read. Do not use the explicit path to
   make implicit selection pass.
+  A complete read of the byte-identical marketplace staging copy of an
+  installed plugin skill also counts: the staging path must come from that
+  eval's installed marketplace catalog, and the observed output must match
+  the installed body. Prepared target skill drafts elsewhere in the fixture
+  never count as activation.
 - Missing, repeated, malformed, or unverified observation evidence stays
   unknown. A failed compound shell command may still prove an earlier skill
   read only when the command names a mounted skill path and its output contains
@@ -237,9 +247,8 @@ evaluation that stops at the first failure. `--only <question-id>` and
 before continuing. Fixtures snapshot current public documentation, manifests,
 and relevant code while excluding inventory, hidden checks, and delivery
 conclusions from the participant repository.
-The guide driver pins semantic grading to Codex `gpt-5.6-terra` / medium;
-the shared runner's default lightweight grader remains unchanged. The route
-was calibrated against retained correct and reversed-delegation diagrams.
+The guide driver pins semantic grading to Codex `gpt-6-luna` / medium;
+the shared runner's default lightweight grader remains unchanged.
 
 ## Live-run controls
 
@@ -287,7 +296,7 @@ preserving the selected cases.
 
 Codex runs use independent defaults for each eval role:
 
-- candidate: `gpt-5.6-terra` at `medium` effort;
+- candidate: `gpt-6-luna` at `medium` effort;
 - advisory quality judge: `gpt-5.6-sol` at `low` effort;
 - gating semantic-output grader: `gpt-5.6-luna` at `low` effort.
 

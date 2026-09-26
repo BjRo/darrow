@@ -1,11 +1,11 @@
 # Capability: Discovery and Structured Grilling
 
-Darrow should provide a reusable, explicitly invoked grilling capability and two
-focused consumers that use the same method to resolve product and
-implementation unknowns through an evidence-backed conversation.
+Darrow provides one intent-matched conversational capability that grills a
+decision, discovers product feature behavior, or plans an implementation. Each
+mode uses the same evidence-backed decision-frontier method.
 
 Plugin: `darrow-discovery`  
-Skills: `grilling`, `discover-feature`, `plan-implementation`
+Skill: `work-through-decisions`
 
 ## Why
 
@@ -15,27 +15,32 @@ They need the same underlying discipline: discover facts from available
 evidence, expose decisions to the user, and advance only through questions
 whose prerequisites are already settled.
 
-Making that discipline a public capability also lets a user explicitly invoke
-a grilling session for an idea, plan, or decision without entering a
-feature-discovery or planning workflow. The outcome-oriented skills reuse its
-method rather than defining competing questioning methods.
+One public entry skill avoids competition among three skills for closely
+related intent. A user may request a standalone grilling session in ordinary
+language or explicitly invoke the skill. Feature discovery and implementation
+planning load their own mode instructions only when the requested outcome
+matches them.
 
 ## Capability boundaries
 
-`grilling` owns the conversation method. `discover-feature` and
-`plan-implementation` own distinct outcomes that may use that method:
+`work-through-decisions` chooses one mode from the requested outcome:
 
 ```text
-grilling
-  |-- discover-feature       -> confirmed discovery brief
-  `-- plan-implementation    -> confirmed implementation plan
+work-through-decisions
+  |-- standalone grilling       -> confirmed shared understanding
+  |-- feature discovery         -> confirmed discovery brief
+  `-- implementation planning   -> confirmed implementation plan
 ```
 
-All three skills are read-only. They may inspect the current repository and
+All three modes are read-only. They may inspect the current repository and
 available external evidence, but they do not persist artifacts, record
 decisions, create or update tickets, implement changes, invoke orchestration,
 commit, or publish. Another explicitly requested capability may perform those
 actions after the conversation reaches its own completion boundary.
+When a request combines discovery with writing, ticketing, or implementation,
+the discovery mode still resolves open material choices first and performs no
+side effect in that turn. The additional action does not delegate unresolved
+product choices or override this plugin's read-only boundary.
 
 The plugin does not require a readiness gate. A discovery brief or plan may be
 assessed later through an independently installed capability matching
@@ -45,20 +50,18 @@ implementation-readiness intent.
 
 ### Intent
 
-`grilling` is manual-only. Use it directly only through the host's explicit
-skill-invocation mechanism. Ordinary natural-language requests—including
-“grill me,” interview, challenge, stress-test, plan, and unresolved-question
-language—do not select it implicitly.
+Select standalone grilling for an explicit invocation or an ordinary request
+to grill, interview, or challenge a named idea, design, plan, or decision when
+the user does not request a feature-discovery brief or an implementation plan.
+Generic stress-testing of an idea may also use standalone grilling when the
+user asks for decision rounds. A product feature named as the subject does not
+by itself change the requested outcome to feature discovery.
 
-This direct invocation boundary is distinct from composed reuse. An already
-selected outcome skill reads the installed sibling `grilling` skill file as
-its canonical method when material unknowns must be resolved with the user.
-That resource load does not select `grilling` as the primary skill and does not
-require another user invocation.
-
-Do not select it merely because an ordinary request is incomplete, asks one
-clarifying question, requests implementation, or requests a deliverable owned
-by a more specific installed skill.
+Do not select the skill merely because an ordinary request is incomplete, asks
+one clarifying question, requests implementation, or requests ordinary advice
+without a structured interview outcome. A negated mention such as “do not
+grill me” does not activate standalone grilling; a requested feature or plan
+still uses the shared method when material unknowns remain.
 
 ### Inputs
 
@@ -152,7 +155,7 @@ consumer as resolved before confirmation.
 
 ### Intent
 
-Use `discover-feature` when the user wants to discover, explore, shape, or
+Use feature-discovery mode when the user wants to discover, explore, shape, or
 clarify a new feature or product behavior before planning or implementation.
 Do not use it for an already-resolved implementation request, implementation
 planning alone, bug diagnosis, or a generic request to be grilled without a
@@ -188,8 +191,8 @@ confirmation does not authorize persistence or implementation.
 
 ### Intent
 
-Use `plan-implementation` when the user asks for a technical implementation
-plan, delivery decomposition, or executable work slices for an understood
+Use implementation-planning mode when the user asks for a technical implementation
+plan, migration or rollout plan, delivery decomposition, or executable work slices for an understood
 outcome. The skill may begin from a request, confirmed discovery brief,
 specification, ticket, or accepted decision.
 
@@ -246,16 +249,15 @@ skill.
 
 ## Invariants
 
-1. **DG-C1 — Manual and composed invocation.** Grilling is selected directly
-   only through explicit host-native skill invocation. Natural-language
-   grilling, interview, challenge, stress-test, plan, and unresolved-question
-   requests do not select it implicitly. Its use as the canonical
-   unknown-resolution method inside an already selected outcome skill is a
-   direct installed-sibling resource load, not primary grilling selection and
-   not another user invocation. A negated mention such as “do not grill me”
-   does not cancel an outcome skill's required composed use. When an explicit
-   grilling invocation has no identifiable subject, its user-facing final
-   answer is exactly `What subject would you like me to grill?`, and it stops.
+1. **DG-C1 — Intent-matched invocation.** The one public skill selects
+   standalone grilling from explicit invocation or matching natural-language
+   intent without a feature or implementation-plan outcome. Feature and
+   planning intent select their respective mode instead. Ordinary advice,
+   implementation, and a single clarification do not select the skill. A
+   negated mention such as “do not grill me” does not cancel a feature or plan
+   mode's required shared method. When a standalone grilling request has no
+   identifiable subject, its user-facing final answer is exactly `What
+subject would you like me to grill?`, and it stops.
 2. **DG-C2 — Dependency-aware frontier.** Each round asks all material
    independent questions whose prerequisites are settled and defers dependent
    questions until a later round. A node is dependent when another open answer
@@ -287,7 +289,11 @@ skill.
    users, scope, constraints, non-goals, and observable acceptance without
    turning into implementation planning. It is not selected when the user's
    requested outcome is an implementation plan, even if unresolved choices
-   must be discussed before that plan can be produced.
+   must be discussed before that plan can be produced. Ordinary requests to
+   spec out or work through what a product feature should do select feature
+   discovery even without naming a discovery brief. Personal decisions and
+   generic requests for grilling or stress-testing without a product-feature
+   outcome do not select feature discovery.
 8. **DF-C2 — Honest brief.** A discovery brief exposes evidence provenance,
    assumptions, and deferred questions. Material product choices cannot be
    moved into assumptions or deferrals, and no discovery brief, including a
@@ -299,11 +305,13 @@ skill.
 9. **PI-C1 — Technical outcome.** Implementation planning resolves public
    seams, approach, delivery slices, dependencies, verification, and relevant
    migration or rollout concerns without implementing or publishing tickets.
-   For implementation-planning intent, `plan-implementation` is the primary
-   capability even when every material choice is already settled. It is loaded
-   before reading its supporting `grilling` method. It also remains primary when
+   For implementation-planning intent, the planning mode is selected even when
+   every material choice is already settled. Its instructions are loaded before
+   the shared grilling method. It also remains selected when
    unresolved implementation choices must be discussed before plan slices can
-   be produced.
+   be produced. Ordinary requests such as "let's plan how to implement this"
+   select planning when the referenced change is identifiable; personal advice
+   and generic stress-tests without an implementation-plan outcome do not.
 10. **PI-C2 — No invented plan.** Planning investigates technical facts and
     returns to the user for unresolved product or consequential choices rather
     than embedding guesses as architecture. An explicitly delegated bounded
@@ -314,13 +322,13 @@ skill.
     checks that every explicitly delegated choice has exactly one complete
     entry. Delegation is literal and does not authorize adjacent choices; any
     remaining material frontier prevents ordered plan slices.
-11. **DC-C1 — Read-only composition.** All three skills preserve repository
+11. **DC-C1 — Read-only composition.** All three modes preserve repository
     and external state; later persistence, decision capture, ticketing,
     readiness assessment, orchestration, and implementation require separate
     intent and authority.
 12. **DC-C2 — Clear conversation output.** Questions lead with the requested
     decision. Briefs and plans lead with their outcome; their required
-    confirmation request remains the final substantive element. All three use
+    confirmation request remains the final substantive element. All three modes use
     familiar words, active voice, and short sentences and paragraphs, explain
     necessary Darrow terms, and omit repeated points and process narration.
     They still preserve material choices, provenance, constraints, acceptance
@@ -328,13 +336,16 @@ skill.
 
 ## Packaging and portability
 
-1. **DC-P1 — Independent plugin.** `darrow-discovery` contains every required
-   skill and resource and assumes no sibling Darrow plugin.
-2. **DC-P2 — Cross-host discovery.** Each public skill carries concrete
-   trigger and exclusion metadata usable by Claude Code and Codex.
-3. **DC-P3 — One canonical method.** Outcome-oriented skills read and reuse the
-   installed sibling `grilling` skill file rather than selecting that
-   manual-only skill or reproducing their own interview protocol.
+1. **DC-P1 — Independent plugin.** `darrow-discovery` contains its one public
+   skill and every required resource and assumes no sibling Darrow plugin.
+2. **DC-P2 — Cross-host discovery.** The public skill carries concrete trigger
+   and exclusion metadata usable by Claude Code and Codex. Its entry file
+   chooses one mode by requested outcome and reads only that mode's complete
+   instructions before acting.
+3. **DC-P3 — One canonical method.** All modes read and reuse the installed
+   skill's shared grilling reference when material unknowns need a decision
+   frontier. They do not reproduce competing interview protocols or invoke a
+   second public skill.
 4. **DC-P4 — Contextual judgment.** Decision-tree construction, fact
    classification, materiality, and closure remain model judgment; no keyword
    checklist or numeric ambiguity score substitutes for them. The frontier
@@ -361,11 +372,13 @@ skill.
 
 ## Evaluation requirements
 
-1. **DC-E1 — Intent boundaries.** Explicit grilling invocation, feature
-   discovery, and implementation-planning requests select their matching
-   behavior. Natural-language grilling, interview, challenge, or stress-test
-   requests and ordinary implementation, readiness, and single-clarification
-   requests do not select standalone grilling.
+1. **DC-E1 — Intent boundaries.** Explicit invocation, natural-language
+   grilling, feature discovery, and implementation-planning requests select
+   the one public skill and their matching mode. Ordinary advice,
+   implementation, readiness, and single-clarification requests leave it
+   unselected. Cases verify entry-skill reads separately from task behavior;
+   mode-reference reads require additional evidence when the host does not
+   retain ordinary resource reads.
 2. **DC-E2 — Frontier sequencing.** Cases contain independent and dependent
    decisions and verify that the first response asks the independent frontier
    with recommendations while deferring downstream questions.

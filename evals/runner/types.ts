@@ -84,6 +84,13 @@ export interface SemanticOutputCheck {
   proposition: string;
 }
 
+/** A hidden semantic assertion over one final repository artifact. */
+export interface SemanticArtifactConfig {
+  /** Repository-relative path; a basename `*` may match one generated filename. */
+  path: string;
+  checks: SemanticOutputCheck[];
+}
+
 /** Assertions over harness protocol evidence, kept outside the model workspace. */
 export interface TranscriptCheck extends OutputCheck {
   /** Inspect only the suffix after the final matching protocol boundary. */
@@ -165,6 +172,8 @@ export interface EvalCase {
   output_checks?: OutputCheck[];
   /** Gating propositions over the final message, evaluated by a hidden grader. */
   semantic_output_checks?: SemanticOutputCheck[];
+  /** Grade the saved artifact itself, independently of the final response. */
+  semantic_artifact?: SemanticArtifactConfig;
   /** Assertions over the raw harness transcript, kept outside the model workspace. */
   transcript_checks?: TranscriptCheck[];
   /** Optional primary skill-selection expectation, graded apart from outcomes. */
@@ -301,6 +310,7 @@ export interface TrialResult {
   };
   /** Fail-closed semantic public-contract evidence, separate from quality. */
   semanticOutput?: SemanticOutputResult;
+  semanticArtifact?: SemanticOutputResult & { path: string };
   judge?: JudgeResult;
 }
 

@@ -72,7 +72,9 @@ Use a rollout directive when the user wants to start, change, clear, or restore
 automatic attribution without restarting Codex. The directive must be the
 first non-empty line of the user's prompt. Give the applicable line exactly,
 without a shell wrapper, environment assignment, Markdown prefix, or invented
-identifier:
+identifier. Show each applicable directive on its own unindented line in a
+plain-text code block, and tell the user to paste that line as the first
+non-empty line of the relevant prompt:
 
 ```text
 @darrow.attribution set ISSUE-60
@@ -120,9 +122,10 @@ An in-session attribution-control answer is incomplete unless it includes the
 applicable exact directive lines, their current-and-subsequent-turn scope, the
 epoch-to-Langfuse-session mapping, and `codex.thread_id` as the conversation key
 across those session segments. End that answer with a concise `Session policy`
-statement that uses both field names literally: `darrow.attribution_epoch` is
-the Langfuse session segment, while `codex.thread_id` is the conversation key
-across segments. Do not replace either field name with a prose-only synonym.
+statement: each `set`, `clear`, or `auto` directive starts a new
+`darrow.attribution_epoch` (the Langfuse session segment), while
+`codex.thread_id` is the conversation key across segments. Use both field
+names literally; do not replace either with a prose-only synonym.
 
 ## 4. Verify without overstating success
 

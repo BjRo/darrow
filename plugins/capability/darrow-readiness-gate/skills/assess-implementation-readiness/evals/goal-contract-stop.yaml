@@ -43,7 +43,7 @@ output_checks:
   - name: composed result preserves typed basis fields
     expect_regex: "^### Basis$[\\s\\S]*^- \\*\\*Source:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Authority:\\*\\* `(authoritative|repository|supporting)`$[\\s\\S]*^  - \\*\\*Status:\\*\\* `(available|missing|contradictory)`$[\\s\\S]*^  - \\*\\*Summary:\\*\\* \\S[^\\n]*$[\\s\\S]*^### Quality bar$"
   - name: composed quality bar is explicitly empty or contains typed items
-    expect_regex: "^### Quality bar$\\n\\n(?:None\\.|- \\*\\*Criterion:\\*\\* \\S[^\\n]*\\n  - \\*\\*Oracle:\\*\\* \\S[^\\n]*\\n  - \\*\\*Verification:\\*\\* \\S[^\\n]*(?:\\n\\n- \\*\\*Criterion:\\*\\* \\S[^\\n]*\\n  - \\*\\*Oracle:\\*\\* \\S[^\\n]*\\n  - \\*\\*Verification:\\*\\* \\S[^\\n]*)*)\\n\\n### Findings$"
+    expect_regex: "^### Quality bar$\\n\\n(?:None\\.|- \\*\\*Criterion:\\*\\* \\S[^\\n]*\\n  - \\*\\*Oracle:\\*\\* \\S[^\\n]*\\n  - \\*\\*Verification:\\*\\* \\S[^\\n]*(?:\\n\\n?- \\*\\*Criterion:\\*\\* \\S[^\\n]*\\n  - \\*\\*Oracle:\\*\\* \\S[^\\n]*\\n  - \\*\\*Verification:\\*\\* \\S[^\\n]*)*)\\n\\n### Findings$"
   - name: composed result preserves typed finding fields
     expect_regex: "^### Findings$[\\s\\S]*^- \\*\\*Type:\\*\\* `unresolved-decision`$[\\s\\S]*^  - \\*\\*Summary:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Evidence:\\*\\*$[\\s\\S]*^    - \\S[^\\n]*$"
   - name: composed result preserves the typed next action

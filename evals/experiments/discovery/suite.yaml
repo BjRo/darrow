@@ -3,10 +3,11 @@ experiment: discovery-value
 case_filter:
   - grilling-direct-frontier
   - grilling-incomplete-subject
-  - grilling-no-trigger-ordinary-plan
+  - work-through-decisions-implementation-plan
   - discover-feature-pressure-premature-brief
   - plan-implementation-direct-unknowns
-  - plan-implementation-no-trigger-discovery
+  - work-through-decisions-feature-only
+  - work-through-decisions-ordinary-advice
 modes:
   without-skill:
     without_skill: true

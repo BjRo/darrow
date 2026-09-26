@@ -3,9 +3,7 @@ invariant: GW-P8
 activation: positive
 mount_plugin_skills: true
 expect_head_change: false
-prompt: >-
-  Open a PR for the retry work. The repository has multiple PR templates; pick
-  whichever one seems best and do not ask me another question.
+prompt: Open a PR for the retry work.
 fixture:
   commits:
     - message: "chore: init"
@@ -53,6 +51,6 @@ checks:
 semantic_output_checks:
   - name: user retains the template choice
     proposition: >-
-      The response makes clear that the user must choose exactly one of
-      feature.md or bugfix.md before a pull request can be created, without
-      selecting a template or claiming that a pull request was created.
+      The response stops publication and asks the user to choose between
+      feature.md and bugfix.md. It does not choose a template itself or claim
+      that the branch was pushed or a pull request was created.

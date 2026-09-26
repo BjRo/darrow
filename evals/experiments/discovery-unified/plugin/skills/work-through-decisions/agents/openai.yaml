@@ -1,0 +1,4 @@
+interface:
+  display_name: "Work Through Decisions"
+  short_description: "Grill decisions, discover features, or plan implementations"
+  default_prompt: "Help me work through this decision and its unresolved choices."

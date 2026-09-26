@@ -14,10 +14,10 @@ mkdir -p "$fixture/scripts"
 cp "$detector" "$fixture/scripts/detect-python-quality-changes"
 chmod +x "$fixture/scripts/detect-python-quality-changes"
 cat >"$fixture/python-packages.txt" <<'EOF'
-plugins/capability/darrow-discovery/skills/plan-implementation/backend
+plugins/capability/darrow-discovery/skills/work-through-decisions/backend
 plugins/capability/darrow-observability-langfuse/backend
 plugins/capability/darrow-verification/skills/verify-change/backend
-plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend
+plugins/foundation/darrow-skill-authoring/backend
 EOF
 printf '%s\n' '# Fixture' >"$fixture/README.md"
 git -C "$fixture" add .
@@ -51,7 +51,7 @@ discovery=false
 verification=false'
 expect_scope \
   plugins/foundation/darrow-skill-authoring/README.md \
-  'packages=["plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend"]
+  'packages=["plugins/foundation/darrow-skill-authoring/backend"]
 package_selected=true
 skill_authoring=true
 observability_langfuse=false
@@ -67,7 +67,7 @@ discovery=false
 verification=false'
 expect_scope \
   plugins/capability/darrow-discovery/README.md \
-  'packages=["plugins/capability/darrow-discovery/skills/plan-implementation/backend"]
+  'packages=["plugins/capability/darrow-discovery/skills/work-through-decisions/backend"]
 package_selected=true
 skill_authoring=false
 observability_langfuse=false
@@ -83,7 +83,7 @@ discovery=false
 verification=true'
 expect_scope \
   scripts/check-python \
-  'packages=["plugins/capability/darrow-discovery/skills/plan-implementation/backend","plugins/capability/darrow-observability-langfuse/backend","plugins/capability/darrow-verification/skills/verify-change/backend","plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend"]
+  'packages=["plugins/capability/darrow-discovery/skills/work-through-decisions/backend","plugins/capability/darrow-observability-langfuse/backend","plugins/capability/darrow-verification/skills/verify-change/backend","plugins/foundation/darrow-skill-authoring/backend"]
 package_selected=true
 skill_authoring=true
 observability_langfuse=true
@@ -91,7 +91,7 @@ discovery=true
 verification=true'
 
 all=$(cd "$fixture" && scripts/detect-python-quality-changes --all)
-if [ "$all" != 'packages=["plugins/capability/darrow-discovery/skills/plan-implementation/backend","plugins/capability/darrow-observability-langfuse/backend","plugins/capability/darrow-verification/skills/verify-change/backend","plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend"]
+if [ "$all" != 'packages=["plugins/capability/darrow-discovery/skills/work-through-decisions/backend","plugins/capability/darrow-observability-langfuse/backend","plugins/capability/darrow-verification/skills/verify-change/backend","plugins/foundation/darrow-skill-authoring/backend"]
 package_selected=true
 skill_authoring=true
 observability_langfuse=true
@@ -125,7 +125,7 @@ verification=false' ]; then
 fi
 
 third_all=$(cd "$fixture" && scripts/detect-python-quality-changes --all)
-if [ "$third_all" != 'packages=["plugins/capability/darrow-discovery/skills/plan-implementation/backend","plugins/capability/darrow-observability-langfuse/backend","plugins/capability/darrow-verification/skills/verify-change/backend","plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/backend","plugins/capability/darrow-third/backend"]
+if [ "$third_all" != 'packages=["plugins/capability/darrow-discovery/skills/work-through-decisions/backend","plugins/capability/darrow-observability-langfuse/backend","plugins/capability/darrow-verification/skills/verify-change/backend","plugins/foundation/darrow-skill-authoring/backend","plugins/capability/darrow-third/backend"]
 package_selected=true
 skill_authoring=true
 observability_langfuse=true

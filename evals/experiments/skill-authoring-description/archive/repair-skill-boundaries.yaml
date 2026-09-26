@@ -1,0 +1,116 @@
+id: author-agent-skill-repair-skill-boundaries
+invariant: SA-C2,SA-C3,SA-C4,SA-C5,SA-C7
+activation: positive
+prompt: >-
+  Promote and improve the deploy-checklist draft at
+  plugins/ops/skills/deploy-checklist/SKILL.draft.md so it is focused,
+  independently installable, and reliable in both Claude Code and Codex.
+  Write the finished skill as SKILL.md and remove the draft. Preserve its actual
+  preflight behavior, but remove reliance on another plugin and separate
+  checkable configuration mechanics from deployment judgment. Add appropriate
+  local tests. Do not deploy or commit.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Repository instructions
+
+          Plugin skills may not reference sibling plugins. Shell helpers must
+          work with Bash 5 and /bin/bash 3.2.
+        plugins/ops/.claude-plugin/plugin.json: |
+          {"name":"ops","version":"0.1.0","description":"Operations workflows","author":{"name":"Example"}}
+        plugins/ops/.codex-plugin/plugin.json: |
+          {"name":"ops","version":"0.1.0","description":"Operations workflows","author":{"name":"Example"},"skills":"./skills/"}
+        plugins/ops/skills/deploy-checklist/SKILL.draft.md: |
+          ---
+          name: deploy-checklist
+          description: Helps with deployments.
+          ---
+
+          # Deploy checklist
+
+          Read `plugins/shared-operations/skills/safety/SKILL.md`.
+          Open deploy.env and manually confirm that REGION and SERVICE are set.
+          Decide whether the deployment evidence is sufficient, then report.
+        deploy.env: |
+          REGION=eu-west-1
+          SERVICE=api
+checks:
+  - name: sibling-plugin dependency is removed
+    run: >-
+      backend_file=$(find . -path '*/author-agent-skill/backend/pyproject.toml' -type f | sed -n '1p');
+      test -n "$backend_file";
+      backend=${backend_file%/pyproject.toml};
+      uv run --quiet --frozen --no-dev --project "$backend" inspect-skill inspect plugins/ops/skills/deploy-checklist plugins/ops >/dev/null;
+      ! grep -R -E '(plugins/[^/]+/skills|~/|/Users/|/home/)' plugins/ops/skills/deploy-checklist
+  - name: configuration mechanics move to a linked local script
+    run: |
+      skill=plugins/ops/skills/deploy-checklist
+      script=$(find "$skill/scripts" -type f ! -name '*.test.sh' ! -name 'test-*.sh' | sed -n '1p')
+      test -n "$script"
+      grep -F "$(basename "$script")" "$skill/SKILL.md" >/dev/null
+      bash "$script" deploy.env >/dev/null
+      printf 'REGION=eu-west-1\n' >.git/incomplete.env
+      ! bash "$script" .git/incomplete.env
+  - name: local script tests exercise the mechanic with available shells and temp path forms
+    run: |
+      skill=plugins/ops/skills/deploy-checklist
+      script=$(find "$skill/scripts" -type f ! -name '*.test.sh' ! -name 'test-*.sh' | sed -n '1p')
+      test -n "$script"
+      test_scripts=$(find "$skill" -type f \( -name '*.test.sh' -o -path '*/tests/*.sh' \))
+      test -n "$test_scripts"
+      script_name=$(basename "$script")
+      temp_parent=${TMPDIR:-/tmp}
+      case "$temp_parent" in
+        /) plain_temp=/ ;;
+        */) plain_temp=${temp_parent%/} ;;
+        *) plain_temp=$temp_parent ;;
+      esac
+      case "$plain_temp" in
+        /) trailing_temp=/ ;;
+        *) trailing_temp=$plain_temp/ ;;
+      esac
+      tests_reference_script=false
+      for shell in bash /bin/bash; do
+        while IFS= read -r test_script; do
+          if grep -F "$script_name" "$test_script" >/dev/null; then
+            tests_reference_script=:
+          fi
+          TMPDIR="$plain_temp" "$shell" "$test_script" >/dev/null || exit 1
+          TMPDIR="$trailing_temp" "$shell" "$test_script" >/dev/null || exit 1
+        done <<EOF
+      $test_scripts
+      EOF
+      done
+      $tests_reference_script
+  - name: workflow retains deployment judgment
+    run: cat plugins/ops/skills/deploy-checklist/SKILL.md
+    expect_regex: "evidence|risk|judg|decision"
+    flags: i
+  - name: workflow defines its completion criterion
+    run: cat plugins/ops/skills/deploy-checklist/SKILL.md
+    expect_regex: "ready|complete when|completion|done when"
+    flags: i
+  - name: authoring neither deploys nor commits
+    run: >-
+      test ! -e .git/deployed && test "$(git rev-list --all --reflog --count)" -eq 1
+semantic_artifact:
+  path: plugins/ops/skills/deploy-checklist/SKILL.md
+  checks:
+    - name: discovery metadata names concrete deployment review triggers
+      proposition: >-
+        The description names a concrete pre-deployment check or review goal,
+        such as checking configuration and reviewing deployment evidence.
+        It does not merely say that the skill helps with deployments or
+        imply that it performs deployment itself.
+semantic_output_checks:
+  - name: shell evidence distinguishes observed runs from unverified coverage
+    proposition: >-
+      The response gives an evidence status for each required target, Bash 3.2
+      and Bash 5: an observed version and test outcome, or an explicit statement
+      that the target was unavailable or unexecuted and remains unverified.
+      Observed passing runs of both targets establish complete coverage; no
+      unavailable-target statement is needed in that situation. Command names
+      alone (bash and /bin/bash) or simulated version labels do not establish
+      actual version coverage.

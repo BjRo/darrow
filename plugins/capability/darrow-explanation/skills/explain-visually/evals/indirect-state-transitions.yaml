@@ -28,7 +28,7 @@ checks:
       grep -Ei 'attempts? remain|remaining attempts?' .git/last-message.md >/dev/null
   - name: response uses a state-oriented visual shape
     run: >-
-      grep -Eq -- '->|-->|─+>|→|stateDiagram|\|[[:space:]]*(From|State|Event)' .git/last-message.md;
+      grep -Eq -- '->|-->|─+>|▶|→|stateDiagram|\|[[:space:]]*(From|State|Event)' .git/last-message.md;
       test "$(wc -l <.git/last-message.md | tr -d ' ')" -le 28
   - name: undocumented states are absent
     run: '! grep -Ei "cancelled|canceled|dead[- ]letter|paused" .git/last-message.md'

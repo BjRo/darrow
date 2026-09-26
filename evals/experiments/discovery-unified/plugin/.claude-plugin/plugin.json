@@ -1,0 +1,10 @@
+{
+  "name": "darrow-discovery-unified-probe",
+  "description": "Experimental unified discovery conversation",
+  "version": "0.0.1",
+  "license": "BUSL-1.1",
+  "author": {
+    "name": "Björn Rochel",
+    "email": "bjoern@bjro.de"
+  }
+}

@@ -1,0 +1,44 @@
+id: explain-visually-implicit-visual-explanation
+invariant: VE-C1,VE-C2,VE-C3,VE-C7,VE-E1
+activation: positive
+mount_plugin_skills: true
+prompt: >-
+  Could you explain visually what happens when submitJob runs in this
+  repository? Keep the answer inline and leave files unchanged.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        src/jobs.ts: |
+          export function submitJob(job: Job): string {
+            const checked = validateJob(job)
+            const id = storeJob(checked)
+            enqueueJob(id)
+            return id
+          }
+
+          function validateJob(job: Job): Job {
+            if (!job.kind) throw new Error("kind is required")
+            return job
+          }
+
+          function storeJob(job: Job): string {
+            return database.jobs.insert(job)
+          }
+
+          function enqueueJob(id: string): void {
+            queue.publish({ type: "job.ready", id })
+          }
+checks:
+  - name: explanation is read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: response is a grounded inline visual
+    run: >-
+      set -e;
+      grep -F 'submitJob' .git/last-message.md >/dev/null;
+      grep -Ei 'validateJob|kind' .git/last-message.md >/dev/null;
+      grep -Ei 'storeJob|database[.]jobs[.]insert|insert' .git/last-message.md >/dev/null;
+      grep -Ei 'enqueueJob|queue[.]publish|publish' .git/last-message.md >/dev/null;
+      grep -Eq -- '->|-->|─+>|▶|├|└|│|→|^[[:space:]][[:space:]]+[[:alnum:]_<]' .git/last-message.md;
+      grep -F 'jobs.ts' .git/last-message.md >/dev/null
