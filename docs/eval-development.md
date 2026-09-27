@@ -378,9 +378,9 @@ also retains the cancelled, unassessed trial as evidence. Both commands refuse
 an equivalent run while its first owner is live; Sevro reports the refusal as
 a versioned JSON error. Darrow's additional activation check is outside this
 shared surface. The fixture uses the explicit local-checkout path while Sevro
-is unreleased. A package test packs and installs that checkout into a separate
-consumer without Git metadata, then runs the same case through its installed
-CLI. Suite selection remains outside this comparison; keep the original
+is unreleased. A package test packs a temporary source copy, removes that copy,
+then installs and runs Sevro in a separate consumer without Git metadata. Suite
+selection remains outside this comparison; keep the original
 compatibility baseline as its reference until a public-command comparison
 passes.
 

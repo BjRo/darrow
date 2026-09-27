@@ -1,5 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import {
+  cp,
   mkdir,
   mkdtemp,
   readFile,
@@ -39,13 +40,26 @@ async function installedSevro(): Promise<{
     throw new Error("SEVRO_CHECKOUT must name an absolute local checkout");
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-package-"));
   roots.push(root);
+  const packingSource = join(root, "packing-source");
+  await mkdir(packingSource);
+  await Promise.all(
+    ["package.json", "README.md", "docs", "examples", "schemas", "src"].map(
+      (name) =>
+        cp(join(checkout, name), join(packingSource, name), {
+          recursive: true,
+        }),
+    ),
+  );
   const packed = await command(
     ["npm", "pack", "--ignore-scripts", "--pack-destination", root, "--silent"],
     "pass",
-    checkout,
+    packingSource,
   );
   if (packed.code !== 0)
     throw new Error(`npm pack failed: ${packed.stderr || packed.stdout}`);
+  await rm(packingSource, { recursive: true, force: true });
+  if ((await readdir(root)).includes("packing-source"))
+    throw new Error("packing source remained available after archive creation");
   const archive = join(root, packed.stdout.trim());
   const consumer = join(root, "consumer");
   await mkdir(consumer);
