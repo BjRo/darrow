@@ -728,6 +728,15 @@ const DOCTOR_NO_ORCHESTRATION_AGENT_PATTERN = String.raw`"skill":"adaptive-deliv
 const DOCTOR_NO_PREFLIGHT_AGENT_PATTERN = String.raw`adaptive-delivery-preflight|"tool":"spawn_agent"|"name":"Agent"`;
 const DOCTOR_NO_HOST_CHOICE_PATTERN = String.raw`host-config-doctor|adaptive-delivery-preflight|"tool":"spawn_agent"|"name":"Agent"`;
 const DOCTOR_INACTIVE_PATTERN = String.raw`"skill":"doctor-adaptive-delivery"|host-config-doctor`;
+const TICKET_INPUT_NO_DELEGATION_PATTERN = String.raw`(?:"name":"Skill"[^\n]*adaptive-delivery|"type":"darrow.skill_read_probe"[^\n]*"skill":"adaptive-delivery")`;
+const ADVICE_ONLY_NO_OWNER_PATTERN = String.raw`"tool":"spawn_agent"|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"|"name":"Agent"|adaptive-delivery-preflight (?:prepare|route|step)`;
+const FORBIDDEN_EVENT_REGEX = new Map([
+  [
+    TICKET_INPUT_NO_DELEGATION_PATTERN,
+    new RegExp(TICKET_INPUT_NO_DELEGATION_PATTERN),
+  ],
+  [ADVICE_ONLY_NO_OWNER_PATTERN, new RegExp(ADVICE_ONLY_NO_OWNER_PATTERN)],
+]);
 const SAME_OWNER_FEEDBACK_PATTERNS = new Map([
   [STEERING_SAME_OWNER_PATTERN, false],
   [REJECTED_FEEDBACK_PATTERN, true],
@@ -742,6 +751,7 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     skill?: string;
     forbidNativeSkillCall?: boolean;
     forbiddenEventTerms?: string[];
+    forbiddenEventPattern?: string;
     forbidAgentTool?: boolean;
   }
 >([
@@ -811,6 +821,23 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
         '"skill":"doctor-adaptive-delivery"',
         "host-config-doctor",
       ],
+    },
+  ],
+  [
+    TICKET_INPUT_NO_DELEGATION_PATTERN,
+    {
+      kind: "inactive-controls",
+      forbiddenSkills: ["adaptive-delivery"],
+      forbiddenEventPattern: TICKET_INPUT_NO_DELEGATION_PATTERN,
+    },
+  ],
+  [
+    ADVICE_ONLY_NO_OWNER_PATTERN,
+    {
+      kind: "inactive-controls",
+      forbiddenEventPattern: ADVICE_ONLY_NO_OWNER_PATTERN,
+      forbidSpawn: true,
+      forbidAgentTool: true,
     },
   ],
   [
@@ -1001,8 +1028,9 @@ function inactiveControlEvidence(check: RecordValue): string[] {
     ...(Array.isArray(check.forbiddenSkills) && check.forbiddenSkills.length
       ? ["sevro.codex.skill-reads"]
       : []),
-    ...(Array.isArray(check.forbiddenEventTerms) &&
-    check.forbiddenEventTerms.length
+    ...((Array.isArray(check.forbiddenEventTerms) &&
+      check.forbiddenEventTerms.length) ||
+    typeof check.forbiddenEventPattern === "string"
       ? ["sevro.codex.events"]
       : []),
     ...(check.forbidSpawn === true || check.forbidAgentTool === true
@@ -2540,7 +2568,12 @@ function inactiveControlsOutcome(
 ) {
   const forbiddenSkills = skillSequence(selected.forbiddenSkills ?? []);
   const forbiddenEventTerms = skillSequence(selected.forbiddenEventTerms ?? []);
-  if (!forbiddenSkills || !forbiddenEventTerms)
+  if (
+    !forbiddenSkills ||
+    !forbiddenEventTerms ||
+    (selected.forbiddenEventPattern !== undefined &&
+      !FORBIDDEN_EVENT_REGEX.has(String(selected.forbiddenEventPattern)))
+  )
     throw new Error("inactive control check configuration is invalid");
   const required = inactiveControlEvidence(selected);
   if (!inactiveControlEvidenceAvailable(required, native, observed, events))
@@ -2591,6 +2624,10 @@ function inactiveControlViolation(
   return (
     forbiddenSkills.some((skill) => observed!.observedSkills.includes(skill)) ||
     forbiddenEventTerms.some((term) => events!.includes(term)) ||
+    (typeof selected.forbiddenEventPattern === "string" &&
+      FORBIDDEN_EVENT_REGEX.get(selected.forbiddenEventPattern)!.test(
+        events!,
+      )) ||
     (selected.forbidSpawn === true && native!.attemptedSpawn) ||
     (selected.forbidAgentTool === true &&
       native!.toolCalls.some((call) => call.name === "Agent"))

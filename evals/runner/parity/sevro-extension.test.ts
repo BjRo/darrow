@@ -991,6 +991,92 @@ test("Darrow doctor controls require intact negative evidence", async () => {
   ).toBe("failed");
 });
 
+test("Darrow guards advice-only and missing-ticket delegation", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-delegation-"));
+  roots.push(root);
+  const artifact = async (name: string, content: string) => {
+    const path = join(root, name);
+    await writeFile(path, content);
+    return {
+      id: "sevro.codex.events",
+      path: pathToFileURL(path).href,
+      sha256: createHash("sha256").update(content).digest("hex"),
+    };
+  };
+  const clean = await artifact("clean.jsonl", "turn.completed\n");
+  const skillCall = await artifact(
+    "skill.jsonl",
+    '{"name":"Skill","skill":"adaptive-delivery"}\n',
+  );
+  const preflight = await artifact(
+    "preflight.jsonl",
+    "adaptive-delivery-preflight prepare\n",
+  );
+  const native = {
+    id: "sevro.codex.native-calls",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "native_session",
+      calls: [],
+      toolCalls: [],
+      acceptedSpawns: [],
+      submittedExecCalls: 0,
+    },
+  };
+  const skills = {
+    id: "sevro.codex.skill-reads",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "skill_file_read_probe",
+      primarySkill: null,
+      observedSkills: [],
+    },
+  };
+  for (const [caseId, adviceOnly] of [
+    ["goal-blocked-retry-existing-publication", true],
+    ["goal-blocked-retry-observes-publication", true],
+    ["ticket-to-pr-missing-ticket", false],
+    ["ticket-to-pr-ambiguous-ticket", false],
+  ] as const) {
+    const selected = await command<ExtensionReply>(
+      [process.execPath, extension],
+      request("resolve", {
+        projectRoot: pathToFileURL(projectRoot).href,
+        selectors: { caseIds: [caseId] },
+        configuration: {},
+      }),
+    );
+    expect(selected.code, selected.stderr).toBe(0);
+    const selectedCase = selected.value.result.cases[0]!;
+    expect(selectedCase.requiredEvidence).toContain("sevro.codex.events");
+    const status = async (observations: unknown[], artifacts: unknown[]) => {
+      const reply = await command<{
+        result: { checks: Array<{ id: string; status: string }> };
+      }>(
+        [process.execPath, extension],
+        request("evaluate", {
+          extensionData: selectedCase.extensionData,
+          observations,
+          artifacts,
+        }),
+      );
+      expect(reply.code, reply.stderr).toBe(0);
+      return reply.value.result.checks.find(
+        (check) => check.id === "darrow.evals.transcript.1",
+      )?.status;
+    };
+    const observations = adviceOnly ? [native] : [skills];
+    expect(await status(observations, [clean])).toBe("passed");
+    expect(
+      await status(observations, [adviceOnly ? preflight : skillCall]),
+    ).toBe("failed");
+    expect(await status(observations, [])).toBe("unavailable");
+    expect(await status([], [clean])).toBe("unavailable");
+  }
+});
+
 test("Darrow grades skill nonactivation from complete reads and native calls", async () => {
   const native = {
     id: "sevro.codex.native-calls",

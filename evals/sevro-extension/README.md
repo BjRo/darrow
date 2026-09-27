@@ -104,6 +104,10 @@ inactive. Their exact forbidden skill reads, preflight or doctor event markers,
 and native `spawn_agent` or `Agent` calls are graded from complete skill-read
 and native-call receipts plus a digest-verified Codex event artifact. Missing
 required evidence makes the check unavailable.
+Advice-only blocked retries and missing or ambiguous ticket cases use the same
+verified events to reject forbidden delegation. The blocked retries also
+require complete native-call evidence; ticket cases require complete skill-read
+evidence.
 Unmapped transcript patterns are rejected during case resolution.
 Same-owner follow-up checks compare a correlated native owner receipt with the
 saved follow-up ordinal and a bounded feedback call. Cases that require a tool
