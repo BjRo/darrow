@@ -1,4 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import {
   chmod,
   mkdir,
@@ -579,7 +580,7 @@ test("Darrow translates no-agent transcript assertions into bounded native check
   expect(selectedCase.requiredEvidence).toEqual(["sevro.codex.native-calls"]);
   expect(selectedCase.checks).toContainEqual({
     id: "darrow.evals.transcript.1",
-    grader: "darrow.evals.native-calls",
+    grader: "darrow.evals.transcript",
     configuration: {},
   });
   const native = {
@@ -656,6 +657,90 @@ test("Darrow translates no-agent transcript assertions into bounded native check
   expect(unrelated.value.error.message).toContain("no Sevro evidence mapping");
 });
 
+test("Darrow ledger checks require intact events and complete goal-control evidence", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-ledger-"));
+  roots.push(root);
+  const selected = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(projectRoot).href,
+      selectors: { caseIds: ["goal-authorized-publication"] },
+      configuration: {},
+    }),
+  );
+  expect(selected.code, selected.stderr).toBe(0);
+  const selectedCase = selected.value.result.cases[0]!;
+  const native = {
+    id: "sevro.codex.native-calls",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "native_session",
+      calls: [],
+      toolCalls: [],
+      acceptedSpawns: [],
+      submittedExecCalls: 0,
+    },
+  };
+  const artifact = async (name: string, content: string) => {
+    const path = join(root, name);
+    await writeFile(path, content);
+    return {
+      id: "sevro.codex.events",
+      path: pathToFileURL(path).href,
+      sha256: createHash("sha256").update(content).digest("hex"),
+    };
+  };
+  const clean = await artifact("clean.jsonl", "turn.completed\n");
+  const ledger = await artifact("ledger.jsonl", "Protocol ledger\n");
+  const status = async (observations: unknown[], artifacts: unknown[]) => {
+    const response = await command<{
+      result: {
+        checks: Array<{ id: string; status: string; evidenceRefs: string[] }>;
+      };
+    }>(
+      [process.execPath, extension],
+      request("evaluate", {
+        extensionData: selectedCase.extensionData,
+        observations,
+        artifacts,
+      }),
+    );
+    expect(response.code, JSON.stringify(response.value)).toBe(0);
+    return response.value.result.checks.find(
+      (check) => check.id === "darrow.evals.transcript.1",
+    );
+  };
+  expect(await status([native], [clean])).toMatchObject({
+    status: "passed",
+    evidenceRefs: ["sevro.codex.events", "sevro.codex.native-calls"],
+  });
+  expect((await status([native], [ledger]))?.status).toBe("failed");
+  const goal = {
+    ...native,
+    data: {
+      ...native.data,
+      calls: [
+        {
+          ordinal: 1,
+          namespace: "functions",
+          name: "create_goal",
+          evidence: "invocation_attempt",
+        },
+      ],
+      toolCalls: [{ ordinal: 1, namespace: "functions", name: "create_goal" }],
+    },
+  };
+  expect((await status([goal], [clean]))?.status).toBe("failed");
+  expect((await status([native], []))?.status).toBe("unavailable");
+  expect(
+    (await status([native], [{ ...clean, sha256: "0".repeat(64) }]))?.status,
+  ).toBe("unavailable");
+  expect(
+    (await status([{ ...native, completeness: "partial" }], [clean]))?.status,
+  ).toBe("unavailable");
+});
+
 test("Sevro grades no-agent evidence through the public CLI", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-no-agent-"));
   roots.push(root);
@@ -684,6 +769,11 @@ test("Sevro grades no-agent evidence through the public CLI", async () => {
           not_regex:
             '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"type":"darrow.goal_agent_completion"',
         },
+        {
+          name: "no lifecycle ledger or nested goal is used",
+          not_regex:
+            'adaptive-delivery-preflight step|Protocol ledger|"tool":"create_goal"',
+        },
       ],
     }),
   );
@@ -697,6 +787,7 @@ test("Sevro grades no-agent evidence through the public CLI", async () => {
   hostCapabilities: ["sevro.codex.native-calls"],
   async run() {
     return { finalMessage: "ready", complete: true,
+      artifacts: [{ id: "sevro.codex.events", bytes: Buffer.from("turn.completed\\n") }],
       observations: [{ id: "sevro.codex.native-calls", completeness: "complete",
         data: { method: "native_session", calls: [], toolCalls: [], acceptedSpawns: [], submittedExecCalls: 0 } }] };
   },
@@ -739,10 +830,18 @@ test("Sevro grades no-agent evidence through the public CLI", async () => {
     ),
   ).toMatchObject({
     id: "darrow.evals.transcript.1",
-    grader: "darrow.evals.native-calls",
+    grader: "darrow.evals.transcript",
     status: "passed",
     detail: "Graded from complete native agent-spawn observations",
     evidenceRefs: ["sevro.codex.native-calls"],
+  });
+  expect(
+    run.value.cases[0]!.trials[0]!.checks.find(
+      (check) => check.id === "darrow.evals.transcript.2",
+    ),
+  ).toMatchObject({
+    status: "passed",
+    evidenceRefs: ["sevro.codex.events", "sevro.codex.native-calls"],
   });
 });
 

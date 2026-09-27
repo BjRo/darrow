@@ -676,6 +676,8 @@ const OWNERSHIP_CHECKS = [
 
 const NO_AGENT_TRANSCRIPT_PATTERN =
   '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"type":"darrow.goal_agent_completion"';
+const NO_LEDGER_TRANSCRIPT_PATTERN =
+  'adaptive-delivery-preflight step|Protocol ledger|"tool":"create_goal"';
 
 function caseTranscriptChecks(value: unknown) {
   if (value === undefined) return null;
@@ -685,14 +687,20 @@ function caseTranscriptChecks(value: unknown) {
     const check = record(entry, `transcript check ${index + 1}`);
     keys(check, ["name", "not_regex"], `transcript check ${index + 1}`);
     const name = string(check.name, `transcript check ${index + 1} name`);
-    if (check.not_regex !== NO_AGENT_TRANSCRIPT_PATTERN)
+    if (
+      check.not_regex !== NO_AGENT_TRANSCRIPT_PATTERN &&
+      check.not_regex !== NO_LEDGER_TRANSCRIPT_PATTERN
+    )
       throw new Error(
         `transcript check ${index + 1} has no Sevro evidence mapping`,
       );
     return {
       id: `darrow.evals.transcript.${index + 1}`,
       name,
-      kind: "no-agent-spawn",
+      kind:
+        check.not_regex === NO_AGENT_TRANSCRIPT_PATTERN
+          ? "no-agent-spawn"
+          : "no-lifecycle-ledger",
     };
   });
 }
@@ -728,6 +736,18 @@ function caseOwnership(selected: RecordValue, skillDir: string | null) {
   };
 }
 
+function policyEvidence(
+  ownership: ReturnType<typeof caseOwnership>,
+  transcriptChecks: ReturnType<typeof caseTranscriptChecks>,
+) {
+  return [
+    ...(ownership || transcriptChecks ? ["sevro.codex.native-calls"] : []),
+    ...(transcriptChecks?.some((check) => check.kind === "no-lifecycle-ledger")
+      ? ["sevro.codex.events"]
+      : []),
+  ];
+}
+
 function casePolicy(selected: RecordValue, skillDir: string | null) {
   const ownership = caseOwnership(selected, skillDir);
   const transcriptChecks = caseTranscriptChecks(selected.transcript_checks);
@@ -736,12 +756,11 @@ function casePolicy(selected: RecordValue, skillDir: string | null) {
       ...(ownership?.checks ?? []),
       ...(transcriptChecks?.map(({ id }) => ({
         id,
-        grader: "darrow.evals.native-calls",
+        grader: "darrow.evals.transcript",
         configuration: {},
       })) ?? []),
     ],
-    requiredEvidence:
-      ownership || transcriptChecks ? ["sevro.codex.native-calls"] : [],
+    requiredEvidence: policyEvidence(ownership, transcriptChecks),
     details: {
       ...(ownership ? { ownership: true } : {}),
       ...(transcriptChecks ? { transcriptChecks } : {}),
@@ -1931,7 +1950,34 @@ function ownershipChecks(observations: unknown) {
   ];
 }
 
-function noAgentEvidence(observations: unknown) {
+function controlOrdinals(
+  items: RecordValue[],
+  namespace: string,
+  name: string,
+) {
+  return items
+    .filter((call) => call.namespace === namespace && call.name === name)
+    .map((call) => call.ordinal);
+}
+
+function validDirectCalls(calls: RecordValue[], observed: RecordValue[]) {
+  return (
+    calls.every(validNativeToolCall) &&
+    calls.every(
+      (call) =>
+        ["functions", "collaboration"].includes(String(call.namespace)) &&
+        call.evidence === "invocation_attempt" &&
+        observed.some(
+          (tool) =>
+            tool.ordinal === call.ordinal &&
+            tool.namespace === call.namespace &&
+            tool.name === call.name,
+        ),
+    )
+  );
+}
+
+function nativeControlEvidence(observations: unknown) {
   const evidence = nativeOwnershipEvidence(observations);
   const observation = uniqueObservation(
     observations,
@@ -1942,53 +1988,127 @@ function noAgentEvidence(observations: unknown) {
   const direct = data.calls.map(activationData);
   if (direct.some((call) => !call)) return null;
   const calls = direct as RecordValue[];
+  if (!validDirectCalls(calls, evidence.calls)) return null;
+  const matched = (namespace: string, name: string) =>
+    JSON.stringify(controlOrdinals(evidence.calls, namespace, name)) ===
+    JSON.stringify(controlOrdinals(calls, namespace, name));
   if (
-    !calls.every(validNativeToolCall) ||
-    calls.some(
-      (call) =>
-        !["functions", "collaboration"].includes(String(call.namespace)) ||
-        call.evidence !== "invocation_attempt" ||
-        !evidence.calls.some(
-          (tool) =>
-            tool.ordinal === call.ordinal &&
-            tool.namespace === call.namespace &&
-            tool.name === call.name,
-        ),
-    )
+    !matched("collaboration", "spawn_agent") ||
+    !matched("functions", "create_goal")
   )
     return null;
-  const spawns = (items: RecordValue[]) =>
-    items
-      .filter(
-        (call) =>
-          call.namespace === "collaboration" && call.name === "spawn_agent",
-      )
-      .map((call) => call.ordinal);
-  const observed = spawns(evidence.calls);
-  if (JSON.stringify(observed) !== JSON.stringify(spawns(calls))) return null;
-  return { attemptedSpawn: observed.length > 0 };
+  return {
+    attemptedSpawn:
+      controlOrdinals(calls, "collaboration", "spawn_agent").length > 0,
+    attemptedGoal:
+      controlOrdinals(calls, "functions", "create_goal").length > 0,
+  };
 }
 
-function nativeTranscriptChecks(value: unknown, observations: unknown) {
+function codexEventRef(artifacts: unknown) {
+  if (!Array.isArray(artifacts)) return null;
+  const matches = artifacts.filter(
+    (item) =>
+      item && typeof item === "object" && item.id === "sevro.codex.events",
+  );
+  if (matches.length !== 1) return null;
+  const selected = record(matches[0], "Codex event artifact");
+  if (
+    typeof selected.path !== "string" ||
+    !selected.path.startsWith("file:///") ||
+    typeof selected.sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/.test(selected.sha256)
+  )
+    return null;
+  return { path: selected.path, sha256: selected.sha256 };
+}
+
+async function codexEventText(artifacts: unknown): Promise<string | null> {
+  const reference = codexEventRef(artifacts);
+  if (!reference) return null;
+  try {
+    const path = fileURLToPath(reference.path);
+    const entry = await lstat(path);
+    if (
+      !entry.isFile() ||
+      entry.isSymbolicLink() ||
+      entry.size > 8 * 1024 * 1024
+    )
+      return null;
+    const bytes = await readFile(path);
+    if (createHash("sha256").update(bytes).digest("hex") !== reference.sha256)
+      return null;
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return null;
+  }
+}
+
+function noAgentOutcome(native: ReturnType<typeof nativeControlEvidence>) {
+  return {
+    status: native
+      ? native.attemptedSpawn
+        ? "failed"
+        : "passed"
+      : "unavailable",
+    detail: native
+      ? "Graded from complete native agent-spawn observations"
+      : "Native agent-spawn observation unavailable or incomplete",
+    evidenceRefs: native ? ["sevro.codex.native-calls"] : [],
+  };
+}
+
+function noLedgerOutcome(
+  native: ReturnType<typeof nativeControlEvidence>,
+  events: string | null,
+) {
+  if (!native || events === null)
+    return {
+      status: "unavailable",
+      detail: "Codex event or native goal-control evidence unavailable",
+      evidenceRefs: [],
+    };
+  const matched = NO_LEDGER_TRANSCRIPT_PATTERN.split("|").some((term) =>
+    events.includes(term),
+  );
+  return {
+    status: native.attemptedGoal || matched ? "failed" : "passed",
+    detail:
+      "Graded from retained Codex events and complete native goal-control observations",
+    evidenceRefs: ["sevro.codex.events", "sevro.codex.native-calls"],
+  };
+}
+
+function transcriptOutcome(
+  kind: unknown,
+  native: ReturnType<typeof nativeControlEvidence>,
+  events: string | null,
+) {
+  if (kind === "no-agent-spawn") return noAgentOutcome(native);
+  if (kind === "no-lifecycle-ledger") return noLedgerOutcome(native, events);
+  throw new Error("unsupported native transcript check");
+}
+
+async function nativeTranscriptChecks(
+  value: unknown,
+  observations: unknown,
+  artifacts: unknown,
+) {
   if (value === undefined) return [];
   if (!Array.isArray(value) || !value.length)
     throw new Error("native transcript checks are invalid");
-  const evidence = noAgentEvidence(observations);
+  const evidence = nativeControlEvidence(observations);
+  const events = value.some(
+    (entry) =>
+      record(entry, "native transcript check").kind === "no-lifecycle-ledger",
+  )
+    ? await codexEventText(artifacts)
+    : null;
   return value.map((entry) => {
     const selected = record(entry, "native transcript check");
-    if (selected.kind !== "no-agent-spawn")
-      throw new Error("unsupported native transcript check");
     return {
       id: string(selected.id, "native transcript check ID"),
-      status: evidence
-        ? evidence.attemptedSpawn
-          ? "failed"
-          : "passed"
-        : "unavailable",
-      detail: evidence
-        ? "Graded from complete native agent-spawn observations"
-        : "Native agent-spawn observation unavailable or incomplete",
-      evidenceRefs: evidence ? ["sevro.codex.native-calls"] : [],
+      ...transcriptOutcome(selected.kind, evidence, events),
     };
   });
 }
@@ -2055,7 +2175,7 @@ function caseMetrics(details: RecordValue, params: RecordValue) {
   });
 }
 
-function evaluateCase(params: RecordValue) {
+async function evaluateCase(params: RecordValue) {
   const omitSkills = withoutSkill(params.configuration);
   const extensionData = record(
     params.extensionData,
@@ -2065,7 +2185,11 @@ function evaluateCase(params: RecordValue) {
   const metrics = caseMetrics(details, params);
   const checks = [
     ...(details.ownership === true ? ownershipChecks(params.observations) : []),
-    ...nativeTranscriptChecks(details.transcriptChecks, params.observations),
+    ...(await nativeTranscriptChecks(
+      details.transcriptChecks,
+      params.observations,
+      params.artifacts,
+    )),
   ];
   if (omitSkills || details.activation === undefined)
     return { checks, metrics, domainOutcomes: [] };
@@ -2119,7 +2243,7 @@ if (import.meta.main) {
               "sevro.codex.explicit-invocation",
               "sevro.codex.native-calls",
             ],
-            graders: ["darrow.evals.ownership", "darrow.evals.native-calls"],
+            graders: ["darrow.evals.ownership", "darrow.evals.transcript"],
             taskVerdictPolicies: [],
           }
         : method === "resolve"
@@ -2127,7 +2251,7 @@ if (import.meta.main) {
           : method === "prepare"
             ? await prepareCase(params)
             : method === "evaluate"
-              ? evaluateCase(params)
+              ? await evaluateCase(params)
               : (() => {
                   throw new Error("unsupported extension method");
                 })();

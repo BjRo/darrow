@@ -91,7 +91,10 @@ internal goal records. Missing or partial host evidence leaves those checks
 unavailable. Full goal-route reports and most transcript checks remain
 unsupported. The exact no-agent assertion uses the complete Codex native-call
 observation. A spawn attempt fails; missing or incomplete evidence stays
-unavailable. Other transcript patterns are rejected during case resolution.
+unavailable. The exact retired-ledger assertion checks both the complete
+native goal-control observation and the retained Codex event artifact. The
+extension verifies the artifact digest and does not copy its text into the
+result. Other transcript patterns are rejected during case resolution.
 
 For local protocol and public CLI validation, run:
 
