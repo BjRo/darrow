@@ -97,7 +97,7 @@ Activation cases reference both discovery behavior and shared evaluation
 invariants. A discovery-scoped coverage check must therefore load both specs:
 
 ```sh
-bun evals/runner/coverage.ts \
+bun evals/coverage.ts \
   --spec docs/specs/discovery.md \
   --spec docs/specs/skill-evaluation.md \
   --eval-root plugins/capability/darrow-discovery
