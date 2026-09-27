@@ -118,6 +118,12 @@ Advice-only blocked retries and missing or ambiguous ticket cases use the same
 verified events to reject forbidden delegation. The blocked retries also
 require complete native-call evidence; ticket cases require complete skill-read
 evidence.
+Ticket composition cases bind the publisher skill read to the sole accepted
+child session and grade later parent work from ordered native calls. Ticket
+delegation cases require a completed adaptive-delivery skill read and reject
+the exact prohibited pre-run capability patterns using complete reads and
+digest-verified events. Missing child, read, event, or call evidence remains
+unavailable.
 Unmapped transcript patterns are rejected during case resolution.
 Same-owner follow-up checks compare a correlated native owner receipt with the
 saved follow-up ordinal and a bounded feedback call. Cases that require a tool

@@ -750,12 +750,29 @@ const DOCTOR_NO_HOST_CHOICE_PATTERN = String.raw`host-config-doctor|adaptive-del
 const DOCTOR_INACTIVE_PATTERN = String.raw`"skill":"doctor-adaptive-delivery"|host-config-doctor`;
 const TICKET_INPUT_NO_DELEGATION_PATTERN = String.raw`(?:"name":"Skill"[^\n]*adaptive-delivery|"type":"darrow.skill_read_probe"[^\n]*"skill":"adaptive-delivery")`;
 const ADVICE_ONLY_NO_OWNER_PATTERN = String.raw`"tool":"spawn_agent"|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"|"name":"Agent"|adaptive-delivery-preflight (?:prepare|route|step)`;
+const ADAPTIVE_SUPPORTING_READ_PATTERN = String.raw`(?:"name":"Skill"[^\n]*adaptive-delivery|"type":"darrow.skill_read_probe"[^\n]*"skill":"adaptive-delivery"[^\n]*"status":"completed")`;
+const TICKET_PRE_RUN_PATTERN = String.raw`(?:"name":"Skill"[^\n]*(?:read-ticket|assess-implementation-readiness|prepare-task-branch)|"type":"darrow.skill_read_probe"[^\n]*"skill":"(?:read-ticket|assess-implementation-readiness|prepare-task-branch)")`;
+const TICKET_UNAVAILABLE_PATTERN = String.raw`(?:"name":"Skill"[^\n]*(?:read-ticket|assess-implementation-readiness|prepare-task-branch)|"type":"darrow.skill_read_probe"[^\n]*"skill":"(?:read-ticket|assess-implementation-readiness|prepare-task-branch)|"tool":"spawn_agent"|"name":"Agent")`;
+const PUBLISHER_READ_PATTERNS = new Map([
+  [
+    String.raw`(?:"type":"darrow.skill_read_probe"[^\n]*"skill":"create-pr"[^\n]*"status":"completed"|"name":"Skill"[^\n]*"skill":"[^"]*create-pr")`,
+    "create-pr",
+  ],
+  [
+    String.raw`(?:"type":"darrow.skill_read_probe"[^\n]*"skill":"ship-proposal"[^\n]*"status":"completed"|"name":"Skill"[^\n]*"skill":"[^"]*ship-proposal")`,
+    "ship-proposal",
+  ],
+]);
+const PARENT_TOOL_AFTER_AGENT_PATTERN =
+  '"type":"darrow.codex_native_parent_tool_after_agent"';
 const FORBIDDEN_EVENT_REGEX = new Map([
   [
     TICKET_INPUT_NO_DELEGATION_PATTERN,
     new RegExp(TICKET_INPUT_NO_DELEGATION_PATTERN),
   ],
   [ADVICE_ONLY_NO_OWNER_PATTERN, new RegExp(ADVICE_ONLY_NO_OWNER_PATTERN)],
+  [TICKET_PRE_RUN_PATTERN, new RegExp(TICKET_PRE_RUN_PATTERN)],
+  [TICKET_UNAVAILABLE_PATTERN, new RegExp(TICKET_UNAVAILABLE_PATTERN)],
 ]);
 const SAME_OWNER_FEEDBACK_PATTERNS = new Map([
   [STEERING_SAME_OWNER_PATTERN, false],
@@ -787,6 +804,7 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
   ],
   [SECOND_OWNER_PATTERN, { kind: "no-second-owner" }],
   [TWO_OWNER_COMPLETIONS_PATTERN, { kind: "no-second-owner" }],
+  [PARENT_TOOL_AFTER_AGENT_PATTERN, { kind: "no-parent-work-after-handoff" }],
   [
     DOCTOR_NO_ORCHESTRATION_PATTERN,
     {
@@ -862,6 +880,32 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     },
   ],
   [
+    TICKET_PRE_RUN_PATTERN,
+    {
+      kind: "inactive-controls",
+      forbiddenSkills: [
+        "read-ticket",
+        "assess-implementation-readiness",
+        "prepare-task-branch",
+      ],
+      forbiddenEventPattern: TICKET_PRE_RUN_PATTERN,
+    },
+  ],
+  [
+    TICKET_UNAVAILABLE_PATTERN,
+    {
+      kind: "inactive-controls",
+      forbiddenSkills: [
+        "read-ticket",
+        "assess-implementation-readiness",
+        "prepare-task-branch",
+      ],
+      forbiddenEventPattern: TICKET_UNAVAILABLE_PATTERN,
+      forbidSpawn: true,
+      forbidAgentTool: true,
+    },
+  ],
+  [
     READINESS_AFTER_CONTINUATION_PATTERN,
     {
       kind: "skill-absent-after-continuation",
@@ -900,8 +944,17 @@ function readerTranscriptSelection(pattern: unknown) {
   return null;
 }
 
+function ticketTranscriptSelection(pattern: unknown) {
+  if (pattern === ADAPTIVE_SUPPORTING_READ_PATTERN)
+    return { kind: "supporting-skill-read", skill: "adaptive-delivery" };
+  const publisher = PUBLISHER_READ_PATTERNS.get(pattern as string);
+  if (publisher) return { kind: "bound-child-skill", skill: publisher };
+  return null;
+}
+
 function expectedTranscriptSelection(pattern: unknown) {
-  const reader = readerTranscriptSelection(pattern);
+  const reader =
+    readerTranscriptSelection(pattern) ?? ticketTranscriptSelection(pattern);
   if (reader) return reader;
   const route = OWNER_ROUTE_PATTERNS.get(pattern as string);
   if (route) return { kind: "owner-route", ...route };
@@ -1063,6 +1116,9 @@ const TRANSCRIPT_EVIDENCE = new Map([
   ["fresh-provider-context", ["sevro.codex.native-calls"]],
   ["accepted-child-session", ["sevro.codex.native-calls"]],
   ["event-term", ["sevro.codex.events"]],
+  ["supporting-skill-read", ["sevro.codex.skill-reads"]],
+  ["bound-child-skill", ["sevro.codex.native-calls"]],
+  ["no-parent-work-after-handoff", ["sevro.codex.native-calls"]],
   ["no-lifecycle-ledger", ["sevro.codex.native-calls", "sevro.codex.events"]],
   ["owner-after-continuation", ["sevro.codex.native-calls"]],
   ["no-owner-before-continuation", ["sevro.codex.native-calls"]],
@@ -2708,6 +2764,82 @@ function skillsInactiveOutcome(
   };
 }
 
+function supportingSkillOutcome(
+  selected: RecordValue,
+  observed: ReturnType<typeof observedActivation>,
+) {
+  if (selected.skill !== "adaptive-delivery")
+    throw new Error("supporting skill check configuration is invalid");
+  return {
+    status: observed
+      ? observed.observedSkills.includes(selected.skill)
+        ? "passed"
+        : "failed"
+      : "unavailable",
+    detail: "Graded from complete supporting skill reads",
+    evidenceRefs: observed ? ["sevro.codex.skill-reads"] : [],
+  };
+}
+
+function completeBoundChildSkills(
+  bound: ReturnType<typeof boundChildSessions>,
+): string[] | null {
+  if (!bound || bound.truncated || bound.children.length !== 1) return null;
+  const child = bound.children[0];
+  const diagnostic = child ? activationData(child.readDiagnostics) : null;
+  return child?.status === "available" ? completeReadSkills(diagnostic) : null;
+}
+
+function completeReadSkills(diagnostic: RecordValue | null): string[] | null {
+  if (diagnostic?.completeness !== "complete" || diagnostic.truncated !== false)
+    return null;
+  const skills = skillSequence(diagnostic.observedSkills);
+  return skills && new Set(skills).size === skills.length ? skills : null;
+}
+
+function boundChildSkillOutcome(
+  selected: RecordValue,
+  native: ReturnType<typeof nativeControlEvidence>,
+  bound: ReturnType<typeof boundChildSessions>,
+) {
+  if (selected.skill !== "create-pr" && selected.skill !== "ship-proposal")
+    throw new Error("bound child skill check configuration is invalid");
+  const skills =
+    native?.acceptedSpawnCount === 1 ? completeBoundChildSkills(bound) : null;
+  if (!skills)
+    return {
+      status: "unavailable",
+      detail: "Bound child skill-read evidence unavailable or incomplete",
+      evidenceRefs: [],
+    };
+  return {
+    status: skills.includes(selected.skill) ? "passed" : "failed",
+    detail: "Graded from the accepted child's complete skill reads",
+    evidenceRefs: ["sevro.codex.native-calls"],
+  };
+}
+
+function noParentWorkAfterHandoffOutcome(
+  native: ReturnType<typeof nativeControlEvidence>,
+) {
+  if (!native || native.spawnCount !== 1 || native.acceptedSpawnCount !== 1)
+    return {
+      status: "unavailable",
+      detail: "One accepted handoff and complete parent calls required",
+      evidenceRefs: [],
+    };
+  return {
+    status: parentWorkAfterAcceptance(
+      native.toolCalls,
+      native.acceptedSpawns[0]!,
+    )
+      ? "failed"
+      : "passed",
+    detail: "Graded from parent calls after native owner acceptance",
+    evidenceRefs: ["sevro.codex.native-calls"],
+  };
+}
+
 function inactiveControlsOutcome(
   selected: RecordValue,
   native: ReturnType<typeof nativeControlEvidence>,
@@ -3266,6 +3398,10 @@ function nativeTranscriptOutcome(
     return noNativeGoalControlOutcome(native);
   if (selected.kind === "skills-inactive")
     return skillsInactiveOutcome(selected, native, skills);
+  if (selected.kind === "supporting-skill-read")
+    return supportingSkillOutcome(selected, skills);
+  if (selected.kind === "no-parent-work-after-handoff")
+    return noParentWorkAfterHandoffOutcome(native);
   if (selected.kind === "one-owner-accepted") return oneOwnerOutcome(native);
   if (selected.kind === "owner-route")
     return ownerRouteOutcome(selected, native);
@@ -3301,6 +3437,8 @@ function policyTranscriptOutcome(
     return freshProviderContextOutcome(context.native);
   if (selected.kind === "accepted-child-session")
     return acceptedChildSessionOutcome(context.children);
+  if (selected.kind === "bound-child-skill")
+    return boundChildSkillOutcome(selected, context.native, context.children);
   if (selected.kind === "event-term")
     return eventTermOutcome(selected, context.events);
   if (selected.kind === "inactive-controls")
@@ -3379,7 +3517,9 @@ function readerObservationContext(
   native: ReturnType<typeof nativeControlEvidence>,
 ) {
   const children =
-    kinds.has("nested-readers") || kinds.has("accepted-child-session")
+    kinds.has("nested-readers") ||
+    kinds.has("accepted-child-session") ||
+    kinds.has("bound-child-skill")
       ? boundChildSessions(observations, native)
       : null;
   const nested = kinds.has("nested-readers")
@@ -3400,7 +3540,9 @@ function transcriptObservationContext(
       ? nativeFeedbackEvidence(observations)
       : null;
   const skills =
-    kinds.has("skills-inactive") || kinds.has("inactive-controls")
+    kinds.has("skills-inactive") ||
+    kinds.has("inactive-controls") ||
+    kinds.has("supporting-skill-read")
       ? observedActivation(
           uniqueObservation(observations, "sevro.codex.skill-reads"),
           false,
