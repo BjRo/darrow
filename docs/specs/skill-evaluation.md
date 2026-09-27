@@ -570,11 +570,12 @@ not prove equivalence or savings.
   unsupported until an equivalent evidence source and grader are defined.
 
 - **SE-C32 — Ledger absence across host evidence.** A migrated assertion that
-  forbids the retired preflight step, protocol ledger, and native `create_goal`
-  attempt checks the bounded retained Codex event artifact and complete native
-  call observation together. A matching event or a goal-control attempt fails
-  the check. Missing, altered, incomplete, or contradictory evidence leaves it
-  unavailable. The raw event text is never copied into the graded result.
+  forbids specified retired preflight or ledger text and native `create_goal`
+  attempts checks the bounded retained Codex event artifact and complete native
+  call observation together. Only the terms named by the case are graded. A
+  matching event or a goal-control attempt fails the check. Missing, altered,
+  incomplete, or contradictory evidence leaves it unavailable. The raw event
+  text is never copied into the graded result.
 
 ## Evaluation requirements
 

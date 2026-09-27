@@ -739,6 +739,31 @@ test("Darrow ledger checks require intact events and complete goal-control evide
   expect(
     (await status([{ ...native, completeness: "partial" }], [clean]))?.status,
   ).toBe("unavailable");
+  const narrower = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(projectRoot).href,
+      selectors: { caseIds: ["goal-verification-existing-review"] },
+      configuration: {},
+    }),
+  );
+  expect(narrower.code, narrower.stderr).toBe(0);
+  const alternative = await command<{
+    result: { checks: Array<{ id: string; status: string }> };
+  }>(
+    [process.execPath, extension],
+    request("evaluate", {
+      extensionData: narrower.value.result.cases[0]!.extensionData,
+      observations: [native],
+      artifacts: [ledger],
+    }),
+  );
+  expect(alternative.code, JSON.stringify(alternative.value)).toBe(0);
+  expect(
+    alternative.value.result.checks.find(
+      (check) => check.id === "darrow.evals.transcript.1",
+    )?.status,
+  ).toBe("passed");
 });
 
 test("Sevro grades no-agent evidence through the public CLI", async () => {

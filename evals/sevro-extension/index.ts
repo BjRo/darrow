@@ -678,6 +678,8 @@ const NO_AGENT_TRANSCRIPT_PATTERN =
   '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"type":"darrow.goal_agent_completion"';
 const NO_LEDGER_TRANSCRIPT_PATTERN =
   'adaptive-delivery-preflight step|Protocol ledger|"tool":"create_goal"';
+const NO_PREFLIGHT_GOAL_PATTERN =
+  'adaptive-delivery-preflight step|"tool":"create_goal"';
 
 function caseTranscriptChecks(value: unknown) {
   if (value === undefined) return null;
@@ -689,7 +691,8 @@ function caseTranscriptChecks(value: unknown) {
     const name = string(check.name, `transcript check ${index + 1} name`);
     if (
       check.not_regex !== NO_AGENT_TRANSCRIPT_PATTERN &&
-      check.not_regex !== NO_LEDGER_TRANSCRIPT_PATTERN
+      check.not_regex !== NO_LEDGER_TRANSCRIPT_PATTERN &&
+      check.not_regex !== NO_PREFLIGHT_GOAL_PATTERN
     )
       throw new Error(
         `transcript check ${index + 1} has no Sevro evidence mapping`,
@@ -701,6 +704,9 @@ function caseTranscriptChecks(value: unknown) {
         check.not_regex === NO_AGENT_TRANSCRIPT_PATTERN
           ? "no-agent-spawn"
           : "no-lifecycle-ledger",
+      ...(check.not_regex === NO_AGENT_TRANSCRIPT_PATTERN
+        ? {}
+        : { terms: (check.not_regex as string).split("|") }),
     };
   });
 }
@@ -2061,16 +2067,17 @@ function noAgentOutcome(native: ReturnType<typeof nativeControlEvidence>) {
 function noLedgerOutcome(
   native: ReturnType<typeof nativeControlEvidence>,
   events: string | null,
+  terms: unknown,
 ) {
+  if (!Array.isArray(terms) || !terms.every((term) => typeof term === "string"))
+    throw new Error("ledger terms are invalid");
   if (!native || events === null)
     return {
       status: "unavailable",
       detail: "Codex event or native goal-control evidence unavailable",
       evidenceRefs: [],
     };
-  const matched = NO_LEDGER_TRANSCRIPT_PATTERN.split("|").some((term) =>
-    events.includes(term),
-  );
+  const matched = terms.some((term) => events.includes(term));
   return {
     status: native.attemptedGoal || matched ? "failed" : "passed",
     detail:
@@ -2083,9 +2090,11 @@ function transcriptOutcome(
   kind: unknown,
   native: ReturnType<typeof nativeControlEvidence>,
   events: string | null,
+  terms: unknown,
 ) {
   if (kind === "no-agent-spawn") return noAgentOutcome(native);
-  if (kind === "no-lifecycle-ledger") return noLedgerOutcome(native, events);
+  if (kind === "no-lifecycle-ledger")
+    return noLedgerOutcome(native, events, terms);
   throw new Error("unsupported native transcript check");
 }
 
@@ -2108,7 +2117,7 @@ async function nativeTranscriptChecks(
     const selected = record(entry, "native transcript check");
     return {
       id: string(selected.id, "native transcript check ID"),
-      ...transcriptOutcome(selected.kind, evidence, events),
+      ...transcriptOutcome(selected.kind, evidence, events, selected.terms),
     };
   });
 }
