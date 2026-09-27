@@ -726,6 +726,12 @@ const TICKET_RECIPE_INACTIVE_PATTERN = String.raw`"skill":"ticket-to-pr"|"skill"
 const STEERING_SAME_OWNER_PATTERN = String.raw`(?:"type":"darrow.codex_native_single_agent_accepted"[^\n]*"agent_ref":"([^"]+)"[\s\S]*"type":"darrow.codex_native_feedback"[^\n]*"tool":"(?:followup_task|send_message)"[^\n]*"agent_ref":"\1"[^\n]*"same_owner":true[^\n]*"after_follow_up":true[^\n]*"delivery":"unverified"|"type":"darrow.goal_agent_completion"[^\n]*"agent_id":"([^"]+)"[\s\S]*"type":"darrow.goal_agent_resumption"[^\n]*"agent_id":"\2"[^\n]*"same_owner":true)`;
 const REJECTED_FEEDBACK_PATTERN = String.raw`(?:"type":"darrow.human_feedback_relay"[^\n]*"same_owner":true[\s\S]*"type":"darrow.goal_agent_resumption"[^\n]*"same_owner":true|"type":"darrow.codex_native_feedback"[^\n]*"tool":"(?:followup_task|send_message)"[^\n]*"same_owner":true[^\n]*"after_follow_up":true[^\n]*"response_observed":true)`;
 const RELAYED_FEEDBACK_PATTERN = String.raw`(?:"type":"darrow.human_feedback_relay"[^\n]*"same_owner":true[\s\S]*"type":"darrow.goal_agent_resumption"[^\n]*"status":"completed"[^\n]*"same_owner":true|"type":"darrow.codex_native_feedback"[^\n]*"tool":"(?:followup_task|send_message)"[^\n]*"same_owner":true[^\n]*"after_follow_up":true[^\n]*"response_observed":true)`;
+const NONREADY_SKILL_READ_PATTERN =
+  '"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"';
+const NONREADY_NO_REPEATED_READ_PATTERN =
+  '"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"[\\s\\S]*"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"';
+const NONREADY_NO_OWNER_PATTERN =
+  '"tool":"spawn_agent"|"type":"(?:darrow\\.codex_native_spawn|darrow\\.codex_native_single_agent_accepted|darrow\\.goal_agent_completion)"|"name":"Agent"';
 const READINESS_PRE_OWNER_PATTERN =
   '"type":"darrow\\.codex_native_pre_owner_skill_read","actor":"parent","pre_owner_skill":"assess-implementation-readiness","status":"completed"|"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"[\\s\\S]*"type":"darrow\\.goal_agent_completion"';
 const READINESS_BEFORE_CONTINUATION_PATTERN = String.raw`"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"[\s\S]*"type":"darrow.eval.follow_up_turn"`;
@@ -802,12 +808,29 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     forbiddenSkills?: string[];
     forbidSpawn?: boolean;
     skill?: string;
+    max?: number;
     forbidNativeSkillCall?: boolean;
     forbiddenEventTerms?: string[];
     forbiddenEventPattern?: string;
     forbidAgentTool?: boolean;
   }
 >([
+  [
+    NONREADY_NO_REPEATED_READ_PATTERN,
+    {
+      kind: "parent-skill-read-count",
+      skill: "assess-implementation-readiness",
+      max: 1,
+    },
+  ],
+  [
+    NONREADY_NO_OWNER_PATTERN,
+    {
+      kind: "inactive-controls",
+      forbidSpawn: true,
+      forbidAgentTool: true,
+    },
+  ],
   [
     CROSS_TURN_NO_REPLACEMENT_PATTERN,
     { kind: "no-replacement-after-continuation" },
@@ -1015,6 +1038,12 @@ function expectedTranscriptSelection(pattern: unknown) {
       kind: "pre-owner-skill-read",
       skill: "assess-implementation-readiness",
     };
+  if (pattern === NONREADY_SKILL_READ_PATTERN)
+    return {
+      kind: "parent-skill-read-count",
+      skill: "assess-implementation-readiness",
+      min: 1,
+    };
   const responseRequired = SAME_OWNER_FEEDBACK_PATTERNS.get(pattern as string);
   if (responseRequired !== undefined)
     return { kind: "same-owner-feedback", responseRequired };
@@ -1175,6 +1204,7 @@ const TRANSCRIPT_EVIDENCE = new Map([
   ["skills-inactive", ["sevro.codex.native-calls", "sevro.codex.skill-reads"]],
   ["same-owner-feedback", ["sevro.codex.native-calls"]],
   ["pre-owner-skill-read", ["sevro.codex.native-calls"]],
+  ["parent-skill-read-count", ["sevro.codex.native-calls"]],
   ["no-plaintext-feedback-mismatch", ["sevro.codex.native-calls"]],
   ["no-second-owner", ["sevro.codex.native-calls"]],
   ["skill-before-continuation", ["sevro.codex.initial-skill-reads"]],
@@ -3379,6 +3409,41 @@ function preOwnerSkillReadOutcome(
   };
 }
 
+function parentSkillReadCountOutcome(
+  selected: RecordValue,
+  parentReads: ReturnType<typeof parentReadCompletions>,
+) {
+  if (
+    selected.skill !== "assess-implementation-readiness" ||
+    !(
+      (selected.min === 1 && selected.max === undefined) ||
+      (selected.max === 1 && selected.min === undefined)
+    )
+  )
+    throw new Error("parent skill count check configuration is invalid");
+  if (!parentReads)
+    return {
+      status: "unavailable",
+      detail: "Complete parent skill-read diagnostic required",
+      evidenceRefs: [],
+    };
+  const count = parentReads.filter(
+    (read) => read.skill === selected.skill,
+  ).length;
+  return {
+    status:
+      selected.min === 1
+        ? count >= 1
+          ? "passed"
+          : "failed"
+        : count <= 1
+          ? "passed"
+          : "failed",
+    detail: "Graded from bounded verified parent skill-body completions",
+    evidenceRefs: ["sevro.codex.native-calls"],
+  };
+}
+
 function noReplacementAfterContinuationOutcome(
   native: ReturnType<typeof nativeControlEvidence>,
   continuation: ReturnType<typeof continuationEvidence>,
@@ -3694,6 +3759,8 @@ function transcriptOutcome(
   const { native, continuation, skills, feedback } = context;
   if (selected.kind === "pre-owner-skill-read")
     return preOwnerSkillReadOutcome(selected, native, context.parentReads);
+  if (selected.kind === "parent-skill-read-count")
+    return parentSkillReadCountOutcome(selected, context.parentReads);
   const direct = nativeTranscriptOutcome(selected, native, skills);
   if (direct) return direct;
   const feedbackOutcome = feedbackTranscriptOutcome(
@@ -3748,14 +3815,23 @@ function readerObservationContext(
   return { children, nested };
 }
 
+function parentReadObservationContext(
+  kinds: Set<string>,
+  observations: unknown,
+  native: ReturnType<typeof nativeControlEvidence>,
+) {
+  return kinds.has("pre-owner-skill-read") ||
+    kinds.has("parent-skill-read-count")
+    ? parentReadCompletions(observations, native)
+    : null;
+}
+
 function transcriptObservationContext(
   kinds: Set<string>,
   observations: unknown,
 ) {
   const native = nativeControlEvidence(observations);
-  const parentReads = kinds.has("pre-owner-skill-read")
-    ? parentReadCompletions(observations, native)
-    : null;
+  const parentReads = parentReadObservationContext(kinds, observations, native);
   const reader = readerObservationContext(kinds, observations, native);
   const feedback =
     kinds.has("same-owner-feedback") ||

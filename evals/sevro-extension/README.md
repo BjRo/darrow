@@ -143,6 +143,10 @@ check unavailable. The ticket recipe's follow-up check also compares native
 The readiness artifact case compares a verified parent skill-body completion
 ordinal with the accepted owner's launch request. Missing or incomplete parent
 read diagnostics leave the pre-owner assertion unavailable.
+The non-ready Codex case uses those complete parent receipts to require one
+readiness body completion, reject a repeated completion, and confirm that no
+native owner launch or retired ledger marker occurred. Incomplete receipts
+remain unavailable.
 Ticket feedback checks also reject a second native owner and any observable
 plaintext feedback that differs from the rendered follow-up prompt. Encrypted
 or unreadable message content yields no equality claim; only the bounded
