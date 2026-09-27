@@ -9,7 +9,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { isAbsolute, join, resolve } from "node:path";
+import { isAbsolute, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const roots: string[] = [];
@@ -28,6 +28,51 @@ function sevroCli(): string {
   if (!checkout || !isAbsolute(checkout))
     throw new Error("SEVRO_CHECKOUT must name an absolute local checkout");
   return join(checkout, "src/cli.ts");
+}
+
+async function installedSevro(): Promise<{
+  command: string[];
+  version: string;
+}> {
+  const checkout = process.env.SEVRO_CHECKOUT;
+  if (!checkout || !isAbsolute(checkout))
+    throw new Error("SEVRO_CHECKOUT must name an absolute local checkout");
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-package-"));
+  roots.push(root);
+  const packed = await command(
+    ["npm", "pack", "--ignore-scripts", "--pack-destination", root, "--silent"],
+    "pass",
+    checkout,
+  );
+  if (packed.code !== 0)
+    throw new Error(`npm pack failed: ${packed.stderr || packed.stdout}`);
+  const archive = join(root, packed.stdout.trim());
+  const consumer = join(root, "consumer");
+  await mkdir(consumer);
+  await writeFile(
+    join(consumer, "package.json"),
+    JSON.stringify({ name: "darrow-sevro-parity-consumer", private: true }),
+  );
+  const installed = await command(
+    [process.execPath, "add", archive],
+    "pass",
+    consumer,
+  );
+  if (installed.code !== 0)
+    throw new Error(`bun add failed: ${installed.stderr || installed.stdout}`);
+  const packageRoot = join(consumer, "node_modules", "sevro");
+  const bin = join(consumer, "node_modules", ".bin", "sevro");
+  const binTarget = await realpath(bin);
+  const canonicalPackageRoot = await realpath(packageRoot);
+  if (
+    !binTarget.startsWith(`${canonicalPackageRoot}${sep}`) ||
+    (await readdir(packageRoot)).includes(".git")
+  )
+    throw new Error("installed Sevro command is not isolated from source Git");
+  const manifest = JSON.parse(
+    await readFile(join(packageRoot, "package.json"), "utf8"),
+  ) as { version: string };
+  return { command: [bin], version: manifest.version };
 }
 
 function credentialFreeEnvironment(
@@ -261,6 +306,19 @@ interface ParityOptions {
   separateStorage?: boolean;
   condition?: "passive" | "enforced";
   paths?: FixturePaths;
+  sevroCommand?: string[];
+  autoIdentity?: boolean;
+}
+
+async function parityInputs(options: ParityOptions) {
+  return {
+    paths:
+      options.paths ??
+      (await fixture(options.isolation, options.separateStorage)),
+    commandPrefix: options.sevroCommand ?? [process.execPath, sevroCli()],
+    condition: options.condition ?? "passive",
+    autoIdentity: options.autoIdentity ?? false,
+  };
 }
 
 function legacyArguments(
@@ -308,12 +366,12 @@ function legacyArguments(
 
 function sevroArguments(
   paths: FixturePaths,
-  cli: string,
+  commandPrefix: string[],
   condition: "passive" | "enforced",
+  autoIdentity = false,
 ): string[] {
   return [
-    process.execPath,
-    cli,
+    ...commandPrefix,
     "run",
     "--json",
     "--case-file",
@@ -329,10 +387,9 @@ function sevroArguments(
     ...(paths.storage
       ? ["--run-state-root", paths.storage.sevroStateRoot]
       : []),
-    "--runner-build-digest",
-    digest,
-    "--project-digest",
-    digest,
+    ...(autoIdentity
+      ? []
+      : ["--runner-build-digest", digest, "--project-digest", digest]),
     "--condition",
     condition,
     "--trials",
@@ -391,16 +448,14 @@ async function assertStorageParity(
 async function assertParity(
   scenario: "pass" | "fail" | "incomplete-usage",
   options: ParityOptions = {},
-): Promise<{ legacyDigest: string; sevroDigest: string }> {
-  const {
-    isolation = false,
-    separateStorage = false,
-    condition = "passive",
-    paths: existingPaths,
-  } = options;
-  const cli = sevroCli();
-  expect(await Bun.file(cli).exists()).toBeTrue();
-  const paths = existingPaths ?? (await fixture(isolation, separateStorage));
+): Promise<{
+  legacyDigest: string;
+  sevroDigest: string;
+  sevroRunner: Record<string, unknown>;
+}> {
+  const { paths, commandPrefix, condition, autoIdentity } =
+    await parityInputs(options);
+  expect(await Bun.file(commandPrefix.at(-1)!).exists()).toBeTrue();
   const oldOutput = join(
     paths.projectRoot,
     `legacy-${scenario}-${condition}.json`,
@@ -411,7 +466,7 @@ async function assertParity(
     paths.projectRoot,
   );
   const sevro = await command(
-    sevroArguments(paths, cli, condition),
+    sevroArguments(paths, commandPrefix, condition, autoIdentity),
     scenario,
     paths.projectRoot,
   );
@@ -479,6 +534,7 @@ async function assertParity(
   return {
     legacyDigest: oldResult.evaluationDigest,
     sevroDigest: newRunEvidence.evaluationIdentity.digest,
+    sevroRunner: newRunEvidence.runner,
   };
 }
 
@@ -550,7 +606,7 @@ test("public commands retain interrupted attempts after cancellation", async () 
 
   const sevroReady = join(paths.projectRoot, "sevro-ready");
   const sevro = startCommand(
-    sevroArguments(paths, sevroCli(), "passive"),
+    sevroArguments(paths, [process.execPath, sevroCli()], "passive"),
     "wait",
     paths.projectRoot,
     { SEVRO_PARITY_READY_PATH: sevroReady },
@@ -634,7 +690,11 @@ test("public commands refuse an equivalent run while its owner is live", async (
   }
 
   const sevroReady = join(paths.projectRoot, "sevro-owner-ready");
-  const sevroArgs = sevroArguments(paths, sevroCli(), "passive");
+  const sevroArgs = sevroArguments(
+    paths,
+    [process.execPath, sevroCli()],
+    "passive",
+  );
   const sevro = startCommand(sevroArgs, "wait", paths.projectRoot, {
     SEVRO_PARITY_READY_PATH: sevroReady,
   });
@@ -668,3 +728,17 @@ test("public commands refuse an equivalent run while its owner is live", async (
     await sevro.exited;
   }
 }, 20_000);
+
+test("installed Sevro package matches the Darrow command outcome", async () => {
+  const installed = await installedSevro();
+  const compared = await assertParity("pass", {
+    sevroCommand: installed.command,
+    autoIdentity: true,
+  });
+  expect(compared.sevroRunner).toMatchObject({
+    source: "package",
+    packageName: "sevro",
+    version: installed.version,
+  });
+  expect(compared.sevroRunner.buildDigest).toMatch(/^[a-f0-9]{64}$/);
+}, 30_000);
