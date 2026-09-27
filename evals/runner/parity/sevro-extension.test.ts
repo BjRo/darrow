@@ -4761,6 +4761,103 @@ SEVRO_EVENTS
   });
 });
 
+test("Claude preparation passes filtered plugin directories to Sevro", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-claude-package-"));
+  roots.push(root);
+  for (const name of ["probe", "secondary"]) {
+    const plugin = join(root, `plugins/capability/${name}`);
+    const skill = join(plugin, `skills/${name}`);
+    await mkdir(join(plugin, ".claude-plugin"), { recursive: true });
+    await mkdir(join(plugin, ".codex-plugin"), { recursive: true });
+    await mkdir(skill, { recursive: true });
+    await writeFile(
+      join(plugin, ".claude-plugin/plugin.json"),
+      JSON.stringify({ name, version: "0.1.0" }),
+    );
+    await writeFile(
+      join(plugin, ".codex-plugin/plugin.json"),
+      JSON.stringify({ name, version: "0.1.0", skills: "./skills/" }),
+    );
+    await writeFile(
+      join(skill, "SKILL.md"),
+      `---\nname: ${name}\ndescription: Probe skill\n---\n\nUse this skill.\n`,
+    );
+  }
+  const caseDir = join(root, "plugins/capability/probe/skills/probe/evals");
+  await mkdir(caseDir, { recursive: true });
+  await writeFile(
+    join(caseDir, "package.yaml"),
+    JSON.stringify({
+      id: "claude-package-probe",
+      invariant: "PROBE-I1",
+      prompt: "Return ready.",
+      additional_plugins: ["plugins/capability/secondary"],
+      fixture: {
+        commits: [
+          { message: "Initialize", files: { "README.md": "fixture\n" } },
+        ],
+      },
+      checks: [],
+      output_checks: [{ name: "response", expect_exact: "ready" }],
+    }),
+  );
+  const resolved = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(root).href,
+      selectors: { caseIds: ["claude-package-probe"] },
+      configuration: {},
+    }),
+  );
+  expect(resolved.code, resolved.stderr).toBe(0);
+  expect(resolved.value.error).toBeUndefined();
+  const selected = resolved.value.result.cases[0]!;
+  const prepared = await command<{
+    result: {
+      claudePluginDirs: { artifactRoots: string[] };
+      artifacts: Array<{ relativePath: string; gitExclude: boolean }>;
+    };
+    error?: { message: string };
+  }>(
+    [process.execPath, extension],
+    request("prepare", {
+      case: selected,
+      host: {
+        id: "sevro.host.claude",
+        capabilities: ["sevro.claude.plugin-dirs"],
+      },
+      condition: "passive",
+      configuration: {},
+    }),
+  );
+  expect(prepared.value.error).toBeUndefined();
+  expect(prepared.value.result.claudePluginDirs.artifactRoots).toEqual([
+    ".sevro-marketplace/plugin",
+    ".sevro-marketplace/plugins/0-secondary",
+  ]);
+  const paths = prepared.value.result.artifacts.map(
+    (item) => item.relativePath,
+  );
+  expect(paths).toContain(".sevro-marketplace/plugin/skills/probe/SKILL.md");
+  expect(paths).toContain(
+    ".sevro-marketplace/plugins/0-secondary/skills/secondary/SKILL.md",
+  );
+  expect(paths.every((path) => !path.includes("/evals/"))).toBe(true);
+  expect(prepared.value.result.artifacts.every((item) => item.gitExclude)).toBe(
+    true,
+  );
+  const refused = await command<{ error: { message: string } }>(
+    [process.execPath, extension],
+    request("prepare", {
+      case: selected,
+      host: { id: "sevro.host.claude", capabilities: [] },
+      condition: "passive",
+      configuration: {},
+    }),
+  );
+  expect(refused.value.error.message).toMatch(/Claude plugin package/);
+});
+
 test("Darrow command reserves extension and identity options", () => {
   const args = [
     "--case-id",

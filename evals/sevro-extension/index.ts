@@ -1970,6 +1970,53 @@ function codexPackageHost(
   return selected;
 }
 
+function claudePackageHost(hostValue: unknown, hasOwner: boolean): boolean {
+  const host = record(hostValue, "candidate host");
+  if (host.id !== "sevro.host.claude" || !hasOwner) return false;
+  if (
+    !Array.isArray(host.capabilities) ||
+    !host.capabilities.includes("sevro.claude.plugin-dirs")
+  )
+    throw new Error("Claude plugin package requires the Claude plugin host");
+  return true;
+}
+
+function packageDeclarations(options: {
+  codexPackages: boolean;
+  claudePackages: boolean;
+  ownerName: string | null;
+  additional: Awaited<ReturnType<typeof additionalPluginSources>>;
+  invocation: ReturnType<typeof requiredInvocation>;
+}) {
+  const { codexPackages, claudePackages, ownerName, additional, invocation } =
+    options;
+  return {
+    ...(codexPackages
+      ? {
+          codexMarketplace: {
+            artifactRoot: MARKETPLACE_ROOT,
+            marketplaceName: "darrow-eval",
+            pluginNames: [ownerName!, ...additional.map((item) => item.name)],
+          },
+          ...(invocation ? { codexSkillInvocation: invocation } : {}),
+        }
+      : {}),
+    ...(claudePackages
+      ? {
+          claudePluginDirs: {
+            artifactRoots: [
+              `${MARKETPLACE_ROOT}/plugin`,
+              ...additional.map(
+                (item, index) =>
+                  `${MARKETPLACE_ROOT}/plugins/${index}-${item.name}`,
+              ),
+            ],
+          },
+        }
+      : {}),
+  };
+}
+
 async function preparedMounts(details: RecordValue, hostValue: unknown) {
   const sources =
     details.mount === undefined ? [] : await skillMountSource(details);
@@ -1983,11 +2030,13 @@ async function preparedMounts(details: RecordValue, hostValue: unknown) {
     throw new Error("mounted skill names must be unique");
   requireActivationSkills(details, mounted);
   const invocation = requiredInvocation(details, mounted, hostValue);
-  const packagePlugins = codexPackageHost(
+  const codexPackages = codexPackageHost(
     hostValue,
     additional.length > 0,
     invocation !== null,
   );
+  const claudePackages = claudePackageHost(hostValue, owner.length > 0);
+  const packagePlugins = codexPackages || claudePackages;
   const ownerName = packagePlugins
     ? (invocation?.pluginName ??
       (await pluginName(dirname(dirname(owner[0]!.skillRoot)))))
@@ -1997,16 +2046,13 @@ async function preparedMounts(details: RecordValue, hostValue: unknown) {
     : await skillArtifacts(mounted);
   return {
     artifacts,
-    ...(packagePlugins
-      ? {
-          codexMarketplace: {
-            artifactRoot: MARKETPLACE_ROOT,
-            marketplaceName: "darrow-eval",
-            pluginNames: [ownerName!, ...additional.map((item) => item.name)],
-          },
-          ...(invocation ? { codexSkillInvocation: invocation } : {}),
-        }
-      : {}),
+    ...packageDeclarations({
+      codexPackages,
+      claudePackages,
+      ownerName,
+      additional,
+      invocation,
+    }),
   };
 }
 
@@ -4038,6 +4084,7 @@ if (import.meta.main) {
               "sevro.codex.plugin-marketplace",
               "sevro.codex.explicit-invocation",
               "sevro.codex.native-calls",
+              "sevro.claude.plugin-dirs",
             ],
             graders: ["darrow.evals.ownership", "darrow.evals.transcript"],
             taskVerdictPolicies: [],
