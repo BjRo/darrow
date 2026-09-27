@@ -100,6 +100,10 @@ native-call observations. A forbidden mounted skill read, a `Skill` tool call,
 or a prohibited owner spawn fails the corresponding check; missing or partial
 evidence leaves it unavailable. Other transcript patterns are rejected during
 case resolution.
+Same-owner follow-up checks compare a correlated native owner receipt with the
+saved follow-up ordinal and a bounded feedback call. Cases that require a tool
+response also check its unique response receipt. This proves an attempted
+same-owner handoff; it does not prove the child acted on the message.
 
 For local protocol and public CLI validation, run:
 

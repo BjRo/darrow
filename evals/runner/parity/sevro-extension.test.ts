@@ -1227,6 +1227,141 @@ test("Darrow orders accepted owners around the native follow-up boundary", async
   ).toBe("failed");
 });
 
+test("Darrow grades feedback to the prior owner after a real follow-up", async () => {
+  const native = {
+    id: "sevro.codex.native-calls",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "native_session",
+      calls: [
+        {
+          ordinal: 1,
+          namespace: "collaboration",
+          name: "spawn_agent",
+          evidence: "invocation_attempt",
+        },
+      ],
+      toolCalls: [
+        { ordinal: 1, namespace: "collaboration", name: "spawn_agent" },
+        {
+          ordinal: 6,
+          namespace: "collaboration",
+          name: "followup_task",
+          target: "owner",
+        },
+      ],
+      acceptedSpawns: [
+        {
+          requestedOrdinal: 1,
+          startedOrdinal: 2,
+          acceptedOrdinal: 3,
+          agentRef: "/root/owner",
+          threadId: "child-thread",
+        },
+      ],
+      feedbackCalls: [
+        {
+          ordinal: 6,
+          tool: "followup_task",
+          target: "owner",
+          responseObserved: true,
+        },
+      ],
+      submittedExecCalls: 0,
+    },
+  };
+  const continuation = {
+    id: "sevro.codex.continuation",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "same_thread_resume",
+      threadId: "thread-1",
+      nativeAfterOrdinal: 5,
+      preFollowUpWorktreeUnchanged: true,
+    },
+  };
+  for (const [caseId, checkId, responseRequired] of [
+    ["goal-steering-without-question", "darrow.evals.transcript.3", false],
+    ["ticket-to-pr-feedback-rejected", "darrow.evals.transcript.2", true],
+  ] as const) {
+    const selected = await command<ExtensionReply>(
+      [process.execPath, extension],
+      request("resolve", {
+        projectRoot: pathToFileURL(projectRoot).href,
+        selectors: { caseIds: [caseId] },
+        configuration: {},
+      }),
+    );
+    expect(selected.code, selected.stderr).toBe(0);
+    const selectedCase = selected.value.result.cases[0]!;
+    expect(selectedCase.requiredEvidence).toContain("sevro.codex.native-calls");
+    const status = async (observations: unknown[]) => {
+      const response = await command<{
+        result: { checks: Array<{ id: string; status: string }> };
+      }>(
+        [process.execPath, extension],
+        request("evaluate", {
+          extensionData: selectedCase.extensionData,
+          observations,
+        }),
+      );
+      expect(response.code, response.stderr).toBe(0);
+      return response.value.result.checks.find((check) => check.id === checkId)
+        ?.status;
+    };
+    expect(await status([native, continuation])).toBe("passed");
+    expect(
+      await status([
+        native,
+        {
+          ...continuation,
+          data: { ...continuation.data, nativeAfterOrdinal: 7 },
+        },
+      ]),
+    ).toBe("failed");
+    expect(
+      await status([
+        {
+          ...native,
+          data: {
+            ...native.data,
+            toolCalls: [
+              native.data.toolCalls[0],
+              { ...native.data.toolCalls[1], target: "other" },
+            ],
+            feedbackCalls: [
+              { ...native.data.feedbackCalls[0], target: "other" },
+            ],
+          },
+        },
+        continuation,
+      ]),
+    ).toBe("failed");
+    expect(
+      await status([
+        {
+          ...native,
+          data: {
+            ...native.data,
+            feedbackCalls: [
+              { ...native.data.feedbackCalls[0], responseObserved: false },
+            ],
+          },
+        },
+        continuation,
+      ]),
+    ).toBe(responseRequired ? "failed" : "passed");
+    expect(
+      await status([
+        { ...native, data: { ...native.data, feedbackCalls: [] } },
+        continuation,
+      ]),
+    ).toBe("unavailable");
+  }
+});
+
 test("Darrow ledger checks require intact events and complete goal-control evidence", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-ledger-"));
   roots.push(root);

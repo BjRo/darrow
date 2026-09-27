@@ -715,6 +715,14 @@ const NO_OWNER_BEFORE_CONTINUATION_PATTERN = String.raw`"type":"(?:darrow\.codex
 const NO_NATIVE_GOAL_CONTROL_PATTERN = String.raw`"type":"darrow\.codex_native_goal_control"[^\n]*"tool":"(?:create_goal|update_goal)"`;
 const PR_EVIDENCE_INACTIVE_PATTERN = String.raw`"skill":"publish-pr-evidence"|"name":"Skill"[^\n]*publish-pr-evidence`;
 const TICKET_RECIPE_INACTIVE_PATTERN = String.raw`"skill":"ticket-to-pr"|"skill":"adaptive-delivery"|"name":"Skill"[^\n]*(?:ticket-to-pr|adaptive-delivery)|"tool":"spawn_agent"`;
+const STEERING_SAME_OWNER_PATTERN = String.raw`(?:"type":"darrow.codex_native_single_agent_accepted"[^\n]*"agent_ref":"([^"]+)"[\s\S]*"type":"darrow.codex_native_feedback"[^\n]*"tool":"(?:followup_task|send_message)"[^\n]*"agent_ref":"\1"[^\n]*"same_owner":true[^\n]*"after_follow_up":true[^\n]*"delivery":"unverified"|"type":"darrow.goal_agent_completion"[^\n]*"agent_id":"([^"]+)"[\s\S]*"type":"darrow.goal_agent_resumption"[^\n]*"agent_id":"\2"[^\n]*"same_owner":true)`;
+const REJECTED_FEEDBACK_PATTERN = String.raw`(?:"type":"darrow.human_feedback_relay"[^\n]*"same_owner":true[\s\S]*"type":"darrow.goal_agent_resumption"[^\n]*"same_owner":true|"type":"darrow.codex_native_feedback"[^\n]*"tool":"(?:followup_task|send_message)"[^\n]*"same_owner":true[^\n]*"after_follow_up":true[^\n]*"response_observed":true)`;
+const RELAYED_FEEDBACK_PATTERN = String.raw`(?:"type":"darrow.human_feedback_relay"[^\n]*"same_owner":true[\s\S]*"type":"darrow.goal_agent_resumption"[^\n]*"status":"completed"[^\n]*"same_owner":true|"type":"darrow.codex_native_feedback"[^\n]*"tool":"(?:followup_task|send_message)"[^\n]*"same_owner":true[^\n]*"after_follow_up":true[^\n]*"response_observed":true)`;
+const SAME_OWNER_FEEDBACK_PATTERNS = new Map([
+  [STEERING_SAME_OWNER_PATTERN, false],
+  [REJECTED_FEEDBACK_PATTERN, true],
+  [RELAYED_FEEDBACK_PATTERN, true],
+]);
 const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
   string,
   { kind: string; forbiddenSkills?: string[]; forbidSpawn?: boolean }
@@ -739,15 +747,18 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
   ],
 ]);
 
-function expectedTranscriptKind(pattern: unknown): string | null {
+function expectedTranscriptSelection(pattern: unknown) {
   if (ONE_OWNER_TRANSCRIPT_PATTERNS.has(pattern as string))
-    return "one-owner-accepted";
+    return { kind: "one-owner-accepted" };
   if (CONTINUATION_BOUNDARY_PATTERNS.has(pattern as string))
-    return "continuation-boundary";
+    return { kind: "continuation-boundary" };
   if (CONTINUATION_UNCHANGED_PATTERNS.has(pattern as string))
-    return "unchanged-before-continuation";
+    return { kind: "unchanged-before-continuation" };
   if (pattern === OWNER_AFTER_CONTINUATION_PATTERN)
-    return "owner-after-continuation";
+    return { kind: "owner-after-continuation" };
+  const responseRequired = SAME_OWNER_FEEDBACK_PATTERNS.get(pattern as string);
+  if (responseRequired !== undefined)
+    return { kind: "same-owner-feedback", responseRequired };
   return null;
 }
 
@@ -761,8 +772,9 @@ function caseTranscriptCheck(entry: unknown, index: number) {
   const name = string(check.name, `transcript check ${index + 1} name`);
   const id = `darrow.evals.transcript.${index + 1}`;
   if (check.expect_regex !== undefined) {
-    const kind = expectedTranscriptKind(check.expect_regex);
-    if (kind && check.not_regex === undefined) return { id, name, kind };
+    const selection = expectedTranscriptSelection(check.expect_regex);
+    if (selection && check.not_regex === undefined)
+      return { id, name, ...selection };
     throw new Error(
       `transcript check ${index + 1} has no Sevro evidence mapping`,
     );
@@ -883,6 +895,7 @@ function policyEvidence(
         "no-owner-before-continuation",
         "no-native-goal-control",
         "skills-inactive",
+        "same-owner-feedback",
       ].includes(check.kind),
     )
       ? ["sevro.codex.native-calls"]
@@ -2017,6 +2030,49 @@ function nativeOwnershipEvidence(value: unknown) {
   return nativeOwnershipEntries(activationData(observation.data));
 }
 
+const FEEDBACK_TOOLS = new Set([
+  "followup_task",
+  "send_message",
+  "interrupt_agent",
+]);
+const FEEDBACK_TARGET =
+  /^(?:\/root(?:\/[a-z0-9_]+)+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[a-z0-9][a-z0-9_]{0,63})$/;
+
+function nativeFeedbackEvidence(observations: unknown) {
+  const ownership = nativeOwnershipEvidence(observations);
+  const observation = uniqueObservation(
+    observations,
+    "sevro.codex.native-calls",
+  );
+  const data = observation ? activationData(observation.data) : null;
+  if (!ownership || !Array.isArray(data?.feedbackCalls)) return null;
+  const feedback = data.feedbackCalls.map(activationData);
+  if (feedback.some((entry) => !entry)) return null;
+  const calls = feedback as RecordValue[];
+  const tools = ownership.calls.filter(
+    (call) =>
+      call.namespace === "collaboration" &&
+      FEEDBACK_TOOLS.has(String(call.name)),
+  );
+  if (
+    calls.length !== tools.length ||
+    calls.some((call, index) => {
+      const tool = tools[index]!;
+      return (
+        call.ordinal !== tool.ordinal ||
+        call.tool !== tool.name ||
+        (call.target !== null &&
+          (typeof call.target !== "string" ||
+            !FEEDBACK_TARGET.test(call.target))) ||
+        (call.target ?? undefined) !== tool.target ||
+        typeof call.responseObserved !== "boolean"
+      );
+    })
+  )
+    return null;
+  return { feedback: calls, spawns: ownership.spawns };
+}
+
 function ownershipCheck(
   id: (typeof OWNERSHIP_CHECKS)[number],
   status: "passed" | "failed" | "unavailable",
@@ -2426,6 +2482,46 @@ function ownerBoundaryOutcome(
   };
 }
 
+function sameOwnerFeedbackOutcome(
+  selected: RecordValue,
+  native: ReturnType<typeof nativeFeedbackEvidence>,
+  continuation: ReturnType<typeof continuationEvidence>,
+) {
+  if (typeof selected.responseRequired !== "boolean")
+    throw new Error("feedback check configuration is invalid");
+  const boundary = continuation?.nativeAfterOrdinal;
+  if (!native || boundary === null || boundary === undefined)
+    return {
+      status: "unavailable",
+      detail: "Native feedback and follow-up boundary evidence required",
+      evidenceRefs: [],
+    };
+  const priorOwners = native.spawns.filter(
+    (spawn) => (spawn.acceptedOrdinal as number) <= boundary,
+  );
+  const laterFeedback = native.feedback.filter(
+    (call) =>
+      (call.ordinal as number) > boundary &&
+      ["followup_task", "send_message"].includes(String(call.tool)),
+  );
+  const matched = laterFeedback.some((call) =>
+    priorOwners.some(
+      (owner) =>
+        (call.ordinal as number) > (owner.acceptedOrdinal as number) &&
+        sameChildTarget(call.target, owner.agentRef as string) &&
+        (!selected.responseRequired || call.responseObserved === true),
+    ),
+  );
+  const unreadableTarget =
+    priorOwners.length > 0 &&
+    laterFeedback.some((call) => call.target === null);
+  return {
+    status: matched ? "passed" : unreadableTarget ? "unavailable" : "failed",
+    detail: "Graded from the prior owner and bounded native feedback receipt",
+    evidenceRefs: ["sevro.codex.native-calls", "sevro.codex.continuation"],
+  };
+}
+
 function continuationOutcome(
   kind: string,
   evidence: ReturnType<typeof continuationEvidence>,
@@ -2449,6 +2545,20 @@ function continuationOutcome(
   };
 }
 
+function nativeTranscriptOutcome(
+  selected: RecordValue,
+  native: ReturnType<typeof nativeControlEvidence>,
+  skills: ReturnType<typeof observedActivation>,
+) {
+  if (selected.kind === "no-agent-spawn") return noAgentOutcome(native);
+  if (selected.kind === "no-native-goal-control")
+    return noNativeGoalControlOutcome(native);
+  if (selected.kind === "skills-inactive")
+    return skillsInactiveOutcome(selected, native, skills);
+  if (selected.kind === "one-owner-accepted") return oneOwnerOutcome(native);
+  return null;
+}
+
 function transcriptOutcome(
   selected: RecordValue,
   context: {
@@ -2456,15 +2566,14 @@ function transcriptOutcome(
     events: string | null;
     continuation: ReturnType<typeof continuationEvidence>;
     skills: ReturnType<typeof observedActivation>;
+    feedback: ReturnType<typeof nativeFeedbackEvidence>;
   },
 ) {
-  const { native, events, continuation, skills } = context;
-  if (selected.kind === "no-agent-spawn") return noAgentOutcome(native);
-  if (selected.kind === "no-native-goal-control")
-    return noNativeGoalControlOutcome(native);
-  if (selected.kind === "skills-inactive")
-    return skillsInactiveOutcome(selected, native, skills);
-  if (selected.kind === "one-owner-accepted") return oneOwnerOutcome(native);
+  const { native, events, continuation, skills, feedback } = context;
+  const direct = nativeTranscriptOutcome(selected, native, skills);
+  if (direct) return direct;
+  if (selected.kind === "same-owner-feedback")
+    return sameOwnerFeedbackOutcome(selected, feedback, continuation);
   if (selected.kind === "no-lifecycle-ledger")
     return noLedgerOutcome(native, events, selected.terms, selected.forbidGoal);
   if (
@@ -2489,6 +2598,12 @@ async function nativeTranscriptChecks(
   if (!Array.isArray(value) || !value.length)
     throw new Error("native transcript checks are invalid");
   const evidence = nativeControlEvidence(observations);
+  const feedback = value.some(
+    (entry) =>
+      record(entry, "native transcript check").kind === "same-owner-feedback",
+  )
+    ? nativeFeedbackEvidence(observations)
+    : null;
   const skills = value.some(
     (entry) =>
       record(entry, "native transcript check").kind === "skills-inactive",
@@ -2504,6 +2619,7 @@ async function nativeTranscriptChecks(
       "unchanged-before-continuation",
       "owner-after-continuation",
       "no-owner-before-continuation",
+      "same-owner-feedback",
     ].includes(String(record(entry, "native transcript check").kind)),
   )
     ? continuationEvidence(observations)
@@ -2514,7 +2630,7 @@ async function nativeTranscriptChecks(
   )
     ? await codexEventText(artifacts)
     : null;
-  const context = { native: evidence, skills, continuation, events };
+  const context = { native: evidence, skills, continuation, events, feedback };
   return value.map((entry) => {
     const selected = record(entry, "native transcript check");
     return {
