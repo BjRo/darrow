@@ -20,6 +20,13 @@ Executable skill files keep owner execute permission in the fixture and retained
 artifact copy. Cases with `mount_plugin_skills: true` mount all sibling skills
 from the owning plugin through the same project-discovery path, with a shared
 artifact limit. Competition activation requires that sibling set.
+For a plugin-local case containing `{{skill_invocation}}`, resolution uses the
+owning Codex plugin manifest to render `$plugin:skill`. Preparation packages
+the selected skill, both plugin manifests, and the plugin's backend, agents,
+bin, config, and hooks when present. It excludes colocated evals and caches,
+then declares a local `darrow-eval` marketplace to Sevro. Sevro verifies the
+Git-excluded artifacts and installs the package into its isolated Codex home
+before the candidate turn. Such cases require Sevro's Codex plugin host.
 Implicit positive, negative, and competition activation cases are supported
 when they mount their owning skill. A case can require an observed skill
 sequence, supporting skill membership, or exclusion; every named skill must be
@@ -48,9 +55,8 @@ Check metric labels are preserved in per-trial evidence: failed
 `escaped_defect` and `false_positive` checks count as findings, while
 `defect_detection` is the fraction of labeled checks that pass. Missing or
 unavailable check evidence leaves that metric unmeasured (`null`).
-Other case fields and fixture mechanics fail explicitly. Plugin packaging,
-`{{skill_invocation}}`, and other activation forms remain on Darrow's existing
-runner. The legacy `{{repo_dir}}` prompt token maps to Sevro's per-trial
+Other case fields and fixture mechanics fail explicitly. The legacy
+`{{repo_dir}}` prompt token maps to Sevro's per-trial
 workspace token. Other prompt templates still fail explicitly.
 
 For local protocol and public CLI validation, run:

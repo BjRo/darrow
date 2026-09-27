@@ -1194,6 +1194,163 @@ export default {
   expect(evidence.trials[0].condition.requested).toBe("passive");
 });
 
+test("explicit Codex skill invocation packages the owning plugin for Sevro", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-invocation-"));
+  roots.push(root);
+  const plugin = join(root, "plugins/capability/probe");
+  const skill = join(plugin, "skills/probe");
+  await mkdir(join(plugin, ".claude-plugin"), { recursive: true });
+  await mkdir(join(plugin, ".codex-plugin"), { recursive: true });
+  await mkdir(join(plugin, "backend"), { recursive: true });
+  await mkdir(join(skill, "evals"), { recursive: true });
+  await writeFile(
+    join(plugin, ".claude-plugin/plugin.json"),
+    JSON.stringify({ name: "probe", version: "0.1.0" }),
+  );
+  await writeFile(
+    join(plugin, ".codex-plugin/plugin.json"),
+    JSON.stringify({ name: "probe", version: "0.1.0", skills: "./skills/" }),
+  );
+  await writeFile(join(plugin, "backend/tool.txt"), "packaged tool\n");
+  await writeFile(
+    join(skill, "SKILL.md"),
+    "---\nname: probe\ndescription: Probe skill\n---\n\nUse this skill.\n",
+  );
+  await writeFile(join(skill, "evals/hidden.txt"), "hidden criteria\n");
+  await writeFile(
+    join(skill, "evals/invocation.yaml"),
+    JSON.stringify({
+      id: "probe-invocation",
+      invariant: "PROBE-I1",
+      prompt: "Run {{skill_invocation}} in {{repo_dir}} and return ready.",
+      fixture: {
+        commits: [
+          { message: "Initialize", files: { "README.md": "fixture\n" } },
+        ],
+      },
+      checks: [],
+      output_checks: [{ name: "response", expect_exact: "ready" }],
+    }),
+  );
+  const resolved = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(root).href,
+      selectors: { caseIds: ["probe-invocation"] },
+      configuration: {},
+    }),
+  );
+  expect(resolved.code, resolved.stderr).toBe(0);
+  const selected = resolved.value.result.cases[0]!;
+  expect(selected.prompt).toBe(
+    "Run $probe:probe in {{sevro.workspace}} and return ready.",
+  );
+  const prepared = await command<{
+    result: {
+      codexMarketplace: {
+        artifactRoot: string;
+        marketplaceName: string;
+        pluginNames: string[];
+      };
+      artifacts: Array<{
+        relativePath: string;
+        contentBase64: string;
+        gitExclude: boolean;
+      }>;
+    };
+    error?: { message: string };
+  }>(
+    [process.execPath, extension],
+    request("prepare", {
+      case: selected,
+      host: {
+        id: "sevro.host.codex",
+        capabilities: ["sevro.codex.plugin-marketplace"],
+      },
+      condition: "passive",
+      configuration: {},
+    }),
+  );
+  expect(prepared.code, prepared.stderr).toBe(0);
+  expect(prepared.value.result.codexMarketplace).toEqual({
+    artifactRoot: ".sevro-marketplace",
+    marketplaceName: "darrow-eval",
+    pluginNames: ["probe"],
+  });
+  const paths = prepared.value.result.artifacts.map(
+    (item) => item.relativePath,
+  );
+  expect(paths).toContain(".sevro-marketplace/.claude-plugin/marketplace.json");
+  expect(paths).toContain(
+    ".sevro-marketplace/plugin/.codex-plugin/plugin.json",
+  );
+  expect(paths).toContain(".sevro-marketplace/plugin/backend/tool.txt");
+  expect(paths).toContain(".sevro-marketplace/plugin/skills/probe/SKILL.md");
+  expect(paths.some((path) => path.includes("/evals/"))).toBe(false);
+  expect(prepared.value.result.artifacts.every((item) => item.gitExclude)).toBe(
+    true,
+  );
+  const refused = await command<{ error: { message: string } }>(
+    [process.execPath, extension],
+    request("prepare", {
+      case: selected,
+      host: { id: "sevro.host.codex", capabilities: [] },
+      condition: "passive",
+      configuration: {},
+    }),
+  );
+  expect(refused.value.error?.message).toMatch(
+    /requires the Codex plugin host/,
+  );
+
+  const route = sevroCommand();
+  const commandFile = join(root, "extension-command.json");
+  await writeFile(commandFile, JSON.stringify([process.execPath, extension]));
+  const dry = await command<{
+    execution: { status: string };
+    evidencePath: string;
+  }>([
+    ...route.launch,
+    "run",
+    "--json",
+    ...route.extraArgs,
+    "--extension-command-file",
+    commandFile,
+    "--extension-source-file",
+    extension,
+    "--case-id",
+    "probe-invocation",
+    "--project-root",
+    root,
+    "--condition",
+    "passive",
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--dry",
+    "--host",
+    "codex",
+    "--codex-bin",
+    process.execPath,
+    "--codex-auth-file",
+    join(root, "unused-auth.json"),
+    "--model",
+    "synthetic-codex",
+    "--effort",
+    "low",
+    "--results-root",
+    join(root, "results"),
+  ]);
+  expect(dry.code, JSON.stringify(dry.value)).toBe(0);
+  expect(dry.value.execution.status).toBe("not_run");
+  const evidence = JSON.parse(await readFile(dry.value.evidencePath, "utf8"));
+  expect(evidence.configuration.redacted.codexMarketplace).toEqual(
+    prepared.value.result.codexMarketplace,
+  );
+  expect(evidence.trials[0].artifactRefs).toHaveLength(paths.length);
+});
+
 test("Darrow command reserves extension and identity options", () => {
   const args = [
     "--case-id",
