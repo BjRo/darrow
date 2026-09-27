@@ -42,18 +42,47 @@ function credentialFreeEnvironment(
 }
 
 async function command(argv: string[], scenario: string, cwd: string) {
-  const proc = Bun.spawn(argv, {
-    cwd,
-    env: credentialFreeEnvironment({ SEVRO_PARITY_SCENARIO: scenario }),
-    stdout: "pipe",
-    stderr: "pipe",
-  });
+  const proc = startCommand(argv, scenario, cwd);
   const [stdout, stderr, code] = await Promise.all([
     new Response(proc.stdout).text(),
     new Response(proc.stderr).text(),
     proc.exited,
   ]);
   return { stdout, stderr, code };
+}
+
+function startCommand(
+  argv: string[],
+  scenario: string,
+  cwd: string,
+  extra: Record<string, string> = {},
+) {
+  return Bun.spawn(argv, {
+    cwd,
+    env: credentialFreeEnvironment({
+      SEVRO_PARITY_SCENARIO: scenario,
+      ...extra,
+    }),
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+}
+
+async function waitForFile(path: string): Promise<void> {
+  const deadline = Date.now() + 10_000;
+  while (!(await Bun.file(path).exists())) {
+    if (Date.now() > deadline) throw new Error(`timed out waiting for ${path}`);
+    await Bun.sleep(20);
+  }
+}
+
+function processIsGone(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return false;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "ESRCH";
+  }
 }
 
 function shellQuote(value: string): string {
@@ -160,12 +189,23 @@ async function fixture(isolation = false, separateStorage = false) {
   const legacyAdapter = join(projectRoot, "legacy-adapter.ts");
   await writeFile(
     legacyAdapter,
-    `import { codexAdapter } from ${JSON.stringify(join(runnerRoot, "adapters/codex.ts"))};
+    `import { writeFile } from "node:fs/promises";
+import { codexAdapter } from ${JSON.stringify(join(runnerRoot, "adapters/codex.ts"))};
+import { trackEvaluationProcess } from ${JSON.stringify(join(runnerRoot, "run-control.ts"))};
 codexAdapter.sourceCodexPlugin = false;
 codexAdapter.skillMounts = [".agents/skills"];
 codexAdapter.version = async () => "synthetic-parity-v1";
 codexAdapter.run = async ({ control }) => {
   const scenario = process.env.SEVRO_PARITY_SCENARIO ?? "pass";
+  if (scenario === "wait") {
+    const child = trackEvaluationProcess(Bun.spawn([
+      process.execPath, "-e",
+      "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000)",
+    ], { detached: true, stdout: "ignore", stderr: "ignore" }));
+    await writeFile(process.env.SEVRO_PARITY_CHILD_PID_PATH!, String(child.pid));
+    await writeFile(process.env.SEVRO_PARITY_READY_PATH!, "ready");
+    await child.exited;
+  }
   return {
     ok: true, durationMs: 1, inputTokens: 2, outputTokens: 3, costUsd: null,
     tokenUsageComplete: scenario !== "incomplete-usage",
@@ -181,10 +221,17 @@ codexAdapter.run = async ({ control }) => {
   const sevroAdapter = join(projectRoot, "sevro-adapter.ts");
   await writeFile(
     sevroAdapter,
-    `export default {
+    `import { writeFile } from "node:fs/promises";
+export default {
   id: "codex", model: "synthetic", effort: "low",
-  async run({ condition }) {
+  async run({ condition, signal }) {
     const scenario = process.env.SEVRO_PARITY_SCENARIO ?? "pass";
+    if (scenario === "wait") {
+      await writeFile(process.env.SEVRO_PARITY_READY_PATH!, "ready");
+      await new Promise((_resolve, reject) => {
+        signal.addEventListener("abort", () => reject(new Error("cancelled")), { once: true });
+      });
+    }
     return {
       finalMessage: scenario === "fail" ? "synthetic behavioral failure" : ${JSON.stringify(response)},
       complete: true, actualCondition: condition,
@@ -456,3 +503,86 @@ test("public commands retain enforced condition and separate mode identity", asy
   expect(passive.legacyDigest).not.toBe(enforced.legacyDigest);
   expect(passive.sevroDigest).not.toBe(enforced.sevroDigest);
 });
+
+test("public commands retain interrupted attempts after cancellation", async () => {
+  const paths = await fixture();
+  const oldOutput = join(paths.projectRoot, "legacy-cancelled.json");
+  const legacyReady = join(paths.projectRoot, "legacy-ready");
+  const childPidPath = join(paths.projectRoot, "legacy-child-pid");
+  const legacy = startCommand(
+    legacyArguments(paths, oldOutput, "passive"),
+    "wait",
+    paths.projectRoot,
+    {
+      SEVRO_PARITY_READY_PATH: legacyReady,
+      SEVRO_PARITY_CHILD_PID_PATH: childPidPath,
+    },
+  );
+  try {
+    await waitForFile(legacyReady);
+    legacy.kill("SIGTERM");
+    expect(await legacy.exited).not.toBe(0);
+    expect(await Bun.file(oldOutput).exists()).toBeFalse();
+    expect(
+      processIsGone(Number(await readFile(childPidPath, "utf8"))),
+    ).toBeTrue();
+    const diagnostic = JSON.parse(
+      await readFile(`${oldOutput}.diagnostic.json`, "utf8"),
+    );
+    expect(diagnostic.completedTrials).toEqual([]);
+    const oldActiveNames = await readdir(
+      join(paths.projectRoot, "evals/results/active"),
+    );
+    expect(
+      oldActiveNames.filter((name) => name.endsWith(".json")),
+    ).toHaveLength(1);
+    const oldActive = JSON.parse(
+      await readFile(
+        join(paths.projectRoot, "evals/results/active", oldActiveNames[0]!),
+        "utf8",
+      ),
+    );
+    expect(oldActive.status).toBe("interrupted");
+  } finally {
+    legacy.kill("SIGKILL");
+    await legacy.exited;
+  }
+
+  const sevroReady = join(paths.projectRoot, "sevro-ready");
+  const sevro = startCommand(
+    sevroArguments(paths, sevroCli(), "passive"),
+    "wait",
+    paths.projectRoot,
+    { SEVRO_PARITY_READY_PATH: sevroReady },
+  );
+  try {
+    await waitForFile(sevroReady);
+    sevro.kill("SIGTERM");
+    const [stdout, code] = await Promise.all([
+      new Response(sevro.stdout).text(),
+      sevro.exited,
+    ]);
+    expect(code).toBe(143);
+    const result = JSON.parse(stdout);
+    expect(result.execution.status).toBe("cancelled");
+    expect(result.cases[0].trials).toHaveLength(1);
+    expect(result.cases[0].trials[0].execution.status).toBe("cancelled");
+    expect(result.cases[0].trials[0].task.verdict).toBe("not_assessed");
+    expect(
+      await Bun.file(result.cases[0].trials[0].artifactPath).exists(),
+    ).toBeTrue();
+    const evidence = JSON.parse(await readFile(result.evidencePath, "utf8"));
+    expect(evidence.result.execution.status).toBe("cancelled");
+    const active = JSON.parse(
+      await readFile(
+        join(paths.projectRoot, "sevro-results/active", `${result.runId}.json`),
+        "utf8",
+      ),
+    );
+    expect(active.status).toBe("interrupted");
+    expect(active.completedTrials).toHaveLength(1);
+  } finally {
+    sevro.kill("SIGKILL");
+    await sevro.exited;
+  }
+}, 20_000);

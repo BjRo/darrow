@@ -372,10 +372,12 @@ case, shell and output check outcomes, source and configuration-root isolation,
 separate result and run-state roots, passive condition evidence, incomplete
 usage, retained raw output, and success or failure exits. It also compares
 enforced condition evidence and checks that the two modes have distinct
-evaluation identities. Darrow's additional activation check is outside this
-first shared surface. The fixture uses the explicit local-checkout path while
-Sevro is unreleased; it does not establish parity for suite selection,
-exclusive run ownership, cancellation, or packaged installation. Keep the
+evaluation identities. Cancellation stops both commands and retains an
+interrupted attempt. Darrow writes a diagnostic with no completed trial; Sevro
+also retains the cancelled, unassessed trial as evidence. Darrow's additional
+activation check is outside this shared surface. The fixture uses the explicit
+local-checkout path while Sevro is unreleased; it does not establish parity for
+suite selection, exclusive run ownership, or packaged installation. Keep the
 original compatibility baseline as the reference for those behaviors until
 equivalent public-command comparisons pass.
 
