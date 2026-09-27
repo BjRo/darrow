@@ -152,6 +152,30 @@ test("Darrow extension resolves supported cases and rejects unsupported fixtures
   expect(
     selected.checks.map((check: { grader: string }) => check.grader),
   ).toEqual(["sevro.shell", "sevro.shell"]);
+  const artificer = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", resolveParams("artificer-status")),
+  );
+  expect(artificer.code, artificer.stderr).toBe(0);
+  expect(
+    artificer.value.result.cases[0]!.checks.map((check) => check.grader),
+  ).toEqual(["sevro.shell", "sevro.git-head", "sevro.semantic"]);
+  const branchGuard = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request(
+      "resolve",
+      resolveParams("prepare-task-branch-guard-correlated-creation"),
+    ),
+  );
+  expect(branchGuard.code, branchGuard.stderr).toBe(0);
+  expect(branchGuard.value.result.cases[0]!.checks).toContainEqual({
+    id: "darrow.shell.2",
+    grader: "sevro.shell",
+    configuration: {
+      run: "git show-ref | diff .git/expected-refs -",
+      expectedExitCode: 0,
+    },
+  });
   expect(selected.extensionData["darrow.case"].invariant).toBe(
     "ORCH-ROUTING-LOCALIZED-MECHANICAL",
   );

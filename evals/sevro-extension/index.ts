@@ -210,17 +210,20 @@ function shellChecks(value: unknown) {
         "not_regex",
         "flags",
         "exit_code",
+        "expect_exit",
         "metric",
       ],
       `check ${index + 1}`,
     );
     string(check.name, `check ${index + 1} name`);
     const run = string(check.run, `check ${index + 1} run`);
+    if (check.exit_code !== undefined && check.expect_exit !== undefined)
+      throw new Error(`check ${index + 1} declares both exit code fields`);
     const configuration = {
       run,
-      ...(check.exit_code === undefined
+      ...(check.exit_code === undefined && check.expect_exit === undefined
         ? {}
-        : { expectedExitCode: check.exit_code }),
+        : { expectedExitCode: check.exit_code ?? check.expect_exit }),
       ...(check.expect_exact === undefined
         ? {}
         : { expectExact: check.expect_exact }),
@@ -670,12 +673,21 @@ const OWNERSHIP_CHECKS = [
   "darrow.evals.ownership.internal-record",
 ] as const;
 
+function ignoredGoalPolicy(selected: RecordValue, skillDir: string | null) {
+  return (
+    !skillDir?.endsWith("/adaptive-delivery") &&
+    selected.goal_report === "forbidden" &&
+    selected.goal_route_checks === undefined
+  );
+}
+
 function caseOwnership(selected: RecordValue, skillDir: string | null) {
   if (
     selected.goal_report === undefined &&
     selected.goal_route_checks === undefined
   )
     return null;
+  if (ignoredGoalPolicy(selected, skillDir)) return null;
   if (
     !skillDir?.endsWith("/adaptive-delivery") ||
     selected.goal_route_checks !== false ||
