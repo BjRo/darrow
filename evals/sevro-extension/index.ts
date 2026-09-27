@@ -1284,9 +1284,47 @@ function claudeReadinessCasePolicy(transcript: unknown) {
   };
 }
 
+function claudeSelectedOwnerCasePolicy(transcript: unknown) {
+  if (
+    createHash("sha256").update(JSON.stringify(transcript)).digest("hex") !==
+    "60cd2a65222d3e639098086d2563a2a681a690e30cb9dcc20800be0eddad1c0c"
+  )
+    throw new Error("Claude selected-owner transcript policy has changed");
+  const kinds = [
+    "claude-selected-owner",
+    "claude-one-owner",
+    "claude-independent-review",
+    "claude-selected-route",
+    "claude-no-ledger",
+  ];
+  const checks = (transcript as RecordValue[]).map((entry, index) => ({
+    id: `darrow.evals.transcript.${index + 1}`,
+    name: string(entry.name, "Claude transcript check name"),
+    kind: kinds[index]!,
+  }));
+  return {
+    checks: [
+      ...OWNERSHIP_CHECKS.map((id) => ({
+        id,
+        grader: "darrow.evals.ownership",
+        configuration: {},
+      })),
+      ...checks.map(({ id }) => ({
+        id,
+        grader: "darrow.evals.transcript",
+        configuration: {},
+      })),
+    ],
+    requiredEvidence: ["sevro.claude.tool-calls", "sevro.claude.events"],
+    details: { ownership: "claude-selected", transcriptChecks: checks },
+  };
+}
+
 function casePolicy(selected: RecordValue, skillDir: string | null) {
   if (selected.id === "claude-readiness-nonready-stops")
     return claudeReadinessCasePolicy(selected.transcript_checks);
+  if (selected.id === "goal-review-high-selected-claude")
+    return claudeSelectedOwnerCasePolicy(selected.transcript_checks);
   const ownership = caseOwnership(selected, skillDir);
   const transcriptChecks = caseTranscriptChecks(selected.transcript_checks);
   return {
@@ -3973,6 +4011,20 @@ function transcriptObservationContext(
   };
 }
 
+function claudeTranscriptChecks(
+  selected: RecordValue[],
+  observations: unknown,
+  artifacts: unknown,
+) {
+  if (!selected.some((entry) => String(entry.kind).startsWith("claude-")))
+    return null;
+  if (!selected.every((entry) => String(entry.kind).startsWith("claude-")))
+    throw new Error("mixed native transcript policies are unsupported");
+  return selected.some((entry) => entry.kind === "claude-selected-owner")
+    ? claudeSelectedTranscriptChecks(selected, observations, artifacts)
+    : claudeReadinessTranscriptChecks(selected, observations, artifacts);
+}
+
 async function nativeTranscriptChecks(
   value: unknown,
   observations: unknown,
@@ -3984,11 +4036,8 @@ async function nativeTranscriptChecks(
   const selected = value.map((entry) =>
     record(entry, "native transcript check"),
   );
-  if (selected.some((entry) => String(entry.kind).startsWith("claude-"))) {
-    if (!selected.every((entry) => String(entry.kind).startsWith("claude-")))
-      throw new Error("mixed native transcript policies are unsupported");
-    return claudeReadinessTranscriptChecks(selected, observations, artifacts);
-  }
+  const claude = claudeTranscriptChecks(selected, observations, artifacts);
+  if (claude) return claude;
   const kinds = new Set(selected.map((entry) => String(entry.kind)));
   const events =
     kinds.has("no-lifecycle-ledger") ||
@@ -4160,6 +4209,318 @@ async function claudeReadinessTranscriptChecks(
   );
 }
 
+const CLAUDE_OWNER_MARKER = createHash("sha256")
+  .update("- phase: adaptive-delivery-owner")
+  .digest("hex");
+const CLAUDE_SELECTED_TYPE =
+  "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low";
+
+function claudeSelectedCalls(observations: unknown) {
+  const calls = claudeCalls(observations);
+  if (
+    !calls ||
+    calls.some(
+      (call) =>
+        !(
+          call.parentToolUseId === null || nonemptyString(call.parentToolUseId)
+        ) ||
+        (call.actor === "parent") !== (call.parentToolUseId === null) ||
+        (call.name === "Agent" &&
+          !/^[a-f0-9]{64}$/.test(String(call.promptFirstLineSha256))),
+    )
+  )
+    return null;
+  return calls;
+}
+
+function claudeSelectedOwner(calls: RecordValue[] | null) {
+  if (!calls) return null;
+  const owners = calls.filter(claudeOwner);
+  if (owners.length !== 1) return null;
+  return owners[0]!;
+}
+
+function claudeRawEvents(text: string | null): RecordValue[] | null {
+  if (text === null) return null;
+  try {
+    const events = text
+      .split("\n")
+      .filter((line) => line.trim())
+      .map((line) => record(JSON.parse(line) as unknown, "Claude event"));
+    return events.some((event) => event.type === "result") ? events : null;
+  } catch {
+    return null;
+  }
+}
+
+function claudeEventBlocks(event: RecordValue): RecordValue[] {
+  const message = event.message;
+  if (!message || typeof message !== "object" || Array.isArray(message))
+    return [];
+  const content = (message as RecordValue).content;
+  return Array.isArray(content)
+    ? content.filter(
+        (block): block is RecordValue =>
+          !!block && typeof block === "object" && !Array.isArray(block),
+      )
+    : [];
+}
+
+function claudeWithinOwner(
+  call: RecordValue,
+  calls: RecordValue[],
+  ownerId: string,
+) {
+  let parent = call.parentToolUseId;
+  const seen = new Set<string>();
+  while (nonemptyString(parent) && !seen.has(parent)) {
+    if (parent === ownerId) return true;
+    seen.add(parent);
+    parent = calls.find(
+      (candidate) =>
+        candidate.name === "Agent" && candidate.toolUseId === parent,
+    )?.parentToolUseId;
+  }
+  return false;
+}
+
+function claudeResolverCommand(command: unknown) {
+  if (typeof command !== "string") return false;
+  const match = command.match(
+    /^uv run --quiet --no-project ("[^"\r\n]+"|'[^'\r\n]+'|\/[A-Za-z0-9_./-]+) claude-agent-route --provider anthropic --model claude-sonnet-5 --effort low$/,
+  );
+  if (!match) return false;
+  const path = match[1]!.replace(/^(?:"|')|(?:"|')$/g, "");
+  return (
+    /^\/[A-Za-z0-9_./-]+$/.test(path) &&
+    !path.split("/").includes("..") &&
+    path.endsWith("/backend/scripts/run_locked.py")
+  );
+}
+
+function claudeResolverResult(block: RecordValue) {
+  if (block.is_error === true) return false;
+  const content = block.content;
+  const text =
+    typeof content === "string"
+      ? content
+      : Array.isArray(content)
+        ? content
+            .filter(
+              (item): item is RecordValue =>
+                !!item && typeof item === "object" && !Array.isArray(item),
+            )
+            .filter(
+              (item) => item.type === "text" && typeof item.text === "string",
+            )
+            .map((item) => item.text)
+            .join("\n")
+        : "";
+  return /(?:^|\n)format\tdarrow-claude-agent-route-v1\r?\nselected_route\tclaude\tanthropic\tclaude-sonnet-5\tlow\r?\nsubagent_type\tdarrow-adaptive-delivery:adaptive-delivery-sonnet-5-low\r?\nagent_file\t\/[^\r\n]*\/agents\/adaptive-delivery-sonnet-5-low\.md(?:\r?\n|$)/.test(
+    text,
+  );
+}
+
+function claudeRouteConfirmed(events: RecordValue[], owner: RecordValue) {
+  const uses = events.flatMap((event, index) =>
+    event.type === "assistant" && !event.parent_tool_use_id
+      ? claudeEventBlocks(event)
+          .filter(
+            (block) =>
+              block.type === "tool_use" &&
+              block.name === "Bash" &&
+              claudeResolverCommand(
+                block.input && typeof block.input === "object"
+                  ? (block.input as RecordValue).command
+                  : null,
+              ),
+          )
+          .map((block) => ({ id: block.id, index }))
+      : [],
+  );
+  if (uses.length !== 1 || !nonemptyString(uses[0]!.id)) return false;
+  const call = uses[0]!;
+  const resultIndex = events.findIndex(
+    (event, index) =>
+      index > call.index &&
+      event.type === "user" &&
+      !event.parent_tool_use_id &&
+      claudeEventBlocks(event).some(
+        (block) =>
+          block.type === "tool_result" &&
+          block.tool_use_id === call.id &&
+          claudeResolverResult(block),
+      ),
+  );
+  const ownerIndex = events.findIndex(
+    (event) =>
+      event.type === "assistant" &&
+      !event.parent_tool_use_id &&
+      claudeEventBlocks(event).some(
+        (block) => block.type === "tool_use" && block.id === owner.toolUseId,
+      ),
+  );
+  return resultIndex > call.index && ownerIndex > resultIndex;
+}
+
+function claudeParentWorkAfterOwner(
+  events: RecordValue[],
+  owner: RecordValue,
+): boolean | null {
+  const resultIndex = events.findIndex(
+    (event) =>
+      event.type === "user" &&
+      !event.parent_tool_use_id &&
+      claudeEventBlocks(event).some(
+        (block) =>
+          block.type === "tool_result" &&
+          block.tool_use_id === owner.toolUseId &&
+          block.is_error !== true,
+      ),
+  );
+  if (resultIndex < 0) return null;
+  return events
+    .slice(resultIndex + 1)
+    .some(
+      (event) =>
+        event.type === "assistant" &&
+        !event.parent_tool_use_id &&
+        claudeEventBlocks(event).some((block) => block.type === "tool_use"),
+    );
+}
+
+async function claudeSelectedOwnershipChecks(
+  observations: unknown,
+  artifacts: unknown,
+) {
+  const calls = claudeSelectedCalls(observations);
+  const owner = claudeSelectedOwner(calls);
+  const events = claudeRawEvents(
+    await codexEventText(artifacts, "sevro.claude.events"),
+  );
+  const after =
+    events && owner ? claudeParentWorkAfterOwner(events, owner) : null;
+  return [
+    ownershipCheck(
+      OWNERSHIP_CHECKS[0],
+      !calls
+        ? "unavailable"
+        : calls.filter(claudeOwner).length <= 1
+          ? "passed"
+          : "failed",
+      calls ? "sevro.claude.tool-calls" : null,
+      "No replacement owner is launched",
+    ),
+    ownershipCheck(
+      OWNERSHIP_CHECKS[1],
+      after === null ? "unavailable" : after ? "failed" : "passed",
+      after === null ? null : "sevro.claude.events",
+      "No parent tool call follows the foreground owner result",
+    ),
+    internalRecordCheck(observations, "sevro.host.claude"),
+  ];
+}
+
+function claudeMarkedOwner(owner: RecordValue | null) {
+  return (
+    !!owner &&
+    owner.actor === "parent" &&
+    owner.parentToolUseId === null &&
+    owner.subagentType === CLAUDE_SELECTED_TYPE &&
+    owner.runInBackground === false &&
+    owner.model === null &&
+    owner.promptFirstLineSha256 === CLAUDE_OWNER_MARKER
+  );
+}
+
+function claudeIndependentReview(
+  calls: RecordValue[] | null,
+  owner: RecordValue | null,
+) {
+  return (
+    !!owner &&
+    !!calls?.some(
+      (call) =>
+        call.name === "Skill" &&
+        call.invocation === "independent-code-review" &&
+        claudeWithinOwner(call, calls, String(owner.toolUseId)),
+    )
+  );
+}
+
+function claudeNoLedger(eventsText: string | null) {
+  return (
+    eventsText !== null &&
+    ![
+      "adaptive-delivery-preflight step",
+      "Protocol ledger",
+      "claude-route-gate",
+    ].some((term) => eventsText.includes(term))
+  );
+}
+
+type ClaudeSelectedContext = {
+  calls: RecordValue[] | null;
+  owner: RecordValue | null;
+  eventsText: string | null;
+  events: RecordValue[] | null;
+};
+
+function claudeSelectedPassed(kind: string, context: ClaudeSelectedContext) {
+  const { calls, owner, eventsText, events } = context;
+  if (kind === "claude-selected-owner") return claudeMarkedOwner(owner);
+  if (kind === "claude-one-owner")
+    return calls?.filter(claudeOwner).length === 1;
+  if (kind === "claude-independent-review")
+    return claudeIndependentReview(calls, owner);
+  if (kind === "claude-selected-route")
+    return !!events && !!owner && claudeRouteConfirmed(events, owner);
+  if (kind === "claude-no-ledger") return claudeNoLedger(eventsText);
+  throw new Error("unsupported Claude selected-owner check");
+}
+
+function claudeSelectedTranscriptOutcome(
+  check: RecordValue,
+  context: ClaudeSelectedContext,
+) {
+  const kind = String(check.kind);
+  const needsEvents =
+    kind === "claude-selected-route" || kind === "claude-no-ledger";
+  const available = needsEvents
+    ? context.events !== null &&
+      (kind !== "claude-selected-route" || context.calls !== null)
+    : context.calls !== null;
+  return {
+    id: string(check.id, "Claude transcript check ID"),
+    status: !available
+      ? "unavailable"
+      : claudeSelectedPassed(kind, context)
+        ? "passed"
+        : "failed",
+    detail: available
+      ? "Graded from complete Claude host evidence"
+      : "Claude host evidence unavailable or incomplete",
+    evidenceRefs: available
+      ? [needsEvents ? "sevro.claude.events" : "sevro.claude.tool-calls"]
+      : [],
+  };
+}
+
+async function claudeSelectedTranscriptChecks(
+  selected: RecordValue[],
+  observations: unknown,
+  artifacts: unknown,
+) {
+  const calls = claudeSelectedCalls(observations);
+  const owner = claudeSelectedOwner(calls);
+  const eventsText = await codexEventText(artifacts, "sevro.claude.events");
+  const events = claudeRawEvents(eventsText);
+  const context = { calls, owner, eventsText, events };
+  return selected.map((check) =>
+    claudeSelectedTranscriptOutcome(check, context),
+  );
+}
+
 function measuredMetric(
   label: string,
   checkIds: string[],
@@ -4222,6 +4583,16 @@ function caseMetrics(details: RecordValue, params: RecordValue) {
   });
 }
 
+async function caseOwnershipChecks(details: RecordValue, params: RecordValue) {
+  if (details.ownership === true || details.ownership === "composition")
+    return ownershipChecks(params.observations);
+  if (details.ownership === "claude")
+    return claudeReadinessOwnershipChecks(params.observations);
+  if (details.ownership === "claude-selected")
+    return claudeSelectedOwnershipChecks(params.observations, params.artifacts);
+  return [];
+}
+
 async function evaluateCase(params: RecordValue) {
   const omitSkills = withoutSkill(params.configuration);
   const extensionData = record(
@@ -4230,12 +4601,7 @@ async function evaluateCase(params: RecordValue) {
   );
   const details = record(extensionData["darrow.case"], "Darrow case data");
   const metrics = caseMetrics(details, params);
-  const ownership =
-    details.ownership === true || details.ownership === "composition"
-      ? ownershipChecks(params.observations)
-      : details.ownership === "claude"
-        ? claudeReadinessOwnershipChecks(params.observations)
-        : [];
+  const ownership = await caseOwnershipChecks(details, params);
   const checks = [
     ...(details.ownership === "composition"
       ? ownership.slice(0, 2)

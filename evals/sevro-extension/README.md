@@ -86,6 +86,11 @@ The Claude non-ready readiness case uses ordered native `Skill` and `Agent`
 calls to check that readiness ran once and no owner started. Its retired-ledger
 check reads a digest-verified Claude event artifact. Missing or partial host
 evidence leaves these checks unavailable.
+The selected Claude owner case checks a single foreground Agent with the exact
+owner marker, a nested independent-review Skill call, and a completed route
+resolver result before launch. A digest-verified Claude event artifact also
+checks that the parent makes no tool calls after the owner returns and that no
+retired ledger appears. Missing or partial evidence remains unavailable.
 
 Adaptive-delivery cases that declare `goal_route_checks: false` and the
 forbidden goal-report policy now retain their ownership checks through the

@@ -89,7 +89,7 @@ transcript_checks:
     not_regex: '"name":"Agent"[^\r\n]*"subagent_type":"darrow-adaptive-delivery:adaptive-delivery-(?:sonnet-5-(?:low|medium)|opus-5-high)"[\s\S]*"name":"Agent"[^\r\n]*"subagent_type":"darrow-adaptive-delivery:adaptive-delivery-(?:sonnet-5-(?:low|medium)|opus-5-high)"'
   - name: advertised independent review skill is invoked
     expect_regex: '"name":"Skill","input":\{"skill":"independent-code-review"\}'
-  - name: owner route is transcript-verified once
-    expect_regex: '"type":"darrow.claude_route_observation"[^\n]*"status":"observed"[^\n]*"model":"claude-sonnet-5","effort":"low"[\s\S]*"type":"darrow.claude_route_confirmation"[^\n]*"status":"confirmed"'
+  - name: routed agent resolver confirms the selected route before launch
+    expect_regex: '"name":"Bash"[^\n]*"claude-agent-route"[\s\S]*format\\tdarrow-claude-agent-route-v1[\s\S]*selected_route\\tclaude\\tanthropic\\tclaude-sonnet-5\\tlow'
   - name: no lifecycle ledger or retired route gate is used
     not_regex: "adaptive-delivery-preflight step|Protocol ledger|claude-route-gate"

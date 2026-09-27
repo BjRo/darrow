@@ -3633,6 +3633,181 @@ test("Claude readiness stop uses complete native calls and intact events", async
   expect(forbidden.value.result.checks[6]!.status).toBe("failed");
 });
 
+test("Claude selected owner binds route, review, and parent handoff", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-claude-owner-"));
+  roots.push(root);
+  const resolved = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(projectRoot).href,
+      selectors: { caseIds: ["goal-review-high-selected-claude"] },
+      configuration: {},
+    }),
+  );
+  expect(resolved.code, resolved.stderr).toBe(0);
+  const selected = resolved.value.result.cases[0]!;
+  expect(selected.requiredEvidence).toEqual([
+    "sevro.claude.tool-calls",
+    "sevro.claude.events",
+  ]);
+  const ownerId = "tool-owner";
+  const marker = createHash("sha256")
+    .update("- phase: adaptive-delivery-owner")
+    .digest("hex");
+  const calls = [
+    {
+      ordinal: 2,
+      actor: "parent",
+      parentToolUseId: null,
+      name: "Agent",
+      toolUseId: ownerId,
+      subagentType: "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
+      runInBackground: false,
+      model: null,
+      promptSha256: marker,
+      promptFirstLineSha256: marker,
+    },
+    {
+      ordinal: 3,
+      actor: "nested",
+      parentToolUseId: ownerId,
+      name: "Skill",
+      skill: "independent-code-review",
+      invocation: "independent-code-review",
+    },
+  ];
+  const observations = (selectedCalls: unknown[]) => [
+    {
+      id: "sevro.claude.tool-calls",
+      source: "sevro.host.claude",
+      completeness: "complete",
+      data: {
+        method: "stream_tool_calls",
+        truncated: false,
+        calls: selectedCalls,
+      },
+    },
+    {
+      id: "sevro.observation.final-message",
+      source: "sevro.host.claude",
+      completeness: "complete",
+      data: { text: "Status: complete" },
+    },
+  ];
+  const event = (type: string, content: unknown[], parent?: string) => ({
+    type,
+    ...(parent ? { parent_tool_use_id: parent } : {}),
+    message: { content },
+  });
+  const route = {
+    type: "tool_use",
+    name: "Bash",
+    id: "tool-route",
+    input: {
+      command:
+        "uv run --quiet --no-project /tmp/darrow-adaptive-delivery/backend/scripts/run_locked.py claude-agent-route --provider anthropic --model claude-sonnet-5 --effort low",
+    },
+  };
+  const routeResult = {
+    type: "tool_result",
+    tool_use_id: "tool-route",
+    content: [
+      {
+        type: "text",
+        text:
+          "format\tdarrow-claude-agent-route-v1\n" +
+          "selected_route\tclaude\tanthropic\tclaude-sonnet-5\tlow\n" +
+          "subagent_type\tdarrow-adaptive-delivery:adaptive-delivery-sonnet-5-low\n" +
+          "agent_file\t/tmp/darrow-adaptive-delivery/agents/adaptive-delivery-sonnet-5-low.md\n",
+      },
+    ],
+  };
+  const events = [
+    event("assistant", [route]),
+    event("user", [routeResult]),
+    event("assistant", [
+      {
+        type: "tool_use",
+        name: "Agent",
+        id: ownerId,
+        input: {
+          subagent_type:
+            "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
+          run_in_background: false,
+          prompt: "- phase: adaptive-delivery-owner\nDo the task",
+        },
+      },
+    ]),
+    event(
+      "assistant",
+      [
+        {
+          type: "tool_use",
+          name: "Skill",
+          input: { skill: "independent-code-review" },
+        },
+      ],
+      ownerId,
+    ),
+    event("user", [
+      { type: "tool_result", tool_use_id: ownerId, content: "done" },
+    ]),
+    { type: "result" },
+  ];
+  const artifact = async (name: string, selectedEvents: unknown[]) => {
+    const content =
+      selectedEvents.map((entry) => JSON.stringify(entry)).join("\n") + "\n";
+    const path = join(root, name);
+    await writeFile(path, content);
+    return {
+      id: "sevro.claude.events",
+      path: pathToFileURL(path).href,
+      sha256: createHash("sha256").update(content).digest("hex"),
+    };
+  };
+  const evaluate = (selectedCalls: unknown[], selectedArtifacts: unknown[]) =>
+    command<{ result: { checks: Array<{ status: string }> } }>(
+      [process.execPath, extension],
+      request("evaluate", {
+        observations: observations(selectedCalls),
+        artifacts: selectedArtifacts,
+        extensionData: selected.extensionData,
+      }),
+    );
+  const clean = await artifact("clean.jsonl", events);
+  const passed = await evaluate(calls, [clean]);
+  expect(passed.code, passed.stderr).toBe(0);
+  expect(passed.value.result.checks.map((check) => check.status)).toEqual(
+    Array(8).fill("passed"),
+  );
+  const wrongMarker = await evaluate(
+    [{ ...calls[0], promptFirstLineSha256: "0".repeat(64) }, calls[1]],
+    [clean],
+  );
+  expect(wrongMarker.value.result.checks[3]!.status).toBe("failed");
+  const unboundReview = await evaluate(
+    [calls[0], { ...calls[1], parentToolUseId: "other-agent" }],
+    [clean],
+  );
+  expect(unboundReview.value.result.checks[5]!.status).toBe("failed");
+  const lateParent = await artifact("late.jsonl", [
+    ...events,
+    event("assistant", [{ type: "tool_use", name: "Bash", id: "late" }]),
+  ]);
+  const late = await evaluate(calls, [lateParent]);
+  expect(late.value.result.checks[1]!.status).toBe("failed");
+  const missing = await evaluate(calls, []);
+  expect(missing.value.result.checks[1]!.status).toBe("unavailable");
+  expect(missing.value.result.checks[6]!.status).toBe("unavailable");
+  const badRoute = await artifact("bad-route.jsonl", [
+    events[0],
+    event("user", [{ ...routeResult, is_error: true }]),
+    ...events.slice(2),
+  ]);
+  const rejected = await evaluate(calls, [badRoute]);
+  expect(rejected.value.result.checks[6]!.status).toBe("failed");
+});
+
 test("Darrow mounts sibling skills for a competition activation case", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-siblings-"));
   roots.push(root);

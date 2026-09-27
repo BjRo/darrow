@@ -176,6 +176,12 @@ observed order among supporting skills and fails closed on genuine conflicts.
 Parent-work flags retain an ordinal and allowlisted operation category so an
 unexpected control call can be distinguished from repository work without
 retaining private arguments, submitted commands, or output.
+For Claude selected-owner cases, the Darrow extension binds the foreground
+Agent call, its first-line marker, nested skill calls, and the route resolver's
+completed result to complete host evidence. The resolver must confirm the
+selected agent before launch. Missing or malformed evidence is unavailable;
+observed violations fail. Parent tool calls after the owner's result fail the
+handoff boundary. The full event artifact is digest-checked and stays local.
 
 Participant prompts that explicitly invoke the colocated skill use the shared
 `{{skill_invocation}}` placeholder. The runner resolves it only at trial time
