@@ -1446,6 +1446,226 @@ test("Darrow grades the selected Codex owner route from native acceptance", asyn
   ).toBe("failed");
 });
 
+test("Darrow grades completed independent readers through nested native receipts", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-readers-"));
+  roots.push(root);
+  const eventPath = join(root, "events.jsonl");
+  const eventText = "inspect-candidate\n";
+  await writeFile(eventPath, eventText);
+  const artifact = {
+    id: "sevro.codex.events",
+    path: pathToFileURL(eventPath).href,
+    sha256: createHash("sha256").update(eventText).digest("hex"),
+  };
+  const spec = {
+    requestedOrdinal: 0,
+    status: "accepted",
+    taskName: "spec_reader",
+    model: "gpt-6-luna",
+    reasoningEffort: "high",
+    forkTurns: "none",
+    agentRef: "/root/spec_reader",
+    threadId: "spec-thread",
+    sessionStatus: "available",
+    readerResultStatus: "completed",
+  };
+  const standards = {
+    ...spec,
+    requestedOrdinal: 3,
+    taskName: "standards_reader",
+    agentRef: "/root/standards_reader",
+    threadId: "standards-thread",
+  };
+  const native = {
+    id: "sevro.codex.native-calls",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "native_session",
+      calls: [
+        {
+          ordinal: 1,
+          namespace: "collaboration",
+          name: "spawn_agent",
+          evidence: "invocation_attempt",
+        },
+      ],
+      toolCalls: [
+        { ordinal: 1, namespace: "collaboration", name: "spawn_agent" },
+      ],
+      acceptedSpawns: [
+        {
+          requestedOrdinal: 1,
+          startedOrdinal: 2,
+          acceptedOrdinal: 3,
+          agentRef: "/root/provider",
+          threadId: "provider-thread",
+          forkTurns: "none",
+        },
+      ],
+      childSessions: [
+        {
+          threadId: "provider-thread",
+          status: "available",
+          resultStatus: "completed",
+          nestedSpawns: [spec],
+          requestsTruncated: false,
+        },
+      ],
+      childrenTruncated: false,
+      submittedExecCalls: 0,
+    },
+  };
+  const statuses = async (
+    selectedCase: ExtensionReply["result"]["cases"][number],
+    observation: unknown,
+    artifacts: unknown[] = [],
+  ) => {
+    const reply = await command<{
+      result: { checks: Array<{ id: string; status: string }> };
+      error?: { message: string };
+    }>(
+      [process.execPath, extension],
+      request("evaluate", {
+        extensionData: selectedCase.extensionData,
+        observations: observation ? [observation] : [],
+        artifacts,
+        builtinChecks: [],
+        execution: { status: "completed" },
+      }),
+    );
+    expect(reply.code, reply.stderr).toBe(0);
+    expect(reply.value.result, reply.value.error?.message).toBeDefined();
+    return reply.value.result.checks
+      .filter((check) => check.id.startsWith("darrow.evals.transcript."))
+      .map((check) => check.status);
+  };
+  for (const caseId of [
+    "verification-followup-clear",
+    "verification-followup-no-progress",
+    "verification-followup-progress",
+    "verification-followup-regression",
+  ]) {
+    const selected = await command<ExtensionReply>(
+      [process.execPath, extension],
+      request("resolve", {
+        projectRoot: pathToFileURL(projectRoot).href,
+        selectors: { caseIds: [caseId] },
+        configuration: {},
+      }),
+    );
+    expect(selected.code, selected.stderr).toBe(0);
+    const selectedCase = selected.value.result.cases[0]!;
+    expect(selectedCase.requiredEvidence).toContain("sevro.codex.native-calls");
+    expect(await statuses(selectedCase, native)).toEqual([
+      "passed",
+      "passed",
+      "passed",
+    ]);
+    expect(
+      (
+        await statuses(selectedCase, {
+          ...native,
+          data: {
+            ...native.data,
+            childSessions: [
+              {
+                ...native.data.childSessions[0],
+                nestedSpawns: [{ ...spec, readerResultStatus: "unavailable" }],
+              },
+            ],
+          },
+        })
+      )[0],
+    ).toBe("failed");
+    expect(
+      (
+        await statuses(selectedCase, {
+          ...native,
+          data: {
+            ...native.data,
+            childSessions: [
+              { ...native.data.childSessions[0], requestsTruncated: true },
+            ],
+          },
+        })
+      )[0],
+    ).toBe("unavailable");
+    if (caseId === "verification-followup-clear") {
+      expect(
+        (
+          await statuses(selectedCase, {
+            ...native,
+            data: {
+              ...native.data,
+              calls: [
+                ...native.data.calls,
+                {
+                  ordinal: 4,
+                  namespace: "collaboration",
+                  name: "spawn_agent",
+                  evidence: "invocation_attempt",
+                },
+              ],
+              toolCalls: [
+                ...native.data.toolCalls,
+                { ordinal: 4, namespace: "collaboration", name: "spawn_agent" },
+              ],
+            },
+          })
+        )[0],
+      ).toBe("unavailable");
+    }
+  }
+  const replacement = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(projectRoot).href,
+      selectors: { caseIds: ["verification-replacement"] },
+      configuration: {},
+    }),
+  );
+  expect(replacement.code, replacement.stderr).toBe(0);
+  const selectedCase = replacement.value.result.cases[0]!;
+  const dual = {
+    ...native,
+    data: {
+      ...native.data,
+      childSessions: [
+        { ...native.data.childSessions[0], nestedSpawns: [spec, standards] },
+      ],
+    },
+  };
+  expect(await statuses(selectedCase, dual, [artifact])).toEqual([
+    "passed",
+    "passed",
+    "passed",
+    "passed",
+  ]);
+  expect((await statuses(selectedCase, native, [artifact]))[0]).toBe("failed");
+  expect(
+    (
+      await statuses(
+        selectedCase,
+        {
+          ...dual,
+          data: {
+            ...dual.data,
+            childSessions: [
+              {
+                ...dual.data.childSessions[0],
+                nestedSpawns: [spec, { ...standards, forkTurns: "all" }],
+              },
+            ],
+          },
+        },
+        [artifact],
+      )
+    )[0],
+  ).toBe("failed");
+  expect((await statuses(selectedCase, dual))[1]).toBe("unavailable");
+});
+
 test("Darrow grades a resumed conversation and its unchanged workspace boundary", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-continuation-"));
   roots.push(root);

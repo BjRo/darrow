@@ -738,6 +738,11 @@ const OWNER_ROUTE_PATTERNS = new Map([
     { model: "gpt-6-astra", reasoningEffort: "high" },
   ],
 ]);
+const SPEC_NESTED_READER_PATTERN = String.raw`"type":"darrow.codex_native_nested_spawn"[^\n]*"status":"accepted"[^\n]*"review_axis":"spec"[^\n]*"fork_turns":"none"[^\n]*"session_status":"available"[^\n]*"reader_result_status":"completed"[^\n]*"children_truncated":false[^\n]*"requests_truncated":false|"name":"Agent"[\s\S]*"name":"Agent"`;
+const DUAL_NESTED_READER_PATTERN = String.raw`(?=[\s\S]*"type":"darrow.codex_native_nested_spawn"[^\n]*"status":"accepted"[^\n]*"review_axis":"standards"[^\n]*"fork_turns":"none"[^\n]*"session_status":"available"[^\n]*"reader_result_status":"completed"[^\n]*"children_truncated":false[^\n]*"requests_truncated":false)(?=[\s\S]*"type":"darrow.codex_native_nested_spawn"[^\n]*"status":"accepted"[^\n]*"review_axis":"spec"[^\n]*"fork_turns":"none"[^\n]*"session_status":"available"[^\n]*"reader_result_status":"completed"[^\n]*"children_truncated":false[^\n]*"requests_truncated":false)[\s\S]+|"name":"Agent"[\s\S]*"name":"Agent"[\s\S]*"name":"Agent"`;
+const NO_INHERITED_READER_CONTEXT_PATTERN = String.raw`"subagent_type":"fork"|"type":"darrow.codex_native_(nested_)?spawn"[^\n]*"fork_turns":"(all|[1-9][0-9]*)"`;
+const FRESH_PROVIDER_CONTEXT_PATTERN = String.raw`"type":"darrow.codex_native_spawn"[^\n]*"fork_turns":"none"|"name":"Agent"`;
+const ACCEPTED_CHILD_SESSION_PATTERN = String.raw`"type":"darrow.codex_native_child_skill_evidence"[^\n]*"actor":"accepted_child"[^\n]*"session_status":"available"|"name":"Agent"`;
 const DOCTOR_NO_ORCHESTRATION_PATTERN = String.raw`"skill":"adaptive-delivery"|adaptive-delivery-preflight|"tool":"spawn_agent"`;
 const DOCTOR_NO_ORCHESTRATION_AGENT_PATTERN = String.raw`"skill":"adaptive-delivery"|adaptive-delivery-preflight|"tool":"spawn_agent"|"name":"Agent"`;
 const DOCTOR_NO_PREFLIGHT_AGENT_PATTERN = String.raw`adaptive-delivery-preflight|"tool":"spawn_agent"|"name":"Agent"`;
@@ -885,7 +890,19 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
   ],
 ]);
 
+function readerTranscriptSelection(pattern: unknown) {
+  if (pattern === FRESH_PROVIDER_CONTEXT_PATTERN)
+    return { kind: "fresh-provider-context" };
+  if (pattern === ACCEPTED_CHILD_SESSION_PATTERN)
+    return { kind: "accepted-child-session" };
+  if (pattern === "inspect-candidate")
+    return { kind: "event-term", term: "inspect-candidate" };
+  return null;
+}
+
 function expectedTranscriptSelection(pattern: unknown) {
+  const reader = readerTranscriptSelection(pattern);
+  if (reader) return reader;
   const route = OWNER_ROUTE_PATTERNS.get(pattern as string);
   if (route) return { kind: "owner-route", ...route };
   if (ONE_OWNER_TRANSCRIPT_PATTERNS.has(pattern as string))
@@ -907,6 +924,17 @@ function expectedTranscriptSelection(pattern: unknown) {
   return null;
 }
 
+function nestedReaderSelection(check: RecordValue, id: string, name: string) {
+  if (check.not_regex !== NO_INHERITED_READER_CONTEXT_PATTERN) return null;
+  const axes =
+    check.expect_regex === SPEC_NESTED_READER_PATTERN
+      ? ["spec"]
+      : check.expect_regex === DUAL_NESTED_READER_PATTERN
+        ? ["standards", "spec"]
+        : null;
+  return axes ? { id, name, kind: "nested-readers", axes } : null;
+}
+
 function caseTranscriptCheck(entry: unknown, index: number) {
   const check = record(entry, `transcript check ${index + 1}`);
   keys(
@@ -917,6 +945,8 @@ function caseTranscriptCheck(entry: unknown, index: number) {
   const name = string(check.name, `transcript check ${index + 1} name`);
   const id = `darrow.evals.transcript.${index + 1}`;
   if (check.expect_regex !== undefined) {
+    const nested = nestedReaderSelection(check, id, name);
+    if (nested) return nested;
     const selection = expectedTranscriptSelection(check.expect_regex);
     if (selection && check.not_regex === undefined)
       return { id, name, ...selection };
@@ -1029,6 +1059,10 @@ const TRANSCRIPT_EVIDENCE = new Map([
   ["no-agent-spawn", ["sevro.codex.native-calls"]],
   ["one-owner-accepted", ["sevro.codex.native-calls"]],
   ["owner-route", ["sevro.codex.native-calls"]],
+  ["nested-readers", ["sevro.codex.native-calls"]],
+  ["fresh-provider-context", ["sevro.codex.native-calls"]],
+  ["accepted-child-session", ["sevro.codex.native-calls"]],
+  ["event-term", ["sevro.codex.events"]],
   ["no-lifecycle-ledger", ["sevro.codex.native-calls", "sevro.codex.events"]],
   ["owner-after-continuation", ["sevro.codex.native-calls"]],
   ["no-owner-before-continuation", ["sevro.codex.native-calls"]],
@@ -2428,6 +2462,101 @@ function nativeControlEvidence(observations: unknown) {
   };
 }
 
+function validChildSessionOrder(
+  children: Array<RecordValue | null>,
+  expected: unknown[],
+  truncated: boolean,
+): boolean {
+  return (
+    !expected.some((threadId) => typeof threadId !== "string") &&
+    truncated === expected.length > 8 &&
+    children.length === Math.min(expected.length, 8) &&
+    children.every((child, index) => child?.threadId === expected[index])
+  );
+}
+
+function boundChildSessions(
+  observations: unknown,
+  native: ReturnType<typeof nativeControlEvidence>,
+) {
+  if (!native) return null;
+  const observation = uniqueObservation(
+    observations,
+    "sevro.codex.native-calls",
+  );
+  const data = observation ? activationData(observation.data) : null;
+  if (
+    !Array.isArray(data?.childSessions) ||
+    typeof data.childrenTruncated !== "boolean"
+  )
+    return null;
+  const children = data.childSessions.map(activationData);
+  if (children.some((child) => !child)) return null;
+  const expected = [
+    ...new Set(native.acceptedSpawns.map((spawn) => spawn.threadId)),
+  ];
+  if (!validChildSessionOrder(children, expected, data.childrenTruncated))
+    return null;
+  return {
+    children: children as RecordValue[],
+    truncated: data.childrenTruncated,
+  };
+}
+
+function validNestedRequestFields(request: RecordValue): boolean {
+  return (
+    (request.taskName === undefined || typeof request.taskName === "string") &&
+    (request.forkTurns === undefined ||
+      (typeof request.forkTurns === "string" &&
+        /^(?:none|all|[1-9][0-9]*)$/.test(request.forkTurns))) &&
+    ["available", "unavailable", "ambiguous", "partial"].includes(
+      String(request.sessionStatus),
+    ) &&
+    ["completed", "unavailable"].includes(String(request.readerResultStatus))
+  );
+}
+
+function validNestedRequest(request: RecordValue): boolean {
+  return (
+    Number.isSafeInteger(request.requestedOrdinal) &&
+    (request.requestedOrdinal as number) >= 0 &&
+    ["accepted", "unaccepted"].includes(String(request.status)) &&
+    validNestedRequestFields(request) &&
+    (request.status !== "accepted" ||
+      (typeof request.agentRef === "string" &&
+        typeof request.threadId === "string"))
+  );
+}
+
+function completeNestedRequests(
+  bound: ReturnType<typeof boundChildSessions>,
+): RecordValue[] | null {
+  if (!bound || bound.truncated) return null;
+  const segments = bound.children.map((child) => {
+    if (
+      child.status !== "available" ||
+      child.requestsTruncated !== false ||
+      !Array.isArray(child.nestedSpawns)
+    )
+      return null;
+    const requests = child.nestedSpawns.map(activationData);
+    if (requests.some((request) => !request || !validNestedRequest(request)))
+      return null;
+    const ordinals = requests.map(
+      (request) => request!.requestedOrdinal as number,
+    );
+    if (
+      ordinals.some(
+        (ordinal, index) => index > 0 && ordinal <= ordinals[index - 1]!,
+      )
+    )
+      return null;
+    return requests as RecordValue[];
+  });
+  if (segments.some((segment) => !segment)) return null;
+  return segments.flat() as RecordValue[];
+}
+
 function completeTurnSkillSequence(data: RecordValue) {
   const skills = skillSequence(data.observedSkills);
   if (
@@ -2700,6 +2829,161 @@ function ownerRouteOutcome(
           : "failed",
     detail: "Graded from the accepted native owner model and effort",
     evidenceRefs: ["sevro.codex.native-calls"],
+  };
+}
+
+const REVIEW_AXIS_TOKENS = new Map([
+  ["standards", /(^|[-_])standards($|[-_])/],
+  ["spec", /(^|[-_])spec($|[-_])/],
+]);
+
+function nestedReviewAxis(taskName: unknown): string | null {
+  if (typeof taskName !== "string") return null;
+  const axes = [...REVIEW_AXIS_TOKENS].filter(([, pattern]) =>
+    pattern.test(taskName),
+  );
+  return axes.length === 1 ? axes[0]![0] : null;
+}
+
+function inheritedContextRequested(request: RecordValue): boolean {
+  return (
+    typeof request.forkTurns === "string" &&
+    /^(?:all|[1-9][0-9]*)$/.test(request.forkTurns)
+  );
+}
+
+function nestedAxisStatus(axis: string, requests: RecordValue[]) {
+  const matched = requests.filter(
+    (request) =>
+      request.status === "accepted" &&
+      nestedReviewAxis(request.taskName) === axis,
+  );
+  if (!matched.length)
+    return requests.some(
+      (request) =>
+        request.status === "accepted" &&
+        nestedReviewAxis(request.taskName) === null,
+    )
+      ? "unavailable"
+      : "failed";
+  if (
+    matched.some(
+      (request) =>
+        request.forkTurns === "none" &&
+        request.sessionStatus === "available" &&
+        request.readerResultStatus === "completed",
+    )
+  )
+    return "passed";
+  return matched.some(
+    (request) =>
+      request.forkTurns === undefined || request.sessionStatus !== "available",
+  )
+    ? "unavailable"
+    : "failed";
+}
+
+function nestedReadersOutcome(
+  selected: RecordValue,
+  native: ReturnType<typeof nativeControlEvidence>,
+  nested: RecordValue[] | null,
+) {
+  if (
+    !Array.isArray(selected.axes) ||
+    !selected.axes.every((axis) => axis === "spec" || axis === "standards")
+  )
+    throw new Error("nested reader axes are invalid");
+  if (!native || !nested)
+    return {
+      status: "unavailable",
+      detail: "Complete native nested-reader evidence required",
+      evidenceRefs: [],
+    };
+  const inherited =
+    native.acceptedSpawns.some(inheritedContextRequested) ||
+    nested.some(inheritedContextRequested);
+  if (inherited)
+    return {
+      status: "failed",
+      detail: "Inherited context was requested for a provider or reader",
+      evidenceRefs: ["sevro.codex.native-calls"],
+    };
+  if (native.spawnCount !== native.acceptedSpawnCount)
+    return {
+      status: "unavailable",
+      detail:
+        "An unaccepted provider request has no retained context-fork field",
+      evidenceRefs: ["sevro.codex.native-calls"],
+    };
+  const statuses = (selected.axes as string[]).map((axis) =>
+    nestedAxisStatus(axis, nested),
+  );
+  return {
+    status: statuses.includes("failed")
+      ? "failed"
+      : statuses.includes("unavailable")
+        ? "unavailable"
+        : "passed",
+    detail: "Graded from accepted nested readers and fresh-context receipts",
+    evidenceRefs: ["sevro.codex.native-calls"],
+  };
+}
+
+function freshProviderContextOutcome(
+  native: ReturnType<typeof nativeControlEvidence>,
+) {
+  if (!native)
+    return {
+      status: "unavailable",
+      detail: "Complete native owner evidence required",
+      evidenceRefs: [],
+    };
+  const spawns = native.acceptedSpawns;
+  return {
+    status: spawns.some((spawn) => spawn.forkTurns === "none")
+      ? "passed"
+      : native.spawnCount !== native.acceptedSpawnCount
+        ? "unavailable"
+        : spawns.some((spawn) => spawn.forkTurns === undefined)
+          ? "unavailable"
+          : "failed",
+    detail: "Graded from the accepted provider context-fork request",
+    evidenceRefs: ["sevro.codex.native-calls"],
+  };
+}
+
+function acceptedChildSessionOutcome(
+  bound: ReturnType<typeof boundChildSessions>,
+) {
+  if (!bound)
+    return {
+      status: "unavailable",
+      detail: "Bound native child-session evidence required",
+      evidenceRefs: [],
+    };
+  return {
+    status: bound.children.some((child) => child.status === "available")
+      ? "passed"
+      : bound.children.length > 0 || bound.truncated
+        ? "unavailable"
+        : "failed",
+    detail: "Graded from the accepted provider child session",
+    evidenceRefs: ["sevro.codex.native-calls"],
+  };
+}
+
+function eventTermOutcome(selected: RecordValue, events: string | null) {
+  if (selected.term !== "inspect-candidate")
+    throw new Error("event term check configuration is invalid");
+  return {
+    status:
+      events === null
+        ? "unavailable"
+        : events.includes(selected.term)
+          ? "passed"
+          : "failed",
+    detail: "Graded from the digest-verified Codex event artifact",
+    evidenceRefs: events === null ? [] : ["sevro.codex.events"],
   };
 }
 
@@ -3005,10 +3289,20 @@ function policyTranscriptOutcome(
   selected: RecordValue,
   context: {
     native: ReturnType<typeof nativeControlEvidence>;
+    nested: RecordValue[] | null;
+    children: ReturnType<typeof boundChildSessions>;
     skills: ReturnType<typeof observedActivation>;
     events: string | null;
   },
 ) {
+  if (selected.kind === "nested-readers")
+    return nestedReadersOutcome(selected, context.native, context.nested);
+  if (selected.kind === "fresh-provider-context")
+    return freshProviderContextOutcome(context.native);
+  if (selected.kind === "accepted-child-session")
+    return acceptedChildSessionOutcome(context.children);
+  if (selected.kind === "event-term")
+    return eventTermOutcome(selected, context.events);
   if (selected.kind === "inactive-controls")
     return inactiveControlsOutcome(
       selected,
@@ -3030,6 +3324,8 @@ function transcriptOutcome(
   selected: RecordValue,
   context: {
     native: ReturnType<typeof nativeControlEvidence>;
+    nested: RecordValue[] | null;
+    children: ReturnType<typeof boundChildSessions>;
     events: string | null;
     continuation: ReturnType<typeof continuationEvidence>;
     skills: ReturnType<typeof observedActivation>;
@@ -3077,11 +3373,27 @@ const CONTINUATION_EVIDENCE_KINDS = new Set([
   "skill-absent-after-continuation",
 ]);
 
+function readerObservationContext(
+  kinds: Set<string>,
+  observations: unknown,
+  native: ReturnType<typeof nativeControlEvidence>,
+) {
+  const children =
+    kinds.has("nested-readers") || kinds.has("accepted-child-session")
+      ? boundChildSessions(observations, native)
+      : null;
+  const nested = kinds.has("nested-readers")
+    ? completeNestedRequests(children)
+    : null;
+  return { children, nested };
+}
+
 function transcriptObservationContext(
   kinds: Set<string>,
   observations: unknown,
 ) {
   const native = nativeControlEvidence(observations);
+  const reader = readerObservationContext(kinds, observations, native);
   const feedback =
     kinds.has("same-owner-feedback") ||
     kinds.has("no-plaintext-feedback-mismatch")
@@ -3105,7 +3417,15 @@ function transcriptObservationContext(
   )
     ? continuationEvidence(observations)
     : null;
-  return { native, feedback, skills, initial, followUp, continuation };
+  return {
+    native,
+    ...reader,
+    feedback,
+    skills,
+    initial,
+    followUp,
+    continuation,
+  };
 }
 
 async function nativeTranscriptChecks(
@@ -3121,7 +3441,9 @@ async function nativeTranscriptChecks(
   );
   const kinds = new Set(selected.map((entry) => String(entry.kind)));
   const events =
-    kinds.has("no-lifecycle-ledger") || kinds.has("inactive-controls")
+    kinds.has("no-lifecycle-ledger") ||
+    kinds.has("inactive-controls") ||
+    kinds.has("event-term")
       ? await codexEventText(artifacts)
       : null;
   const context = {

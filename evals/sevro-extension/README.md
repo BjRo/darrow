@@ -109,6 +109,11 @@ bounded model and reasoning-effort receipt with the case's declared route.
 Missing route fields leave that assertion unavailable; a different retained
 route fails it. The bounded native-goal case also checks for a second accepted
 owner or replacement attempt through complete native calls.
+Verification cases use Sevro's accepted provider child and nested reader
+receipts. Darrow interprets bounded task names for the `standards` and `spec`
+axes, requires a fresh context and a completed returned reader turn, and leaves
+truncated or missing sessions unavailable. The replacement case retains its
+declared provider-name check against the digest-verified Codex event artifact.
 Advice-only blocked retries and missing or ambiguous ticket cases use the same
 verified events to reject forbidden delegation. The blocked retries also
 require complete native-call evidence; ticket cases require complete skill-read
