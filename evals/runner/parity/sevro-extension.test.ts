@@ -68,6 +68,7 @@ interface ExtensionReply {
         "darrow.case": {
           invariant: string;
           activation?: { class: string; targetSkill: string };
+          setupDigest?: string;
         };
       };
     }>;
@@ -100,7 +101,7 @@ function request(method: string, params: Record<string, unknown>) {
   };
 }
 
-test("Darrow extension resolves an existing skill-free case and rejects unsupported setup", async () => {
+test("Darrow extension resolves supported cases and rejects unsupported fixtures", async () => {
   const describe = await command<ExtensionReply>(
     [process.execPath, extension],
     request("describe", {}),
@@ -1079,5 +1080,112 @@ test("Darrow command reserves extension and identity options", () => {
   ).toThrow(/owned by Darrow/);
   expect(() => invocation([...args, "--extension-command-file=other"])).toThrow(
     /owned by Darrow/,
+  );
+});
+
+test("Darrow fixture setup runs through Sevro and rejects changed source", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-setup-"));
+  roots.push(root);
+  const cases = join(root, "evals/experiments/example/cases");
+  await mkdir(cases, { recursive: true });
+  const caseFile = join(cases, "setup.yaml");
+  const definition = {
+    id: "setup-case",
+    invariant: "EXAMPLE-S1",
+    prompt: "Return ready.",
+    fixture: {
+      commits: [{ message: "Initialize", files: { "README.md": "fixture\n" } }],
+      setup:
+        'test -f "{{case_dir}}/setup.yaml" && printf "setup\\n" > SETUP.txt',
+    },
+    checks: [{ name: "setup result", run: "test -f SETUP.txt" }],
+    output_checks: [{ name: "response", expect_exact: "ready" }],
+  };
+  await writeFile(caseFile, JSON.stringify(definition));
+  const resolveParams = {
+    projectRoot: pathToFileURL(root).href,
+    selectors: { caseIds: ["setup-case"] },
+    configuration: {},
+  };
+  const resolved = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", resolveParams),
+  );
+  expect(resolved.code, resolved.stderr).toBe(0);
+  expect(
+    resolved.value.result.cases[0]!.extensionData["darrow.case"].setupDigest,
+  ).toMatch(/^[a-f0-9]{64}$/);
+  const prepareParams = {
+    case: resolved.value.result.cases[0],
+    host: { id: "darrow.host.synthetic", capabilities: [] },
+    condition: "passive",
+    configuration: {},
+  };
+  const prepared = await command<{
+    result: {
+      fixtureSetup: { command: string[]; environment: Record<string, string> };
+    };
+  }>([process.execPath, extension], request("prepare", prepareParams));
+  expect(prepared.code, JSON.stringify(prepared.value)).toBe(0);
+  expect(prepared.value.result.fixtureSetup).toMatchObject({
+    command: [
+      "/bin/bash",
+      "-c",
+      expect.stringContaining("$DARROW_EVAL_CASE_DIR"),
+    ],
+    environment: {
+      DARROW_EVAL_CASE_DIR: "{{sevro.project}}/evals/experiments/example/cases",
+    },
+  });
+  await writeFile(
+    caseFile,
+    JSON.stringify({
+      ...definition,
+      fixture: { ...definition.fixture, setup: "exit 0" },
+    }),
+  );
+  const changed = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("prepare", prepareParams),
+  );
+  expect(changed.value.error.message).toMatch(/changed after resolution/);
+  await writeFile(caseFile, JSON.stringify(definition));
+  const adapter = join(root, "candidate.ts");
+  await writeFile(
+    adapter,
+    `export default {
+  id: "darrow.host.synthetic", model: "synthetic-v1", effort: "none",
+  async run({ workspace }) {
+    if ((await Bun.file(workspace + "/SETUP.txt").text()) !== "setup\\n") throw new Error("setup missing");
+    return { finalMessage: "ready", complete: true };
+  },
+};
+`,
+  );
+  const run = await command<CliReply>([
+    process.execPath,
+    resolve(import.meta.dir, "../../sevro-extension/run.ts"),
+    "--case-id",
+    "setup-case",
+    "--project-root",
+    root,
+    "--results-root",
+    join(root, "results"),
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+    "--condition",
+    "passive",
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+  ]);
+  expect(run.code, run.stderr).toBe(0);
+  expect(run.value.task.verdict).toBe("passed");
+  const evidence = JSON.parse(await readFile(run.value.evidencePath, "utf8"));
+  expect(evidence.configuration.redacted.fixtureSetupDigest).toMatch(
+    /^[a-f0-9]{64}$/,
   );
 });

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { createHash } from "node:crypto";
 import { readFile, readdir, realpath, stat } from "node:fs/promises";
-import { isAbsolute, join, relative, sep } from "node:path";
+import { dirname, isAbsolute, join, relative, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parse as parseYaml } from "yaml";
 
@@ -61,7 +61,11 @@ function fixtureOverlay(fixture: RecordValue) {
 
 function generatedFixture(value: unknown) {
   const fixture = record(value, "fixture");
-  keys(fixture, ["commits", "files", "staged", "commit_files"], "fixture");
+  keys(
+    fixture,
+    ["commits", "files", "staged", "commit_files", "setup"],
+    "fixture",
+  );
   if (!Array.isArray(fixture.commits) || !fixture.commits.length)
     throw new Error("case needs a generated Git history");
   const commits = fixture.commits.map((entry, index) => {
@@ -76,6 +80,25 @@ function generatedFixture(value: unknown) {
     kind: "generated",
     commits,
     ...fixtureOverlay(fixture),
+  };
+}
+
+function fixtureSetupScript(fixture: RecordValue): string | null {
+  if (fixture.setup === undefined) return null;
+  const script = string(fixture.setup, "fixture setup");
+  if (Buffer.byteLength(script, "utf8") > 60 * 1024)
+    throw new Error("fixture setup exceeds the size limit");
+  return script;
+}
+
+function caseFixture(value: unknown) {
+  const fixture = record(value, "fixture");
+  const setup = fixtureSetupScript(fixture);
+  return {
+    fixture: generatedFixture(fixture),
+    ...(setup
+      ? { setupDigest: createHash("sha256").update(setup).digest("hex") }
+      : {}),
   };
 }
 
@@ -328,29 +351,28 @@ function casePrompt(value: unknown) {
   return prompt.replaceAll("{{repo_dir}}", "{{sevro.workspace}}");
 }
 
+const CASE_FIELDS = [
+  "id",
+  "invariant",
+  "prompt",
+  "fixture",
+  "checks",
+  "output_checks",
+  "semantic_output_checks",
+  "activation",
+  "activation_sequence",
+  "activation_includes",
+  "activation_excludes",
+  "mount_plugin_skills",
+];
+
 function neutralCase(value: unknown, source: string, root: string) {
   const selected = record(value, "case");
-  keys(
-    selected,
-    [
-      "id",
-      "invariant",
-      "prompt",
-      "fixture",
-      "checks",
-      "output_checks",
-      "semantic_output_checks",
-      "activation",
-      "activation_sequence",
-      "activation_includes",
-      "activation_excludes",
-      "mount_plugin_skills",
-    ],
-    "case",
-  );
+  keys(selected, CASE_FIELDS, "case");
   const id = string(selected.id, "case ID");
   const prompt = casePrompt(selected.prompt);
   const invariant = string(selected.invariant, "case invariant");
+  const { fixture, ...setup } = caseFixture(selected.fixture);
   const { skillDir, mountPluginSkills, ...mount } = caseMount(
     selected.mount_plugin_skills,
     source,
@@ -364,13 +386,15 @@ function neutralCase(value: unknown, source: string, root: string) {
   return {
     id,
     prompt,
-    fixture: generatedFixture(selected.fixture),
+    fixture,
     checks,
     requiredEvidence: [],
     extensionData: {
       "darrow.case": {
         invariant,
         source,
+        projectRoot: pathToFileURL(root).href,
+        ...setup,
         ...mount,
         ...caseActivation(selected, skillDir, mountPluginSkills),
         checkNames: checkNames(selected),
@@ -527,13 +551,49 @@ async function skillArtifacts(
   return artifacts;
 }
 
+async function caseSetup(details: RecordValue, caseId: string) {
+  if (details.setupDigest === undefined) return null;
+  const rootUrl = string(details.projectRoot, "case project root");
+  if (!rootUrl.startsWith("file:///"))
+    throw new Error("case project root must be a file URL");
+  const root = await realpath(fileURLToPath(rootUrl));
+  const source = string(details.source, "case source");
+  if (
+    isAbsolute(source) ||
+    source.split("/").some((part) => !part || part === "." || part === "..")
+  )
+    throw new Error("case source path is invalid");
+  const path = await realpath(join(root, source));
+  if (!within(root, path))
+    throw new Error("case source escapes the project root");
+  const selected = record(parseYaml(await readFile(path, "utf8")), "case");
+  if (selected.id !== caseId)
+    throw new Error("case source changed after resolution");
+  const script = fixtureSetupScript(record(selected.fixture, "fixture"));
+  const actualDigest = script
+    ? createHash("sha256").update(script).digest("hex")
+    : null;
+  if (!script || actualDigest !== details.setupDigest)
+    throw new Error("fixture setup changed after resolution");
+  return {
+    command: [
+      "/bin/bash",
+      "-c",
+      script.replaceAll("{{case_dir}}", "$DARROW_EVAL_CASE_DIR"),
+    ],
+    environment: {
+      DARROW_EVAL_CASE_DIR: `{{sevro.project}}/${dirname(source).split(sep).join("/")}`,
+    },
+  };
+}
+
 async function prepareCase(params: RecordValue) {
   const selected = record(params.case, "prepared case");
   const data = record(selected.extensionData, "case extension data");
   const details = record(data["darrow.case"], "Darrow case data");
-  if (details.mount === undefined)
-    return { artifacts: [], requestedInstrumentation: [], extensionData: {} };
-  const sources = await skillMountSource(details);
+  const setup = await caseSetup(details, string(selected.id, "case ID"));
+  const sources =
+    details.mount === undefined ? [] : await skillMountSource(details);
   if (details.activation !== undefined) {
     const expected = activationExpectation(details.activation);
     for (const skill of [
@@ -549,7 +609,12 @@ async function prepareCase(params: RecordValue) {
     }
   }
   const artifacts = await skillArtifacts(sources);
-  return { artifacts, requestedInstrumentation: [], extensionData: {} };
+  return {
+    artifacts,
+    requestedInstrumentation: [],
+    ...(setup ? { fixtureSetup: setup } : {}),
+    extensionData: {},
+  };
 }
 
 function within(root: string, path: string): boolean {
@@ -761,7 +826,7 @@ try {
           extension: { id: "darrow.evals", version: "0.1.0" },
           protocols: ["sevro.extension.v1"],
           requiredCapabilities: ["sevro.host.exec"],
-          optionalCapabilities: [],
+          optionalCapabilities: ["sevro.fixture.setup"],
           graders: [],
           taskVerdictPolicies: [],
         }
