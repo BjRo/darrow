@@ -346,6 +346,248 @@ test("Darrow activation needs a complete and consistent host observation", async
   expect(negative.value.result.domainOutcomes[0]!.status).toBe("failed");
 });
 
+test("Darrow ownership checks use complete native evidence without private task content", async () => {
+  const resolved = await command<{
+    result: {
+      cases: Array<{
+        checks: Array<{ id: string; grader: string }>;
+        requiredEvidence: string[];
+        extensionData: Record<string, unknown>;
+      }>;
+    };
+  }>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(projectRoot).href,
+      selectors: { caseIds: ["goal-verification-clear-first"] },
+      configuration: {},
+    }),
+  );
+  expect(resolved.code, resolved.stderr).toBe(0);
+  const selected = resolved.value.result.cases[0]!;
+  expect(selected.requiredEvidence).toEqual(["sevro.codex.native-calls"]);
+  expect(
+    selected.checks.filter(
+      (check) => check.grader === "darrow.evals.ownership",
+    ),
+  ).toHaveLength(3);
+  const prepareParams = {
+    case: selected,
+    host: {
+      id: "sevro.host.codex",
+      capabilities: [
+        "sevro.codex.plugin-marketplace",
+        "sevro.codex.explicit-invocation",
+        "sevro.codex.native-calls",
+      ],
+    },
+    condition: "passive",
+    configuration: {},
+  };
+  const prepared = await command<{ result: { artifacts: unknown[] } }>(
+    [process.execPath, extension],
+    request("prepare", prepareParams),
+  );
+  expect(prepared.value.result.artifacts.length).toBeGreaterThan(0);
+  const missingCapability = await command<{ error: { message: string } }>(
+    [process.execPath, extension],
+    request("prepare", {
+      ...prepareParams,
+      host: { ...prepareParams.host, capabilities: [] },
+    }),
+  );
+  expect(missingCapability.value.error.message).toMatch(/native-call evidence/);
+  const native = {
+    id: "sevro.codex.native-calls",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "native_session",
+      calls: [],
+      toolCalls: [],
+      acceptedSpawns: [],
+      submittedExecCalls: 0,
+    },
+  };
+  const final = {
+    id: "sevro.observation.final-message",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: { text: "Proceed toward completion." },
+  };
+  const evaluate = (observations: unknown[]) =>
+    command<{
+      result: { checks: Array<{ id: string; status: string }> };
+    }>(
+      [process.execPath, extension],
+      request("evaluate", {
+        observations,
+        extensionData: selected.extensionData,
+      }),
+    );
+  const noOwner = await evaluate([native, final]);
+  expect(noOwner.value.result.checks.map((check) => check.status)).toEqual([
+    "passed",
+    "passed",
+    "passed",
+  ]);
+  const accepted = {
+    ...native,
+    data: {
+      ...native.data,
+      toolCalls: [
+        { ordinal: 0, namespace: "collaboration", name: "spawn_agent" },
+        {
+          ordinal: 3,
+          namespace: "collaboration",
+          name: "send_message",
+          target: "/root/owner",
+        },
+        { ordinal: 4, namespace: "collaboration", name: "wait_agent" },
+      ],
+      acceptedSpawns: [
+        {
+          requestedOrdinal: 0,
+          startedOrdinal: 1,
+          acceptedOrdinal: 2,
+          agentRef: "/root/owner",
+        },
+      ],
+    },
+  };
+  const allowed = await evaluate([accepted, final]);
+  expect(allowed.value.result.checks.map((check) => check.status)).toEqual([
+    "passed",
+    "passed",
+    "passed",
+  ]);
+  const parentWork = await evaluate([
+    {
+      ...accepted,
+      data: {
+        ...accepted.data,
+        toolCalls: [
+          ...accepted.data.toolCalls,
+          { ordinal: 5, namespace: "other", name: "exec" },
+        ],
+      },
+    },
+    final,
+  ]);
+  expect(parentWork.value.result.checks[1]?.status).toBe("failed");
+  const wrongTarget = await evaluate([
+    {
+      ...accepted,
+      data: {
+        ...accepted.data,
+        toolCalls: [
+          accepted.data.toolCalls[0],
+          {
+            ordinal: 3,
+            namespace: "collaboration",
+            name: "send_message",
+            target: "/root/other",
+          },
+        ],
+      },
+    },
+    final,
+  ]);
+  expect(wrongTarget.value.result.checks[1]?.status).toBe("failed");
+  const replacement = await evaluate([
+    {
+      ...accepted,
+      data: {
+        ...accepted.data,
+        toolCalls: [
+          ...accepted.data.toolCalls,
+          { ordinal: 5, namespace: "collaboration", name: "spawn_agent" },
+        ],
+      },
+    },
+    final,
+  ]);
+  expect(replacement.value.result.checks[0]?.status).toBe("failed");
+  const incomplete = await evaluate([
+    { ...native, completeness: "partial" },
+    final,
+  ]);
+  expect(
+    incomplete.value.result.checks.slice(0, 2).map((check) => check.status),
+  ).toEqual(["unavailable", "unavailable"]);
+  const malformed = await evaluate([
+    { ...native, data: { ...native.data, toolCalls: [null] } },
+    final,
+  ]);
+  expect(
+    malformed.value.result.checks.slice(0, 2).map((check) => check.status),
+  ).toEqual(["unavailable", "unavailable"]);
+  const internalRecord = await evaluate([
+    native,
+    { ...final, data: { text: "format\tdarrow-native-goal-v1" } },
+  ]);
+  expect(internalRecord.value.result.checks[2]?.status).toBe("failed");
+});
+
+test("Sevro grades an existing Darrow ownership case through its public CLI", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-ownership-"));
+  roots.push(root);
+  const commandFile = join(root, "extension-command.json");
+  const adapter = join(root, "candidate.ts");
+  await writeFile(commandFile, JSON.stringify([process.execPath, extension]));
+  await writeFile(
+    adapter,
+    `export default {
+  id: "sevro.host.codex", model: "synthetic-v1", effort: "none",
+  hostCapabilities: ["sevro.codex.native-calls"],
+  async run() {
+    return {
+      finalMessage: "format: darrow-adaptive-delivery-authority-stop-v1\\nstatus: invocation_required\\nreason: explicit-orchestration-entrypoint-required",
+      complete: true,
+      observations: [{
+        id: "sevro.codex.native-calls", completeness: "complete",
+        data: { method: "native_session", calls: [], toolCalls: [], acceptedSpawns: [], submittedExecCalls: 0 },
+      }],
+    };
+  },
+};
+`,
+  );
+  const route = sevroCommand();
+  const run = await command<CliReply>([
+    ...route.launch,
+    "run",
+    "--json",
+    ...route.extraArgs,
+    "--extension-command-file",
+    commandFile,
+    "--extension-source-file",
+    extension,
+    "--case-id",
+    "goal-preflight-authority-stop-non-orchestration-parent",
+    "--project-root",
+    projectRoot,
+    "--adapter-module",
+    adapter,
+    "--condition",
+    "passive",
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--shell-isolation",
+    "--results-root",
+    join(root, "results"),
+  ]);
+  expect(run.code, run.stderr).toBe(0);
+  expect(run.value.task.verdict).toBe("passed");
+  expect(
+    run.value.cases[0]!.trials[0]!.checks.filter((check) =>
+      check.id.startsWith("darrow.evals.ownership."),
+    ).map((check) => check.status),
+  ).toEqual(["passed", "passed", "passed"]);
+});
+
 test("Darrow mounts sibling skills for a competition activation case", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-siblings-"));
   roots.push(root);

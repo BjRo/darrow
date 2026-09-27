@@ -70,6 +70,15 @@ Other case fields and fixture mechanics fail explicitly. The legacy
 `{{repo_dir}}` prompt token maps to Sevro's per-trial
 workspace token. Other prompt templates still fail explicitly.
 
+Adaptive-delivery cases that declare `goal_route_checks: false` and the
+forbidden goal-report policy now retain their ownership checks through the
+Sevro extension. A complete Codex native-call observation is required. The
+extension checks that no replacement owner launched, that later parent calls
+only waited or addressed the accepted child, and that the final answer omitted
+internal goal records. Missing or partial host evidence leaves those checks
+unavailable. Cases with transcript checks or full goal-route reports remain
+unsupported until their distinct evidence can be translated.
+
 For local protocol and public CLI validation, run:
 
 ```sh

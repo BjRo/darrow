@@ -660,7 +660,37 @@ const CASE_FIELDS = [
   "mount_plugin_skills",
   "additional_plugins",
   "additional_skills",
+  "goal_report",
+  "goal_route_checks",
 ];
+
+const OWNERSHIP_CHECKS = [
+  "darrow.evals.ownership.single-owner",
+  "darrow.evals.ownership.parent-work",
+  "darrow.evals.ownership.internal-record",
+] as const;
+
+function caseOwnership(selected: RecordValue, skillDir: string | null) {
+  if (
+    selected.goal_report === undefined &&
+    selected.goal_route_checks === undefined
+  )
+    return null;
+  if (
+    !skillDir?.endsWith("/adaptive-delivery") ||
+    selected.goal_route_checks !== false ||
+    (selected.goal_report !== undefined && selected.goal_report !== "forbidden")
+  )
+    throw new Error("case goal policy is unsupported by the Sevro extension");
+  return {
+    checks: OWNERSHIP_CHECKS.map((id) => ({
+      id,
+      grader: "darrow.evals.ownership",
+      configuration: {},
+    })),
+    requiredEvidence: ["sevro.codex.native-calls"],
+  };
+}
 
 async function caseChecks(
   selected: RecordValue,
@@ -696,14 +726,18 @@ async function neutralCase(value: unknown, source: string, root: string) {
     selected.prompt,
     invocation ? "{{sevro.codex.skill_invocation}}" : null,
   );
-  const checks = await caseChecks(selected, root, skillDir);
+  const ownership = caseOwnership(selected, skillDir);
+  const checks = [
+    ...(await caseChecks(selected, root, skillDir)),
+    ...(ownership?.checks ?? []),
+  ];
   const checkMetrics = caseCheckMetrics(selected);
   return {
     id,
     prompt,
     fixture,
     checks,
-    requiredEvidence: [],
+    requiredEvidence: ownership?.requiredEvidence ?? [],
     extensionData: {
       "darrow.case": {
         invariant,
@@ -713,6 +747,7 @@ async function neutralCase(value: unknown, source: string, root: string) {
         ...mount,
         ...additionalMounts,
         ...(invocation ? { invocation } : {}),
+        ...(ownership ? { ownership: true } : {}),
         ...caseActivation(selected, skillDir, mountPluginSkills),
         checkNames: checkNames(selected),
         ...(checkMetrics.length ? { checkMetrics } : {}),
@@ -1380,6 +1415,15 @@ async function prepareCase(params: RecordValue) {
   const selected = record(params.case, "prepared case");
   const data = record(selected.extensionData, "case extension data");
   const details = record(data["darrow.case"], "Darrow case data");
+  if (details.ownership === true) {
+    const host = record(params.host, "candidate host");
+    if (
+      host.id !== "sevro.host.codex" ||
+      !Array.isArray(host.capabilities) ||
+      !host.capabilities.includes("sevro.codex.native-calls")
+    )
+      throw new Error("ownership checks require Codex native-call evidence");
+  }
   const setup = await caseSetup(details, string(selected.id, "case ID"));
   return {
     ...(await preparedMounts(details, params.host)),
@@ -1565,6 +1609,196 @@ function activationOutcomeData(
   };
 }
 
+function uniqueObservation(value: unknown, id: string): RecordValue | null {
+  if (!Array.isArray(value))
+    throw new Error("evaluation observations must be an array");
+  const matches = value.filter(
+    (item) => item && typeof item === "object" && item.id === id,
+  );
+  return matches.length === 1 ? record(matches[0], id) : null;
+}
+
+function validNativeToolCall(
+  item: RecordValue,
+  index: number,
+  calls: RecordValue[],
+): boolean {
+  return (
+    Number.isSafeInteger(item.ordinal) &&
+    (item.ordinal as number) >= 0 &&
+    (index === 0 ||
+      (item.ordinal as number) > (calls[index - 1]!.ordinal as number)) &&
+    ["functions", "collaboration", "clock", "other"].includes(
+      String(item.namespace),
+    ) &&
+    typeof item.name === "string"
+  );
+}
+
+function validAcceptedSpawn(item: RecordValue, calls: RecordValue[]): boolean {
+  return (
+    Number.isSafeInteger(item.requestedOrdinal) &&
+    Number.isSafeInteger(item.startedOrdinal) &&
+    Number.isSafeInteger(item.acceptedOrdinal) &&
+    (item.requestedOrdinal as number) < (item.startedOrdinal as number) &&
+    (item.startedOrdinal as number) < (item.acceptedOrdinal as number) &&
+    typeof item.agentRef === "string" &&
+    calls.some(
+      (call) =>
+        call.ordinal === item.requestedOrdinal &&
+        call.namespace === "collaboration" &&
+        call.name === "spawn_agent",
+    )
+  );
+}
+
+function nativeOwnershipEntries(data: RecordValue | null) {
+  if (
+    data?.method !== "native_session" ||
+    !Array.isArray(data.toolCalls) ||
+    !Array.isArray(data.acceptedSpawns) ||
+    data.toolCalls.some((item) => !activationData(item)) ||
+    data.acceptedSpawns.some((item) => !activationData(item))
+  )
+    return null;
+  const calls = data.toolCalls as RecordValue[];
+  const spawns = data.acceptedSpawns as RecordValue[];
+  if (
+    !calls.every(validNativeToolCall) ||
+    !spawns.every((item) => validAcceptedSpawn(item, calls))
+  )
+    return null;
+  return { calls, spawns };
+}
+
+function nativeOwnershipEvidence(value: unknown) {
+  const observation = uniqueObservation(value, "sevro.codex.native-calls");
+  if (
+    observation?.source !== "sevro.host.codex" ||
+    observation.completeness !== "complete"
+  )
+    return null;
+  return nativeOwnershipEntries(activationData(observation.data));
+}
+
+function ownershipCheck(
+  id: (typeof OWNERSHIP_CHECKS)[number],
+  status: "passed" | "failed" | "unavailable",
+  evidenceRef: string | null,
+  detail: string,
+) {
+  return {
+    id,
+    status,
+    detail,
+    evidenceRefs: evidenceRef ? [evidenceRef] : [],
+  };
+}
+
+function sameChildTarget(target: unknown, agentRef: string): boolean {
+  return (
+    target === agentRef ||
+    (agentRef.startsWith("/root/") &&
+      !agentRef.slice("/root/".length).includes("/") &&
+      target === agentRef.slice("/root/".length))
+  );
+}
+
+function parentWorkAfterAcceptance(
+  calls: RecordValue[],
+  accepted: RecordValue,
+): boolean {
+  return calls.some((call) => {
+    if ((call.ordinal as number) <= (accepted.acceptedOrdinal as number))
+      return false;
+    if (call.namespace !== "collaboration") return true;
+    if (call.name === "wait_agent") return false;
+    if (
+      ["followup_task", "send_message", "interrupt_agent"].includes(
+        String(call.name),
+      )
+    )
+      return !sameChildTarget(call.target, accepted.agentRef as string);
+    return true;
+  });
+}
+
+const INTERNAL_GOAL_FORMAT =
+  /format\tdarrow-(?:native-goal|goal-step|claude-(?:agent-route|owner-route|route-gate|verify-route))-[^\s]+/;
+
+type OwnershipStatus = "passed" | "failed" | "unavailable";
+
+function singleOwnerStatus(
+  evidence: ReturnType<typeof nativeOwnershipEvidence>,
+): OwnershipStatus {
+  if (!evidence) return "unavailable";
+  return evidence.calls.filter(
+    (call) => call.namespace === "collaboration" && call.name === "spawn_agent",
+  ).length <= 1
+    ? "passed"
+    : "failed";
+}
+
+function parentActivityStatus(
+  evidence: ReturnType<typeof nativeOwnershipEvidence>,
+): OwnershipStatus {
+  if (!evidence) return "unavailable";
+  const spawnCount = evidence.calls.filter(
+    (call) => call.namespace === "collaboration" && call.name === "spawn_agent",
+  ).length;
+  if (
+    evidence.spawns.length > 1 ||
+    (spawnCount > 0 && evidence.spawns.length !== 1)
+  )
+    return "unavailable";
+  return evidence.spawns.length === 1 &&
+    parentWorkAfterAcceptance(evidence.calls, evidence.spawns[0]!)
+    ? "failed"
+    : "passed";
+}
+
+function internalRecordCheck(observations: unknown) {
+  const final = uniqueObservation(
+    observations,
+    "sevro.observation.final-message",
+  );
+  const text = final ? activationData(final.data)?.text : undefined;
+  const available =
+    final?.source === "sevro.host.codex" &&
+    final.completeness === "complete" &&
+    typeof text === "string";
+  return ownershipCheck(
+    OWNERSHIP_CHECKS[2],
+    !available
+      ? "unavailable"
+      : INTERNAL_GOAL_FORMAT.test(text)
+        ? "failed"
+        : "passed",
+    available ? "sevro.observation.final-message" : null,
+    "Internal goal records are absent from the caller-facing response",
+  );
+}
+
+function ownershipChecks(observations: unknown) {
+  const evidence = nativeOwnershipEvidence(observations);
+  const nativeRef = evidence ? "sevro.codex.native-calls" : null;
+  return [
+    ownershipCheck(
+      OWNERSHIP_CHECKS[0],
+      singleOwnerStatus(evidence),
+      nativeRef,
+      "No replacement owner is spawned after acceptance",
+    ),
+    ownershipCheck(
+      OWNERSHIP_CHECKS[1],
+      parentActivityStatus(evidence),
+      nativeRef,
+      "After acceptance the parent only waits or addresses the same owner",
+    ),
+    internalRecordCheck(observations),
+  ];
+}
+
 function measuredMetric(
   label: string,
   checkIds: string[],
@@ -1634,15 +1868,17 @@ function evaluateCase(params: RecordValue) {
   );
   const details = record(extensionData["darrow.case"], "Darrow case data");
   const metrics = caseMetrics(details, params);
+  const checks =
+    details.ownership === true ? ownershipChecks(params.observations) : [];
   if (details.activation === undefined)
-    return { checks: [], metrics, domainOutcomes: [] };
+    return { checks, metrics, domainOutcomes: [] };
   const expected = activationExpectation(details.activation);
   const explicit = details.invocation !== undefined;
   const observation = activationObservation(params.observations, explicit);
   const observed = observedActivation(observation, explicit);
   const status = activationStatus(expected, observed);
   return {
-    checks: [],
+    checks,
     metrics,
     domainOutcomes: [
       {
@@ -1684,8 +1920,9 @@ if (import.meta.main) {
               "sevro.fixture.setup",
               "sevro.codex.plugin-marketplace",
               "sevro.codex.explicit-invocation",
+              "sevro.codex.native-calls",
             ],
-            graders: [],
+            graders: ["darrow.evals.ownership"],
             taskVerdictPolicies: [],
           }
         : method === "resolve"
