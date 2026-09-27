@@ -1425,3 +1425,86 @@ test("Darrow Git hook fixtures run through Sevro before candidate commits", asyn
     run.value.cases[0]!.trials[0]!.checks.map((check) => check.status),
   ).toEqual(["passed", "passed"]);
 });
+
+test("Darrow fixture binaries reach the host and hidden checks", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-bin-"));
+  roots.push(root);
+  const cases = join(root, "evals/experiments/example/cases");
+  await mkdir(cases, { recursive: true });
+  const stub = "#!/bin/sh\nprintf 'fixture tool\\n'\n";
+  await writeFile(
+    join(cases, "bin.yaml"),
+    JSON.stringify({
+      id: "bin-case",
+      invariant: "EXAMPLE-BIN",
+      prompt: "Return ready.",
+      fixture: {
+        commits: [
+          { message: "Initialize", files: { "README.md": "fixture\n" } },
+        ],
+        bin: { "fixture-tool": stub },
+      },
+      checks: [
+        {
+          name: "fixture tool",
+          run: "fixture-tool",
+          expect_exact: "fixture tool",
+        },
+      ],
+      output_checks: [{ name: "response", expect_exact: "ready" }],
+    }),
+  );
+  const resolved = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(root).href,
+      selectors: { caseIds: ["bin-case"] },
+      configuration: {},
+    }),
+  );
+  expect(resolved.code, resolved.stderr).toBe(0);
+  expect(resolved.value.result.cases[0]!.fixture).toMatchObject({
+    kind: "generated",
+    bin: { "fixture-tool": stub },
+  });
+  const adapter = join(root, "candidate.ts");
+  await writeFile(
+    adapter,
+    `export default {
+  id: "darrow.host.synthetic", model: "synthetic-v1", effort: "none",
+  async run({ workspace, fixtureBinDir }) {
+    if (fixtureBinDir !== workspace + "/.git/fixture-bin") throw new Error("fixture bin missing");
+    const proc = Bun.spawn(["fixture-tool"], { cwd: workspace, env: { PATH: fixtureBinDir + ":/usr/bin:/bin" }, stdout: "pipe", stderr: "pipe" });
+    const [stdout, code] = await Promise.all([new Response(proc.stdout).text(), proc.exited]);
+    if (code !== 0 || stdout !== "fixture tool\\n") throw new Error("fixture tool unavailable");
+    return { finalMessage: "ready", complete: true };
+  },
+};
+`,
+  );
+  const run = await command<CliReply>([
+    process.execPath,
+    resolve(import.meta.dir, "../../sevro-extension/run.ts"),
+    "--case-id",
+    "bin-case",
+    "--project-root",
+    root,
+    "--results-root",
+    join(root, "results"),
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+    "--condition",
+    "passive",
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+  ]);
+  expect(run.code, run.stderr).toBe(0);
+  expect(run.value.task.verdict).toBe("passed");
+  expect(
+    run.value.cases[0]!.trials[0]!.checks.map((check) => check.status),
+  ).toEqual(["passed", "passed"]);
+});
