@@ -565,6 +565,45 @@ function caseAdditionalPlugins(value: unknown, skillDir: string | null) {
   return paths;
 }
 
+function additionalSkillPaths(value: unknown): string[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length === 0)
+    throw new Error("additional_skills must be a non-empty skill-path list");
+  const paths = value.map((entry) => {
+    const source = string(entry, "additional skill path");
+    const parts = source.split("/");
+    if (
+      parts.length !== 5 ||
+      parts[0] !== "plugins" ||
+      parts[3] !== "skills" ||
+      ![parts[1], parts[2], parts[4]].every((part) =>
+        /^[a-z][a-z0-9-]*$/.test(part ?? ""),
+      )
+    )
+      throw new Error("additional skill path must name a plugin skill");
+    return source;
+  });
+  if (new Set(paths).size !== paths.length)
+    throw new Error("additional_skills contains a duplicate path");
+  return paths;
+}
+
+function caseAdditionalSkills(value: unknown, skillDir: string | null) {
+  const paths = additionalSkillPaths(value);
+  if (paths.length && !skillDir)
+    throw new Error("additional_skills requires a plugin-local case");
+  return paths;
+}
+
+function caseAdditionalMounts(selected: RecordValue, skillDir: string | null) {
+  const plugins = caseAdditionalPlugins(selected.additional_plugins, skillDir);
+  const skills = caseAdditionalSkills(selected.additional_skills, skillDir);
+  return {
+    ...(plugins.length ? { additionalPlugins: plugins } : {}),
+    ...(skills.length ? { additionalSkills: skills } : {}),
+  };
+}
+
 function casePrompt(value: unknown, invocation: string | null) {
   const prompt = string(value, "case prompt");
   if (prompt.includes("{{skill_invocation}}") && !invocation)
@@ -620,6 +659,7 @@ const CASE_FIELDS = [
   "activation_excludes",
   "mount_plugin_skills",
   "additional_plugins",
+  "additional_skills",
 ];
 
 async function caseChecks(
@@ -646,10 +686,7 @@ async function neutralCase(value: unknown, source: string, root: string) {
     source,
     root,
   );
-  const additionalPlugins = caseAdditionalPlugins(
-    selected.additional_plugins,
-    skillDir,
-  );
+  const additionalMounts = caseAdditionalMounts(selected, skillDir);
   const invocation = await invocationForCase(
     root,
     skillDir,
@@ -674,7 +711,7 @@ async function neutralCase(value: unknown, source: string, root: string) {
         projectRoot: pathToFileURL(root).href,
         ...setup,
         ...mount,
-        ...(additionalPlugins.length ? { additionalPlugins } : {}),
+        ...additionalMounts,
         ...(invocation ? { invocation } : {}),
         ...caseActivation(selected, skillDir, mountPluginSkills),
         checkNames: checkNames(selected),
@@ -830,6 +867,88 @@ async function additionalPluginSources(details: RecordValue) {
   );
 }
 
+async function selectedSkillSource(root: string, source: string) {
+  const pluginPath = source.split("/").slice(0, 3).join("/");
+  const pluginSource = join(root, pluginPath);
+  const skillSource = join(root, source);
+  if (
+    (await lstat(pluginSource)).isSymbolicLink() ||
+    (await lstat(skillSource)).isSymbolicLink()
+  )
+    throw new Error("additional skill source is a symbolic link");
+  const pluginRoot = await realpath(pluginSource);
+  const skillRoot = await realpath(skillSource);
+  if (
+    !within(root, pluginRoot) ||
+    !within(pluginRoot, skillRoot) ||
+    !(await stat(skillRoot)).isDirectory()
+  )
+    throw new Error("additional skill escapes its source plugin");
+  return {
+    pluginRoot,
+    name: await pluginName(pluginRoot),
+    source: { skillRoot, skillName: source.split("/").at(-1)! },
+  };
+}
+
+async function additionalSkillSources(details: RecordValue) {
+  const paths = additionalSkillPaths(details.additionalSkills);
+  if (!paths.length) return [];
+  const root = await realpath(
+    fileURLToPath(string(details.projectRoot, "case project root")),
+  );
+  const selected = await Promise.all(
+    paths.map((source) => selectedSkillSource(root, source)),
+  );
+  const packages = new Map<
+    string,
+    {
+      pluginRoot: string;
+      name: string;
+      sources: { skillRoot: string; skillName: string }[];
+    }
+  >();
+  for (const item of selected) {
+    const existing = packages.get(item.pluginRoot);
+    if (existing) existing.sources.push(item.source);
+    else
+      packages.set(item.pluginRoot, {
+        pluginRoot: item.pluginRoot,
+        name: item.name,
+        sources: [item.source],
+      });
+  }
+  return [...packages.values()];
+}
+
+function mergeAdditionalSkills(
+  ownerSources: { skillRoot: string; skillName: string }[],
+  fullPlugins: Awaited<ReturnType<typeof additionalPluginSources>>,
+  selectedPlugins: Awaited<ReturnType<typeof additionalSkillSources>>,
+) {
+  const owner = [...ownerSources];
+  const additional = fullPlugins.map((item) => ({
+    ...item,
+    sources: [...item.sources],
+  }));
+  const ownerRoot = ownerSources[0]
+    ? dirname(dirname(ownerSources[0].skillRoot))
+    : null;
+  for (const item of selectedPlugins) {
+    const target =
+      item.pluginRoot === ownerRoot
+        ? owner
+        : additional.find((entry) => entry.pluginRoot === item.pluginRoot)
+            ?.sources;
+    if (target) {
+      for (const source of item.sources)
+        if (!target.some((entry) => entry.skillRoot === source.skillRoot))
+          target.push(source);
+    } else additional.push(item);
+  }
+  return { owner, additional };
+}
+
 function skillArtifact(
   bytes: Buffer,
   relativePath: string,
@@ -847,7 +966,7 @@ function skillArtifact(
 }
 
 function checkSkillArtifactLimit(bytes: Buffer, total: number, count: number) {
-  if (bytes.byteLength > 1024 * 1024 || total > 4 * 1024 * 1024 || count >= 128)
+  if (bytes.byteLength > 1024 * 1024 || total > 4 * 1024 * 1024 || count >= 256)
     throw new Error("skill mount exceeds the artifact limit");
 }
 
@@ -1220,8 +1339,12 @@ function codexPackageHost(
 async function preparedMounts(details: RecordValue, hostValue: unknown) {
   const sources =
     details.mount === undefined ? [] : await skillMountSource(details);
-  const additional = await additionalPluginSources(details);
-  const mounted = [...sources, ...additional.flatMap((item) => item.sources)];
+  const { owner, additional } = mergeAdditionalSkills(
+    sources,
+    await additionalPluginSources(details),
+    await additionalSkillSources(details),
+  );
+  const mounted = [...owner, ...additional.flatMap((item) => item.sources)];
   if (new Set(mounted.map((item) => item.skillName)).size !== mounted.length)
     throw new Error("mounted skill names must be unique");
   requireActivationSkills(details, mounted);
@@ -1233,10 +1356,10 @@ async function preparedMounts(details: RecordValue, hostValue: unknown) {
   );
   const ownerName = packagePlugins
     ? (invocation?.pluginName ??
-      (await pluginName(dirname(dirname(sources[0]!.skillRoot)))))
+      (await pluginName(dirname(dirname(owner[0]!.skillRoot)))))
     : null;
   const artifacts = packagePlugins
-    ? await codexPluginArtifacts(sources, ownerName!, additional)
+    ? await codexPluginArtifacts(owner, ownerName!, additional)
     : await skillArtifacts(mounted);
   return {
     artifacts,

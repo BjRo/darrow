@@ -2233,10 +2233,10 @@ test("Darrow resolves skill output schemas into Sevro grading", async () => {
   });
 });
 
-test("additional plugins remain independent Codex packages", async () => {
+test("additional plugins and selected skills remain independent Codex packages", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-providers-"));
   roots.push(root);
-  for (const name of ["owner", "provider"]) {
+  for (const name of ["owner", "provider", "selective"]) {
     const plugin = join(root, `plugins/capability/${name}`);
     await mkdir(join(plugin, ".claude-plugin"), { recursive: true });
     await mkdir(join(plugin, ".codex-plugin"), { recursive: true });
@@ -2256,6 +2256,12 @@ test("additional plugins remain independent Codex packages", async () => {
     );
     await writeFile(join(plugin, "backend/helper.txt"), `${name} tool\n`);
   }
+  const unselected = join(
+    root,
+    "plugins/capability/selective/skills/unselected",
+  );
+  await mkdir(unselected);
+  await writeFile(join(unselected, "SKILL.md"), "unselected skill\n");
   const cases = join(root, "plugins/capability/owner/skills/owner/evals");
   await mkdir(cases);
   const caseFile = join(cases, "providers.yaml");
@@ -2263,8 +2269,9 @@ test("additional plugins remain independent Codex packages", async () => {
     id: "provider-composition",
     invariant: "PROVIDER-C1",
     activation: "positive",
-    activation_includes: ["provider"],
+    activation_includes: ["provider", "selective"],
     additional_plugins: ["plugins/capability/provider"],
+    additional_skills: ["plugins/capability/selective/skills/selective"],
     prompt: "Use the owner and provider skills to report ready.",
     fixture: {
       commits: [{ message: "Initialize", files: { "README.md": "fixture\n" } }],
@@ -2307,6 +2314,7 @@ test("additional plugins remain independent Codex packages", async () => {
   expect(prepared.value.result.codexMarketplace?.pluginNames).toEqual([
     "owner",
     "provider",
+    "selective",
   ]);
   expect(prepared.value.result.codexSkillInvocation).toBeUndefined();
   const artifacts = prepared.value.result.artifacts;
@@ -2317,6 +2325,12 @@ test("additional plugins remain independent Codex packages", async () => {
   );
   expect(paths).toContain(
     ".sevro-marketplace/plugins/0-provider/backend/helper.txt",
+  );
+  expect(paths).toContain(
+    ".sevro-marketplace/plugins/1-selective/skills/selective/SKILL.md",
+  );
+  expect(paths).not.toContain(
+    ".sevro-marketplace/plugins/1-selective/skills/unselected/SKILL.md",
   );
   const marketplace = artifacts.find(
     (item) =>
@@ -2329,6 +2343,7 @@ test("additional plugins remain independent Codex packages", async () => {
     plugins: [
       { name: "owner", source: "./plugin" },
       { name: "provider", source: "./plugins/0-provider" },
+      { name: "selective", source: "./plugins/1-selective" },
     ],
   });
   const synthetic = await prepare({
@@ -2342,6 +2357,7 @@ test("additional plugins remain independent Codex packages", async () => {
     expect.arrayContaining([
       ".agents/skills/owner/SKILL.md",
       ".agents/skills/provider/SKILL.md",
+      ".agents/skills/selective/SKILL.md",
     ]),
   );
   const commandFile = join(root, "extension-command.json");
@@ -2389,6 +2405,7 @@ test("additional plugins remain independent Codex packages", async () => {
   expect(evidence.configuration.redacted.codexMarketplace.pluginNames).toEqual([
     "owner",
     "provider",
+    "selective",
   ]);
   await writeFile(
     caseFile,
@@ -2403,6 +2420,19 @@ test("additional plugins remain independent Codex packages", async () => {
     }),
   );
   expect(unsafe.value.error.message).toMatch(/repository plugin/);
+  await writeFile(
+    caseFile,
+    JSON.stringify({ ...definition, additional_skills: ["../selective"] }),
+  );
+  const unsafeSkill = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(root).href,
+      selectors: { caseIds: [definition.id] },
+      configuration: {},
+    }),
+  );
+  expect(unsafeSkill.value.error.message).toMatch(/plugin skill/);
 });
 
 test("real composition providers fit the Sevro preparation boundary", async () => {
@@ -2463,5 +2493,76 @@ test("real composition providers fit the Sevro preparation boundary", async () =
       ".sevro-marketplace/plugins/0-darrow-verification/skills/verify-change/SKILL.md",
       ".sevro-marketplace/plugins/1-darrow-review/skills/code-review/SKILL.md",
     ]),
+  );
+});
+
+test("ticket composition packages only selected Git skills", async () => {
+  const skillDir =
+    "plugins/task-recipe/darrow-ticket-to-pr/skills/ticket-to-pr";
+  const projectUrl = pathToFileURL(projectRoot).href;
+  const prepared = await command<{
+    result: {
+      codexMarketplace: { pluginNames: string[] };
+      artifacts: Array<{ relativePath: string }>;
+    };
+    error?: { message: string };
+  }>(
+    [process.execPath, extension],
+    request("prepare", {
+      case: {
+        id: "ticket-provider-package",
+        extensionData: {
+          "darrow.case": {
+            projectRoot: projectUrl,
+            source: `${skillDir}/evals/composition-existing-pr.yaml`,
+            mount: {
+              projectRoot: projectUrl,
+              skillDir,
+              mountPluginSkills: true,
+            },
+            additionalPlugins: [
+              "plugins/orchestration/darrow-adaptive-delivery",
+              "plugins/capability/darrow-readiness-gate",
+            ],
+            additionalSkills: [
+              "plugins/capability/darrow-git/skills/prepare-task-branch",
+              "plugins/capability/darrow-git/skills/create-commit",
+              "plugins/capability/darrow-git/skills/create-pr",
+            ],
+            activation: {
+              class: "positive",
+              targetSkill: "ticket-to-pr",
+              sequence: ["ticket-to-pr", "adaptive-delivery"],
+            },
+          },
+        },
+      },
+      host: {
+        id: "sevro.host.codex",
+        capabilities: ["sevro.codex.plugin-marketplace"],
+      },
+      condition: "passive",
+      configuration: {},
+    }),
+  );
+  expect(prepared.code, prepared.stderr).toBe(0);
+  expect(prepared.value.result.codexMarketplace.pluginNames).toEqual([
+    "darrow-ticket-to-pr",
+    "darrow-adaptive-delivery",
+    "darrow-readiness-gate",
+    "darrow-git",
+  ]);
+  const paths = prepared.value.result.artifacts.map(
+    (item) => item.relativePath,
+  );
+  expect(paths).toEqual(
+    expect.arrayContaining([
+      ".sevro-marketplace/plugins/2-darrow-git/skills/prepare-task-branch/SKILL.md",
+      ".sevro-marketplace/plugins/2-darrow-git/skills/create-commit/SKILL.md",
+      ".sevro-marketplace/plugins/2-darrow-git/skills/create-pr/SKILL.md",
+    ]),
+  );
+  expect(paths).not.toContain(
+    ".sevro-marketplace/plugins/2-darrow-git/skills/create-branch/SKILL.md",
   );
 });

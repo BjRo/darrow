@@ -23,6 +23,8 @@ from the owning plugin through the same project-discovery path, with a shared
 artifact limit. Competition activation requires that sibling set.
 Cases with `additional_plugins` package every named provider separately in
 the isolated Codex marketplace, including its skills and contained mechanics.
+`additional_skills` packages only the named skills with their own provider's
+manifests and mechanics. The shared mount is bounded to 256 files and 4 MiB.
 The provider paths are repository-relative and cannot escape the project root;
 activation membership is checked against the combined mounted skill set.
 For a plugin-local case containing `{{skill_invocation}}`, resolution binds the

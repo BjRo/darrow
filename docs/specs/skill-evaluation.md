@@ -144,11 +144,12 @@ than repeated as user-maintained metadata. A competition case without the
 plugin skill set mounted is invalid. Skill-less experiment cases and no-skill
 suite modes do not receive an activation grade because their target capability
 is absent.
-Composition cases may declare additional repository plugins. On Codex, the
-runner installs each provider as an independent local plugin, retains its source
-bytes in the fixture identity, and validates activation membership against the
-combined mounted skill set. A provider's files must not be folded into the
-owning plugin.
+Composition cases may declare additional repository plugins or selected skills
+from one. On Codex, the runner installs each provider as an independent local
+plugin, retains its source bytes in the fixture identity, and validates
+activation membership against the combined mounted skill set. A selected-skill
+provider packages only those skills with its own manifests and mechanics. A
+provider's files must not be folded into the owning plugin.
 
 Activation is graded only from a normalized, harness-visible observation. A
 direct host skill-invocation event is preferred. Codex cases that contain the
