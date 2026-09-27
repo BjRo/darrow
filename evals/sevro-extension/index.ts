@@ -666,6 +666,7 @@ const CASE_FIELDS = [
   "additional_skills",
   "goal_report",
   "goal_route_checks",
+  "adaptive_delivery_composition",
   "transcript_checks",
 ];
 
@@ -754,7 +755,32 @@ function ignoredGoalPolicy(selected: RecordValue, skillDir: string | null) {
   );
 }
 
+function compositionOwnership(selected: RecordValue) {
+  if (
+    selected.adaptive_delivery_composition !== undefined &&
+    typeof selected.adaptive_delivery_composition !== "boolean"
+  )
+    throw new Error("adaptive delivery composition must be a boolean");
+  if (selected.adaptive_delivery_composition !== true) return null;
+  if (
+    selected.goal_report !== undefined ||
+    selected.goal_route_checks !== undefined
+  )
+    throw new Error("composition and goal policies cannot be combined");
+  return {
+    mode: "composition" as const,
+    checks: OWNERSHIP_CHECKS.slice(0, 2).map((id) => ({
+      id,
+      grader: "darrow.evals.ownership",
+      configuration: {},
+    })),
+    requiredEvidence: ["sevro.codex.native-calls"],
+  };
+}
+
 function caseOwnership(selected: RecordValue, skillDir: string | null) {
+  const composition = compositionOwnership(selected);
+  if (composition) return composition;
   if (
     selected.goal_report === undefined &&
     selected.goal_route_checks === undefined
@@ -768,6 +794,7 @@ function caseOwnership(selected: RecordValue, skillDir: string | null) {
   )
     throw new Error("case goal policy is unsupported by the Sevro extension");
   return {
+    mode: "owner" as const,
     checks: OWNERSHIP_CHECKS.map((id) => ({
       id,
       grader: "darrow.evals.ownership",
@@ -803,7 +830,9 @@ function casePolicy(selected: RecordValue, skillDir: string | null) {
     ],
     requiredEvidence: policyEvidence(ownership, transcriptChecks),
     details: {
-      ...(ownership ? { ownership: true } : {}),
+      ...(ownership
+        ? { ownership: ownership.mode === "owner" ? true : "composition" }
+        : {}),
       ...(transcriptChecks ? { transcriptChecks } : {}),
     },
   };
@@ -1562,7 +1591,10 @@ async function prepareCase(params: RecordValue) {
   const omitSkills = withoutSkill(params.configuration);
   if (omitSkills && details.invocation !== undefined)
     throw new Error("explicit skill invocation cannot run without skills");
-  if (details.ownership === true || details.transcriptChecks !== undefined) {
+  if (
+    details.ownership !== undefined ||
+    details.transcriptChecks !== undefined
+  ) {
     const host = record(params.host, "candidate host");
     if (
       host.id !== "sevro.host.codex" ||
@@ -2264,8 +2296,14 @@ async function evaluateCase(params: RecordValue) {
   );
   const details = record(extensionData["darrow.case"], "Darrow case data");
   const metrics = caseMetrics(details, params);
+  const ownership =
+    details.ownership === true || details.ownership === "composition"
+      ? ownershipChecks(params.observations)
+      : [];
   const checks = [
-    ...(details.ownership === true ? ownershipChecks(params.observations) : []),
+    ...(details.ownership === "composition"
+      ? ownership.slice(0, 2)
+      : ownership),
     ...(await nativeTranscriptChecks(
       details.transcriptChecks,
       params.observations,

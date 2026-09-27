@@ -555,6 +555,82 @@ test("Darrow ownership checks use complete native evidence without private task 
   expect(internalRecord.value.result.checks[2]?.status).toBe("failed");
 });
 
+test("task recipe composition keeps the two legacy ownership checks", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-composition-"));
+  roots.push(root);
+  const cases = join(root, "evals/experiments/sample/cases");
+  await mkdir(cases, { recursive: true });
+  await writeFile(
+    join(cases, "composition.yaml"),
+    JSON.stringify({
+      id: "composition",
+      invariant: "COMPOSITION-C1",
+      prompt: "Delegate the accepted request.",
+      adaptive_delivery_composition: true,
+      fixture: {
+        commits: [
+          { message: "chore: init", files: { "README.md": "ready\n" } },
+        ],
+      },
+      checks: [],
+    }),
+  );
+  const selected = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(root).href,
+      selectors: { caseIds: ["composition"] },
+      configuration: {},
+    }),
+  );
+  expect(selected.code, selected.stderr).toBe(0);
+  const selectedCase = selected.value.result.cases[0]!;
+  expect(selectedCase.checks.map((check) => check.id)).toEqual([
+    "darrow.evals.ownership.single-owner",
+    "darrow.evals.ownership.parent-work",
+  ]);
+  expect(selectedCase.requiredEvidence).toEqual(["sevro.codex.native-calls"]);
+  expect(selectedCase.extensionData["darrow.case"]).toMatchObject({
+    ownership: "composition",
+  });
+  const prepared = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("prepare", {
+      case: selectedCase,
+      host: { id: "sevro.host.synthetic", capabilities: [] },
+      condition: "passive",
+      configuration: {},
+    }),
+  );
+  expect(prepared.value.error.message).toMatch(/native-call evidence/);
+  const native = {
+    id: "sevro.codex.native-calls",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "native_session",
+      calls: [],
+      toolCalls: [],
+      acceptedSpawns: [],
+      submittedExecCalls: 0,
+    },
+  };
+  const evaluated = await command<{
+    result: { checks: Array<{ id: string; status: string }> };
+  }>(
+    [process.execPath, extension],
+    request("evaluate", {
+      extensionData: selectedCase.extensionData,
+      observations: [native],
+    }),
+  );
+  expect(evaluated.code, evaluated.stderr).toBe(0);
+  expect(evaluated.value.result.checks.map((check) => check.status)).toEqual([
+    "passed",
+    "passed",
+  ]);
+});
+
 test("Darrow translates no-agent transcript assertions into bounded native checks", async () => {
   const selected = await command<{
     result: {
