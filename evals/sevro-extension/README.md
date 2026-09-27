@@ -104,6 +104,11 @@ inactive. Their exact forbidden skill reads, preflight or doctor event markers,
 and native `spawn_agent` or `Agent` calls are graded from complete skill-read
 and native-call receipts plus a digest-verified Codex event artifact. Missing
 required evidence makes the check unavailable.
+The supported Codex route assertions compare the sole accepted owner's
+bounded model and reasoning-effort receipt with the case's declared route.
+Missing route fields leave that assertion unavailable; a different retained
+route fails it. The bounded native-goal case also checks for a second accepted
+owner or replacement attempt through complete native calls.
 Advice-only blocked retries and missing or ambiguous ticket cases use the same
 verified events to reject forbidden delegation. The blocked retries also
 require complete native-call evidence; ticket cases require complete skill-read

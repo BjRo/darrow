@@ -723,6 +723,21 @@ const READINESS_AFTER_CONTINUATION_PATTERN = String.raw`"type":"darrow.eval.foll
 const TICKET_REINVOKED_AFTER_CONTINUATION_PATTERN = String.raw`"type":"darrow.eval.follow_up_turn"[\s\S]*(?:"name":"Skill"[^\n]*ticket-to-pr|"type":"darrow.skill_read_probe"[^\n]*"skill":"ticket-to-pr")`;
 const PLAINTEXT_FEEDBACK_MISMATCH_PATTERN = String.raw`"type":"darrow.codex_native_feedback"[^\n]*"message_representation":"plaintext"[^\n]*"message_matches_expected":false`;
 const SECOND_OWNER_PATTERN = String.raw`(?:"type":"darrow.parent_spawn_after_goal"|"tool":"spawn_agent"[^\n]*"status":"completed"[^\n]*[\s\S]*"tool":"spawn_agent"[^\n]*"status":"completed")`;
+const TWO_OWNER_COMPLETIONS_PATTERN = String.raw`"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"[\s\S]*"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"`;
+const OWNER_ROUTE_PATTERNS = new Map([
+  [
+    String.raw`(?:"type":"darrow\.codex_native_single_agent_accepted"[^\n]*"model":"gpt-6-luna","reasoning_effort":"medium"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-adaptive-delivery:adaptive-delivery-sonnet-5-(?:low|medium)")`,
+    { model: "gpt-6-luna", reasoningEffort: "medium" },
+  ],
+  [
+    String.raw`(?:"type":"darrow\.codex_native_single_agent_accepted"[^\n]*"model":"gpt-6-luna","reasoning_effort":"high"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-adaptive-delivery:adaptive-delivery-sonnet-5-medium")`,
+    { model: "gpt-6-luna", reasoningEffort: "high" },
+  ],
+  [
+    String.raw`(?:"type":"darrow\.codex_native_single_agent_accepted"[^\n]*"model":"gpt-6-astra","reasoning_effort":"high"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-adaptive-delivery:adaptive-delivery-opus-5-high")`,
+    { model: "gpt-6-astra", reasoningEffort: "high" },
+  ],
+]);
 const DOCTOR_NO_ORCHESTRATION_PATTERN = String.raw`"skill":"adaptive-delivery"|adaptive-delivery-preflight|"tool":"spawn_agent"`;
 const DOCTOR_NO_ORCHESTRATION_AGENT_PATTERN = String.raw`"skill":"adaptive-delivery"|adaptive-delivery-preflight|"tool":"spawn_agent"|"name":"Agent"`;
 const DOCTOR_NO_PREFLIGHT_AGENT_PATTERN = String.raw`adaptive-delivery-preflight|"tool":"spawn_agent"|"name":"Agent"`;
@@ -766,6 +781,7 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     { kind: "no-plaintext-feedback-mismatch" },
   ],
   [SECOND_OWNER_PATTERN, { kind: "no-second-owner" }],
+  [TWO_OWNER_COMPLETIONS_PATTERN, { kind: "no-second-owner" }],
   [
     DOCTOR_NO_ORCHESTRATION_PATTERN,
     {
@@ -870,6 +886,8 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
 ]);
 
 function expectedTranscriptSelection(pattern: unknown) {
+  const route = OWNER_ROUTE_PATTERNS.get(pattern as string);
+  if (route) return { kind: "owner-route", ...route };
   if (ONE_OWNER_TRANSCRIPT_PATTERNS.has(pattern as string))
     return { kind: "one-owner-accepted" };
   if (CONTINUATION_BOUNDARY_PATTERNS.has(pattern as string))
@@ -1010,6 +1028,7 @@ function caseOwnership(selected: RecordValue, skillDir: string | null) {
 const TRANSCRIPT_EVIDENCE = new Map([
   ["no-agent-spawn", ["sevro.codex.native-calls"]],
   ["one-owner-accepted", ["sevro.codex.native-calls"]],
+  ["owner-route", ["sevro.codex.native-calls"]],
   ["no-lifecycle-ledger", ["sevro.codex.native-calls", "sevro.codex.events"]],
   ["owner-after-continuation", ["sevro.codex.native-calls"]],
   ["no-owner-before-continuation", ["sevro.codex.native-calls"]],
@@ -2648,6 +2667,42 @@ function oneOwnerOutcome(native: ReturnType<typeof nativeControlEvidence>) {
   };
 }
 
+function ownerRouteOutcome(
+  selected: RecordValue,
+  native: ReturnType<typeof nativeControlEvidence>,
+) {
+  if (
+    typeof selected.model !== "string" ||
+    typeof selected.reasoningEffort !== "string"
+  )
+    throw new Error("owner route check configuration is invalid");
+  if (!native)
+    return {
+      status: "unavailable",
+      detail: "Complete native owner route evidence required",
+      evidenceRefs: [],
+    };
+  if (native.acceptedSpawnCount !== 1)
+    return {
+      status: "failed",
+      detail: "Expected exactly one accepted owner route",
+      evidenceRefs: ["sevro.codex.native-calls"],
+    };
+  const route = native.acceptedSpawns[0]!;
+  return {
+    status:
+      typeof route.model !== "string" ||
+      typeof route.reasoningEffort !== "string"
+        ? "unavailable"
+        : route.model === selected.model &&
+            route.reasoningEffort === selected.reasoningEffort
+          ? "passed"
+          : "failed",
+    detail: "Graded from the accepted native owner model and effort",
+    evidenceRefs: ["sevro.codex.native-calls"],
+  };
+}
+
 function noLedgerOutcome(
   native: ReturnType<typeof nativeControlEvidence>,
   events: string | null,
@@ -2928,6 +2983,8 @@ function nativeTranscriptOutcome(
   if (selected.kind === "skills-inactive")
     return skillsInactiveOutcome(selected, native, skills);
   if (selected.kind === "one-owner-accepted") return oneOwnerOutcome(native);
+  if (selected.kind === "owner-route")
+    return ownerRouteOutcome(selected, native);
   if (selected.kind === "no-second-owner") return noSecondOwnerOutcome(native);
   return null;
 }

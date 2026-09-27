@@ -1273,6 +1273,179 @@ test("Darrow grades accepted owner assertions from correlated native receipts", 
   }
 });
 
+test("Darrow grades the selected Codex owner route from native acceptance", async () => {
+  const accepted = {
+    id: "sevro.codex.native-calls",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "native_session",
+      calls: [
+        {
+          ordinal: 1,
+          namespace: "collaboration",
+          name: "spawn_agent",
+          evidence: "invocation_attempt",
+        },
+      ],
+      toolCalls: [
+        { ordinal: 1, namespace: "collaboration", name: "spawn_agent" },
+      ],
+      acceptedSpawns: [
+        {
+          requestedOrdinal: 1,
+          startedOrdinal: 2,
+          acceptedOrdinal: 3,
+          agentRef: "/root/owner",
+          threadId: "child-thread",
+          model: "gpt-6-luna",
+          reasoningEffort: "medium",
+        },
+      ],
+      submittedExecCalls: 0,
+    },
+  };
+  for (const [caseId, model, reasoningEffort] of [
+    ["goal-preflight-high-risk-routine", "gpt-6-luna", "medium"],
+    ["goal-preflight-quality-sensitive-localized", "gpt-6-luna", "high"],
+    [
+      "goal-preflight-routing-difficult-routine-diagnosis",
+      "gpt-6-astra",
+      "high",
+    ],
+  ] as const) {
+    const selected = await command<ExtensionReply>(
+      [process.execPath, extension],
+      request("resolve", {
+        projectRoot: pathToFileURL(projectRoot).href,
+        selectors: { caseIds: [caseId] },
+        configuration: {},
+      }),
+    );
+    expect(selected.code, selected.stderr).toBe(0);
+    const selectedCase = selected.value.result.cases[0]!;
+    expect(selectedCase.requiredEvidence).toContain("sevro.codex.native-calls");
+    const status = async (observation: unknown) => {
+      const reply = await command<{
+        result: { checks: Array<{ id: string; status: string }> };
+      }>(
+        [process.execPath, extension],
+        request("evaluate", {
+          extensionData: selectedCase.extensionData,
+          observations: observation ? [observation] : [],
+          builtinChecks: [],
+          execution: { status: "completed" },
+        }),
+      );
+      expect(reply.code, reply.stderr).toBe(0);
+      expect(reply.value.result, JSON.stringify(reply.value)).toBeDefined();
+      return reply.value.result.checks.find(
+        (check) => check.id === "darrow.evals.transcript.1",
+      )?.status;
+    };
+    const routed = {
+      ...accepted,
+      data: {
+        ...accepted.data,
+        acceptedSpawns: [
+          { ...accepted.data.acceptedSpawns[0], model, reasoningEffort },
+        ],
+      },
+    };
+    expect(await status(routed)).toBe("passed");
+    expect(
+      await status({
+        ...routed,
+        data: {
+          ...routed.data,
+          acceptedSpawns: [
+            { ...routed.data.acceptedSpawns[0], model: "gpt-6-sol" },
+          ],
+        },
+      }),
+    ).toBe("failed");
+    expect(
+      await status({
+        ...routed,
+        data: {
+          ...routed.data,
+          acceptedSpawns: [
+            { ...routed.data.acceptedSpawns[0], model: undefined },
+          ],
+        },
+      }),
+    ).toBe("unavailable");
+    expect(await status({ ...routed, completeness: "partial" })).toBe(
+      "unavailable",
+    );
+  }
+  const bounded = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(projectRoot).href,
+      selectors: { caseIds: ["goal-preflight-bounded-native-goal"] },
+      configuration: {},
+    }),
+  );
+  expect(bounded.code, bounded.stderr).toBe(0);
+  const selectedCase = bounded.value.result.cases[0]!;
+  const statuses = async (observation: unknown) => {
+    const reply = await command<{
+      result: { checks: Array<{ id: string; status: string }> };
+    }>(
+      [process.execPath, extension],
+      request("evaluate", {
+        extensionData: selectedCase.extensionData,
+        observations: [observation],
+        builtinChecks: [],
+        execution: { status: "completed" },
+      }),
+    );
+    expect(reply.code, reply.stderr).toBe(0);
+    return reply.value.result.checks
+      .filter((check) => check.id.startsWith("darrow.evals.transcript."))
+      .map((check) => check.status);
+  };
+  expect((await statuses(accepted)).slice(0, 3)).toEqual([
+    "passed",
+    "passed",
+    "passed",
+  ]);
+  expect(
+    (
+      await statuses({
+        ...accepted,
+        data: {
+          ...accepted.data,
+          calls: [
+            ...accepted.data.calls,
+            {
+              ordinal: 4,
+              namespace: "collaboration",
+              name: "spawn_agent",
+              evidence: "invocation_attempt",
+            },
+          ],
+          toolCalls: [
+            ...accepted.data.toolCalls,
+            { ordinal: 4, namespace: "collaboration", name: "spawn_agent" },
+          ],
+          acceptedSpawns: [
+            ...accepted.data.acceptedSpawns,
+            {
+              requestedOrdinal: 4,
+              startedOrdinal: 5,
+              acceptedOrdinal: 6,
+              agentRef: "/root/second",
+              threadId: "second-thread",
+            },
+          ],
+        },
+      })
+    )[2],
+  ).toBe("failed");
+});
+
 test("Darrow grades a resumed conversation and its unchanged workspace boundary", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-continuation-"));
   roots.push(root);
