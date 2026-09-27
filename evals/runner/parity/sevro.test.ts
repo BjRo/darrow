@@ -183,11 +183,11 @@ codexAdapter.run = async ({ control }) => {
     sevroAdapter,
     `export default {
   id: "codex", model: "synthetic", effort: "low",
-  async run() {
+  async run({ condition }) {
     const scenario = process.env.SEVRO_PARITY_SCENARIO ?? "pass";
     return {
       finalMessage: scenario === "fail" ? "synthetic behavioral failure" : ${JSON.stringify(response)},
-      complete: true, actualCondition: "passive",
+      complete: true, actualCondition: condition,
       inputTokens: 2, outputTokens: 3, costUsd: null,
       usageComplete: scenario !== "incomplete-usage",
     };
@@ -209,7 +209,18 @@ codexAdapter.run = async ({ control }) => {
 
 type FixturePaths = Awaited<ReturnType<typeof fixture>>;
 
-function legacyArguments(paths: FixturePaths, oldOutput: string): string[] {
+interface ParityOptions {
+  isolation?: boolean;
+  separateStorage?: boolean;
+  condition?: "passive" | "enforced";
+  paths?: FixturePaths;
+}
+
+function legacyArguments(
+  paths: FixturePaths,
+  oldOutput: string,
+  condition: "passive" | "enforced",
+): string[] {
   return [
     process.execPath,
     "--preload",
@@ -242,13 +253,17 @@ function legacyArguments(paths: FixturePaths, oldOutput: string): string[] {
     "--case",
     "selected",
     "--owner-evaluation",
-    "passive",
+    condition,
     "--output",
     oldOutput,
   ];
 }
 
-function sevroArguments(paths: FixturePaths, cli: string): string[] {
+function sevroArguments(
+  paths: FixturePaths,
+  cli: string,
+  condition: "passive" | "enforced",
+): string[] {
   return [
     process.execPath,
     cli,
@@ -272,7 +287,7 @@ function sevroArguments(paths: FixturePaths, cli: string): string[] {
     "--project-digest",
     digest,
     "--condition",
-    "passive",
+    condition,
     "--trials",
     "1",
     "--threshold",
@@ -328,20 +343,28 @@ async function assertStorageParity(
 
 async function assertParity(
   scenario: "pass" | "fail" | "incomplete-usage",
-  isolation = false,
-  separateStorage = false,
-): Promise<void> {
+  options: ParityOptions = {},
+): Promise<{ legacyDigest: string; sevroDigest: string }> {
+  const {
+    isolation = false,
+    separateStorage = false,
+    condition = "passive",
+    paths: existingPaths,
+  } = options;
   const cli = sevroCli();
   expect(await Bun.file(cli).exists()).toBeTrue();
-  const paths = await fixture(isolation, separateStorage);
-  const oldOutput = join(paths.projectRoot, `legacy-${scenario}.json`);
+  const paths = existingPaths ?? (await fixture(isolation, separateStorage));
+  const oldOutput = join(
+    paths.projectRoot,
+    `legacy-${scenario}-${condition}.json`,
+  );
   const legacy = await command(
-    legacyArguments(paths, oldOutput),
+    legacyArguments(paths, oldOutput, condition),
     scenario,
     paths.projectRoot,
   );
   const sevro = await command(
-    sevroArguments(paths, cli),
+    sevroArguments(paths, cli, condition),
     scenario,
     paths.projectRoot,
   );
@@ -349,11 +372,20 @@ async function assertParity(
   expect(sevro.code, sevro.stderr).toBe(legacy.code);
   const [oldResult] = JSON.parse(await readFile(oldOutput, "utf8"));
   const newResult = JSON.parse(sevro.stdout);
+  const newRunEvidence = JSON.parse(
+    await readFile(newResult.evidencePath, "utf8"),
+  );
   const newTrial = newResult.cases[0].trials[0];
   const newArtifact = JSON.parse(await readFile(newTrial.artifactPath, "utf8"));
   expect(oldResult.caseId).toBe(newResult.cases[0].caseId);
   expect(oldResult.ownerEvaluationMode).toBe(
     newArtifact.evidence.condition.requested,
+  );
+  expect(oldResult.ownerEvaluationMode).toBe(condition);
+  expect(newRunEvidence.condition.requested).toBe(condition);
+  expect(newRunEvidence.condition.actual).toBe(condition);
+  expect(newRunEvidence.evaluationIdentity.dimensions.condition).toBe(
+    condition,
   );
   expect(oldResult.trials[0].harness.evaluationEnforcement).toBe(
     newArtifact.evidence.condition.actual,
@@ -397,6 +429,10 @@ async function assertParity(
     scenario === "fail" ? "synthetic behavioral failure" : response,
   );
   await assertStorageParity(paths, oldOutput, newResult, newTrial);
+  return {
+    legacyDigest: oldResult.evaluationDigest,
+    sevroDigest: newRunEvidence.evaluationIdentity.digest,
+  };
 }
 
 for (const scenario of ["pass", "fail", "incomplete-usage"] as const) {
@@ -406,9 +442,17 @@ for (const scenario of ["pass", "fail", "incomplete-usage"] as const) {
 }
 
 test("public commands hide project and configuration sources", async () => {
-  await assertParity("pass", true);
+  await assertParity("pass", { isolation: true });
 });
 
 test("public commands keep run state apart from results", async () => {
-  await assertParity("pass", false, true);
+  await assertParity("pass", { separateStorage: true });
+});
+
+test("public commands retain enforced condition and separate mode identity", async () => {
+  const paths = await fixture();
+  const passive = await assertParity("pass", { condition: "passive", paths });
+  const enforced = await assertParity("pass", { condition: "enforced", paths });
+  expect(passive.legacyDigest).not.toBe(enforced.legacyDigest);
+  expect(passive.sevroDigest).not.toBe(enforced.sevroDigest);
 });
