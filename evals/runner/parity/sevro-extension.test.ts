@@ -3649,6 +3649,7 @@ test("Claude selected owner binds route, review, and parent handoff", async () =
   expect(selected.requiredEvidence).toEqual([
     "sevro.claude.tool-calls",
     "sevro.claude.events",
+    "sevro.claude.nested-skills",
   ]);
   const ownerId = "tool-owner";
   const prepared = await command<{
@@ -3697,7 +3698,11 @@ test("Claude selected owner binds route, review, and parent handoff", async () =
       invocation: "independent-code-review",
     },
   ];
-  const observations = (selectedCalls: unknown[]) => [
+  const observations = (
+    selectedCalls: unknown[],
+    includeNested = true,
+    nestedAncestor = ownerId,
+  ) => [
     {
       id: "sevro.claude.tool-calls",
       source: "sevro.host.claude",
@@ -3714,6 +3719,25 @@ test("Claude selected owner binds route, review, and parent handoff", async () =
       completeness: "complete",
       data: { text: "Status: complete" },
     },
+    ...(includeNested
+      ? [
+          {
+            id: "sevro.claude.nested-skills",
+            source: "sevro.host.claude",
+            completeness: "complete",
+            data: {
+              method: "native_session_graph",
+              calls: [
+                {
+                  ancestorToolUseId: nestedAncestor,
+                  skill: "independent-code-review",
+                  invocation: "independent-code-review",
+                },
+              ],
+            },
+          },
+        ]
+      : []),
   ];
   const event = (type: string, content: unknown[], parent?: string) => ({
     type,
@@ -3726,7 +3750,7 @@ test("Claude selected owner binds route, review, and parent handoff", async () =
     id: "tool-route",
     input: {
       command:
-        "uv run --quiet --no-project /tmp/darrow-adaptive-delivery/backend/scripts/run_locked.py claude-agent-route --provider anthropic --model claude-sonnet-5 --effort low",
+        'cd "/tmp/fixture" && uv run --quiet --no-project "/tmp/fixture/.sevro-marketplace/plugin/backend/scripts/run_locked.py" claude-agent-route --provider anthropic --model claude-sonnet-5 --effort low 2>&1',
     },
   };
   const routeResult = {
@@ -3786,11 +3810,20 @@ test("Claude selected owner binds route, review, and parent handoff", async () =
       sha256: createHash("sha256").update(content).digest("hex"),
     };
   };
-  const evaluate = (selectedCalls: unknown[], selectedArtifacts: unknown[]) =>
+  const evaluate = (
+    selectedCalls: unknown[],
+    selectedArtifacts: unknown[],
+    includeNested = true,
+    nestedAncestor = ownerId,
+  ) =>
     command<{ result: { checks: Array<{ status: string }> } }>(
       [process.execPath, extension],
       request("evaluate", {
-        observations: observations(selectedCalls),
+        observations: observations(
+          selectedCalls,
+          includeNested,
+          nestedAncestor,
+        ),
         artifacts: selectedArtifacts,
         extensionData: selected.extensionData,
       }),
@@ -3801,6 +3834,13 @@ test("Claude selected owner binds route, review, and parent handoff", async () =
   expect(passed.value.result.checks.map((check) => check.status)).toEqual(
     Array(8).fill("passed"),
   );
+  const recovered = await evaluate([calls[0]], [clean]);
+  expect(recovered.value.result.checks[5]).toMatchObject({
+    status: "passed",
+    evidenceRefs: ["sevro.claude.nested-skills"],
+  });
+  const missingNested = await evaluate([calls[0]], [clean], false);
+  expect(missingNested.value.result.checks[5]!.status).toBe("unavailable");
   const wrongMarker = await evaluate(
     [{ ...calls[0], promptFirstLineSha256: "0".repeat(64) }, calls[1]],
     [clean],
@@ -3809,6 +3849,8 @@ test("Claude selected owner binds route, review, and parent handoff", async () =
   const unboundReview = await evaluate(
     [calls[0], { ...calls[1], parentToolUseId: "other-agent" }],
     [clean],
+    true,
+    "other-agent",
   );
   expect(unboundReview.value.result.checks[5]!.status).toBe("failed");
   const lateParent = await artifact("late.jsonl", [

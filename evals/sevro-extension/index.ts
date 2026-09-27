@@ -1315,7 +1315,11 @@ function claudeSelectedOwnerCasePolicy(transcript: unknown) {
         configuration: {},
       })),
     ],
-    requiredEvidence: ["sevro.claude.tool-calls", "sevro.claude.events"],
+    requiredEvidence: [
+      "sevro.claude.tool-calls",
+      "sevro.claude.events",
+      "sevro.claude.nested-skills",
+    ],
     details: { ownership: "claude-selected", transcriptChecks: checks },
   };
 }
@@ -4241,6 +4245,34 @@ function claudeSelectedOwner(calls: RecordValue[] | null) {
   return owners[0]!;
 }
 
+function claudeNestedSkills(observations: unknown): RecordValue[] | null {
+  const observation = uniqueObservation(
+    observations,
+    "sevro.claude.nested-skills",
+  );
+  const data = observation ? activationData(observation.data) : null;
+  if (
+    observation?.source !== "sevro.host.claude" ||
+    observation.completeness !== "complete" ||
+    data?.method !== "native_session_graph" ||
+    !Array.isArray(data.calls) ||
+    data.calls.length > 128
+  )
+    return null;
+  const calls = data.calls.map(activationData);
+  if (
+    calls.some(
+      (call) =>
+        !call ||
+        !nonemptyString(call.ancestorToolUseId) ||
+        !nonemptyString(call.invocation) ||
+        call.skill !== String(call.invocation).split(":").at(-1),
+    )
+  )
+    return null;
+  return calls as RecordValue[];
+}
+
 function claudeRawEvents(text: string | null): RecordValue[] | null {
   if (text === null) return null;
   try {
@@ -4287,7 +4319,9 @@ function claudeWithinOwner(
 
 function claudeResolverCommand(command: unknown) {
   if (typeof command !== "string") return false;
-  const match = command.match(
+  const wrapper = command.match(/^cd "([^"\r\n]+)" && (.+) 2>&1$/);
+  const core = wrapper ? wrapper[2]! : command;
+  const match = core.match(
     /^uv run --quiet --no-project ("[^"\r\n]+"|'[^'\r\n]+'|\/[A-Za-z0-9_./-]+) claude-agent-route --provider anthropic --model claude-sonnet-5 --effort low$/,
   );
   if (!match) return false;
@@ -4295,7 +4329,11 @@ function claudeResolverCommand(command: unknown) {
   return (
     /^\/[A-Za-z0-9_./-]+$/.test(path) &&
     !path.split("/").includes("..") &&
-    path.endsWith("/backend/scripts/run_locked.py")
+    path.endsWith("/backend/scripts/run_locked.py") &&
+    (!wrapper ||
+      (/^\/[A-Za-z0-9_./-]+$/.test(wrapper[1]!) &&
+        path ===
+          `${wrapper[1]}/.sevro-marketplace/plugin/backend/scripts/run_locked.py`))
   );
 }
 
@@ -4437,15 +4475,21 @@ function claudeMarkedOwner(owner: RecordValue | null) {
 function claudeIndependentReview(
   calls: RecordValue[] | null,
   owner: RecordValue | null,
+  nested: RecordValue[] | null,
 ) {
   return (
     !!owner &&
-    !!calls?.some(
+    (!!calls?.some(
       (call) =>
         call.name === "Skill" &&
         call.invocation === "independent-code-review" &&
         claudeWithinOwner(call, calls, String(owner.toolUseId)),
-    )
+    ) ||
+      !!nested?.some(
+        (call) =>
+          call.invocation === "independent-code-review" &&
+          call.ancestorToolUseId === owner.toolUseId,
+      ))
   );
 }
 
@@ -4462,22 +4506,49 @@ function claudeNoLedger(eventsText: string | null) {
 
 type ClaudeSelectedContext = {
   calls: RecordValue[] | null;
+  nested: RecordValue[] | null;
   owner: RecordValue | null;
   eventsText: string | null;
   events: RecordValue[] | null;
 };
 
 function claudeSelectedPassed(kind: string, context: ClaudeSelectedContext) {
-  const { calls, owner, eventsText, events } = context;
+  const { calls, nested, owner, eventsText, events } = context;
   if (kind === "claude-selected-owner") return claudeMarkedOwner(owner);
   if (kind === "claude-one-owner")
     return calls?.filter(claudeOwner).length === 1;
   if (kind === "claude-independent-review")
-    return claudeIndependentReview(calls, owner);
+    return claudeIndependentReview(calls, owner, nested);
   if (kind === "claude-selected-route")
     return !!events && !!owner && claudeRouteConfirmed(events, owner);
   if (kind === "claude-no-ledger") return claudeNoLedger(eventsText);
   throw new Error("unsupported Claude selected-owner check");
+}
+
+function claudeSelectedAvailable(kind: string, context: ClaudeSelectedContext) {
+  if (kind === "claude-no-ledger") return context.events !== null;
+  if (kind === "claude-selected-route")
+    return context.events !== null && context.calls !== null;
+  if (context.calls === null) return false;
+  if (kind !== "claude-independent-review") return true;
+  return (
+    context.nested !== null ||
+    claudeIndependentReview(context.calls, context.owner, null)
+  );
+}
+
+function claudeSelectedEvidenceRef(
+  kind: string,
+  context: ClaudeSelectedContext,
+) {
+  if (kind === "claude-selected-route" || kind === "claude-no-ledger")
+    return "sevro.claude.events";
+  const directReview =
+    kind === "claude-independent-review" &&
+    claudeIndependentReview(context.calls, context.owner, null);
+  return kind === "claude-independent-review" && !directReview
+    ? "sevro.claude.nested-skills"
+    : "sevro.claude.tool-calls";
 }
 
 function claudeSelectedTranscriptOutcome(
@@ -4485,12 +4556,7 @@ function claudeSelectedTranscriptOutcome(
   context: ClaudeSelectedContext,
 ) {
   const kind = String(check.kind);
-  const needsEvents =
-    kind === "claude-selected-route" || kind === "claude-no-ledger";
-  const available = needsEvents
-    ? context.events !== null &&
-      (kind !== "claude-selected-route" || context.calls !== null)
-    : context.calls !== null;
+  const available = claudeSelectedAvailable(kind, context);
   return {
     id: string(check.id, "Claude transcript check ID"),
     status: !available
@@ -4501,9 +4567,7 @@ function claudeSelectedTranscriptOutcome(
     detail: available
       ? "Graded from complete Claude host evidence"
       : "Claude host evidence unavailable or incomplete",
-    evidenceRefs: available
-      ? [needsEvents ? "sevro.claude.events" : "sevro.claude.tool-calls"]
-      : [],
+    evidenceRefs: available ? [claudeSelectedEvidenceRef(kind, context)] : [],
   };
 }
 
@@ -4513,10 +4577,11 @@ async function claudeSelectedTranscriptChecks(
   artifacts: unknown,
 ) {
   const calls = claudeSelectedCalls(observations);
+  const nested = claudeNestedSkills(observations);
   const owner = claudeSelectedOwner(calls);
   const eventsText = await codexEventText(artifacts, "sevro.claude.events");
   const events = claudeRawEvents(eventsText);
-  const context = { calls, owner, eventsText, events };
+  const context = { calls, nested, owner, eventsText, events };
   return selected.map((check) =>
     claudeSelectedTranscriptOutcome(check, context),
   );
