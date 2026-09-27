@@ -88,8 +88,10 @@ Sevro extension. A complete Codex native-call observation is required. The
 extension checks that no replacement owner launched, that later parent calls
 only waited or addressed the accepted child, and that the final answer omitted
 internal goal records. Missing or partial host evidence leaves those checks
-unavailable. Cases with transcript checks or full goal-route reports remain
-unsupported until their distinct evidence can be translated.
+unavailable. Full goal-route reports and most transcript checks remain
+unsupported. The exact no-agent assertion uses the complete Codex native-call
+observation. A spawn attempt fails; missing or incomplete evidence stays
+unavailable. Other transcript patterns are rejected during case resolution.
 
 For local protocol and public CLI validation, run:
 

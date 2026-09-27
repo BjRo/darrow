@@ -665,6 +665,7 @@ const CASE_FIELDS = [
   "additional_skills",
   "goal_report",
   "goal_route_checks",
+  "transcript_checks",
 ];
 
 const OWNERSHIP_CHECKS = [
@@ -672,6 +673,29 @@ const OWNERSHIP_CHECKS = [
   "darrow.evals.ownership.parent-work",
   "darrow.evals.ownership.internal-record",
 ] as const;
+
+const NO_AGENT_TRANSCRIPT_PATTERN =
+  '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"type":"darrow.goal_agent_completion"';
+
+function caseTranscriptChecks(value: unknown) {
+  if (value === undefined) return null;
+  if (!Array.isArray(value) || !value.length)
+    throw new Error("transcript_checks must be a nonempty list");
+  return value.map((entry, index) => {
+    const check = record(entry, `transcript check ${index + 1}`);
+    keys(check, ["name", "not_regex"], `transcript check ${index + 1}`);
+    const name = string(check.name, `transcript check ${index + 1} name`);
+    if (check.not_regex !== NO_AGENT_TRANSCRIPT_PATTERN)
+      throw new Error(
+        `transcript check ${index + 1} has no Sevro evidence mapping`,
+      );
+    return {
+      id: `darrow.evals.transcript.${index + 1}`,
+      name,
+      kind: "no-agent-spawn",
+    };
+  });
+}
 
 function ignoredGoalPolicy(selected: RecordValue, skillDir: string | null) {
   return (
@@ -701,6 +725,27 @@ function caseOwnership(selected: RecordValue, skillDir: string | null) {
       configuration: {},
     })),
     requiredEvidence: ["sevro.codex.native-calls"],
+  };
+}
+
+function casePolicy(selected: RecordValue, skillDir: string | null) {
+  const ownership = caseOwnership(selected, skillDir);
+  const transcriptChecks = caseTranscriptChecks(selected.transcript_checks);
+  return {
+    checks: [
+      ...(ownership?.checks ?? []),
+      ...(transcriptChecks?.map(({ id }) => ({
+        id,
+        grader: "darrow.evals.native-calls",
+        configuration: {},
+      })) ?? []),
+    ],
+    requiredEvidence:
+      ownership || transcriptChecks ? ["sevro.codex.native-calls"] : [],
+    details: {
+      ...(ownership ? { ownership: true } : {}),
+      ...(transcriptChecks ? { transcriptChecks } : {}),
+    },
   };
 }
 
@@ -738,10 +783,10 @@ async function neutralCase(value: unknown, source: string, root: string) {
     selected.prompt,
     invocation ? "{{sevro.codex.skill_invocation}}" : null,
   );
-  const ownership = caseOwnership(selected, skillDir);
+  const policy = casePolicy(selected, skillDir);
   const checks = [
     ...(await caseChecks(selected, root, skillDir)),
-    ...(ownership?.checks ?? []),
+    ...policy.checks,
   ];
   const checkMetrics = caseCheckMetrics(selected);
   return {
@@ -749,7 +794,7 @@ async function neutralCase(value: unknown, source: string, root: string) {
     prompt,
     fixture,
     checks,
-    requiredEvidence: ownership?.requiredEvidence ?? [],
+    requiredEvidence: policy.requiredEvidence,
     extensionData: {
       "darrow.case": {
         invariant,
@@ -759,7 +804,7 @@ async function neutralCase(value: unknown, source: string, root: string) {
         ...mount,
         ...additionalMounts,
         ...(invocation ? { invocation } : {}),
-        ...(ownership ? { ownership: true } : {}),
+        ...policy.details,
         ...caseActivation(selected, skillDir, mountPluginSkills),
         checkNames: checkNames(selected),
         ...(checkMetrics.length ? { checkMetrics } : {}),
@@ -1440,14 +1485,14 @@ async function prepareCase(params: RecordValue) {
   const omitSkills = withoutSkill(params.configuration);
   if (omitSkills && details.invocation !== undefined)
     throw new Error("explicit skill invocation cannot run without skills");
-  if (details.ownership === true) {
+  if (details.ownership === true || details.transcriptChecks !== undefined) {
     const host = record(params.host, "candidate host");
     if (
       host.id !== "sevro.host.codex" ||
       !Array.isArray(host.capabilities) ||
       !host.capabilities.includes("sevro.codex.native-calls")
     )
-      throw new Error("ownership checks require Codex native-call evidence");
+      throw new Error("native checks require Codex native-call evidence");
   }
   const setup = await caseSetup(details, string(selected.id, "case ID"));
   return {
@@ -1886,6 +1931,68 @@ function ownershipChecks(observations: unknown) {
   ];
 }
 
+function noAgentEvidence(observations: unknown) {
+  const evidence = nativeOwnershipEvidence(observations);
+  const observation = uniqueObservation(
+    observations,
+    "sevro.codex.native-calls",
+  );
+  const data = observation ? activationData(observation.data) : null;
+  if (!evidence || !Array.isArray(data?.calls)) return null;
+  const direct = data.calls.map(activationData);
+  if (direct.some((call) => !call)) return null;
+  const calls = direct as RecordValue[];
+  if (
+    !calls.every(validNativeToolCall) ||
+    calls.some(
+      (call) =>
+        !["functions", "collaboration"].includes(String(call.namespace)) ||
+        call.evidence !== "invocation_attempt" ||
+        !evidence.calls.some(
+          (tool) =>
+            tool.ordinal === call.ordinal &&
+            tool.namespace === call.namespace &&
+            tool.name === call.name,
+        ),
+    )
+  )
+    return null;
+  const spawns = (items: RecordValue[]) =>
+    items
+      .filter(
+        (call) =>
+          call.namespace === "collaboration" && call.name === "spawn_agent",
+      )
+      .map((call) => call.ordinal);
+  const observed = spawns(evidence.calls);
+  if (JSON.stringify(observed) !== JSON.stringify(spawns(calls))) return null;
+  return { attemptedSpawn: observed.length > 0 };
+}
+
+function nativeTranscriptChecks(value: unknown, observations: unknown) {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || !value.length)
+    throw new Error("native transcript checks are invalid");
+  const evidence = noAgentEvidence(observations);
+  return value.map((entry) => {
+    const selected = record(entry, "native transcript check");
+    if (selected.kind !== "no-agent-spawn")
+      throw new Error("unsupported native transcript check");
+    return {
+      id: string(selected.id, "native transcript check ID"),
+      status: evidence
+        ? evidence.attemptedSpawn
+          ? "failed"
+          : "passed"
+        : "unavailable",
+      detail: evidence
+        ? "Graded from complete native agent-spawn observations"
+        : "Native agent-spawn observation unavailable or incomplete",
+      evidenceRefs: evidence ? ["sevro.codex.native-calls"] : [],
+    };
+  });
+}
+
 function measuredMetric(
   label: string,
   checkIds: string[],
@@ -1956,8 +2063,10 @@ function evaluateCase(params: RecordValue) {
   );
   const details = record(extensionData["darrow.case"], "Darrow case data");
   const metrics = caseMetrics(details, params);
-  const checks =
-    details.ownership === true ? ownershipChecks(params.observations) : [];
+  const checks = [
+    ...(details.ownership === true ? ownershipChecks(params.observations) : []),
+    ...nativeTranscriptChecks(details.transcriptChecks, params.observations),
+  ];
   if (omitSkills || details.activation === undefined)
     return { checks, metrics, domainOutcomes: [] };
   const expected = activationExpectation(details.activation);
@@ -2010,7 +2119,7 @@ if (import.meta.main) {
               "sevro.codex.explicit-invocation",
               "sevro.codex.native-calls",
             ],
-            graders: ["darrow.evals.ownership"],
+            graders: ["darrow.evals.ownership", "darrow.evals.native-calls"],
             taskVerdictPolicies: [],
           }
         : method === "resolve"

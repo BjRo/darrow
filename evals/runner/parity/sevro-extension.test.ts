@@ -553,6 +553,199 @@ test("Darrow ownership checks use complete native evidence without private task 
   expect(internalRecord.value.result.checks[2]?.status).toBe("failed");
 });
 
+test("Darrow translates no-agent transcript assertions into bounded native checks", async () => {
+  const selected = await command<{
+    result: {
+      cases: Array<{
+        checks: Array<{
+          id: string;
+          grader: string;
+          configuration: Record<string, unknown>;
+        }>;
+        requiredEvidence: string[];
+        extensionData: Record<string, unknown>;
+      }>;
+    };
+  }>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(projectRoot).href,
+      selectors: { caseIds: ["goal-budgeted-repair-explicit-zero"] },
+      configuration: {},
+    }),
+  );
+  expect(selected.code, selected.stderr).toBe(0);
+  const selectedCase = selected.value.result.cases[0]!;
+  expect(selectedCase.requiredEvidence).toEqual(["sevro.codex.native-calls"]);
+  expect(selectedCase.checks).toContainEqual({
+    id: "darrow.evals.transcript.1",
+    grader: "darrow.evals.native-calls",
+    configuration: {},
+  });
+  const native = {
+    id: "sevro.codex.native-calls",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "native_session",
+      calls: [],
+      toolCalls: [],
+      acceptedSpawns: [],
+      submittedExecCalls: 0,
+    },
+  };
+  const evaluate = (observations: unknown[]) =>
+    command<{
+      result: {
+        checks: Array<{ id: string; status: string; evidenceRefs: string[] }>;
+      };
+    }>(
+      [process.execPath, extension],
+      request("evaluate", {
+        observations,
+        extensionData: selectedCase.extensionData,
+      }),
+    );
+  const status = async (observations: unknown[]) => {
+    const response = await evaluate(observations);
+    expect(response.code, response.stderr).toBe(0);
+    return response.value.result.checks.find(
+      (check) => check.id === "darrow.evals.transcript.1",
+    );
+  };
+  expect(await status([native])).toMatchObject({
+    status: "passed",
+    evidenceRefs: ["sevro.codex.native-calls"],
+  });
+  const spawn = {
+    ...native,
+    data: {
+      ...native.data,
+      calls: [
+        {
+          ordinal: 0,
+          namespace: "collaboration",
+          name: "spawn_agent",
+          evidence: "invocation_attempt",
+        },
+      ],
+      toolCalls: [
+        { ordinal: 0, namespace: "collaboration", name: "spawn_agent" },
+      ],
+    },
+  };
+  expect((await status([spawn]))?.status).toBe("failed");
+  expect(
+    (await status([{ ...spawn, data: { ...spawn.data, toolCalls: [] } }]))
+      ?.status,
+  ).toBe("unavailable");
+  expect((await status([{ ...native, completeness: "partial" }]))?.status).toBe(
+    "unavailable",
+  );
+  expect((await status([native, native]))?.status).toBe("unavailable");
+  const unrelated = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(projectRoot).href,
+      selectors: {
+        caseIds: ["publish-pr-evidence-generic-comment-nonactivation"],
+      },
+      configuration: {},
+    }),
+  );
+  expect(unrelated.value.error.message).toContain("no Sevro evidence mapping");
+});
+
+test("Sevro grades no-agent evidence through the public CLI", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-no-agent-"));
+  roots.push(root);
+  const skill = join(root, "plugins/capability/example/skills/probe");
+  await mkdir(join(skill, "evals"), { recursive: true });
+  await writeFile(
+    join(skill, "SKILL.md"),
+    "---\nname: probe\ndescription: Return ready.\n---\n\nReturn ready.\n",
+  );
+  await writeFile(
+    join(skill, "evals/no-agent.yaml"),
+    JSON.stringify({
+      id: "no-agent-probe",
+      invariant: "EXAMPLE-C1",
+      prompt: "Return ready.",
+      fixture: {
+        commits: [
+          { message: "chore: init", files: { "README.md": "ready\n" } },
+        ],
+      },
+      checks: [],
+      output_checks: [{ name: "response", expect_exact: "ready" }],
+      transcript_checks: [
+        {
+          name: "advice launches no agent",
+          not_regex:
+            '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"type":"darrow.goal_agent_completion"',
+        },
+      ],
+    }),
+  );
+  const commandFile = join(root, "extension-command.json");
+  await writeFile(commandFile, JSON.stringify([process.execPath, extension]));
+  const adapter = join(root, "candidate.ts");
+  await writeFile(
+    adapter,
+    `export default {
+  id: "sevro.host.codex", model: "synthetic", effort: "none",
+  hostCapabilities: ["sevro.codex.native-calls"],
+  async run() {
+    return { finalMessage: "ready", complete: true,
+      observations: [{ id: "sevro.codex.native-calls", completeness: "complete",
+        data: { method: "native_session", calls: [], toolCalls: [], acceptedSpawns: [], submittedExecCalls: 0 } }] };
+  },
+};\n`,
+  );
+  const route = sevroCommand();
+  const run = await command<CliReply>([
+    ...route.launch,
+    "run",
+    "--json",
+    ...route.extraArgs,
+    "--extension-command-file",
+    commandFile,
+    "--extension-source-file",
+    extension,
+    "--case-id",
+    "no-agent-probe",
+    "--project-root",
+    root,
+    "--adapter-module",
+    adapter,
+    "--condition",
+    "passive",
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--results-root",
+    join(root, "results"),
+  ]);
+  const evidence = JSON.parse(await readFile(run.value.evidencePath, "utf8"));
+  expect(
+    run.code,
+    `${run.stderr}\n${JSON.stringify(evidence.diagnostic)}`,
+  ).toBe(0);
+  expect(run.value.task.verdict).toBe("passed");
+  expect(
+    run.value.cases[0]!.trials[0]!.checks.find(
+      (check) => check.id === "darrow.evals.transcript.1",
+    ),
+  ).toMatchObject({
+    id: "darrow.evals.transcript.1",
+    grader: "darrow.evals.native-calls",
+    status: "passed",
+    detail: "Graded from complete native agent-spawn observations",
+    evidenceRefs: ["sevro.codex.native-calls"],
+  });
+});
+
 test("Sevro grades an existing Darrow ownership case through its public CLI", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-ownership-"));
   roots.push(root);

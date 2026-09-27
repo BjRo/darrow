@@ -561,6 +561,14 @@ not prove equivalence or savings.
   their configured locations. Candidate execution and shell grading protect
   both storage roots and any explicit result and diagnostic files.
 
+- **SE-C31 — Bounded no-agent evidence.** A Darrow transcript assertion that
+  no agent launched may migrate to a check over the complete Codex native-call
+  observation when the assertion has no other condition. Any observed agent
+  spawn attempt fails the check. Missing, partial, duplicate, or malformed
+  native-call evidence makes the check unavailable; absence from CLI output
+  alone cannot prove that no agent launched. Other transcript assertions remain
+  unsupported until an equivalent evidence source and grader are defined.
+
 ## Evaluation requirements
 
 1. Coverage fixtures include covered and uncovered IDs, comma-separated case
