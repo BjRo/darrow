@@ -172,6 +172,12 @@ test("suite runs every selected mode and case through Sevro public commands", as
     await readFile(join(results, "suite-run.json"), "utf8"),
   );
   expect(manifest.format).toBe("darrow-sevro-suite-v1");
+  expect(manifest.harnesses).toEqual(["codex"]);
+  expect(manifest.caseIds).toEqual(["suite-alpha", "suite-beta"]);
+  expect(manifest.modes).toEqual([
+    { name: "passive", condition: "passive" },
+    { name: "enforced", condition: "enforced" },
+  ]);
   expect(
     manifest.cells.map((cell: { caseId: string; mode: string }) => [
       cell.mode,
@@ -185,6 +191,18 @@ test("suite runs every selected mode and case through Sevro public commands", as
   ]);
   for (const cell of manifest.cells) {
     expect(cell.exitCode).toBe(0);
+    expect(cell.provenance.evaluationDigest).toMatch(/^[a-f0-9]{64}$/);
+    expect(cell.provenance.runner.source).toBe(
+      process.env.SEVRO_CHECKOUT ? "checkout" : "package",
+    );
+    expect(cell.provenance.project.root).toStartWith("file:///");
+    expect(cell.provenance.extension.id).toBe("darrow.evals");
+    expect(cell.provenance.routes).toContainEqual({
+      role: "candidate",
+      host: "sevro.host.codex",
+      model: "synthetic",
+      effort: "none",
+    });
     const result = JSON.parse(await readFile(cell.result, "utf8"));
     expect(result.cases[0].caseId).toBe(cell.caseId);
     expect(result.task.verdict).toBe("passed");
@@ -228,6 +246,7 @@ test("suite retains failed cells and continues the remaining public runs", async
     expect(result.task.verdict).toBe(
       cell.caseId === "suite-beta" ? "failed" : "passed",
     );
+    expect(cell.provenance.evaluationDigest).toMatch(/^[a-f0-9]{64}$/);
   }
 });
 
@@ -276,6 +295,9 @@ test("suite interruption cancels the active Sevro cell and stops selection", asy
     );
     expect(manifest.interrupted).toBe("SIGTERM");
     expect(manifest.cells).toHaveLength(1);
+    expect(manifest.cells[0].provenance.runner.source).toBe(
+      process.env.SEVRO_CHECKOUT ? "checkout" : "package",
+    );
     const result = JSON.parse(await readFile(manifest.cells[0].result, "utf8"));
     expect(result.execution.status).toBe("cancelled");
     expect(result.task.verdict).toBe("not_assessed");

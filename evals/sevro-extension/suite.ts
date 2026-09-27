@@ -132,10 +132,122 @@ type Cell = {
   condition: "passive" | "enforced";
   result: string | null;
   evidencePath: string | null;
+  provenance: EvidenceSummary | null;
   exitCode: number;
   error?: string;
 };
 type Interrupt = "SIGINT" | "SIGTERM";
+type EvidenceSummary = {
+  evaluationDigest: string;
+  runner: Record<string, unknown>;
+  project: Record<string, unknown>;
+  extension: Record<string, unknown> | null;
+  routes: Array<{ role: string; host: string; model: string; effort: string }>;
+};
+type ExpectedCell = {
+  caseId: string;
+  condition: "passive" | "enforced";
+  trials: number;
+  threshold: number;
+  exitCode: number;
+};
+
+function verifyEvidence(
+  evidence: Record<string, unknown>,
+  result: Record<string, unknown>,
+  expected: ExpectedCell,
+) {
+  const identity = object(evidence.evaluationIdentity, "evaluation identity");
+  const dimensions = object(identity.dimensions, "identity dimensions");
+  const retained = object(evidence.result, "retained result");
+  const selected = retained.cases;
+  const matches = [
+    evidence.format === "sevro.run-evidence.v1",
+    evidence.runId === result.runId,
+    retained.exitCode === result.exitCode,
+    result.exitCode === expected.exitCode,
+    Array.isArray(selected) &&
+      selected.length === 1 &&
+      object(selected[0], "retained case").caseId === expected.caseId,
+    dimensions.condition === expected.condition,
+    dimensions.trialCount === expected.trials,
+    dimensions.passThreshold === expected.threshold,
+    typeof identity.digest === "string",
+  ];
+  if (matches.some((matched) => !matched))
+    throw new Error("retained Sevro evidence differs from suite cell");
+  return identity.digest as string;
+}
+
+function routeSummary(value: unknown): EvidenceSummary["routes"][number] {
+  const route = object(value, "host route");
+  if (
+    ["role", "host", "model", "effort"].some(
+      (key) => typeof route[key] !== "string",
+    )
+  )
+    throw new Error("retained Sevro route is invalid");
+  return route as EvidenceSummary["routes"][number];
+}
+
+async function retainedSummary(
+  result: Record<string, unknown>,
+  expected: ExpectedCell,
+): Promise<EvidenceSummary> {
+  const path = result.evidencePath;
+  if (typeof path !== "string" || !isAbsolute(path))
+    throw new Error("retained evidence path is missing");
+  const evidence = object(
+    JSON.parse(await readFile(path, "utf8")) as unknown,
+    "Sevro evidence",
+  );
+  const evaluationDigest = verifyEvidence(evidence, result, expected);
+  const routes = evidence.routes;
+  if (!Array.isArray(routes))
+    throw new Error("retained Sevro routes are missing");
+  return {
+    evaluationDigest,
+    runner: object(evidence.runner, "runner provenance"),
+    project: object(evidence.project, "project provenance"),
+    extension:
+      evidence.extension === null
+        ? null
+        : object(evidence.extension, "extension provenance"),
+    routes: routes.map(routeSummary),
+  };
+}
+
+async function cellProvenance(
+  result: Record<string, unknown> | null,
+  expected: ExpectedCell,
+) {
+  if (!result) return { provenance: null, evidenceError: false };
+  if (!result.evidencePath)
+    return { provenance: null, evidenceError: result.exitCode === 0 };
+  try {
+    return {
+      provenance: await retainedSummary(result, expected),
+      evidenceError: false,
+    };
+  } catch {
+    return { provenance: null, evidenceError: true };
+  }
+}
+
+function cellStatus(
+  result: Record<string, unknown> | null,
+  exitCode: number,
+  evidenceError: boolean,
+) {
+  if (evidenceError)
+    return {
+      exitCode: 70,
+      error: "Retained Sevro evidence is unavailable or inconsistent",
+    };
+  if (!result)
+    return { exitCode: exitCode || 70, error: "Sevro did not return JSON" };
+  return { exitCode };
+}
 
 function cellCommand(
   request: SuiteRequest,
@@ -184,6 +296,13 @@ async function runCell(
   }
   const resultPath = result ? join(cellRoot, "result.json") : null;
   if (resultPath) await writeFile(resultPath, JSON.stringify(result, null, 2));
+  const { provenance, evidenceError } = await cellProvenance(result, {
+    caseId,
+    condition: mode.condition,
+    trials: request.trials,
+    threshold: request.threshold,
+    exitCode,
+  });
   const cell: Cell = {
     caseId,
     mode: mode.name,
@@ -191,8 +310,8 @@ async function runCell(
     result: resultPath,
     evidencePath:
       typeof result?.evidencePath === "string" ? result.evidencePath : null,
-    exitCode: result ? exitCode : exitCode || 70,
-    ...(result ? {} : { error: "Sevro did not return JSON" }),
+    provenance,
+    ...cellStatus(result, exitCode, evidenceError),
   };
   return { cell, interrupted };
 }
@@ -239,6 +358,9 @@ export async function runSuite(argv: string[]) {
     projectRoot,
     trials,
     threshold,
+    harnesses: ["codex"],
+    modes: suite.modes,
+    caseIds,
     interrupted: null as Interrupt | null,
     cells: [] as Cell[],
   };
