@@ -34,7 +34,8 @@ in the mounted set. A complete host observation with `primarySkill` and ordered
 `observedSkills` yields a separate `darrow.evals.activation` domain outcome.
 The bundled Codex route supplies `sevro.codex.skill-reads` for completed direct
 reads of a mounted skill body through direct `cat`, complete exact `sed` pages,
-and exact `lean-ctx -c` wrappers around those reads. Synthetic adapters can
+and exact `lean-ctx -c` wrappers around those reads. The same receipt covers
+skill files in the exact installed plugin roots returned by Codex. Synthetic adapters can
 supply `darrow.activation` for parity tests. Missing, partial, duplicate,
 foreign, or inconsistent observations make activation unavailable without
 changing the task verdict. Other Codex read patterns still need parity work.

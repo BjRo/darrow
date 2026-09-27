@@ -1222,6 +1222,7 @@ test("explicit Codex skill invocation packages the owning plugin for Sevro", asy
     JSON.stringify({
       id: "probe-invocation",
       invariant: "PROBE-I1",
+      activation: "positive",
       prompt: "Run {{skill_invocation}} in {{repo_dir}} and return ready.",
       fixture: {
         commits: [
@@ -1349,6 +1350,75 @@ test("explicit Codex skill invocation packages the owning plugin for Sevro", asy
     prepared.value.result.codexMarketplace,
   );
   expect(evidence.trials[0].artifactRefs).toHaveLength(paths.length);
+  const installedCodex = Bun.which("codex");
+  if (process.platform !== "darwin" || !installedCodex) return;
+  const fakeRoot = await mkdtemp(join(tmpdir(), "darrow-sevro-plugin-host-"));
+  roots.push(fakeRoot);
+  const fakeCodex = join(fakeRoot, "fake-codex");
+  const quotedCodex = `'${installedCodex.replaceAll("'", `'"'"'`)}'`;
+  const skillBody = await readFile(join(skill, "SKILL.md"), "utf8");
+  await writeFile(
+    fakeCodex,
+    `#!/bin/sh
+if [ "$1" = plugin ] || [ "$1" = sandbox ]; then exec ${quotedCodex} "$@"; fi
+if [ "$1" = --version ]; then printf 'synthetic-codex\\n'; exit 0; fi
+if [ "$1" != exec ]; then exit 99; fi
+skill_file="$CODEX_HOME/plugins/cache/darrow-eval/probe/0.1.0/skills/probe/SKILL.md"
+test -f "$skill_file" || exit 98
+/bin/cat >/dev/null
+/bin/cat <<SEVRO_EVENTS
+{"type":"thread.started","thread_id":"plugin-turn"}
+{"type":"item.completed","item":{"id":"skill","type":"command_execution","command":"cat $skill_file","aggregated_output":${JSON.stringify(skillBody)},"exit_code":0,"status":"completed"}}
+{"type":"item.completed","item":{"type":"agent_message","text":"ready"}}
+{"type":"turn.completed","usage":{"input_tokens":12,"output_tokens":4}}
+SEVRO_EVENTS
+`,
+    { mode: 0o700 },
+  );
+  await chmod(fakeCodex, 0o700);
+  const authFile = join(root, "auth.json");
+  await writeFile(authFile, "test-only-auth\n", { mode: 0o600 });
+  const live = await command<CliReply>([
+    ...route.launch,
+    "run",
+    "--json",
+    ...route.extraArgs,
+    "--extension-command-file",
+    commandFile,
+    "--extension-source-file",
+    extension,
+    "--case-id",
+    "probe-invocation",
+    "--project-root",
+    root,
+    "--condition",
+    "passive",
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--host",
+    "codex",
+    "--codex-bin",
+    fakeCodex,
+    "--codex-auth-file",
+    authFile,
+    "--model",
+    "synthetic-codex",
+    "--effort",
+    "low",
+    "--results-root",
+    join(root, "live-results"),
+  ]);
+  expect(live.code, live.stderr).toBe(0);
+  expect(live.value.task.verdict).toBe("passed");
+  expect(live.value.cases[0]!.trials[0]!.domainOutcomes).toMatchObject([
+    {
+      id: "darrow.evals.activation",
+      status: "passed",
+      evidenceRefs: ["sevro.codex.skill-reads"],
+    },
+  ]);
 });
 
 test("Darrow command reserves extension and identity options", () => {
