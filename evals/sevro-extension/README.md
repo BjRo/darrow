@@ -70,6 +70,18 @@ Other case fields and fixture mechanics fail explicitly. The legacy
 `{{repo_dir}}` prompt token maps to Sevro's per-trial
 workspace token. Other prompt templates still fail explicitly.
 
+To inventory case compatibility before switching a workflow, run:
+
+```sh
+bun run eval:sevro:compatibility -- --allow-unsupported
+```
+
+The command reports every case that cannot resolve through the current Darrow
+extension. Omit `--allow-unsupported` to fail when any case remains unsupported;
+use `--json` for the versioned machine-readable report. Missing or unreadable
+case inputs fail the scan. This inventory tests resolution, not host execution
+or grade parity.
+
 Adaptive-delivery cases that declare `goal_route_checks: false` and the
 forbidden goal-report policy now retain their ownership checks through the
 Sevro extension. A complete Codex native-call observation is required. The
@@ -100,7 +112,9 @@ SEVRO_CHECKOUT=/absolute/path/to/sevro bun evals/sevro-extension/run.ts \
 ```
 
 The entrypoint fixes the Darrow extension, project, case, results, and source
-identity. Options after `--` go to Sevro. The results directory holds the
+identity. `--without-skill` before `--` omits mounted skills for a baseline
+run; explicit skill-invocation cases are rejected for this mode. Options after
+`--` go to Sevro. The results directory holds the
 extension command file at a stable path. The command emits Sevro's JSON result
 and exit category. Unsupported case features still fail during resolution.
 
@@ -116,8 +130,11 @@ SEVRO_CHECKOUT=/absolute/path/to/sevro bun evals/sevro-extension/suite.ts \
   --model gpt-5.6-terra --effort medium --shell-isolation
 ```
 
-This initial suite route requires `harnesses: [codex]` and accepts only
-`owner_evaluation` in each mode. It resolves `case_filter` substrings to exact
+This suite route requires `harnesses: [codex]` and accepts
+`owner_evaluation` and `without_skill` in each mode. Named ablations pair a
+no-skill baseline with a mounted candidate under the same condition. Ablation
+results must be outside the evaluated project so result files cannot change its
+digest between cells. It resolves `case_filter` substrings to exact
 case IDs before starting, rejects duplicate IDs and unsupported suite fields,
 then invokes the public Sevro CLI once per case and mode. `suite-run.json`
 records the suite content digest, selected cells, Sevro result paths, evidence
@@ -128,9 +145,11 @@ suite. The command exits 1 if any cell or the public report fails. The suite
 also invokes `sevro report` and writes its versioned `report.json` and Markdown
 `report.md` beside the manifest. The manifest records their absolute paths and
 any cells without a JSON result. The generic report preserves task, execution,
-grading, routes, and unknown measurements; it does not claim matched ablations.
-Ablations, route overrides, and Darrow-specific benchmark interpretation still
-use the legacy suite command.
+grading, routes, and unknown measurements. Named ablations also write
+`ablation-report.json` and `ablation-report.md` with per-case pass rate, time,
+token, and cost deltas; missing measurements stay unknown. Missing cells or
+mismatched identity dimensions invalidate the comparison. Route overrides and
+Darrow-specific benchmark interpretation still use the legacy suite command.
 
 The parity test also prepares the mounted skill through Sevro's bundled Codex
 route with `--dry`, validating its protocol identity and retained artifacts

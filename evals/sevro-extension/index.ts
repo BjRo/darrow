@@ -1500,6 +1500,42 @@ export async function selectCaseIds(root: string, filters: string[]) {
   return [...selected].sort();
 }
 
+/** Inventory every Darrow case against the current extension before a switch. */
+export async function auditCaseCompatibility(root: string) {
+  const projectRoot = await realpath(root);
+  const entries = await caseEntries(projectRoot);
+  if (!entries.length) throw new Error("No cases found.");
+  const seen = new Set<string>();
+  const failures: { id: string | null; source: string; error: string }[] = [];
+  let supported = 0;
+  for (const entry of entries) {
+    let id: string | null = null;
+    try {
+      id = string(record(entry.value, "case").id, "case ID");
+      if (seen.has(id)) throw new Error(`duplicate case ID: ${id}`);
+      seen.add(id);
+      await neutralCase(entry.value, entry.source, projectRoot);
+      supported++;
+    } catch (error) {
+      failures.push({
+        id,
+        source: join(projectRoot, entry.source),
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+  return {
+    format: "darrow-sevro-compatibility-v1",
+    projectRoot,
+    total: entries.length,
+    supported,
+    failures: failures.sort((left, right) =>
+      left.source.localeCompare(right.source),
+    ),
+    valid: failures.length === 0,
+  };
+}
+
 export async function resolveCase(params: RecordValue) {
   const url = string(params.projectRoot, "project root");
   if (!url.startsWith("file:///"))
