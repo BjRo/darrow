@@ -1625,3 +1625,124 @@ test("Darrow local ticket works through Sevro and binds its source", async () =>
     run.value.cases[0]!.trials[0]!.checks.map((check) => check.status),
   ).toEqual(["passed", "passed"]);
 });
+
+test("Darrow resolves skill output schemas into Sevro grading", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-schema-"));
+  roots.push(root);
+  const skill = join(root, "plugins/capability/example/skills/example");
+  const cases = join(skill, "evals");
+  await mkdir(cases, { recursive: true });
+  await writeFile(
+    join(skill, "SKILL.md"),
+    "---\nname: example\ndescription: Example\n---\n",
+  );
+  const schema = {
+    type: "object",
+    required: ["status"],
+    properties: { status: { const: "ready" } },
+    additionalProperties: false,
+  };
+  await writeFile(join(cases, "result.schema.json"), JSON.stringify(schema));
+  const caseFile = join(cases, "schema.yaml");
+  const definition = {
+    id: "schema-case",
+    invariant: "EXAMPLE-SCHEMA",
+    prompt: "Return status JSON.",
+    fixture: {
+      commits: [{ message: "Initialize", files: { "README.md": "fixture\n" } }],
+    },
+    checks: [],
+    output_checks: [
+      {
+        name: "schema result",
+        valid_json: true,
+        schema: "./evals/result.schema.json",
+      },
+    ],
+  };
+  await writeFile(caseFile, JSON.stringify(definition));
+  const resolveParams = {
+    projectRoot: pathToFileURL(root).href,
+    selectors: { caseIds: ["schema-case"] },
+    configuration: {},
+  };
+  const resolved = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", resolveParams),
+  );
+  expect(resolved.code, resolved.stderr).toBe(0);
+  expect(resolved.value.result.cases[0]!.checks[0]).toMatchObject({
+    grader: "sevro.output",
+    configuration: { validJson: true, schema },
+  });
+  const adapter = join(root, "candidate.ts");
+  const invoke = async (response: string, results: string) => {
+    await writeFile(
+      adapter,
+      `export default {
+  id: "darrow.host.synthetic", model: "synthetic-v1", effort: "none",
+  async run() { return { finalMessage: ${JSON.stringify(response)}, complete: true }; },
+};
+`,
+    );
+    return command<CliReply>([
+      process.execPath,
+      resolve(import.meta.dir, "../../sevro-extension/run.ts"),
+      "--case-id",
+      "schema-case",
+      "--project-root",
+      root,
+      "--results-root",
+      join(root, results),
+      "--",
+      "--adapter-module",
+      adapter,
+      "--shell-isolation",
+      "--condition",
+      "passive",
+      "--trials",
+      "1",
+      "--threshold",
+      "1",
+    ]);
+  };
+  const passed = await invoke('{"status":"ready"}', "passed-results");
+  expect(passed.code, JSON.stringify(passed.value)).toBe(0);
+  expect(passed.value.cases[0]!.trials[0]!.checks[0]).toMatchObject({
+    id: "darrow.output.1",
+    status: "passed",
+  });
+  const failed = await invoke('{"status":"waiting"}', "failed-results");
+  expect(failed.code).toBe(1);
+  expect(failed.value.cases[0]!.trials[0]!.checks[0]).toMatchObject({
+    id: "darrow.output.1",
+    status: "failed",
+  });
+  await writeFile(
+    caseFile,
+    JSON.stringify({
+      ...definition,
+      output_checks: [
+        { name: "schema result", schema: "../../../../outside.json" },
+      ],
+    }),
+  );
+  const escaped = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", resolveParams),
+  );
+  expect(escaped.value.error.message).toMatch(/schema path is invalid/);
+
+  const realCase = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(projectRoot).href,
+      selectors: { caseIds: ["readiness-json-explicit"] },
+      configuration: {},
+    }),
+  );
+  expect(realCase.code, realCase.stderr).toBe(0);
+  expect(realCase.value.result.cases[0]!.checks[2]).toMatchObject({
+    configuration: { schema: { type: "object" } },
+  });
+});

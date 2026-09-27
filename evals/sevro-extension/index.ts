@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { createHash } from "node:crypto";
 import { readFile, readdir, realpath, stat } from "node:fs/promises";
-import { dirname, isAbsolute, join, relative, sep } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parse as parseYaml } from "yaml";
 import { TICKETCTL } from "../fixture-ticket";
@@ -237,53 +237,96 @@ function shellChecks(value: unknown) {
   });
 }
 
-function outputChecks(value: unknown) {
+async function outputSchema(
+  value: unknown,
+  root: string,
+  skillDir: string | null,
+) {
+  if (value === undefined) return undefined;
+  if (!skillDir) throw new Error("output schema requires an owning skill");
+  const source = string(value, "output schema path");
+  if (isAbsolute(source) || source.split(/[\\/]/).includes(".."))
+    throw new Error("output schema path is invalid");
+  const skillRoot = await realpath(join(root, skillDir));
+  const schemaPath = await realpath(resolve(skillRoot, source));
+  if (!within(skillRoot, schemaPath))
+    throw new Error("output schema escapes its owning skill");
+  const bytes = await readFile(schemaPath);
+  if (bytes.byteLength > 1024 * 1024)
+    throw new Error("output schema exceeds the size limit");
+  return record(JSON.parse(bytes.toString("utf8")), "output schema");
+}
+
+function outputConfiguration(
+  check: RecordValue,
+  schema: RecordValue | undefined,
+) {
+  return {
+    ...(check.valid_json === undefined ? {} : { validJson: check.valid_json }),
+    ...(schema === undefined ? {} : { schema }),
+    ...(check.json_path === undefined ? {} : { jsonPath: check.json_path }),
+    ...(Object.hasOwn(check, "expect_json")
+      ? { expectJson: check.expect_json }
+      : {}),
+    ...(Object.hasOwn(check, "contains_json")
+      ? { containsJson: check.contains_json }
+      : {}),
+    ...(check.expect_exact === undefined
+      ? {}
+      : { expectExact: check.expect_exact }),
+    ...(check.expect_regex === undefined
+      ? {}
+      : { expectRegex: check.expect_regex }),
+    ...(check.not_regex === undefined ? {} : { notRegex: check.not_regex }),
+    ...(check.flags === undefined ? {} : { flags: check.flags }),
+  };
+}
+
+async function outputCheck(
+  entry: unknown,
+  index: number,
+  root: string,
+  skillDir: string | null,
+) {
+  const check = record(entry, `output check ${index + 1}`);
+  keys(
+    check,
+    [
+      "name",
+      "valid_json",
+      "schema",
+      "json_path",
+      "expect_json",
+      "contains_json",
+      "expect_exact",
+      "expect_regex",
+      "not_regex",
+      "flags",
+    ],
+    `output check ${index + 1}`,
+  );
+  string(check.name, `output check ${index + 1} name`);
+  return {
+    id: `darrow.output.${index + 1}`,
+    grader: "sevro.output",
+    configuration: outputConfiguration(
+      check,
+      await outputSchema(check.schema, root, skillDir),
+    ),
+  };
+}
+
+async function outputChecks(
+  value: unknown,
+  root: string,
+  skillDir: string | null,
+) {
   if (value === undefined) return [];
   if (!Array.isArray(value))
     throw new Error("case output_checks must be an array");
-  return value.map((entry, index) => {
-    const check = record(entry, `output check ${index + 1}`);
-    keys(
-      check,
-      [
-        "name",
-        "valid_json",
-        "json_path",
-        "expect_json",
-        "contains_json",
-        "expect_exact",
-        "expect_regex",
-        "not_regex",
-        "flags",
-      ],
-      `output check ${index + 1}`,
-    );
-    string(check.name, `output check ${index + 1} name`);
-    return {
-      id: `darrow.output.${index + 1}`,
-      grader: "sevro.output",
-      configuration: {
-        ...(check.valid_json === undefined
-          ? {}
-          : { validJson: check.valid_json }),
-        ...(check.json_path === undefined ? {} : { jsonPath: check.json_path }),
-        ...(Object.hasOwn(check, "expect_json")
-          ? { expectJson: check.expect_json }
-          : {}),
-        ...(Object.hasOwn(check, "contains_json")
-          ? { containsJson: check.contains_json }
-          : {}),
-        ...(check.expect_exact === undefined
-          ? {}
-          : { expectExact: check.expect_exact }),
-        ...(check.expect_regex === undefined
-          ? {}
-          : { expectRegex: check.expect_regex }),
-        ...(check.not_regex === undefined ? {} : { notRegex: check.not_regex }),
-        ...(check.flags === undefined ? {} : { flags: check.flags }),
-      },
-    };
-  });
+  return Promise.all(
+    value.map((entry, index) => outputCheck(entry, index, root, skillDir)),
+  );
 }
 
 function semanticOutputChecks(value: unknown) {
@@ -460,7 +503,7 @@ const CASE_FIELDS = [
   "mount_plugin_skills",
 ];
 
-function neutralCase(value: unknown, source: string, root: string) {
+async function neutralCase(value: unknown, source: string, root: string) {
   const selected = record(value, "case");
   keys(selected, CASE_FIELDS, "case");
   const id = string(selected.id, "case ID");
@@ -474,7 +517,7 @@ function neutralCase(value: unknown, source: string, root: string) {
   );
   const checks = [
     ...shellChecks(selected.checks),
-    ...outputChecks(selected.output_checks),
+    ...(await outputChecks(selected.output_checks, root, skillDir)),
     ...semanticOutputChecks(selected.semantic_output_checks),
   ];
   return {
@@ -787,7 +830,9 @@ export async function resolveCase(params: RecordValue) {
         ? "selected case ID is ambiguous"
         : "selected case ID was not found",
     );
-  return { cases: [neutralCase(matches[0]!.value, matches[0]!.source, root)] };
+  return {
+    cases: [await neutralCase(matches[0]!.value, matches[0]!.source, root)],
+  };
 }
 
 function activationExpectation(value: unknown) {
