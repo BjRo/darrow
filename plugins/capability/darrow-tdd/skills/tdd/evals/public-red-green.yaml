@@ -98,5 +98,7 @@ semantic_output_checks:
   - name: response reports observed red and green evidence
     proposition: >-
       The response names the test command and reports that the new blank-name
-      greeting test first failed because the stranger behavior was missing and
-      then passed after the implementation change.
+      greeting test first failed on the required greeting behavior, then passed
+      after the implementation change. A concrete wrong greeting, such as one
+      containing the blank name or its whitespace, explains the relevant red
+      result. A syntax error or unrelated failure does not.
