@@ -3533,6 +3533,106 @@ test("Sevro grades an existing Darrow ownership case through its public CLI", as
   ).toEqual(["passed", "passed", "passed"]);
 });
 
+test("Claude readiness stop uses complete native calls and intact events", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-claude-readiness-"));
+  roots.push(root);
+  const resolved = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(projectRoot).href,
+      selectors: { caseIds: ["claude-readiness-nonready-stops"] },
+      configuration: {},
+    }),
+  );
+  expect(resolved.code, resolved.stderr).toBe(0);
+  const selected = resolved.value.result.cases[0]!;
+  expect(selected.requiredEvidence).toEqual([
+    "sevro.claude.tool-calls",
+    "sevro.claude.events",
+  ]);
+  const observations = [
+    {
+      id: "sevro.claude.tool-calls",
+      source: "sevro.host.claude",
+      completeness: "complete",
+      data: {
+        method: "stream_tool_calls",
+        truncated: false,
+        calls: [
+          {
+            ordinal: 1,
+            actor: "parent",
+            name: "Skill",
+            skill: "assess-implementation-readiness",
+            invocation: "darrow-readiness-gate:assess-implementation-readiness",
+          },
+        ],
+      },
+    },
+    {
+      id: "sevro.observation.final-message",
+      source: "sevro.host.claude",
+      completeness: "complete",
+      data: { text: "Readiness needs a decision." },
+    },
+  ];
+  const artifact = async (name: string, content: string) => {
+    const path = join(root, name);
+    await writeFile(path, content);
+    return {
+      id: "sevro.claude.events",
+      path: pathToFileURL(path).href,
+      sha256: createHash("sha256").update(content).digest("hex"),
+    };
+  };
+  const clean = await artifact("clean.jsonl", '{"type":"result"}\n');
+  const evaluate = (calls: unknown[], events: unknown[]) =>
+    command<{
+      result: { checks: Array<{ id: string; status: string }> };
+    }>(
+      [process.execPath, extension],
+      request("evaluate", {
+        observations: calls,
+        artifacts: events,
+        extensionData: selected.extensionData,
+      }),
+    );
+  const passed = await evaluate(observations, [clean]);
+  expect(passed.value.result.checks.map((check) => check.status)).toEqual(
+    Array(7).fill("passed"),
+  );
+  const repeated = await evaluate(
+    [
+      {
+        ...observations[0],
+        data: {
+          ...observations[0]!.data,
+          calls: [
+            ...observations[0]!.data!.calls!,
+            { ...observations[0]!.data!.calls![0]!, ordinal: 2 },
+          ],
+        },
+      },
+      observations[1],
+    ],
+    [clean],
+  );
+  expect(repeated.value.result.checks[4]!.status).toBe("failed");
+  const partial = await evaluate(
+    [{ ...observations[0], completeness: "partial" }, observations[1]],
+    [clean],
+  );
+  expect(partial.value.result.checks[3]!.status).toBe("unavailable");
+  const missingEvents = await evaluate(observations, []);
+  expect(missingEvents.value.result.checks[6]!.status).toBe("unavailable");
+  const ledger = await artifact(
+    "ledger.jsonl",
+    "adaptive-delivery-preflight step\n",
+  );
+  const forbidden = await evaluate(observations, [ledger]);
+  expect(forbidden.value.result.checks[6]!.status).toBe("failed");
+});
+
 test("Darrow mounts sibling skills for a competition activation case", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-siblings-"));
   roots.push(root);

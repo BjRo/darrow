@@ -82,9 +82,14 @@ use `--json` for the versioned machine-readable report. Missing or unreadable
 case inputs fail the scan. This inventory tests resolution, not host execution
 or grade parity.
 
+The Claude non-ready readiness case uses ordered native `Skill` and `Agent`
+calls to check that readiness ran once and no owner started. Its retired-ledger
+check reads a digest-verified Claude event artifact. Missing or partial host
+evidence leaves these checks unavailable.
+
 Adaptive-delivery cases that declare `goal_route_checks: false` and the
 forbidden goal-report policy now retain their ownership checks through the
-Sevro extension. A complete Codex native-call observation is required. The
+Sevro extension. For Codex cases, a complete native-call observation is required. The
 extension checks that no replacement owner launched, that later parent calls
 only waited or addressed the accepted child, and that the final answer omitted
 internal goal records. Missing or partial host evidence leaves those checks

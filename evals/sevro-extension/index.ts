@@ -1250,7 +1250,43 @@ function policyEvidence(
   return [...required];
 }
 
+function claudeReadinessCasePolicy(transcript: unknown) {
+  if (
+    createHash("sha256").update(JSON.stringify(transcript)).digest("hex") !==
+    "7c4119bd1185600c9bf6fa6d578936cc956f1cf151beec1807c73577a7286bd7"
+  )
+    throw new Error("Claude readiness transcript policy has changed");
+  const checks = (transcript as RecordValue[]).map((entry, index) => ({
+    id: `darrow.evals.transcript.${index + 1}`,
+    name: string(entry.name, "Claude transcript check name"),
+    kind: [
+      "claude-readiness-once",
+      "claude-readiness-no-retry",
+      "claude-no-owner",
+      "claude-no-ledger",
+    ][index]!,
+  }));
+  return {
+    checks: [
+      ...OWNERSHIP_CHECKS.map((id) => ({
+        id,
+        grader: "darrow.evals.ownership",
+        configuration: {},
+      })),
+      ...checks.map(({ id }) => ({
+        id,
+        grader: "darrow.evals.transcript",
+        configuration: {},
+      })),
+    ],
+    requiredEvidence: ["sevro.claude.tool-calls", "sevro.claude.events"],
+    details: { ownership: "claude", transcriptChecks: checks },
+  };
+}
+
 function casePolicy(selected: RecordValue, skillDir: string | null) {
+  if (selected.id === "claude-readiness-nonready-stops")
+    return claudeReadinessCasePolicy(selected.transcript_checks);
   const ownership = caseOwnership(selected, skillDir);
   const transcriptChecks = caseTranscriptChecks(selected.transcript_checks);
   return {
@@ -2089,6 +2125,27 @@ function requireCaseHost(hostIds: unknown, hostValue: unknown): void {
     throw new Error("selected case excludes the candidate host");
 }
 
+function requireNativeEvidence(details: RecordValue, hostValue: unknown) {
+  if (details.ownership === undefined && details.transcriptChecks === undefined)
+    return;
+  const host = record(hostValue, "candidate host");
+  const claudePolicy = details.ownership === "claude";
+  const id = claudePolicy ? "sevro.host.claude" : "sevro.host.codex";
+  const capability = claudePolicy
+    ? "sevro.claude.tool-calls"
+    : "sevro.codex.native-calls";
+  if (
+    host.id !== id ||
+    !Array.isArray(host.capabilities) ||
+    !host.capabilities.includes(capability)
+  )
+    throw new Error(
+      claudePolicy
+        ? "native checks require Claude tool-call evidence"
+        : "native checks require Codex native-call evidence",
+    );
+}
+
 async function prepareCase(params: RecordValue) {
   const selected = record(params.case, "prepared case");
   const data = record(selected.extensionData, "case extension data");
@@ -2097,18 +2154,7 @@ async function prepareCase(params: RecordValue) {
   const omitSkills = withoutSkill(params.configuration);
   if (omitSkills && details.invocation !== undefined)
     throw new Error("explicit skill invocation cannot run without skills");
-  if (
-    details.ownership !== undefined ||
-    details.transcriptChecks !== undefined
-  ) {
-    const host = record(params.host, "candidate host");
-    if (
-      host.id !== "sevro.host.codex" ||
-      !Array.isArray(host.capabilities) ||
-      !host.capabilities.includes("sevro.codex.native-calls")
-    )
-      throw new Error("native checks require Codex native-call evidence");
-  }
+  requireNativeEvidence(details, params.host);
   const setup = await caseSetup(details, string(selected.id, "case ID"));
   return {
     ...(omitSkills
@@ -2547,14 +2593,14 @@ function parentActivityStatus(
     : "passed";
 }
 
-function internalRecordCheck(observations: unknown) {
+function internalRecordCheck(observations: unknown, host = "sevro.host.codex") {
   const final = uniqueObservation(
     observations,
     "sevro.observation.final-message",
   );
   const text = final ? activationData(final.data)?.text : undefined;
   const available =
-    final?.source === "sevro.host.codex" &&
+    final?.source === host &&
     final.completeness === "complete" &&
     typeof text === "string";
   return ownershipCheck(
@@ -3938,6 +3984,11 @@ async function nativeTranscriptChecks(
   const selected = value.map((entry) =>
     record(entry, "native transcript check"),
   );
+  if (selected.some((entry) => String(entry.kind).startsWith("claude-"))) {
+    if (!selected.every((entry) => String(entry.kind).startsWith("claude-")))
+      throw new Error("mixed native transcript policies are unsupported");
+    return claudeReadinessTranscriptChecks(selected, observations, artifacts);
+  }
   const kinds = new Set(selected.map((entry) => String(entry.kind)));
   const events =
     kinds.has("no-lifecycle-ledger") ||
@@ -3957,6 +4008,156 @@ async function nativeTranscriptChecks(
     id: string(entry.id, "native transcript check ID"),
     ...transcriptOutcome(entry, context),
   }));
+}
+
+function validClaudeAgent(call: RecordValue) {
+  return (
+    nonemptyString(call.toolUseId) &&
+    nonemptyString(call.subagentType) &&
+    typeof call.runInBackground === "boolean" &&
+    /^[a-f0-9]{64}$/.test(String(call.promptSha256))
+  );
+}
+
+function validClaudeCall(
+  call: RecordValue | null,
+  index: number,
+  calls: Array<RecordValue | null>,
+) {
+  if (!call) return false;
+  if (
+    !Number.isSafeInteger(call.ordinal) ||
+    (call.ordinal as number) < 1 ||
+    (index > 0 &&
+      (call.ordinal as number) <= (calls[index - 1]!.ordinal as number)) ||
+    !["parent", "nested"].includes(String(call.actor))
+  )
+    return false;
+  if (call.name === "Skill")
+    return nonemptyString(call.skill) && nonemptyString(call.invocation);
+  return call.name === "Agent" && validClaudeAgent(call);
+}
+
+function claudeCalls(observations: unknown): RecordValue[] | null {
+  const observation = uniqueObservation(
+    observations,
+    "sevro.claude.tool-calls",
+  );
+  const data = observation ? activationData(observation.data) : null;
+  if (
+    observation?.completeness !== "complete" ||
+    observation.source !== "sevro.host.claude" ||
+    data?.method !== "stream_tool_calls" ||
+    data.truncated !== false ||
+    !Array.isArray(data.calls)
+  )
+    return null;
+  const calls = data.calls.map(activationData);
+  if (!calls.every(validClaudeCall)) return null;
+  return calls as RecordValue[];
+}
+
+function claudeOwner(call: RecordValue) {
+  return (
+    call.name === "Agent" &&
+    String(call.subagentType).startsWith(
+      "darrow-adaptive-delivery:adaptive-delivery-",
+    )
+  );
+}
+
+function claudeReadinessSkill(call: RecordValue) {
+  return (
+    call.name === "Skill" &&
+    call.skill === "assess-implementation-readiness" &&
+    [
+      "assess-implementation-readiness",
+      "darrow-readiness-gate:assess-implementation-readiness",
+    ].includes(String(call.invocation))
+  );
+}
+
+function claudeReadinessOwnershipChecks(observations: unknown) {
+  const calls = claudeCalls(observations);
+  const ownerCount = calls?.filter(claudeOwner).length;
+  const ref = calls ? "sevro.claude.tool-calls" : null;
+  return [
+    ownershipCheck(
+      OWNERSHIP_CHECKS[0],
+      ownerCount === undefined
+        ? "unavailable"
+        : ownerCount <= 1
+          ? "passed"
+          : "failed",
+      ref,
+      "No replacement owner is launched",
+    ),
+    ownershipCheck(
+      OWNERSHIP_CHECKS[1],
+      ownerCount === 0 ? "passed" : "unavailable",
+      ref,
+      "No parent work follows an owner handoff",
+    ),
+    internalRecordCheck(observations, "sevro.host.claude"),
+  ];
+}
+
+function claudeReadinessPassed(
+  kind: string,
+  readinessCount: number | undefined,
+  ownerCount: number | undefined,
+  events: string | null,
+) {
+  if (kind === "claude-readiness-once") return readinessCount === 1;
+  if (kind === "claude-readiness-no-retry")
+    return readinessCount !== undefined && readinessCount <= 1;
+  if (kind === "claude-no-owner") return ownerCount === 0;
+  if (kind === "claude-no-ledger")
+    return (
+      events !== null &&
+      !events.includes("adaptive-delivery-preflight step") &&
+      !events.includes("darrow-native-goal-report")
+    );
+  throw new Error("unsupported Claude readiness check");
+}
+
+function claudeReadinessTranscriptOutcome(
+  check: RecordValue,
+  readinessCount: number | undefined,
+  ownerCount: number | undefined,
+  events: string | null,
+) {
+  const kind = String(check.kind);
+  const ledger = kind === "claude-no-ledger";
+  const available = ledger ? events !== null : readinessCount !== undefined;
+  return {
+    id: string(check.id, "Claude transcript check ID"),
+    status: !available
+      ? "unavailable"
+      : claudeReadinessPassed(kind, readinessCount, ownerCount, events)
+        ? "passed"
+        : "failed",
+    detail: available
+      ? "Graded from complete Claude host evidence"
+      : "Claude host evidence unavailable or incomplete",
+    evidenceRefs: available
+      ? [ledger ? "sevro.claude.events" : "sevro.claude.tool-calls"]
+      : [],
+  };
+}
+
+async function claudeReadinessTranscriptChecks(
+  selected: RecordValue[],
+  observations: unknown,
+  artifacts: unknown,
+) {
+  const calls = claudeCalls(observations);
+  const events = await codexEventText(artifacts, "sevro.claude.events");
+  const readinessCount = calls?.filter(claudeReadinessSkill).length;
+  const ownerCount = calls?.filter(claudeOwner).length;
+  return selected.map((check) =>
+    claudeReadinessTranscriptOutcome(check, readinessCount, ownerCount, events),
+  );
 }
 
 function measuredMetric(
@@ -4032,7 +4233,9 @@ async function evaluateCase(params: RecordValue) {
   const ownership =
     details.ownership === true || details.ownership === "composition"
       ? ownershipChecks(params.observations)
-      : [];
+      : details.ownership === "claude"
+        ? claudeReadinessOwnershipChecks(params.observations)
+        : [];
   const checks = [
     ...(details.ownership === "composition"
       ? ownership.slice(0, 2)
