@@ -1338,3 +1338,90 @@ test("Darrow runs a pinned corpus repository with committed overlay and setup", 
   expect(stderr).toContain("not clean");
   expect(stdout).toBe("");
 });
+
+test("Darrow Git hook fixtures run through Sevro before candidate commits", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-hook-"));
+  roots.push(root);
+  const cases = join(root, "evals/experiments/example/cases");
+  await mkdir(cases, { recursive: true });
+  const hook = "#!/bin/sh\necho 'fixture hook failed' >&2\nexit 1\n";
+  await writeFile(
+    join(cases, "hook.yaml"),
+    JSON.stringify({
+      id: "hook-case",
+      invariant: "EXAMPLE-HOOK",
+      prompt: "Return ready.",
+      fixture: {
+        commits: [
+          {
+            message: "Initialize",
+            files: { "README.md": "fixture\n", "src/a.ts": "old\n" },
+          },
+        ],
+        files: { "src/a.ts": "new\n" },
+        staged: ["src/a.ts"],
+        hooks: { "pre-commit": hook },
+      },
+      checks: [
+        {
+          name: "commit blocked",
+          run: "git rev-list --count HEAD",
+          expect_exact: "1",
+        },
+      ],
+      output_checks: [{ name: "response", expect_exact: "ready" }],
+    }),
+  );
+  const resolved = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(root).href,
+      selectors: { caseIds: ["hook-case"] },
+      configuration: {},
+    }),
+  );
+  expect(resolved.code, resolved.stderr).toBe(0);
+  expect(resolved.value.result.cases[0]!.fixture).toMatchObject({
+    kind: "generated",
+    hooks: { "pre-commit": hook },
+  });
+  const adapter = join(root, "candidate.ts");
+  await writeFile(
+    adapter,
+    `export default {
+  id: "darrow.host.synthetic", model: "synthetic-v1", effort: "none",
+  async run({ workspace }) {
+    const proc = Bun.spawn(["git", "-c", "user.name=Candidate", "-c", "user.email=candidate@example.invalid", "commit", "-m", "Try"], { cwd: workspace, stdout: "pipe", stderr: "pipe" });
+    const [stderr, code] = await Promise.all([new Response(proc.stderr).text(), proc.exited]);
+    if (code === 0 || !stderr.includes("fixture hook failed")) throw new Error("fixture hook was not applied");
+    return { finalMessage: "ready", complete: true };
+  },
+};
+`,
+  );
+  const run = await command<CliReply>([
+    process.execPath,
+    resolve(import.meta.dir, "../../sevro-extension/run.ts"),
+    "--case-id",
+    "hook-case",
+    "--project-root",
+    root,
+    "--results-root",
+    join(root, "results"),
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+    "--condition",
+    "passive",
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+  ]);
+  expect(run.code, run.stderr).toBe(0);
+  expect(run.value.task.verdict).toBe("passed");
+  expect(
+    run.value.cases[0]!.trials[0]!.checks.map((check) => check.status),
+  ).toEqual(["passed", "passed"]);
+});

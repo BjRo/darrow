@@ -8,7 +8,7 @@ retained results.
 This migration slice resolves one selected skill-free experiment case or
 plugin-local skill case. It accepts generated Git commits or a pinned corpus
 repository, optional working-tree and staged files, committed scaffolding,
-fixture setup scripts, hidden shell checks with exit-code and stdout assertions,
+Git hooks, fixture setup scripts, hidden shell checks with exit-code and stdout assertions,
 combined final-message checks without external schema files, and semantic
 propositions graded by Sevro's separate evaluator route.
 For a plugin-local case, `prepare` mounts the selected skill's files under
@@ -41,7 +41,8 @@ and before it mounts skill artifacts. The setup script is bound to the resolved
 case by a digest and `{{case_dir}}` points to the case source directory. Setup
 receives Sevro's bounded environment and two-minute timeout; scripts that need
 ambient credentials or longer dependency installs need further migration work.
-Other case fields and fixture mechanics fail explicitly. Plugin packaging,
+Other case fields and fixture mechanics fail explicitly. Fixture stub
+binaries and the local ticket tracker still need migration. Plugin packaging,
 `{{skill_invocation}}`, and other activation forms remain on Darrow's existing
 runner. The legacy `{{repo_dir}}` prompt token maps to Sevro's per-trial
 workspace token. Other prompt templates still fail explicitly.

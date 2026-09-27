@@ -36,6 +36,12 @@ function files(value: unknown, label: string): Record<string, string> {
   return entries as Record<string, string>;
 }
 
+function fixtureHooks(fixture: RecordValue) {
+  return fixture.hooks === undefined
+    ? {}
+    : { hooks: files(fixture.hooks, "fixture Git hooks") };
+}
+
 function fixtureOverlay(fixture: RecordValue) {
   const overlay =
     fixture.files === undefined
@@ -56,6 +62,7 @@ function fixtureOverlay(fixture: RecordValue) {
     ...(overlay ? { files: overlay } : {}),
     ...(fixture.staged ? { staged: fixture.staged } : {}),
     ...(fixture.commit_files ? { commitFiles: true } : {}),
+    ...fixtureHooks(fixture),
   };
 }
 
@@ -63,7 +70,7 @@ function generatedFixture(value: unknown) {
   const fixture = record(value, "fixture");
   keys(
     fixture,
-    ["commits", "files", "staged", "commit_files", "setup"],
+    ["commits", "files", "staged", "commit_files", "hooks", "setup"],
     "fixture",
   );
   if (!Array.isArray(fixture.commits) || !fixture.commits.length)
@@ -86,7 +93,7 @@ function generatedFixture(value: unknown) {
 function repositoryFixture(fixture: RecordValue) {
   keys(
     fixture,
-    ["source", "files", "staged", "commit_files", "setup"],
+    ["source", "files", "staged", "commit_files", "hooks", "setup"],
     "fixture",
   );
   const sourceRef = string(fixture.source, "fixture source");
