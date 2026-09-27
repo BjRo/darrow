@@ -104,6 +104,27 @@ identity. Options after `--` go to Sevro. The results directory holds the
 extension command file at a stable path. The command emits Sevro's JSON result
 and exit category. Unsupported case features still fail during resolution.
 
+For suites containing only Codex cells and passive or enforced modes, run the
+Darrow suite entrypoint with an absolute suite path:
+
+```sh
+SEVRO_CHECKOUT=/absolute/path/to/sevro bun evals/sevro-extension/suite.ts \
+  --suite /absolute/path/to/suite.yaml \
+  --results-root /absolute/path/to/results --trials 1 --threshold 1 -- \
+  --host codex --codex-bin /absolute/path/to/codex \
+  --codex-auth-file /absolute/path/to/auth.json \
+  --model gpt-5.6-terra --effort medium --shell-isolation
+```
+
+This initial suite route requires `harnesses: [codex]` and accepts only
+`owner_evaluation` in each mode. It resolves `case_filter` substrings to exact
+case IDs before starting, rejects duplicate IDs and unsupported suite fields,
+then invokes the public Sevro CLI once per case and mode. `suite-run.json`
+records the suite content digest, selected cells, Sevro result paths, evidence
+paths, and exit codes. Failed cells remain in the manifest while later cells
+run. The command exits 1 if any cell fails. Ablations, route overrides, and
+report generation still use the legacy suite command.
+
 The parity test also prepares the mounted skill through Sevro's bundled Codex
 route with `--dry`, validating its protocol identity and retained artifacts
 without starting a model turn. On macOS with Codex installed, it also drives a

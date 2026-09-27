@@ -1,0 +1,246 @@
+#!/usr/bin/env bun
+import { createHash } from "node:crypto";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { isAbsolute, join, resolve } from "node:path";
+import { parseArgs } from "node:util";
+import { parse as parseYaml } from "yaml";
+import { selectCaseIds } from "./index";
+
+const repositoryRoot = resolve(import.meta.dir, "../..");
+
+function object(value: unknown, label: string): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error(`${label} must be an object`);
+  return value as Record<string, unknown>;
+}
+
+function modeConfig(name: string, raw: unknown) {
+  if (!/^[A-Za-z0-9._-]+$/.test(name)) throw new Error(`invalid mode: ${name}`);
+  const mode = object(raw, `mode ${name}`);
+  const unsupported = Object.keys(mode).filter(
+    (key) => key !== "owner_evaluation",
+  );
+  if (unsupported.length)
+    throw new Error(
+      `unsupported ${name} mode fields: ${unsupported.join(", ")}`,
+    );
+  const requested = mode.owner_evaluation ?? "enforced";
+  if (requested !== "passive" && requested !== "enforced")
+    throw new Error(`invalid ${name} owner_evaluation`);
+  const condition: "passive" | "enforced" = requested;
+  return { name, condition };
+}
+
+function suiteConfig(value: unknown) {
+  const suite = object(value, "suite");
+  const extra = Object.keys(suite).filter(
+    (key) =>
+      !["version", "experiment", "harnesses", "case_filter", "modes"].includes(
+        key,
+      ),
+  );
+  if (extra.length)
+    throw new Error(`unsupported suite fields: ${extra.join(", ")}`);
+  if (
+    suite.version !== 1 ||
+    typeof suite.experiment !== "string" ||
+    !suite.experiment
+  )
+    throw new Error("suite needs version 1 and an experiment name");
+  if (JSON.stringify(suite.harnesses) !== JSON.stringify(["codex"]))
+    throw new Error("Sevro suites currently require harnesses: [codex]");
+  const filters = Array.isArray(suite.case_filter)
+    ? suite.case_filter
+    : [suite.case_filter];
+  if (
+    !filters.length ||
+    filters.some((filter) => typeof filter !== "string" || !filter.trim())
+  )
+    throw new Error("suite needs nonempty case filters");
+  const modes = object(suite.modes, "suite modes");
+  if (!Object.keys(modes).length) throw new Error("suite needs a mode");
+  const selectedModes = Object.entries(modes).map(([name, raw]) =>
+    modeConfig(name, raw),
+  );
+  return {
+    experiment: suite.experiment,
+    filters: filters as string[],
+    modes: selectedModes,
+  };
+}
+
+function forwardedOptions(args: string[]) {
+  const owned = new Set(["--condition", "--trials", "--threshold"]);
+  for (const token of args) {
+    if (token === "--" || owned.has(token.split("=", 1)[0]!))
+      throw new Error(`suite option is owned by Darrow: ${token}`);
+  }
+  return args;
+}
+
+function evidenceLimits(rawTrials: string, rawThreshold: string) {
+  const trials = Number(rawTrials);
+  const threshold = Number(rawThreshold);
+  if (
+    !Number.isSafeInteger(trials) ||
+    trials < 1 ||
+    !Number.isFinite(threshold) ||
+    threshold <= 0 ||
+    threshold > 1
+  )
+    throw new Error("invalid trials or threshold");
+  return { trials, threshold };
+}
+
+function suiteInvocation(argv: string[]) {
+  const separator = argv.indexOf("--");
+  if (separator < 0) throw new Error("separate Sevro run options with --");
+  const { values } = parseArgs({
+    args: argv.slice(0, separator),
+    options: {
+      suite: { type: "string" },
+      "project-root": { type: "string" },
+      "results-root": { type: "string" },
+      trials: { type: "string", default: "5" },
+      threshold: { type: "string", default: "0.8" },
+    },
+    strict: true,
+  });
+  const suitePath = values.suite;
+  const projectRoot = values["project-root"] ?? repositoryRoot;
+  const resultsRoot = values["results-root"];
+  if (
+    !suitePath ||
+    !resultsRoot ||
+    ![suitePath, projectRoot, resultsRoot].every(isAbsolute)
+  )
+    throw new Error("suite and results roots must be absolute");
+  return {
+    suitePath,
+    projectRoot,
+    resultsRoot,
+    ...evidenceLimits(values.trials!, values.threshold!),
+    forwarded: forwardedOptions(argv.slice(separator + 1)),
+  };
+}
+
+type SuiteRequest = ReturnType<typeof suiteInvocation>;
+type SuiteConfig = ReturnType<typeof suiteConfig>;
+type Cell = {
+  caseId: string;
+  mode: string;
+  condition: "passive" | "enforced";
+  result: string | null;
+  evidencePath: string | null;
+  exitCode: number;
+  error?: string;
+};
+
+function cellCommand(
+  request: SuiteRequest,
+  mode: SuiteConfig["modes"][number],
+  caseId: string,
+  cellRoot: string,
+) {
+  return [
+    process.execPath,
+    join(import.meta.dir, "run.ts"),
+    "--case-id",
+    caseId,
+    "--project-root",
+    request.projectRoot,
+    "--results-root",
+    cellRoot,
+    "--",
+    ...request.forwarded,
+    "--condition",
+    mode.condition,
+    "--trials",
+    String(request.trials),
+    "--threshold",
+    String(request.threshold),
+  ];
+}
+
+async function runCell(
+  request: SuiteRequest,
+  mode: SuiteConfig["modes"][number],
+  caseId: string,
+  index: number,
+): Promise<Cell> {
+  const cellRoot = join(request.resultsRoot, `cell-${index}`);
+  const child = Bun.spawn(cellCommand(request, mode, caseId, cellRoot), {
+    stdout: "pipe",
+    stderr: "pipe",
+    stdin: "inherit",
+  });
+  const [stdout, stderr, exitCode] = await Promise.all([
+    new Response(child.stdout).text(),
+    new Response(child.stderr).text(),
+    child.exited,
+  ]);
+  let result: Record<string, unknown> | null = null;
+  try {
+    result = object(JSON.parse(stdout) as unknown, "Sevro result");
+  } catch {
+    // A failed invocation can return only stderr; retain that failure in the manifest.
+  }
+  const resultPath = result ? join(cellRoot, "result.json") : null;
+  if (resultPath) await writeFile(resultPath, JSON.stringify(result, null, 2));
+  return {
+    caseId,
+    mode: mode.name,
+    condition: mode.condition,
+    result: resultPath,
+    evidencePath:
+      typeof result?.evidencePath === "string" ? result.evidencePath : null,
+    exitCode: result ? exitCode : exitCode || 70,
+    ...(result ? {} : { error: stderr.trim() || "Sevro did not return JSON" }),
+  };
+}
+
+export async function runSuite(argv: string[]) {
+  const request = suiteInvocation(argv);
+  const { suitePath, projectRoot, resultsRoot, trials, threshold } = request;
+  const source = await readFile(suitePath, "utf8");
+  const suite = suiteConfig(parseYaml(source) as unknown);
+  const caseIds = await selectCaseIds(projectRoot, suite.filters);
+  const manifest = {
+    format: "darrow-sevro-suite-v1",
+    suite: suitePath,
+    suiteSha256: createHash("sha256").update(source).digest("hex"),
+    experiment: suite.experiment,
+    projectRoot,
+    trials,
+    threshold,
+    cells: [] as Cell[],
+  };
+  await mkdir(resultsRoot, { recursive: true });
+  for (const mode of suite.modes) {
+    for (const caseId of caseIds) {
+      manifest.cells.push(
+        await runCell(request, mode, caseId, manifest.cells.length + 1),
+      );
+      await writeFile(
+        join(resultsRoot, "suite-run.json"),
+        JSON.stringify(manifest, null, 2),
+      );
+    }
+  }
+  return {
+    manifest: join(resultsRoot, "suite-run.json"),
+    cells: manifest.cells.length,
+    failed: manifest.cells.filter((cell) => cell.exitCode !== 0).length,
+  };
+}
+
+if (import.meta.main) {
+  try {
+    const result = await runSuite(process.argv.slice(2));
+    process.stdout.write(`${JSON.stringify(result)}\n`);
+    process.exitCode = result.failed ? 1 : 0;
+  } catch (error) {
+    process.stderr.write(`${error instanceof Error ? error.message : error}\n`);
+    process.exitCode = 64;
+  }
+}

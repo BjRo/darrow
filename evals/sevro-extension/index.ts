@@ -1438,16 +1438,8 @@ function within(root: string, path: string): boolean {
   return child !== ".." && !child.startsWith(`..${sep}`) && !isAbsolute(child);
 }
 
-export async function resolveCase(params: RecordValue) {
-  const url = string(params.projectRoot, "project root");
-  if (!url.startsWith("file:///"))
-    throw new Error("project root must be a file URL");
-  const root = await realpath(fileURLToPath(url));
-  const selectors = record(params.selectors, "selectors");
-  if (!Array.isArray(selectors.caseIds) || selectors.caseIds.length !== 1)
-    throw new Error("resolve needs exactly one case ID");
-  const target = string(selectors.caseIds[0], "selected case ID");
-  const matches: { value: unknown; source: string }[] = [];
+async function caseEntries(root: string) {
+  const entries: { value: unknown; source: string }[] = [];
   for (const pattern of [
     "evals/experiments/*/cases/*.yaml",
     "plugins/*/*/skills/*/evals/*.yaml",
@@ -1458,9 +1450,41 @@ export async function resolveCase(params: RecordValue) {
       if (!within(root, path))
         throw new Error("case path escapes the project root");
       const value = parseYaml(await readFile(path, "utf8")) as unknown;
-      if (record(value, "case").id === target) matches.push({ value, source });
+      entries.push({ value, source });
     }
   }
+  return entries;
+}
+
+/** Resolve suite filters to exact IDs before starting any public CLI runs. */
+export async function selectCaseIds(root: string, filters: string[]) {
+  if (!filters.length || filters.some((filter) => !filter.trim()))
+    throw new Error("suite needs nonempty case filters");
+  const projectRoot = await realpath(root);
+  const ids = new Set<string>();
+  const selected = new Set<string>();
+  for (const entry of await caseEntries(projectRoot)) {
+    const id = string(record(entry.value, "case").id, "case ID");
+    if (ids.has(id)) throw new Error(`duplicate case ID: ${id}`);
+    ids.add(id);
+    if (filters.some((filter) => id.includes(filter))) selected.add(id);
+  }
+  if (!selected.size) throw new Error("No cases matched.");
+  return [...selected].sort();
+}
+
+export async function resolveCase(params: RecordValue) {
+  const url = string(params.projectRoot, "project root");
+  if (!url.startsWith("file:///"))
+    throw new Error("project root must be a file URL");
+  const root = await realpath(fileURLToPath(url));
+  const selectors = record(params.selectors, "selectors");
+  if (!Array.isArray(selectors.caseIds) || selectors.caseIds.length !== 1)
+    throw new Error("resolve needs exactly one case ID");
+  const target = string(selectors.caseIds[0], "selected case ID");
+  const matches = (await caseEntries(root)).filter(
+    ({ value }) => record(value, "case").id === target,
+  );
   if (matches.length !== 1)
     throw new Error(
       matches.length
