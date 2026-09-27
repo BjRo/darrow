@@ -586,3 +586,85 @@ test("public commands retain interrupted attempts after cancellation", async () 
     await sevro.exited;
   }
 }, 20_000);
+
+test("public commands refuse an equivalent run while its owner is live", async () => {
+  const paths = await fixture();
+  const oldOutput = join(paths.projectRoot, "legacy-owned.json");
+  const legacyReady = join(paths.projectRoot, "legacy-owner-ready");
+  const legacy = startCommand(
+    legacyArguments(paths, oldOutput, "passive"),
+    "wait",
+    paths.projectRoot,
+    {
+      SEVRO_PARITY_READY_PATH: legacyReady,
+      SEVRO_PARITY_CHILD_PID_PATH: join(
+        paths.projectRoot,
+        "legacy-owner-child",
+      ),
+    },
+  );
+  try {
+    await waitForFile(legacyReady);
+    const duplicate = await command(
+      legacyArguments(paths, oldOutput, "passive"),
+      "pass",
+      paths.projectRoot,
+    );
+    expect(duplicate.code).not.toBe(0);
+    expect(duplicate.stderr).toContain("equivalent evaluation is still active");
+    expect(await Bun.file(oldOutput).exists()).toBeFalse();
+    expect(processIsGone(legacy.pid)).toBeFalse();
+    const oldActiveNames = await readdir(
+      join(paths.projectRoot, "evals/results/active"),
+    );
+    expect(
+      oldActiveNames.filter((name) => name.endsWith(".json")),
+    ).toHaveLength(1);
+    const oldActive = JSON.parse(
+      await readFile(
+        join(paths.projectRoot, "evals/results/active", oldActiveNames[0]!),
+        "utf8",
+      ),
+    );
+    expect(oldActive.status).toBe("active");
+    expect(oldActive.owner.pid).toBe(legacy.pid);
+  } finally {
+    legacy.kill("SIGTERM");
+    await legacy.exited;
+  }
+
+  const sevroReady = join(paths.projectRoot, "sevro-owner-ready");
+  const sevroArgs = sevroArguments(paths, sevroCli(), "passive");
+  const sevro = startCommand(sevroArgs, "wait", paths.projectRoot, {
+    SEVRO_PARITY_READY_PATH: sevroReady,
+  });
+  try {
+    await waitForFile(sevroReady);
+    const duplicate = await command(sevroArgs, "pass", paths.projectRoot);
+    expect(duplicate.code).toBe(70);
+    const refused = JSON.parse(duplicate.stdout);
+    expect(refused.execution.status).toBe("not_run");
+    expect(refused.evidencePath).toBeNull();
+    expect(refused.diagnostic.message).toContain(
+      "equivalent Sevro run is active",
+    );
+    expect(processIsGone(sevro.pid)).toBeFalse();
+    const newActiveNames = await readdir(
+      join(paths.projectRoot, "sevro-results/active"),
+    );
+    expect(
+      newActiveNames.filter((name) => name.endsWith(".json")),
+    ).toHaveLength(1);
+    const newActive = JSON.parse(
+      await readFile(
+        join(paths.projectRoot, "sevro-results/active", newActiveNames[0]!),
+        "utf8",
+      ),
+    );
+    expect(newActive.status).toBe("active");
+    expect(newActive.owner.pid).toBe(sevro.pid);
+  } finally {
+    sevro.kill("SIGTERM");
+    await sevro.exited;
+  }
+}, 20_000);
