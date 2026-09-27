@@ -6,10 +6,11 @@ owns fixture construction, host execution, built-in checks, isolation, and
 retained results.
 
 This migration slice resolves one selected skill-free experiment case or
-plugin-local skill case. It accepts generated Git commits, optional
-working-tree and staged files, fixture setup scripts, hidden shell checks with exit-code and stdout
-assertions, combined final-message checks without external schema files, and
-semantic propositions graded by Sevro's separate evaluator route.
+plugin-local skill case. It accepts generated Git commits or a pinned corpus
+repository, optional working-tree and staged files, committed scaffolding,
+fixture setup scripts, hidden shell checks with exit-code and stdout assertions,
+combined final-message checks without external schema files, and semantic
+propositions graded by Sevro's separate evaluator route.
 For a plugin-local case, `prepare` mounts the selected skill's files under
 `.agents/skills/` and excludes their exact paths from Git status. Colocated
 `evals/` files and generated caches stay out of the candidate fixture. Skill
@@ -30,8 +31,12 @@ supply `darrow.activation` for parity tests. Missing, partial, duplicate,
 foreign, or inconsistent observations make activation unavailable without
 changing the task verdict. Other Codex read patterns still need parity work.
 
-The extension preserves the invariant, source path, and check names in
-namespaced extension data. Fixture setup runs after Sevro builds each Git fixture
+The entrypoint verifies `fixture.source` against
+`evals/corpus/orchestration/manifest.yaml` and a clean prepared checkout, then
+passes that one source through Sevro's protected case-source map. Prepare the
+source with `bun run eval:orchestration:prepare --source <id>` before running a
+corpus case. The extension preserves the invariant, source path, and check
+names in namespaced extension data. Fixture setup runs after Sevro builds each Git fixture
 and before it mounts skill artifacts. The setup script is bound to the resolved
 case by a digest and `{{case_dir}}` points to the case source directory. Setup
 receives Sevro's bounded environment and two-minute timeout; scripts that need
@@ -73,8 +78,8 @@ controlled JSONL turn through the bundled host to verify complete and partial
 native activation receipts end to end without a model call.
 The first focused live run is recorded in [live-validation.md](live-validation.md).
 
-The entrypoint supplies `index.ts`, `run.ts`, `sevro-command.ts`, the repository
-`package.json`, and `bun.lock` as extension source files so the executable,
+The entrypoint supplies `index.ts`, `run.ts`, `sevro-command.ts`, the corpus
+source validator, the repository `package.json`, and `bun.lock` as extension source files so the executable,
 invocation, and YAML parser version are included in Sevro's source digest. Case
 content enters the selected case, fixture, and check digests.
 

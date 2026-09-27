@@ -58,7 +58,11 @@ interface ExtensionReply {
     protocols: string[];
     cases: Array<{
       prompt: string;
-      fixture: { kind: string; commits: Array<{ message: string }> };
+      fixture: {
+        kind: string;
+        commits?: Array<{ message: string }>;
+        sourceRef?: string;
+      };
       checks: Array<{
         id: string;
         grader: string;
@@ -99,6 +103,21 @@ function request(method: string, params: Record<string, unknown>) {
     method,
     params,
   };
+}
+
+async function git(cwd: string, ...args: string[]): Promise<string> {
+  const proc = Bun.spawn(["git", ...args], {
+    cwd,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [stdout, stderr, code] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  if (code !== 0) throw new Error(stderr);
+  return stdout.trim();
 }
 
 test("Darrow extension resolves supported cases and rejects unsupported fixtures", async () => {
@@ -1081,6 +1100,9 @@ test("Darrow command reserves extension and identity options", () => {
   expect(() => invocation([...args, "--extension-command-file=other"])).toThrow(
     /owned by Darrow/,
   );
+  expect(() => invocation([...args, "--case-source-map-file=other"])).toThrow(
+    /owned by Darrow/,
+  );
 });
 
 test("Darrow fixture setup runs through Sevro and rejects changed source", async () => {
@@ -1188,4 +1210,131 @@ test("Darrow fixture setup runs through Sevro and rejects changed source", async
   expect(evidence.configuration.redacted.fixtureSetupDigest).toMatch(
     /^[a-f0-9]{64}$/,
   );
+});
+
+test("Darrow runs a pinned corpus repository with committed overlay and setup", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-corpus-"));
+  roots.push(root);
+  const corpus = join(root, "evals/corpus/orchestration");
+  const repository = join(corpus, "cache/sample");
+  const cases = join(root, "evals/experiments/example/cases");
+  await Promise.all([
+    mkdir(repository, { recursive: true }),
+    mkdir(cases, { recursive: true }),
+  ]);
+  await git(repository, "init", "-b", "main");
+  await writeFile(join(repository, "LICENSE"), "MIT\n");
+  await writeFile(join(repository, "README.md"), "source\n");
+  await git(repository, "add", "LICENSE", "README.md");
+  await git(
+    repository,
+    "-c",
+    "user.name=Corpus Test",
+    "-c",
+    "user.email=corpus@example.invalid",
+    "commit",
+    "-m",
+    "Source snapshot",
+  );
+  const revision = await git(repository, "rev-parse", "HEAD");
+  await writeFile(
+    join(corpus, "manifest.yaml"),
+    [
+      "version: 1",
+      "sources:",
+      "  sample:",
+      "    repository: https://example.invalid/sample.git",
+      `    commit: ${revision}`,
+      "    commit_date: 2021-01-02T03:04:05Z",
+      "    license: MIT",
+      "    license_file: LICENSE",
+      "    provenance: pinned synthetic source",
+      "",
+    ].join("\n"),
+  );
+  const definition = {
+    id: "corpus-case",
+    invariant: "EXAMPLE-CORPUS",
+    prompt: "Return ready.",
+    fixture: {
+      source: "sample",
+      files: { "README.md": "overlay\n" },
+      commit_files: true,
+      setup: 'printf "setup\\n" > SETUP.txt',
+    },
+    checks: [
+      { name: "overlay", run: 'test "$(cat README.md)" = overlay' },
+      {
+        name: "scaffolding",
+        run: 'test "$(git log -1 --format=%s)" = "Add evaluation scaffolding"',
+      },
+      { name: "setup", run: 'test "$(cat SETUP.txt)" = setup' },
+    ],
+    output_checks: [{ name: "response", expect_exact: "ready" }],
+  };
+  await writeFile(join(cases, "corpus.yaml"), JSON.stringify(definition));
+  const resolved = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(root).href,
+      selectors: { caseIds: ["corpus-case"] },
+      configuration: {},
+    }),
+  );
+  expect(resolved.code, resolved.stderr).toBe(0);
+  expect(resolved.value.result.cases[0]!.fixture).toMatchObject({
+    kind: "repository",
+    sourceRef: "sample",
+    files: { "README.md": "overlay\n" },
+    commitFiles: true,
+  });
+  const adapter = join(root, "candidate.ts");
+  await writeFile(
+    adapter,
+    `export default {
+  id: "darrow.host.synthetic", model: "synthetic-v1", effort: "none",
+  async run() { return { finalMessage: "ready", complete: true }; },
+};
+`,
+  );
+  const runArgs = [
+    process.execPath,
+    resolve(import.meta.dir, "../../sevro-extension/run.ts"),
+    "--case-id",
+    "corpus-case",
+    "--project-root",
+    root,
+    "--results-root",
+    join(root, "results"),
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+    "--condition",
+    "passive",
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+  ];
+  const run = await command<CliReply>(runArgs);
+  expect(run.code, run.stderr).toBe(0);
+  expect(run.value.task.verdict).toBe("passed");
+  expect(
+    run.value.cases[0]!.trials[0]!.checks.map((check) => check.status),
+  ).toEqual(["passed", "passed", "passed", "passed"]);
+  expect(await readFile(join(repository, "README.md"), "utf8")).toBe(
+    "source\n",
+  );
+  expect(await git(repository, "status", "--porcelain=v1")).toBe("");
+  await writeFile(join(repository, "DRIFT.txt"), "not pinned\n");
+  const rejected = Bun.spawn(runArgs, { stdout: "pipe", stderr: "pipe" });
+  const [stdout, stderr, code] = await Promise.all([
+    new Response(rejected.stdout).text(),
+    new Response(rejected.stderr).text(),
+    rejected.exited,
+  ]);
+  expect(code).toBe(64);
+  expect(stderr).toContain("not clean");
+  expect(stdout).toBe("");
 });

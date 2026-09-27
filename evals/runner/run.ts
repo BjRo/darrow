@@ -36,7 +36,7 @@ import {
   configureSandboxProjectRoot,
   configureSandboxStorageRoots,
 } from "./sandbox";
-import { resolveCorpusSource } from "./corpus";
+import { resolveCorpusSource } from "../corpus/orchestration/source";
 import { runQualityJudge } from "./judge";
 import {
   applySemanticOutputGate,

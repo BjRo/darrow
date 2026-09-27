@@ -151,6 +151,11 @@ async function runnerFixture(separateTooling = false): Promise<RunnerFixture> {
     filter: (path) =>
       !path.endsWith(".test.ts") && !path.includes("/compatibility"),
   });
+  await mkdir(join(root, "evals/corpus/orchestration"), { recursive: true });
+  await cp(
+    resolve(runnerSource, "../corpus/orchestration/source.ts"),
+    join(root, "evals/corpus/orchestration/source.ts"),
+  );
   await symlink(nodeModules, join(root, "node_modules"));
   await writeSkillCase(projectRoot, "compatibility-primary", "compat-selected");
   await writeSkillCase(projectRoot, "compatibility-primary", "compat-sibling");

@@ -46,6 +46,11 @@ async function selectionFixture() {
     recursive: true,
     filter: (path) => !path.endsWith(".test.ts"),
   });
+  await mkdir(join(root, "evals/corpus/orchestration"), { recursive: true });
+  await cp(
+    resolve(import.meta.dir, "../corpus/orchestration/source.ts"),
+    join(root, "evals/corpus/orchestration/source.ts"),
+  );
   await symlink(
     resolve(import.meta.dir, "../../node_modules"),
     join(root, "node_modules"),

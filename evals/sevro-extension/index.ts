@@ -77,10 +77,22 @@ function generatedFixture(value: unknown) {
     };
   });
   return {
-    kind: "generated",
+    kind: "generated" as const,
     commits,
     ...fixtureOverlay(fixture),
   };
+}
+
+function repositoryFixture(fixture: RecordValue) {
+  keys(
+    fixture,
+    ["source", "files", "staged", "commit_files", "setup"],
+    "fixture",
+  );
+  const sourceRef = string(fixture.source, "fixture source");
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(sourceRef))
+    throw new Error("fixture source ID is invalid");
+  return { kind: "repository" as const, sourceRef, ...fixtureOverlay(fixture) };
 }
 
 function fixtureSetupScript(fixture: RecordValue): string | null {
@@ -95,7 +107,10 @@ function caseFixture(value: unknown) {
   const fixture = record(value, "fixture");
   const setup = fixtureSetupScript(fixture);
   return {
-    fixture: generatedFixture(fixture),
+    fixture:
+      fixture.source === undefined
+        ? generatedFixture(fixture)
+        : repositoryFixture(fixture),
     ...(setup
       ? { setupDigest: createHash("sha256").update(setup).digest("hex") }
       : {}),
@@ -622,7 +637,7 @@ function within(root: string, path: string): boolean {
   return child !== ".." && !child.startsWith(`..${sep}`) && !isAbsolute(child);
 }
 
-async function resolveCase(params: RecordValue) {
+export async function resolveCase(params: RecordValue) {
   const url = string(params.projectRoot, "project root");
   if (!url.startsWith("file:///"))
     throw new Error("project root must be a file URL");
@@ -807,51 +822,53 @@ function evaluateCase(params: RecordValue) {
   };
 }
 
-const requestText = await Bun.stdin.text();
-if (Buffer.byteLength(requestText, "utf8") > 8 * 1024 * 1024)
-  throw new Error("extension request is too large");
-const request = record(JSON.parse(requestText) as unknown, "request");
-const id = string(request.id, "request ID");
-const method = string(request.method, "request method");
-const protocol =
-  method === "describe" ? "sevro.discovery.v1" : "sevro.extension.v1";
-if (request.protocol !== protocol)
-  throw new Error("extension protocol mismatch");
-let response: RecordValue;
-try {
-  const params = record(request.params, "request params");
-  const result =
-    method === "describe"
-      ? {
-          extension: { id: "darrow.evals", version: "0.1.0" },
-          protocols: ["sevro.extension.v1"],
-          requiredCapabilities: ["sevro.host.exec"],
-          optionalCapabilities: ["sevro.fixture.setup"],
-          graders: [],
-          taskVerdictPolicies: [],
-        }
-      : method === "resolve"
-        ? await resolveCase(params)
-        : method === "prepare"
-          ? await prepareCase(params)
-          : method === "evaluate"
-            ? evaluateCase(params)
-            : (() => {
-                throw new Error("unsupported extension method");
-              })();
-  response = { protocol, id, method, result };
-} catch (error) {
-  response = {
-    protocol,
-    id,
-    method,
-    error: {
-      code: "darrow.extension.invalid",
-      message: (error instanceof Error
-        ? error.message
-        : "extension failed"
-      ).slice(0, 4096),
-    },
-  };
+if (import.meta.main) {
+  const requestText = await Bun.stdin.text();
+  if (Buffer.byteLength(requestText, "utf8") > 8 * 1024 * 1024)
+    throw new Error("extension request is too large");
+  const request = record(JSON.parse(requestText) as unknown, "request");
+  const id = string(request.id, "request ID");
+  const method = string(request.method, "request method");
+  const protocol =
+    method === "describe" ? "sevro.discovery.v1" : "sevro.extension.v1";
+  if (request.protocol !== protocol)
+    throw new Error("extension protocol mismatch");
+  let response: RecordValue;
+  try {
+    const params = record(request.params, "request params");
+    const result =
+      method === "describe"
+        ? {
+            extension: { id: "darrow.evals", version: "0.1.0" },
+            protocols: ["sevro.extension.v1"],
+            requiredCapabilities: ["sevro.host.exec"],
+            optionalCapabilities: ["sevro.fixture.setup"],
+            graders: [],
+            taskVerdictPolicies: [],
+          }
+        : method === "resolve"
+          ? await resolveCase(params)
+          : method === "prepare"
+            ? await prepareCase(params)
+            : method === "evaluate"
+              ? evaluateCase(params)
+              : (() => {
+                  throw new Error("unsupported extension method");
+                })();
+    response = { protocol, id, method, result };
+  } catch (error) {
+    response = {
+      protocol,
+      id,
+      method,
+      error: {
+        code: "darrow.extension.invalid",
+        message: (error instanceof Error
+          ? error.message
+          : "extension failed"
+        ).slice(0, 4096),
+      },
+    };
+  }
+  process.stdout.write(JSON.stringify(response));
 }
-process.stdout.write(JSON.stringify(response));

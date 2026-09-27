@@ -1,6 +1,10 @@
+import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
-import { isAbsolute, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
+import { resolveCorpusSource } from "../corpus/orchestration/source";
+import { resolveCase } from "./index";
 import { sevroCommand } from "./sevro-command";
 
 const repositoryRoot = resolve(import.meta.dir, "../..");
@@ -9,6 +13,7 @@ const sourceFiles = [
   extension,
   join(import.meta.dir, "run.ts"),
   join(import.meta.dir, "sevro-command.ts"),
+  join(repositoryRoot, "evals/corpus/orchestration/source.ts"),
   join(repositoryRoot, "package.json"),
   join(repositoryRoot, "bun.lock"),
 ];
@@ -19,6 +24,8 @@ const reserved = new Set([
   "--results-root",
   "--extension-command-file",
   "--extension-source-file",
+  "--case-source-root",
+  "--case-source-map-file",
   "--runner-checkout-root",
   "--runner-build-digest",
   "--project-digest",
@@ -32,11 +39,40 @@ function validateForwarded(forwarded: string[]): void {
   }
 }
 
+function sevroArgs(options: {
+  commandFile: string;
+  caseId: string;
+  projectRoot: string;
+  resultsRoot: string;
+  forwarded: string[];
+}): string[] {
+  const { commandFile, caseId, projectRoot, resultsRoot, forwarded } = options;
+  const route = sevroCommand();
+  return [
+    ...route.launch,
+    "run",
+    "--json",
+    ...route.extraArgs,
+    "--extension-command-file",
+    commandFile,
+    ...sourceFiles.flatMap((path) => ["--extension-source-file", path]),
+    "--case-id",
+    caseId,
+    "--project-root",
+    projectRoot,
+    "--results-root",
+    resultsRoot,
+    ...forwarded,
+  ];
+}
+
 /** Bind a selected Darrow case to the public Sevro CLI. */
 export function invocation(argv: string[]): {
   command: string[];
   resultsRoot: string;
   commandFile: string;
+  projectRoot: string;
+  caseId: string;
 } {
   const separator = argv.indexOf("--");
   if (separator < 0) throw new Error("separate Sevro run options with --");
@@ -58,28 +94,52 @@ export function invocation(argv: string[]): {
     throw new Error("project and results roots must be absolute");
   const forwarded = argv.slice(separator + 1);
   validateForwarded(forwarded);
-  const route = sevroCommand();
   const commandFile = join(resultsRoot, "darrow-extension-command.json");
   return {
     commandFile,
     resultsRoot,
-    command: [
-      ...route.launch,
-      "run",
-      "--json",
-      ...route.extraArgs,
-      "--extension-command-file",
+    projectRoot,
+    caseId,
+    command: sevroArgs({
       commandFile,
-      ...sourceFiles.flatMap((path) => ["--extension-source-file", path]),
-      "--case-id",
       caseId,
-      "--project-root",
       projectRoot,
-      "--results-root",
       resultsRoot,
-      ...forwarded,
-    ],
+      forwarded,
+    }),
   };
+}
+
+async function repositorySourceArgs(
+  projectRoot: string,
+  caseId: string,
+  resultsRoot: string,
+): Promise<string[]> {
+  const selected = await resolveCase({
+    projectRoot: pathToFileURL(projectRoot).href,
+    selectors: { caseIds: [caseId] },
+  });
+  const fixture = selected.cases[0]?.fixture;
+  if (fixture?.kind !== "repository") return [];
+  const manifest = join(
+    projectRoot,
+    "evals/corpus/orchestration/manifest.yaml",
+  );
+  const source = await resolveCorpusSource(fixture.sourceRef, manifest);
+  const mapDigest = createHash("sha256")
+    .update(`${caseId}\0${source.id}\0${source.path}\0${source.commit}`)
+    .digest("hex");
+  const mapFile = join(resultsRoot, `darrow-source-map-${mapDigest}.json`);
+  await writeFile(
+    mapFile,
+    JSON.stringify({ [source.id]: pathToFileURL(source.path).href }),
+  );
+  return [
+    "--case-source-root",
+    dirname(source.path),
+    "--case-source-map-file",
+    mapFile,
+  ];
 }
 
 if (import.meta.main) {
@@ -90,7 +150,12 @@ if (import.meta.main) {
       selected.commandFile,
       JSON.stringify([process.execPath, extension]),
     );
-    const child = Bun.spawn(selected.command, {
+    const sourceArgs = await repositorySourceArgs(
+      selected.projectRoot,
+      selected.caseId,
+      selected.resultsRoot,
+    );
+    const child = Bun.spawn([...selected.command, ...sourceArgs], {
       stdout: "inherit",
       stderr: "inherit",
       stdin: "inherit",
