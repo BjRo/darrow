@@ -651,6 +651,7 @@ const CASE_FIELDS = [
   "id",
   "invariant",
   "prompt",
+  "follow_up_prompt",
   "fixture",
   "checks",
   "expect_head_change",
@@ -787,6 +788,26 @@ async function caseChecks(
   ];
 }
 
+async function casePrompts(
+  selected: RecordValue,
+  root: string,
+  skillDir: string | null,
+) {
+  const invocation = await invocationForCase(
+    root,
+    skillDir,
+    `${string(selected.prompt, "case prompt")}\n${selected.follow_up_prompt ?? ""}`,
+  );
+  const token = invocation ? "{{sevro.codex.skill_invocation}}" : null;
+  return {
+    invocation,
+    prompt: casePrompt(selected.prompt, token),
+    ...(selected.follow_up_prompt === undefined
+      ? {}
+      : { followUpPrompt: casePrompt(selected.follow_up_prompt, token) }),
+  };
+}
+
 async function neutralCase(value: unknown, source: string, root: string) {
   const selected = record(value, "case");
   keys(selected, CASE_FIELDS, "case");
@@ -799,14 +820,10 @@ async function neutralCase(value: unknown, source: string, root: string) {
     root,
   );
   const additionalMounts = caseAdditionalMounts(selected, skillDir);
-  const invocation = await invocationForCase(
+  const { invocation, prompt, ...followUp } = await casePrompts(
+    selected,
     root,
     skillDir,
-    string(selected.prompt, "case prompt"),
-  );
-  const prompt = casePrompt(
-    selected.prompt,
-    invocation ? "{{sevro.codex.skill_invocation}}" : null,
   );
   const policy = casePolicy(selected, skillDir);
   const checks = [
@@ -817,6 +834,7 @@ async function neutralCase(value: unknown, source: string, root: string) {
   return {
     id,
     prompt,
+    ...followUp,
     fixture,
     checks,
     requiredEvidence: policy.requiredEvidence,
@@ -2248,6 +2266,7 @@ if (import.meta.main) {
             requiredCapabilities: ["sevro.host.exec"],
             optionalCapabilities: [
               "sevro.fixture.setup",
+              "sevro.host.continuation",
               "sevro.codex.plugin-marketplace",
               "sevro.codex.explicit-invocation",
               "sevro.codex.native-calls",

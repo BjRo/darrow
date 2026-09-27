@@ -2,7 +2,8 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { auditCaseCompatibility } from "./index";
+import { pathToFileURL } from "node:url";
+import { auditCaseCompatibility, resolveCase } from "./index";
 
 const roots: string[] = [];
 
@@ -68,7 +69,7 @@ test("compatibility inventory names unsupported cases and fails closed", async (
       {
         id: "unsupported",
         source: await realpath(unsupported),
-        error: expect.stringContaining("transcript_checks"),
+        error: expect.stringContaining("transcript check"),
       },
     ],
   });
@@ -81,5 +82,66 @@ test("compatibility inventory names unsupported cases and fails closed", async (
     supported: 1,
     valid: true,
     failures: [],
+  });
+});
+
+test("resolves continuation prompts including a later skill invocation", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-continuation-"));
+  roots.push(root);
+  const cases = join(root, "evals/experiments/sample/cases");
+  await mkdir(cases, { recursive: true });
+  const base = {
+    invariant: "EXAMPLE-C1",
+    fixture: {
+      commits: [{ message: "chore: init", files: { "README.md": "ready\n" } }],
+    },
+    checks: [],
+  };
+  await writeFile(
+    join(cases, "continue.yaml"),
+    JSON.stringify({
+      ...base,
+      id: "continue",
+      prompt: "Inspect {{repo_dir}}.",
+      follow_up_prompt: "Continue in {{repo_dir}}.",
+    }),
+  );
+  const skillRoot = join(root, "plugins/capability/probe/skills/probe");
+  await mkdir(join(skillRoot, "evals"), { recursive: true });
+  await mkdir(join(root, "plugins/capability/probe/.codex-plugin"), {
+    recursive: true,
+  });
+  await writeFile(
+    join(root, "plugins/capability/probe/.codex-plugin/plugin.json"),
+    JSON.stringify({ name: "probe", version: "1.0.0", skills: "./skills/" }),
+  );
+  await writeFile(join(skillRoot, "SKILL.md"), "---\nname: probe\n---\n");
+  await writeFile(
+    join(skillRoot, "evals/continue-with-skill.yaml"),
+    JSON.stringify({
+      ...base,
+      id: "continue-with-skill",
+      prompt: "Wait for my next message.",
+      follow_up_prompt: "{{skill_invocation}} Continue now.",
+    }),
+  );
+  const projectRoot = pathToFileURL(root).href;
+  const plain = await resolveCase({
+    projectRoot,
+    selectors: { caseIds: ["continue"] },
+  });
+  expect(plain.cases[0]?.prompt).toBe("Inspect {{sevro.workspace}}.");
+  expect(plain.cases[0]?.followUpPrompt).toBe(
+    "Continue in {{sevro.workspace}}.",
+  );
+  const invoked = await resolveCase({
+    projectRoot,
+    selectors: { caseIds: ["continue-with-skill"] },
+  });
+  expect(invoked.cases[0]?.followUpPrompt).toBe(
+    "{{sevro.codex.skill_invocation}} Continue now.",
+  );
+  expect(invoked.cases[0]?.extensionData["darrow.case"]).toMatchObject({
+    invocation: { pluginName: "probe", skillName: "probe" },
   });
 });
