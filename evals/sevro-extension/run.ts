@@ -30,6 +30,8 @@ const reserved = new Set([
   "--runner-checkout-root",
   "--runner-build-digest",
   "--project-digest",
+  "--extension-configuration-file",
+  "--extension-redacted-configuration-file",
   "--json",
 ]);
 
@@ -46,8 +48,16 @@ function sevroArgs(options: {
   projectRoot: string;
   resultsRoot: string;
   forwarded: string[];
+  withoutSkill: boolean;
 }): string[] {
-  const { commandFile, caseId, projectRoot, resultsRoot, forwarded } = options;
+  const {
+    commandFile,
+    caseId,
+    projectRoot,
+    resultsRoot,
+    forwarded,
+    withoutSkill,
+  } = options;
   const route = sevroCommand();
   return [
     ...route.launch,
@@ -63,6 +73,14 @@ function sevroArgs(options: {
     projectRoot,
     "--results-root",
     resultsRoot,
+    ...(withoutSkill
+      ? [
+          "--extension-configuration-file",
+          join(resultsRoot, "darrow-extension-configuration.json"),
+          "--extension-redacted-configuration-file",
+          join(resultsRoot, "darrow-extension-redacted-configuration.json"),
+        ]
+      : []),
     ...forwarded,
   ];
 }
@@ -74,6 +92,7 @@ export function invocation(argv: string[]): {
   commandFile: string;
   projectRoot: string;
   caseId: string;
+  withoutSkill: boolean;
 } {
   const separator = argv.indexOf("--");
   if (separator < 0) throw new Error("separate Sevro run options with --");
@@ -83,6 +102,7 @@ export function invocation(argv: string[]): {
       "case-id": { type: "string" },
       "project-root": { type: "string" },
       "results-root": { type: "string" },
+      "without-skill": { type: "boolean", default: false },
     },
     strict: true,
   });
@@ -101,12 +121,14 @@ export function invocation(argv: string[]): {
     resultsRoot,
     projectRoot,
     caseId,
+    withoutSkill: values["without-skill"],
     command: sevroArgs({
       commandFile,
       caseId,
       projectRoot,
       resultsRoot,
       forwarded,
+      withoutSkill: values["without-skill"],
     }),
   };
 }
@@ -151,6 +173,22 @@ if (import.meta.main) {
       selected.commandFile,
       JSON.stringify([process.execPath, extension]),
     );
+    if (selected.withoutSkill) {
+      const configuration = JSON.stringify({ withoutSkill: true });
+      await Promise.all([
+        writeFile(
+          join(selected.resultsRoot, "darrow-extension-configuration.json"),
+          configuration,
+        ),
+        writeFile(
+          join(
+            selected.resultsRoot,
+            "darrow-extension-redacted-configuration.json",
+          ),
+          configuration,
+        ),
+      ]);
+    }
     const sourceArgs = await repositorySourceArgs(
       selected.projectRoot,
       selected.caseId,

@@ -1833,6 +1833,78 @@ test("Darrow command reserves extension and identity options", () => {
   expect(() => invocation([...args, "--case-source-map-file=other"])).toThrow(
     /owned by Darrow/,
   );
+  expect(() =>
+    invocation([...args, "--extension-configuration-file=other"]),
+  ).toThrow(/owned by Darrow/);
+  const baseline = invocation([
+    "--case-id",
+    "example",
+    "--results-root",
+    "/tmp/darrow-sevro-results",
+    "--without-skill",
+    "--",
+  ]);
+  expect(baseline.withoutSkill).toBeTrue();
+  expect(baseline.command).toContain("--extension-configuration-file");
+});
+
+test("no-skill preparation omits mounts and activation grading", async () => {
+  const resolved = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(projectRoot).href,
+      selectors: { caseIds: ["author-agent-skill-validate-read-only"] },
+      configuration: { withoutSkill: true },
+    }),
+  );
+  expect(resolved.code, resolved.stderr).toBe(0);
+  const selected = resolved.value.result.cases[0]!;
+  expect(selected.extensionData["darrow.case"].activation).toBeDefined();
+  const prepared = await command<{
+    result: { artifacts: unknown[] };
+  }>(
+    [process.execPath, extension],
+    request("prepare", {
+      case: selected,
+      host: { id: "sevro.host.codex", capabilities: [] },
+      configuration: { withoutSkill: true },
+    }),
+  );
+  expect(prepared.code, prepared.stderr).toBe(0);
+  expect(prepared.value.result.artifacts).toEqual([]);
+  const evaluated = await command<{
+    result: { domainOutcomes: unknown[] };
+  }>(
+    [process.execPath, extension],
+    request("evaluate", {
+      extensionData: selected.extensionData,
+      observations: [],
+      configuration: { withoutSkill: true },
+    }),
+  );
+  expect(evaluated.code, evaluated.stderr).toBe(0);
+  expect(evaluated.value.result.domainOutcomes).toEqual([]);
+
+  const explicit = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(projectRoot).href,
+      selectors: { caseIds: ["grilling-direct-frontier"] },
+      configuration: { withoutSkill: true },
+    }),
+  );
+  expect(explicit.code, explicit.stderr).toBe(0);
+  const rejected = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("prepare", {
+      case: explicit.value.result.cases[0],
+      host: { id: "sevro.host.codex", capabilities: [] },
+      configuration: { withoutSkill: true },
+    }),
+  );
+  expect(rejected.value.error.message).toContain(
+    "explicit skill invocation cannot run without skills",
+  );
 });
 
 test("Darrow fixture setup runs through Sevro and rejects changed source", async () => {

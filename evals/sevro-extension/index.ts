@@ -1411,10 +1411,23 @@ async function preparedMounts(details: RecordValue, hostValue: unknown) {
   };
 }
 
+function withoutSkill(configuration: unknown): boolean {
+  const selected = record(configuration ?? {}, "extension configuration");
+  const extra = Object.keys(selected).filter((key) => key !== "withoutSkill");
+  if (extra.length)
+    throw new Error(`unsupported extension configuration: ${extra.join(", ")}`);
+  if (selected.withoutSkill !== undefined && selected.withoutSkill !== true)
+    throw new Error("withoutSkill configuration must be true");
+  return selected.withoutSkill === true;
+}
+
 async function prepareCase(params: RecordValue) {
   const selected = record(params.case, "prepared case");
   const data = record(selected.extensionData, "case extension data");
   const details = record(data["darrow.case"], "Darrow case data");
+  const omitSkills = withoutSkill(params.configuration);
+  if (omitSkills && details.invocation !== undefined)
+    throw new Error("explicit skill invocation cannot run without skills");
   if (details.ownership === true) {
     const host = record(params.host, "candidate host");
     if (
@@ -1426,7 +1439,9 @@ async function prepareCase(params: RecordValue) {
   }
   const setup = await caseSetup(details, string(selected.id, "case ID"));
   return {
-    ...(await preparedMounts(details, params.host)),
+    ...(omitSkills
+      ? { artifacts: [] }
+      : await preparedMounts(details, params.host)),
     requestedInstrumentation: [],
     ...(setup ? { fixtureSetup: setup } : {}),
     extensionData: {},
@@ -1886,6 +1901,7 @@ function caseMetrics(details: RecordValue, params: RecordValue) {
 }
 
 function evaluateCase(params: RecordValue) {
+  const omitSkills = withoutSkill(params.configuration);
   const extensionData = record(
     params.extensionData,
     "evaluation extension data",
@@ -1894,7 +1910,7 @@ function evaluateCase(params: RecordValue) {
   const metrics = caseMetrics(details, params);
   const checks =
     details.ownership === true ? ownershipChecks(params.observations) : [];
-  if (details.activation === undefined)
+  if (omitSkills || details.activation === undefined)
     return { checks, metrics, domainOutcomes: [] };
   const expected = activationExpectation(details.activation);
   const explicit = details.invocation !== undefined;
