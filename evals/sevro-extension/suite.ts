@@ -135,6 +135,7 @@ type Cell = {
   exitCode: number;
   error?: string;
 };
+type Interrupt = "SIGINT" | "SIGTERM";
 
 function cellCommand(
   request: SuiteRequest,
@@ -167,18 +168,14 @@ async function runCell(
   mode: SuiteConfig["modes"][number],
   caseId: string,
   index: number,
-): Promise<Cell> {
+): Promise<{ cell: Cell; interrupted: Interrupt | null }> {
   const cellRoot = join(request.resultsRoot, `cell-${index}`);
   const child = Bun.spawn(cellCommand(request, mode, caseId, cellRoot), {
     stdout: "pipe",
     stderr: "pipe",
     stdin: "inherit",
   });
-  const [stdout, stderr, exitCode] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ]);
+  const { stdout, exitCode, interrupted } = await captureCell(child);
   let result: Record<string, unknown> | null = null;
   try {
     result = object(JSON.parse(stdout) as unknown, "Sevro result");
@@ -187,7 +184,7 @@ async function runCell(
   }
   const resultPath = result ? join(cellRoot, "result.json") : null;
   if (resultPath) await writeFile(resultPath, JSON.stringify(result, null, 2));
-  return {
+  const cell: Cell = {
     caseId,
     mode: mode.name,
     condition: mode.condition,
@@ -195,8 +192,37 @@ async function runCell(
     evidencePath:
       typeof result?.evidencePath === "string" ? result.evidencePath : null,
     exitCode: result ? exitCode : exitCode || 70,
-    ...(result ? {} : { error: stderr.trim() || "Sevro did not return JSON" }),
+    ...(result ? {} : { error: "Sevro did not return JSON" }),
   };
+  return { cell, interrupted };
+}
+
+async function captureCell(child: {
+  stdout: ReadableStream<Uint8Array>;
+  stderr: ReadableStream<Uint8Array>;
+  exited: Promise<number>;
+  kill(signal: Interrupt): void;
+}) {
+  let interrupted: Interrupt | null = null;
+  const forward = (signal: Interrupt) => {
+    interrupted ??= signal;
+    child.kill(signal);
+  };
+  const onInterrupt = () => forward("SIGINT");
+  const onTerminate = () => forward("SIGTERM");
+  process.on("SIGINT", onInterrupt);
+  process.on("SIGTERM", onTerminate);
+  try {
+    const [stdout, , exitCode] = await Promise.all([
+      new Response(child.stdout).text(),
+      new Response(child.stderr).text(),
+      child.exited,
+    ]);
+    return { stdout, exitCode, interrupted };
+  } finally {
+    process.off("SIGINT", onInterrupt);
+    process.off("SIGTERM", onTerminate);
+  }
 }
 
 export async function runSuite(argv: string[]) {
@@ -213,24 +239,32 @@ export async function runSuite(argv: string[]) {
     projectRoot,
     trials,
     threshold,
+    interrupted: null as Interrupt | null,
     cells: [] as Cell[],
   };
   await mkdir(resultsRoot, { recursive: true });
-  for (const mode of suite.modes) {
+  cells: for (const mode of suite.modes) {
     for (const caseId of caseIds) {
-      manifest.cells.push(
-        await runCell(request, mode, caseId, manifest.cells.length + 1),
+      const outcome = await runCell(
+        request,
+        mode,
+        caseId,
+        manifest.cells.length + 1,
       );
+      manifest.cells.push(outcome.cell);
+      manifest.interrupted = outcome.interrupted;
       await writeFile(
         join(resultsRoot, "suite-run.json"),
         JSON.stringify(manifest, null, 2),
       );
+      if (outcome.interrupted) break cells;
     }
   }
   return {
     manifest: join(resultsRoot, "suite-run.json"),
     cells: manifest.cells.length,
     failed: manifest.cells.filter((cell) => cell.exitCode !== 0).length,
+    interrupted: manifest.interrupted,
   };
 }
 
@@ -238,7 +272,14 @@ if (import.meta.main) {
   try {
     const result = await runSuite(process.argv.slice(2));
     process.stdout.write(`${JSON.stringify(result)}\n`);
-    process.exitCode = result.failed ? 1 : 0;
+    process.exitCode =
+      result.interrupted === "SIGINT"
+        ? 130
+        : result.interrupted === "SIGTERM"
+          ? 143
+          : result.failed
+            ? 1
+            : 0;
   } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : error}\n`);
     process.exitCode = 64;

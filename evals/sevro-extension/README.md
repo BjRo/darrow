@@ -122,7 +122,8 @@ case IDs before starting, rejects duplicate IDs and unsupported suite fields,
 then invokes the public Sevro CLI once per case and mode. `suite-run.json`
 records the suite content digest, selected cells, Sevro result paths, evidence
 paths, and exit codes. Failed cells remain in the manifest while later cells
-run. The command exits 1 if any cell fails. Ablations, route overrides, and
+run. SIGINT or SIGTERM cancels the active run, retains its cell, and stops the
+suite. The command exits 1 if any cell fails. Ablations, route overrides, and
 report generation still use the legacy suite command.
 
 The parity test also prepares the mounted skill through Sevro's bundled Codex

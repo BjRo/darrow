@@ -39,9 +39,16 @@ async function fixture() {
   const adapter = join(root, "adapter.ts");
   await writeFile(
     adapter,
-    `export default {
+    `import { writeFile } from "node:fs/promises";
+export default {
   id: "sevro.host.codex", model: "synthetic", effort: "none",
-  async run({ condition }) {
+  async run({ condition, signal }) {
+    if (process.env.SEVRO_SUITE_READY_PATH) {
+      await writeFile(process.env.SEVRO_SUITE_READY_PATH, "ready");
+      await new Promise((_resolve, reject) => {
+        signal.addEventListener("abort", () => reject(new Error("cancelled")), { once: true });
+      });
+    }
     return { finalMessage: "ready", complete: true, actualCondition: condition,
       inputTokens: 1, outputTokens: 1, usageComplete: true };
   },
@@ -62,6 +69,14 @@ async function fixture() {
     }),
   );
   return { root, cases, adapter, suite, results: join(root, "results") };
+}
+
+async function waitForFile(path: string) {
+  const deadline = Date.now() + 10_000;
+  while (!(await Bun.file(path).exists())) {
+    if (Date.now() > deadline) throw new Error(`timed out waiting for ${path}`);
+    await Bun.sleep(20);
+  }
 }
 
 async function invoke(args: string[]) {
@@ -215,3 +230,57 @@ test("suite retains failed cells and continues the remaining public runs", async
     );
   }
 });
+
+test("suite interruption cancels the active Sevro cell and stops selection", async () => {
+  const { root, adapter, suite, results } = await fixture();
+  const ready = join(root, "suite-ready");
+  const child = Bun.spawn(
+    [
+      process.execPath,
+      suiteCommand,
+      "--suite",
+      suite,
+      "--project-root",
+      root,
+      "--results-root",
+      results,
+      "--trials",
+      "1",
+      "--threshold",
+      "1",
+      "--",
+      "--adapter-module",
+      adapter,
+      "--shell-isolation",
+    ],
+    {
+      env: { ...process.env, SEVRO_SUITE_READY_PATH: ready },
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+  );
+  try {
+    await waitForFile(ready);
+    child.kill("SIGTERM");
+    const [stdout, code] = await Promise.all([
+      new Response(child.stdout).text(),
+      child.exited,
+    ]);
+    expect(code).toBe(143);
+    expect(JSON.parse(stdout)).toMatchObject({
+      cells: 1,
+      interrupted: "SIGTERM",
+    });
+    const manifest = JSON.parse(
+      await readFile(join(results, "suite-run.json"), "utf8"),
+    );
+    expect(manifest.interrupted).toBe("SIGTERM");
+    expect(manifest.cells).toHaveLength(1);
+    const result = JSON.parse(await readFile(manifest.cells[0].result, "utf8"));
+    expect(result.execution.status).toBe("cancelled");
+    expect(result.task.verdict).toBe("not_assessed");
+  } finally {
+    child.kill("SIGKILL");
+    await child.exited;
+  }
+}, 20_000);
