@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { isAbsolute, join, resolve } from "node:path";
+import { isAbsolute, join, resolve, sep } from "node:path";
 import { parseArgs } from "node:util";
 import { parse as parseYaml } from "yaml";
-import { selectCaseIds } from "./index";
+import { resolveCase, selectCaseIds } from "./index";
+import { pathToFileURL } from "node:url";
 import { sevroCommand } from "./sevro-command";
 
 const repositoryRoot = resolve(import.meta.dir, "../..");
@@ -19,7 +20,7 @@ function modeConfig(name: string, raw: unknown) {
   if (!/^[A-Za-z0-9._-]+$/.test(name)) throw new Error(`invalid mode: ${name}`);
   const mode = object(raw, `mode ${name}`);
   const unsupported = Object.keys(mode).filter(
-    (key) => key !== "owner_evaluation",
+    (key) => key !== "owner_evaluation" && key !== "without_skill",
   );
   if (unsupported.length)
     throw new Error(
@@ -29,16 +30,78 @@ function modeConfig(name: string, raw: unknown) {
   if (requested !== "passive" && requested !== "enforced")
     throw new Error(`invalid ${name} owner_evaluation`);
   const condition: "passive" | "enforced" = requested;
-  return { name, condition };
+  if (mode.without_skill !== undefined && mode.without_skill !== true)
+    throw new Error(`invalid ${name} without_skill`);
+  return { name, condition, withoutSkill: mode.without_skill === true };
+}
+
+type Ablation = { name: string; baseline: string; candidate: string };
+
+function ablationNames(
+  selected: Record<string, unknown>,
+  names: Set<string>,
+): Ablation {
+  const { name, baseline, candidate } = selected;
+  if (
+    typeof name !== "string" ||
+    !/^[A-Za-z0-9._-]+$/.test(name) ||
+    names.has(name) ||
+    typeof baseline !== "string" ||
+    typeof candidate !== "string" ||
+    baseline === candidate
+  )
+    throw new Error("ablation needs a unique name and distinct modes");
+  names.add(name);
+  return { name, baseline, candidate };
+}
+
+function ablationEntry(
+  entry: unknown,
+  modes: ReturnType<typeof modeConfig>[],
+  names: Set<string>,
+): Ablation {
+  const selected = object(entry, "ablation");
+  const extra = Object.keys(selected).filter(
+    (key) => !["name", "baseline", "candidate"].includes(key),
+  );
+  if (extra.length)
+    throw new Error(`unsupported ablation fields: ${extra.join(", ")}`);
+  const { name, baseline, candidate } = ablationNames(selected, names);
+  const base = modes.find((mode) => mode.name === baseline);
+  const selectedCandidate = modes.find((mode) => mode.name === candidate);
+  if (
+    !base?.withoutSkill ||
+    !selectedCandidate ||
+    selectedCandidate.withoutSkill
+  )
+    throw new Error(
+      `${name}: baseline must omit skills and candidate must mount them`,
+    );
+  if (base.condition !== selectedCandidate.condition)
+    throw new Error(`${name}: owner evaluation differs`);
+  return { name, baseline, candidate };
+}
+
+function ablationConfig(raw: unknown, modes: ReturnType<typeof modeConfig>[]) {
+  if (raw === undefined) return [] as Ablation[];
+  if (!Array.isArray(raw) || !raw.length)
+    throw new Error("ablations must be a nonempty list");
+  const names = new Set<string>();
+  return raw.map((entry) => ablationEntry(entry, modes, names));
 }
 
 function suiteConfig(value: unknown) {
   const suite = object(value, "suite");
   const extra = Object.keys(suite).filter(
     (key) =>
-      !["version", "experiment", "harnesses", "case_filter", "modes"].includes(
-        key,
-      ),
+      ![
+        "version",
+        "experiment",
+        "harnesses",
+        "case_filter",
+        "modes",
+        "ablations",
+      ].includes(key),
   );
   if (extra.length)
     throw new Error(`unsupported suite fields: ${extra.join(", ")}`);
@@ -67,11 +130,18 @@ function suiteConfig(value: unknown) {
     experiment: suite.experiment,
     filters: filters as string[],
     modes: selectedModes,
+    ablations: ablationConfig(suite.ablations, selectedModes),
   };
 }
 
 function forwardedOptions(args: string[]) {
-  const owned = new Set(["--condition", "--trials", "--threshold"]);
+  const owned = new Set([
+    "--condition",
+    "--trials",
+    "--threshold",
+    "--extension-configuration-file",
+    "--extension-redacted-configuration-file",
+  ]);
   for (const token of args) {
     if (token === "--" || owned.has(token.split("=", 1)[0]!))
       throw new Error(`suite option is owned by Darrow: ${token}`);
@@ -140,6 +210,7 @@ type Cell = {
 type Interrupt = "SIGINT" | "SIGTERM";
 type EvidenceSummary = {
   evaluationDigest: string;
+  dimensions: Record<string, unknown>;
   runner: Record<string, unknown>;
   project: Record<string, unknown>;
   extension: Record<string, unknown> | null;
@@ -208,6 +279,10 @@ async function retainedSummary(
     throw new Error("retained Sevro routes are missing");
   return {
     evaluationDigest,
+    dimensions: object(
+      object(evidence.evaluationIdentity, "evaluation identity").dimensions,
+      "identity dimensions",
+    ),
     runner: object(evidence.runner, "runner provenance"),
     project: object(evidence.project, "project provenance"),
     extension:
@@ -265,6 +340,7 @@ function cellCommand(
     request.projectRoot,
     "--results-root",
     cellRoot,
+    ...(mode.withoutSkill ? ["--without-skill"] : []),
     "--",
     ...request.forwarded,
     "--condition",
@@ -407,6 +483,215 @@ async function suiteReports(resultsRoot: string, cells: Cell[]) {
   }
 }
 
+function comparisonValue(value: unknown, label: string): number | null {
+  if (value === null) return null;
+  if (typeof value !== "number" || !Number.isFinite(value))
+    throw new Error(`invalid ${label}`);
+  return value;
+}
+
+function measuredDelta(baseline: number | null, candidate: number | null) {
+  return baseline === null || candidate === null ? null : candidate - baseline;
+}
+
+function metricPair(baseline: number | null, candidate: number | null) {
+  return { baseline, candidate, delta: measuredDelta(baseline, candidate) };
+}
+
+function rowMetrics(value: Record<string, unknown>) {
+  const input = comparisonValue(value.inputTokens, "input tokens");
+  const output = comparisonValue(value.outputTokens, "output tokens");
+  return {
+    passRate: comparisonValue(value.taskPassRate, "pass rate"),
+    durationMs: comparisonValue(value.candidateDurationMs, "duration"),
+    tokens: input === null || output === null ? null : input + output,
+    costUsd: comparisonValue(value.costUsd, "cost"),
+  };
+}
+
+type MatchedPair = {
+  definition: Ablation;
+  caseId: string;
+  baseline: Cell;
+  candidate: Cell;
+};
+
+function identityErrors(baseline: Cell, candidate: Cell): string[] {
+  const errors: string[] = [];
+  const base = baseline.provenance;
+  const selected = candidate.provenance;
+  if (!base || !selected) return ["retained evidence is missing"];
+  const allowed = new Set([
+    "configurationDigest",
+    "fixtureDigest",
+    "evaluatorDigest",
+  ]);
+  for (const key of Object.keys(base.dimensions)) {
+    if (!allowed.has(key) && base.dimensions[key] !== selected.dimensions[key])
+      errors.push(`${key} differs`);
+  }
+  if (
+    base.dimensions.configurationDigest ===
+    selected.dimensions.configurationDigest
+  )
+    errors.push("extension configuration did not change");
+  if (base.dimensions.fixtureDigest === selected.dimensions.fixtureDigest)
+    errors.push("skill mount did not change the fixture");
+  return errors;
+}
+
+function matchedCell(pair: MatchedPair, rows: Record<string, unknown>[]) {
+  const { definition, caseId, baseline, candidate } = pair;
+  const errors = identityErrors(baseline, candidate);
+  const baselineRows = rows.filter((row) => row.resultFile === baseline.result);
+  const candidateRows = rows.filter(
+    (row) => row.resultFile === candidate.result,
+  );
+  if (baselineRows.length !== 1 || candidateRows.length !== 1)
+    errors.push("expected one public report row per mode");
+  if (errors.length) return { errors, comparison: null };
+  const baselineRow = baselineRows[0]!;
+  const candidateRow = candidateRows[0]!;
+  if (baselineRow.caseId !== caseId || candidateRow.caseId !== caseId)
+    errors.push("public report case differs");
+  const baseMetrics = rowMetrics(baselineRow);
+  const candidateMetrics = rowMetrics(candidateRow);
+  if (baseMetrics.passRate === null || candidateMetrics.passRate === null)
+    errors.push("task pass rate is unmeasured");
+  if (errors.length) return { errors, comparison: null };
+  return {
+    errors,
+    comparison: {
+      caseId,
+      baseline: definition.baseline,
+      candidate: definition.candidate,
+      passRate: metricPair(baseMetrics.passRate, candidateMetrics.passRate),
+      durationMs: metricPair(
+        baseMetrics.durationMs,
+        candidateMetrics.durationMs,
+      ),
+      tokens: metricPair(baseMetrics.tokens, candidateMetrics.tokens),
+      costUsd: metricPair(baseMetrics.costUsd, candidateMetrics.costUsd),
+      resultFiles: [baseline.result, candidate.result],
+    },
+  };
+}
+
+function metricText(value: number | null): string {
+  return value === null ? "unknown" : String(value);
+}
+
+function compareDefinition(input: {
+  definition: Ablation;
+  caseIds: string[];
+  cells: Cell[];
+  rows: Record<string, unknown>[];
+  hasReport: boolean;
+}) {
+  const { definition, caseIds, cells, rows, hasReport } = input;
+  const errors: string[] = [];
+  const cases: NonNullable<ReturnType<typeof matchedCell>["comparison"]>[] = [];
+  if (!hasReport) errors.push("public Sevro report is unavailable");
+  for (const caseId of caseIds) {
+    const baseline = cells.filter(
+      (cell) => cell.caseId === caseId && cell.mode === definition.baseline,
+    );
+    const candidate = cells.filter(
+      (cell) => cell.caseId === caseId && cell.mode === definition.candidate,
+    );
+    if (baseline.length !== 1 || candidate.length !== 1) {
+      errors.push(`${caseId}: expected one baseline and candidate cell`);
+      continue;
+    }
+    const matched = matchedCell(
+      { definition, caseId, baseline: baseline[0]!, candidate: candidate[0]! },
+      rows,
+    );
+    errors.push(...matched.errors.map((error) => `${caseId}: ${error}`));
+    if (matched.comparison) cases.push(matched.comparison);
+  }
+  return { ...definition, cases, errors };
+}
+
+function markdownRow(
+  name: string,
+  row: NonNullable<ReturnType<typeof matchedCell>["comparison"]>,
+) {
+  const cells = [row.passRate, row.durationMs, row.tokens, row.costUsd].map(
+    (metric) =>
+      `${metricText(metric.baseline)} / ${metricText(metric.candidate)} / ${metricText(metric.delta)}`,
+  );
+  return `| ${name} | ${row.caseId} | ${cells.join(" | ")} |`;
+}
+
+function ablationMarkdown(analysis: {
+  valid: boolean;
+  comparisons: ReturnType<typeof compareDefinition>[];
+  errors: string[];
+}) {
+  const { comparisons, errors } = analysis;
+  return [
+    "# Sevro skill ablations",
+    "",
+    `Valid: ${analysis.valid ? "yes" : "no"}`,
+    "",
+    "| Ablation | Case | Pass rate baseline / candidate / delta | Time ms baseline / candidate / delta | Tokens baseline / candidate / delta | Cost USD baseline / candidate / delta |",
+    "| --- | --- | --- | --- | --- | --- |",
+    ...comparisons.flatMap((comparison) =>
+      comparison.cases.map((row) => markdownRow(comparison.name, row)),
+    ),
+    ...(errors.length
+      ? ["", "## Errors", "", ...errors.map((error) => `- ${error}`)]
+      : []),
+    "",
+  ].join("\n");
+}
+
+async function ablationReports(input: {
+  resultsRoot: string;
+  definitions: Ablation[];
+  caseIds: string[];
+  cells: Cell[];
+  reportPath: string | null;
+}) {
+  const { resultsRoot, definitions, caseIds, cells, reportPath } = input;
+  if (!definitions.length) return null;
+  const report = reportPath
+    ? object(
+        JSON.parse(await readFile(reportPath, "utf8")) as unknown,
+        "Sevro report",
+      )
+    : null;
+  const reportRows = Array.isArray(report?.rows)
+    ? report.rows.map((row) => object(row, "public report row"))
+    : [];
+  const comparisons = definitions.map((definition) =>
+    compareDefinition({
+      definition,
+      caseIds,
+      cells,
+      rows: reportRows,
+      hasReport: report !== null,
+    }),
+  );
+  const errors = comparisons.flatMap((comparison) =>
+    comparison.errors.map((error) => `${comparison.name}: ${error}`),
+  );
+  const analysis = {
+    format: "darrow-sevro-ablation-v1",
+    valid: errors.length === 0,
+    comparisons,
+    errors,
+  };
+  const jsonPath = join(resultsRoot, "ablation-report.json");
+  const markdownPath = join(resultsRoot, "ablation-report.md");
+  await Promise.all([
+    writeFile(jsonPath, JSON.stringify(analysis, null, 2)),
+    writeFile(markdownPath, ablationMarkdown(analysis)),
+  ]);
+  return { jsonPath, markdownPath, valid: analysis.valid, errors };
+}
+
 async function saveManifest(resultsRoot: string, manifest: unknown) {
   await writeFile(
     join(resultsRoot, "suite-run.json"),
@@ -414,12 +699,66 @@ async function saveManifest(resultsRoot: string, manifest: unknown) {
   );
 }
 
+async function preflightCases(
+  projectRoot: string,
+  suite: SuiteConfig,
+  caseIds: string[],
+) {
+  if (!suite.modes.some((mode) => mode.withoutSkill)) return;
+  for (const caseId of caseIds) {
+    const selected = await resolveCase({
+      projectRoot: pathToFileURL(projectRoot).href,
+      selectors: { caseIds: [caseId] },
+    });
+    const data = object(
+      selected.cases[0]?.extensionData,
+      "case extension data",
+    );
+    const details = object(data["darrow.case"], "Darrow case data");
+    if (details.invocation !== undefined)
+      throw new Error(
+        `${caseId}: explicit skill invocation cannot run without skills`,
+      );
+    if (suite.ablations.length && details.mount === undefined)
+      throw new Error(`${caseId}: ablation candidate has no owning skill`);
+  }
+}
+
+async function runSelectedCells(
+  request: SuiteRequest,
+  modes: SuiteConfig["modes"],
+  caseIds: string[],
+  manifest: { cells: Cell[]; interrupted: Interrupt | null },
+) {
+  cells: for (const mode of modes) {
+    for (const caseId of caseIds) {
+      const outcome = await runCell(
+        request,
+        mode,
+        caseId,
+        manifest.cells.length + 1,
+      );
+      manifest.cells.push(outcome.cell);
+      manifest.interrupted = outcome.interrupted;
+      await saveManifest(request.resultsRoot, manifest);
+      if (outcome.interrupted) break cells;
+    }
+  }
+}
+
 export async function runSuite(argv: string[]) {
   const request = suiteInvocation(argv);
   const { suitePath, projectRoot, resultsRoot, trials, threshold } = request;
   const source = await readFile(suitePath, "utf8");
   const suite = suiteConfig(parseYaml(source) as unknown);
+  if (
+    suite.ablations.length &&
+    (resultsRoot === projectRoot ||
+      resultsRoot.startsWith(`${projectRoot}${sep}`))
+  )
+    throw new Error("ablation results root must be outside the project root");
   const caseIds = await selectCaseIds(projectRoot, suite.filters);
+  await preflightCases(projectRoot, suite, caseIds);
   const manifest = {
     format: "darrow-sevro-suite-v1",
     suite: suitePath,
@@ -430,27 +769,23 @@ export async function runSuite(argv: string[]) {
     threshold,
     harnesses: ["codex"],
     modes: suite.modes,
+    ablations: suite.ablations,
     caseIds,
     interrupted: null as Interrupt | null,
     cells: [] as Cell[],
     report: null as Awaited<ReturnType<typeof suiteReports>> | null,
+    ablationReport: null as Awaited<ReturnType<typeof ablationReports>>,
   };
   await mkdir(resultsRoot, { recursive: true });
-  cells: for (const mode of suite.modes) {
-    for (const caseId of caseIds) {
-      const outcome = await runCell(
-        request,
-        mode,
-        caseId,
-        manifest.cells.length + 1,
-      );
-      manifest.cells.push(outcome.cell);
-      manifest.interrupted = outcome.interrupted;
-      await saveManifest(resultsRoot, manifest);
-      if (outcome.interrupted) break cells;
-    }
-  }
+  await runSelectedCells(request, suite.modes, caseIds, manifest);
   manifest.report = await suiteReports(resultsRoot, manifest.cells);
+  manifest.ablationReport = await ablationReports({
+    resultsRoot,
+    definitions: suite.ablations,
+    caseIds,
+    cells: manifest.cells,
+    reportPath: manifest.report.jsonPath,
+  });
   await saveManifest(resultsRoot, manifest);
   return {
     manifest: join(resultsRoot, "suite-run.json"),
@@ -458,6 +793,7 @@ export async function runSuite(argv: string[]) {
     failed: manifest.cells.filter((cell) => cell.exitCode !== 0).length,
     interrupted: manifest.interrupted,
     report: manifest.report,
+    ablationReport: manifest.ablationReport,
   };
 }
 
@@ -470,7 +806,9 @@ if (import.meta.main) {
         ? 130
         : result.interrupted === "SIGTERM"
           ? 143
-          : result.failed || result.report.error
+          : result.failed ||
+              result.report.error ||
+              result.ablationReport?.valid === false
             ? 1
             : 0;
   } catch (error) {

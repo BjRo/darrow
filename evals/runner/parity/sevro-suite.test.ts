@@ -118,7 +118,7 @@ test("suite selection rejects duplicate IDs and unsupported modes before running
   expect(await Bun.file(results).exists()).toBeFalse();
   await rm(join(cases, "duplicate.yaml"));
   const unsupported = JSON.parse(await readFile(suite, "utf8"));
-  unsupported.modes.passive.without_skill = true;
+  unsupported.modes.passive.without_skill = false;
   await writeFile(suite, JSON.stringify(unsupported));
   const rejected = await invoke([
     "--suite",
@@ -131,7 +131,7 @@ test("suite selection rejects duplicate IDs and unsupported modes before running
     "--dry",
   ]);
   expect(rejected.code).toBe(64);
-  expect(rejected.stderr).toContain("unsupported passive mode fields");
+  expect(rejected.stderr).toContain("invalid passive without_skill");
   expect(await Bun.file(results).exists()).toBeFalse();
 });
 
@@ -175,8 +175,8 @@ test("suite runs every selected mode and case through Sevro public commands", as
   expect(manifest.harnesses).toEqual(["codex"]);
   expect(manifest.caseIds).toEqual(["suite-alpha", "suite-beta"]);
   expect(manifest.modes).toEqual([
-    { name: "passive", condition: "passive" },
-    { name: "enforced", condition: "enforced" },
+    { name: "passive", condition: "passive", withoutSkill: false },
+    { name: "enforced", condition: "enforced", withoutSkill: false },
   ]);
   expect(manifest.report.error).toBeNull();
   const report = JSON.parse(await readFile(manifest.report.jsonPath, "utf8"));
@@ -224,6 +224,96 @@ test("suite runs every selected mode and case through Sevro public commands", as
     const evidence = JSON.parse(await readFile(cell.evidencePath, "utf8"));
     expect(evidence.condition.requested).toBe(cell.condition);
   }
+});
+
+test("suite compares a mounted skill with a no-skill baseline", async () => {
+  const { root, adapter, suite } = await fixture();
+  const results = await mkdtemp(join(tmpdir(), "darrow-sevro-ablation-"));
+  roots.push(results);
+  const skillRoot = join(root, "plugins/capability/example/skills/probe");
+  await mkdir(join(skillRoot, "evals"), { recursive: true });
+  await writeFile(
+    join(skillRoot, "SKILL.md"),
+    "---\nname: probe\ndescription: Return ready.\n---\n\nReturn ready.\n",
+  );
+  await writeFile(
+    join(skillRoot, "evals/suite-skill.yaml"),
+    JSON.stringify({
+      id: "suite-skill",
+      invariant: "EXAMPLE-SKILL",
+      prompt: "Return ready.",
+      fixture: {
+        commits: [
+          { message: "chore: init", files: { "README.md": "ready\n" } },
+        ],
+      },
+      checks: [],
+      output_checks: [{ name: "response", expect_exact: "ready" }],
+    }),
+  );
+  await writeFile(
+    suite,
+    JSON.stringify({
+      version: 1,
+      experiment: "skill-value",
+      harnesses: ["codex"],
+      case_filter: "suite-skill",
+      modes: { baseline: { without_skill: true }, candidate: {} },
+      ablations: [
+        { name: "skill-value", baseline: "baseline", candidate: "candidate" },
+      ],
+    }),
+  );
+  const run = await invoke([
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+  ]);
+  expect(run.stderr, run.stdout).toBe("");
+  const manifest = JSON.parse(
+    await readFile(join(results, "suite-run.json"), "utf8"),
+  );
+  expect(
+    run.code,
+    `${run.stderr}\n${run.stdout}\n${JSON.stringify(manifest)}`,
+  ).toBe(0);
+  expect(manifest.cells).toHaveLength(2);
+  expect(manifest.ablationReport.valid).toBeTrue();
+  const ablation = JSON.parse(
+    await readFile(manifest.ablationReport.jsonPath, "utf8"),
+  );
+  expect(ablation.valid).toBeTrue();
+  expect(ablation.comparisons[0].cases[0]).toMatchObject({
+    caseId: "suite-skill",
+    passRate: { baseline: 1, candidate: 1, delta: 0 },
+    tokens: { baseline: 2, candidate: 2, delta: 0 },
+  });
+  expect(ablation.comparisons[0].cases[0].costUsd).toEqual({
+    baseline: null,
+    candidate: null,
+    delta: null,
+  });
+  const [baseline, candidate] = manifest.cells;
+  expect(baseline.provenance.dimensions.caseDigest).toBe(
+    candidate.provenance.dimensions.caseDigest,
+  );
+  expect(baseline.provenance.dimensions.fixtureDigest).not.toBe(
+    candidate.provenance.dimensions.fixtureDigest,
+  );
+  expect(
+    await readFile(manifest.ablationReport.markdownPath, "utf8"),
+  ).toContain("unknown / unknown / unknown");
 });
 
 test("suite retains failed cells and continues the remaining public runs", async () => {
