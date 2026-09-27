@@ -721,6 +721,8 @@ const RELAYED_FEEDBACK_PATTERN = String.raw`(?:"type":"darrow.human_feedback_rel
 const READINESS_BEFORE_CONTINUATION_PATTERN = String.raw`"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"[\s\S]*"type":"darrow.eval.follow_up_turn"`;
 const READINESS_AFTER_CONTINUATION_PATTERN = String.raw`"type":"darrow.eval.follow_up_turn"[\s\S]*"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"`;
 const TICKET_REINVOKED_AFTER_CONTINUATION_PATTERN = String.raw`"type":"darrow.eval.follow_up_turn"[\s\S]*(?:"name":"Skill"[^\n]*ticket-to-pr|"type":"darrow.skill_read_probe"[^\n]*"skill":"ticket-to-pr")`;
+const PLAINTEXT_FEEDBACK_MISMATCH_PATTERN = String.raw`"type":"darrow.codex_native_feedback"[^\n]*"message_representation":"plaintext"[^\n]*"message_matches_expected":false`;
+const SECOND_OWNER_PATTERN = String.raw`(?:"type":"darrow.parent_spawn_after_goal"|"tool":"spawn_agent"[^\n]*"status":"completed"[^\n]*[\s\S]*"tool":"spawn_agent"[^\n]*"status":"completed")`;
 const SAME_OWNER_FEEDBACK_PATTERNS = new Map([
   [STEERING_SAME_OWNER_PATTERN, false],
   [REJECTED_FEEDBACK_PATTERN, true],
@@ -742,6 +744,11 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     { kind: "no-owner-before-continuation" },
   ],
   [NO_NATIVE_GOAL_CONTROL_PATTERN, { kind: "no-native-goal-control" }],
+  [
+    PLAINTEXT_FEEDBACK_MISMATCH_PATTERN,
+    { kind: "no-plaintext-feedback-mismatch" },
+  ],
+  [SECOND_OWNER_PATTERN, { kind: "no-second-owner" }],
   [
     READINESS_AFTER_CONTINUATION_PATTERN,
     {
@@ -918,6 +925,8 @@ const TRANSCRIPT_EVIDENCE = new Map([
   ["no-native-goal-control", ["sevro.codex.native-calls"]],
   ["skills-inactive", ["sevro.codex.native-calls", "sevro.codex.skill-reads"]],
   ["same-owner-feedback", ["sevro.codex.native-calls"]],
+  ["no-plaintext-feedback-mismatch", ["sevro.codex.native-calls"]],
+  ["no-second-owner", ["sevro.codex.native-calls"]],
   ["skill-before-continuation", ["sevro.codex.initial-skill-reads"]],
   ["skill-absent-after-continuation", ["sevro.codex.follow-up-skill-reads"]],
 ]);
@@ -2380,6 +2389,32 @@ function noNativeGoalControlOutcome(
   };
 }
 
+function noSecondOwnerOutcome(
+  native: ReturnType<typeof nativeControlEvidence>,
+) {
+  if (!native)
+    return {
+      status: "unavailable",
+      detail: "Complete native owner evidence required",
+      evidenceRefs: [],
+    };
+  const first = native.acceptedSpawns[0];
+  const replacementAttempt = first
+    ? native.toolCalls.some(
+        (call) =>
+          call.namespace === "collaboration" &&
+          call.name === "spawn_agent" &&
+          (call.ordinal as number) > (first.acceptedOrdinal as number),
+      )
+    : false;
+  return {
+    status:
+      native.acceptedSpawnCount > 1 || replacementAttempt ? "failed" : "passed",
+    detail: "Graded from correlated native owner receipts and spawn order",
+    evidenceRefs: ["sevro.codex.native-calls"],
+  };
+}
+
 function skillsInactiveOutcome(
   selected: RecordValue,
   native: ReturnType<typeof nativeControlEvidence>,
@@ -2577,6 +2612,47 @@ function sameOwnerFeedbackOutcome(
   };
 }
 
+function noPlaintextFeedbackMismatchOutcome(
+  feedback: ReturnType<typeof nativeFeedbackEvidence>,
+  continuation: ReturnType<typeof continuationEvidence>,
+) {
+  const boundary = continuation?.nativeAfterOrdinal;
+  if (!feedback || boundary === null || boundary === undefined)
+    return {
+      status: "unavailable",
+      detail: "Native feedback and follow-up boundary evidence required",
+      evidenceRefs: [],
+    };
+  const later = feedback.feedback.filter(
+    (call) => (call.ordinal as number) > boundary,
+  );
+  const valid = later.every(
+    (call) =>
+      (call.messageRepresentation === "plaintext" &&
+        typeof call.messageMatchesFollowUpPrompt === "boolean") ||
+      (["encrypted", "unavailable"].includes(
+        String(call.messageRepresentation),
+      ) &&
+        call.messageMatchesFollowUpPrompt === null),
+  );
+  if (!valid)
+    return {
+      status: "unavailable",
+      detail: "Native feedback message comparison unavailable or invalid",
+      evidenceRefs: [],
+    };
+  const mismatch = later.some(
+    (call) =>
+      call.messageRepresentation === "plaintext" &&
+      call.messageMatchesFollowUpPrompt === false,
+  );
+  return {
+    status: mismatch ? "failed" : "passed",
+    detail: "Graded from bounded plaintext feedback equality evidence",
+    evidenceRefs: ["sevro.codex.native-calls", "sevro.codex.continuation"],
+  };
+}
+
 function laterNativeSkillCall(
   selected: RecordValue,
   native: ReturnType<typeof nativeControlEvidence>,
@@ -2666,6 +2742,19 @@ function nativeTranscriptOutcome(
   if (selected.kind === "skills-inactive")
     return skillsInactiveOutcome(selected, native, skills);
   if (selected.kind === "one-owner-accepted") return oneOwnerOutcome(native);
+  if (selected.kind === "no-second-owner") return noSecondOwnerOutcome(native);
+  return null;
+}
+
+function feedbackTranscriptOutcome(
+  selected: RecordValue,
+  feedback: ReturnType<typeof nativeFeedbackEvidence>,
+  continuation: ReturnType<typeof continuationEvidence>,
+) {
+  if (selected.kind === "same-owner-feedback")
+    return sameOwnerFeedbackOutcome(selected, feedback, continuation);
+  if (selected.kind === "no-plaintext-feedback-mismatch")
+    return noPlaintextFeedbackMismatchOutcome(feedback, continuation);
   return null;
 }
 
@@ -2684,8 +2773,12 @@ function transcriptOutcome(
   const { native, events, continuation, skills, feedback } = context;
   const direct = nativeTranscriptOutcome(selected, native, skills);
   if (direct) return direct;
-  if (selected.kind === "same-owner-feedback")
-    return sameOwnerFeedbackOutcome(selected, feedback, continuation);
+  const feedbackOutcome = feedbackTranscriptOutcome(
+    selected,
+    feedback,
+    continuation,
+  );
+  if (feedbackOutcome) return feedbackOutcome;
   if (
     selected.kind === "skill-before-continuation" ||
     selected.kind === "skill-absent-after-continuation"
@@ -2712,6 +2805,7 @@ const CONTINUATION_EVIDENCE_KINDS = new Set([
   "owner-after-continuation",
   "no-owner-before-continuation",
   "same-owner-feedback",
+  "no-plaintext-feedback-mismatch",
   "skill-absent-after-continuation",
 ]);
 
@@ -2720,9 +2814,11 @@ function transcriptObservationContext(
   observations: unknown,
 ) {
   const native = nativeControlEvidence(observations);
-  const feedback = kinds.has("same-owner-feedback")
-    ? nativeFeedbackEvidence(observations)
-    : null;
+  const feedback =
+    kinds.has("same-owner-feedback") ||
+    kinds.has("no-plaintext-feedback-mismatch")
+      ? nativeFeedbackEvidence(observations)
+      : null;
   const skills = kinds.has("skills-inactive")
     ? observedActivation(
         uniqueObservation(observations, "sevro.codex.skill-reads"),

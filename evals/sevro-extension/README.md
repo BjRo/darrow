@@ -108,6 +108,10 @@ Ordered readiness checks use Sevro's separate first-turn and follow-up-turn
 skill-read receipts. A missing or partial turn receipt leaves the corresponding
 check unavailable. The ticket recipe's follow-up check also compares native
 `Skill` call ordinals with the saved follow-up boundary.
+Ticket feedback checks also reject a second native owner and any observable
+plaintext feedback that differs from the rendered follow-up prompt. Encrypted
+or unreadable message content yields no equality claim; only the bounded
+representation and comparison result enter retained evidence.
 
 For local protocol and public CLI validation, run:
 

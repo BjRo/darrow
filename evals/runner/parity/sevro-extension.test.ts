@@ -1590,6 +1590,180 @@ test("Darrow grades feedback to the prior owner after a real follow-up", async (
   }
 });
 
+test("Darrow grades the ticket feedback relay without retaining message text", async () => {
+  const selected = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(projectRoot).href,
+      selectors: { caseIds: ["ticket-to-pr-feedback-relay"] },
+      configuration: {},
+    }),
+  );
+  expect(selected.code, selected.stderr).toBe(0);
+  const selectedCase = selected.value.result.cases[0]!;
+  const native = {
+    id: "sevro.codex.native-calls",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "native_session",
+      calls: [
+        {
+          ordinal: 1,
+          namespace: "collaboration",
+          name: "spawn_agent",
+          evidence: "invocation_attempt",
+        },
+      ],
+      toolCalls: [
+        { ordinal: 1, namespace: "collaboration", name: "spawn_agent" },
+        {
+          ordinal: 6,
+          namespace: "collaboration",
+          name: "followup_task",
+          target: "owner",
+        },
+      ],
+      acceptedSpawns: [
+        {
+          requestedOrdinal: 1,
+          startedOrdinal: 2,
+          acceptedOrdinal: 3,
+          agentRef: "/root/owner",
+          threadId: "child-thread",
+        },
+      ],
+      feedbackCalls: [
+        {
+          ordinal: 6,
+          tool: "followup_task",
+          target: "owner",
+          responseObserved: true,
+          messageRepresentation: "plaintext",
+          messageMatchesFollowUpPrompt: true,
+        },
+      ],
+      submittedExecCalls: 0,
+    },
+  };
+  const continuation = {
+    id: "sevro.codex.continuation",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "same_thread_resume",
+      threadId: "thread-1",
+      nativeAfterOrdinal: 5,
+      preFollowUpWorktreeUnchanged: true,
+    },
+  };
+  const followUp = {
+    id: "sevro.codex.follow-up-skill-reads",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "skill_file_read_probe",
+      primarySkill: null,
+      observedSkills: [],
+    },
+  };
+  const statuses = async (observations: unknown[]) => {
+    const response = await command<{
+      result: { checks: Array<{ id: string; status: string }> };
+    }>(
+      [process.execPath, extension],
+      request("evaluate", {
+        extensionData: selectedCase.extensionData,
+        observations,
+      }),
+    );
+    expect(response.code, response.stderr).toBe(0);
+    return response.value.result.checks
+      .filter((check) => check.id.startsWith("darrow.evals.transcript."))
+      .map((check) => check.status);
+  };
+  expect(await statuses([native, continuation, followUp])).toEqual([
+    "passed",
+    "passed",
+    "passed",
+    "passed",
+    "passed",
+  ]);
+  expect(
+    (
+      await statuses([
+        {
+          ...native,
+          data: {
+            ...native.data,
+            feedbackCalls: [
+              {
+                ...native.data.feedbackCalls[0],
+                messageMatchesFollowUpPrompt: false,
+              },
+            ],
+          },
+        },
+        continuation,
+        followUp,
+      ])
+    )[0],
+  ).toBe("failed");
+  expect(
+    (
+      await statuses([
+        {
+          ...native,
+          data: {
+            ...native.data,
+            feedbackCalls: [
+              {
+                ...native.data.feedbackCalls[0],
+                messageRepresentation: "encrypted",
+                messageMatchesFollowUpPrompt: null,
+              },
+            ],
+          },
+        },
+        continuation,
+        followUp,
+      ])
+    )[0],
+  ).toBe("passed");
+  const replacement = {
+    ordinal: 7,
+    namespace: "collaboration",
+    name: "spawn_agent",
+    evidence: "invocation_attempt",
+  };
+  expect(
+    (
+      await statuses([
+        {
+          ...native,
+          data: {
+            ...native.data,
+            calls: [...native.data.calls, replacement],
+            toolCalls: [...native.data.toolCalls, replacement],
+            acceptedSpawns: [
+              ...native.data.acceptedSpawns,
+              {
+                requestedOrdinal: 7,
+                startedOrdinal: 8,
+                acceptedOrdinal: 9,
+                agentRef: "/root/replacement",
+                threadId: "replacement-thread",
+              },
+            ],
+          },
+        },
+        continuation,
+        followUp,
+      ])
+    )[3],
+  ).toBe("failed");
+});
+
 test("Darrow ledger checks require intact events and complete goal-control evidence", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-ledger-"));
   roots.push(root);
