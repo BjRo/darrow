@@ -814,12 +814,122 @@ test("Darrow translates no-agent transcript assertions into bounded native check
     request("resolve", {
       projectRoot: pathToFileURL(projectRoot).href,
       selectors: {
-        caseIds: ["publish-pr-evidence-generic-comment-nonactivation"],
+        caseIds: ["doctor-adaptive-delivery-direct-codex"],
       },
       configuration: {},
     }),
   );
   expect(unrelated.value.error.message).toContain("no Sevro evidence mapping");
+});
+
+test("Darrow grades skill nonactivation from complete reads and native calls", async () => {
+  const native = {
+    id: "sevro.codex.native-calls",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "native_session",
+      calls: [],
+      toolCalls: [],
+      acceptedSpawns: [],
+      submittedExecCalls: 0,
+    },
+  };
+  const skillReads = {
+    id: "sevro.codex.skill-reads",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "skill_file_read_probe",
+      primarySkill: null,
+      observedSkills: [],
+    },
+  };
+  for (const [caseId, forbiddenSkill] of [
+    [
+      "publish-pr-evidence-generic-comment-nonactivation",
+      "publish-pr-evidence",
+    ],
+    ["ticket-to-pr-ordinary-engineering-nonactivation", "ticket-to-pr"],
+  ]) {
+    const selected = await command<ExtensionReply>(
+      [process.execPath, extension],
+      request("resolve", {
+        projectRoot: pathToFileURL(projectRoot).href,
+        selectors: { caseIds: [caseId] },
+        configuration: {},
+      }),
+    );
+    expect(selected.code, selected.stderr).toBe(0);
+    const selectedCase = selected.value.result.cases[0]!;
+    expect(selectedCase.requiredEvidence).toContain("sevro.codex.skill-reads");
+    expect(selectedCase.requiredEvidence).toContain("sevro.codex.native-calls");
+    const status = async (observations: unknown[]) => {
+      const response = await command<{
+        result: { checks: Array<{ id: string; status: string }> };
+      }>(
+        [process.execPath, extension],
+        request("evaluate", {
+          extensionData: selectedCase.extensionData,
+          observations,
+        }),
+      );
+      expect(response.code, response.stderr).toBe(0);
+      return response.value.result.checks.find(
+        (check) => check.id === "darrow.evals.transcript.1",
+      )?.status;
+    };
+    expect(await status([native, skillReads])).toBe("passed");
+    expect(
+      await status([
+        native,
+        {
+          ...skillReads,
+          data: {
+            ...skillReads.data,
+            primarySkill: forbiddenSkill,
+            observedSkills: [forbiddenSkill],
+          },
+        },
+      ]),
+    ).toBe("failed");
+    expect(
+      await status([
+        {
+          ...native,
+          data: {
+            ...native.data,
+            toolCalls: [{ ordinal: 0, namespace: "other", name: "Skill" }],
+          },
+        },
+        skillReads,
+      ]),
+    ).toBe("failed");
+    expect(
+      await status([native, { ...skillReads, completeness: "partial" }]),
+    ).toBe("unavailable");
+    if (caseId === "ticket-to-pr-ordinary-engineering-nonactivation") {
+      const spawn = {
+        ordinal: 0,
+        namespace: "collaboration",
+        name: "spawn_agent",
+        evidence: "invocation_attempt",
+      };
+      expect(
+        await status([
+          {
+            ...native,
+            data: {
+              ...native.data,
+              calls: [spawn],
+              toolCalls: [spawn],
+            },
+          },
+          skillReads,
+        ]),
+      ).toBe("failed");
+    }
+  }
 });
 
 test("Darrow grades accepted owner assertions from correlated native receipts", async () => {

@@ -95,7 +95,11 @@ unavailable. Supported retired-ledger assertions check both the complete
 native goal-control observation and the retained Codex event artifact. Each
 case retains its declared text terms. The extension verifies the artifact digest
 and does not copy its text into the
-result. Other transcript patterns are rejected during case resolution.
+result. Selected nonactivation assertions also use complete Codex skill-read and
+native-call observations. A forbidden mounted skill read, a `Skill` tool call,
+or a prohibited owner spawn fails the corresponding check; missing or partial
+evidence leaves it unavailable. Other transcript patterns are rejected during
+case resolution.
 
 For local protocol and public CLI validation, run:
 
