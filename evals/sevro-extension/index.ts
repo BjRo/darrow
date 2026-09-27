@@ -1295,7 +1295,7 @@ async function casePrompts(
     skillDir,
     `${string(selected.prompt, "case prompt")}\n${selected.follow_up_prompt ?? ""}`,
   );
-  const token = invocation ? "{{sevro.codex.skill_invocation}}" : null;
+  const token = invocation ? "{{sevro.skill_invocation}}" : null;
   return {
     invocation,
     prompt: casePrompt(selected.prompt, token),
@@ -1927,6 +1927,22 @@ function requireActivationSkills(
   }
 }
 
+function hostSupportsInvocation(hostValue: unknown): boolean {
+  const host = record(hostValue, "candidate host");
+  const capabilities = Array.isArray(host.capabilities)
+    ? host.capabilities
+    : [];
+  const codex =
+    host.id === "sevro.host.codex" &&
+    capabilities.includes("sevro.codex.plugin-marketplace") &&
+    capabilities.includes("sevro.codex.explicit-invocation");
+  const claude =
+    host.id === "sevro.host.claude" &&
+    capabilities.includes("sevro.claude.plugin-dirs") &&
+    capabilities.includes("sevro.claude.explicit-invocation");
+  return codex || claude;
+}
+
 function requiredInvocation(
   details: RecordValue,
   sources: { skillRoot: string; skillName: string }[],
@@ -1937,18 +1953,12 @@ function requiredInvocation(
       ? null
       : record(details.invocation, "skill invocation");
   if (!invocation) return null;
-  const host = record(hostValue, "candidate host");
-  if (
-    host.id !== "sevro.host.codex" ||
-    !Array.isArray(host.capabilities) ||
-    !host.capabilities.includes("sevro.codex.plugin-marketplace") ||
-    !host.capabilities.includes("sevro.codex.explicit-invocation")
-  )
-    throw new Error("skill invocation requires the Codex plugin host");
+  if (!hostSupportsInvocation(hostValue))
+    throw new Error("skill invocation requires a capable plugin host");
   if (!sources.some((source) => source.skillName === invocation.skillName))
     throw new Error("invoked skill is absent from the package");
   return {
-    pluginName: string(invocation.pluginName, "Codex plugin name"),
+    pluginName: string(invocation.pluginName, "plugin name"),
     skillName: string(invocation.skillName, "invoked skill name"),
   };
 }
@@ -1960,7 +1970,7 @@ function codexPackageHost(
 ): boolean {
   const host = record(hostValue, "candidate host");
   const selected =
-    hasInvocation || (host.id === "sevro.host.codex" && hasAdditional);
+    host.id === "sevro.host.codex" && (hasInvocation || hasAdditional);
   if (
     selected &&
     (!Array.isArray(host.capabilities) ||
@@ -2012,6 +2022,7 @@ function packageDeclarations(options: {
               ),
             ],
           },
+          ...(invocation ? { claudeSkillInvocation: invocation } : {}),
         }
       : {}),
   };
@@ -4085,6 +4096,7 @@ if (import.meta.main) {
               "sevro.codex.explicit-invocation",
               "sevro.codex.native-calls",
               "sevro.claude.plugin-dirs",
+              "sevro.claude.explicit-invocation",
             ],
             graders: ["darrow.evals.ownership", "darrow.evals.transcript"],
             taskVerdictPolicies: [],

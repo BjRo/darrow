@@ -4555,7 +4555,7 @@ test("explicit Codex skill invocation packages the owning plugin for Sevro", asy
   expect(resolved.code, resolved.stderr).toBe(0);
   const selected = resolved.value.result.cases[0]!;
   expect(selected.prompt).toBe(
-    "Run {{sevro.codex.skill_invocation}} in {{sevro.workspace}} and return ready.",
+    "Run {{sevro.skill_invocation}} in {{sevro.workspace}} and return ready.",
   );
   const prepared = await command<{
     result: {
@@ -4620,7 +4620,7 @@ test("explicit Codex skill invocation packages the owning plugin for Sevro", asy
     }),
   );
   expect(refused.value.error?.message).toMatch(
-    /requires the Codex plugin host/,
+    /requires a capable plugin host/,
   );
 
   const route = sevroCommand();
@@ -4790,7 +4790,7 @@ test("Claude preparation passes filtered plugin directories to Sevro", async () 
     JSON.stringify({
       id: "claude-package-probe",
       invariant: "PROBE-I1",
-      prompt: "Return ready.",
+      prompt: "{{skill_invocation}} Return ready.",
       additional_plugins: ["plugins/capability/secondary"],
       fixture: {
         commits: [
@@ -4812,9 +4812,11 @@ test("Claude preparation passes filtered plugin directories to Sevro", async () 
   expect(resolved.code, resolved.stderr).toBe(0);
   expect(resolved.value.error).toBeUndefined();
   const selected = resolved.value.result.cases[0]!;
+  expect(selected.prompt).toBe("{{sevro.skill_invocation}} Return ready.");
   const prepared = await command<{
     result: {
       claudePluginDirs: { artifactRoots: string[] };
+      claudeSkillInvocation: { pluginName: string; skillName: string };
       artifacts: Array<{ relativePath: string; gitExclude: boolean }>;
     };
     error?: { message: string };
@@ -4824,7 +4826,10 @@ test("Claude preparation passes filtered plugin directories to Sevro", async () 
       case: selected,
       host: {
         id: "sevro.host.claude",
-        capabilities: ["sevro.claude.plugin-dirs"],
+        capabilities: [
+          "sevro.claude.plugin-dirs",
+          "sevro.claude.explicit-invocation",
+        ],
       },
       condition: "passive",
       configuration: {},
@@ -4835,6 +4840,10 @@ test("Claude preparation passes filtered plugin directories to Sevro", async () 
     ".sevro-marketplace/plugin",
     ".sevro-marketplace/plugins/0-secondary",
   ]);
+  expect(prepared.value.result.claudeSkillInvocation).toEqual({
+    pluginName: "probe",
+    skillName: "probe",
+  });
   const paths = prepared.value.result.artifacts.map(
     (item) => item.relativePath,
   );
@@ -4855,7 +4864,7 @@ test("Claude preparation passes filtered plugin directories to Sevro", async () 
       configuration: {},
     }),
   );
-  expect(refused.value.error.message).toMatch(/Claude plugin package/);
+  expect(refused.value.error.message).toMatch(/capable plugin host/);
 });
 
 test("Darrow command reserves extension and identity options", () => {
