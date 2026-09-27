@@ -797,6 +797,40 @@ test("Darrow ledger checks require intact events and complete goal-control evide
       (check) => check.id === "darrow.evals.transcript.1",
     )?.status,
   ).toBe("passed");
+  const decision = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(projectRoot).href,
+      selectors: { caseIds: ["goal-preflight-decision-gated"] },
+      configuration: {},
+    }),
+  );
+  expect(decision.code, decision.stderr).toBe(0);
+  const decisionData = decision.value.result.cases[0]!.extensionData;
+  const secondStatus = async (observations: unknown[], event: unknown) => {
+    const response = await command<{
+      result: { checks: Array<{ id: string; status: string }> };
+    }>(
+      [process.execPath, extension],
+      request("evaluate", {
+        extensionData: decisionData,
+        observations,
+        artifacts: [event],
+      }),
+    );
+    expect(response.code, response.stderr).toBe(0);
+    return response.value.result.checks.find(
+      (check) => check.id === "darrow.evals.transcript.2",
+    )?.status;
+  };
+  expect(await secondStatus([native], clean)).toBe("passed");
+  expect(
+    await secondStatus(
+      [native],
+      await artifact("native-report.jsonl", "darrow-native-goal-report\n"),
+    ),
+  ).toBe("failed");
+  expect(await secondStatus([goal], clean)).toBe("passed");
 });
 
 test("Sevro grades no-agent evidence through the public CLI", async () => {

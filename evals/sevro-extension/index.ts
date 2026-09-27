@@ -688,6 +688,12 @@ const NO_LEDGER_TRANSCRIPT_PATTERN =
   'adaptive-delivery-preflight step|Protocol ledger|"tool":"create_goal"';
 const NO_PREFLIGHT_GOAL_PATTERN =
   'adaptive-delivery-preflight step|"tool":"create_goal"';
+const NO_LEDGER_TRANSCRIPT_PATTERNS = new Set([
+  NO_LEDGER_TRANSCRIPT_PATTERN,
+  NO_PREFLIGHT_GOAL_PATTERN,
+  "adaptive-delivery-preflight step|darrow-native-goal-report",
+  "adaptive-delivery-preflight step|Protocol ledger",
+]);
 
 function caseTranscriptChecks(value: unknown) {
   if (value === undefined) return null;
@@ -700,8 +706,7 @@ function caseTranscriptChecks(value: unknown) {
     const noAgent = NO_AGENT_TRANSCRIPT_PATTERNS.has(check.not_regex as string);
     if (
       !noAgent &&
-      check.not_regex !== NO_LEDGER_TRANSCRIPT_PATTERN &&
-      check.not_regex !== NO_PREFLIGHT_GOAL_PATTERN
+      !NO_LEDGER_TRANSCRIPT_PATTERNS.has(check.not_regex as string)
     )
       throw new Error(
         `transcript check ${index + 1} has no Sevro evidence mapping`,
@@ -710,7 +715,14 @@ function caseTranscriptChecks(value: unknown) {
       id: `darrow.evals.transcript.${index + 1}`,
       name,
       kind: noAgent ? "no-agent-spawn" : "no-lifecycle-ledger",
-      ...(noAgent ? {} : { terms: (check.not_regex as string).split("|") }),
+      ...(noAgent
+        ? {}
+        : {
+            terms: (check.not_regex as string).split("|"),
+            forbidGoal: (check.not_regex as string).includes(
+              '"tool":"create_goal"',
+            ),
+          }),
     };
   });
 }
@@ -2089,9 +2101,12 @@ function noLedgerOutcome(
   native: ReturnType<typeof nativeControlEvidence>,
   events: string | null,
   terms: unknown,
+  forbidGoal: unknown,
 ) {
   if (!Array.isArray(terms) || !terms.every((term) => typeof term === "string"))
     throw new Error("ledger terms are invalid");
+  if (typeof forbidGoal !== "boolean")
+    throw new Error("ledger goal policy is invalid");
   if (!native || events === null)
     return {
       status: "unavailable",
@@ -2100,7 +2115,8 @@ function noLedgerOutcome(
     };
   const matched = terms.some((term) => events.includes(term));
   return {
-    status: native.attemptedGoal || matched ? "failed" : "passed",
+    status:
+      (forbidGoal && native.attemptedGoal) || matched ? "failed" : "passed",
     detail:
       "Graded from retained Codex events and complete native goal-control observations",
     evidenceRefs: ["sevro.codex.events", "sevro.codex.native-calls"],
@@ -2108,14 +2124,13 @@ function noLedgerOutcome(
 }
 
 function transcriptOutcome(
-  kind: unknown,
+  selected: RecordValue,
   native: ReturnType<typeof nativeControlEvidence>,
   events: string | null,
-  terms: unknown,
 ) {
-  if (kind === "no-agent-spawn") return noAgentOutcome(native);
-  if (kind === "no-lifecycle-ledger")
-    return noLedgerOutcome(native, events, terms);
+  if (selected.kind === "no-agent-spawn") return noAgentOutcome(native);
+  if (selected.kind === "no-lifecycle-ledger")
+    return noLedgerOutcome(native, events, selected.terms, selected.forbidGoal);
   throw new Error("unsupported native transcript check");
 }
 
@@ -2138,7 +2153,7 @@ async function nativeTranscriptChecks(
     const selected = record(entry, "native transcript check");
     return {
       id: string(selected.id, "native transcript check ID"),
-      ...transcriptOutcome(selected.kind, evidence, events, selected.terms),
+      ...transcriptOutcome(selected, evidence, events),
     };
   });
 }
