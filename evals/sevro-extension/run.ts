@@ -11,6 +11,7 @@ const repositoryRoot = resolve(import.meta.dir, "../..");
 const extension = join(import.meta.dir, "index.ts");
 const sourceFiles = [
   extension,
+  join(repositoryRoot, "evals/fixture-ticket.ts"),
   join(import.meta.dir, "run.ts"),
   join(import.meta.dir, "sevro-command.ts"),
   join(repositoryRoot, "evals/corpus/orchestration/source.ts"),

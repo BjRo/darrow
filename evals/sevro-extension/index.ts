@@ -4,6 +4,7 @@ import { readFile, readdir, realpath, stat } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parse as parseYaml } from "yaml";
+import { TICKETCTL } from "../fixture-ticket";
 
 type RecordValue = Record<string, unknown>;
 
@@ -42,13 +43,41 @@ function fixtureHooks(fixture: RecordValue) {
     : { hooks: files(fixture.hooks, "fixture Git hooks") };
 }
 
-function fixtureBin(fixture: RecordValue) {
-  return fixture.bin === undefined
-    ? {}
-    : { bin: files(fixture.bin, "fixture binaries") };
+function fixtureTicket(fixture: RecordValue) {
+  if (fixture.ticket === undefined) return null;
+  const value = record(fixture.ticket, "fixture ticket");
+  keys(value, ["id", "title", "body"], "fixture ticket");
+  if (typeof value.title !== "string" || typeof value.body !== "string")
+    throw new Error("fixture ticket title and body must be text");
+  const ticket = {
+    id: string(value.id, "fixture ticket ID"),
+    title: value.title,
+    body: value.body,
+  };
+  if (!/^[A-Za-z0-9._-]+$/.test(ticket.id) || ticket.id.length > 128)
+    throw new Error("fixture ticket ID is invalid");
+  if (/[\r\n\0]/.test(ticket.title) || ticket.title.length > 512)
+    throw new Error("fixture ticket title must be one line");
+  if (ticket.body.includes("\0") || Buffer.byteLength(ticket.body) > 8 * 1024)
+    throw new Error("fixture ticket body exceeds the size limit");
+  return ticket;
 }
 
-function fixtureOverlay(fixture: RecordValue) {
+function fixtureBin(
+  fixture: RecordValue,
+  ticket: ReturnType<typeof fixtureTicket>,
+) {
+  const bin =
+    fixture.bin === undefined ? {} : files(fixture.bin, "fixture binaries");
+  return fixture.bin === undefined && !ticket
+    ? {}
+    : { bin: { ...bin, ...(ticket ? { ticketctl: TICKETCTL } : {}) } };
+}
+
+function fixtureOverlay(
+  fixture: RecordValue,
+  ticket: ReturnType<typeof fixtureTicket>,
+) {
   const overlay =
     fixture.files === undefined
       ? undefined
@@ -69,15 +98,27 @@ function fixtureOverlay(fixture: RecordValue) {
     ...(fixture.staged ? { staged: fixture.staged } : {}),
     ...(fixture.commit_files ? { commitFiles: true } : {}),
     ...fixtureHooks(fixture),
-    ...fixtureBin(fixture),
+    ...fixtureBin(fixture, ticket),
   };
 }
 
-function generatedFixture(value: unknown) {
+function generatedFixture(
+  value: unknown,
+  ticket: ReturnType<typeof fixtureTicket>,
+) {
   const fixture = record(value, "fixture");
   keys(
     fixture,
-    ["commits", "files", "staged", "commit_files", "hooks", "bin", "setup"],
+    [
+      "commits",
+      "files",
+      "staged",
+      "commit_files",
+      "hooks",
+      "bin",
+      "setup",
+      "ticket",
+    ],
     "fixture",
   );
   if (!Array.isArray(fixture.commits) || !fixture.commits.length)
@@ -93,20 +134,36 @@ function generatedFixture(value: unknown) {
   return {
     kind: "generated" as const,
     commits,
-    ...fixtureOverlay(fixture),
+    ...fixtureOverlay(fixture, ticket),
   };
 }
 
-function repositoryFixture(fixture: RecordValue) {
+function repositoryFixture(
+  fixture: RecordValue,
+  ticket: ReturnType<typeof fixtureTicket>,
+) {
   keys(
     fixture,
-    ["source", "files", "staged", "commit_files", "hooks", "bin", "setup"],
+    [
+      "source",
+      "files",
+      "staged",
+      "commit_files",
+      "hooks",
+      "bin",
+      "setup",
+      "ticket",
+    ],
     "fixture",
   );
   const sourceRef = string(fixture.source, "fixture source");
   if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(sourceRef))
     throw new Error("fixture source ID is invalid");
-  return { kind: "repository" as const, sourceRef, ...fixtureOverlay(fixture) };
+  return {
+    kind: "repository" as const,
+    sourceRef,
+    ...fixtureOverlay(fixture, ticket),
+  };
 }
 
 function fixtureSetupScript(fixture: RecordValue): string | null {
@@ -120,13 +177,21 @@ function fixtureSetupScript(fixture: RecordValue): string | null {
 function caseFixture(value: unknown) {
   const fixture = record(value, "fixture");
   const setup = fixtureSetupScript(fixture);
+  const ticket = fixtureTicket(fixture);
   return {
     fixture:
       fixture.source === undefined
-        ? generatedFixture(fixture)
-        : repositoryFixture(fixture),
+        ? generatedFixture(fixture, ticket)
+        : repositoryFixture(fixture, ticket),
     ...(setup
       ? { setupDigest: createHash("sha256").update(setup).digest("hex") }
+      : {}),
+    ...(ticket
+      ? {
+          ticketDigest: createHash("sha256")
+            .update(JSON.stringify(ticket))
+            .digest("hex"),
+        }
       : {}),
   };
 }
@@ -580,8 +645,25 @@ async function skillArtifacts(
   return artifacts;
 }
 
-async function caseSetup(details: RecordValue, caseId: string) {
-  if (details.setupDigest === undefined) return null;
+function shellQuote(value: string): string {
+  return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+function ticketProvision(
+  ticket: NonNullable<ReturnType<typeof fixtureTicket>>,
+) {
+  return `(
+set -e
+mkdir -p .git/fixture-bin .git/fixture-state
+printf '%s\\n' ${shellQuote(ticket.id)} > .git/fixture-ticket-id
+printf '%s\\n' ${shellQuote(ticket.title)} > .git/fixture-ticket-title
+printf '%s' ${shellQuote(ticket.body)} > .git/fixture-ticket.md
+: > .git/fixture-state/ticketctl.log
+ln -s fixture-state/ticketctl.log .git/ticketctl.log
+) || exit $?`;
+}
+
+async function readBoundCase(details: RecordValue, caseId: string) {
   const rootUrl = string(details.projectRoot, "case project root");
   if (!rootUrl.startsWith("file:///"))
     throw new Error("case project root must be a file URL");
@@ -598,21 +680,46 @@ async function caseSetup(details: RecordValue, caseId: string) {
   const selected = record(parseYaml(await readFile(path, "utf8")), "case");
   if (selected.id !== caseId)
     throw new Error("case source changed after resolution");
-  const script = fixtureSetupScript(record(selected.fixture, "fixture"));
-  const actualDigest = script
+  return { fixture: record(selected.fixture, "fixture"), source };
+}
+
+function verifyFixturePreparation(details: RecordValue, fixture: RecordValue) {
+  const script = fixtureSetupScript(fixture);
+  const ticket = fixtureTicket(fixture);
+  const setupDigest = script
     ? createHash("sha256").update(script).digest("hex")
     : null;
-  if (!script || actualDigest !== details.setupDigest)
+  const ticketDigest = ticket
+    ? createHash("sha256").update(JSON.stringify(ticket)).digest("hex")
+    : null;
+  if (setupDigest !== (details.setupDigest ?? null))
     throw new Error("fixture setup changed after resolution");
+  if (ticketDigest !== (details.ticketDigest ?? null))
+    throw new Error("fixture ticket changed after resolution");
+  return { script, ticket };
+}
+
+async function caseSetup(details: RecordValue, caseId: string) {
+  if (details.setupDigest === undefined && details.ticketDigest === undefined)
+    return null;
+  const { fixture, source } = await readBoundCase(details, caseId);
+  const { script, ticket } = verifyFixturePreparation(details, fixture);
   return {
     command: [
       "/bin/bash",
       "-c",
-      script.replaceAll("{{case_dir}}", "$DARROW_EVAL_CASE_DIR"),
+      [
+        ...(ticket ? [ticketProvision(ticket)] : []),
+        ...(script
+          ? [script.replaceAll("{{case_dir}}", "$DARROW_EVAL_CASE_DIR")]
+          : []),
+      ].join("\n"),
     ],
-    environment: {
-      DARROW_EVAL_CASE_DIR: `{{sevro.project}}/${dirname(source).split(sep).join("/")}`,
-    },
+    environment: script
+      ? {
+          DARROW_EVAL_CASE_DIR: `{{sevro.project}}/${dirname(source).split(sep).join("/")}`,
+        }
+      : {},
   };
 }
 

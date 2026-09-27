@@ -62,6 +62,7 @@ interface ExtensionReply {
         kind: string;
         commits?: Array<{ message: string }>;
         sourceRef?: string;
+        bin?: Record<string, string>;
       };
       checks: Array<{
         id: string;
@@ -73,6 +74,7 @@ interface ExtensionReply {
           invariant: string;
           activation?: { class: string; targetSkill: string };
           setupDigest?: string;
+          ticketDigest?: string;
         };
       };
     }>;
@@ -1487,6 +1489,121 @@ test("Darrow fixture binaries reach the host and hidden checks", async () => {
     resolve(import.meta.dir, "../../sevro-extension/run.ts"),
     "--case-id",
     "bin-case",
+    "--project-root",
+    root,
+    "--results-root",
+    join(root, "results"),
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+    "--condition",
+    "passive",
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+  ]);
+  expect(run.code, run.stderr).toBe(0);
+  expect(run.value.task.verdict).toBe("passed");
+  expect(
+    run.value.cases[0]!.trials[0]!.checks.map((check) => check.status),
+  ).toEqual(["passed", "passed"]);
+});
+
+test("Darrow local ticket works through Sevro and binds its source", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-ticket-"));
+  roots.push(root);
+  const cases = join(root, "evals/experiments/example/cases");
+  await mkdir(cases, { recursive: true });
+  const caseFile = join(cases, "ticket.yaml");
+  const definition = {
+    id: "ticket-case",
+    invariant: "EXAMPLE-TICKET",
+    prompt: "Update the local ticket.",
+    fixture: {
+      commits: [{ message: "Initialize", files: { "README.md": "fixture\n" } }],
+      ticket: {
+        id: "17",
+        title: "Owner's note",
+        body: "Original's {{note}}\n",
+      },
+      setup: "test -L .git/ticketctl.log && test -f .git/fixture-ticket.md",
+    },
+    checks: [
+      {
+        name: "ticket updated",
+        run: "grep -Fx 'Updated note' .git/fixture-ticket.md && grep -Fx 'get 17' .git/ticketctl.log && grep -Fx 'describe 17' .git/ticketctl.log",
+      },
+    ],
+    output_checks: [{ name: "response", expect_exact: "ready" }],
+  };
+  await writeFile(caseFile, JSON.stringify(definition));
+  const resolved = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(root).href,
+      selectors: { caseIds: ["ticket-case"] },
+      configuration: {},
+    }),
+  );
+  expect(resolved.code, resolved.stderr).toBe(0);
+  const selected = resolved.value.result.cases[0]!;
+  expect(selected.fixture.bin?.ticketctl).toContain("fixture-ticket-id");
+  expect(selected.extensionData["darrow.case"].ticketDigest).toMatch(
+    /^[a-f0-9]{64}$/,
+  );
+  const prepareParams = {
+    case: selected,
+    host: { id: "darrow.host.synthetic", capabilities: [] },
+    condition: "passive",
+    configuration: {},
+  };
+  await writeFile(
+    caseFile,
+    JSON.stringify({
+      ...definition,
+      fixture: {
+        ...definition.fixture,
+        ticket: { ...definition.fixture.ticket, body: "Changed source" },
+      },
+    }),
+  );
+  const changed = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("prepare", prepareParams),
+  );
+  expect(changed.value.error.message).toMatch(
+    /ticket changed after resolution/,
+  );
+  await writeFile(caseFile, JSON.stringify(definition));
+  const adapter = join(root, "candidate.ts");
+  await writeFile(
+    adapter,
+    `export default {
+  id: "darrow.host.synthetic", model: "synthetic-v1", effort: "none",
+  async run({ workspace, fixtureBinDir }) {
+    const proc = Bun.spawn(["ticketctl", "get", "17", "--body-file", ".git/requested.md"], {
+      cwd: workspace, env: { PATH: fixtureBinDir + ":/usr/bin:/bin" }, stdout: "pipe", stderr: "pipe"
+    });
+    const [code, stderr] = await Promise.all([proc.exited, new Response(proc.stderr).text()]);
+    if (code !== 0) throw new Error("ticketctl get failed: " + stderr);
+    if ((await Bun.file(workspace + "/.git/requested.md").text()) !== "Original's {{note}}\\n") throw new Error("wrong ticket body");
+    await Bun.write(workspace + "/.git/replacement.md", "Updated note\\n");
+    const updated = Bun.spawn(["ticketctl", "describe", "17", "--body-file", ".git/replacement.md"], {
+      cwd: workspace, env: { PATH: fixtureBinDir + ":/usr/bin:/bin" }, stdout: "pipe", stderr: "pipe"
+    });
+    if ((await updated.exited) !== 0) throw new Error("ticketctl describe failed");
+    return { finalMessage: "ready", complete: true };
+  },
+};
+`,
+  );
+  const run = await command<CliReply>([
+    process.execPath,
+    resolve(import.meta.dir, "../../sevro-extension/run.ts"),
+    "--case-id",
+    "ticket-case",
     "--project-root",
     root,
     "--results-root",
