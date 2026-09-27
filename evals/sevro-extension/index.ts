@@ -710,6 +710,14 @@ const CONTINUATION_UNCHANGED_PATTERNS = new Set([
   String.raw`"type":"darrow.eval.follow_up_turn"[^\n]*"pre_feedback_worktree_unchanged":true`,
 ]);
 const CONTINUATION_CHANGED_PATTERN = String.raw`"type":"darrow\.eval\.follow_up_turn"(?![^\n]*"pre_feedback_worktree_unchanged":true)[^\n]*[\s\S]*"type":"darrow\.codex_native_`;
+const OWNER_AFTER_CONTINUATION_PATTERN = String.raw`"type":"darrow.eval.follow_up_turn"[\s\S]*"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"`;
+const NO_OWNER_BEFORE_CONTINUATION_PATTERN = String.raw`"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"[\s\S]*"type":"darrow.eval.follow_up_turn"`;
+const NO_NATIVE_GOAL_CONTROL_PATTERN = String.raw`"type":"darrow\.codex_native_goal_control"[^\n]*"tool":"(?:create_goal|update_goal)"`;
+const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map([
+  [CONTINUATION_CHANGED_PATTERN, "unchanged-before-continuation"],
+  [NO_OWNER_BEFORE_CONTINUATION_PATTERN, "no-owner-before-continuation"],
+  [NO_NATIVE_GOAL_CONTROL_PATTERN, "no-native-goal-control"],
+]);
 
 function expectedTranscriptKind(pattern: unknown): string | null {
   if (ONE_OWNER_TRANSCRIPT_PATTERNS.has(pattern as string))
@@ -718,6 +726,8 @@ function expectedTranscriptKind(pattern: unknown): string | null {
     return "continuation-boundary";
   if (CONTINUATION_UNCHANGED_PATTERNS.has(pattern as string))
     return "unchanged-before-continuation";
+  if (pattern === OWNER_AFTER_CONTINUATION_PATTERN)
+    return "owner-after-continuation";
   return null;
 }
 
@@ -737,8 +747,10 @@ function caseTranscriptCheck(entry: unknown, index: number) {
       `transcript check ${index + 1} has no Sevro evidence mapping`,
     );
   }
-  if (check.not_regex === CONTINUATION_CHANGED_PATTERN)
-    return { id, name, kind: "unchanged-before-continuation" };
+  const specialKind = SPECIAL_NEGATIVE_TRANSCRIPT_KINDS.get(
+    check.not_regex as string,
+  );
+  if (specialKind) return { id, name, kind: specialKind };
   const noAgent = NO_AGENT_TRANSCRIPT_PATTERNS.has(check.not_regex as string);
   if (!noAgent && !NO_LEDGER_TRANSCRIPT_PATTERNS.has(check.not_regex as string))
     throw new Error(
@@ -843,9 +855,14 @@ function policyEvidence(
   return [
     ...(ownership ||
     transcriptChecks?.some((check) =>
-      ["no-agent-spawn", "one-owner-accepted", "no-lifecycle-ledger"].includes(
-        check.kind,
-      ),
+      [
+        "no-agent-spawn",
+        "one-owner-accepted",
+        "no-lifecycle-ledger",
+        "owner-after-continuation",
+        "no-owner-before-continuation",
+        "no-native-goal-control",
+      ].includes(check.kind),
     )
       ? ["sevro.codex.native-calls"]
       : []),
@@ -2138,7 +2155,8 @@ function nativeControlEvidence(observations: unknown) {
     JSON.stringify(controlOrdinals(calls, namespace, name));
   if (
     !matched("collaboration", "spawn_agent") ||
-    !matched("functions", "create_goal")
+    !matched("functions", "create_goal") ||
+    !matched("functions", "update_goal")
   )
     return null;
   return {
@@ -2146,8 +2164,14 @@ function nativeControlEvidence(observations: unknown) {
       controlOrdinals(calls, "collaboration", "spawn_agent").length > 0,
     attemptedGoal:
       controlOrdinals(calls, "functions", "create_goal").length > 0,
+    attemptedGoalControl: calls.some(
+      (call) =>
+        call.namespace === "functions" &&
+        ["create_goal", "update_goal"].includes(String(call.name)),
+    ),
     spawnCount: controlOrdinals(calls, "collaboration", "spawn_agent").length,
     acceptedSpawnCount: evidence.spawns.length,
+    acceptedSpawns: evidence.spawns,
   };
 }
 
@@ -2200,6 +2224,22 @@ function noAgentOutcome(native: ReturnType<typeof nativeControlEvidence>) {
     detail: native
       ? "Graded from complete native agent-spawn observations"
       : "Native agent-spawn observation unavailable or incomplete",
+    evidenceRefs: native ? ["sevro.codex.native-calls"] : [],
+  };
+}
+
+function noNativeGoalControlOutcome(
+  native: ReturnType<typeof nativeControlEvidence>,
+) {
+  return {
+    status: native
+      ? native.attemptedGoalControl
+        ? "failed"
+        : "passed"
+      : "unavailable",
+    detail: native
+      ? "Graded from complete native goal-control observations"
+      : "Native goal-control observation unavailable or incomplete",
     evidenceRefs: native ? ["sevro.codex.native-calls"] : [],
   };
 }
@@ -2260,24 +2300,71 @@ function validContinuationComparison(
   );
 }
 
+function validNativeAfterOrdinal(value: unknown): boolean {
+  return (
+    value === undefined ||
+    value === null ||
+    (Number.isSafeInteger(value) && (value as number) >= 0)
+  );
+}
+
+function validContinuationObservation(
+  observation: RecordValue,
+  data: RecordValue,
+): boolean {
+  return (
+    observation.source === "sevro.host.codex" &&
+    data.method === "same_thread_resume" &&
+    validContinuationThread(data.threadId) &&
+    validContinuationComparison(observation, data) &&
+    validNativeAfterOrdinal(data.nativeAfterOrdinal)
+  );
+}
+
 function continuationEvidence(observations: unknown) {
   const observation = uniqueObservation(
     observations,
     "sevro.codex.continuation",
   );
   const data = observation ? activationData(observation.data) : null;
-  if (
-    observation?.source !== "sevro.host.codex" ||
-    data?.method !== "same_thread_resume" ||
-    !validContinuationThread(data?.threadId) ||
-    !validContinuationComparison(observation, data)
-  )
+  if (!observation || !data || !validContinuationObservation(observation, data))
     return null;
   return {
+    nativeAfterOrdinal: (data.nativeAfterOrdinal as number | null) ?? null,
     unchanged:
       observation.completeness === "complete"
         ? (data.preFollowUpWorktreeUnchanged as boolean)
         : null,
+  };
+}
+
+function ownerBoundaryOutcome(
+  kind: string,
+  native: ReturnType<typeof nativeControlEvidence>,
+  continuation: ReturnType<typeof continuationEvidence>,
+) {
+  const boundary = continuation?.nativeAfterOrdinal;
+  if (!native || boundary === null || boundary === undefined)
+    return {
+      status: "unavailable",
+      detail: "Complete native owner evidence and follow-up ordinal required",
+      evidenceRefs: [],
+    };
+  const acceptedAfter = native.acceptedSpawns.some(
+    (spawn) => (spawn.acceptedOrdinal as number) > boundary,
+  );
+  const acceptedBefore = native.acceptedSpawns.some(
+    (spawn) => (spawn.acceptedOrdinal as number) <= boundary,
+  );
+  return {
+    status: (
+      kind === "owner-after-continuation" ? acceptedAfter : !acceptedBefore
+    )
+      ? "passed"
+      : "failed",
+    detail:
+      "Graded from correlated owner acceptance and native follow-up ordinal",
+    evidenceRefs: ["sevro.codex.native-calls", "sevro.codex.continuation"],
   };
 }
 
@@ -2311,6 +2398,8 @@ function transcriptOutcome(
   continuation: ReturnType<typeof continuationEvidence>,
 ) {
   if (selected.kind === "no-agent-spawn") return noAgentOutcome(native);
+  if (selected.kind === "no-native-goal-control")
+    return noNativeGoalControlOutcome(native);
   if (selected.kind === "one-owner-accepted") return oneOwnerOutcome(native);
   if (selected.kind === "no-lifecycle-ledger")
     return noLedgerOutcome(native, events, selected.terms, selected.forbidGoal);
@@ -2319,6 +2408,11 @@ function transcriptOutcome(
     selected.kind === "unchanged-before-continuation"
   )
     return continuationOutcome(selected.kind, continuation);
+  if (
+    selected.kind === "owner-after-continuation" ||
+    selected.kind === "no-owner-before-continuation"
+  )
+    return ownerBoundaryOutcome(selected.kind, native, continuation);
   throw new Error("unsupported native transcript check");
 }
 
@@ -2332,9 +2426,12 @@ async function nativeTranscriptChecks(
     throw new Error("native transcript checks are invalid");
   const evidence = nativeControlEvidence(observations);
   const continuation = value.some((entry) =>
-    ["continuation-boundary", "unchanged-before-continuation"].includes(
-      String(record(entry, "native transcript check").kind),
-    ),
+    [
+      "continuation-boundary",
+      "unchanged-before-continuation",
+      "owner-after-continuation",
+      "no-owner-before-continuation",
+    ].includes(String(record(entry, "native transcript check").kind)),
   )
     ? continuationEvidence(observations)
     : null;
