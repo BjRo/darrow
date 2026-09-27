@@ -210,6 +210,7 @@ function shellChecks(value: unknown) {
         "not_regex",
         "flags",
         "exit_code",
+        "metric",
       ],
       `check ${index + 1}`,
     );
@@ -302,6 +303,7 @@ async function outputCheck(
       "expect_regex",
       "not_regex",
       "flags",
+      "metric",
     ],
     `output check ${index + 1}`,
   );
@@ -335,7 +337,11 @@ function semanticOutputChecks(value: unknown) {
     throw new Error("case semantic_output_checks must be an array");
   return value.map((entry, index) => {
     const check = record(entry, `semantic output check ${index + 1}`);
-    keys(check, ["name", "proposition"], `semantic output check ${index + 1}`);
+    keys(
+      check,
+      ["name", "proposition", "metric"],
+      `semantic output check ${index + 1}`,
+    );
     string(check.name, `semantic output check ${index + 1} name`);
     return {
       id: `darrow.semantic.${index + 1}`,
@@ -371,6 +377,33 @@ function checkNames(selected: RecordValue) {
       (check) => check.name,
     ),
   ];
+}
+
+const METRIC_LABELS = new Set([
+  "escaped_defect",
+  "defect_detection",
+  "false_positive",
+]);
+
+function checkMetric(value: unknown, label: string): string | null {
+  if (value === undefined) return null;
+  if (typeof value !== "string" || !METRIC_LABELS.has(value))
+    throw new Error(`${label} has an unsupported metric`);
+  return value;
+}
+
+function caseCheckMetrics(selected: RecordValue) {
+  const groups = [
+    { field: "checks", prefix: "darrow.shell" },
+    { field: "output_checks", prefix: "darrow.output" },
+    { field: "semantic_output_checks", prefix: "darrow.semantic" },
+  ];
+  return groups.flatMap(({ field, prefix }) =>
+    ((selected[field] ?? []) as unknown[]).flatMap((entry, index) => {
+      const metric = checkMetric(record(entry, field).metric, field);
+      return metric ? [{ checkId: `${prefix}.${index + 1}`, metric }] : [];
+    }),
+  );
 }
 
 function skillNames(value: unknown, label: string): string[] | undefined {
@@ -520,6 +553,7 @@ async function neutralCase(value: unknown, source: string, root: string) {
     ...(await outputChecks(selected.output_checks, root, skillDir)),
     ...semanticOutputChecks(selected.semantic_output_checks),
   ];
+  const checkMetrics = caseCheckMetrics(selected);
   return {
     id,
     prompt,
@@ -535,6 +569,7 @@ async function neutralCase(value: unknown, source: string, root: string) {
         ...mount,
         ...caseActivation(selected, skillDir, mountPluginSkills),
         checkNames: checkNames(selected),
+        ...(checkMetrics.length ? { checkMetrics } : {}),
       },
     },
   };
@@ -957,21 +992,84 @@ function activationOutcomeData(
   };
 }
 
+function measuredMetric(
+  label: string,
+  checkIds: string[],
+  checks: RecordValue[],
+  execution: string,
+) {
+  const statuses = checkIds.map((id) =>
+    checks.filter((check) => check.id === id),
+  );
+  const complete =
+    execution === "completed" &&
+    statuses.every(
+      (matches) =>
+        matches.length === 1 &&
+        (matches[0]?.status === "passed" || matches[0]?.status === "failed"),
+    );
+  const passed = statuses.filter(
+    (matches) => matches[0]?.status === "passed",
+  ).length;
+  const value = complete
+    ? label === "defect_detection"
+      ? passed / checkIds.length
+      : checkIds.length - passed
+    : null;
+  return {
+    id: `darrow.evals.metric.${label.replaceAll("_", "-")}`,
+    value,
+    unit: label === "defect_detection" ? "ratio" : "count",
+  };
+}
+
+function caseMetrics(details: RecordValue, params: RecordValue) {
+  if (details.checkMetrics === undefined) return [];
+  if (
+    !Array.isArray(details.checkMetrics) ||
+    !Array.isArray(params.builtinChecks)
+  )
+    throw new Error("metric evidence is invalid");
+  const specifications = details.checkMetrics.map((entry) => {
+    const specification = record(entry, "check metric");
+    const metric = checkMetric(specification.metric, "check metric");
+    if (!metric) throw new Error("check metric is missing");
+    return {
+      checkId: string(specification.checkId, "metric check ID"),
+      metric,
+    };
+  });
+  const checks = params.builtinChecks.map((entry) =>
+    record(entry, "built-in check"),
+  );
+  const execution = string(
+    record(params.execution, "execution").status,
+    "execution status",
+  );
+  return [...METRIC_LABELS].flatMap((label) => {
+    const ids = specifications
+      .filter((specification) => specification.metric === label)
+      .map((specification) => specification.checkId);
+    return ids.length ? [measuredMetric(label, ids, checks, execution)] : [];
+  });
+}
+
 function evaluateCase(params: RecordValue) {
   const extensionData = record(
     params.extensionData,
     "evaluation extension data",
   );
   const details = record(extensionData["darrow.case"], "Darrow case data");
+  const metrics = caseMetrics(details, params);
   if (details.activation === undefined)
-    return { checks: [], metrics: [], domainOutcomes: [] };
+    return { checks: [], metrics, domainOutcomes: [] };
   const expected = activationExpectation(details.activation);
   const observation = activationObservation(params.observations);
   const observed = observedActivation(observation);
   const status = activationStatus(expected, observed);
   return {
     checks: [],
-    metrics: [],
+    metrics,
     domainOutcomes: [
       {
         id: "darrow.evals.activation",

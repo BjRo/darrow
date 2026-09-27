@@ -44,6 +44,10 @@ receives Sevro's bounded environment and two-minute timeout; scripts that need
 ambient credentials or longer dependency installs need further migration work.
 Schema files are read from the owning skill at resolution, bounded to that
 skill's directory, and embedded in the selected case for Sevro grading.
+Check metric labels are preserved in per-trial evidence: failed
+`escaped_defect` and `false_positive` checks count as findings, while
+`defect_detection` is the fraction of labeled checks that pass. Missing or
+unavailable check evidence leaves that metric unmeasured (`null`).
 Other case fields and fixture mechanics fail explicitly. Plugin packaging,
 `{{skill_invocation}}`, and other activation forms remain on Darrow's existing
 runner. The legacy `{{repo_dir}}` prompt token maps to Sevro's per-trial

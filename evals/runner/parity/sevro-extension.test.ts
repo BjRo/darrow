@@ -75,6 +75,7 @@ interface ExtensionReply {
           activation?: { class: string; targetSkill: string };
           setupDigest?: string;
           ticketDigest?: string;
+          checkMetrics?: Array<{ checkId: string; metric: string }>;
         };
       };
     }>;
@@ -180,14 +181,45 @@ test("Darrow extension resolves supported cases and rejects unsupported fixtures
       mount: { mountPluginSkills: true },
     },
   });
-  const unsupported = await command<ExtensionReply>(
+  const ossCase = await command<ExtensionReply>(
     [process.execPath, extension],
     request("resolve", resolveParams("orchestration-oss-requests-proxy")),
   );
-  expect(unsupported.value.error.code).toBe("darrow.extension.invalid");
-  expect(unsupported.value.error.message).toMatch(
-    /unsupported|generated Git history/,
+  expect(ossCase.code, ossCase.stderr).toBe(0);
+  expect(ossCase.value.result.cases[0]!.fixture).toMatchObject({
+    kind: "repository",
+    sourceRef: "requests-2.25.1",
+  });
+  expect(
+    ossCase.value.result.cases[0]!.extensionData["darrow.case"].checkMetrics,
+  ).toContainEqual({ checkId: "darrow.shell.1", metric: "escaped_defect" });
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-unsupported-"));
+  roots.push(root);
+  const cases = join(root, "evals/experiments/example/cases");
+  await mkdir(cases, { recursive: true });
+  await writeFile(
+    join(cases, "unsupported.yaml"),
+    JSON.stringify({
+      id: "unsupported-case",
+      invariant: "EXAMPLE-UNSUPPORTED",
+      prompt: "Return ready.",
+      fixture: {
+        commits: [{ message: "Initialize", files: { "README.md": "ready\n" } }],
+        unknown_field: true,
+      },
+      checks: [],
+    }),
   );
+  const unsupported = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(root).href,
+      selectors: { caseIds: ["unsupported-case"] },
+      configuration: {},
+    }),
+  );
+  expect(unsupported.value.error.code).toBe("darrow.extension.invalid");
+  expect(unsupported.value.error.message).toMatch(/unknown_field/);
 });
 
 test("Darrow activation needs a complete and consistent host observation", async () => {
@@ -457,6 +489,7 @@ test("Darrow extension grades combined shell and final-message assertions", asyn
           not_regex: "missing",
           flags: "i",
           exit_code: 0,
+          metric: "escaped_defect",
         },
       ],
       output_checks: [
@@ -468,6 +501,7 @@ test("Darrow extension grades combined shell and final-message assertions", asyn
           expect_exact: '{"status":"ready"}',
           expect_regex: "ready",
           not_regex: "secret",
+          metric: "defect_detection",
         },
       ],
     }),
@@ -503,6 +537,48 @@ test("Darrow extension grades combined shell and final-message assertions", asyn
       notRegex: "secret",
     },
   });
+  const unavailable = await command<{
+    result: { metrics: Array<{ id: string; value: number | null }> };
+  }>(
+    [process.execPath, extension],
+    request("evaluate", {
+      caseId: "stdout-case",
+      execution: { status: "completed" },
+      observations: [],
+      builtinChecks: [
+        { id: "darrow.shell.1", status: "unavailable", evidenceRefs: [] },
+        { id: "darrow.output.1", status: "passed", evidenceRefs: [] },
+      ],
+      artifacts: [],
+      extensionData: resolved.value.result.cases[0]!.extensionData,
+      configuration: {},
+    }),
+  );
+  expect(unavailable.code).toBe(0);
+  expect(unavailable.value.result.metrics).toMatchObject([
+    { id: "darrow.evals.metric.escaped-defect", value: null },
+    { id: "darrow.evals.metric.defect-detection", value: 1 },
+  ]);
+  const failedExecution = await command<{
+    result: { metrics: Array<{ value: number | null }> };
+  }>(
+    [process.execPath, extension],
+    request("evaluate", {
+      caseId: "stdout-case",
+      execution: { status: "failed" },
+      observations: [],
+      builtinChecks: [
+        { id: "darrow.shell.1", status: "passed", evidenceRefs: [] },
+        { id: "darrow.output.1", status: "passed", evidenceRefs: [] },
+      ],
+      artifacts: [],
+      extensionData: resolved.value.result.cases[0]!.extensionData,
+      configuration: {},
+    }),
+  );
+  expect(
+    failedExecution.value.result.metrics.map((metric) => metric.value),
+  ).toEqual([null, null]);
 
   const sevroRoute = sevroCommand();
   const commandFile = join(root, "extension-command.json");
@@ -552,11 +628,25 @@ test("Darrow extension grades combined shell and final-message assertions", asyn
   expect(
     passed.value.cases[0]!.trials[0]!.checks.map((check) => check.status),
   ).toEqual(["passed", "passed"]);
+  const passedEvidence = JSON.parse(
+    await readFile(passed.value.evidencePath, "utf8"),
+  );
+  expect(passedEvidence.trials[0].metrics).toEqual([
+    { id: "darrow.evals.metric.escaped-defect", value: 0, unit: "count" },
+    { id: "darrow.evals.metric.defect-detection", value: 1, unit: "ratio" },
+  ]);
   const failed = await invoke("wait");
   expect(failed.code, failed.stderr).toBe(1);
   expect(
     failed.value.cases[0]!.trials[0]!.checks.map((check) => check.status),
   ).toEqual(["passed", "failed"]);
+  const failedEvidence = JSON.parse(
+    await readFile(failed.value.evidencePath, "utf8"),
+  );
+  expect(failedEvidence.trials[0].metrics).toEqual([
+    { id: "darrow.evals.metric.escaped-defect", value: 0, unit: "count" },
+    { id: "darrow.evals.metric.defect-detection", value: 0, unit: "ratio" },
+  ]);
 });
 
 test("Darrow extension grades semantic propositions through an isolated route", async () => {
@@ -575,7 +665,11 @@ test("Darrow extension grades semantic propositions through an isolated route", 
       },
       checks: [],
       semantic_output_checks: [
-        { name: "readiness", proposition: "The response promises readiness." },
+        {
+          name: "readiness",
+          proposition: "The response promises readiness.",
+          metric: "false_positive",
+        },
       ],
     }),
   );
@@ -657,10 +751,22 @@ test("Darrow extension grades semantic propositions through an isolated route", 
   expect(passed.value.cases[0]!.trials[0]!.checks).toMatchObject([
     { id: "darrow.semantic.1", status: "passed" },
   ]);
+  const passedEvidence = JSON.parse(
+    await readFile(passed.value.evidencePath, "utf8"),
+  );
+  expect(passedEvidence.trials[0].metrics).toEqual([
+    { id: "darrow.evals.metric.false-positive", value: 0, unit: "count" },
+  ]);
   const failed = await invoke("The change needs work.");
   expect(failed.code, failed.stderr).toBe(1);
   expect(failed.value.cases[0]!.trials[0]!.checks).toMatchObject([
     { id: "darrow.semantic.1", status: "failed" },
+  ]);
+  const failedEvidence = JSON.parse(
+    await readFile(failed.value.evidencePath, "utf8"),
+  );
+  expect(failedEvidence.trials[0].metrics).toEqual([
+    { id: "darrow.evals.metric.false-positive", value: 1, unit: "count" },
   ]);
 });
 
