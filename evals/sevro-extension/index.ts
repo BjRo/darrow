@@ -723,6 +723,11 @@ const READINESS_AFTER_CONTINUATION_PATTERN = String.raw`"type":"darrow.eval.foll
 const TICKET_REINVOKED_AFTER_CONTINUATION_PATTERN = String.raw`"type":"darrow.eval.follow_up_turn"[\s\S]*(?:"name":"Skill"[^\n]*ticket-to-pr|"type":"darrow.skill_read_probe"[^\n]*"skill":"ticket-to-pr")`;
 const PLAINTEXT_FEEDBACK_MISMATCH_PATTERN = String.raw`"type":"darrow.codex_native_feedback"[^\n]*"message_representation":"plaintext"[^\n]*"message_matches_expected":false`;
 const SECOND_OWNER_PATTERN = String.raw`(?:"type":"darrow.parent_spawn_after_goal"|"tool":"spawn_agent"[^\n]*"status":"completed"[^\n]*[\s\S]*"tool":"spawn_agent"[^\n]*"status":"completed")`;
+const DOCTOR_NO_ORCHESTRATION_PATTERN = String.raw`"skill":"adaptive-delivery"|adaptive-delivery-preflight|"tool":"spawn_agent"`;
+const DOCTOR_NO_ORCHESTRATION_AGENT_PATTERN = String.raw`"skill":"adaptive-delivery"|adaptive-delivery-preflight|"tool":"spawn_agent"|"name":"Agent"`;
+const DOCTOR_NO_PREFLIGHT_AGENT_PATTERN = String.raw`adaptive-delivery-preflight|"tool":"spawn_agent"|"name":"Agent"`;
+const DOCTOR_NO_HOST_CHOICE_PATTERN = String.raw`host-config-doctor|adaptive-delivery-preflight|"tool":"spawn_agent"|"name":"Agent"`;
+const DOCTOR_INACTIVE_PATTERN = String.raw`"skill":"doctor-adaptive-delivery"|host-config-doctor`;
 const SAME_OWNER_FEEDBACK_PATTERNS = new Map([
   [STEERING_SAME_OWNER_PATTERN, false],
   [REJECTED_FEEDBACK_PATTERN, true],
@@ -736,6 +741,8 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     forbidSpawn?: boolean;
     skill?: string;
     forbidNativeSkillCall?: boolean;
+    forbiddenEventTerms?: string[];
+    forbidAgentTool?: boolean;
   }
 >([
   [CONTINUATION_CHANGED_PATTERN, { kind: "unchanged-before-continuation" }],
@@ -749,6 +756,63 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     { kind: "no-plaintext-feedback-mismatch" },
   ],
   [SECOND_OWNER_PATTERN, { kind: "no-second-owner" }],
+  [
+    DOCTOR_NO_ORCHESTRATION_PATTERN,
+    {
+      kind: "inactive-controls",
+      forbiddenSkills: ["adaptive-delivery"],
+      forbiddenEventTerms: [
+        '"skill":"adaptive-delivery"',
+        "adaptive-delivery-preflight",
+      ],
+      forbidSpawn: true,
+    },
+  ],
+  [
+    DOCTOR_NO_ORCHESTRATION_AGENT_PATTERN,
+    {
+      kind: "inactive-controls",
+      forbiddenSkills: ["adaptive-delivery"],
+      forbiddenEventTerms: [
+        '"skill":"adaptive-delivery"',
+        "adaptive-delivery-preflight",
+      ],
+      forbidSpawn: true,
+      forbidAgentTool: true,
+    },
+  ],
+  [
+    DOCTOR_NO_PREFLIGHT_AGENT_PATTERN,
+    {
+      kind: "inactive-controls",
+      forbiddenEventTerms: ["adaptive-delivery-preflight"],
+      forbidSpawn: true,
+      forbidAgentTool: true,
+    },
+  ],
+  [
+    DOCTOR_NO_HOST_CHOICE_PATTERN,
+    {
+      kind: "inactive-controls",
+      forbiddenEventTerms: [
+        "host-config-doctor",
+        "adaptive-delivery-preflight",
+      ],
+      forbidSpawn: true,
+      forbidAgentTool: true,
+    },
+  ],
+  [
+    DOCTOR_INACTIVE_PATTERN,
+    {
+      kind: "inactive-controls",
+      forbiddenSkills: ["doctor-adaptive-delivery"],
+      forbiddenEventTerms: [
+        '"skill":"doctor-adaptive-delivery"',
+        "host-config-doctor",
+      ],
+    },
+  ],
   [
     READINESS_AFTER_CONTINUATION_PATTERN,
     {
@@ -931,20 +995,40 @@ const TRANSCRIPT_EVIDENCE = new Map([
   ["skill-absent-after-continuation", ["sevro.codex.follow-up-skill-reads"]],
 ]);
 
+function inactiveControlEvidence(check: RecordValue): string[] {
+  if (check.kind !== "inactive-controls") return [];
+  return [
+    ...(Array.isArray(check.forbiddenSkills) && check.forbiddenSkills.length
+      ? ["sevro.codex.skill-reads"]
+      : []),
+    ...(Array.isArray(check.forbiddenEventTerms) &&
+    check.forbiddenEventTerms.length
+      ? ["sevro.codex.events"]
+      : []),
+    ...(check.forbidSpawn === true || check.forbidAgentTool === true
+      ? ["sevro.codex.native-calls"]
+      : []),
+  ];
+}
+
+function transcriptEvidence(check: RecordValue): string[] {
+  return [
+    ...(TRANSCRIPT_EVIDENCE.get(String(check.kind)) ?? []),
+    ...inactiveControlEvidence(check),
+    ...(check.kind === "skill-absent-after-continuation" &&
+    check.forbidNativeSkillCall === true
+      ? ["sevro.codex.native-calls"]
+      : []),
+  ];
+}
+
 function policyEvidence(
   ownership: ReturnType<typeof caseOwnership>,
   transcriptChecks: ReturnType<typeof caseTranscriptChecks>,
 ) {
   const required = new Set(ownership?.requiredEvidence ?? []);
   for (const check of transcriptChecks ?? []) {
-    for (const id of TRANSCRIPT_EVIDENCE.get(check.kind) ?? [])
-      required.add(id);
-    if (
-      check.kind === "skill-absent-after-continuation" &&
-      "forbidNativeSkillCall" in check &&
-      check.forbidNativeSkillCall === true
-    )
-      required.add("sevro.codex.native-calls");
+    for (const id of transcriptEvidence(check)) required.add(id);
   }
   return [...required];
 }
@@ -2448,6 +2532,71 @@ function skillsInactiveOutcome(
   };
 }
 
+function inactiveControlsOutcome(
+  selected: RecordValue,
+  native: ReturnType<typeof nativeControlEvidence>,
+  observed: ReturnType<typeof observedActivation>,
+  events: string | null,
+) {
+  const forbiddenSkills = skillSequence(selected.forbiddenSkills ?? []);
+  const forbiddenEventTerms = skillSequence(selected.forbiddenEventTerms ?? []);
+  if (!forbiddenSkills || !forbiddenEventTerms)
+    throw new Error("inactive control check configuration is invalid");
+  const required = inactiveControlEvidence(selected);
+  if (!inactiveControlEvidenceAvailable(required, native, observed, events))
+    return {
+      status: "unavailable",
+      detail: "Required skill, event, or native control evidence unavailable",
+      evidenceRefs: [],
+    };
+  const violated = inactiveControlViolation(selected, {
+    forbiddenSkills,
+    forbiddenEventTerms,
+    native,
+    observed,
+    events,
+  });
+  return {
+    status: violated ? "failed" : "passed",
+    detail: "Graded from complete Codex skill, event, and native controls",
+    evidenceRefs: required,
+  };
+}
+
+function inactiveControlEvidenceAvailable(
+  required: string[],
+  native: ReturnType<typeof nativeControlEvidence>,
+  observed: ReturnType<typeof observedActivation>,
+  events: string | null,
+): boolean {
+  return !(
+    (required.includes("sevro.codex.skill-reads") && !observed) ||
+    (required.includes("sevro.codex.events") && events === null) ||
+    (required.includes("sevro.codex.native-calls") && !native)
+  );
+}
+
+function inactiveControlViolation(
+  selected: RecordValue,
+  context: {
+    forbiddenSkills: string[];
+    forbiddenEventTerms: string[];
+    native: ReturnType<typeof nativeControlEvidence>;
+    observed: ReturnType<typeof observedActivation>;
+    events: string | null;
+  },
+): boolean {
+  const { forbiddenSkills, forbiddenEventTerms, native, observed, events } =
+    context;
+  return (
+    forbiddenSkills.some((skill) => observed!.observedSkills.includes(skill)) ||
+    forbiddenEventTerms.some((term) => events!.includes(term)) ||
+    (selected.forbidSpawn === true && native!.attemptedSpawn) ||
+    (selected.forbidAgentTool === true &&
+      native!.toolCalls.some((call) => call.name === "Agent"))
+  );
+}
+
 function oneOwnerOutcome(native: ReturnType<typeof nativeControlEvidence>) {
   return {
     status: native
@@ -2758,6 +2907,31 @@ function feedbackTranscriptOutcome(
   return null;
 }
 
+function policyTranscriptOutcome(
+  selected: RecordValue,
+  context: {
+    native: ReturnType<typeof nativeControlEvidence>;
+    skills: ReturnType<typeof observedActivation>;
+    events: string | null;
+  },
+) {
+  if (selected.kind === "inactive-controls")
+    return inactiveControlsOutcome(
+      selected,
+      context.native,
+      context.skills,
+      context.events,
+    );
+  if (selected.kind === "no-lifecycle-ledger")
+    return noLedgerOutcome(
+      context.native,
+      context.events,
+      selected.terms,
+      selected.forbidGoal,
+    );
+  return null;
+}
+
 function transcriptOutcome(
   selected: RecordValue,
   context: {
@@ -2770,7 +2944,7 @@ function transcriptOutcome(
     followUp: ReturnType<typeof turnSkillEvidence>;
   },
 ) {
-  const { native, events, continuation, skills, feedback } = context;
+  const { native, continuation, skills, feedback } = context;
   const direct = nativeTranscriptOutcome(selected, native, skills);
   if (direct) return direct;
   const feedbackOutcome = feedbackTranscriptOutcome(
@@ -2779,13 +2953,13 @@ function transcriptOutcome(
     continuation,
   );
   if (feedbackOutcome) return feedbackOutcome;
+  const policyOutcome = policyTranscriptOutcome(selected, context);
+  if (policyOutcome) return policyOutcome;
   if (
     selected.kind === "skill-before-continuation" ||
     selected.kind === "skill-absent-after-continuation"
   )
     return turnSkillOutcome(selected, context);
-  if (selected.kind === "no-lifecycle-ledger")
-    return noLedgerOutcome(native, events, selected.terms, selected.forbidGoal);
   if (
     selected.kind === "continuation-boundary" ||
     selected.kind === "unchanged-before-continuation"
@@ -2819,12 +2993,13 @@ function transcriptObservationContext(
     kinds.has("no-plaintext-feedback-mismatch")
       ? nativeFeedbackEvidence(observations)
       : null;
-  const skills = kinds.has("skills-inactive")
-    ? observedActivation(
-        uniqueObservation(observations, "sevro.codex.skill-reads"),
-        false,
-      )
-    : null;
+  const skills =
+    kinds.has("skills-inactive") || kinds.has("inactive-controls")
+      ? observedActivation(
+          uniqueObservation(observations, "sevro.codex.skill-reads"),
+          false,
+        )
+      : null;
   const initial = kinds.has("skill-before-continuation")
     ? turnSkillEvidence(observations, "sevro.codex.initial-skill-reads")
     : null;
@@ -2851,9 +3026,10 @@ async function nativeTranscriptChecks(
     record(entry, "native transcript check"),
   );
   const kinds = new Set(selected.map((entry) => String(entry.kind)));
-  const events = kinds.has("no-lifecycle-ledger")
-    ? await codexEventText(artifacts)
-    : null;
+  const events =
+    kinds.has("no-lifecycle-ledger") || kinds.has("inactive-controls")
+      ? await codexEventText(artifacts)
+      : null;
   const context = {
     ...transcriptObservationContext(kinds, observations),
     events,

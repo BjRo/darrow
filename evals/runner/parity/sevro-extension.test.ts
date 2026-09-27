@@ -810,17 +810,185 @@ test("Darrow translates no-agent transcript assertions into bounded native check
       )?.status,
     ).toBe("failed");
   }
-  const unrelated = await command<ExtensionReply>(
+});
+
+test("Darrow doctor controls require intact negative evidence", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-doctor-"));
+  roots.push(root);
+  const eventPath = join(root, "events.jsonl");
+  const events = async (content: string) => {
+    await writeFile(eventPath, content);
+    return {
+      id: "sevro.codex.events",
+      path: pathToFileURL(eventPath).href,
+      sha256: createHash("sha256").update(content).digest("hex"),
+    };
+  };
+  const native = {
+    id: "sevro.codex.native-calls",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "native_session",
+      calls: [],
+      toolCalls: [],
+      acceptedSpawns: [],
+      submittedExecCalls: 0,
+    },
+  };
+  const skills = {
+    id: "sevro.codex.skill-reads",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "skill_file_read_probe",
+      primarySkill: null,
+      observedSkills: [],
+    },
+  };
+  const clean = await events("turn.completed\n");
+  const evaluate = async (
+    selectedCase: ExtensionReply["result"]["cases"][number],
+    observations: unknown[],
+    artifacts: unknown[],
+  ) => {
+    const reply = await command<{
+      result: { checks: Array<{ id: string; status: string }> };
+    }>(
+      [process.execPath, extension],
+      request("evaluate", {
+        extensionData: selectedCase.extensionData,
+        observations,
+        artifacts,
+      }),
+    );
+    expect(reply.code, reply.stderr).toBe(0);
+    return reply.value.result.checks.find(
+      (check) => check.id === "darrow.evals.transcript.1",
+    )?.status;
+  };
+  for (const suffix of [
+    "counterexample-depth",
+    "direct-codex",
+    "effective-project",
+    "incomplete-host",
+    "indirect-claude",
+    "nonactivation-delivery",
+    "unknown-project-trust",
+  ]) {
+    const selected = await command<ExtensionReply>(
+      [process.execPath, extension],
+      request("resolve", {
+        projectRoot: pathToFileURL(projectRoot).href,
+        selectors: { caseIds: [`doctor-adaptive-delivery-${suffix}`] },
+        configuration: {},
+      }),
+    );
+    expect(selected.code, selected.stderr).toBe(0);
+    const selectedCase = selected.value.result.cases[0]!;
+    expect(selectedCase.requiredEvidence).toContain("sevro.codex.events");
+    expect(await evaluate(selectedCase, [native, skills], [clean])).toBe(
+      "passed",
+    );
+    expect(await evaluate(selectedCase, [native, skills], [])).toBe(
+      "unavailable",
+    );
+    expect(
+      await evaluate(
+        selectedCase,
+        [native, { ...skills, completeness: "partial" }],
+        [clean],
+      ),
+    ).toBe(
+      suffix === "effective-project" ||
+        suffix === "incomplete-host" ||
+        suffix === "unknown-project-trust"
+        ? "passed"
+        : "unavailable",
+    );
+  }
+  const selected = await command<ExtensionReply>(
     [process.execPath, extension],
     request("resolve", {
       projectRoot: pathToFileURL(projectRoot).href,
-      selectors: {
-        caseIds: ["doctor-adaptive-delivery-direct-codex"],
-      },
+      selectors: { caseIds: ["doctor-adaptive-delivery-direct-codex"] },
       configuration: {},
     }),
   );
-  expect(unrelated.value.error.message).toContain("no Sevro evidence mapping");
+  const selectedCase = selected.value.result.cases[0]!;
+  expect(
+    await evaluate(
+      selectedCase,
+      [
+        native,
+        {
+          ...skills,
+          data: {
+            ...skills.data,
+            primarySkill: "adaptive-delivery",
+            observedSkills: ["adaptive-delivery"],
+          },
+        },
+      ],
+      [clean],
+    ),
+  ).toBe("failed");
+  expect(
+    await evaluate(
+      selectedCase,
+      [native, skills],
+      [await events("adaptive-delivery-preflight\n")],
+    ),
+  ).toBe("failed");
+  expect(
+    await evaluate(
+      selectedCase,
+      [native, skills],
+      [await events('{"skill":"adaptive-delivery"}\n')],
+    ),
+  ).toBe("failed");
+  expect(
+    await evaluate(
+      selectedCase,
+      [
+        {
+          ...native,
+          data: {
+            ...native.data,
+            calls: [
+              {
+                ordinal: 1,
+                namespace: "collaboration",
+                name: "spawn_agent",
+                evidence: "invocation_attempt",
+              },
+            ],
+            toolCalls: [
+              { ordinal: 1, namespace: "collaboration", name: "spawn_agent" },
+            ],
+          },
+        },
+        skills,
+      ],
+      [await events("turn.completed\n")],
+    ),
+  ).toBe("failed");
+  expect(
+    await evaluate(
+      selectedCase,
+      [
+        {
+          ...native,
+          data: {
+            ...native.data,
+            toolCalls: [{ ordinal: 1, namespace: "functions", name: "Agent" }],
+          },
+        },
+        skills,
+      ],
+      [await events("turn.completed\n")],
+    ),
+  ).toBe("failed");
 });
 
 test("Darrow grades skill nonactivation from complete reads and native calls", async () => {

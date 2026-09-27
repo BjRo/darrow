@@ -98,8 +98,13 @@ and does not copy its text into the
 result. Selected nonactivation assertions also use complete Codex skill-read and
 native-call observations. A forbidden mounted skill read, a `Skill` tool call,
 or a prohibited owner spawn fails the corresponding check; missing or partial
-evidence leaves it unavailable. Other transcript patterns are rejected during
-case resolution.
+evidence leaves it unavailable.
+The Adaptive Delivery doctor cases also check that orchestration stayed
+inactive. Their exact forbidden skill reads, preflight or doctor event markers,
+and native `spawn_agent` or `Agent` calls are graded from complete skill-read
+and native-call receipts plus a digest-verified Codex event artifact. Missing
+required evidence makes the check unavailable.
+Unmapped transcript patterns are rejected during case resolution.
 Same-owner follow-up checks compare a correlated native owner receipt with the
 saved follow-up ordinal and a bounded feedback call. Cases that require a tool
 response also check its unique response receipt. This proves an attempted
