@@ -2455,6 +2455,216 @@ test("Darrow rejects a recipe read or Skill call in the follow-up turn", async (
   ).toBe("unavailable");
 });
 
+test("Darrow grades same-owner feedback across the turn boundary", async () => {
+  const selected = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(projectRoot).href,
+      selectors: { caseIds: ["goal-cross-turn-feedback-answer"] },
+      configuration: {},
+    }),
+  );
+  expect(selected.code, selected.stderr).toBe(0);
+  const selectedCase = selected.value.result.cases[0]!;
+  expect(selectedCase.requiredEvidence).toContain(
+    "sevro.codex.follow-up-events",
+  );
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-cross-turn-"));
+  roots.push(root);
+  const artifact = async (name: string, content: string) => {
+    const path = join(root, name);
+    await writeFile(path, content);
+    return {
+      id: "sevro.codex.follow-up-events",
+      path: pathToFileURL(path).href,
+      sha256: createHash("sha256").update(content).digest("hex"),
+    };
+  };
+  const clean = await artifact("clean.jsonl", "turn.completed\n");
+  const preflight = await artifact(
+    "preflight.jsonl",
+    "adaptive-delivery-preflight step\n",
+  );
+  const native = {
+    id: "sevro.codex.native-calls",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "native_session",
+      calls: [
+        {
+          ordinal: 1,
+          namespace: "collaboration",
+          name: "spawn_agent",
+          evidence: "invocation_attempt",
+        },
+      ],
+      toolCalls: [
+        { ordinal: 1, namespace: "collaboration", name: "spawn_agent" },
+        {
+          ordinal: 6,
+          namespace: "collaboration",
+          name: "followup_task",
+          target: "owner",
+        },
+      ],
+      acceptedSpawns: [
+        {
+          requestedOrdinal: 1,
+          startedOrdinal: 2,
+          acceptedOrdinal: 3,
+          agentRef: "/root/owner",
+          threadId: "child-thread",
+        },
+      ],
+      feedbackCalls: [
+        {
+          ordinal: 6,
+          tool: "followup_task",
+          target: "owner",
+          responseObserved: false,
+        },
+      ],
+      submittedExecCalls: 0,
+    },
+  };
+  const continuation = {
+    id: "sevro.codex.continuation",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "same_thread_resume",
+      threadId: "thread-1",
+      nativeAfterOrdinal: 5,
+      preFollowUpWorktreeUnchanged: true,
+    },
+  };
+  const statuses = async (
+    observations: unknown[],
+    artifacts: unknown[] = [clean],
+  ) => {
+    const response = await command<{
+      result: { checks: Array<{ id: string; status: string }> };
+    }>(
+      [process.execPath, extension],
+      request("evaluate", {
+        extensionData: selectedCase.extensionData,
+        observations,
+        artifacts,
+      }),
+    );
+    expect(response.code, response.stderr).toBe(0);
+    return response.value.result.checks
+      .filter((check) => check.id.startsWith("darrow.evals.transcript."))
+      .map((check) => check.status);
+  };
+  expect(await statuses([native, continuation])).toEqual([
+    "passed",
+    "passed",
+    "passed",
+    "passed",
+  ]);
+  expect(
+    await statuses([
+      native,
+      {
+        ...continuation,
+        data: { ...continuation.data, preFollowUpWorktreeUnchanged: false },
+      },
+    ]),
+  ).toEqual(["failed", "passed", "passed", "passed"]);
+  expect(
+    (
+      await statuses([
+        native,
+        {
+          ...continuation,
+          data: { ...continuation.data, nativeAfterOrdinal: 0 },
+        },
+      ])
+    )[1],
+  ).toBe("failed");
+  expect(
+    (
+      await statuses([
+        {
+          ...native,
+          data: {
+            ...native.data,
+            toolCalls: native.data.toolCalls.map((call) =>
+              call.name === "followup_task"
+                ? { ...call, target: "other" }
+                : call,
+            ),
+            feedbackCalls: [
+              { ...native.data.feedbackCalls[0], target: "other" },
+            ],
+          },
+        },
+        continuation,
+      ])
+    )[2],
+  ).toBe("failed");
+  const replacement = {
+    ordinal: 7,
+    namespace: "collaboration",
+    name: "spawn_agent",
+  };
+  expect(
+    (
+      await statuses([
+        {
+          ...native,
+          data: {
+            ...native.data,
+            calls: [
+              ...native.data.calls,
+              { ...replacement, evidence: "invocation_attempt" },
+            ],
+            toolCalls: [...native.data.toolCalls, replacement],
+          },
+        },
+        continuation,
+      ])
+    )[3],
+  ).toBe("failed");
+  const newGoal = {
+    ordinal: 7,
+    namespace: "functions",
+    name: "create_goal",
+  };
+  expect(
+    (
+      await statuses([
+        {
+          ...native,
+          data: {
+            ...native.data,
+            calls: [
+              ...native.data.calls,
+              { ...newGoal, evidence: "invocation_attempt" },
+            ],
+            toolCalls: [...native.data.toolCalls, newGoal],
+          },
+        },
+        continuation,
+      ])
+    )[3],
+  ).toBe("failed");
+  expect((await statuses([native, continuation], [preflight]))[3]).toBe(
+    "failed",
+  );
+  expect((await statuses([native, continuation], []))[3]).toBe("unavailable");
+  expect(
+    (
+      await statuses(
+        [native, continuation],
+        [{ ...clean, sha256: "0".repeat(64) }],
+      )
+    )[3],
+  ).toBe("unavailable");
+});
+
 test("Darrow grades feedback to the prior owner after a real follow-up", async () => {
   const native = {
     id: "sevro.codex.native-calls",

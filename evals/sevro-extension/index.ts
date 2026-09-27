@@ -709,6 +709,14 @@ const CONTINUATION_BOUNDARY_PATTERNS = new Set([
 const CONTINUATION_UNCHANGED_PATTERNS = new Set([
   String.raw`"type":"darrow.eval.follow_up_turn"[^\n]*"pre_feedback_worktree_unchanged":true`,
 ]);
+const CROSS_TURN_UNCHANGED_PATTERN =
+  '"type":"darrow.eval.follow_up_turn"[^\\n]*"pre_feedback_worktree_unchanged":true|"type":"darrow.goal_agent_completion"';
+const CROSS_TURN_OWNER_BEFORE_PATTERN =
+  '(?:"type":"darrow.goal_agent_completion"[^\\n]*"status":"completed"[^\\n]*"agent_id":"[^"]+"[\\s\\S]*"type":"darrow.eval.follow_up_turn"|"tool":"spawn_agent"[^\\n]*"status":"completed"[^\\n]*"receiver_thread_ids":\\["[^"]+"\\][^\\n]*"prompt":"- phase: adaptive-delivery-owner"[\\s\\S]*"type":"darrow.eval.follow_up_turn"|"type":"darrow.codex_native_single_agent_accepted"[^\\n]*"accepted_before_follow_up":true)';
+const CROSS_TURN_SAME_OWNER_PATTERN =
+  '(?:"type":"darrow.goal_agent_completion"[^\\n]*"agent_id":"([^"]+)"[\\s\\S]*"type":"darrow.human_feedback_request"[^\\n]*"agent_id":"\\1"[^\\n]*"question_present":true[\\s\\S]*"type":"darrow.eval.follow_up_turn"[\\s\\S]*"type":"darrow.human_feedback_relay"[^\\n]*"agent_id":"\\1"[^\\n]*"same_owner":true[\\s\\S]*"type":"darrow.goal_agent_resumption"[^\\n]*"agent_id":"\\1"[^\\n]*"status":"completed"[^\\n]*"same_owner":true|"tool":"spawn_agent"[^\\n]*"status":"completed"[^\\n]*"receiver_thread_ids":\\["([^"]+)"\\][^\\n]*"agent_ref":"\\2"[\\s\\S]*"type":"darrow.eval.follow_up_turn"[\\s\\S]*"tool":"(?:followup_task|send_input)"[^\\n]*"status":"completed"[^\\n]*"receiver_thread_ids":\\["\\2"\\][^\\n]*"agent_ref":"\\2"|"type":"darrow.codex_native_single_agent_accepted"[^\\n]*"agent_ref":"([^"]+)"[\\s\\S]*"type":"darrow.codex_native_feedback"[^\\n]*"tool":"(?:followup_task|send_message)"[^\\n]*"agent_ref":"\\3"[^\\n]*"same_owner":true[^\\n]*"after_follow_up":true[^\\n]*"delivery":"unverified")';
+const CROSS_TURN_NO_REPLACEMENT_PATTERN =
+  '"type":"darrow.eval.follow_up_turn"[\\s\\S]*(?:"type":"darrow.parent_spawn_after_goal"|"tool":"spawn_agent"|adaptive-delivery-preflight step|Protocol ledger|"tool":"create_goal")';
 const CONTINUATION_CHANGED_PATTERN = String.raw`"type":"darrow\.eval\.follow_up_turn"(?![^\n]*"pre_feedback_worktree_unchanged":true)[^\n]*[\s\S]*"type":"darrow\.codex_native_`;
 const OWNER_AFTER_CONTINUATION_PATTERN = String.raw`"type":"darrow.eval.follow_up_turn"[\s\S]*"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"`;
 const NO_OWNER_BEFORE_CONTINUATION_PATTERN = String.raw`"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"[\s\S]*"type":"darrow.eval.follow_up_turn"`;
@@ -781,6 +789,7 @@ const FORBIDDEN_EVENT_REGEX = new Map([
 ]);
 const SAME_OWNER_FEEDBACK_PATTERNS = new Map([
   [STEERING_SAME_OWNER_PATTERN, false],
+  [CROSS_TURN_SAME_OWNER_PATTERN, false],
   [REJECTED_FEEDBACK_PATTERN, true],
   [RELAYED_FEEDBACK_PATTERN, true],
 ]);
@@ -797,6 +806,10 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     forbidAgentTool?: boolean;
   }
 >([
+  [
+    CROSS_TURN_NO_REPLACEMENT_PATTERN,
+    { kind: "no-replacement-after-continuation" },
+  ],
   [CONTINUATION_CHANGED_PATTERN, { kind: "unchanged-before-continuation" }],
   [
     NO_OWNER_BEFORE_CONTINUATION_PATTERN,
@@ -965,20 +978,31 @@ function ticketTranscriptSelection(pattern: unknown) {
   return null;
 }
 
+function continuationTranscriptSelection(pattern: unknown) {
+  if (CONTINUATION_BOUNDARY_PATTERNS.has(pattern as string))
+    return { kind: "continuation-boundary" };
+  if (
+    CONTINUATION_UNCHANGED_PATTERNS.has(pattern as string) ||
+    pattern === CROSS_TURN_UNCHANGED_PATTERN
+  )
+    return { kind: "unchanged-before-continuation" };
+  if (pattern === CROSS_TURN_OWNER_BEFORE_PATTERN)
+    return { kind: "owner-before-continuation" };
+  if (pattern === OWNER_AFTER_CONTINUATION_PATTERN)
+    return { kind: "owner-after-continuation" };
+  return null;
+}
+
 function expectedTranscriptSelection(pattern: unknown) {
   const reader =
-    readerTranscriptSelection(pattern) ?? ticketTranscriptSelection(pattern);
+    readerTranscriptSelection(pattern) ??
+    ticketTranscriptSelection(pattern) ??
+    continuationTranscriptSelection(pattern);
   if (reader) return reader;
   const route = OWNER_ROUTE_PATTERNS.get(pattern as string);
   if (route) return { kind: "owner-route", ...route };
   if (ONE_OWNER_TRANSCRIPT_PATTERNS.has(pattern as string))
     return { kind: "one-owner-accepted" };
-  if (CONTINUATION_BOUNDARY_PATTERNS.has(pattern as string))
-    return { kind: "continuation-boundary" };
-  if (CONTINUATION_UNCHANGED_PATTERNS.has(pattern as string))
-    return { kind: "unchanged-before-continuation" };
-  if (pattern === OWNER_AFTER_CONTINUATION_PATTERN)
-    return { kind: "owner-after-continuation" };
   if (pattern === READINESS_BEFORE_CONTINUATION_PATTERN)
     return {
       kind: "skill-before-continuation",
@@ -1134,7 +1158,12 @@ const TRANSCRIPT_EVIDENCE = new Map([
   ["no-parent-work-after-handoff", ["sevro.codex.native-calls"]],
   ["no-lifecycle-ledger", ["sevro.codex.native-calls", "sevro.codex.events"]],
   ["owner-after-continuation", ["sevro.codex.native-calls"]],
+  ["owner-before-continuation", ["sevro.codex.native-calls"]],
   ["no-owner-before-continuation", ["sevro.codex.native-calls"]],
+  [
+    "no-replacement-after-continuation",
+    ["sevro.codex.native-calls", "sevro.codex.follow-up-events"],
+  ],
   ["no-native-goal-control", ["sevro.codex.native-calls"]],
   ["skills-inactive", ["sevro.codex.native-calls", "sevro.codex.skill-reads"]],
   ["same-owner-feedback", ["sevro.codex.native-calls"]],
@@ -2649,11 +2678,10 @@ function turnSkillEvidence(observations: unknown, id: string) {
   return completeTurnSkillSequence(data);
 }
 
-function codexEventRef(artifacts: unknown) {
+function codexEventRef(artifacts: unknown, id = "sevro.codex.events") {
   if (!Array.isArray(artifacts)) return null;
   const matches = artifacts.filter(
-    (item) =>
-      item && typeof item === "object" && item.id === "sevro.codex.events",
+    (item) => item && typeof item === "object" && item.id === id,
   );
   if (matches.length !== 1) return null;
   const selected = record(matches[0], "Codex event artifact");
@@ -2667,8 +2695,11 @@ function codexEventRef(artifacts: unknown) {
   return { path: selected.path, sha256: selected.sha256 };
 }
 
-async function codexEventText(artifacts: unknown): Promise<string | null> {
-  const reference = codexEventRef(artifacts);
+async function codexEventText(
+  artifacts: unknown,
+  id = "sevro.codex.events",
+): Promise<string | null> {
+  const reference = codexEventRef(artifacts, id);
   if (!reference) return null;
   try {
     const path = fileURLToPath(reference.path);
@@ -3232,13 +3263,58 @@ function ownerBoundaryOutcome(
   );
   return {
     status: (
-      kind === "owner-after-continuation" ? acceptedAfter : !acceptedBefore
+      kind === "owner-after-continuation"
+        ? acceptedAfter
+        : kind === "owner-before-continuation"
+          ? acceptedBefore
+          : !acceptedBefore
     )
       ? "passed"
       : "failed",
     detail:
       "Graded from correlated owner acceptance and native follow-up ordinal",
     evidenceRefs: ["sevro.codex.native-calls", "sevro.codex.continuation"],
+  };
+}
+
+function noReplacementAfterContinuationOutcome(
+  native: ReturnType<typeof nativeControlEvidence>,
+  continuation: ReturnType<typeof continuationEvidence>,
+  followUpEvents: string | null,
+) {
+  const boundary = continuation?.nativeAfterOrdinal;
+  if (
+    !native ||
+    boundary === null ||
+    boundary === undefined ||
+    followUpEvents === null
+  )
+    return {
+      status: "unavailable",
+      detail:
+        "Complete native follow-up calls and verified follow-up events required",
+      evidenceRefs: [],
+    };
+  const prohibitedCall = native.toolCalls.some(
+    (call) =>
+      (call.ordinal as number) > boundary &&
+      ((call.namespace === "collaboration" && call.name === "spawn_agent") ||
+        (call.namespace === "functions" && call.name === "create_goal")),
+  );
+  const prohibitedEvent = [
+    '"type":"darrow.parent_spawn_after_goal"',
+    "adaptive-delivery-preflight step",
+    "Protocol ledger",
+  ].some((term) => followUpEvents.includes(term));
+  return {
+    status: prohibitedCall || prohibitedEvent ? "failed" : "passed",
+    detail:
+      "Graded from native calls and digest-verified events after the follow-up boundary",
+    evidenceRefs: [
+      "sevro.codex.native-calls",
+      "sevro.codex.continuation",
+      "sevro.codex.follow-up-events",
+    ],
   };
 }
 
@@ -3471,6 +3547,32 @@ function policyTranscriptOutcome(
   return null;
 }
 
+function continuationTranscriptOutcome(
+  selected: RecordValue,
+  native: ReturnType<typeof nativeControlEvidence>,
+  continuation: ReturnType<typeof continuationEvidence>,
+  followUpEvents: string | null,
+) {
+  if (
+    selected.kind === "continuation-boundary" ||
+    selected.kind === "unchanged-before-continuation"
+  )
+    return continuationOutcome(selected.kind, continuation);
+  if (
+    selected.kind === "owner-after-continuation" ||
+    selected.kind === "owner-before-continuation" ||
+    selected.kind === "no-owner-before-continuation"
+  )
+    return ownerBoundaryOutcome(selected.kind, native, continuation);
+  if (selected.kind === "no-replacement-after-continuation")
+    return noReplacementAfterContinuationOutcome(
+      native,
+      continuation,
+      followUpEvents,
+    );
+  return null;
+}
+
 function transcriptOutcome(
   selected: RecordValue,
   context: {
@@ -3478,6 +3580,7 @@ function transcriptOutcome(
     nested: RecordValue[] | null;
     children: ReturnType<typeof boundChildSessions>;
     events: string | null;
+    followUpEvents: string | null;
     continuation: ReturnType<typeof continuationEvidence>;
     skills: ReturnType<typeof observedActivation>;
     feedback: ReturnType<typeof nativeFeedbackEvidence>;
@@ -3501,16 +3604,13 @@ function transcriptOutcome(
     selected.kind === "skill-absent-after-continuation"
   )
     return turnSkillOutcome(selected, context);
-  if (
-    selected.kind === "continuation-boundary" ||
-    selected.kind === "unchanged-before-continuation"
-  )
-    return continuationOutcome(selected.kind, continuation);
-  if (
-    selected.kind === "owner-after-continuation" ||
-    selected.kind === "no-owner-before-continuation"
-  )
-    return ownerBoundaryOutcome(selected.kind, native, continuation);
+  const continuationResult = continuationTranscriptOutcome(
+    selected,
+    native,
+    continuation,
+    context.followUpEvents,
+  );
+  if (continuationResult) return continuationResult;
   throw new Error("unsupported native transcript check");
 }
 
@@ -3518,7 +3618,9 @@ const CONTINUATION_EVIDENCE_KINDS = new Set([
   "continuation-boundary",
   "unchanged-before-continuation",
   "owner-after-continuation",
+  "owner-before-continuation",
   "no-owner-before-continuation",
+  "no-replacement-after-continuation",
   "same-owner-feedback",
   "no-plaintext-feedback-mismatch",
   "skill-absent-after-continuation",
@@ -3601,9 +3703,13 @@ async function nativeTranscriptChecks(
     kinds.has("event-term")
       ? await codexEventText(artifacts)
       : null;
+  const followUpEvents = kinds.has("no-replacement-after-continuation")
+    ? await codexEventText(artifacts, "sevro.codex.follow-up-events")
+    : null;
   const context = {
     ...transcriptObservationContext(kinds, observations),
     events,
+    followUpEvents,
   };
   return selected.map((entry) => ({
     id: string(entry.id, "native transcript check ID"),

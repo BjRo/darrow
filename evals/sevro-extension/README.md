@@ -132,6 +132,10 @@ Same-owner follow-up checks compare a correlated native owner receipt with the
 saved follow-up ordinal and a bounded feedback call. Cases that require a tool
 response also check its unique response receipt. This proves an attempted
 same-owner handoff; it does not prove the child acted on the message.
+The cross-turn feedback case also requires an unchanged workspace before
+feedback, an owner accepted before that boundary, and no replacement spawn,
+goal creation, or preflight marker in the verified follow-up turn. The second
+turn's Codex event artifact must pass its retained digest check.
 Ordered readiness checks use Sevro's separate first-turn and follow-up-turn
 skill-read receipts. A missing or partial turn receipt leaves the corresponding
 check unavailable. The ticket recipe's follow-up check also compares native
