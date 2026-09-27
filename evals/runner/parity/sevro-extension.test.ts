@@ -690,6 +690,92 @@ test("Darrow translates no-agent transcript assertions into bounded native check
   expect(unrelated.value.error.message).toContain("no Sevro evidence mapping");
 });
 
+test("Darrow grades accepted owner assertions from correlated native receipts", async () => {
+  const accepted = {
+    id: "sevro.codex.native-calls",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "native_session",
+      calls: [
+        {
+          ordinal: 1,
+          namespace: "collaboration",
+          name: "spawn_agent",
+          evidence: "invocation_attempt",
+        },
+      ],
+      toolCalls: [
+        { ordinal: 1, namespace: "collaboration", name: "spawn_agent" },
+      ],
+      acceptedSpawns: [
+        {
+          requestedOrdinal: 1,
+          startedOrdinal: 2,
+          acceptedOrdinal: 3,
+          agentRef: "/root/owner",
+          threadId: "child-thread",
+        },
+      ],
+      submittedExecCalls: 0,
+    },
+  };
+  for (const id of [
+    "goal-post-launch-reassessment",
+    "goal-verification-combined-repair",
+  ]) {
+    const selected = await command<ExtensionReply>(
+      [process.execPath, extension],
+      request("resolve", {
+        projectRoot: pathToFileURL(projectRoot).href,
+        selectors: { caseIds: [id] },
+        configuration: {},
+      }),
+    );
+    expect(selected.code, selected.stderr).toBe(0);
+    const selectedCase = selected.value.result.cases[0]!;
+    expect(selectedCase.requiredEvidence).toContain("sevro.codex.native-calls");
+    const transcript = selectedCase.checks.find(
+      (check) => check.grader === "darrow.evals.transcript",
+    )!;
+    const status = async (observations: unknown[]) => {
+      const response = await command<{
+        result: { checks: Array<{ id: string; status: string }> };
+      }>(
+        [process.execPath, extension],
+        request("evaluate", {
+          extensionData: selectedCase.extensionData,
+          observations,
+        }),
+      );
+      expect(response.code, response.stderr).toBe(0);
+      return response.value.result.checks.find(
+        (check) => check.id === transcript.id,
+      )?.status;
+    };
+    expect(await status([accepted])).toBe("passed");
+    expect(
+      await status([
+        { ...accepted, data: { ...accepted.data, acceptedSpawns: [] } },
+      ]),
+    ).toBe("failed");
+    expect(
+      await status([
+        {
+          ...accepted,
+          data: {
+            ...accepted.data,
+            acceptedSpawns: [
+              { ...accepted.data.acceptedSpawns[0], requestedOrdinal: 0 },
+            ],
+          },
+        },
+      ]),
+    ).toBe("unavailable");
+    expect(await status([])).toBe("unavailable");
+  }
+});
+
 test("Darrow ledger checks require intact events and complete goal-control evidence", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-ledger-"));
   roots.push(root);

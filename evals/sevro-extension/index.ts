@@ -694,37 +694,56 @@ const NO_LEDGER_TRANSCRIPT_PATTERNS = new Set([
   "adaptive-delivery-preflight step|darrow-native-goal-report",
   "adaptive-delivery-preflight step|Protocol ledger",
 ]);
+const ONE_OWNER_TRANSCRIPT_PATTERNS = new Set([
+  '"type":"darrow.codex_native_single_agent_accepted"',
+  '"type":"(?:darrow.codex_native_single_agent_accepted|darrow.goal_agent_completion)"',
+  String.raw`"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"`,
+]);
+
+function caseTranscriptCheck(entry: unknown, index: number) {
+  const check = record(entry, `transcript check ${index + 1}`);
+  keys(
+    check,
+    ["name", "not_regex", "expect_regex"],
+    `transcript check ${index + 1}`,
+  );
+  const name = string(check.name, `transcript check ${index + 1} name`);
+  const id = `darrow.evals.transcript.${index + 1}`;
+  if (check.expect_regex !== undefined) {
+    if (
+      check.not_regex !== undefined ||
+      !ONE_OWNER_TRANSCRIPT_PATTERNS.has(check.expect_regex as string)
+    )
+      throw new Error(
+        `transcript check ${index + 1} has no Sevro evidence mapping`,
+      );
+    return { id, name, kind: "one-owner-accepted" };
+  }
+  const noAgent = NO_AGENT_TRANSCRIPT_PATTERNS.has(check.not_regex as string);
+  if (!noAgent && !NO_LEDGER_TRANSCRIPT_PATTERNS.has(check.not_regex as string))
+    throw new Error(
+      `transcript check ${index + 1} has no Sevro evidence mapping`,
+    );
+  return {
+    id,
+    name,
+    kind: noAgent ? "no-agent-spawn" : "no-lifecycle-ledger",
+    ...(noAgent
+      ? {}
+      : {
+          terms: (check.not_regex as string).split("|"),
+          forbidGoal: (check.not_regex as string).includes(
+            '"tool":"create_goal"',
+          ),
+        }),
+  };
+}
 
 function caseTranscriptChecks(value: unknown) {
   if (value === undefined) return null;
   if (!Array.isArray(value) || !value.length)
     throw new Error("transcript_checks must be a nonempty list");
-  return value.map((entry, index) => {
-    const check = record(entry, `transcript check ${index + 1}`);
-    keys(check, ["name", "not_regex"], `transcript check ${index + 1}`);
-    const name = string(check.name, `transcript check ${index + 1} name`);
-    const noAgent = NO_AGENT_TRANSCRIPT_PATTERNS.has(check.not_regex as string);
-    if (
-      !noAgent &&
-      !NO_LEDGER_TRANSCRIPT_PATTERNS.has(check.not_regex as string)
-    )
-      throw new Error(
-        `transcript check ${index + 1} has no Sevro evidence mapping`,
-      );
-    return {
-      id: `darrow.evals.transcript.${index + 1}`,
-      name,
-      kind: noAgent ? "no-agent-spawn" : "no-lifecycle-ledger",
-      ...(noAgent
-        ? {}
-        : {
-            terms: (check.not_regex as string).split("|"),
-            forbidGoal: (check.not_regex as string).includes(
-              '"tool":"create_goal"',
-            ),
-          }),
-    };
-  });
+  return value.map(caseTranscriptCheck);
 }
 
 function ignoredGoalPolicy(selected: RecordValue, skillDir: string | null) {
@@ -2041,6 +2060,8 @@ function nativeControlEvidence(observations: unknown) {
       controlOrdinals(calls, "collaboration", "spawn_agent").length > 0,
     attemptedGoal:
       controlOrdinals(calls, "functions", "create_goal").length > 0,
+    spawnCount: controlOrdinals(calls, "collaboration", "spawn_agent").length,
+    acceptedSpawnCount: evidence.spawns.length,
   };
 }
 
@@ -2097,6 +2118,20 @@ function noAgentOutcome(native: ReturnType<typeof nativeControlEvidence>) {
   };
 }
 
+function oneOwnerOutcome(native: ReturnType<typeof nativeControlEvidence>) {
+  return {
+    status: native
+      ? native.spawnCount === 1 && native.acceptedSpawnCount === 1
+        ? "passed"
+        : "failed"
+      : "unavailable",
+    detail: native
+      ? "Graded from one correlated native owner acceptance"
+      : "Native owner acceptance observation unavailable or incomplete",
+    evidenceRefs: native ? ["sevro.codex.native-calls"] : [],
+  };
+}
+
 function noLedgerOutcome(
   native: ReturnType<typeof nativeControlEvidence>,
   events: string | null,
@@ -2129,6 +2164,7 @@ function transcriptOutcome(
   events: string | null,
 ) {
   if (selected.kind === "no-agent-spawn") return noAgentOutcome(native);
+  if (selected.kind === "one-owner-accepted") return oneOwnerOutcome(native);
   if (selected.kind === "no-lifecycle-ledger")
     return noLedgerOutcome(native, events, selected.terms, selected.forbidGoal);
   throw new Error("unsupported native transcript check");
