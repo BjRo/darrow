@@ -3651,6 +3651,27 @@ test("Claude selected owner binds route, review, and parent handoff", async () =
     "sevro.claude.events",
   ]);
   const ownerId = "tool-owner";
+  const prepared = await command<{
+    result: { claudePluginDirs: { artifactRoots: string[] } };
+    error?: { message: string };
+  }>(
+    [process.execPath, extension],
+    request("prepare", {
+      case: selected,
+      host: {
+        id: "sevro.host.claude",
+        capabilities: [
+          "sevro.claude.tool-calls",
+          "sevro.claude.plugin-dirs",
+          "sevro.claude.explicit-invocation",
+        ],
+      },
+      condition: "passive",
+      configuration: {},
+    }),
+  );
+  expect(prepared.value.error).toBeUndefined();
+  expect(prepared.value.result.claudePluginDirs.artifactRoots).toHaveLength(2);
   const marker = createHash("sha256")
     .update("- phase: adaptive-delivery-owner")
     .digest("hex");

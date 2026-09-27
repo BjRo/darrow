@@ -2167,7 +2167,8 @@ function requireNativeEvidence(details: RecordValue, hostValue: unknown) {
   if (details.ownership === undefined && details.transcriptChecks === undefined)
     return;
   const host = record(hostValue, "candidate host");
-  const claudePolicy = details.ownership === "claude";
+  const claudePolicy =
+    details.ownership === "claude" || details.ownership === "claude-selected";
   const id = claudePolicy ? "sevro.host.claude" : "sevro.host.codex";
   const capability = claudePolicy
     ? "sevro.claude.tool-calls"
