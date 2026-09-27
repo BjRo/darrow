@@ -538,6 +538,33 @@ function caseMount(value: unknown, source: string, root: string) {
   };
 }
 
+function additionalPluginPaths(value: unknown): string[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length === 0)
+    throw new Error("additional_plugins must be a non-empty plugin-path list");
+  const paths = value.map((entry) => {
+    const source = string(entry, "additional plugin path");
+    const parts = source.split("/");
+    if (
+      parts.length !== 3 ||
+      parts[0] !== "plugins" ||
+      !parts.slice(1).every((part) => /^[a-z][a-z0-9-]*$/.test(part))
+    )
+      throw new Error("additional plugin path must name a repository plugin");
+    return source;
+  });
+  if (new Set(paths).size !== paths.length)
+    throw new Error("additional_plugins contains a duplicate path");
+  return paths;
+}
+
+function caseAdditionalPlugins(value: unknown, skillDir: string | null) {
+  const paths = additionalPluginPaths(value);
+  if (paths.length && !skillDir)
+    throw new Error("additional_plugins requires a plugin-local case");
+  return paths;
+}
+
 function casePrompt(value: unknown, invocation: string | null) {
   const prompt = string(value, "case prompt");
   if (prompt.includes("{{skill_invocation}}") && !invocation)
@@ -592,7 +619,21 @@ const CASE_FIELDS = [
   "activation_includes",
   "activation_excludes",
   "mount_plugin_skills",
+  "additional_plugins",
 ];
+
+async function caseChecks(
+  selected: RecordValue,
+  root: string,
+  skillDir: string | null,
+) {
+  return [
+    ...shellChecks(selected.checks),
+    ...headChecks(selected.expect_head_change),
+    ...(await outputChecks(selected.output_checks, root, skillDir)),
+    ...semanticOutputChecks(selected.semantic_output_checks),
+  ];
+}
 
 async function neutralCase(value: unknown, source: string, root: string) {
   const selected = record(value, "case");
@@ -605,6 +646,10 @@ async function neutralCase(value: unknown, source: string, root: string) {
     source,
     root,
   );
+  const additionalPlugins = caseAdditionalPlugins(
+    selected.additional_plugins,
+    skillDir,
+  );
   const invocation = await invocationForCase(
     root,
     skillDir,
@@ -614,12 +659,7 @@ async function neutralCase(value: unknown, source: string, root: string) {
     selected.prompt,
     invocation ? "{{sevro.codex.skill_invocation}}" : null,
   );
-  const checks = [
-    ...shellChecks(selected.checks),
-    ...headChecks(selected.expect_head_change),
-    ...(await outputChecks(selected.output_checks, root, skillDir)),
-    ...semanticOutputChecks(selected.semantic_output_checks),
-  ];
+  const checks = await caseChecks(selected, root, skillDir);
   const checkMetrics = caseCheckMetrics(selected);
   return {
     id,
@@ -634,6 +674,7 @@ async function neutralCase(value: unknown, source: string, root: string) {
         projectRoot: pathToFileURL(root).href,
         ...setup,
         ...mount,
+        ...(additionalPlugins.length ? { additionalPlugins } : {}),
         ...(invocation ? { invocation } : {}),
         ...caseActivation(selected, skillDir, mountPluginSkills),
         checkNames: checkNames(selected),
@@ -719,6 +760,76 @@ async function skillMountSource(details: RecordValue) {
   return siblingSkillSources(root, skillRoot);
 }
 
+async function pluginName(pluginRoot: string): Promise<string> {
+  const manifest = record(
+    JSON.parse(
+      await readFile(join(pluginRoot, ".codex-plugin", "plugin.json"), "utf8"),
+    ) as unknown,
+    "Codex plugin manifest",
+  );
+  const name = string(manifest.name, "Codex plugin name");
+  if (!/^[a-z][a-z0-9-]*$/.test(name))
+    throw new Error("Codex plugin name is invalid");
+  return name;
+}
+
+async function pluginSkillSources(pluginRoot: string) {
+  const skillsRoot = join(pluginRoot, "skills");
+  const entries = await readdir(skillsRoot, { withFileTypes: true });
+  const sources = [];
+  for (const entry of entries.sort((left, right) =>
+    left.name.localeCompare(right.name),
+  )) {
+    if (entry.isSymbolicLink())
+      throw new Error("additional plugin skill is a symbolic link");
+    if (!entry.isDirectory()) continue;
+    if (!portableName(entry.name))
+      throw new Error("additional plugin skill name is invalid");
+    const skillRoot = await realpath(join(skillsRoot, entry.name));
+    if (!within(pluginRoot, skillRoot))
+      throw new Error("additional plugin skill escapes its source");
+    sources.push({ skillRoot, skillName: entry.name });
+  }
+  if (!sources.length) throw new Error("additional plugin has no skills");
+  return sources;
+}
+
+async function additionalPluginSource(
+  root: string,
+  owner: string,
+  source: string,
+) {
+  if (source === owner)
+    throw new Error("additional plugin duplicates the owning plugin");
+  const sourcePath = join(root, source);
+  if ((await lstat(sourcePath)).isSymbolicLink())
+    throw new Error("additional plugin is a symbolic link");
+  const pluginRoot = await realpath(sourcePath);
+  if (!within(root, pluginRoot) || !(await stat(pluginRoot)).isDirectory())
+    throw new Error("additional plugin escapes the project root");
+  return {
+    pluginRoot,
+    name: await pluginName(pluginRoot),
+    sources: await pluginSkillSources(pluginRoot),
+  };
+}
+
+async function additionalPluginSources(details: RecordValue) {
+  const paths = additionalPluginPaths(details.additionalPlugins);
+  if (!paths.length) return [];
+  const root = await realpath(
+    fileURLToPath(string(details.projectRoot, "case project root")),
+  );
+  const owner = dirname(
+    dirname(
+      string(record(details.mount, "skill mount").skillDir, "skill directory"),
+    ),
+  );
+  return Promise.all(
+    paths.map((source) => additionalPluginSource(root, owner, source)),
+  );
+}
+
 function skillArtifact(
   bytes: Buffer,
   relativePath: string,
@@ -754,9 +865,13 @@ function hasMountedSkill(
 async function skillArtifacts(
   sources: { skillRoot: string; skillName: string }[],
   destination = ".agents/skills",
+  artifacts: SkillArtifact[] = [],
 ) {
-  const artifacts: SkillArtifact[] = [];
-  let totalBytes = 0;
+  let totalBytes = artifacts.reduce(
+    (size, artifact) =>
+      size + Buffer.from(artifact.contentBase64, "base64").byteLength,
+    0,
+  );
   async function collect(
     skillRoot: string,
     skillName: string,
@@ -817,9 +932,13 @@ async function collectPluginDirectory(
   pluginRoot: string,
   directory: string,
   parts: string[],
-  state: { artifacts: SkillArtifact[]; total: { bytes: number } },
+  state: {
+    artifacts: SkillArtifact[];
+    total: { bytes: number };
+    destination: string;
+  },
 ): Promise<void> {
-  const { artifacts, total } = state;
+  const { artifacts, total, destination } = state;
   const entries = (await readdir(directory, { withFileTypes: true })).sort(
     (left, right) => left.name.localeCompare(right.name),
   );
@@ -842,7 +961,7 @@ async function collectPluginDirectory(
     artifacts.push(
       skillArtifact(
         bytes,
-        [MARKETPLACE_ROOT, "plugin", ...next].join("/"),
+        [destination, ...next].join("/"),
         artifacts.length + 1,
         ((await stat(path)).mode & 0o111) !== 0,
       ),
@@ -852,6 +971,7 @@ async function collectPluginDirectory(
 
 async function appendPluginMechanics(
   pluginRoot: string,
+  destination: string,
   artifacts: SkillArtifact[],
   total: { bytes: number },
 ): Promise<void> {
@@ -869,18 +989,17 @@ async function appendPluginMechanics(
       await collectPluginDirectory(pluginRoot, directory, [name], {
         artifacts,
         total,
+        destination,
       });
   }
   if (
     !artifacts.some(
       (artifact) =>
-        artifact.relativePath ===
-        `${MARKETPLACE_ROOT}/plugin/.claude-plugin/plugin.json`,
+        artifact.relativePath === `${destination}/.claude-plugin/plugin.json`,
     ) ||
     !artifacts.some(
       (artifact) =>
-        artifact.relativePath ===
-        `${MARKETPLACE_ROOT}/plugin/.codex-plugin/plugin.json`,
+        artifact.relativePath === `${destination}/.codex-plugin/plugin.json`,
     )
   )
     throw new Error("Codex plugin package needs both manifests");
@@ -889,19 +1008,17 @@ async function appendPluginMechanics(
 function appendMarketplaceManifest(
   artifacts: SkillArtifact[],
   total: { bytes: number },
-  pluginName: string,
+  plugins: { name: string; source: string }[],
 ): void {
   const marketplace = Buffer.from(
     JSON.stringify({
       name: "darrow-eval",
       owner: { name: "Darrow eval" },
-      plugins: [
-        {
-          name: pluginName,
-          source: "./plugin",
-          description: "Filtered source plugin for evaluation",
-        },
-      ],
+      plugins: plugins.map(({ name, source }) => ({
+        name,
+        source,
+        description: "Filtered source plugin for evaluation",
+      })),
     }) + "\n",
   );
   total.bytes += marketplace.byteLength;
@@ -918,34 +1035,45 @@ function appendMarketplaceManifest(
 
 async function codexPluginArtifacts(
   sources: { skillRoot: string; skillName: string }[],
-  pluginName: string,
+  ownerName: string,
+  additional: Awaited<ReturnType<typeof additionalPluginSources>> = [],
 ): Promise<SkillArtifact[]> {
   const pluginRoot = dirname(dirname(sources[0]!.skillRoot));
   if (
     sources.some((source) => dirname(dirname(source.skillRoot)) !== pluginRoot)
   )
     throw new Error("plugin package mixes source roots");
-  const manifest = record(
-    JSON.parse(
-      await readFile(join(pluginRoot, ".codex-plugin", "plugin.json"), "utf8"),
-    ) as unknown,
-    "Codex plugin manifest",
-  );
-  if (manifest.name !== pluginName)
+  if ((await pluginName(pluginRoot)) !== ownerName)
     throw new Error("Codex plugin name changed after resolution");
-  const artifacts = await skillArtifacts(
-    sources,
-    `${MARKETPLACE_ROOT}/plugin/skills`,
-  );
-  const total = {
-    bytes: artifacts.reduce(
+  const packages = [
+    { pluginRoot, name: ownerName, sources, destination: "plugin" },
+    ...additional.map((item, index) => ({
+      ...item,
+      destination: `plugins/${index}-${item.name}`,
+    })),
+  ];
+  if (new Set(packages.map((item) => item.name)).size !== packages.length)
+    throw new Error("Codex marketplace plugin names must be unique");
+  const artifacts: SkillArtifact[] = [];
+  const total = { bytes: 0 };
+  for (const item of packages) {
+    const destination = `${MARKETPLACE_ROOT}/${item.destination}`;
+    await skillArtifacts(item.sources, `${destination}/skills`, artifacts);
+    total.bytes = artifacts.reduce(
       (size, artifact) =>
         size + Buffer.from(artifact.contentBase64, "base64").byteLength,
       0,
-    ),
-  };
-  await appendPluginMechanics(pluginRoot, artifacts, total);
-  appendMarketplaceManifest(artifacts, total, pluginName);
+    );
+    await appendPluginMechanics(item.pluginRoot, destination, artifacts, total);
+  }
+  appendMarketplaceManifest(
+    artifacts,
+    total,
+    packages.map(({ name, destination }) => ({
+      name,
+      source: `./${destination}`,
+    })),
+  );
   return artifacts;
 }
 
@@ -1072,31 +1200,67 @@ function requiredInvocation(
   };
 }
 
+function codexPackageHost(
+  hostValue: unknown,
+  hasAdditional: boolean,
+  hasInvocation: boolean,
+): boolean {
+  const host = record(hostValue, "candidate host");
+  const selected =
+    hasInvocation || (host.id === "sevro.host.codex" && hasAdditional);
+  if (
+    selected &&
+    (!Array.isArray(host.capabilities) ||
+      !host.capabilities.includes("sevro.codex.plugin-marketplace"))
+  )
+    throw new Error("additional plugins require the Codex plugin host");
+  return selected;
+}
+
+async function preparedMounts(details: RecordValue, hostValue: unknown) {
+  const sources =
+    details.mount === undefined ? [] : await skillMountSource(details);
+  const additional = await additionalPluginSources(details);
+  const mounted = [...sources, ...additional.flatMap((item) => item.sources)];
+  if (new Set(mounted.map((item) => item.skillName)).size !== mounted.length)
+    throw new Error("mounted skill names must be unique");
+  requireActivationSkills(details, mounted);
+  const invocation = requiredInvocation(details, mounted, hostValue);
+  const packagePlugins = codexPackageHost(
+    hostValue,
+    additional.length > 0,
+    invocation !== null,
+  );
+  const ownerName = packagePlugins
+    ? (invocation?.pluginName ??
+      (await pluginName(dirname(dirname(sources[0]!.skillRoot)))))
+    : null;
+  const artifacts = packagePlugins
+    ? await codexPluginArtifacts(sources, ownerName!, additional)
+    : await skillArtifacts(mounted);
+  return {
+    artifacts,
+    ...(packagePlugins
+      ? {
+          codexMarketplace: {
+            artifactRoot: MARKETPLACE_ROOT,
+            marketplaceName: "darrow-eval",
+            pluginNames: [ownerName!, ...additional.map((item) => item.name)],
+          },
+          ...(invocation ? { codexSkillInvocation: invocation } : {}),
+        }
+      : {}),
+  };
+}
+
 async function prepareCase(params: RecordValue) {
   const selected = record(params.case, "prepared case");
   const data = record(selected.extensionData, "case extension data");
   const details = record(data["darrow.case"], "Darrow case data");
   const setup = await caseSetup(details, string(selected.id, "case ID"));
-  const sources =
-    details.mount === undefined ? [] : await skillMountSource(details);
-  requireActivationSkills(details, sources);
-  const invocation = requiredInvocation(details, sources, params.host);
-  const artifacts = invocation
-    ? await codexPluginArtifacts(sources, invocation.pluginName)
-    : await skillArtifacts(sources);
   return {
-    artifacts,
+    ...(await preparedMounts(details, params.host)),
     requestedInstrumentation: [],
-    ...(invocation
-      ? {
-          codexMarketplace: {
-            artifactRoot: MARKETPLACE_ROOT,
-            marketplaceName: "darrow-eval",
-            pluginNames: [invocation.pluginName],
-          },
-          codexSkillInvocation: invocation,
-        }
-      : {}),
     ...(setup ? { fixtureSetup: setup } : {}),
     extensionData: {},
   };

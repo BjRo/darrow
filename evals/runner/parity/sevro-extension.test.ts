@@ -2232,3 +2232,236 @@ test("Darrow resolves skill output schemas into Sevro grading", async () => {
     configuration: { schema: { type: "object" } },
   });
 });
+
+test("additional plugins remain independent Codex packages", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-providers-"));
+  roots.push(root);
+  for (const name of ["owner", "provider"]) {
+    const plugin = join(root, `plugins/capability/${name}`);
+    await mkdir(join(plugin, ".claude-plugin"), { recursive: true });
+    await mkdir(join(plugin, ".codex-plugin"), { recursive: true });
+    await mkdir(join(plugin, "skills", name), { recursive: true });
+    await mkdir(join(plugin, "backend"), { recursive: true });
+    await writeFile(
+      join(plugin, ".claude-plugin/plugin.json"),
+      JSON.stringify({ name, version: "0.1.0" }),
+    );
+    await writeFile(
+      join(plugin, ".codex-plugin/plugin.json"),
+      JSON.stringify({ name, version: "0.1.0", skills: "./skills/" }),
+    );
+    await writeFile(
+      join(plugin, "skills", name, "SKILL.md"),
+      `---\nname: ${name}\ndescription: ${name} skill\n---\n\nUse this skill.\n`,
+    );
+    await writeFile(join(plugin, "backend/helper.txt"), `${name} tool\n`);
+  }
+  const cases = join(root, "plugins/capability/owner/skills/owner/evals");
+  await mkdir(cases);
+  const caseFile = join(cases, "providers.yaml");
+  const definition = {
+    id: "provider-composition",
+    invariant: "PROVIDER-C1",
+    activation: "positive",
+    activation_includes: ["provider"],
+    additional_plugins: ["plugins/capability/provider"],
+    prompt: "Use the owner and provider skills to report ready.",
+    fixture: {
+      commits: [{ message: "Initialize", files: { "README.md": "fixture\n" } }],
+    },
+    checks: [],
+  };
+  await writeFile(caseFile, JSON.stringify(definition));
+  const resolved = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(root).href,
+      selectors: { caseIds: [definition.id] },
+      configuration: {},
+    }),
+  );
+  expect(resolved.code, resolved.stderr).toBe(0);
+  const selected = resolved.value.result.cases[0]!;
+  const prepare = async (host: Record<string, unknown>) =>
+    command<{
+      result: {
+        codexMarketplace?: { pluginNames: string[] };
+        codexSkillInvocation?: unknown;
+        artifacts: Array<{ relativePath: string; contentBase64: string }>;
+      };
+      error?: { message: string };
+    }>(
+      [process.execPath, extension],
+      request("prepare", {
+        case: selected,
+        host,
+        condition: "passive",
+        configuration: {},
+      }),
+    );
+  const prepared = await prepare({
+    id: "sevro.host.codex",
+    capabilities: ["sevro.codex.plugin-marketplace"],
+  });
+  expect(prepared.code, prepared.stderr).toBe(0);
+  expect(prepared.value.result.codexMarketplace?.pluginNames).toEqual([
+    "owner",
+    "provider",
+  ]);
+  expect(prepared.value.result.codexSkillInvocation).toBeUndefined();
+  const artifacts = prepared.value.result.artifacts;
+  const paths = artifacts.map((item) => item.relativePath);
+  expect(paths).toContain(".sevro-marketplace/plugin/skills/owner/SKILL.md");
+  expect(paths).toContain(
+    ".sevro-marketplace/plugins/0-provider/skills/provider/SKILL.md",
+  );
+  expect(paths).toContain(
+    ".sevro-marketplace/plugins/0-provider/backend/helper.txt",
+  );
+  const marketplace = artifacts.find(
+    (item) =>
+      item.relativePath ===
+      ".sevro-marketplace/.claude-plugin/marketplace.json",
+  );
+  expect(
+    JSON.parse(Buffer.from(marketplace!.contentBase64, "base64").toString()),
+  ).toMatchObject({
+    plugins: [
+      { name: "owner", source: "./plugin" },
+      { name: "provider", source: "./plugins/0-provider" },
+    ],
+  });
+  const synthetic = await prepare({
+    id: "darrow.host.synthetic",
+    capabilities: [],
+  });
+  expect(synthetic.code, synthetic.stderr).toBe(0);
+  expect(
+    synthetic.value.result.artifacts.map((item) => item.relativePath),
+  ).toEqual(
+    expect.arrayContaining([
+      ".agents/skills/owner/SKILL.md",
+      ".agents/skills/provider/SKILL.md",
+    ]),
+  );
+  const commandFile = join(root, "extension-command.json");
+  await writeFile(commandFile, JSON.stringify([process.execPath, extension]));
+  const route = sevroCommand();
+  const dry = await command<{
+    execution: { status: string };
+    evidencePath: string;
+  }>([
+    ...route.launch,
+    "run",
+    "--json",
+    ...route.extraArgs,
+    "--extension-command-file",
+    commandFile,
+    "--extension-source-file",
+    extension,
+    "--case-id",
+    definition.id,
+    "--project-root",
+    root,
+    "--condition",
+    "passive",
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--dry",
+    "--host",
+    "codex",
+    "--codex-bin",
+    process.execPath,
+    "--codex-auth-file",
+    join(root, "unused-auth.json"),
+    "--model",
+    "synthetic-codex",
+    "--effort",
+    "low",
+    "--results-root",
+    join(root, "results"),
+  ]);
+  expect(dry.code, JSON.stringify(dry.value)).toBe(0);
+  expect(dry.value.execution.status).toBe("not_run");
+  const evidence = JSON.parse(await readFile(dry.value.evidencePath, "utf8"));
+  expect(evidence.configuration.redacted.codexMarketplace.pluginNames).toEqual([
+    "owner",
+    "provider",
+  ]);
+  await writeFile(
+    caseFile,
+    JSON.stringify({ ...definition, additional_plugins: ["../provider"] }),
+  );
+  const unsafe = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(root).href,
+      selectors: { caseIds: [definition.id] },
+      configuration: {},
+    }),
+  );
+  expect(unsafe.value.error.message).toMatch(/repository plugin/);
+});
+
+test("real composition providers fit the Sevro preparation boundary", async () => {
+  const skillDir =
+    "plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery";
+  const projectUrl = pathToFileURL(projectRoot).href;
+  const prepared = await command<{
+    result: {
+      codexMarketplace: { pluginNames: string[] };
+      artifacts: Array<{ relativePath: string }>;
+    };
+    error?: { message: string };
+  }>(
+    [process.execPath, extension],
+    request("prepare", {
+      case: {
+        id: "real-provider-package",
+        extensionData: {
+          "darrow.case": {
+            projectRoot: projectUrl,
+            source: `${skillDir}/evals/verification-existing-review.yaml`,
+            mount: {
+              projectRoot: projectUrl,
+              skillDir,
+              mountPluginSkills: true,
+            },
+            additionalPlugins: [
+              "plugins/capability/darrow-verification",
+              "plugins/capability/darrow-review",
+            ],
+            activation: {
+              class: "positive",
+              targetSkill: "adaptive-delivery",
+              includes: ["verify-change", "code-review"],
+            },
+          },
+        },
+      },
+      host: {
+        id: "sevro.host.codex",
+        capabilities: ["sevro.codex.plugin-marketplace"],
+      },
+      condition: "passive",
+      configuration: {},
+    }),
+  );
+  expect(prepared.code, prepared.stderr).toBe(0);
+  expect(prepared.value.result.codexMarketplace.pluginNames).toEqual([
+    "darrow-adaptive-delivery",
+    "darrow-verification",
+    "darrow-review",
+  ]);
+  expect(
+    prepared.value.result.artifacts.map((item) => item.relativePath),
+  ).toEqual(
+    expect.arrayContaining([
+      ".sevro-marketplace/plugin/skills/adaptive-delivery/SKILL.md",
+      ".sevro-marketplace/plugins/0-darrow-verification/skills/verify-change/SKILL.md",
+      ".sevro-marketplace/plugins/1-darrow-review/skills/code-review/SKILL.md",
+    ]),
+  );
+});

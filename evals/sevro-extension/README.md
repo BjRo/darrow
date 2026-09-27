@@ -21,6 +21,10 @@ Executable skill files keep owner execute permission in the fixture and retained
 artifact copy. Cases with `mount_plugin_skills: true` mount all sibling skills
 from the owning plugin through the same project-discovery path, with a shared
 artifact limit. Competition activation requires that sibling set.
+Cases with `additional_plugins` package every named provider separately in
+the isolated Codex marketplace, including its skills and contained mechanics.
+The provider paths are repository-relative and cannot escape the project root;
+activation membership is checked against the combined mounted skill set.
 For a plugin-local case containing `{{skill_invocation}}`, resolution binds the
 owning Codex plugin manifest and Sevro renders `$plugin:skill` once per trial.
 Preparation packages
