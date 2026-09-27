@@ -20,8 +20,9 @@ Executable skill files keep owner execute permission in the fixture and retained
 artifact copy. Cases with `mount_plugin_skills: true` mount all sibling skills
 from the owning plugin through the same project-discovery path, with a shared
 artifact limit. Competition activation requires that sibling set.
-For a plugin-local case containing `{{skill_invocation}}`, resolution uses the
-owning Codex plugin manifest to render `$plugin:skill`. Preparation packages
+For a plugin-local case containing `{{skill_invocation}}`, resolution binds the
+owning Codex plugin manifest and Sevro renders `$plugin:skill` once per trial.
+Preparation packages
 the selected skill, both plugin manifests, and the plugin's backend, agents,
 bin, config, and hooks when present. It excludes colocated evals and caches,
 then declares a local `darrow-eval` marketplace to Sevro. Sevro verifies the
@@ -32,7 +33,9 @@ when they mount their owning skill. A case can require an observed skill
 sequence, supporting skill membership, or exclusion; every named skill must be
 in the mounted set. A complete host observation with `primarySkill` and ordered
 `observedSkills` yields a separate `darrow.evals.activation` domain outcome.
-The bundled Codex route supplies `sevro.codex.skill-reads` for completed direct
+The bundled Codex route supplies `sevro.codex.explicit-invocation` after a
+completed turn receives exactly one runner-rendered token. It does not require
+a visible skill-file read. Implicit cases use `sevro.codex.skill-reads` for completed direct
 reads of a mounted skill body through direct `cat`, complete exact `sed` pages,
 and exact `lean-ctx -c` wrappers around those reads. The same receipt covers
 skill files in the exact installed plugin roots returned by Codex. Synthetic adapters can

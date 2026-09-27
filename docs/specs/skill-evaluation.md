@@ -155,15 +155,15 @@ mounted `SKILL.md`. Missing, duplicated, malformed, or failed probe evidence is
 unavailable rather than a pass. The retained trial identifies the evidence
 source, primary skill, and ordered observed skills. Final-answer resemblance,
 hidden reasoning, and unbounded transcript capture are not activation evidence.
-During Sevro migration, the Darrow extension accepts an implicit positive or
-negative activation case only when its owning skill is mounted. It grades a
-complete, normalized host observation as a domain outcome separate from task
-checks. Missing, partial, or malformed observations yield unavailable activation;
-they never change the task verdict. Other activation forms remain unsupported
-until their mounts and host probes are represented faithfully.
-The bundled Sevro Codex host's direct mounted-skill read receipt is accepted
-only with its expected host source and probe method; synthetic receipts remain
-available for protocol parity tests.
+During Sevro migration, the Darrow extension grades a complete, normalized
+host observation as a domain outcome separate from task checks. Explicit Codex
+cases require the runner's exact-token dispatch receipt; implicit cases require
+the mounted-skill read receipt. Each receipt is accepted only with its expected
+host source and probe method. Missing, partial, or malformed observations yield
+unavailable activation; they never change the task verdict. Other activation
+forms remain unsupported until their mounts and host probes are represented
+faithfully. Synthetic receipts remain available for implicit protocol parity
+tests.
 A later file reread of an explicitly dispatched owner does not select it again
 or change its primary position. Native reconciliation still preserves the
 observed order among supporting skills and fails closed on genuine conflicts.

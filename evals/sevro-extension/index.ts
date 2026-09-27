@@ -585,7 +585,7 @@ async function neutralCase(value: unknown, source: string, root: string) {
   );
   const prompt = casePrompt(
     selected.prompt,
-    invocation ? `$${invocation.pluginName}:${invocation.skillName}` : null,
+    invocation ? "{{sevro.codex.skill_invocation}}" : null,
   );
   const checks = [
     ...shellChecks(selected.checks),
@@ -1018,11 +1018,11 @@ function requireActivationSkills(
   }
 }
 
-function requiredPluginName(
+function requiredInvocation(
   details: RecordValue,
   sources: { skillRoot: string; skillName: string }[],
   hostValue: unknown,
-): string | null {
+): { pluginName: string; skillName: string } | null {
   const invocation =
     details.invocation === undefined
       ? null
@@ -1032,12 +1032,16 @@ function requiredPluginName(
   if (
     host.id !== "sevro.host.codex" ||
     !Array.isArray(host.capabilities) ||
-    !host.capabilities.includes("sevro.codex.plugin-marketplace")
+    !host.capabilities.includes("sevro.codex.plugin-marketplace") ||
+    !host.capabilities.includes("sevro.codex.explicit-invocation")
   )
     throw new Error("skill invocation requires the Codex plugin host");
   if (!sources.some((source) => source.skillName === invocation.skillName))
     throw new Error("invoked skill is absent from the package");
-  return string(invocation.pluginName, "Codex plugin name");
+  return {
+    pluginName: string(invocation.pluginName, "Codex plugin name"),
+    skillName: string(invocation.skillName, "invoked skill name"),
+  };
 }
 
 async function prepareCase(params: RecordValue) {
@@ -1048,20 +1052,21 @@ async function prepareCase(params: RecordValue) {
   const sources =
     details.mount === undefined ? [] : await skillMountSource(details);
   requireActivationSkills(details, sources);
-  const pluginName = requiredPluginName(details, sources, params.host);
-  const artifacts = pluginName
-    ? await codexPluginArtifacts(sources, pluginName)
+  const invocation = requiredInvocation(details, sources, params.host);
+  const artifacts = invocation
+    ? await codexPluginArtifacts(sources, invocation.pluginName)
     : await skillArtifacts(sources);
   return {
     artifacts,
     requestedInstrumentation: [],
-    ...(pluginName
+    ...(invocation
       ? {
           codexMarketplace: {
             artifactRoot: MARKETPLACE_ROOT,
             marketplaceName: "darrow-eval",
-            pluginNames: [pluginName],
+            pluginNames: [invocation.pluginName],
           },
+          codexSkillInvocation: invocation,
         }
       : {}),
     ...(setup ? { fixtureSetup: setup } : {}),
@@ -1127,15 +1132,20 @@ function activationExpectation(value: unknown) {
   };
 }
 
-function activationObservation(value: unknown): RecordValue | null {
+function activationObservation(
+  value: unknown,
+  explicit: boolean,
+): RecordValue | null {
   if (!Array.isArray(value))
     throw new Error("evaluation observations must be an array");
   const matches = value.filter(
     (item) =>
       item &&
       typeof item === "object" &&
-      (item.id === "darrow.activation" ||
-        item.id === "sevro.codex.skill-reads"),
+      (explicit
+        ? item.id === "sevro.codex.explicit-invocation"
+        : item.id === "darrow.activation" ||
+          item.id === "sevro.codex.skill-reads"),
   );
   return matches.length === 1
     ? record(matches[0], "activation observation")
@@ -1158,7 +1168,14 @@ function skillSequence(value: unknown): string[] | null {
 function supportedActivationSource(
   observation: RecordValue,
   data: RecordValue,
+  explicit: boolean,
 ): boolean {
+  if (explicit)
+    return (
+      observation.id === "sevro.codex.explicit-invocation" &&
+      observation.source === "sevro.host.codex" &&
+      data.method === "explicit_invocation"
+    );
   if (observation.id === "darrow.activation") return true;
   return (
     observation.id === "sevro.codex.skill-reads" &&
@@ -1167,11 +1184,14 @@ function supportedActivationSource(
   );
 }
 
-function observedActivation(observation: RecordValue | null) {
+function observedActivation(
+  observation: RecordValue | null,
+  explicit: boolean,
+) {
   if (observation?.completeness !== "complete") return null;
   const data = activationData(observation.data);
   if (!data) return null;
-  if (!supportedActivationSource(observation, data)) return null;
+  if (!supportedActivationSource(observation, data, explicit)) return null;
   const observedSkills = skillSequence(data.observedSkills);
   if (!observedSkills) return null;
   const primarySkill = data.primarySkill;
@@ -1302,8 +1322,9 @@ function evaluateCase(params: RecordValue) {
   if (details.activation === undefined)
     return { checks: [], metrics, domainOutcomes: [] };
   const expected = activationExpectation(details.activation);
-  const observation = activationObservation(params.observations);
-  const observed = observedActivation(observation);
+  const explicit = details.invocation !== undefined;
+  const observation = activationObservation(params.observations, explicit);
+  const observed = observedActivation(observation, explicit);
   const status = activationStatus(expected, observed);
   return {
     checks: [],
@@ -1347,6 +1368,7 @@ if (import.meta.main) {
             optionalCapabilities: [
               "sevro.fixture.setup",
               "sevro.codex.plugin-marketplace",
+              "sevro.codex.explicit-invocation",
             ],
             graders: [],
             taskVerdictPolicies: [],

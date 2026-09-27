@@ -261,6 +261,27 @@ test("Darrow activation needs a complete and consistent host observation", async
   expect(nativePassed.value.result.domainOutcomes).toMatchObject([
     { status: "passed", evidenceRefs: ["sevro.codex.skill-reads"] },
   ]);
+  const explicitData = {
+    "darrow.case": {
+      ...extensionData["darrow.case"],
+      invocation: { pluginName: "probe", skillName: "verify-change" },
+    },
+  };
+  const readOnly = await evaluate([native], explicitData);
+  expect(readOnly.value.result.domainOutcomes[0]!.status).toBe("unavailable");
+  const dispatch = {
+    ...native,
+    id: "sevro.codex.explicit-invocation",
+    data: { ...native.data, method: "explicit_invocation" },
+  };
+  const dispatched = await evaluate([native, dispatch], explicitData);
+  expect(dispatched.value.result.domainOutcomes).toMatchObject([
+    { status: "passed", evidenceRefs: ["sevro.codex.explicit-invocation"] },
+  ]);
+  const repeatedDispatch = await evaluate([dispatch, dispatch], explicitData);
+  expect(repeatedDispatch.value.result.domainOutcomes[0]!.status).toBe(
+    "unavailable",
+  );
   const foreign = await evaluate([
     { ...native, source: "darrow.host.synthetic" },
   ]);
@@ -1244,7 +1265,7 @@ test("explicit Codex skill invocation packages the owning plugin for Sevro", asy
   expect(resolved.code, resolved.stderr).toBe(0);
   const selected = resolved.value.result.cases[0]!;
   expect(selected.prompt).toBe(
-    "Run $probe:probe in {{sevro.workspace}} and return ready.",
+    "Run {{sevro.codex.skill_invocation}} in {{sevro.workspace}} and return ready.",
   );
   const prepared = await command<{
     result: {
@@ -1253,6 +1274,7 @@ test("explicit Codex skill invocation packages the owning plugin for Sevro", asy
         marketplaceName: string;
         pluginNames: string[];
       };
+      codexSkillInvocation: { pluginName: string; skillName: string };
       artifacts: Array<{
         relativePath: string;
         contentBase64: string;
@@ -1266,7 +1288,10 @@ test("explicit Codex skill invocation packages the owning plugin for Sevro", asy
       case: selected,
       host: {
         id: "sevro.host.codex",
-        capabilities: ["sevro.codex.plugin-marketplace"],
+        capabilities: [
+          "sevro.codex.plugin-marketplace",
+          "sevro.codex.explicit-invocation",
+        ],
       },
       condition: "passive",
       configuration: {},
@@ -1277,6 +1302,10 @@ test("explicit Codex skill invocation packages the owning plugin for Sevro", asy
     artifactRoot: ".sevro-marketplace",
     marketplaceName: "darrow-eval",
     pluginNames: ["probe"],
+  });
+  expect(prepared.value.result.codexSkillInvocation).toEqual({
+    pluginName: "probe",
+    skillName: "probe",
   });
   const paths = prepared.value.result.artifacts.map(
     (item) => item.relativePath,
@@ -1356,7 +1385,6 @@ test("explicit Codex skill invocation packages the owning plugin for Sevro", asy
   roots.push(fakeRoot);
   const fakeCodex = join(fakeRoot, "fake-codex");
   const quotedCodex = `'${installedCodex.replaceAll("'", `'"'"'`)}'`;
-  const skillBody = await readFile(join(skill, "SKILL.md"), "utf8");
   await writeFile(
     fakeCodex,
     `#!/bin/sh
@@ -1368,7 +1396,6 @@ test -f "$skill_file" || exit 98
 /bin/cat >/dev/null
 /bin/cat <<SEVRO_EVENTS
 {"type":"thread.started","thread_id":"plugin-turn"}
-{"type":"item.completed","item":{"id":"skill","type":"command_execution","command":"cat $skill_file","aggregated_output":${JSON.stringify(skillBody)},"exit_code":0,"status":"completed"}}
 {"type":"item.completed","item":{"type":"agent_message","text":"ready"}}
 {"type":"turn.completed","usage":{"input_tokens":12,"output_tokens":4}}
 SEVRO_EVENTS
@@ -1416,9 +1443,32 @@ SEVRO_EVENTS
     {
       id: "darrow.evals.activation",
       status: "passed",
-      evidenceRefs: ["sevro.codex.skill-reads"],
+      evidenceRefs: ["sevro.codex.explicit-invocation"],
     },
   ]);
+  const liveEvidence = JSON.parse(
+    await readFile(live.value.evidencePath, "utf8"),
+  );
+  expect(liveEvidence.trials[0].observations).toContainEqual({
+    id: "sevro.codex.explicit-invocation",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "explicit_invocation",
+      primarySkill: "probe",
+      observedSkills: ["probe"],
+    },
+  });
+  expect(liveEvidence.trials[0].observations).toContainEqual({
+    id: "sevro.codex.skill-reads",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "skill_file_read_probe",
+      primarySkill: null,
+      observedSkills: [],
+    },
+  });
 });
 
 test("Darrow command reserves extension and identity options", () => {
