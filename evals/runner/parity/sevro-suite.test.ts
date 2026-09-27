@@ -178,6 +178,21 @@ test("suite runs every selected mode and case through Sevro public commands", as
     { name: "passive", condition: "passive" },
     { name: "enforced", condition: "enforced" },
   ]);
+  expect(manifest.report.error).toBeNull();
+  const report = JSON.parse(await readFile(manifest.report.jsonPath, "utf8"));
+  expect(report.format).toBe("sevro.report.v1");
+  expect(report.summary).toEqual({
+    cases: 4,
+    passed: 4,
+    failed: 0,
+    notAssessed: 0,
+  });
+  expect(
+    report.rows.map((row: { resultFile: string }) => row.resultFile),
+  ).toEqual(manifest.cells.map((cell: { result: string }) => cell.result));
+  expect(await readFile(manifest.report.markdownPath, "utf8")).toContain(
+    "# Sevro evaluation report",
+  );
   expect(
     manifest.cells.map((cell: { caseId: string; mode: string }) => [
       cell.mode,
@@ -238,6 +253,8 @@ test("suite retains failed cells and continues the remaining public runs", async
   const manifest = JSON.parse(
     await readFile(join(results, "suite-run.json"), "utf8"),
   );
+  const report = JSON.parse(await readFile(manifest.report.jsonPath, "utf8"));
+  expect(report.summary).toMatchObject({ passed: 2, failed: 2 });
   expect(
     manifest.cells.map((cell: { exitCode: number }) => cell.exitCode),
   ).toEqual([0, 1, 0, 1]);
@@ -295,6 +312,9 @@ test("suite interruption cancels the active Sevro cell and stops selection", asy
     );
     expect(manifest.interrupted).toBe("SIGTERM");
     expect(manifest.cells).toHaveLength(1);
+    const report = JSON.parse(await readFile(manifest.report.jsonPath, "utf8"));
+    expect(report.rows).toHaveLength(1);
+    expect(report.rows[0].execution).toBe("cancelled");
     expect(manifest.cells[0].provenance.runner.source).toBe(
       process.env.SEVRO_CHECKOUT ? "checkout" : "package",
     );

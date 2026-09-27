@@ -393,9 +393,10 @@ shared surface. The fixture uses the explicit local-checkout path while Sevro
 is unreleased. A package test packs a temporary source copy, removes that copy,
 then installs and runs Sevro in a separate consumer without Git metadata. Suite
 selection now has a separate public-command suite fixture for supported Codex
-passive/enforced cells. Full ablations, route overrides, and reports remain on
-the original compatibility baseline until their own public-command comparison
-passes.
+passive/enforced cells. Its generic report runs through `sevro report` and
+retains separate task, execution, and grading states. Full ablations, route
+overrides, and Darrow-specific reports remain on the original compatibility
+baseline until their own public-command comparison passes.
 
 - Use one trial per invocation while diagnosing so stop-at-first-failure is
   real:

@@ -5,6 +5,7 @@ import { isAbsolute, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { parse as parseYaml } from "yaml";
 import { selectCaseIds } from "./index";
+import { sevroCommand } from "./sevro-command";
 
 const repositoryRoot = resolve(import.meta.dir, "../..");
 
@@ -344,6 +345,75 @@ async function captureCell(child: {
   }
 }
 
+async function publicReport(paths: string[], json: boolean): Promise<string> {
+  const route = sevroCommand();
+  const child = Bun.spawn(
+    [
+      ...route.launch,
+      "report",
+      ...(json ? ["--json"] : []),
+      ...paths.flatMap((path) => ["--result-file", path]),
+    ],
+    { stdout: "pipe", stderr: "pipe" },
+  );
+  const [stdout, , code] = await Promise.all([
+    new Response(child.stdout).text(),
+    new Response(child.stderr).text(),
+    child.exited,
+  ]);
+  if (code !== 0) throw new Error("public Sevro report failed");
+  return stdout;
+}
+
+async function suiteReports(resultsRoot: string, cells: Cell[]) {
+  const paths = cells.flatMap((cell) => (cell.result ? [cell.result] : []));
+  const omittedCells = cells.length - paths.length;
+  if (!paths.length)
+    return {
+      jsonPath: null,
+      markdownPath: null,
+      omittedCells,
+      error: "No Sevro result files available",
+    };
+  try {
+    const json = await publicReport(paths, true);
+    const parsed = object(JSON.parse(json) as unknown, "Sevro report");
+    const inputs = parsed.inputs;
+    if (
+      parsed.format !== "sevro.report.v1" ||
+      !Array.isArray(inputs) ||
+      inputs.length !== paths.length ||
+      inputs.some(
+        (input, index) =>
+          object(input, "report input").resultFile !== paths[index],
+      )
+    )
+      throw new Error("public Sevro report omitted a suite result");
+    const markdown = await publicReport(paths, false);
+    const jsonPath = join(resultsRoot, "report.json");
+    const markdownPath = join(resultsRoot, "report.md");
+    await Promise.all([
+      writeFile(jsonPath, json),
+      writeFile(markdownPath, markdown),
+    ]);
+    return { jsonPath, markdownPath, omittedCells, error: null };
+  } catch {
+    return {
+      jsonPath: null,
+      markdownPath: null,
+      omittedCells,
+      error: "Public Sevro report failed",
+    };
+  }
+}
+
+async function saveManifest(resultsRoot: string, manifest: unknown) {
+  await writeFile(
+    join(resultsRoot, "suite-run.json"),
+    JSON.stringify(manifest, null, 2),
+  );
+}
+
 export async function runSuite(argv: string[]) {
   const request = suiteInvocation(argv);
   const { suitePath, projectRoot, resultsRoot, trials, threshold } = request;
@@ -363,6 +433,7 @@ export async function runSuite(argv: string[]) {
     caseIds,
     interrupted: null as Interrupt | null,
     cells: [] as Cell[],
+    report: null as Awaited<ReturnType<typeof suiteReports>> | null,
   };
   await mkdir(resultsRoot, { recursive: true });
   cells: for (const mode of suite.modes) {
@@ -375,18 +446,18 @@ export async function runSuite(argv: string[]) {
       );
       manifest.cells.push(outcome.cell);
       manifest.interrupted = outcome.interrupted;
-      await writeFile(
-        join(resultsRoot, "suite-run.json"),
-        JSON.stringify(manifest, null, 2),
-      );
+      await saveManifest(resultsRoot, manifest);
       if (outcome.interrupted) break cells;
     }
   }
+  manifest.report = await suiteReports(resultsRoot, manifest.cells);
+  await saveManifest(resultsRoot, manifest);
   return {
     manifest: join(resultsRoot, "suite-run.json"),
     cells: manifest.cells.length,
     failed: manifest.cells.filter((cell) => cell.exitCode !== 0).length,
     interrupted: manifest.interrupted,
+    report: manifest.report,
   };
 }
 
@@ -399,7 +470,7 @@ if (import.meta.main) {
         ? 130
         : result.interrupted === "SIGTERM"
           ? 143
-          : result.failed
+          : result.failed || result.report.error
             ? 1
             : 0;
   } catch (error) {

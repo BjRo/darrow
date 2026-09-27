@@ -124,8 +124,13 @@ records the suite content digest, selected cells, Sevro result paths, evidence
 paths, exit codes, and the runner, project, extension, model, and effort
 provenance verified from each retained Sevro result. Failed cells remain in the manifest while later cells
 run. SIGINT or SIGTERM cancels the active run, retains its cell, and stops the
-suite. The command exits 1 if any cell fails. Ablations, route overrides, and
-report generation still use the legacy suite command.
+suite. The command exits 1 if any cell or the public report fails. The suite
+also invokes `sevro report` and writes its versioned `report.json` and Markdown
+`report.md` beside the manifest. The manifest records their absolute paths and
+any cells without a JSON result. The generic report preserves task, execution,
+grading, routes, and unknown measurements; it does not claim matched ablations.
+Ablations, route overrides, and Darrow-specific benchmark interpretation still
+use the legacy suite command.
 
 The parity test also prepares the mounted skill through Sevro's bundled Codex
 route with `--dry`, validating its protocol identity and retained artifacts
