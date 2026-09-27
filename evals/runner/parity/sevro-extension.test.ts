@@ -908,6 +908,95 @@ test("Darrow grades accepted owner assertions from correlated native receipts", 
   }
 });
 
+test("Darrow grades a resumed conversation and its unchanged workspace boundary", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-continuation-"));
+  roots.push(root);
+  const cases = join(root, "evals/experiments/sample/cases");
+  await mkdir(cases, { recursive: true });
+  await writeFile(
+    join(cases, "continuation.yaml"),
+    JSON.stringify({
+      id: "continuation",
+      invariant: "CONTINUATION-C1",
+      prompt: "Wait for the next request.",
+      follow_up_prompt: "Continue now.",
+      fixture: {
+        commits: [
+          { message: "chore: init", files: { "README.md": "ready\n" } },
+        ],
+      },
+      checks: [],
+      transcript_checks: [
+        {
+          name: "same conversation resumed",
+          expect_regex: String.raw`"type":"darrow\.eval\.follow_up_turn"`,
+        },
+        {
+          name: "workspace unchanged before reply",
+          not_regex: String.raw`"type":"darrow\.eval\.follow_up_turn"(?![^\n]*"pre_feedback_worktree_unchanged":true)[^\n]*[\s\S]*"type":"darrow\.codex_native_`,
+        },
+      ],
+    }),
+  );
+  const selected = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(root).href,
+      selectors: { caseIds: ["continuation"] },
+      configuration: {},
+    }),
+  );
+  expect(selected.code, selected.stderr).toBe(0);
+  const selectedCase = selected.value.result.cases[0]!;
+  expect(selectedCase.requiredEvidence).toEqual([]);
+  const observation = {
+    id: "sevro.codex.continuation",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "same_thread_resume",
+      threadId: "thread-1",
+      preFollowUpWorktreeUnchanged: true,
+    },
+  };
+  const statuses = async (observations: unknown[]) => {
+    const response = await command<{
+      result: { checks: Array<{ id: string; status: string }> };
+    }>(
+      [process.execPath, extension],
+      request("evaluate", {
+        extensionData: selectedCase.extensionData,
+        observations,
+      }),
+    );
+    expect(response.code, response.stderr).toBe(0);
+    return response.value.result.checks.map((check) => check.status);
+  };
+  expect(await statuses([observation])).toEqual(["passed", "passed"]);
+  expect(
+    await statuses([
+      {
+        ...observation,
+        data: { ...observation.data, preFollowUpWorktreeUnchanged: false },
+      },
+    ]),
+  ).toEqual(["passed", "failed"]);
+  expect(
+    await statuses([
+      {
+        ...observation,
+        completeness: "partial",
+        data: { ...observation.data, preFollowUpWorktreeUnchanged: null },
+      },
+    ]),
+  ).toEqual(["passed", "unavailable"]);
+  expect(await statuses([])).toEqual(["unavailable", "unavailable"]);
+  expect(await statuses([observation, observation])).toEqual([
+    "unavailable",
+    "unavailable",
+  ]);
+});
+
 test("Darrow ledger checks require intact events and complete goal-control evidence", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-ledger-"));
   roots.push(root);

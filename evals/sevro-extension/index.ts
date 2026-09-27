@@ -685,6 +685,7 @@ const NO_AGENT_TRANSCRIPT_PATTERNS = new Set([
   '"type":"darrow.codex_native_spawn"|"name":"Agent"',
   String.raw`"tool":"spawn_agent"|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"`,
   String.raw`"tool":"spawn_agent"|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"|"name":"Agent"`,
+  '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"name":"Agent"|"name":"Task"',
 ]);
 const NO_LEDGER_TRANSCRIPT_PATTERN =
   'adaptive-delivery-preflight step|Protocol ledger|"tool":"create_goal"';
@@ -701,6 +702,24 @@ const ONE_OWNER_TRANSCRIPT_PATTERNS = new Set([
   '"type":"(?:darrow.codex_native_single_agent_accepted|darrow.goal_agent_completion)"',
   String.raw`"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"`,
 ]);
+const CONTINUATION_BOUNDARY_PATTERNS = new Set([
+  String.raw`"type":"darrow\.eval\.follow_up_turn"`,
+  '"type":"darrow.eval.follow_up_turn","thread_id":"[^"]+"',
+]);
+const CONTINUATION_UNCHANGED_PATTERNS = new Set([
+  String.raw`"type":"darrow.eval.follow_up_turn"[^\n]*"pre_feedback_worktree_unchanged":true`,
+]);
+const CONTINUATION_CHANGED_PATTERN = String.raw`"type":"darrow\.eval\.follow_up_turn"(?![^\n]*"pre_feedback_worktree_unchanged":true)[^\n]*[\s\S]*"type":"darrow\.codex_native_`;
+
+function expectedTranscriptKind(pattern: unknown): string | null {
+  if (ONE_OWNER_TRANSCRIPT_PATTERNS.has(pattern as string))
+    return "one-owner-accepted";
+  if (CONTINUATION_BOUNDARY_PATTERNS.has(pattern as string))
+    return "continuation-boundary";
+  if (CONTINUATION_UNCHANGED_PATTERNS.has(pattern as string))
+    return "unchanged-before-continuation";
+  return null;
+}
 
 function caseTranscriptCheck(entry: unknown, index: number) {
   const check = record(entry, `transcript check ${index + 1}`);
@@ -712,15 +731,14 @@ function caseTranscriptCheck(entry: unknown, index: number) {
   const name = string(check.name, `transcript check ${index + 1} name`);
   const id = `darrow.evals.transcript.${index + 1}`;
   if (check.expect_regex !== undefined) {
-    if (
-      check.not_regex !== undefined ||
-      !ONE_OWNER_TRANSCRIPT_PATTERNS.has(check.expect_regex as string)
-    )
-      throw new Error(
-        `transcript check ${index + 1} has no Sevro evidence mapping`,
-      );
-    return { id, name, kind: "one-owner-accepted" };
+    const kind = expectedTranscriptKind(check.expect_regex);
+    if (kind && check.not_regex === undefined) return { id, name, kind };
+    throw new Error(
+      `transcript check ${index + 1} has no Sevro evidence mapping`,
+    );
   }
+  if (check.not_regex === CONTINUATION_CHANGED_PATTERN)
+    return { id, name, kind: "unchanged-before-continuation" };
   const noAgent = NO_AGENT_TRANSCRIPT_PATTERNS.has(check.not_regex as string);
   if (!noAgent && !NO_LEDGER_TRANSCRIPT_PATTERNS.has(check.not_regex as string))
     throw new Error(
@@ -823,7 +841,14 @@ function policyEvidence(
   transcriptChecks: ReturnType<typeof caseTranscriptChecks>,
 ) {
   return [
-    ...(ownership || transcriptChecks ? ["sevro.codex.native-calls"] : []),
+    ...(ownership ||
+    transcriptChecks?.some((check) =>
+      ["no-agent-spawn", "one-owner-accepted", "no-lifecycle-ledger"].includes(
+        check.kind,
+      ),
+    )
+      ? ["sevro.codex.native-calls"]
+      : []),
     ...(transcriptChecks?.some((check) => check.kind === "no-lifecycle-ledger")
       ? ["sevro.codex.events"]
       : []),
@@ -2219,15 +2244,81 @@ function noLedgerOutcome(
   };
 }
 
+function validContinuationThread(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9._-]{1,128}$/.test(value);
+}
+
+function validContinuationComparison(
+  observation: RecordValue | null,
+  data: RecordValue | null,
+): boolean {
+  if (observation?.completeness === "complete")
+    return typeof data?.preFollowUpWorktreeUnchanged === "boolean";
+  return (
+    observation?.completeness === "partial" &&
+    data?.preFollowUpWorktreeUnchanged === null
+  );
+}
+
+function continuationEvidence(observations: unknown) {
+  const observation = uniqueObservation(
+    observations,
+    "sevro.codex.continuation",
+  );
+  const data = observation ? activationData(observation.data) : null;
+  if (
+    observation?.source !== "sevro.host.codex" ||
+    data?.method !== "same_thread_resume" ||
+    !validContinuationThread(data?.threadId) ||
+    !validContinuationComparison(observation, data)
+  )
+    return null;
+  return {
+    unchanged:
+      observation.completeness === "complete"
+        ? (data.preFollowUpWorktreeUnchanged as boolean)
+        : null,
+  };
+}
+
+function continuationOutcome(
+  kind: string,
+  evidence: ReturnType<typeof continuationEvidence>,
+) {
+  const status = !evidence
+    ? "unavailable"
+    : kind === "continuation-boundary"
+      ? "passed"
+      : evidence.unchanged === null
+        ? "unavailable"
+        : evidence.unchanged
+          ? "passed"
+          : "failed";
+  return {
+    status,
+    detail:
+      status === "unavailable"
+        ? "Codex continuation boundary or workspace comparison unavailable"
+        : "Graded from the Codex same-thread continuation boundary",
+    evidenceRefs: evidence ? ["sevro.codex.continuation"] : [],
+  };
+}
+
 function transcriptOutcome(
   selected: RecordValue,
   native: ReturnType<typeof nativeControlEvidence>,
   events: string | null,
+  continuation: ReturnType<typeof continuationEvidence>,
 ) {
   if (selected.kind === "no-agent-spawn") return noAgentOutcome(native);
   if (selected.kind === "one-owner-accepted") return oneOwnerOutcome(native);
   if (selected.kind === "no-lifecycle-ledger")
     return noLedgerOutcome(native, events, selected.terms, selected.forbidGoal);
+  if (
+    selected.kind === "continuation-boundary" ||
+    selected.kind === "unchanged-before-continuation"
+  )
+    return continuationOutcome(selected.kind, continuation);
   throw new Error("unsupported native transcript check");
 }
 
@@ -2240,6 +2331,13 @@ async function nativeTranscriptChecks(
   if (!Array.isArray(value) || !value.length)
     throw new Error("native transcript checks are invalid");
   const evidence = nativeControlEvidence(observations);
+  const continuation = value.some((entry) =>
+    ["continuation-boundary", "unchanged-before-continuation"].includes(
+      String(record(entry, "native transcript check").kind),
+    ),
+  )
+    ? continuationEvidence(observations)
+    : null;
   const events = value.some(
     (entry) =>
       record(entry, "native transcript check").kind === "no-lifecycle-ledger",
@@ -2250,7 +2348,7 @@ async function nativeTranscriptChecks(
     const selected = record(entry, "native transcript check");
     return {
       id: string(selected.id, "native transcript check ID"),
-      ...transcriptOutcome(selected, evidence, events),
+      ...transcriptOutcome(selected, evidence, events, continuation),
     };
   });
 }
