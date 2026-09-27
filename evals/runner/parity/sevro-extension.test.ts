@@ -155,6 +155,35 @@ test("Darrow extension resolves supported cases and rejects unsupported fixtures
   expect(selected.extensionData["darrow.case"].invariant).toBe(
     "ORCH-ROUTING-LOCALIZED-MECHANICAL",
   );
+  const unchangedHead = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", resolveParams("create-commit-clean-tree")),
+  );
+  expect(unchangedHead.code, unchangedHead.stderr).toBe(0);
+  expect(unchangedHead.value.result.cases[0]!.checks).toContainEqual({
+    id: "darrow.head.unchanged",
+    grader: "sevro.git-head",
+    configuration: { kind: "unchanged" },
+  });
+  const advancedHead = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", resolveParams("create-commit-no-attribution")),
+  );
+  expect(advancedHead.code, advancedHead.stderr).toBe(0);
+  expect(advancedHead.value.result.cases[0]!.checks).toEqual(
+    expect.arrayContaining([
+      {
+        id: "darrow.head.changed",
+        grader: "sevro.git-head",
+        configuration: { kind: "changed" },
+      },
+      {
+        id: "darrow.head.lineage",
+        grader: "sevro.git-head",
+        configuration: { kind: "base-ancestor" },
+      },
+    ]),
+  );
   const activationCase = await command<ExtensionReply>(
     [process.execPath, extension],
     request("resolve", resolveParams("author-agent-skill-validate-read-only")),
@@ -1213,6 +1242,80 @@ export default {
     "a".repeat(64),
   );
   expect(evidence.trials[0].condition.requested).toBe("passive");
+});
+
+test("Darrow head expectations run through Sevro's Git grader", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-head-"));
+  roots.push(root);
+  const cases = join(root, "evals/experiments/head/cases");
+  await mkdir(cases, { recursive: true });
+  for (const [id, expectHeadChange] of [
+    ["head-advanced", true],
+    ["head-unchanged", false],
+  ] as const) {
+    await writeFile(
+      join(cases, `${id}.yaml`),
+      JSON.stringify({
+        id,
+        invariant: "HEAD-EXPECTATION",
+        prompt: expectHeadChange ? "Commit the update." : "Leave HEAD alone.",
+        fixture: {
+          commits: [
+            { message: "Initialize", files: { "README.md": "fixture\n" } },
+          ],
+        },
+        expect_head_change: expectHeadChange,
+        checks: [],
+      }),
+    );
+  }
+  const adapter = join(root, "candidate.ts");
+  await writeFile(
+    adapter,
+    `import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
+export default {
+  id: "darrow.host.synthetic", model: "synthetic-v1", effort: "none",
+  async run({ workspace, prompt }) {
+    if (prompt.includes("Commit the update.")) {
+      await writeFile(join(workspace, "README.md"), "updated\\n");
+      const proc = Bun.spawn(["git", "-c", "user.name=Sevro Test", "-c", "user.email=sevro@example.test", "commit", "-am", "Update fixture"], { cwd: workspace, stdout: "pipe", stderr: "pipe" });
+      if ((await proc.exited) !== 0) throw new Error(await new Response(proc.stderr).text());
+    }
+    return { finalMessage: "ready", complete: true };
+  },
+};
+`,
+  );
+  for (const [id, expectedIds] of [
+    ["head-advanced", ["darrow.head.changed", "darrow.head.lineage"]],
+    ["head-unchanged", ["darrow.head.unchanged"]],
+  ] as const) {
+    const result = await command<CliReply>([
+      process.execPath,
+      resolve(import.meta.dir, "../../sevro-extension/run.ts"),
+      "--case-id",
+      id,
+      "--project-root",
+      root,
+      "--results-root",
+      join(root, `results-${id}`),
+      "--",
+      "--adapter-module",
+      adapter,
+      "--condition",
+      "passive",
+      "--trials",
+      "1",
+      "--threshold",
+      "1",
+    ]);
+    expect(result.code, result.stderr).toBe(0);
+    expect(result.value.task.verdict).toBe("passed");
+    expect(result.value.cases[0]!.trials[0]!.checks).toMatchObject(
+      expectedIds.map((checkId) => ({ id: checkId, status: "passed" })),
+    );
+  }
 });
 
 test("explicit Codex skill invocation packages the owning plugin for Sevro", async () => {

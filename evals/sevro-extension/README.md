@@ -10,6 +10,7 @@ plugin-local skill case. It accepts generated Git commits or a pinned corpus
 repository, optional working-tree and staged files, committed scaffolding,
 Git hooks, fixture stub binaries, local fixture tickets, fixture setup scripts,
 hidden shell checks with exit-code and stdout assertions,
+Git HEAD change and ancestry expectations,
 combined final-message checks with skill-owned JSON Schemas, and semantic
 propositions graded by Sevro's separate evaluator route.
 For a plugin-local case, `prepare` mounts the selected skill's files under

@@ -356,6 +356,32 @@ function semanticOutputChecks(value: unknown) {
   });
 }
 
+function headChecks(value: unknown) {
+  if (value === undefined || value === null) return [];
+  if (typeof value !== "boolean")
+    throw new Error("expect_head_change must be a boolean or null");
+  return value
+    ? [
+        {
+          id: "darrow.head.changed",
+          grader: "sevro.git-head",
+          configuration: { kind: "changed" },
+        },
+        {
+          id: "darrow.head.lineage",
+          grader: "sevro.git-head",
+          configuration: { kind: "base-ancestor" },
+        },
+      ]
+    : [
+        {
+          id: "darrow.head.unchanged",
+          grader: "sevro.git-head",
+          configuration: { kind: "unchanged" },
+        },
+      ];
+}
+
 function skillDirForSource(source: string): string | null {
   const parts = source.split("/");
   return parts.length === 7 &&
@@ -558,6 +584,7 @@ const CASE_FIELDS = [
   "prompt",
   "fixture",
   "checks",
+  "expect_head_change",
   "output_checks",
   "semantic_output_checks",
   "activation",
@@ -589,6 +616,7 @@ async function neutralCase(value: unknown, source: string, root: string) {
   );
   const checks = [
     ...shellChecks(selected.checks),
+    ...headChecks(selected.expect_head_change),
     ...(await outputChecks(selected.output_checks, root, skillDir)),
     ...semanticOutputChecks(selected.semantic_output_checks),
   ];
