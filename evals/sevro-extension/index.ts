@@ -677,6 +677,13 @@ const OWNERSHIP_CHECKS = [
 
 const NO_AGENT_TRANSCRIPT_PATTERN =
   '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"type":"darrow.goal_agent_completion"';
+const NO_AGENT_TRANSCRIPT_PATTERNS = new Set([
+  NO_AGENT_TRANSCRIPT_PATTERN,
+  '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"name":"Agent"',
+  '"type":"darrow.codex_native_spawn"|"name":"Agent"',
+  String.raw`"tool":"spawn_agent"|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"`,
+  String.raw`"tool":"spawn_agent"|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"|"name":"Agent"`,
+]);
 const NO_LEDGER_TRANSCRIPT_PATTERN =
   'adaptive-delivery-preflight step|Protocol ledger|"tool":"create_goal"';
 const NO_PREFLIGHT_GOAL_PATTERN =
@@ -690,8 +697,9 @@ function caseTranscriptChecks(value: unknown) {
     const check = record(entry, `transcript check ${index + 1}`);
     keys(check, ["name", "not_regex"], `transcript check ${index + 1}`);
     const name = string(check.name, `transcript check ${index + 1} name`);
+    const noAgent = NO_AGENT_TRANSCRIPT_PATTERNS.has(check.not_regex as string);
     if (
-      check.not_regex !== NO_AGENT_TRANSCRIPT_PATTERN &&
+      !noAgent &&
       check.not_regex !== NO_LEDGER_TRANSCRIPT_PATTERN &&
       check.not_regex !== NO_PREFLIGHT_GOAL_PATTERN
     )
@@ -701,13 +709,8 @@ function caseTranscriptChecks(value: unknown) {
     return {
       id: `darrow.evals.transcript.${index + 1}`,
       name,
-      kind:
-        check.not_regex === NO_AGENT_TRANSCRIPT_PATTERN
-          ? "no-agent-spawn"
-          : "no-lifecycle-ledger",
-      ...(check.not_regex === NO_AGENT_TRANSCRIPT_PATTERN
-        ? {}
-        : { terms: (check.not_regex as string).split("|") }),
+      kind: noAgent ? "no-agent-spawn" : "no-lifecycle-ledger",
+      ...(noAgent ? {} : { terms: (check.not_regex as string).split("|") }),
     };
   });
 }

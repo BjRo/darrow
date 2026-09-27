@@ -70,6 +70,7 @@ interface ExtensionReply {
         grader: string;
         configuration: Record<string, unknown>;
       }>;
+      requiredEvidence: string[];
       extensionData: {
         "darrow.case": {
           invariant: string;
@@ -644,6 +645,38 @@ test("Darrow translates no-agent transcript assertions into bounded native check
     "unavailable",
   );
   expect((await status([native, native]))?.status).toBe("unavailable");
+  for (const id of [
+    "ticket-to-pr-compatible-orchestrator",
+    "author-agent-skill-reuse-current-review",
+    "verification-missing-review",
+  ]) {
+    const variant = await command<ExtensionReply>(
+      [process.execPath, extension],
+      request("resolve", {
+        projectRoot: pathToFileURL(projectRoot).href,
+        selectors: { caseIds: [id] },
+        configuration: {},
+      }),
+    );
+    expect(variant.code, variant.stderr).toBe(0);
+    const variantCase = variant.value.result.cases[0]!;
+    expect(variantCase.requiredEvidence).toContain("sevro.codex.native-calls");
+    const evaluated = await command<{
+      result: { checks: Array<{ id: string; status: string }> };
+    }>(
+      [process.execPath, extension],
+      request("evaluate", {
+        observations: [spawn],
+        extensionData: variantCase.extensionData,
+      }),
+    );
+    expect(evaluated.code, evaluated.stderr).toBe(0);
+    expect(
+      evaluated.value.result.checks.find(
+        (check) => check.id === "darrow.evals.transcript.1",
+      )?.status,
+    ).toBe("failed");
+  }
   const unrelated = await command<ExtensionReply>(
     [process.execPath, extension],
     request("resolve", {
