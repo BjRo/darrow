@@ -13,6 +13,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { parse as parseYaml } from "yaml";
 import { sevroCommand } from "../../sevro-extension/sevro-command";
 import { invocation } from "../../sevro-extension/run";
 
@@ -1225,6 +1226,233 @@ test("Darrow orders accepted owners around the native follow-up boundary", async
       ])
     ).at(-1),
   ).toBe("failed");
+});
+
+test("Darrow grades readiness skill reads on their actual turn", async () => {
+  const selected = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(projectRoot).href,
+      selectors: { caseIds: ["goal-readiness-prior-assessed-omitted"] },
+      configuration: {},
+    }),
+  );
+  expect(selected.code, selected.stderr).toBe(0);
+  const selectedCase = selected.value.result.cases[0]!;
+  expect(selectedCase.requiredEvidence).toContain(
+    "sevro.codex.initial-skill-reads",
+  );
+  expect(selectedCase.requiredEvidence).toContain(
+    "sevro.codex.follow-up-skill-reads",
+  );
+  const initial = {
+    id: "sevro.codex.initial-skill-reads",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "skill_file_read_probe",
+      primarySkill: "assess-implementation-readiness",
+      observedSkills: ["assess-implementation-readiness"],
+    },
+  };
+  const followUp = {
+    id: "sevro.codex.follow-up-skill-reads",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "skill_file_read_probe",
+      primarySkill: null,
+      observedSkills: [],
+    },
+  };
+  const statuses = async (observations: unknown[]) => {
+    const response = await command<{
+      result: { checks: Array<{ id: string; status: string }> };
+    }>(
+      [process.execPath, extension],
+      request("evaluate", {
+        extensionData: selectedCase.extensionData,
+        observations,
+      }),
+    );
+    expect(response.code, response.stderr).toBe(0);
+    return response.value.result.checks
+      .filter((check) =>
+        ["darrow.evals.transcript.1", "darrow.evals.transcript.2"].includes(
+          check.id,
+        ),
+      )
+      .map((check) => check.status);
+  };
+  expect(await statuses([initial, followUp])).toEqual(["passed", "passed"]);
+  expect(
+    await statuses([
+      {
+        ...initial,
+        data: { ...initial.data, primarySkill: null, observedSkills: [] },
+      },
+      followUp,
+    ]),
+  ).toEqual(["failed", "passed"]);
+  expect(
+    await statuses([
+      initial,
+      {
+        ...followUp,
+        data: {
+          ...followUp.data,
+          primarySkill: "assess-implementation-readiness",
+          observedSkills: ["assess-implementation-readiness"],
+        },
+      },
+    ]),
+  ).toEqual(["passed", "failed"]);
+  expect(
+    await statuses([initial, { ...followUp, completeness: "partial" }]),
+  ).toEqual(["passed", "unavailable"]);
+});
+
+test("Darrow rejects a recipe read or Skill call in the follow-up turn", async () => {
+  const source = parseYaml(
+    await readFile(
+      join(
+        projectRoot,
+        "plugins/task-recipe/darrow-ticket-to-pr/skills/ticket-to-pr/evals/feedback-relay.yaml",
+      ),
+      "utf8",
+    ),
+  ) as { transcript_checks: Array<{ not_regex?: string }> };
+  const pattern = source.transcript_checks[4]?.not_regex;
+  expect(pattern).toBeTruthy();
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-turn-skill-"));
+  roots.push(root);
+  const cases = join(root, "evals/experiments/sample/cases");
+  await mkdir(cases, { recursive: true });
+  await writeFile(
+    join(cases, "turn-skill.yaml"),
+    JSON.stringify({
+      id: "turn-skill",
+      invariant: "TURN-SKILL-C1",
+      prompt: "Wait for feedback.",
+      follow_up_prompt: "Continue after feedback.",
+      fixture: {
+        commits: [
+          { message: "chore: init", files: { "README.md": "ready\n" } },
+        ],
+      },
+      checks: [],
+      transcript_checks: [
+        { name: "recipe is not read again", not_regex: pattern },
+      ],
+    }),
+  );
+  const selected = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(root).href,
+      selectors: { caseIds: ["turn-skill"] },
+      configuration: {},
+    }),
+  );
+  expect(selected.code, selected.stderr).toBe(0);
+  const selectedCase = selected.value.result.cases[0]!;
+  const followUp = {
+    id: "sevro.codex.follow-up-skill-reads",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "skill_file_read_probe",
+      primarySkill: null,
+      observedSkills: [],
+    },
+  };
+  const native = {
+    id: "sevro.codex.native-calls",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "native_session",
+      calls: [],
+      toolCalls: [],
+      acceptedSpawns: [],
+      submittedExecCalls: 0,
+    },
+  };
+  const continuation = {
+    id: "sevro.codex.continuation",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "same_thread_resume",
+      threadId: "thread-1",
+      nativeAfterOrdinal: 5,
+      preFollowUpWorktreeUnchanged: true,
+    },
+  };
+  const status = async (observations: unknown[]) => {
+    const response = await command<{
+      result: { checks: Array<{ status: string }> };
+    }>(
+      [process.execPath, extension],
+      request("evaluate", {
+        extensionData: selectedCase.extensionData,
+        observations,
+      }),
+    );
+    expect(response.code, response.stderr).toBe(0);
+    return response.value.result.checks[0]?.status;
+  };
+  expect(await status([followUp, native, continuation])).toBe("passed");
+  expect(
+    await status([
+      {
+        ...followUp,
+        data: {
+          ...followUp.data,
+          primarySkill: "ticket-to-pr",
+          observedSkills: ["ticket-to-pr"],
+        },
+      },
+      native,
+      continuation,
+    ]),
+  ).toBe("failed");
+  expect(
+    await status([
+      followUp,
+      {
+        ...native,
+        data: {
+          ...native.data,
+          toolCalls: [{ ordinal: 6, namespace: "other", name: "Skill" }],
+        },
+      },
+      continuation,
+    ]),
+  ).toBe("failed");
+  expect(
+    await status([
+      followUp,
+      {
+        ...native,
+        data: {
+          ...native.data,
+          toolCalls: [{ ordinal: 4, namespace: "other", name: "Skill" }],
+        },
+      },
+      continuation,
+    ]),
+  ).toBe("passed");
+  expect(
+    await status([
+      followUp,
+      native,
+      {
+        ...continuation,
+        data: { ...continuation.data, nativeAfterOrdinal: null },
+      },
+    ]),
+  ).toBe("unavailable");
 });
 
 test("Darrow grades feedback to the prior owner after a real follow-up", async () => {
