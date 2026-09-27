@@ -277,6 +277,62 @@ test("Darrow extension resolves supported cases and rejects unsupported fixtures
   expect(unsupported.value.error.message).toMatch(/unknown_field/);
 });
 
+test("Darrow preserves case host restrictions and ignores diagnostic goal policy", async () => {
+  const codexOnly = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(projectRoot).href,
+      selectors: { caseIds: ["ticket-to-pr-unattended-grant"] },
+      configuration: {},
+    }),
+  );
+  expect(codexOnly.code, codexOnly.stderr).toBe(0);
+  const selected = codexOnly.value.result.cases[0]!;
+  expect(selected.extensionData["darrow.case"]).toMatchObject({
+    hostIds: ["sevro.host.codex"],
+  });
+  const refused = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("prepare", {
+      case: selected,
+      host: { id: "sevro.host.synthetic", capabilities: [] },
+      condition: "passive",
+      configuration: {},
+    }),
+  );
+  expect(refused.value.error.message).toMatch(/excludes the candidate host/);
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-diagnostic-"));
+  roots.push(root);
+  const cases = join(root, "evals/experiments/sample/cases");
+  await mkdir(cases, { recursive: true });
+  await writeFile(
+    join(cases, "diagnostic.yaml"),
+    JSON.stringify({
+      id: "diagnostic",
+      invariant: "DIAGNOSTIC-C1",
+      prompt: "Return ready.",
+      goal_report: "forbidden",
+      goal_route_checks: false,
+      fixture: {
+        commits: [
+          { message: "chore: init", files: { "README.md": "ready\n" } },
+        ],
+      },
+      checks: [],
+    }),
+  );
+  const diagnostic = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(root).href,
+      selectors: { caseIds: ["diagnostic"] },
+      configuration: {},
+    }),
+  );
+  expect(diagnostic.code, diagnostic.stderr).toBe(0);
+  expect(diagnostic.value.result.cases[0]!.checks).toEqual([]);
+});
+
 test("Darrow activation needs a complete and consistent host observation", async () => {
   const extensionData = {
     "darrow.case": {

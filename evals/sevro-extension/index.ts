@@ -652,6 +652,7 @@ const CASE_FIELDS = [
   "invariant",
   "prompt",
   "follow_up_prompt",
+  "harnesses",
   "fixture",
   "checks",
   "expect_head_change",
@@ -751,8 +752,21 @@ function ignoredGoalPolicy(selected: RecordValue, skillDir: string | null) {
   return (
     !skillDir?.endsWith("/adaptive-delivery") &&
     selected.goal_report === "forbidden" &&
-    selected.goal_route_checks === undefined
+    (selected.goal_route_checks === undefined ||
+      selected.goal_route_checks === false)
   );
+}
+
+function caseHostIds(value: unknown): string[] | null {
+  if (value === undefined) return null;
+  if (
+    !Array.isArray(value) ||
+    !value.length ||
+    value.some((name) => name !== "codex" && name !== "claude") ||
+    new Set(value).size !== value.length
+  )
+    throw new Error("case harnesses must be unique supported host names");
+  return value.map((name) => `sevro.host.${name}`);
 }
 
 function compositionOwnership(selected: RecordValue) {
@@ -876,6 +890,7 @@ async function neutralCase(value: unknown, source: string, root: string) {
   keys(selected, CASE_FIELDS, "case");
   const id = string(selected.id, "case ID");
   const invariant = string(selected.invariant, "case invariant");
+  const hostIds = caseHostIds(selected.harnesses);
   const { fixture, ...setup } = caseFixture(selected.fixture);
   const { skillDir, mountPluginSkills, ...mount } = caseMount(
     selected.mount_plugin_skills,
@@ -904,6 +919,7 @@ async function neutralCase(value: unknown, source: string, root: string) {
     extensionData: {
       "darrow.case": {
         invariant,
+        ...(hostIds ? { hostIds } : {}),
         source,
         projectRoot: pathToFileURL(root).href,
         ...setup,
@@ -1584,10 +1600,23 @@ function withoutSkill(configuration: unknown): boolean {
   return selected.withoutSkill === true;
 }
 
+function requireCaseHost(hostIds: unknown, hostValue: unknown): void {
+  if (hostIds === undefined) return;
+  const host = record(hostValue, "candidate host");
+  if (
+    !Array.isArray(hostIds) ||
+    !hostIds.length ||
+    hostIds.some((id) => typeof id !== "string") ||
+    !hostIds.includes(host.id)
+  )
+    throw new Error("selected case excludes the candidate host");
+}
+
 async function prepareCase(params: RecordValue) {
   const selected = record(params.case, "prepared case");
   const data = record(selected.extensionData, "case extension data");
   const details = record(data["darrow.case"], "Darrow case data");
+  requireCaseHost(details.hostIds, params.host);
   const omitSkills = withoutSkill(params.configuration);
   if (omitSkills && details.invocation !== undefined)
     throw new Error("explicit skill invocation cannot run without skills");
