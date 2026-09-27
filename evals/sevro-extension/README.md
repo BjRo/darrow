@@ -118,6 +118,9 @@ Advice-only blocked retries and missing or ambiguous ticket cases use the same
 verified events to reject forbidden delegation. The blocked retries also
 require complete native-call evidence; ticket cases require complete skill-read
 evidence.
+The ordinary engineering case requires a complete skill-read receipt and
+digest-verified events to reject adaptive-delivery selection, preflight, and
+the declared owner markers without restricting unrelated delegation.
 Ticket composition cases bind the publisher skill read to the sole accepted
 child session and grade later parent work from ordered native calls. Ticket
 delegation cases require a completed adaptive-delivery skill read and reject

@@ -765,12 +765,17 @@ const PUBLISHER_READ_PATTERNS = new Map([
 ]);
 const PARENT_TOOL_AFTER_AGENT_PATTERN =
   '"type":"darrow.codex_native_parent_tool_after_agent"';
+const ORDINARY_ENGINEERING_NO_ADAPTIVE_DELIVERY_PATTERN = String.raw`"skill":"adaptive-delivery"|adaptive-delivery-preflight prepare|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"|"name":"Agent"[^\n]*"adaptive-delivery-owner"`;
 const FORBIDDEN_EVENT_REGEX = new Map([
   [
     TICKET_INPUT_NO_DELEGATION_PATTERN,
     new RegExp(TICKET_INPUT_NO_DELEGATION_PATTERN),
   ],
   [ADVICE_ONLY_NO_OWNER_PATTERN, new RegExp(ADVICE_ONLY_NO_OWNER_PATTERN)],
+  [
+    ORDINARY_ENGINEERING_NO_ADAPTIVE_DELIVERY_PATTERN,
+    new RegExp(ORDINARY_ENGINEERING_NO_ADAPTIVE_DELIVERY_PATTERN),
+  ],
   [TICKET_PRE_RUN_PATTERN, new RegExp(TICKET_PRE_RUN_PATTERN)],
   [TICKET_UNAVAILABLE_PATTERN, new RegExp(TICKET_UNAVAILABLE_PATTERN)],
 ]);
@@ -877,6 +882,14 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
       forbiddenEventPattern: ADVICE_ONLY_NO_OWNER_PATTERN,
       forbidSpawn: true,
       forbidAgentTool: true,
+    },
+  ],
+  [
+    ORDINARY_ENGINEERING_NO_ADAPTIVE_DELIVERY_PATTERN,
+    {
+      kind: "inactive-controls",
+      forbiddenSkills: ["adaptive-delivery"],
+      forbiddenEventPattern: ORDINARY_ENGINEERING_NO_ADAPTIVE_DELIVERY_PATTERN,
     },
   ],
   [

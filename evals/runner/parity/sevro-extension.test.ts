@@ -991,6 +991,85 @@ test("Darrow doctor controls require intact negative evidence", async () => {
   ).toBe("failed");
 });
 
+test("Darrow keeps adaptive delivery inactive for ordinary engineering", async () => {
+  const selected = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(projectRoot).href,
+      selectors: { caseIds: ["goal-ordinary-engineering-does-not-activate"] },
+      configuration: {},
+    }),
+  );
+  expect(selected.code, selected.stderr).toBe(0);
+  const selectedCase = selected.value.result.cases[0]!;
+  expect(selectedCase.requiredEvidence).toContain("sevro.codex.skill-reads");
+  expect(selectedCase.requiredEvidence).toContain("sevro.codex.events");
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-ordinary-"));
+  roots.push(root);
+  const events = async (name: string, content: string) => {
+    const path = join(root, name);
+    await writeFile(path, content);
+    return {
+      id: "sevro.codex.events",
+      path: pathToFileURL(path).href,
+      sha256: createHash("sha256").update(content).digest("hex"),
+    };
+  };
+  const clean = await events("clean.jsonl", "turn.completed\n");
+  const owner = await events(
+    "owner.jsonl",
+    '{"name":"Agent","phase":"adaptive-delivery-owner"}\n',
+  );
+  const skills = {
+    id: "sevro.codex.skill-reads",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "skill_file_read_probe",
+      primarySkill: null,
+      observedSkills: [],
+    },
+  };
+  const status = async (observations: unknown[], artifacts: unknown[]) => {
+    const response = await command<{
+      result: { checks: Array<{ id: string; status: string }> };
+    }>(
+      [process.execPath, extension],
+      request("evaluate", {
+        extensionData: selectedCase.extensionData,
+        observations,
+        artifacts,
+      }),
+    );
+    expect(response.code, response.stderr).toBe(0);
+    return response.value.result.checks.find(
+      (check) => check.id === "darrow.evals.transcript.1",
+    )?.status;
+  };
+  expect(await status([skills], [clean])).toBe("passed");
+  expect(await status([skills], [owner])).toBe("failed");
+  expect(
+    await status(
+      [
+        {
+          ...skills,
+          data: {
+            ...skills.data,
+            primarySkill: "adaptive-delivery",
+            observedSkills: ["adaptive-delivery"],
+          },
+        },
+      ],
+      [clean],
+    ),
+  ).toBe("failed");
+  expect(await status([skills], [])).toBe("unavailable");
+  expect(await status([], [clean])).toBe("unavailable");
+  expect(await status([skills], [{ ...clean, sha256: "0".repeat(64) }])).toBe(
+    "unavailable",
+  );
+});
+
 test("Darrow guards advice-only and missing-ticket delegation", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-delegation-"));
   roots.push(root);
