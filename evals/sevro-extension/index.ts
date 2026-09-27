@@ -726,6 +726,8 @@ const TICKET_RECIPE_INACTIVE_PATTERN = String.raw`"skill":"ticket-to-pr"|"skill"
 const STEERING_SAME_OWNER_PATTERN = String.raw`(?:"type":"darrow.codex_native_single_agent_accepted"[^\n]*"agent_ref":"([^"]+)"[\s\S]*"type":"darrow.codex_native_feedback"[^\n]*"tool":"(?:followup_task|send_message)"[^\n]*"agent_ref":"\1"[^\n]*"same_owner":true[^\n]*"after_follow_up":true[^\n]*"delivery":"unverified"|"type":"darrow.goal_agent_completion"[^\n]*"agent_id":"([^"]+)"[\s\S]*"type":"darrow.goal_agent_resumption"[^\n]*"agent_id":"\2"[^\n]*"same_owner":true)`;
 const REJECTED_FEEDBACK_PATTERN = String.raw`(?:"type":"darrow.human_feedback_relay"[^\n]*"same_owner":true[\s\S]*"type":"darrow.goal_agent_resumption"[^\n]*"same_owner":true|"type":"darrow.codex_native_feedback"[^\n]*"tool":"(?:followup_task|send_message)"[^\n]*"same_owner":true[^\n]*"after_follow_up":true[^\n]*"response_observed":true)`;
 const RELAYED_FEEDBACK_PATTERN = String.raw`(?:"type":"darrow.human_feedback_relay"[^\n]*"same_owner":true[\s\S]*"type":"darrow.goal_agent_resumption"[^\n]*"status":"completed"[^\n]*"same_owner":true|"type":"darrow.codex_native_feedback"[^\n]*"tool":"(?:followup_task|send_message)"[^\n]*"same_owner":true[^\n]*"after_follow_up":true[^\n]*"response_observed":true)`;
+const READINESS_PRE_OWNER_PATTERN =
+  '"type":"darrow\\.codex_native_pre_owner_skill_read","actor":"parent","pre_owner_skill":"assess-implementation-readiness","status":"completed"|"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"[\\s\\S]*"type":"darrow\\.goal_agent_completion"';
 const READINESS_BEFORE_CONTINUATION_PATTERN = String.raw`"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"[\s\S]*"type":"darrow.eval.follow_up_turn"`;
 const READINESS_AFTER_CONTINUATION_PATTERN = String.raw`"type":"darrow.eval.follow_up_turn"[\s\S]*"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"`;
 const TICKET_REINVOKED_AFTER_CONTINUATION_PATTERN = String.raw`"type":"darrow.eval.follow_up_turn"[\s\S]*(?:"name":"Skill"[^\n]*ticket-to-pr|"type":"darrow.skill_read_probe"[^\n]*"skill":"ticket-to-pr")`;
@@ -1008,6 +1010,11 @@ function expectedTranscriptSelection(pattern: unknown) {
       kind: "skill-before-continuation",
       skill: "assess-implementation-readiness",
     };
+  if (pattern === READINESS_PRE_OWNER_PATTERN)
+    return {
+      kind: "pre-owner-skill-read",
+      skill: "assess-implementation-readiness",
+    };
   const responseRequired = SAME_OWNER_FEEDBACK_PATTERNS.get(pattern as string);
   if (responseRequired !== undefined)
     return { kind: "same-owner-feedback", responseRequired };
@@ -1167,6 +1174,7 @@ const TRANSCRIPT_EVIDENCE = new Map([
   ["no-native-goal-control", ["sevro.codex.native-calls"]],
   ["skills-inactive", ["sevro.codex.native-calls", "sevro.codex.skill-reads"]],
   ["same-owner-feedback", ["sevro.codex.native-calls"]],
+  ["pre-owner-skill-read", ["sevro.codex.native-calls"]],
   ["no-plaintext-feedback-mismatch", ["sevro.codex.native-calls"]],
   ["no-second-owner", ["sevro.codex.native-calls"]],
   ["skill-before-continuation", ["sevro.codex.initial-skill-reads"]],
@@ -2560,6 +2568,73 @@ function nativeControlEvidence(observations: unknown) {
   };
 }
 
+function validParentReadCounts(diagnostic: RecordValue, readCount: number) {
+  return (
+    Number.isSafeInteger(diagnostic.readAttempts) &&
+    (diagnostic.readAttempts as number) >= readCount &&
+    Number.isSafeInteger(diagnostic.commandExecutions) &&
+    (diagnostic.commandExecutions as number) >=
+      (diagnostic.readAttempts as number)
+  );
+}
+
+function parentReadShape(diagnostic: RecordValue | null) {
+  const skills = skillSequence(diagnostic?.observedSkills);
+  const rawReads = diagnostic?.completedReads;
+  if (
+    diagnostic?.completeness !== "complete" ||
+    diagnostic.truncated !== false ||
+    !skills ||
+    !Array.isArray(rawReads) ||
+    !validParentReadCounts(diagnostic, rawReads.length)
+  )
+    return null;
+  return { skills, rawReads };
+}
+
+function validParentReadEntry(
+  read: RecordValue | null,
+  skills: string[],
+  priorOrdinal: number,
+) {
+  return (
+    !!read &&
+    typeof read.skill === "string" &&
+    skills.includes(read.skill) &&
+    Number.isSafeInteger(read.ordinal) &&
+    (read.ordinal as number) > priorOrdinal
+  );
+}
+
+function parentReadCompletions(
+  observations: unknown,
+  native: ReturnType<typeof nativeControlEvidence>,
+) {
+  if (!native) return null;
+  const observation = uniqueObservation(
+    observations,
+    "sevro.codex.native-calls",
+  );
+  const data = observation ? activationData(observation.data) : null;
+  const shape = parentReadShape(activationData(data?.parentReadDiagnostics));
+  if (!shape) return null;
+  const { skills, rawReads } = shape;
+  const reads = rawReads.map(activationData);
+  if (
+    reads.some(
+      (read, index) =>
+        !validParentReadEntry(
+          read,
+          skills,
+          index === 0 ? -1 : (reads[index - 1]?.ordinal as number),
+        ),
+    ) ||
+    skills.some((skill) => !reads.some((read) => read?.skill === skill))
+  )
+    return null;
+  return reads as RecordValue[];
+}
+
 function validChildSessionOrder(
   children: Array<RecordValue | null>,
   expected: unknown[],
@@ -3277,6 +3352,33 @@ function ownerBoundaryOutcome(
   };
 }
 
+function preOwnerSkillReadOutcome(
+  selected: RecordValue,
+  native: ReturnType<typeof nativeControlEvidence>,
+  parentReads: ReturnType<typeof parentReadCompletions>,
+) {
+  if (selected.skill !== "assess-implementation-readiness")
+    throw new Error("pre-owner skill check configuration is invalid");
+  if (!native || !parentReads || native.acceptedSpawnCount !== 1)
+    return {
+      status: "unavailable",
+      detail: "Complete parent reads and one accepted owner boundary required",
+      evidenceRefs: [],
+    };
+  const ownerStart = native.acceptedSpawns[0]!.requestedOrdinal as number;
+  return {
+    status: parentReads.some(
+      (read) =>
+        read.skill === selected.skill && (read.ordinal as number) < ownerStart,
+    )
+      ? "passed"
+      : "failed",
+    detail:
+      "Graded from verified parent skill completion before native owner launch",
+    evidenceRefs: ["sevro.codex.native-calls"],
+  };
+}
+
 function noReplacementAfterContinuationOutcome(
   native: ReturnType<typeof nativeControlEvidence>,
   continuation: ReturnType<typeof continuationEvidence>,
@@ -3577,6 +3679,7 @@ function transcriptOutcome(
   selected: RecordValue,
   context: {
     native: ReturnType<typeof nativeControlEvidence>;
+    parentReads: ReturnType<typeof parentReadCompletions>;
     nested: RecordValue[] | null;
     children: ReturnType<typeof boundChildSessions>;
     events: string | null;
@@ -3589,6 +3692,8 @@ function transcriptOutcome(
   },
 ) {
   const { native, continuation, skills, feedback } = context;
+  if (selected.kind === "pre-owner-skill-read")
+    return preOwnerSkillReadOutcome(selected, native, context.parentReads);
   const direct = nativeTranscriptOutcome(selected, native, skills);
   if (direct) return direct;
   const feedbackOutcome = feedbackTranscriptOutcome(
@@ -3648,6 +3753,9 @@ function transcriptObservationContext(
   observations: unknown,
 ) {
   const native = nativeControlEvidence(observations);
+  const parentReads = kinds.has("pre-owner-skill-read")
+    ? parentReadCompletions(observations, native)
+    : null;
   const reader = readerObservationContext(kinds, observations, native);
   const feedback =
     kinds.has("same-owner-feedback") ||
@@ -3676,6 +3784,7 @@ function transcriptObservationContext(
     : null;
   return {
     native,
+    parentReads,
     ...reader,
     feedback,
     skills,
