@@ -10,7 +10,18 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import NoReturn
 
-from . import check, finalization, provider, report, result, routing, scope, storage
+from . import (
+    check,
+    finalization,
+    provider,
+    reader_feedback,
+    reader_inputs,
+    report,
+    result,
+    routing,
+    scope,
+    storage,
+)
 from .common import ReviewError, read_text, require, root_directory, serialize
 from .records import validate_result
 
@@ -161,6 +172,13 @@ def unpin_scope(args: list[str]) -> str:
 def result_command(args: list[str]) -> str:
     require(args, "Usage: review-result COMMAND FILE [FILE]")
     command, rest = args[0], args[1:]
+    readers = {
+        "prepare-reader": prepare_reader,
+        "read-reader": read_reader,
+        "reader-feedback": reader_correction,
+    }
+    if command in readers:
+        return readers[command](rest)
     if command == "finalize":
         return finalize_result(rest)
     counts = {
@@ -178,6 +196,32 @@ def result_command(args: list[str]) -> str:
         "Usage: review-result COMMAND FILE [FILE]",
     )
     return result_operation(command, rest)
+
+
+def prepare_reader(args: list[str]) -> str:
+    parser = argparse.ArgumentParser(
+        prog="review-result prepare-reader", allow_abbrev=False
+    )
+    for name in ("manifest", "axis", "context"):
+        parser.add_argument("--" + name, required=True)
+    parser.add_argument("--check", action="append", default=[])
+    parser.add_argument("--original", default="")
+    parsed = parser.parse_args(args)
+    return reader_inputs.prepare(
+        parsed.manifest, parsed.axis, parsed.context, parsed.check, parsed.original
+    )
+
+
+def read_reader(args: list[str]) -> str:
+    parsed = options("review-result read-reader", args, ("input",))
+    return reader_inputs.read(parsed.input)
+
+
+def reader_correction(args: list[str]) -> str:
+    parsed = options(
+        "review-result reader-feedback", args, ("input", "agent-id", "error")
+    )
+    return reader_feedback.feedback(parsed.input, parsed.agent_id, parsed.error)
 
 
 def finalize_result(args: list[str]) -> str:

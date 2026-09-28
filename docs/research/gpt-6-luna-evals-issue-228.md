@@ -855,6 +855,114 @@ contains all three result sets and both failed-trial assessments. Colocated
 the frozen candidate hashes and observations. Raw results are gitignored;
 this section preserves the conclusions in the repository.
 
+#### Review follow-up: generated reader inputs (2026-09-28)
+
+The **0.8.3** candidate prepares a separate immutable input for each review
+axis in both comprehensive review and fix verification. The helper binds the
+pinned scope, captured checks, selected source contents and citation paths,
+and installed Standards baseline. Fix inputs also preserve each axis's
+original findings, attempted repairs, prior scope, carried regressions, and
+verified history. A validated read refuses changed or unavailable required
+input before judgment.
+
+The coordinator passes the generated launch message to the configured fresh
+native reviewer. An input-read error or invalid returned record permits one
+diagnostic-only correction to that same route-bound reader. The correction
+preserves its axis, authority, and independent judgment; it cannot introduce a
+replacement reviewer or prescribe a verdict. An unavailable input remains an
+evidence gap, rather than becoming a product finding. Supported findings
+survive any blocked result.
+
+The description, SessionStart reminder, case definitions, grading assertions,
+eval runner, and exact canonical final-copy contract remain unchanged. The
+package adds three subcommands to the existing `review-result` entrypoint;
+there are still seven public entrypoints and no runtime dependencies.
+
+The focused Codex run uses **gpt-6-luna/medium**, **n:5** per case, three jobs,
+a 100% threshold, and configured native reviewers at **gpt-6-sol/xhigh**.
+The retained comparison runs used **0.8.2** for low-noise, both-axes, and
+resolved verification, and **0.8.0** for pull-request review. These are earlier
+measurements, rather than fresh concurrent controls; the comparison cannot
+establish a causal improvement or guaranteed full-plugin reliability.
+
+All **20 trials** completed. Case YAML hashes, evaluation digests, and harness
+versions match the retained comparison results. The frozen candidate's
+**104 files** retain their recorded hashes.
+
+| Case                                    | Previous task |  New task | Activation | Routed axes | Valid artifact | Exact final copy | Prepared axes observed |
+| --------------------------------------- | ------------: | --------: | ---------: | ----------: | -------------: | ---------------: | ---------------------: |
+| `code-review-low-noise`                 |           3/5 |       5/5 |        5/5 |         5/5 |            5/5 |              5/5 |                    5/5 |
+| `code-review-pull-request`              |           4/5 |       5/5 |        5/5 |         5/5 |            5/5 |              5/5 |                    5/5 |
+| `code-review-both-axes`                 |           5/5 |       4/5 |        5/5 |         5/5 |            5/5 |              4/5 |                    5/5 |
+| `code-review-fix-verification-resolved` |           5/5 |       4/5 |        5/5 |         4/5 |            5/5 |              5/5 |                    4/5 |
+| **Selected trials**                     |     **17/20** | **18/20** |  **20/20** |   **19/20** |      **20/20** |        **19/20** |              **19/20** |
+
+Both configured native reviewers launched in **19/20** trials, with no nested
+reader launches. The remaining trial produced a valid blocked artifact before
+delegation, rather than a completed independent verification. The unchanged
+session reminder appeared in all **20/20** coordinator contexts. Passive
+observations retained **38 input packets** across the nineteen prepared axis
+pairs, plus **four correction records**: three in low-noise review and one in
+pull-request review.
+
+The earlier low-noise input-path failures did not recur in its five trials.
+Both remaining failures occur outside a demonstrated prepared-input rejection:
+
+| Failed trial                | What failed                                                                                                                                                                                                              | Assessment                                                                                                                                                                                                                                        | Recommended next step                                                                                                                                                                                                                                                                          |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Both-axes 4                 | The sole failing assertion compared the final answer with the canonical Markdown: normalized files differed at character 1607, line 24.                                                                                  | Skill presentation gap under the unchanged exact-copy contract. Activation, both routed native reviewers, read-only behavior, canonical artifacts, both defect checks, and repair guidance passed.                                                | Keep this valid case and retain the failure. Discuss report delivery separately; capture expected and actual normalized bytes in the next diagnostic experiment before selecting a repair.                                                                                                     |
+| Resolved fix verification 3 | The coordinator rejected the caller's legacy external finding set, claimed a full original review artifact and missing optional guidance fields were required, and blocked all three attempts without reviewer launches. | Skill workflow gap. CR-C19 and the fix-verification reference explicitly support external handoffs and absent legacy guidance. The current check passed, the blocked artifact validated, and exact final copying passed. Activation was verified. | Keep this valid case. Discuss requiring mechanical original-input and reader preparation before rejecting a handoff, using a concrete helper diagnostic. Clarify that immutable source/evidence fields need not contain full embedded documents; preserve genuinely incomplete-input blocking. |
+
+The retained raw events omit the expected report bytes, so the specific textual
+edit remains unverified. This is an observed final-copy failure, not a
+demonstrated reader-input or activation miss. The fix-verification failure has
+no observed native launch or prepared input pair; there is no evidence that a
+reader-input helper rejected the handoff. No trial was replaced, omitted, or
+regraded, and no assertion was relaxed.
+
+**Implementation checks passed:** the initial public-CLI regressions produced
+**three failures** before implementation. The focused reader-input suite then
+passed **37 tests**. A bounded fresh-context audit found one external-history
+validation defect: four malformed histories were accepted while two valid
+controls passed. The helper now derives absent history from verified prior
+evidence and requires any explicit history to match exactly; all six regression
+cases pass. This repair was completed before freezing the candidate, without
+a second audit round.
+
+`bun run check:python` passed across every registered package, including
+**294 review tests**, Ruff, formatting, strict typing, **97.95% statement
+coverage**, and **96.13% branch coverage**. The runtime-only copied-plugin
+probe passed all seven entrypoints, including generated reader inputs from
+another working directory. Its provider transcript is mocked, rather than
+live Claude evidence. Documentation validation and skill metadata validation
+also passed.
+
+Input observations retain hashes, axis, mode, and fixture identity without
+source bodies. They establish packet presence, not independent proof that
+every native reader copied the generated message exactly or executed the
+validated read. Correction-record presence likewise does not prove native
+continuation delivery. Native launches, canonical artifact validation, and
+end-to-end task checks are separate measurements.
+
+The policy for an unavailable required check stopping before delegation is a
+separate unresolved discussion. It is unchanged here. Native Windows execution
+remains deferred, and live Claude continuation was not measured.
+
+**Recommendation:** retain this shared input mechanism as a candidate for the
+resolved handoff failure, with both remaining execution gaps open. The targeted
+low-noise and pull-request cases reached **5/5**, but the controls did not, so
+this is not a completed plugin-wide reliability fix. Discuss legacy handoff
+acceptance and final-report copying before claiming 5/5 or proceeding to the
+full plugin suite. There is no evidence here to weaken either eval.
+
+The local [complete overview](../../evals/results/review-reader-inputs-2026-09-28/overview.md)
+retains all four result sets and both failed-trial assessments. Its colocated
+`protocol.json`, `case-provenance.json`, `snapshot.json`, `summary.json`,
+`sources.json`, metrics, hook receipts, input observations, audit notes, and
+quality logs preserve the frozen candidate and evidence limits. Raw results
+are gitignored; this section preserves the measured conclusions in the
+repository. This follow-up covers four selected cases, not the full plugin.
+
 ### darrow-skill-authoring
 
 | Case                                                                                                                                            | What failed                                                                                                       | Assessment                                  | Recommended next step                                                                                                                                                                                                                                                                            |

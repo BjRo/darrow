@@ -44,6 +44,16 @@ trial. See the
 [renderer follow-up](../../../docs/research/gpt-6-luna-evals-issue-228.md#review-follow-up-syntax-based-underscore-rendering-2026-09-28)
 for retained failures and the recommended next discussion.
 
+A focused **0.8.3** follow-up generates separate reader inputs for both review
+modes and permits one diagnostic-only correction to the same native reader.
+Low-noise and pull-request review each passed **5/5**. Across four selected
+cases, task checks passed **18/20** and activation passed **20/20**; both-axes
+review and resolved fix verification each passed **4/5**. The remaining failures
+were final-report copying and incorrect rejection of a supported legacy
+handoff before delegation. This is not a full-plugin pass. See the
+[reader-input follow-up](../../../docs/research/gpt-6-luna-evals-issue-228.md#review-follow-up-generated-reader-inputs-2026-09-28)
+for all results, assessments, and evidence limits.
+
 ## What it provides
 
 ### `code-review`
@@ -182,6 +192,20 @@ complete external handoff. The helper preserves immutable original findings,
 legacy guidance absence, target bindings, and prior-verification history.
 It writes only inside the current private review run. Readers still own
 judgment; the coordinator still chooses sources, checks, and accepted findings.
+
+`prepare-reader` generates a separate immutable input and complete launch
+message for each axis. It binds the scope and retained checks, embeds readable
+source content with original citation paths, and resolves the installed
+Standards baseline. Fix inputs preserve the axis's original findings, prior
+scope, and carried regressions. `read-reader` rejects changed or unavailable
+required evidence before judgment.
+
+An input-read error or invalid returned record permits one diagnostic-only
+correction with the same route-bound native reader. `reader-feedback` retains
+that correction and refuses a different child, changed route, or second round.
+The reader owns any corrected judgment. Persistent failures remain evidence
+gaps rather than becoming product findings. See the
+[reader input workflow](skills/code-review/references/reader-inputs.md).
 
 The human renderer keeps ordinary identifiers such as `not_applicable` and
 leading underscores in paths such as `/_cache/file.js` readable. It preserves

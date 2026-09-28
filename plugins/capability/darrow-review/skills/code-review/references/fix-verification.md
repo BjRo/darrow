@@ -123,7 +123,7 @@ target.
 
 ## 3. Invoke isolated fix verifiers
 
-Read [`axis-prompts.md`](axis-prompts.md) and
+Read [`reader-inputs.md`](reader-inputs.md) and
 [`reader-routing.md`](reader-routing.md) completely. Resolve and retain the
 concrete reviewer route beside the current scope manifest. Group attempted
 findings by their original axis. Invoke the applicable Standards and Spec fix
@@ -136,19 +136,13 @@ down the returned child ID before any wait. No child ID becomes an
 `evidence_gap`; it never permits coordinator verification of an attempted
 finding.
 
-Each verifier receives only:
-
-- its original-axis finding records and stable keys;
-- active prior regression records for its axis, preserving stable keys and
-  immutable causal fields;
-- the original, prior, history, and current target fingerprints;
-- the validated prior verification artifact or explicit first-verification
-  marker;
-- the authoritative prior/current manifests, whose current manifest supplies
-  the fixed repair-delta show command,
-  and changed paths relevant to those findings;
-- current deterministic-check evidence; and
-- its isolated fix-verifier schema.
+Prepare one input per attempted axis using the current manifest, that axis's
+context and attempted keys, retained checks, and the authoritative original or
+prior verification evidence. The helper preserves original-axis findings,
+carried regressions, prior/current scope, and history; its complete launch
+message includes the isolated schema and validated input command. Pass that
+message unchanged. Never manually copy finding history or individual source
+paths into a verifier prompt.
 
 Permit inspection only of the current target, cited original finding context,
 the repair changes, and direct consequences. A reader must ignore an unrelated
@@ -177,8 +171,12 @@ uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result valid
 uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result validate-fix-axis spec "$spec_fix_record"
 ```
 
-An invalid record or missing or mismatched route-application evidence is an
-evidence gap. Do not retry on another route.
+For an input-read error or invalid returned record, use `reader-inputs.md`'s
+one diagnostic-only correction round with the same accepted verifier, retaining
+the failed record and validating the corrected record. Missing or mismatched
+route evidence, unavailable continuation, or a persistent error is an evidence
+gap. Do not replace the verifier or repair its judgment. Input availability
+does not create a repair-caused regression.
 
 **Complete when:** each attempted axis has one isolated fix-verifier record and
 exact-route evidence, and no observation outside the closed repair scope has

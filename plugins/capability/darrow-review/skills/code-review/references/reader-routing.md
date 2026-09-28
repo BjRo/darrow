@@ -39,8 +39,8 @@ For every applicable axis, use `spawn_agent` with:
 - `reasoning_effort` set to the exact selected effort;
 - a distinct bounded task name containing the exact axis token (`standards` or
   `spec`) and not the opposite axis token; and
-- a message beginning with `- review_axis: <axis>` followed by only that axis's
-  fully substituted prompt.
+- the complete unchanged message returned by `review-result prepare-reader`,
+  beginning with `- review_axis: <axis>`.
 
 When two axes apply, issue both spawn calls before waiting for either. An
 accepted spawn with all explicit route fields is application evidence. Wait for
@@ -89,8 +89,8 @@ uv run --quiet --no-project "$backend/scripts/run_locked.py" review-route claude
 Use the returned namespaced `subagent_type`. The exact selected full model and
 effort are pinned together in that plugin agent's frontmatter. Invoke Agent in
 the foreground with that type, `run_in_background` set to `false`, no
-per-invocation `model` override, and a prompt beginning with
-`- review_axis: <axis>` followed by only the fully substituted axis prompt.
+per-invocation `model` override, and the complete unchanged message returned by
+`review-result prepare-reader` as its prompt.
 Start every applicable reader before waiting so
 Standards and Spec remain parallel and isolated. On Claude, emit both
 foreground Agent tool calls in the same assistant turn; a background or later
@@ -146,6 +146,14 @@ analysis.
 An unavailable selected route permits zero native reader-launch attempts;
 inherited, substituted, generic, background, and otherwise unbound retries all
 invalidate the blocked result.
+
+The single correction defined in `reader-inputs.md` uses native continuation
+of the existing accepted child, never another Agent or spawn call. Keep its
+initial route evidence and validate the continuation's route before accepting
+the corrected record. Claude continuation runs in the background with the
+existing reader's tool set; that documented continuation is distinct from a
+new background Agent launch. An unavailable or unverifiable continuation
+blocks instead of permitting a replacement reader.
 
 Route application is complete only when every invoked reader has its own
 validated route-application record and schema-valid axis record for the same

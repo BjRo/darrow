@@ -88,6 +88,40 @@ def verify_scope(backend: Path, repo: Path) -> None:
         literal,
     )
     check = json.loads((artifact / "check.json").read_text())["checks"][0]
+    reader_context = artifact / "standards-context.json"
+    reader_context.write_text(json.dumps({"sources": []}), encoding="utf-8")
+    reader = json.loads(
+        runtime(
+            backend,
+            repo,
+            "review-result",
+            "prepare-reader",
+            "--manifest",
+            manifest,
+            "--axis",
+            "standards",
+            "--context",
+            str(reader_context),
+            "--check",
+            str(artifact / "check.json"),
+        )
+    )
+    bound = json.loads(
+        runtime(
+            backend,
+            repo.parent,
+            "review-result",
+            "read-reader",
+            "--input",
+            reader["input"],
+        )
+    )
+    assert bound["scope"]["manifest"] == manifest
+    assert bound["baseline"]["path"] == str(
+        backend.parent / "skills/code-review/references/design-smells.md"
+    )
+    assert bound["checks"] == [check]
+    assert reader["message"].startswith("- review_axis: standards\n")
     scope_records = json.loads(
         runtime(backend, repo, "review-result", "scope-records", manifest)
     )

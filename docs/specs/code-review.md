@@ -173,10 +173,10 @@ axis and report `not_available`. Do not invent requirements.
    summary written by the change author. Generated authoritative show and repair
    commands shell-quote every argument and remain executable from another
    directory when tool or manifest paths contain spaces or shell metacharacters.
-   Each reader obtains the applicable command from its authoritative scope
-   manifest rather than from a coordinator-copied command string. Both readers
-   receive the exact readable manifest path returned by scope preparation;
-   a failed read retains the attempted path and error.
+   Each reader obtains the applicable command through its mechanically prepared
+   input, validated against the authoritative scope manifest, rather than a
+   coordinator-copied command string. A failed read retains its attempted path
+   and error.
 4. **CR-C4 — Isolated axes.** Standards and Spec run as fresh, read-only
    subagents with separate bounded prompts so one axis does not anchor the
    other. When no spec exists, the Spec subagent is not spawned.
@@ -186,8 +186,9 @@ axis and report `not_available`. Do not invent requirements.
 6. **CR-C6 — Repository standards win.** The Standards reviewer reads the
    relevant repository guidance. Documented local decisions override any
    bundled smell heuristic. When a bundled baseline is applicable, the
-   coordinator MUST resolve its installed absolute path and confirm that it is
-   readable before passing that exact path to a fresh reader. An unreadable
+   coordinator MUST use bundled input preparation to resolve its installed
+   absolute path and confirm that it is readable before supplying its contents
+   and citation path to a fresh reader. An unreadable
    baseline blocks Standards before reader launch rather than becoming a
    malformed or guessed source in the reader prompt.
 7. **CR-C7 — Tools before taste.** Run or validate applicable deterministic
@@ -389,6 +390,27 @@ axis and report `not_available`. Do not invent requirements.
     paths, and report expired or missing follow-up evidence clearly. Temporary
     staging files are removed as soon as their canonical record is installed.
     This location change does not migrate or delete older `.git` review files.
+23. **CR-C23 — Bound reader inputs and correction.** Bundled mechanics prepare
+    a separate immutable input for each axis in the current scope run. They
+    bind repository, mode, axis, target, manifest contents, source contents, and
+    canonical check receipts; resolve the installed Standards baseline; and
+    generate the complete bounded launch message. Fix inputs preserve only
+    that axis's original findings, attempted keys, and carried regressions,
+    with validated prior/current scope and verification history. A reader must
+    validate its input before review; changed or unavailable required evidence
+    blocks rather than silently selecting another target or source. Required
+    paths and check records cannot be reconstructed from report text.
+    After an accepted reader returns an input-read error or invalid record,
+    the coordinator may send at most one mechanical correction to that same
+    host-reported child ID through native continuation. The correction contains
+    only the authoritative input and concrete diagnostic. It preserves axis,
+    route, read-only authority, and independent judgment; it neither launches a
+    replacement nor proposes findings or desired verdicts. The corrected
+    record must pass the same validation and route gates. A missing continuation
+    surface, unverifiable route, persistent invalid record, or genuinely
+    unavailable input remains an evidence-backed blocked axis. Review input
+    availability is an evidence gap, never itself a product finding; preserve
+    any separately supported product findings.
 
 ## Result shape and presentation
 
