@@ -121,9 +121,13 @@ function generatedFixture(
     ],
     "fixture",
   );
-  if (!Array.isArray(fixture.commits) || !fixture.commits.length)
+  const history = fixture.commits === undefined ? [] : fixture.commits;
+  if (
+    !Array.isArray(history) ||
+    (!history.length && fixture.setup === undefined)
+  )
     throw new Error("case needs a generated Git history");
-  const commits = fixture.commits.map((entry, index) => {
+  const commits = history.map((entry, index) => {
     const commit = record(entry, `commit ${index + 1}`);
     keys(commit, ["message", "files"], `commit ${index + 1}`);
     return {

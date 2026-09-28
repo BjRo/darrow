@@ -37,6 +37,10 @@ Darrow-owned evaluation code, such as its Sevro extension. Their snapshots must
 not copy generic runner implementation. Keep the question, source inventory,
 and acceptance checks aligned with the copied source.
 
+A setup-only generated fixture starts with an empty Git history. Its setup may
+create the initial snapshot; no placeholder commit may be synthesized before
+that setup runs.
+
 ### Direct runner roots
 
 The direct runner accepts `--project-root <directory>` for case discovery,

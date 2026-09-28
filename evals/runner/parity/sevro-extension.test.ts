@@ -5401,6 +5401,55 @@ test("Darrow fixture setup runs through Sevro and rejects changed source", async
   expect(evidence.configuration.redacted.fixtureSetupDigest).toMatch(
     /^[a-f0-9]{64}$/,
   );
+  await writeFile(
+    caseFile,
+    JSON.stringify({
+      ...definition,
+      fixture: {
+        setup: [
+          definition.fixture.setup,
+          "git add SETUP.txt",
+          "git -c user.name=Fixture -c user.email=fixture@example.invalid commit -qm 'Initial setup snapshot'",
+        ].join("\n"),
+      },
+      checks: [
+        { name: "setup result", run: "test -f SETUP.txt" },
+        {
+          name: "setup owns the first commit",
+          run: 'test "$(git rev-list --count HEAD)" -eq 1 && test -z "$(git status --porcelain)"',
+        },
+      ],
+    }),
+  );
+  const setupOnly = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", resolveParams),
+  );
+  expect(setupOnly.code, setupOnly.stderr).toBe(0);
+  expect(setupOnly.value.result.cases[0]!.fixture.commits).toEqual([]);
+  const initialized = await command<CliReply>([
+    process.execPath,
+    resolve(import.meta.dir, "../../sevro-extension/run.ts"),
+    "--case-id",
+    "setup-case",
+    "--project-root",
+    root,
+    "--results-root",
+    join(root, "setup-only-results"),
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+    "--condition",
+    "passive",
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+  ]);
+  expect(initialized.code, initialized.stderr).toBe(0);
+  expect(initialized.value.task.verdict).toBe("passed");
+  expect(initialized.value.cases[0]!.trials[0]!.checks).toHaveLength(3);
 });
 
 test("Darrow runs a pinned corpus repository with committed overlay and setup", async () => {

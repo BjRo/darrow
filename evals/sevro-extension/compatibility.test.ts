@@ -139,7 +139,7 @@ test("resolves continuation prompts including a later skill invocation", async (
     selectors: { caseIds: ["continue-with-skill"] },
   });
   expect(invoked.cases[0]?.followUpPrompt).toBe(
-    "{{sevro.codex.skill_invocation}} Continue now.",
+    "{{sevro.skill_invocation}} Continue now.",
   );
   expect(invoked.cases[0]?.extensionData["darrow.case"]).toMatchObject({
     invocation: { pluginName: "probe", skillName: "probe" },
