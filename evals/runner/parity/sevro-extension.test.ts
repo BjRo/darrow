@@ -5603,7 +5603,10 @@ test("Darrow runs implicit and explicit repository skills without a plugin wrapp
     [process.execPath, extension],
     request("prepare", {
       case: selected,
-      host: { id: "sevro.host.claude", capabilities: [] },
+      host: {
+        id: "sevro.host.claude",
+        capabilities: ["sevro.claude.repository-invocation"],
+      },
       condition: "passive",
       configuration: {},
     }),
@@ -6712,6 +6715,16 @@ test("Claude guide composition retains repository scope and independent provider
     }),
   );
   expect(resolved.code, resolved.stderr).toBe(0);
+  const unavailable = await command<{ error: { message: string } }>(
+    [process.execPath, extension],
+    request("prepare", {
+      case: resolved.value.result.cases[0],
+      host: { id: "sevro.host.claude", capabilities: [] },
+      condition: "passive",
+      configuration: {},
+    }),
+  );
+  expect(unavailable.value.error.message).toMatch(/--claude-project-settings/);
   const prepared = await command<{
     result: {
       claudeRepositorySkillInvocation: { skillName: string };

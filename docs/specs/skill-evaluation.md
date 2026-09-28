@@ -44,9 +44,11 @@ exactly one runner-rendered `$skill` token. The declaration and repository scope
 enter retained configuration and comparison identity. Plugin dispatch declarations
 cannot substitute for repository dispatch. Claude uses the required mirror at
 `.claude/skills/<name>`, refuses a missing or unsafe mirror, and negotiates
-`sevro.claude.repository-invocation` for the native `/skill` command. Explicit
-activation requires one complete native command receipt bound to the mounted
-body, arguments, and session. Later Skill calls cannot repair a partial or
+`sevro.claude.repository-invocation` for the native `/skill` command. Both explicit
+and implicit Claude repository trials require `--claude-project-settings`; an
+unavailable project-skill capability must fail before candidate execution.
+Explicit activation requires one complete native command receipt bound to the
+mounted body, arguments, and session. Later Skill calls cannot repair a partial or
 rejected receipt. Implicit Claude activation uses complete ordered Skill-call
 metadata. Task grading and activation remain separate.
 

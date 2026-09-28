@@ -26,6 +26,8 @@ the combined set. Claude uses the required `.claude/skills/<name>` mirror and
 native `/skill` invocation. Explicit activation requires a complete command
 receipt; an ordinary Skill call cannot repair an unverified command. Supporting
 plugins keep their own package directories on Claude too.
+Pass `--claude-project-settings` for either explicit or implicit repository
+trials. Without it, preparation rejects the unavailable project-skill route.
 For a plugin-local case, `prepare` mounts the selected skill's files under
 `.agents/skills/` and excludes their exact paths from Git status. Colocated
 `evals/` files and generated caches stay out of the candidate fixture. Skill

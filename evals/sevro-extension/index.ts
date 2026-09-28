@@ -2207,12 +2207,25 @@ async function repositoryArtifacts(
   );
 }
 
+function claudeRepositoryHost(hostValue: unknown) {
+  const host = record(hostValue, "candidate host");
+  if (host.id !== "sevro.host.claude") return false;
+  if (
+    !Array.isArray(host.capabilities) ||
+    !host.capabilities.includes("sevro.claude.repository-invocation")
+  )
+    throw new Error(
+      "Claude repository skills require --claude-project-settings",
+    );
+  return true;
+}
+
 async function repositorySkillMounts(
   details: RecordValue,
   sources: { skillRoot: string; skillName: string }[],
   hostValue: unknown,
 ) {
-  const claude = record(hostValue, "candidate host").id === "sevro.host.claude";
+  const claude = claudeRepositoryHost(hostValue);
   const { owner, additional } = mergeAdditionalSkills(
     claude ? await claudeRepositorySources(details, sources) : sources,
     await additionalPluginSources(details),
