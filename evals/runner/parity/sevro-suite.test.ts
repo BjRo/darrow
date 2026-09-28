@@ -188,6 +188,8 @@ test("suite gates activation independently when all task checks pass", async () 
     unavailable: 0,
     passRate: 0.5,
     threshold: 1,
+    trueSelections: 1,
+    falseSelections: 0,
   });
   expect(JSON.parse(run.stdout)).toMatchObject({
     cells: 1,
@@ -244,6 +246,18 @@ test("suite retains unknown activation without averaging the measured subset", a
   });
   const result = JSON.parse(await readFile(cell.result, "utf8"));
   expect(result.task.verdict).toBe("passed");
+  const activation = JSON.parse(
+    await readFile(manifest.activationReport.jsonPath, "utf8"),
+  );
+  expect(activation.groups[0]).toMatchObject({ recall: null, precision: null });
+  expect(activation.groups[0].classes.positive).toEqual({
+    trials: 2,
+    measured: 1,
+    passed: 1,
+    failed: 0,
+    unavailable: 1,
+    passRate: null,
+  });
 }, 15_000);
 
 test("suite labels dry activation and excludes unmounted controls from its gate", async () => {
@@ -281,6 +295,16 @@ test("suite labels dry activation and excludes unmounted controls from its gate"
     measured: 0,
   });
   expect(preparation.cells[1].activation).toEqual({ status: "not_requested" });
+  const dryReport = JSON.parse(
+    await readFile(preparation.activationReport.jsonPath, "utf8"),
+  );
+  expect(dryReport.summary).toMatchObject({ notRun: 1, notRequested: 1 });
+  expect(
+    dryReport.groups.every(
+      (group: { recall: unknown; precision: unknown }) =>
+        group.recall === null && group.precision === null,
+    ),
+  ).toBeTrue();
   const liveResults = join(results, "live");
   const live = await invoke(
     args.map((arg) => (arg === results ? liveResults : arg)),
@@ -294,6 +318,187 @@ test("suite labels dry activation and excludes unmounted controls from its gate"
     passRate: 0.5,
   });
   expect(execution.cells[1].activation).toEqual({ status: "not_requested" });
+  const report = JSON.parse(
+    await readFile(execution.activationReport.jsonPath, "utf8"),
+  );
+  expect(report.groups).toHaveLength(2);
+  expect(report.groups[0]).toMatchObject({
+    mode: "candidate",
+    recall: 0.5,
+    precision: 1,
+  });
+  expect(report.groups[1]).toMatchObject({
+    mode: "baseline",
+    recall: null,
+    precision: null,
+  });
+  expect(report.groups[1].classes.positive.trials).toBe(0);
+}, 15_000);
+
+test("suite reports activation classes and selection metrics separately from tasks", async () => {
+  const { root, adapter, suite, results } = await activationFixture();
+  const skill = join(root, "plugins/capability/example/skills/probe");
+  await rm(join(skill, "evals/suite-activation.yaml"));
+  const sibling = join(root, "plugins/capability/example/skills/rival");
+  await mkdir(sibling, { recursive: true });
+  await writeFile(
+    join(sibling, "SKILL.md"),
+    "---\nname: rival\ndescription: An adjacent capability.\n---\nReturn ready.\n",
+  );
+  for (const activation of ["positive", "negative", "competition"]) {
+    await writeFile(
+      join(skill, `evals/activation-${activation}.yaml`),
+      JSON.stringify({
+        id: `activation-${activation}`,
+        invariant: "EXAMPLE-ACTIVATION",
+        activation,
+        mount_plugin_skills: activation === "competition",
+        prompt: activation,
+        fixture: {
+          commits: [
+            { message: "chore: init", files: { "README.md": "ready\n" } },
+          ],
+        },
+        checks: [],
+        output_checks: [{ name: "response", expect_exact: "ready" }],
+      }),
+    );
+  }
+  await writeFile(
+    adapter,
+    `const counts = {};
+export default {
+  id: "sevro.host.codex", model: "synthetic", effort: "none",
+  async run({ condition, prompt }) {
+    const first = (counts[prompt] = (counts[prompt] ?? 0) + 1) === 1;
+    const primary = prompt === "negative" ? (first ? "rival" : "probe")
+      : first ? "probe" : prompt === "competition" ? "rival" : null;
+    return { finalMessage: "ready", complete: true, actualCondition: condition,
+      observations: [{ id: "sevro.codex.skill-reads", completeness: "complete",
+        data: { method: "skill_file_read_probe", primarySkill: primary,
+          observedSkills: primary ? [primary] : [] } }] };
+  },
+};\n`,
+  );
+  const definition = JSON.parse(await readFile(suite, "utf8"));
+  definition.case_filter = "activation-";
+  await writeFile(suite, JSON.stringify(definition));
+  const run = await invoke([
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+    "--trials",
+    "2",
+    "--threshold",
+    "1",
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+  ]);
+  const manifest = JSON.parse(
+    await readFile(join(results, "suite-run.json"), "utf8"),
+  );
+  expect(run.code, `${run.stderr}\n${run.stdout}`).toBe(1);
+  expect(
+    manifest.cells.every((cell: { exitCode: number }) => cell.exitCode === 0),
+  ).toBeTrue();
+  expect(manifest.activationReport?.jsonPath).toBeString();
+  const activation = JSON.parse(
+    await readFile(manifest.activationReport.jsonPath, "utf8"),
+  );
+  expect(activation.format).toBe("darrow-sevro-activation-v1");
+  expect(activation.rows).toHaveLength(3);
+  expect(activation.summary).toEqual({
+    cells: 3,
+    passed: 0,
+    failed: 3,
+    unavailable: 0,
+    notRun: 0,
+    notRequested: 0,
+  });
+  expect(activation.groups).toHaveLength(1);
+  expect(activation.groups[0]).toMatchObject({
+    harness: "codex",
+    mode: "candidate",
+    condition: "passive",
+    recall: 0.5,
+    precision: 0.5,
+  });
+  for (const label of ["positive", "negative", "competition"]) {
+    expect(activation.groups[0].classes[label]).toEqual({
+      trials: 2,
+      measured: 2,
+      passed: 1,
+      failed: 1,
+      unavailable: 0,
+      passRate: 0.5,
+    });
+  }
+  const task = JSON.parse(await readFile(manifest.report.jsonPath, "utf8"));
+  expect(task.summary).toMatchObject({ passed: 3, failed: 0 });
+  const markdown = await readFile(
+    manifest.activationReport.markdownPath,
+    "utf8",
+  );
+  expect(markdown).toContain("# Darrow activation report");
+  expect(markdown).toContain("Recall: 50.0%; precision: 50.0%");
+}, 15_000);
+
+test("suite leaves precision unknown when a negative case selects an adjacent skill", async () => {
+  const { root, adapter, suite, results } = await activationFixture();
+  const casePath = join(
+    root,
+    "plugins/capability/example/skills/probe/evals/suite-activation.yaml",
+  );
+  const definition = JSON.parse(await readFile(casePath, "utf8"));
+  definition.activation = "negative";
+  await writeFile(casePath, JSON.stringify(definition));
+  await writeFile(
+    adapter,
+    (await readFile(adapter, "utf8")).replace(
+      '++runs === 1 ? ["probe"] : []',
+      '["rival"]',
+    ),
+  );
+  const run = await invoke([
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+  ]);
+  expect(run.code, `${run.stderr}\n${run.stdout}`).toBe(0);
+  const manifest = JSON.parse(
+    await readFile(join(results, "suite-run.json"), "utf8"),
+  );
+  expect(manifest.cells[0].activation).toMatchObject({
+    status: "passed",
+    trueSelections: 0,
+    falseSelections: 0,
+  });
+  const report = JSON.parse(
+    await readFile(manifest.activationReport.jsonPath, "utf8"),
+  );
+  expect(report.groups[0]).toMatchObject({ recall: null, precision: null });
+  expect(report.groups[0].classes.negative).toMatchObject({
+    trials: 1,
+    passed: 1,
+    failed: 0,
+    passRate: 1,
+  });
 }, 15_000);
 
 test("suite selection rejects duplicate IDs and unsupported modes before running", async () => {
@@ -520,6 +725,20 @@ test("suite binds separate host routes and compares ablations per harness", asyn
   expect(run.code, `${run.stderr}\n${JSON.stringify(manifest)}`).toBe(0);
   expect(manifest.harnesses).toEqual(["codex", "claude"]);
   expect(manifest.hostOptionsSha256).toMatch(/^[a-f0-9]{64}$/);
+  const activation = JSON.parse(
+    await readFile(manifest.activationReport.jsonPath, "utf8"),
+  );
+  expect(
+    activation.groups.map((group: { harness: string; mode: string }) => [
+      group.harness,
+      group.mode,
+    ]),
+  ).toEqual([
+    ["codex", "baseline"],
+    ["claude", "baseline"],
+    ["codex", "candidate"],
+    ["claude", "candidate"],
+  ]);
   expect(
     manifest.cells.map((cell: { harness: string; mode: string }) => [
       cell.mode,

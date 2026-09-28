@@ -367,6 +367,13 @@ null. A failed or unavailable live activation gate makes the suite exit
 unsuccessfully without changing Sevro's task verdict, checks, or exit code.
 Dry preparation retains `not_run` and does not establish activation success.
 
+The suite writes a separate `darrow-sevro-activation-v1` report with cell
+gates and summaries grouped by mode and harness. Each group presents all three
+activation classes, recall, and precision. Unknown trials leave the affected
+class pass rate and group selection metrics null. Dry cells and unmounted
+controls do not supply activation measurements. Grouping keeps distinct
+conditions and host routes from being averaged together.
+
 ### Evidence lifecycle
 
 Shell checks execute candidate-controlled code inside the runner's outer

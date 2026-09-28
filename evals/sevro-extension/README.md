@@ -253,7 +253,11 @@ exit code remain unchanged by the activation gate. The suite
 also invokes `sevro report` and writes its versioned `report.json` and Markdown
 `report.md` beside the manifest. The manifest records their absolute paths and
 any cells without a JSON result. The generic report preserves task, execution,
-grading, routes, and unknown measurements. Named ablations also write
+grading, routes, and unknown measurements. The separate
+`activation-report.json` and `activation-report.md` report the separate
+activation gates, all three classes, recall, and precision grouped by mode
+and harness. Incomplete observations and empty metric denominators remain
+unknown; unmounted controls supply no measurements. Named ablations write
 `ablation-report.json` and `ablation-report.md` with per-case pass rate, time,
 token, and cost deltas; missing measurements stay unknown. Missing cells or
 mismatched identity dimensions invalidate the comparison. Route overrides and

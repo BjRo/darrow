@@ -8,6 +8,7 @@ import { resolveCase, selectCaseIds } from "./index";
 import { pathToFileURL } from "node:url";
 import { sevroCommand } from "./sevro-command";
 import { activationGate, type ActivationExpectation } from "./activation";
+import { activationReports } from "./activation-report";
 
 const repositoryRoot = resolve(import.meta.dir, "../..");
 type Harness = "codex" | "claude";
@@ -949,7 +950,23 @@ function suiteManifest(
     interrupted: null as Interrupt | null,
     cells: [] as Cell[],
     report: null as Awaited<ReturnType<typeof suiteReports>> | null,
+    activationReport: null as Awaited<
+      ReturnType<typeof activationReports>
+    > | null,
     ablationReport: null as Awaited<ReturnType<typeof ablationReports>>,
+  };
+}
+
+function suiteCounts(cells: Cell[]) {
+  return {
+    cells: cells.length,
+    failed: cells.filter((cell) => cell.exitCode !== 0).length,
+    activationFailed: cells.filter(
+      (cell) => cell.activation.status === "failed",
+    ).length,
+    activationUnavailable: cells.filter(
+      (cell) => cell.activation.status === "unavailable",
+    ).length,
   };
 }
 
@@ -976,6 +993,10 @@ export async function runSuite(argv: string[]) {
   await mkdir(resultsRoot, { recursive: true });
   await runSelectedCells(request, suite, { caseIds, expectations }, manifest);
   manifest.report = await suiteReports(resultsRoot, manifest.cells);
+  manifest.activationReport = await activationReports(
+    resultsRoot,
+    manifest.cells,
+  );
   manifest.ablationReport = await ablationReports({
     resultsRoot,
     definitions: suite.ablations,
@@ -987,16 +1008,10 @@ export async function runSuite(argv: string[]) {
   await saveManifest(resultsRoot, manifest);
   return {
     manifest: join(resultsRoot, "suite-run.json"),
-    cells: manifest.cells.length,
-    failed: manifest.cells.filter((cell) => cell.exitCode !== 0).length,
-    activationFailed: manifest.cells.filter(
-      (cell) => cell.activation.status === "failed",
-    ).length,
-    activationUnavailable: manifest.cells.filter(
-      (cell) => cell.activation.status === "unavailable",
-    ).length,
+    ...suiteCounts(manifest.cells),
     interrupted: manifest.interrupted,
     report: manifest.report,
+    activationReport: manifest.activationReport,
     ablationReport: manifest.ablationReport,
   };
 }

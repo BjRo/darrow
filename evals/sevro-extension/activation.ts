@@ -3,6 +3,21 @@ export type ActivationExpectation = {
   targetSkill: string;
 };
 
+export type ActivationGate =
+  | { status: "not_requested" }
+  | (ActivationExpectation & {
+      status: "not_run" | "passed" | "failed" | "unavailable";
+      trials: number;
+      measured: number;
+      passed: number;
+      failed: number;
+      unavailable: number;
+      passRate: number | null;
+      threshold: number;
+      trueSelections: number | null;
+      falseSelections: number | null;
+    });
+
 type RecordValue = Record<string, unknown>;
 function record(value: unknown): RecordValue | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -21,28 +36,60 @@ function completedTrial(value: unknown, ordinal: number) {
   return trial;
 }
 
-function trialStatus(
+function measuredSelection(
+  data: RecordValue | null,
+  expected: ActivationExpectation,
+) {
+  if (
+    data?.class !== expected.class ||
+    data?.targetSkill !== expected.targetSkill
+  )
+    return null;
+  const primary = data.primarySkill;
+  if (primary !== null && (typeof primary !== "string" || !primary))
+    return null;
+  return { primary };
+}
+
+function trialMeasurement(
   value: unknown,
   expected: ActivationExpectation,
   ordinal: number,
 ) {
   const trial = completedTrial(value, ordinal);
   const outcomes = trial?.domainOutcomes;
-  if (!Array.isArray(outcomes)) return "unavailable";
+  if (!Array.isArray(outcomes)) return null;
   const matches = outcomes.filter(
     (outcome) => record(outcome)?.id === "darrow.evals.activation",
   );
-  if (matches.length !== 1) return "unavailable";
+  if (matches.length !== 1) return null;
   const outcome = record(matches[0])!;
-  const data = record(outcome.data);
+  const selection = measuredSelection(record(outcome.data), expected);
   if (
-    data?.class !== expected.class ||
-    data?.targetSkill !== expected.targetSkill
+    !selection ||
+    (outcome.status !== "passed" && outcome.status !== "failed")
   )
-    return "unavailable";
-  return outcome.status === "passed" || outcome.status === "failed"
-    ? outcome.status
-    : "unavailable";
+    return null;
+  return { status: outcome.status, ...selection };
+}
+
+function selectionCounts(
+  measurements: Array<ReturnType<typeof trialMeasurement>>,
+  expected: ActivationExpectation,
+  complete: boolean,
+) {
+  if (!complete) return { trueSelections: null, falseSelections: null };
+  let trueSelections = 0;
+  let falseSelections = 0;
+  for (const measurement of measurements) {
+    if (!measurement) continue;
+    const owning = measurement.primary === expected.targetSkill;
+    if (expected.class === "negative") {
+      if (owning) falseSelections++;
+    } else if (owning) trueSelections++;
+    else if (measurement.primary !== null) falseSelections++;
+  }
+  return { trueSelections, falseSelections };
 }
 
 function gateStatus(
@@ -59,16 +106,22 @@ export function activationGate(
   expected: ActivationExpectation | null,
   configuration: { trials: number; threshold: number },
   selectedCase: unknown,
-) {
+): ActivationGate {
   if (!expected) return { status: "not_requested" as const };
   const selected = record(selectedCase);
   const trials = Array.isArray(selected?.trials) ? selected.trials : [];
-  const statuses =
+  const measurements =
     trials.length === configuration.trials
-      ? trials.map((trial, index) => trialStatus(trial, expected, index + 1))
-      : Array.from({ length: configuration.trials }, () => "unavailable");
-  const passed = statuses.filter((status) => status === "passed").length;
-  const failed = statuses.filter((status) => status === "failed").length;
+      ? trials.map((trial, index) =>
+          trialMeasurement(trial, expected, index + 1),
+        )
+      : Array.from({ length: configuration.trials }, () => null);
+  const passed = measurements.filter(
+    (measurement) => measurement?.status === "passed",
+  ).length;
+  const failed = measurements.filter(
+    (measurement) => measurement?.status === "failed",
+  ).length;
   const measured = passed + failed;
   const unavailable = configuration.trials - measured;
   const passRate = unavailable === 0 ? passed / configuration.trials : null;
@@ -82,5 +135,6 @@ export function activationGate(
     unavailable,
     passRate,
     threshold: configuration.threshold,
+    ...selectionCounts(measurements, expected, unavailable === 0),
   };
 }
