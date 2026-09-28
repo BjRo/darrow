@@ -9,6 +9,7 @@ import { pathToFileURL } from "node:url";
 import { sevroCommand } from "./sevro-command";
 import { activationGate, type ActivationExpectation } from "./activation";
 import { activationReports } from "./activation-report";
+import { qualityReports } from "./quality-report";
 import {
   candidateArguments,
   candidateRouteMatches,
@@ -402,6 +403,7 @@ type Cell = {
   requestedRoute: CandidateRoute;
   benchmarkCondition: ConditionInput | null;
   exitCode: number;
+  recordChecksRequested: boolean;
   error?: string;
 };
 type Interrupt = "SIGINT" | "SIGTERM";
@@ -570,6 +572,7 @@ type CellSelection = {
   harness: Harness;
   index: number;
   activation: ActivationExpectation | null;
+  recordChecksRequested: boolean;
 };
 
 function cellCommand(request: SuiteRequest, selected: CellSelection) {
@@ -669,6 +672,7 @@ async function runCell(
     activation,
     requestedRoute,
     ...cellStatus(result, exitCode, evidenceError),
+    recordChecksRequested: selected.recordChecksRequested,
     benchmarkCondition,
   };
   return { cell, interrupted };
@@ -1001,7 +1005,13 @@ async function preflightCases(
   suite: SuiteConfig,
   caseIds: string[],
 ) {
-  const expectations = new Map<string, ActivationExpectation | null>();
+  const expectations = new Map<
+    string,
+    {
+      activation: ActivationExpectation | null;
+      recordChecksRequested: boolean;
+    }
+  >();
   for (const mode of suite.modes) {
     for (const harness of suite.harnesses) {
       for (const caseId of caseIds) {
@@ -1025,10 +1035,11 @@ async function preflightCases(
           );
         if (suite.ablations.length && details.mount === undefined)
           throw new Error(`${caseId}: ablation candidate has no owning skill`);
-        expectations.set(
-          JSON.stringify([mode.name, harness, caseId]),
-          (details.activation as ActivationExpectation | undefined) ?? null,
-        );
+        expectations.set(JSON.stringify([mode.name, harness, caseId]), {
+          activation:
+            (details.activation as ActivationExpectation | undefined) ?? null,
+          recordChecksRequested: details.benchmarkRecords === true,
+        });
       }
     }
   }
@@ -1051,7 +1062,7 @@ async function runSelectedCells(
   suite: SuiteConfig,
   selection: {
     caseIds: string[];
-    expectations: Map<string, ActivationExpectation | null>;
+    expectations: Awaited<ReturnType<typeof preflightCases>>;
   },
   manifest: { cells: Cell[]; interrupted: Interrupt | null },
 ) {
@@ -1060,15 +1071,15 @@ async function runSelectedCells(
     for (const selected of suite.harnesses.flatMap((harness) =>
       caseIds.map((caseId) => ({ harness, caseId })),
     )) {
+      const expectation = expectations.get(
+        JSON.stringify([mode.name, selected.harness, selected.caseId]),
+      )!;
       const outcome = await runCell(request, {
         ...selected,
         mode,
         index: manifest.cells.length + 1,
-        activation: mode.withoutSkill
-          ? null
-          : (expectations.get(
-              JSON.stringify([mode.name, selected.harness, selected.caseId]),
-            ) ?? null),
+        activation: mode.withoutSkill ? null : expectation.activation,
+        recordChecksRequested: expectation.recordChecksRequested,
       });
       manifest.cells.push(outcome.cell);
       manifest.interrupted = outcome.interrupted;
@@ -1107,6 +1118,7 @@ function suiteManifest(
     interrupted: null as Interrupt | null,
     cells: [] as Cell[],
     report: null as Awaited<ReturnType<typeof suiteReports>> | null,
+    qualityReport: null as Awaited<ReturnType<typeof qualityReports>> | null,
     activationReport: null as Awaited<
       ReturnType<typeof activationReports>
     > | null,
@@ -1181,6 +1193,11 @@ export async function runSuite(argv: string[]) {
   await mkdir(resultsRoot, { recursive: true });
   await runSelectedCells(request, suite, { caseIds, expectations }, manifest);
   manifest.report = await suiteReports(resultsRoot, manifest.cells);
+  manifest.qualityReport = await qualityReports(
+    resultsRoot,
+    manifest.cells,
+    request.trials,
+  );
   manifest.activationReport = await activationReports(
     resultsRoot,
     manifest.cells,
@@ -1199,6 +1216,7 @@ export async function runSuite(argv: string[]) {
     ...suiteCounts(manifest.cells),
     interrupted: manifest.interrupted,
     report: manifest.report,
+    qualityReport: manifest.qualityReport,
     activationReport: manifest.activationReport,
     ablationReport: manifest.ablationReport,
   };
@@ -1217,6 +1235,7 @@ if (import.meta.main) {
               result.activationFailed ||
               result.activationUnavailable ||
               result.report.error ||
+              result.qualityReport.error ||
               result.ablationReport?.valid === false
             ? 1
             : 0;

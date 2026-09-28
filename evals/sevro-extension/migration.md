@@ -70,8 +70,14 @@ its separate activation or comparison gate fails. Dry execution is unassessed.
 
 Legacy reports distinguish task quality from requested evaluation-record
 bookkeeping. Sevro's default task verdict includes every active required check.
-Preserving that report distinction requires a Darrow-owned report policy; a new
-task pass rate must not be presented as equivalent to a legacy quality-only rate.
+Darrow's suite now retains that distinction in separate
+`quality-report.json` and `quality-report.md` artifacts. Their quality metric
+excludes only the two bookkeeping checks, while the public task rate and verdict
+retain all required checks and any selected task policy. Invalid inputs fail
+the report. Dry or unavailable evidence stays unmeasured, and custom task
+policies do not acquire a default quality rate. This explicit treatment of
+unavailable evidence is not a claim of numeric equivalence to historical legacy
+quality rates. See [quality report validation](quality-validation.md).
 
 ## Remaining benchmark contracts
 

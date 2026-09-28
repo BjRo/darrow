@@ -391,6 +391,13 @@ the compatibility matrix, and release update and rollback steps. The migration
 entrypoints are available for coordinated development; normal Darrow callers
 still use the legacy runner until publication, exact release pinning, and cutover.
 
+The Sevro suite writes a Darrow-owned quality report separately from its generic
+report. It distinguishes non-record task checks, bookkeeping completeness, and
+the public task verdict, retaining unknown rates for dry or unavailable
+evidence. See the
+[quality report contract](../evals/sevro-extension/README.md#suites) and
+[validation notes](../evals/sevro-extension/quality-validation.md).
+
 This development test launches Darrow's runner and Sevro's CLI as separate
 processes against one synthetic case definition. It compares the selected
 case, shell and output check outcomes, source and configuration-root isolation,

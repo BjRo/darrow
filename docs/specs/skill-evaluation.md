@@ -535,6 +535,37 @@ policy or an explicitly requested benchmark route check; suppressing record
 checks does not establish ownership. Other mounted skills and unmounted
 experiments retain the record check when requested.
 
+### Task quality and bookkeeping reports
+
+The Sevro suite writes a Darrow-owned `darrow-sevro-quality-v1` report beside
+the generic Sevro report. Its JSON and Markdown distinguish task quality,
+bookkeeping completeness, and the public task pass rate. Quality excludes only
+the two named benchmark record checks from Darrow's benchmark grader. Other
+task checks, including semantic and owner-route checks, remain required. The
+report preserves public execution, grading, task, and exit states and names
+each input result and retained evidence path. It preserves task verdicts and
+the existing task and activation gate semantics.
+
+A quality rate requires completed execution and grading, an executed trial,
+and assessed non-record checks under the default task policy. A selected custom
+task policy remains explicit and leaves this default quality metric unavailable.
+Bookkeeping uses both declared record checks; an omitted record policy or the
+adaptive-delivery exception is not requested. The suite retains whether Darrow's
+resolved case declared bookkeeping checks, so an empty dry outcome list does
+not imply that the policy was omitted. Missing trials, unavailable checks,
+execution or grading errors, and dry or unknown execution cannot become
+successful measurements. Their rates stay null with an explicit reason. An
+otherwise correct answer with a failed record check may have quality rate one
+and bookkeeping rate zero while the public task still fails.
+
+Rows retain per-trial assessments. Groups keep mode, harness, requested and
+actual condition, and candidate route separate and do not average over
+unavailable trials. Invalid
+or inconsistent public result/evidence inputs remain unavailable and make the
+report unsuccessful. The suite retains the diagnostic and fails without
+rewriting those input artifacts. Advisory assessments and activation stay in
+their existing separate evidence; they do not enter the quality-check rate.
+
 ### Benchmark owner-route checks
 
 The Sevro run entrypoint preserves `--assert-effective-owner-routes` as a JSON

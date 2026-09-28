@@ -486,6 +486,8 @@ run; explicit skill-invocation cases are rejected for this mode. Options after
 extension command file at a stable path. The command emits Sevro's JSON result
 and exit category. Unsupported case features still fail during resolution.
 
+## Suites
+
 For suites with passive or enforced modes, run the Darrow suite entrypoint with
 an absolute suite path:
 
@@ -532,6 +534,34 @@ also invokes `sevro report` and writes its versioned `report.json` and Markdown
 `report.md` beside the manifest. The manifest records their absolute paths and
 any cells without a JSON result. The generic report preserves task, execution,
 grading, routes, and unknown measurements. The separate
+`quality-report.json` and `quality-report.md` use Darrow's
+`darrow-sevro-quality-v1` format to distinguish task quality, bookkeeping, and
+the public task pass rate. Quality excludes only the two benchmark record
+checks from Darrow's benchmark grader. A correct answer with a missing record
+can have quality 100%, bookkeeping 0%, and a failed public task; the suite still
+fails. Other task checks remain required. Advisory scores and activation do
+not enter this check rate.
+
+The manifest's `qualityReport` names both absolute paths and any input error.
+Per-cell `recordChecksRequested` retains the resolved policy, including the
+adaptive-delivery exception. Each report row retains public execution, grading,
+task, and exit states, input paths, provenance, and per-trial assessments.
+`quality` and `records` retain trial counts, measured counts, and rates; absent
+record policy is `not_requested`. Dry trials are `not_run`. Execution/grading
+failures, unavailable checks, missing trials, and unknown execution leave rates
+null. A selected custom task policy remains explicit and makes the default
+quality metric unavailable. `protocolPassRate` uses public task verdicts,
+including any selected task policy. Groups keep mode, harness, requested and
+actual condition, and candidate route separate. An unavailable trial leaves its
+group rate unknown. Invalid or inconsistent inputs retain a diagnostic and
+fail the report and suite. The report validates both public schema snapshots,
+including [`run-evidence-v1.schema.json`](schemas/run-evidence-v1.schema.json),
+and rejects duplicate check IDs before measuring outcomes. Refresh the evidence
+snapshot alongside the CLI schema when upgrading Sevro and rerun installed-package
+parity. See [quality report validation](quality-validation.md)
+for the public-command evidence and limits.
+
+The separate
 `activation-report.json` and `activation-report.md` report the separate
 activation gates, all three classes, recall, and precision grouped by mode
 and harness. Incomplete observations and empty metric denominators remain

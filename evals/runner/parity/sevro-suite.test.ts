@@ -671,6 +671,16 @@ test("suite retains unavailable benchmark owner routes without successful assess
       status: "unavailable",
     },
   ]);
+  const quality = JSON.parse(
+    await readFile(manifest.qualityReport.jsonPath, "utf8"),
+  );
+  expect(quality.rows[0].grading.status).toBe("unavailable");
+  expect(quality.rows[0].quality).toMatchObject({
+    status: "unavailable",
+    passRate: null,
+  });
+  expect(quality.rows[0].protocolPassRate).toBeNull();
+  expect(quality.groups[0].quality.passRate).toBeNull();
 });
 
 test("suite gates requested evaluation records independently of existing task checks", async () => {
@@ -744,6 +754,40 @@ test("suite gates requested evaluation records independently of existing task ch
       { id: "darrow.evals.benchmark.human-interruptions", status: task },
     ]);
   }
+  expect(manifest.qualityReport.error).toBeNull();
+  const quality = JSON.parse(
+    await readFile(manifest.qualityReport.jsonPath, "utf8"),
+  );
+  expect(quality.format).toBe("darrow-sevro-quality-v1");
+  expect(quality.rows).toHaveLength(2);
+  for (const [index, row] of quality.rows.entries()) {
+    expect(row.resultFile).toBe(manifest.cells[index].result);
+    expect(row.evidencePath).toBe(manifest.cells[index].evidencePath);
+    expect(row.execution.status).toBe("completed");
+    expect(row.grading.status).toBe("completed");
+    expect(row.task.verdict).toBe(index ? "failed" : "passed");
+    expect(row.exitCode).toBe(index);
+    expect(row.quality).toMatchObject({
+      status: "measured",
+      passRate: 1,
+      trials: 1,
+      measured: 1,
+    });
+    expect(row.records).toMatchObject({
+      status: "measured",
+      passRate: index ? 0 : 1,
+      trials: 1,
+      measured: 1,
+    });
+    expect(row.protocolPassRate).toBe(index ? 0 : 1);
+  }
+  expect(quality.groups).toHaveLength(1);
+  expect(quality.groups[0].quality.passRate).toBe(1);
+  expect(quality.groups[0].records.passRate).toBe(0.5);
+  const markdown = await readFile(manifest.qualityReport.markdownPath, "utf8");
+  expect(markdown).toContain("Task quality");
+  expect(markdown).toContain("Bookkeeping");
+  expect(markdown).toContain("Public task");
 });
 
 test("suite preserves dry and adaptive-delivery record exceptions", async () => {
@@ -804,6 +848,18 @@ test("suite preserves dry and adaptive-delivery record exceptions", async () => 
   expect(result.task.verdict).toBe("not_assessed");
   const report = JSON.parse(await readFile(manifest.report.jsonPath, "utf8"));
   expect(report.rows[0].taskPassRate).toBeNull();
+  const quality = JSON.parse(
+    await readFile(manifest.qualityReport.jsonPath, "utf8"),
+  );
+  expect(quality.rows[0].quality).toMatchObject({
+    status: "not_run",
+    passRate: null,
+  });
+  expect(quality.rows[0].records).toMatchObject({
+    status: "not_run",
+    passRate: null,
+  });
+  expect(quality.rows[0].protocolPassRate).toBeNull();
   const liveRoot = join(root, "live");
   const live = await invoke([
     ...base,
@@ -826,6 +882,16 @@ test("suite preserves dry and adaptive-delivery record exceptions", async () => 
     const raw = JSON.parse(await readFile(cell.result, "utf8"));
     expect(raw.task.verdict).toBe("passed");
     expect(raw.cases[0].trials[0].checks).toHaveLength(1);
+  }
+  const liveQuality = JSON.parse(
+    await readFile(retained.qualityReport.jsonPath, "utf8"),
+  );
+  for (const row of liveQuality.rows) {
+    expect(row.quality.passRate).toBe(1);
+    expect(row.records).toMatchObject({
+      status: "not_requested",
+      passRate: null,
+    });
   }
 });
 
@@ -2925,7 +2991,216 @@ test("suite retains failed cells and continues the remaining public runs", async
     );
     expect(cell.provenance.evaluationDigest).toMatch(/^[a-f0-9]{64}$/);
   }
+  const quality = JSON.parse(
+    await readFile(manifest.qualityReport.jsonPath, "utf8"),
+  );
+  expect(quality.groups).toHaveLength(2);
+  for (const row of quality.rows) {
+    expect(row.quality.passRate).toBe(row.caseId === "suite-beta" ? 0 : 1);
+    expect(row.records.status).toBe("not_requested");
+  }
+  for (const group of quality.groups) {
+    expect(group.quality.passRate).toBe(0.5);
+    expect(group.protocolPassRate).toBe(0.5);
+  }
 }, 15_000);
+
+test.each(["duplicate-checks", "missing-usage"])(
+  "suite rejects invalid quality report inputs: %s",
+  async (defect) => {
+    const { root, suite, adapter, results } = await fixture();
+    const route = sevroCommand();
+    const invalid = join(root, "invalid-sevro");
+    const snapshot = join(root, "report-inputs.json");
+    await writeFile(
+      invalid,
+      `#!${process.execPath}
+      import { readFile, writeFile } from "node:fs/promises";
+      const args = process.argv.slice(2);
+      const child = Bun.spawn([...${JSON.stringify(route.launch)}, ...args,
+        ...(args[0] === "run" ? ${JSON.stringify(route.extraArgs)} : [])], { stdout: "pipe", stderr: "inherit" });
+      const [stdout, code] = await Promise.all([new Response(child.stdout).text(), child.exited]);
+      let output = stdout;
+      if (code === 0 && args[0] === "run") {
+        const result = JSON.parse(stdout);
+        const evidence = JSON.parse(await readFile(result.evidencePath, "utf8"));
+        if (${JSON.stringify(defect)} === "duplicate-checks") {
+          const checks = result.cases[0].trials[0].checks;
+          checks.push({ ...checks[0] });
+          evidence.result = result;
+        } else delete evidence.trials[0].usage;
+        const evidenceText = JSON.stringify(evidence, null, 2);
+        await writeFile(result.evidencePath, evidenceText);
+        await writeFile(${JSON.stringify(snapshot)}, JSON.stringify({ resultText: JSON.stringify(result, null, 2), evidenceText }));
+        output = JSON.stringify(result);
+      }
+      process.stdout.write(output); process.exitCode = code;
+    `,
+      { mode: 0o700 },
+    );
+    const run = await invoke(
+      [
+        "--suite",
+        suite,
+        "--case",
+        "suite-alpha",
+        "--mode",
+        "passive",
+        "--project-root",
+        root,
+        "--results-root",
+        results,
+        "--trials",
+        "1",
+        "--threshold",
+        "1",
+        "--",
+        "--adapter-module",
+        adapter,
+        "--shell-isolation",
+      ],
+      { SEVRO_CHECKOUT: undefined, SEVRO_PACKAGE_BIN: invalid },
+    );
+    const manifest = JSON.parse(
+      await readFile(join(results, "suite-run.json"), "utf8"),
+    );
+    const cell = manifest.cells[0];
+    const result = JSON.parse(await readFile(cell.result, "utf8"));
+    expect(cell.exitCode).toBe(0);
+    expect(result.task.verdict).toBe("passed");
+    const report = JSON.parse(
+      await readFile(manifest.qualityReport.jsonPath, "utf8"),
+    );
+    expect(report.rows[0].quality.passRate).toBeNull();
+    expect(report.rows[0].protocolPassRate).toBeNull();
+    expect(report.rows[0].error).toContain(
+      defect === "duplicate-checks" ? "Duplicate check outcomes" : "usage",
+    );
+    expect(manifest.qualityReport.error).not.toBeNull();
+    expect(run.code, run.stderr + run.stdout).toBe(1);
+    const retained = JSON.parse(await readFile(snapshot, "utf8"));
+    expect(await readFile(cell.result, "utf8")).toBe(retained.resultText);
+    expect(await readFile(cell.evidencePath, "utf8")).toBe(
+      retained.evidenceText,
+    );
+  },
+  10_000,
+);
+
+test("suite quality remains unknown after candidate execution failure", async () => {
+  const { root, cases, adapter, suite, results } = await fixture();
+  const path = join(cases, "suite-beta.yaml");
+  const definition = JSON.parse(await readFile(path, "utf8"));
+  definition.prompt = "Fail execution.";
+  await writeFile(path, JSON.stringify(definition));
+  await writeFile(
+    adapter,
+    `export default {
+    id: "sevro.host.codex", model: "synthetic", effort: "none",
+    async run({ prompt }) {
+      if (prompt === "Fail execution.") throw new Error("synthetic execution failure");
+      return { finalMessage: "ready", complete: true, actualCondition: "unknown" };
+    }
+  };`,
+  );
+  const run = await invoke([
+    "--suite",
+    suite,
+    "--mode",
+    "passive",
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+  ]);
+  expect(run.code, run.stdout + run.stderr).toBe(1);
+  const manifest = JSON.parse(
+    await readFile(join(results, "suite-run.json"), "utf8"),
+  );
+  expect(
+    manifest.cells.map((cell: { exitCode: number }) => cell.exitCode),
+  ).toEqual([0, 2]);
+  const report = JSON.parse(
+    await readFile(manifest.qualityReport.jsonPath, "utf8"),
+  );
+  expect(report.rows[0].quality.passRate).toBe(1);
+  expect(report.rows[1].execution.status).toBe("failed");
+  expect(report.rows[1].task.verdict).toBe("not_assessed");
+  expect(report.rows[1].quality).toMatchObject({
+    status: "unavailable",
+    passRate: null,
+  });
+  expect(report.rows[1].protocolPassRate).toBeNull();
+  expect(report.groups[0].quality).toMatchObject({
+    measured: 1,
+    trials: 2,
+    passRate: null,
+  });
+});
+
+test("suite quality remains unknown after semantic grading error", async () => {
+  const { root, cases, adapter, suite, results } = await fixture();
+  const path = join(cases, "suite-alpha.yaml");
+  const definition = JSON.parse(await readFile(path, "utf8"));
+  definition.semantic_output_checks = [
+    { name: "answer", proposition: "The response is ready." },
+  ];
+  await writeFile(path, JSON.stringify(definition));
+  const judge = join(root, "judge.ts");
+  await writeFile(
+    judge,
+    `export default {
+    id: "sevro.host.codex", model: "synthetic-judge", effort: "none",
+    async run({ condition }) { return { finalMessage: "invalid JSON", complete: true, actualCondition: condition }; }
+  };`,
+  );
+  const run = await invoke([
+    "--suite",
+    suite,
+    "--case",
+    "suite-alpha",
+    "--mode",
+    "passive",
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--",
+    "--adapter-module",
+    adapter,
+    "--semantic-adapter-module",
+    judge,
+    "--shell-isolation",
+  ]);
+  expect(run.code, run.stdout + run.stderr).toBe(1);
+  const manifest = JSON.parse(
+    await readFile(join(results, "suite-run.json"), "utf8"),
+  );
+  expect(manifest.cells[0].exitCode).toBe(3);
+  const report = JSON.parse(
+    await readFile(manifest.qualityReport.jsonPath, "utf8"),
+  );
+  expect(report.rows[0].execution.status).toBe("completed");
+  expect(report.rows[0].grading.status).toBe("error");
+  expect(report.rows[0].task.verdict).toBe("not_assessed");
+  expect(report.rows[0].quality).toMatchObject({
+    status: "unavailable",
+    passRate: null,
+  });
+  expect(report.rows[0].protocolPassRate).toBeNull();
+});
 
 test("suite interruption cancels the active Sevro cell and stops selection", async () => {
   const { root, adapter, suite, results } = await fixture();
@@ -2981,6 +3256,16 @@ test("suite interruption cancels the active Sevro cell and stops selection", asy
     const result = JSON.parse(await readFile(manifest.cells[0].result, "utf8"));
     expect(result.execution.status).toBe("cancelled");
     expect(result.task.verdict).toBe("not_assessed");
+    const quality = JSON.parse(
+      await readFile(manifest.qualityReport.jsonPath, "utf8"),
+    );
+    expect(quality.rows[0].execution.status).toBe("cancelled");
+    expect(quality.rows[0].quality).toMatchObject({
+      status: "unavailable",
+      passRate: null,
+    });
+    expect(quality.rows[0].protocolPassRate).toBeNull();
+    expect(quality.groups[0].quality.passRate).toBeNull();
   } finally {
     child.kill("SIGKILL");
     await child.exited;
