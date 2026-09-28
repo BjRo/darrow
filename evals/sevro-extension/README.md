@@ -17,8 +17,11 @@ Setup-only generated fixtures omit the commit list and begin with an empty Git
 history. Their setup creates the initial snapshot without a placeholder commit.
 The compatibility inventory also includes `.agents/skills/*/evals/*.yaml`.
 Implicit repository-skill cases mount their owning skill under `.agents/skills/`
-on Codex without a plugin wrapper. Explicit repository dispatch, Claude mounts,
-and provider composition remain unavailable pending their native scope support.
+on Codex without a plugin wrapper. Explicit repository cases negotiate
+`sevro.codex.repository-invocation` and use the native `$skill` token. Their
+separate declaration binds repository scope in configuration and run identity.
+Claude mounts and provider composition remain unavailable pending their native
+scope support.
 For a plugin-local case, `prepare` mounts the selected skill's files under
 `.agents/skills/` and excludes their exact paths from Git status. Colocated
 `evals/` files and generated caches stay out of the candidate fixture. Skill

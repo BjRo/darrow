@@ -5452,7 +5452,7 @@ test("Darrow fixture setup runs through Sevro and rejects changed source", async
   expect(initialized.value.cases[0]!.trials[0]!.checks).toHaveLength(3);
 });
 
-test("Darrow runs implicit repository skills without a plugin wrapper", async () => {
+test("Darrow runs implicit and explicit repository skills without a plugin wrapper", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-repository-skill-"));
   roots.push(root);
   const skillRoot = join(root, ".agents/skills/probe");
@@ -5543,14 +5543,17 @@ test("Darrow runs implicit repository skills without a plugin wrapper", async ()
     adapter,
     `export default {
   id: "sevro.host.codex", model: "synthetic-v1", effort: "none",
-  async run({ workspace, fixtureBinDir }) {
+  hostCapabilities: ["sevro.codex.repository-invocation"],
+  async run({ workspace, fixtureBinDir, prompt, explicitSkillInvocation, codexMarketplace }) {
     if ((await Bun.file(workspace + "/.agents/skills/probe/SKILL.md").text()) !== ${JSON.stringify(skillBody)}) throw new Error("skill mount differs");
     if (await Bun.file(workspace + "/.agents/skills/probe/evals/probe.yaml").exists()) throw new Error("eval exposed");
+    if (codexMarketplace) throw new Error("repository skill was packaged as a plugin");
+    if (explicitSkillInvocation && (prompt !== "Use $probe to return ready." || JSON.stringify(explicitSkillInvocation) !== JSON.stringify({ skillName: "probe", scope: "repository", token: "$probe" }))) throw new Error("repository invocation differs");
     const child = Bun.spawn(["sevro-probe"], { cwd: workspace, env: { PATH: fixtureBinDir + ":/usr/bin:/bin" }, stdout: "pipe" });
     if ((await new Response(child.stdout).text()).trim() !== "fixture-bin-ready" || await child.exited !== 0) throw new Error("fixture tool unavailable");
     return {
       finalMessage: "ready", complete: true,
-      observations: [{ id: "sevro.codex.skill-reads", source: "sevro.host.codex", completeness: "complete", data: { method: "skill_file_read_probe", primarySkill: "probe", observedSkills: ["probe"] } }],
+      observations: [{ id: explicitSkillInvocation ? "sevro.codex.explicit-invocation" : "sevro.codex.skill-reads", source: "sevro.host.codex", completeness: "complete", data: { method: explicitSkillInvocation ? "explicit_invocation" : "skill_file_read_probe", primarySkill: "probe", observedSkills: ["probe"] } }],
     };
   },
 };
@@ -5579,6 +5582,41 @@ test("Darrow runs implicit repository skills without a plugin wrapper", async ()
   expect(run.code, run.stderr).toBe(0);
   expect(run.value.task.verdict).toBe("passed");
   expect(run.value.cases[0]!.trials[0]!.domainOutcomes).toMatchObject([
+    { id: "darrow.evals.activation", status: "passed" },
+  ]);
+  const caseFile = join(skillRoot, "evals/probe.yaml");
+  const explicitCase = await Bun.file(caseFile).json();
+  explicitCase.prompt = "Use {{skill_invocation}} to return ready.";
+  await writeFile(caseFile, JSON.stringify(explicitCase));
+  const explicitRun = await command<CliReply>([
+    process.execPath,
+    resolve(import.meta.dir, "../../sevro-extension/run.ts"),
+    "--case-id",
+    "repository-probe",
+    "--project-root",
+    root,
+    "--results-root",
+    join(root, "explicit-results"),
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+    "--condition",
+    "passive",
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+  ]);
+  expect(explicitRun.code, explicitRun.stderr).toBe(0);
+  expect(explicitRun.value.task.verdict).toBe("passed");
+  const explicitEvidence = await Bun.file(
+    explicitRun.value.evidencePath,
+  ).json();
+  expect(explicitEvidence.configuration.redacted).toMatchObject({
+    codexRepositorySkillInvocation: { skillName: "probe" },
+  });
+  expect(explicitRun.value.cases[0]!.trials[0]!.domainOutcomes).toMatchObject([
     { id: "darrow.evals.activation", status: "passed" },
   ]);
 });

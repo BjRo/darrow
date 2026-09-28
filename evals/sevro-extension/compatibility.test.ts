@@ -146,7 +146,7 @@ test("resolves continuation prompts including a later skill invocation", async (
   });
 });
 
-test("compatibility inventory includes unsupported repository invocation", async () => {
+test("compatibility inventory includes unsupported repository composition", async () => {
   const root = await mkdtemp(
     join(tmpdir(), "darrow-sevro-repository-inventory-"),
   );
@@ -161,6 +161,7 @@ test("compatibility inventory includes unsupported repository invocation", async
       invariant: "EXAMPLE-R1",
       activation: "positive",
       prompt: "{{skill_invocation}} Use the probe capability.",
+      additional_plugins: ["plugins/capability/provider"],
       fixture: {
         commits: [{ message: "Initial", files: { "README.md": "fixture\n" } }],
       },

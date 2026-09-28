@@ -38,8 +38,12 @@ failures; omitting a scope cannot produce a valid migration gate.
 
 Implicit repository-skill cases retain their repository scope. On Codex, prepare
 the owning skill under `.agents/skills/` without a plugin wrapper, exclude eval
-assets, and preserve activation grading. Explicit dispatch and other hosts must
-remain unavailable until their native scope is supported.
+assets, and preserve activation grading. An explicit repository case negotiates
+`sevro.codex.repository-invocation`, declares its mounted owning skill, and uses
+exactly one runner-rendered `$skill` token. The declaration and repository scope
+enter retained configuration and comparison identity. Plugin dispatch declarations
+cannot substitute for repository dispatch. Other hosts remain unavailable until
+their native scope is supported.
 
 Repository guide fixtures exercise implementation-derived explanations against
 Darrow-owned evaluation code, such as its Sevro extension. Their snapshots must

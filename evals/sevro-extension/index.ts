@@ -636,9 +636,10 @@ async function invocationForCase(
   if (!skillDir)
     throw new Error("skill invocation requires a plugin-local case");
   if (skillDir.startsWith(".agents/"))
-    throw new Error(
-      "explicit repository-skill invocation is not yet supported",
-    );
+    return {
+      scope: "repository" as const,
+      skillName: skillDir.split("/").at(-1)!,
+    };
   const pluginRoot = await realpath(join(root, dirname(dirname(skillDir))));
   if (!within(root, pluginRoot))
     throw new Error("owning plugin escapes the project root");
@@ -2127,6 +2128,27 @@ function packageDeclarations(options: {
   };
 }
 
+function repositoryInvocation(details: RecordValue, hostValue: unknown) {
+  if (details.invocation === undefined) return {};
+  const invocation = record(details.invocation, "repository skill invocation");
+  const host = record(hostValue, "candidate host");
+  if (
+    host.id !== "sevro.host.codex" ||
+    !Array.isArray(host.capabilities) ||
+    !host.capabilities.includes("sevro.codex.repository-invocation")
+  )
+    throw new Error(
+      "repository skill invocation requires a capable Codex host",
+    );
+  if (invocation.scope !== "repository")
+    throw new Error("repository skill invocation has an invalid scope");
+  return {
+    codexRepositorySkillInvocation: {
+      skillName: string(invocation.skillName, "invoked repository skill"),
+    },
+  };
+}
+
 async function repositorySkillMounts(
   details: RecordValue,
   sources: { skillRoot: string; skillName: string }[],
@@ -2135,7 +2157,10 @@ async function repositorySkillMounts(
   if (record(hostValue, "candidate host").id === "sevro.host.claude")
     throw new Error("repository-skill mounts on Claude are not yet supported");
   requireActivationSkills(details, sources);
-  return { artifacts: await skillArtifacts(sources) };
+  return {
+    artifacts: await skillArtifacts(sources),
+    ...repositoryInvocation(details, hostValue),
+  };
 }
 
 async function preparedMounts(details: RecordValue, hostValue: unknown) {
@@ -4768,6 +4793,7 @@ if (import.meta.main) {
               "sevro.host.continuation",
               "sevro.codex.plugin-marketplace",
               "sevro.codex.explicit-invocation",
+              "sevro.codex.repository-invocation",
               "sevro.codex.native-calls",
               "sevro.claude.plugin-dirs",
               "sevro.claude.explicit-invocation",
