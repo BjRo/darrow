@@ -1,9 +1,13 @@
 import { createHash } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
-import { resolveCorpusSource } from "../corpus/orchestration/source";
+import {
+  readCorpusManifest,
+  resolveCorpusSource,
+  type ResolvedCorpusSource,
+} from "../corpus/orchestration/source";
 import { selectedCaseFixture } from "./index";
 import { sevroCommand } from "./sevro-command";
 import {
@@ -39,6 +43,7 @@ const reserved = new Set([
   "--extension-source-file",
   "--case-source-root",
   "--case-source-map-file",
+  "--corpus-manifest",
   "--runner-checkout-root",
   "--runner-build-digest",
   "--project-digest",
@@ -114,6 +119,7 @@ function runOptions(argv: string[]) {
       "results-root": { type: "string" },
       "without-skill": { type: "boolean", default: false },
       "skill-dir": { type: "string" },
+      "corpus-manifest": { type: "string" },
       "mount-plugin-skills": { type: "boolean", default: false },
       "require-evaluation-records": { type: "boolean", default: false },
       "assert-effective-owner-routes": { type: "string" },
@@ -123,6 +129,11 @@ function runOptions(argv: string[]) {
     },
     strict: true,
   });
+  if (
+    values["corpus-manifest"] !== undefined &&
+    !isAbsolute(values["corpus-manifest"])
+  )
+    throw new Error("corpus manifest path must be absolute");
   return { values, forwarded: argv.slice(separator + 1) };
 }
 
@@ -158,6 +169,7 @@ export function invocation(argv: string[]) {
     projectRoot,
     caseId,
     withoutSkill: values["without-skill"],
+    corpusManifest: values["corpus-manifest"],
     ...benchmark,
     ...skillMount,
     ...policy,
@@ -181,17 +193,40 @@ async function repositorySourceArgs(
   projectRoot: string,
   caseId: string,
   resultsRoot: string,
+  corpusManifest?: string,
 ): Promise<string[]> {
   const fixture = await selectedCaseFixture({
     projectRoot: pathToFileURL(projectRoot).href,
     selectors: { caseIds: [caseId] },
   });
-  if (fixture.kind !== "repository") return [];
-  const manifest = join(
-    projectRoot,
-    "evals/corpus/orchestration/manifest.yaml",
-  );
+  const manifest =
+    corpusManifest ??
+    join(projectRoot, "evals/corpus/orchestration/manifest.yaml");
+  if (corpusManifest) await readCorpusManifest(corpusManifest);
+  if (fixture.kind !== "repository")
+    return corpusManifest
+      ? [
+          "--extension-source-file",
+          manifest,
+          "--protected-root",
+          dirname(manifest),
+        ]
+      : [];
+  const bytes = await readFile(manifest);
   const source = await resolveCorpusSource(fixture.sourceRef, manifest);
+  if (!bytes.equals(await readFile(manifest)))
+    throw new Error("corpus manifest changed during source preflight");
+  return sourceArguments({ source, manifest, bytes, caseId, resultsRoot });
+}
+
+async function sourceArguments(options: {
+  source: ResolvedCorpusSource;
+  manifest: string;
+  bytes: Buffer;
+  caseId: string;
+  resultsRoot: string;
+}) {
+  const { source, manifest, bytes, caseId, resultsRoot } = options;
   const mapDigest = createHash("sha256")
     .update(`${caseId}\0${source.id}\0${source.path}\0${source.commit}`)
     .digest("hex");
@@ -200,12 +235,45 @@ async function repositorySourceArgs(
     mapFile,
     JSON.stringify({ [source.id]: pathToFileURL(source.path).href }),
   );
+  const provenance = JSON.stringify({
+    format: "darrow-corpus-source-v1",
+    manifest: {
+      path: manifest,
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+    },
+    source,
+  });
+  const corpusDigest = createHash("sha256").update(provenance).digest("hex");
+  const provenanceFile = join(
+    resultsRoot,
+    `darrow-corpus-source-${corpusDigest}.json`,
+  );
+  await retainCorpusProvenance(provenanceFile, provenance);
   return [
+    "--extension-source-file",
+    manifest,
+    "--extension-source-file",
+    provenanceFile,
+    "--protected-root",
+    dirname(manifest),
     "--case-source-root",
     dirname(source.path),
     "--case-source-map-file",
     mapFile,
   ];
+}
+
+async function retainCorpusProvenance(path: string, contents: string) {
+  try {
+    await writeFile(path, contents, { flag: "wx", mode: 0o600 });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+    if (
+      !(await lstat(path)).isFile() ||
+      (await readFile(path, "utf8")) !== contents
+    )
+      throw new Error("retained corpus provenance changed", { cause: error });
+  }
 }
 
 if (import.meta.main) {
@@ -239,6 +307,7 @@ if (import.meta.main) {
         selected.projectRoot,
         selected.caseId,
         selected.resultsRoot,
+        selected.corpusManifest,
       );
       const child = Bun.spawn([...selected.command, ...sourceArgs], {
         stdout: "inherit",

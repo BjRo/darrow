@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 
@@ -56,16 +56,19 @@ function nonEmpty(value: unknown, label: string): string {
   return value;
 }
 
-async function readCorpusManifest(
+export async function readCorpusManifest(
   manifestPath: string,
 ): Promise<CorpusManifest> {
+  if (!(await stat(manifestPath)).isFile())
+    throw new Error("corpus manifest must be a regular file");
   const parsed = parseYaml(
     await readFile(manifestPath, "utf8"),
   ) as CorpusManifest;
   if (
     parsed?.version !== 1 ||
     !parsed.sources ||
-    typeof parsed.sources !== "object"
+    typeof parsed.sources !== "object" ||
+    Array.isArray(parsed.sources)
   ) {
     throw new Error("corpus manifest must use version 1 and define sources");
   }

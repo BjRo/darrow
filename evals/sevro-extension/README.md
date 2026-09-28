@@ -85,7 +85,8 @@ foreign, or inconsistent observations make activation unavailable without
 changing the task verdict. Other Codex read patterns still need parity work.
 
 The entrypoint verifies `fixture.source` against
-`evals/corpus/orchestration/manifest.yaml` and a clean prepared checkout, then
+`evals/corpus/orchestration/manifest.yaml` or an explicit `--corpus-manifest`
+and a clean prepared checkout, then
 passes that one source through Sevro's protected case-source map. Prepare the
 source with `bun run eval:orchestration:prepare --source <id>` before running a
 corpus case. The extension preserves the invariant, source path, and check
@@ -286,9 +287,20 @@ the raw public task verdict and exit code stay unchanged. Each run records
 unmounted controls are `not_requested`. An activation-assessment error is
 retained and fails the aggregate.
 
-Private goal assertions, custom `--corpus-manifest` paths, and manually supplied
-`--human-review-minutes` remain explicit migration gaps and are rejected.
-Prepared corpus cases still use the canonical manifest. See
+`--corpus-manifest` selects a manifest relative to the invocation directory on
+the direct command. The migration entrypoint requires an absolute path before
+`--`. The source cache resolves beside that manifest. Explicit unreadable or
+invalid manifests fail before execution; source revision, license, and clean
+checkout checks remain required. Each corpus run retains
+`darrow-corpus-source-<sha256>.json` with the selected manifest path and SHA-256 plus
+source provenance. The manifest, its containing directory, the source cache,
+and related repository worktrees are protected from isolated checks and bundled
+native tools. Repeated attempts keep the same corpus identity; changed manifest
+bytes change it. Reusing a results root preserves the earlier provenance files.
+See [corpus validation](corpus-caller-validation.md).
+
+Private goal assertions and manually supplied `--human-review-minutes` remain
+explicit migration gaps and are rejected. See
 [direct caller validation](direct-caller-validation.md).
 
 ## Direct case selection

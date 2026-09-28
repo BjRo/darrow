@@ -557,9 +557,22 @@ or unavailable at the requested threshold. Its manifest records that Darrow
 gate separately; the public task verdict and exit code remain unchanged.
 Dry preparation and unmounted controls do not fail this activation gate.
 Dry and unknown evidence cannot become measured success. Terminal presentation
-flags remain accepted for the plain JSON output. Custom corpus-manifest paths
-and manually supplied human-review minutes remain explicit migration gaps;
-they cannot be silently ignored.
+flags remain accepted for the plain JSON output. `--corpus-manifest` preserves
+the selected corpus manifest: the direct caller resolves it from the invocation
+directory, and the Sevro run entrypoint accepts an absolute path before `--`.
+Unreadable or invalid explicit manifests fail before case execution. Repository
+fixtures resolve their cache beside that manifest, verify the pinned revision,
+license file and clean source, and retain the selected manifest's path and digest
+with source provenance in `darrow-corpus-source-v1` evidence. The manifest and
+its directory, source repositories and their worktrees remain protected from
+evaluated tools and checks. The manifest contributes to evaluator identity;
+a metadata change cannot silently reuse the same identity. Per-attempt corpus
+evidence paths must not make otherwise identical corpus inputs appear different.
+Reusing a results root with changed corpus metadata preserves prior source
+provenance files rather than overwriting them.
+The default manifest remains under the evaluated project's corpus directory.
+Manually supplied human-review minutes remain an explicit migration gap and
+cannot be silently ignored.
 
 The existing `bun run eval:orchestration` and `evals/runner/suite.ts` caller
 selects Sevro when `SEVRO_PACKAGE_BIN` or `SEVRO_CHECKOUT` is explicitly set.

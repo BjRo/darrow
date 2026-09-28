@@ -71,9 +71,13 @@ from the invocation directory. `--output` now receives the selection manifest;
 its containing directory is protected from isolated tools and checks. Stdout is
 the same JSON rather than legacy terminal presentation. Individual public exit
 categories stay in the manifest; the caller aggregates case failures as exit `1`,
-rejects invalid invocation with `64`, and preserves cancellation exits. Custom
-corpus-manifest paths and manually supplied human-review minutes remain explicit
-migration gaps. See [direct caller validation](direct-caller-validation.md).
+rejects invalid invocation with `64`, and preserves cancellation exits.
+`--corpus-manifest` selects an explicit pinned corpus with retained manifest
+identity and source provenance. Its paths resolve from the invocation directory
+on the direct command; the migration entrypoint requires an absolute path before
+`--`. See [corpus validation](corpus-caller-validation.md). Manually supplied
+human-review minutes remain an explicit migration gap. See
+[direct caller validation](direct-caller-validation.md).
 
 The suite caller preserves relative `--suite` and `--output`, default storage,
 selectors, evidence limits, seeds, dry execution, and supported native routes.

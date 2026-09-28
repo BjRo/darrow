@@ -197,7 +197,6 @@ test("direct caller rejects forwarded overrides and unsupported legacy policies"
     ["--expected-goal-routes", "{}"],
     ["--assert-goal-routes", "{}"],
     ["--assert-goal-dimensions", "{}"],
-    ["--corpus-manifest", "custom.yaml"],
     ["--human-review-minutes", "5"],
   ]) {
     const run = await invoke(root, [...base, ...args]);

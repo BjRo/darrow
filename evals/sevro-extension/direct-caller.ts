@@ -10,6 +10,7 @@ import { preflightCaseDetails } from "./index";
 import { invocation } from "./run";
 import { sevroCommand } from "./sevro-command";
 import { suiteCaseRoutes } from "./suite-routes";
+import { readCorpusManifest } from "../corpus/orchestration/source";
 
 const directOptions = {
   "project-root": { type: "string" },
@@ -20,6 +21,7 @@ const directOptions = {
   skill: { type: "string" },
   plugin: { type: "string" },
   "skill-dir": { type: "string" },
+  "corpus-manifest": { type: "string" },
   "without-skill": { type: "boolean" },
   "mount-plugin-skills": { type: "boolean" },
   condition: { type: "string" },
@@ -144,6 +146,7 @@ function ownArguments(request: Request) {
     ["skill", "--skill", false],
     ["plugin", "--plugin", false],
     ["skill-dir", "--skill-dir", true],
+    ["corpus-manifest", "--corpus-manifest", true],
     ["condition", "--benchmark-condition-file", true],
     ["condition-label", "--benchmark-condition-label", false],
     ["assert-effective-owner-routes", "--assert-effective-owner-routes", false],
@@ -258,6 +261,8 @@ export async function runSevroDirect(argv: string[]) {
   try {
     sevroCommand();
     const request = requestOptions(argv);
+    if (request.values["corpus-manifest"] !== undefined)
+      await readCorpusManifest(resolve(request.values["corpus-manifest"]));
     const args = [
       ...ownArguments(request),
       "--",
