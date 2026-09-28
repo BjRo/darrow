@@ -1,4 +1,4 @@
-# Suite activation validation
+# Suite validation
 
 ## Command regressions
 
@@ -70,3 +70,33 @@ This establishes the supported native Claude suite path for one positive
 repository-skill case. It does not establish stability, live negative or
 competition coverage, all suite route overrides, a published package pin, or
 the normal command cutover. Those issue #95 requirements remain pending.
+
+## Candidate route overrides
+
+The suite now preserves per-mode `model_by_harness` and `effort`. The command
+regression uses Sevro's bundled Codex and Claude adapters with synthetic host
+binaries, one trial, threshold `1`, passive execution, and shell isolation.
+It runs on macOS with Codex available for the real sandbox boundary. No live
+model call or real login is required.
+
+Red — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-suite.test.ts -t "suite applies per-mode candidate routes"'`:
+the unchanged suite rejected `model_by_harness` and `effort` with exit `64`.
+
+Green — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-suite.test.ts -t "suite applies per-mode candidate routes"'`:
+one test passed with 21 assertions. Original modes retain their host-specific
+base routes; overridden modes retain `codex-variant` / `high` and
+`claude-variant` / `high`, with requested and actual routes recorded separately.
+Both separated CLI values and `--option=value` inputs are exercised.
+
+A public-command wrapper then supplies contradictory retained model evidence
+and, separately, contradictory effort evidence. Only the overridden cells
+become unsuccessful, with unavailable provenance, while their original Sevro
+task verdict and exit code remain intact. A no-skill comparison with differing
+candidate routes also runs every task successfully but refuses matched
+ablation deltas. Invalid model maps and effort values fail before execution.
+
+The initial custom-adapter fixture could not exercise route flags because
+Sevro requires a bundled host for `--model` and `--effort`. The fixture was
+corrected before the recorded red/green sequence. This proves command and
+evidence behavior; it makes no claim about live model quality or the remaining
+benchmark condition and skill overrides.

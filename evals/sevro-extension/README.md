@@ -232,7 +232,12 @@ SEVRO_CHECKOUT=/absolute/path/to/sevro bun evals/sevro-extension/suite.ts \
 
 This suite route accepts a nonempty, unique `harnesses` list containing `codex`,
 `claude`, or both. It accepts
-`owner_evaluation` and `without_skill` in each mode. Named ablations pair a
+`owner_evaluation`, `without_skill`, `model_by_harness`, and `effort` in each
+mode. Candidate model and effort overrides require Sevro's bundled hosts;
+they replace the corresponding options in the host route and preserve the
+semantic and advisory routes. The manifest records requested routes and
+validates the actual model and effort against retained Sevro evidence.
+Named ablations pair a
 no-skill baseline with a mounted candidate under the same condition and compare
 each harness separately. Ablation
 results must be outside the evaluated project so result files cannot change its

@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { selectCaseIds } from "../../sevro-extension/index";
+import { sevroCommand } from "../../sevro-extension/sevro-command";
 
 const roots: string[] = [];
 const suiteCommand = resolve(import.meta.dir, "../../sevro-extension/suite.ts");
@@ -79,10 +80,14 @@ async function waitForFile(path: string) {
   }
 }
 
-async function invoke(args: string[]) {
+async function invoke(
+  args: string[],
+  environment: Record<string, string | undefined> = {},
+) {
   const proc = Bun.spawn([process.execPath, suiteCommand, ...args], {
     stdout: "pipe",
     stderr: "pipe",
+    env: { ...process.env, ...environment },
   });
   const [stdout, stderr, code] = await Promise.all([
     new Response(proc.stdout).text(),
@@ -91,6 +96,269 @@ async function invoke(args: string[]) {
   ]);
   return { stdout, stderr, code };
 }
+
+test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
+  "suite applies per-mode candidate routes independently for both hosts",
+  async () => {
+    const { root, suite, results } = await fixture();
+    const binRoot = await mkdtemp(
+      join(tmpdir(), "darrow-sevro-suite-binaries-"),
+    );
+    roots.push(binRoot);
+    const codexBinary = join(binRoot, "synthetic-codex");
+    const claudeBinary = join(binRoot, "synthetic-claude");
+    const codexAuth = join(root, "codex-auth.json");
+    const claudeAuth = join(root, "claude-auth.json");
+    const realCodex = `'${Bun.which("codex")!.replaceAll("'", `'"'"'`)}'`;
+    const events = [
+      { type: "thread.started", thread_id: "synthetic-suite-turn" },
+      {
+        type: "item.completed",
+        item: { type: "agent_message", text: "ready" },
+      },
+      { type: "turn.completed", usage: { input_tokens: 1, output_tokens: 1 } },
+    ]
+      .map((event) => JSON.stringify(event))
+      .join("\n");
+    await Promise.all([
+      writeFile(codexAuth, "test-only-auth\n", { mode: 0o600 }),
+      writeFile(claudeAuth, '{"test":"private-login"}', { mode: 0o600 }),
+      writeFile(
+        codexBinary,
+        `#!/bin/sh
+if [ "$1" = sandbox ]; then exec ${realCodex} "$@"; fi
+if [ "$1" = --version ]; then printf 'synthetic-codex\\n'; exit 0; fi
+if [ "$1" != exec ]; then exit 99; fi
+/bin/cat >/dev/null
+/bin/cat <<'SEVRO_EVENTS'
+${events}
+SEVRO_EVENTS
+`,
+        { mode: 0o700 },
+      ),
+      writeFile(
+        claudeBinary,
+        `#!/bin/sh
+test -r "$CLAUDE_CONFIG_DIR/.credentials.json" || exit 3
+printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"result":"ready","usage":{"input_tokens":1,"output_tokens":1},"total_cost_usd":0}'
+`,
+        { mode: 0o700 },
+      ),
+    ]);
+    await writeFile(
+      suite,
+      JSON.stringify({
+        version: 1,
+        experiment: "mode-routes",
+        harnesses: ["codex", "claude"],
+        case_filter: "suite-alpha",
+        modes: {
+          original: { owner_evaluation: "passive" },
+          overridden: {
+            owner_evaluation: "passive",
+            model_by_harness: {
+              codex: "codex-variant",
+              claude: "claude-variant",
+            },
+            effort: "high",
+          },
+        },
+      }),
+    );
+    const optionsFile = join(root, "hosts.json");
+    await writeFile(
+      optionsFile,
+      JSON.stringify({
+        codex: [
+          "--host",
+          "codex",
+          "--codex-bin",
+          codexBinary,
+          "--codex-auth-file",
+          codexAuth,
+          "--model=base-codex",
+          "--effort",
+          "low",
+        ],
+        claude: [
+          "--host",
+          "claude",
+          "--claude-bin",
+          claudeBinary,
+          "--claude-credential-file",
+          claudeAuth,
+          "--model",
+          "base-claude",
+          "--effort=low",
+        ],
+      }),
+    );
+    const args = [
+      "--suite",
+      suite,
+      "--project-root",
+      root,
+      "--results-root",
+      results,
+      "--host-options-file",
+      optionsFile,
+      "--trials",
+      "1",
+      "--threshold",
+      "1",
+      "--",
+      "--shell-isolation",
+    ];
+    const run = await invoke(args);
+    expect(run.code, `${run.stderr}\n${run.stdout}`).toBe(0);
+    const manifest = JSON.parse(
+      await readFile(join(results, "suite-run.json"), "utf8"),
+    );
+    expect(manifest.cells).toHaveLength(4);
+    expect(manifest.modes[1]).toMatchObject({
+      modelByHarness: { codex: "codex-variant", claude: "claude-variant" },
+      effort: "high",
+    });
+    expect(
+      manifest.cells.map(
+        (cell: { provenance: { routes: unknown[] } }) =>
+          cell.provenance.routes[0],
+      ),
+    ).toEqual([
+      {
+        role: "candidate",
+        host: "sevro.host.codex",
+        model: "base-codex",
+        effort: "low",
+      },
+      {
+        role: "candidate",
+        host: "sevro.host.claude",
+        model: "base-claude",
+        effort: "low",
+      },
+      {
+        role: "candidate",
+        host: "sevro.host.codex",
+        model: "codex-variant",
+        effort: "high",
+      },
+      {
+        role: "candidate",
+        host: "sevro.host.claude",
+        model: "claude-variant",
+        effort: "high",
+      },
+    ]);
+    expect(manifest.cells[2].requestedRoute).toEqual({
+      model: "codex-variant",
+      effort: "high",
+    });
+    expect(manifest.cells[3].requestedRoute).toEqual({
+      model: "claude-variant",
+      effort: "high",
+    });
+    const route = sevroCommand();
+    const contradictorySevro = join(binRoot, "contradictory-sevro");
+    await writeFile(
+      contradictorySevro,
+      `#!${process.execPath}
+import { readFile, writeFile } from "node:fs/promises";
+const args = process.argv.slice(2);
+const child = Bun.spawn([...${JSON.stringify(route.launch)}, ...args,
+  ...(args[0] === "run" ? ${JSON.stringify(route.extraArgs)} : [])], { stdout: "pipe", stderr: "inherit" });
+const [stdout, code] = await Promise.all([new Response(child.stdout).text(), child.exited]);
+if (code === 0 && args[0] === "run") {
+  const result = JSON.parse(stdout);
+  const evidence = JSON.parse(await readFile(result.evidencePath, "utf8"));
+  for (const actual of evidence.routes) {
+    if (actual.role === "candidate" && actual.model.endsWith("-variant"))
+      actual[process.env.SEVRO_TEST_BAD_ROUTE_FIELD] = "contradictory";
+  }
+  await writeFile(result.evidencePath, JSON.stringify(evidence));
+}
+process.stdout.write(stdout);
+process.exitCode = code;
+`,
+      { mode: 0o700 },
+    );
+    for (const field of ["model", "effort"]) {
+      const mismatchedRoot = join(results, field);
+      const mismatch = await invoke(
+        args.map((arg) => (arg === results ? mismatchedRoot : arg)),
+        {
+          SEVRO_CHECKOUT: undefined,
+          SEVRO_PACKAGE_BIN: contradictorySevro,
+          SEVRO_TEST_BAD_ROUTE_FIELD: field,
+        },
+      );
+      expect(mismatch.code, `${mismatch.stderr}\n${mismatch.stdout}`).toBe(1);
+      const retained = JSON.parse(
+        await readFile(join(mismatchedRoot, "suite-run.json"), "utf8"),
+      );
+      expect(
+        retained.cells.map((cell: { exitCode: number }) => cell.exitCode),
+      ).toEqual([0, 0, 70, 70]);
+      expect(retained.cells[2].provenance).toBeNull();
+      const result = JSON.parse(
+        await readFile(retained.cells[2].result, "utf8"),
+      );
+      expect(result.task.verdict).toBe("passed");
+      expect(result.exitCode).toBe(0);
+    }
+    const plugin = join(root, "plugins/capability/example");
+    const skill = join(plugin, "skills/probe");
+    await mkdir(join(skill, "evals"), { recursive: true });
+    await writeFile(
+      join(skill, "SKILL.md"),
+      "---\nname: probe\ndescription: Return ready.\n---\nReturn ready.\n",
+    );
+    for (const host of ["codex", "claude"]) {
+      await mkdir(join(plugin, `.${host}-plugin`));
+      await writeFile(
+        join(plugin, `.${host}-plugin/plugin.json`),
+        JSON.stringify({ name: "example", version: "0.1.0" }),
+      );
+    }
+    const selectedCase = JSON.parse(
+      await readFile(
+        join(root, "evals/experiments/example/cases/suite-alpha.yaml"),
+        "utf8",
+      ),
+    );
+    selectedCase.id = "route-ablation";
+    await writeFile(
+      join(skill, "evals/route-ablation.yaml"),
+      JSON.stringify(selectedCase),
+    );
+    const definition = JSON.parse(await readFile(suite, "utf8"));
+    definition.case_filter = "route-ablation";
+    definition.modes.original.without_skill = true;
+    definition.ablations = [
+      { name: "route-mismatch", baseline: "original", candidate: "overridden" },
+    ];
+    await writeFile(suite, JSON.stringify(definition));
+    const ablationRoot = join(binRoot, "ablation-results");
+    const ablation = await invoke(
+      args.map((arg) => (arg === results ? ablationRoot : arg)),
+    );
+    expect(ablation.code, `${ablation.stderr}\n${ablation.stdout}`).toBe(1);
+    const comparison = JSON.parse(
+      await readFile(join(ablationRoot, "suite-run.json"), "utf8"),
+    );
+    expect(
+      comparison.cells.every(
+        (cell: { exitCode: number }) => cell.exitCode === 0,
+      ),
+    ).toBeTrue();
+    expect(comparison.ablationReport.valid).toBeFalse();
+    const report = JSON.parse(
+      await readFile(comparison.ablationReport.jsonPath, "utf8"),
+    );
+    expect(report.comparisons[0].cases).toEqual([]);
+  },
+  45_000,
+);
 
 async function activationFixture() {
   const { root, adapter, suite, results } = await fixture();
@@ -142,6 +410,39 @@ export default {
   );
   return { root, adapter, suite, results };
 }
+
+test("suite rejects invalid mode model and effort declarations before execution", async () => {
+  const { root, suite, results } = await fixture();
+  const definition = JSON.parse(await readFile(suite, "utf8"));
+  const invalid = [
+    { model_by_harness: [] },
+    { model_by_harness: {} },
+    { model_by_harness: { other: "model" } },
+    { model_by_harness: { codex: "" } },
+    { model_by_harness: { codex: 42 } },
+    { effort: "" },
+    { effort: true },
+    { effort: "high\n" },
+  ];
+  for (const mode of invalid) {
+    await writeFile(
+      suite,
+      JSON.stringify({ ...definition, modes: { candidate: mode } }),
+    );
+    const run = await invoke([
+      "--suite",
+      suite,
+      "--project-root",
+      root,
+      "--results-root",
+      results,
+      "--",
+      "--dry",
+    ]);
+    expect(run.code, run.stderr).toBe(64);
+    expect(await Bun.file(results).exists()).toBeFalse();
+  }
+});
 
 test("suite gates activation independently when all task checks pass", async () => {
   const { root, adapter, suite, results } = await activationFixture();

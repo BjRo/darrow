@@ -9,6 +9,14 @@ import { pathToFileURL } from "node:url";
 import { sevroCommand } from "./sevro-command";
 import { activationGate, type ActivationExpectation } from "./activation";
 import { activationReports } from "./activation-report";
+import {
+  candidateArguments,
+  candidateRouteMatches,
+  modeRouteConfig,
+  optionValue,
+  requestedCandidateRoute,
+  type CandidateRoute,
+} from "./suite-routes";
 
 const repositoryRoot = resolve(import.meta.dir, "../..");
 type Harness = "codex" | "claude";
@@ -23,7 +31,13 @@ function modeConfig(name: string, raw: unknown) {
   if (!/^[A-Za-z0-9._-]+$/.test(name)) throw new Error(`invalid mode: ${name}`);
   const mode = object(raw, `mode ${name}`);
   const unsupported = Object.keys(mode).filter(
-    (key) => key !== "owner_evaluation" && key !== "without_skill",
+    (key) =>
+      ![
+        "owner_evaluation",
+        "without_skill",
+        "model_by_harness",
+        "effort",
+      ].includes(key),
   );
   if (unsupported.length)
     throw new Error(
@@ -35,7 +49,12 @@ function modeConfig(name: string, raw: unknown) {
   const condition: "passive" | "enforced" = requested;
   if (mode.without_skill !== undefined && mode.without_skill !== true)
     throw new Error(`invalid ${name} without_skill`);
-  return { name, condition, withoutSkill: mode.without_skill === true };
+  return {
+    name,
+    condition,
+    withoutSkill: mode.without_skill === true,
+    ...modeRouteConfig(mode),
+  };
 }
 
 type Ablation = { name: string; baseline: string; candidate: string };
@@ -219,22 +238,6 @@ function suiteInvocation(argv: string[]) {
 type SuiteRequest = ReturnType<typeof suiteInvocation>;
 type SuiteConfig = ReturnType<typeof suiteConfig>;
 
-function optionValue(args: string[], name: string): string | null {
-  const matching = args.filter(
-    (arg) => arg === name || arg.startsWith(`${name}=`),
-  );
-  if (matching.length > 1) throw new Error(`duplicate route option: ${name}`);
-  const token = matching[0];
-  if (!token) return null;
-  const value =
-    token === name
-      ? args[args.indexOf(token) + 1]
-      : token.slice(name.length + 1);
-  if (!value || value.startsWith("--"))
-    throw new Error(`missing route value: ${name}`);
-  return value;
-}
-
 function hostArguments(value: unknown, harness: Harness): string[] {
   if (
     !Array.isArray(value) ||
@@ -311,6 +314,7 @@ type Cell = {
   evidencePath: string | null;
   provenance: EvidenceSummary | null;
   activation: ReturnType<typeof activationGate>;
+  requestedRoute: CandidateRoute;
   exitCode: number;
   error?: string;
 };
@@ -331,6 +335,7 @@ type ExpectedCell = {
   threshold: number;
   exitCode: number;
   activation: ActivationExpectation | null;
+  requestedRoute: CandidateRoute;
 };
 
 function verifyEvidence(
@@ -364,8 +369,7 @@ function verifyEvidence(
     dimensions.passThreshold === expected.threshold,
     typeof identity.digest === "string",
     candidateRoutes.length === 1 &&
-      object(candidateRoutes[0], "candidate route").host ===
-        `sevro.host.${expected.harness}`,
+      candidateRouteMatches(candidateRoutes[0], expected),
   ];
   if (matches.some((matched) => !matched))
     throw new Error("retained Sevro evidence differs from suite cell");
@@ -481,8 +485,10 @@ function cellCommand(request: SuiteRequest, selected: CellSelection) {
     cellRoot,
     ...(mode.withoutSkill ? ["--without-skill"] : []),
     "--",
-    ...request.forwarded,
-    ...(request.hostOptions?.[harness] ?? []),
+    ...candidateArguments(
+      [...request.forwarded, ...(request.hostOptions?.[harness] ?? [])],
+      requestedCandidateRoute(mode, harness),
+    ),
     "--condition",
     mode.condition,
     "--trials",
@@ -504,6 +510,7 @@ async function runCell(
     stdin: "inherit",
   });
   const { stdout, exitCode, interrupted } = await captureCell(child);
+  const requestedRoute = requestedCandidateRoute(mode, harness);
   let result: Record<string, unknown> | null = null;
   try {
     result = object(JSON.parse(stdout) as unknown, "Sevro result");
@@ -522,6 +529,7 @@ async function runCell(
       threshold: request.threshold,
       exitCode,
       activation: selected.activation,
+      requestedRoute,
     },
   );
   const cell: Cell = {
@@ -534,6 +542,7 @@ async function runCell(
       typeof result?.evidencePath === "string" ? result.evidencePath : null,
     provenance,
     activation,
+    requestedRoute,
     ...cellStatus(result, exitCode, evidenceError),
   };
   return { cell, interrupted };

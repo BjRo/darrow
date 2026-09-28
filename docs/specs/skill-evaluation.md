@@ -374,6 +374,14 @@ class pass rate and group selection metrics null. Dry cells and unmounted
 controls do not supply activation measurements. Grouping keeps distinct
 conditions and host routes from being averaged together.
 
+Sevro suite modes preserve `model_by_harness` and `effort` as candidate route
+overrides. They replace the corresponding candidate CLI options for each cell
+without changing semantic or advisory grader routes. The manifest retains the
+requested overrides separately from actual Sevro route evidence. Missing or
+contradictory candidate model or effort evidence makes the cell unsuccessful.
+Comparisons across different candidate routes remain ineligible for matched
+ablation deltas.
+
 ### Evidence lifecycle
 
 Shell checks execute candidate-controlled code inside the runner's outer
