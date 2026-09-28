@@ -143,7 +143,12 @@ while later cases run; the aggregate exits `1`. SIGINT or SIGTERM cancels the
 active command, retains its result, stops selection, and exits `130` or `143`
 respectively. A fully successful selection, including dry unassessed runs,
 exits `0`. Invalid selection exits `64` before any cases start.
-Parallel `--jobs` and the normal command cutover remain pending.
+Forward `--jobs <positive integer>` after `--` to bound simultaneous trials
+within each case. Sevro defaults to three jobs; use `--jobs 1` for serial trials.
+It retains the effective limit in configuration and evaluation identity, keeps
+trial-number order in results and checkpoints, and drains active trials before
+finalizing cancellation or persistence errors. Selected cases remain sequential.
+The normal command cutover remains pending.
 
 Selection validates the complete public result with Ajv and the bundled
 [`cli-result-v1.schema.json`](schemas/cli-result-v1.schema.json) contract snapshot.

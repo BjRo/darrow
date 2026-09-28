@@ -155,6 +155,11 @@ forwards cancellation to the active public command, retains that command's
 interrupted result in the selection manifest, stops before any later case starts,
 and exits `130` for SIGINT or `143` for SIGTERM. Ordinary nonzero case exits remain recorded while later selected
 cases run; the aggregate exits `1` if any recorded case command failed.
+Forward `--jobs <positive integer>` after `--` to bound simultaneous trials
+within each case. Sevro defaults to three jobs; `--jobs 1` runs trials serially.
+The engine retains the effective limit in configuration and evaluation identity.
+Trial results and checkpoints remain ordered by trial number, and active trials
+retain their evidence before cancellation or a persistence failure finalizes.
 Missing, malformed, or unsupported public CLI JSON cannot produce an aggregate
 success even when the process exits zero. Retain its raw output and exit code,
 name the result error, and keep the case's structured result unavailable.

@@ -2091,6 +2091,8 @@ test("suite gates activation independently when all task checks pass", async () 
     "--threshold",
     "1",
     "--",
+    "--jobs",
+    "1",
     "--adapter-module",
     adapter,
     "--shell-isolation",
