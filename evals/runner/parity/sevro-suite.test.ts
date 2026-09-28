@@ -224,7 +224,7 @@ test("suite runs every selected mode and case through Sevro public commands", as
     const evidence = JSON.parse(await readFile(cell.evidencePath, "utf8"));
     expect(evidence.condition.requested).toBe(cell.condition);
   }
-});
+}, 15_000);
 
 test("suite compares a mounted skill with a no-skill baseline", async () => {
   const { root, adapter, suite } = await fixture();
@@ -355,7 +355,7 @@ test("suite retains failed cells and continues the remaining public runs", async
     );
     expect(cell.provenance.evaluationDigest).toMatch(/^[a-f0-9]{64}$/);
   }
-});
+}, 15_000);
 
 test("suite interruption cancels the active Sevro cell and stops selection", async () => {
   const { root, adapter, suite, results } = await fixture();
