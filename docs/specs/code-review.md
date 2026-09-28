@@ -249,9 +249,13 @@ axis and report `not_available`. Do not invent requirements.
     content is escaped only as needed to preserve the report structure and its
     visible, copyable value. These presentation rules do not change the
     canonical JSON. Safe fixed labels such as `not_applicable` remain readable
-    without character-reference encoding. Underscores inside ordinary words
-    may remain literal when they cannot alter Markdown structure; arbitrary
-    field content retains the escaping needed to preserve its visible value.
+    without character-reference encoding. Single underscores followed by a
+    letter or digit may remain literal; such delimiters cannot close CommonMark
+    emphasis. Escape potential closing underscore delimiters and repeated
+    underscores so adjacent rendered fields cannot combine into emphasis.
+    Apply this syntax rule to arbitrary field content in both review modes,
+    without path- or platform-specific exceptions, while preserving every
+    field's visible value.
     Human presentation is first materialized as a nonempty canonical Markdown
     artifact beside the JSON, then emitted by one dedicated final renderer
     invocation whose complete stdout is returned without coordinator rewriting.

@@ -60,9 +60,9 @@ ESCAPES = str.maketrans(
 
 
 def escape(value: str) -> str:
-    # CommonMark does not recognize underscore emphasis inside ordinary words.
-    # Keep those identifiers readable while escaping every surrounding delimiter.
-    chunks = re.split(r"([^\W_]+(?:_[^\W_]+)+)", value)
+    # A single underscore followed by a letter or digit cannot close CommonMark
+    # emphasis. Escape all possible closers, including runs, across every field.
+    chunks = re.split(r"((?<!_)_(?=[^\W_]))", value)
     escaped = "".join(
         chunk if index % 2 else chunk.translate(ESCAPES)
         for index, chunk in enumerate(chunks)

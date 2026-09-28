@@ -780,6 +780,81 @@ The earlier preliminary five trials remain excluded and retained. These
 measurements cover the seven selected cases on Codex CLI **0.156.1**, not every
 case in the plugin or live Claude/Windows execution.
 
+#### Review follow-up: syntax-based underscore rendering (2026-09-28)
+
+The **0.8.2** candidate adjusts the shared renderer in both comprehensive
+review and fix verification. A single underscore followed by a letter or
+digit remains literal because it cannot close CommonMark emphasis. Potential
+closing delimiters and repeated underscores remain escaped. This preserves
+readable leading underscores in arbitrary field content without a path or
+platform exception. The exact canonical final-copy contract remains intact.
+There are no new dependencies or changes to the skill description, skill body,
+hook context, case definitions, or eval runner.
+
+All three selected cases completed **n:5**, with **gpt-6-luna/medium**, three
+jobs, a 100% threshold, and configured native reviewers at
+**gpt-6-sol/xhigh**. Case YAML hashes and evaluation digests match the retained
+0.8.1 hook-on results. Codex CLI remains **0.156.1**. Those baseline trials
+were retained earlier runs, not fresh concurrent controls; this comparison
+does not establish a guaranteed improvement or full-plugin reliability.
+
+| Case                                    | Previous task |  New task | Activation | Routed axes | Valid artifact | Exact final copy |
+| --------------------------------------- | ------------: | --------: | ---------: | ----------: | -------------: | ---------------: |
+| `code-review-both-axes`                 |           3/5 |       5/5 |        5/5 |         5/5 |            5/5 |              5/5 |
+| `code-review-low-noise`                 |           3/5 |       3/5 |        5/5 |         5/5 |            5/5 |              5/5 |
+| `code-review-fix-verification-resolved` |           5/5 |       5/5 |        5/5 |         5/5 |            5/5 |              5/5 |
+| **Selected trials**                     |     **11/15** | **13/15** |  **15/15** |   **15/15** |      **15/15** |        **15/15** |
+
+Exact final copying passed **15/15**, compared with **11/15** in the retained
+baseline. Every trial loaded the complete skill, launched both configured
+native reviewers with fresh context, and retained a valid canonical artifact.
+The session reminder appeared in all **15/15** coordinator contexts; no reader
+spawned another reviewer. A successful launch does not establish a completed
+review: the two failures below blocked one axis each on unavailable input.
+
+Both remaining failures are in `code-review-low-noise`, but they differ from
+its earlier copying failures. The fixture explicitly accepts its repeated
+local guard, satisfies the originating requirement, and deliberately fails
+the formatter. Standards and Spec should therefore pass, the overall verdict
+should fail on the captured check, and no prose findings should be invented.
+That expectation remains valid.
+
+| Failed trial | What failed                                                                                                                                                                                                                          | Assessment                                                                                                                                         | Recommended next step                                                                                                                                                  |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Low-noise 3  | Spec blocked on an unreadable scope-manifest path containing duplicated hash and run-directory segments. The report's artifact link identifies the correct scope directory. The input failure became a medium advisory Spec finding. | Skill workflow gap in reader input handling. Activation, both native launches, check capture, artifact validation, and exact final copying passed. | Discuss mechanically generated reader input packets and recovery by the owning reader. Preserve the expected Spec pass and record unavailable inputs as evidence gaps. |
+| Low-noise 5  | Standards blocked because the attempted baseline path omitted the `darrow-eval` cache namespace; the report's skill source includes that namespace. The input failure became a medium blocking Standards finding.                    | Skill workflow gap in reader input handling. Activation, both native launches, check capture, artifact validation, and exact final copying passed. | Apply the same input-binding and recovery design across both review modes, preserving substantive axis checks.                                                         |
+
+The retained launch receipts omit message text, so the actor introducing each
+path error is **unverified**. These are observed execution failures rather
+than demonstrated activation or renderer defects. No trial was replaced,
+omitted, or regraded, and no assertion was relaxed.
+
+**Implementation checks passed:** the new regressions first produced **three
+failures and one pass** against the previous renderer; focused renderer and
+public CLI checks then passed **nine tests**. A bounded fresh-context audit
+found no material issue, passed **32 scoped tests**, and checked six CommonMark
+safety examples. A further twelve parser comparisons preserved literal field
+text without unintended markup. `bun run check:python` passed across all
+registered packages, including **257 review tests**, Ruff, formatting, strict
+typing, **97.50% statement coverage**, and **95.59% branch coverage**.
+Documentation validation passed. Intermediate test-only import and typing
+gate failures were repaired and retained; the frozen runtime was unchanged.
+
+**Recommendation:** retain the shared renderer rule based on the observed
+copying improvement and resolved-control result. Discuss reviewer input
+handoff across the plugin next: generate candidate-bound scope and baseline
+paths mechanically, then let the owning reader recover a failed read against
+that bound input. Decide how unavailable input should remain an evidence gap
+instead of becoming a product finding. That workflow change is not implemented
+here. Windows hook verification remains deferred.
+
+The local [complete overview](../../evals/results/review-renderer-2026-09-28/overview.md)
+contains all three result sets and both failed-trial assessments. Colocated
+`protocol.json`, `case-provenance.json`, `snapshot.json`, `sources.json`,
+`summary.json`, metrics, hook receipts, audit notes, and quality logs retain
+the frozen candidate hashes and observations. Raw results are gitignored;
+this section preserves the conclusions in the repository.
+
 ### darrow-skill-authoring
 
 | Case                                                                                                                                            | What failed                                                                                                       | Assessment                                  | Recommended next step                                                                                                                                                                                                                                                                            |

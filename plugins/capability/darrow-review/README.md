@@ -23,7 +23,7 @@ registration. Native hook trust must be enabled in the host. The coordinator
 still launches reviewers through native tools; this static reminder cannot
 override host restrictions.
 
-In a 70-trial Codex comparison at `gpt-6-luna/medium`, positive activation was
+In a 70-trial Codex comparison of version **0.8.1** at `gpt-6-luna/medium`, positive activation was
 **25/25 with the reminder versus 22/25 without it**. Across the four cases with
 available review evidence, all configured native reviewer axes launched in
 **20/20 versus 16/20** trials. Both arms avoided review on **10/10** ordinary
@@ -33,6 +33,16 @@ report. This is a measured improvement, not a guarantee of 5/5 across the plugin
 Live Claude and Windows hook execution remain unverified. See the
 [evaluation findings](../../../docs/research/gpt-6-luna-evals-issue-228.md#review-follow-up-conditional-session-reminder-2026-09-28)
 for the case breakdown, blocked-check results, and retained failures.
+
+A focused **0.8.2** renderer follow-up preserved readable leading underscores
+using CommonMark syntax rules. Exact final copying passed **15/15** trials
+across both-axes review, low-noise review, and resolved fix verification,
+with five trials per case. Task checks passed **13/15**; the two remaining
+low-noise failures involved unreadable reviewer input paths. All configured
+reviewer axes launched, but those input failures blocked one axis per failed
+trial. See the
+[renderer follow-up](../../../docs/research/gpt-6-luna-evals-issue-228.md#review-follow-up-syntax-based-underscore-rendering-2026-09-28)
+for retained failures and the recommended next discussion.
 
 ## What it provides
 
@@ -173,8 +183,11 @@ legacy guidance absence, target bindings, and prior-verification history.
 It writes only inside the current private review run. Readers still own
 judgment; the coordinator still chooses sources, checks, and accepted findings.
 
-The human renderer keeps ordinary identifiers such as `not_applicable` readable
-while escaping arbitrary content that could alter Markdown structure. The final
+The human renderer keeps ordinary identifiers such as `not_applicable` and
+leading underscores in paths such as `/_cache/file.js` readable. It preserves
+single underscores followed by a letter or digit, which cannot close Markdown
+emphasis, and escapes potential closing delimiters and repeated underscores.
+The same rule protects arbitrary content in both review modes. The final
 response continues to contain the complete canonical report and artifact link.
 
 ### Reviewer routes
