@@ -1,15 +1,8 @@
 import { createHash } from "node:crypto";
-import {
-  mkdtemp,
-  readFile,
-  realpath,
-  rename,
-  rm,
-  stat,
-  writeFile,
-} from "node:fs/promises";
-import { basename, dirname, join, resolve } from "node:path";
+import { readFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 import { parseArgs } from "node:util";
+import { writeLegacyMarkdown } from "./legacy-output";
 
 import {
   legacyExitCode,
@@ -193,56 +186,6 @@ function markdown(report: Awaited<ReturnType<typeof legacyReport>>) {
   ].join("\n");
 }
 
-function missingPath(error: NodeJS.ErrnoException) {
-  if (error.code === "ENOENT" || error.code === "ENOTDIR") return null;
-  throw error;
-}
-
-async function pathIdentity(path: string) {
-  const directory = await realpath(dirname(path)).catch(missingPath);
-  const info = await stat(path, { bigint: true }).catch(missingPath);
-  return {
-    path: resolve(directory ?? dirname(path), basename(path)),
-    inode: info ? `${info.dev}:${info.ino}` : null,
-  };
-}
-
-async function protectedOutput(
-  report: Awaited<ReturnType<typeof legacyReport>>,
-  output: string,
-) {
-  const destination = await pathIdentity(output);
-  const inputs = await Promise.all(
-    report.inputs.map(async (input) => ({
-      input: input.path,
-      identity: await pathIdentity(input.path),
-    })),
-  );
-  const source = inputs.find(
-    ({ identity }) =>
-      destination.path === identity.path ||
-      (destination.inode !== null && destination.inode === identity.inode),
-  );
-  if (source)
-    throw new Error(`--output cannot replace input archive: ${source.input}`);
-  return destination.path;
-}
-
-async function writeMarkdown(
-  report: Awaited<ReturnType<typeof legacyReport>>,
-  requestedOutput: string,
-) {
-  const output = await protectedOutput(report, requestedOutput);
-  const temporary = await mkdtemp(join(dirname(output), ".darrow-report-"));
-  try {
-    const path = join(temporary, "report.md");
-    await writeFile(path, markdown(report));
-    await rename(path, output);
-  } finally {
-    await rm(temporary, { recursive: true, force: true });
-  }
-}
-
 async function emitReport(
   report: Awaited<ReturnType<typeof legacyReport>>,
   values: { json?: boolean; output?: string },
@@ -259,7 +202,7 @@ async function emitReport(
         ? resolve(dirname(report.inputs[0]!.path), "report.md")
         : null;
   if (output) {
-    await writeMarkdown(report, output);
+    await writeLegacyMarkdown(report.inputs, output, markdown(report));
     process.stdout.write(`Report: ${output}\n`);
   } else process.stdout.write(markdown(report));
 }

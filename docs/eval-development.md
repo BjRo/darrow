@@ -217,6 +217,19 @@ historical view's recorded facts and explicit measurement boundaries. See the
 and [validation](../evals/sevro-extension/history-validation.md), plus
 [report-command validation](../evals/sevro-extension/legacy-report-command-validation.md).
 
+Historical skill ablation uses
+`bun evals/runner/ablation.ts /absolute/path/to/suite-run.json` or
+`bun evals/sevro-extension/legacy-ablation.ts /absolute/path/to/suite-run.json`.
+Both preserve adjacent `ablation.md` and `--output`, resolve relative result
+paths beside the manifest, and run without the generic runner or Sevro.
+Recorded deltas require matched mode definitions and complete executed cells;
+unknown identity, unfinished cells, contradictory evidence, and changed
+instrumentation are ineligible. Valid peer comparisons remain visible. A dry
+suite is unmeasured preparation. Input digests and diagnostics remain in the
+report, and no output may replace an archive or its alias. See the
+[historical ablation contract](../evals/sevro-extension/README.md#historical-result-interpretation)
+and [validation](../evals/sevro-extension/legacy-ablation-validation.md).
+
 Shell checks, including dry checks, use the same outer isolation mechanism as
 candidate execution with a separate credential-free home and environment.
 They retain fixture tool access while source worktrees, peer fixtures, global

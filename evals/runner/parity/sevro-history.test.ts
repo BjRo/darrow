@@ -366,7 +366,11 @@ test("historical reporting remains usable without the generic runner or a Sevro 
   const { root, manifest } = await fixture();
   const consumer = join(root, "consumer");
   await mkdir(consumer);
-  for (const name of ["legacy-report.ts", "legacy-evidence.ts"]) {
+  for (const name of [
+    "legacy-report.ts",
+    "legacy-evidence.ts",
+    "legacy-output.ts",
+  ]) {
     await copyFile(
       resolve(import.meta.dir, "../../sevro-extension", name),
       join(consumer, name),

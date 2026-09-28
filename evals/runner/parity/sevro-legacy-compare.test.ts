@@ -192,6 +192,10 @@ test("historical comparison works without the generic runner", async () => {
     join(standaloneDirectory, "legacy-evidence.ts"),
     join(root, "legacy-evidence.ts"),
   );
+  await copyFile(
+    join(standaloneDirectory, "legacy-comparison.ts"),
+    join(root, "legacy-comparison.ts"),
+  );
   const publicRun = await invoke(legacyCommand, base, cand);
   const isolatedRun = await invoke(copied, base, cand);
   expect(publicRun.code, publicRun.stderr).toBe(0);

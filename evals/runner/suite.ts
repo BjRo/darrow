@@ -6,7 +6,7 @@ import { parse as parseYaml } from "yaml";
 import {
   validateAblationDefinitions,
   type AblationDefinition,
-} from "./ablation";
+} from "../sevro-extension/legacy-ablation";
 import { claudeAdapter } from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
 import {
@@ -259,6 +259,9 @@ const manifest = {
   effort: values.effort,
   harnesses,
   modes,
+  modeDefinitions: Object.fromEntries(
+    modes.map((name) => [name, suite.modes[name]]),
+  ),
   models: {
     claude: candidateRoutes.claude.model,
     codex: candidateRoutes.codex.model,

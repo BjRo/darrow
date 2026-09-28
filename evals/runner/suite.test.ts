@@ -162,7 +162,7 @@ describe("evaluation suite ablation", () => {
       proc.exited,
     ]);
     expect(`${stdout}\n${stderr}`).toContain("codex / without-skill");
-    expect(code).toBe(0);
+    expect(code, `${stdout}\n${stderr}`).toBe(0);
 
     const manifest = JSON.parse(
       await readFile(join(output, "suite-run.json"), "utf8"),
@@ -174,6 +174,10 @@ describe("evaluation suite ablation", () => {
         candidate: "candidate",
       },
     ]);
+    expect(manifest.modeDefinitions).toEqual({
+      "without-skill": { without_skill: true },
+      candidate: {},
+    });
     expect(manifest.models).toEqual({
       claude: "claude-sonnet-5",
       codex: "gpt-5.6-terra",

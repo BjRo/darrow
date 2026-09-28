@@ -824,6 +824,23 @@ not establish a complete run boundary, current evaluator equivalence, or live
 behavioral stability. It must retain that limitation rather than manufacture
 Sevro identity or measured success.
 
+The documented `evals/runner/ablation.ts` command delegates historical suite
+ablation to Darrow-owned standalone tooling. It preserves adjacent `ablation.md`
+and explicit `--output` destinations, resolves relative result paths beside the
+manifest, and needs no generic runner or Sevro installation. The interpreter
+requires a versioned suite manifest, a bound `modeDefinitions` snapshot, matched mode definitions, known matching
+case identities and instrumentation, and complete executed cells before showing
+recorded task-level deltas. Incomplete, contradictory, duplicate, or unmatched
+evidence makes the report invalid; valid peer comparisons remain visible. A
+consistent dry suite is successful preparation but remains explicitly unmeasured.
+Unknown token and cost values stay unknown. The report preserves input digests
+and diagnostics and does not establish current evaluator equivalence or live
+stability. Neither command may replace an input archive, including an alias.
+The legacy suite producer retains its mode-name list and adds the definition
+snapshot. Older manifests without that snapshot retain unknown mode settings;
+the interpreter must not recover them from a mutable current suite file or
+claim an eligible ablation. Their result arrays remain readable as archives.
+
 Before Darrow switches to a packaged runner, the same command-level
 compatibility cases must run against the in-repository runner and the candidate
 package through their public commands. Compare case selection, named check

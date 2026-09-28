@@ -117,8 +117,8 @@ bun evals/runner/report.ts /absolute/path/to/suite-run.json --output /absolute/p
 ```
 
 The standalone command writes Markdown by default and `darrow-legacy-report-v1`
-JSON with `--json`. Its only local dependencies are `legacy-report.ts` and
-`legacy-evidence.ts`; it needs Bun, but no Sevro installation, generic runner,
+JSON with `--json`. Its local dependencies are `legacy-report.ts`,
+`legacy-evidence.ts`, and `legacy-output.ts`; it needs Bun, but no Sevro installation, generic runner,
 Git metadata, host credentials, or model calls. Relative cell result paths
 resolve beside the input manifest. Both commands leave archive bytes unchanged.
 The legacy command now uses this view for Markdown too, preserving adjacent
@@ -165,8 +165,8 @@ bun evals/sevro-extension/legacy-compare.ts /absolute/path/to/baseline.json /abs
 ```
 
 Both commands show recorded metric deltas, condition labels, and absolute input
-paths. Their only local dependencies are `legacy-compare.ts` and
-`legacy-evidence.ts`. They need no generic runner, Sevro installation, Git
+paths. Their local dependencies are `legacy-compare.ts`,
+`legacy-comparison.ts`, and `legacy-evidence.ts`. They need no generic runner, Sevro installation, Git
 metadata, credentials, or model calls and leave input bytes unchanged.
 
 An archival delta requires explicit matching invariant, evaluation digest,
@@ -182,6 +182,46 @@ complete planned run, current evaluator equivalence, or live behavioral
 stability. Comparison of suite manifests and checkpoints remains unsupported;
 interpret those with the historical reader. See
 [comparison validation](legacy-compare-validation.md).
+
+Interpret a named skill ablation in a historical suite through its existing
+command or the standalone entrypoint:
+
+```sh
+bun evals/runner/ablation.ts /absolute/path/to/suite-run.json
+bun evals/sevro-extension/legacy-ablation.ts /absolute/path/to/suite-run.json --output /absolute/path/to/ablation.md
+```
+
+Both write adjacent `ablation.md` by default. `--output` selects another Markdown
+destination. Their local dependencies are `legacy-ablation.ts`,
+`legacy-comparison.ts`, `legacy-evidence.ts`, and `legacy-output.ts`. They need no
+generic runner, Sevro installation, Git metadata, credentials, or model calls.
+Relative result paths resolve beside the manifest. Input archives and their
+symbolic or hard link aliases are refused as output; report replacement is atomic.
+
+The input must be a `darrow-orchestration-suite-v1` manifest with named ablations,
+a bound `modeDefinitions` snapshot, a positive planned trial count, and a valid pass threshold.
+Only the mounted skill surface may differ between modes. The report checks case
+identity, recorded conditions and grading instrumentation, host routes, mounted
+skills, and the manifest's threshold. Executed cells need all planned, uniquely
+numbered trials and a finished exit of `0` or `1`. Missing identity or completion
+facts remain unknown and cannot establish eligibility. Invalid cases and named
+comparisons retain diagnostics while other eligible comparisons remain visible.
+Duplicates never produce a delta. Pass rate, time, token, and cost values remain
+recorded archival summaries; absent token or cost values stay unknown. These
+deltas do not establish current evaluator equivalence or live stability.
+
+A consistent dry suite exits `0` as unmeasured preparation. An eligible executed
+comparison also exits `0`, including regressions. Invalid or unreadable inputs
+exit `1` with diagnostics and input paths and digests. Invalid invocation or
+refused/unwritable output exits `64`. Unversioned manifests cannot establish
+suite provenance; the historical reader can interpret their arrays separately.
+The legacy suite producer keeps its `modes` name list and adds the definition
+snapshot. Older manifests without it report unknown mode definitions and are
+ineligible for ablation deltas. The interpreter does not read a mutable suite
+file to invent the missing settings. Their input digests and diagnostics remain
+available, and the historical reader still interprets their archived results.
+The private runner formatter tests are replaced by tests of the public commands.
+See [ablation validation](legacy-ablation-validation.md).
 
 ## Direct evaluation caller
 
