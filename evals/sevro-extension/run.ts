@@ -4,8 +4,9 @@ import { dirname, isAbsolute, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { resolveCorpusSource } from "../corpus/orchestration/source";
-import { resolveCase } from "./index";
+import { selectedCaseFixture } from "./index";
 import { sevroCommand } from "./sevro-command";
+import { conditionLabel, writeRunConfiguration } from "./benchmark-condition";
 
 const repositoryRoot = resolve(import.meta.dir, "../..");
 const extension = join(import.meta.dir, "index.ts");
@@ -13,6 +14,7 @@ const sourceFiles = [
   extension,
   join(repositoryRoot, "evals/fixture-ticket.ts"),
   join(import.meta.dir, "run.ts"),
+  join(import.meta.dir, "benchmark-condition.ts"),
   join(import.meta.dir, "sevro-command.ts"),
   join(repositoryRoot, "evals/corpus/orchestration/source.ts"),
   join(repositoryRoot, "package.json"),
@@ -49,6 +51,7 @@ function sevroArgs(options: {
   resultsRoot: string;
   forwarded: string[];
   withoutSkill: boolean;
+  conditionFile?: string;
 }): string[] {
   const {
     commandFile,
@@ -57,6 +60,7 @@ function sevroArgs(options: {
     resultsRoot,
     forwarded,
     withoutSkill,
+    conditionFile,
   } = options;
   const route = sevroCommand();
   return [
@@ -67,13 +71,14 @@ function sevroArgs(options: {
     "--extension-command-file",
     commandFile,
     ...sourceFiles.flatMap((path) => ["--extension-source-file", path]),
+    ...(conditionFile ? ["--extension-source-file", conditionFile] : []),
     "--case-id",
     caseId,
     "--project-root",
     projectRoot,
     "--results-root",
     resultsRoot,
-    ...(withoutSkill
+    ...(withoutSkill || conditionFile
       ? [
           "--extension-configuration-file",
           join(resultsRoot, "darrow-extension-configuration.json"),
@@ -85,15 +90,7 @@ function sevroArgs(options: {
   ];
 }
 
-/** Bind a selected Darrow case to the public Sevro CLI. */
-export function invocation(argv: string[]): {
-  command: string[];
-  resultsRoot: string;
-  commandFile: string;
-  projectRoot: string;
-  caseId: string;
-  withoutSkill: boolean;
-} {
+function runOptions(argv: string[]) {
   const separator = argv.indexOf("--");
   if (separator < 0) throw new Error("separate Sevro run options with --");
   const { values } = parseArgs({
@@ -103,9 +100,17 @@ export function invocation(argv: string[]): {
       "project-root": { type: "string" },
       "results-root": { type: "string" },
       "without-skill": { type: "boolean", default: false },
+      "benchmark-condition-file": { type: "string" },
+      "benchmark-condition-label": { type: "string" },
     },
     strict: true,
   });
+  return { values, forwarded: argv.slice(separator + 1) };
+}
+
+/** Bind a selected Darrow case to the public Sevro CLI. */
+export function invocation(argv: string[]) {
+  const { values, forwarded } = runOptions(argv);
   const caseId = values["case-id"];
   const projectRoot = values["project-root"] ?? repositoryRoot;
   const resultsRoot = values["results-root"];
@@ -113,7 +118,15 @@ export function invocation(argv: string[]): {
     throw new Error("--case-id and --results-root are required");
   if (!isAbsolute(projectRoot) || !isAbsolute(resultsRoot))
     throw new Error("project and results roots must be absolute");
-  const forwarded = argv.slice(separator + 1);
+  const conditionFile = values["benchmark-condition-file"];
+  const label = values["benchmark-condition-label"];
+  if (conditionFile !== undefined && !isAbsolute(conditionFile))
+    throw new Error("benchmark condition file must be absolute");
+  if (label !== undefined) {
+    if (!conditionFile)
+      throw new Error("benchmark condition label requires a file");
+    conditionLabel(label);
+  }
   validateForwarded(forwarded);
   const commandFile = join(resultsRoot, "darrow-extension-command.json");
   return {
@@ -122,6 +135,8 @@ export function invocation(argv: string[]): {
     projectRoot,
     caseId,
     withoutSkill: values["without-skill"],
+    conditionFile,
+    conditionLabel: label,
     command: sevroArgs({
       commandFile,
       caseId,
@@ -129,6 +144,7 @@ export function invocation(argv: string[]): {
       resultsRoot,
       forwarded,
       withoutSkill: values["without-skill"],
+      conditionFile,
     }),
   };
 }
@@ -138,12 +154,11 @@ async function repositorySourceArgs(
   caseId: string,
   resultsRoot: string,
 ): Promise<string[]> {
-  const selected = await resolveCase({
+  const fixture = await selectedCaseFixture({
     projectRoot: pathToFileURL(projectRoot).href,
     selectors: { caseIds: [caseId] },
   });
-  const fixture = selected.cases[0]?.fixture;
-  if (fixture?.kind !== "repository") return [];
+  if (fixture.kind !== "repository") return [];
   const manifest = join(
     projectRoot,
     "evals/corpus/orchestration/manifest.yaml",
@@ -173,22 +188,7 @@ if (import.meta.main) {
       selected.commandFile,
       JSON.stringify([process.execPath, extension]),
     );
-    if (selected.withoutSkill) {
-      const configuration = JSON.stringify({ withoutSkill: true });
-      await Promise.all([
-        writeFile(
-          join(selected.resultsRoot, "darrow-extension-configuration.json"),
-          configuration,
-        ),
-        writeFile(
-          join(
-            selected.resultsRoot,
-            "darrow-extension-redacted-configuration.json",
-          ),
-          configuration,
-        ),
-      ]);
-    }
+    await writeRunConfiguration(selected);
     const sourceArgs = await repositorySourceArgs(
       selected.projectRoot,
       selected.caseId,

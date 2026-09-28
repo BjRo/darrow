@@ -395,6 +395,20 @@ for other harnesses supported by the complete suite. Every entry is validated,
 every selected harness needs a route, and unknown harnesses are rejected. The
 complete file digest remains in the manifest; only selected routes execute.
 
+### Benchmark conditions
+
+The Darrow Sevro run entrypoint accepts an absolute benchmark condition file
+separately from Sevro's passive or enforced execution condition. It prefixes
+the initial case prompt with the trimmed instruction text and preserves the
+follow-up turn without adding the prefix again. In both prompts,
+`{{harness}}`, `{{model}}`, and `{{effort}}` use the selected
+candidate adapter's negotiated route context. The condition label and original
+UTF-8 content digest enter retained configuration and evaluation identity.
+Condition files are bounded, protected source inputs; malformed, unreadable,
+or unsupported templates fail before candidate execution. Unmounted controls
+preserve the same condition text. Native invocation placeholders retain their
+existing declaration and host dispatch requirements.
+
 ### Evidence lifecycle
 
 Shell checks execute candidate-controlled code inside the runner's outer

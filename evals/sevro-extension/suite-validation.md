@@ -1,5 +1,60 @@
 # Suite validation
 
+## Benchmark condition prerequisites
+
+The standalone Darrow run entrypoint now accepts a benchmark instruction file.
+The suite's condition fields remain pending. The prerequisites use the real
+Sevro CLI and public extension protocol with synthetic candidates.
+
+Sevro working directory: `/Users/bjro/Sources/sevro`.
+
+1. Red — `lean-ctx -c 'bun test tests/cli.test.ts -t "CLI supplies the selected candidate route during extension resolution"'`:
+   exit `70`, because `sevro.case.host-route` was unsupported.
+2. Green — `lean-ctx -c 'bun test tests/cli.test.ts -t "CLI supplies the selected candidate route during extension resolution"'`:
+   one test passed with four assertions. Resolution receives the selected
+   candidate adapter's exact host, model, effort, and capability set.
+
+Sevro commit `65a9e7f` passed 205 tests with 1,053 assertions across 36 files,
+typechecking, formatting, and `bun run test:package-install`.
+
+Darrow working directory:
+`/Users/bjro/Sources/darrow/.worktrees/feat/issue-95-darrow-extension`.
+
+1. Red — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-extension.test.ts -t "Darrow condition files render the actual candidate route through Sevro"'`:
+   exit `64`, because `--benchmark-condition-file` was unknown.
+2. Green — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-extension.test.ts -t "Darrow condition files render the actual candidate route through Sevro"'`:
+   one test passed with ten assertions. Both host routes receive the expected
+   instruction prefix; unmounted controls retain it, and redacted configuration
+   retains the original content digest without the instruction body.
+3. Red — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-extension.test.ts -t "Darrow conditions preserve route rendering on the follow-up turn"'`:
+   resolution rejected the follow-up route variables as unsupported templates.
+4. Green — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-extension.test.ts -t "Darrow conditions preserve route rendering on the follow-up turn"'`:
+   one test passed with two assertions. The follow-up renders its route without
+   repeating the instruction prefix.
+5. Red — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-extension.test.ts -t "Darrow condition routes resolve after corpus preflight"'`:
+   the standalone command exited `64` because its early corpus preflight tried
+   rendering case route variables before a candidate route was available.
+6. Green — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-extension.test.ts -t "Darrow condition routes resolve after corpus preflight"'`:
+   one test passed with three assertions. Corpus preflight reads the fixture
+   declaration; Sevro's later resolution supplies the route for both prompts.
+
+Additional input coverage passed one test with eight assertions: oversized
+files, invalid UTF-8, NUL bytes, and unknown templates all stop before candidate
+execution. This guard coverage was added after implementation, without a
+test-first claim.
+
+The final installed-package gate passed 84 tests with 1,370 assertions across
+three files in 142.53 seconds:
+
+```sh
+SEVRO_PACKAGE_TARBALL=/tmp/sevro-0.1.0-dev.0.tgz lean-ctx -c 'bun run test:eval-runner-sevro-package'
+```
+
+The tarball was packed from clean Sevro commit `65a9e7f`. Darrow typechecking,
+ESLint, and formatting passed. The compatibility inventory still resolves
+377/377 cases; this inventory does not prove execution or behavioral parity for
+all of them. No live model call was made for these condition regressions.
+
 ## Command regressions
 
 Both slices exercise the documented Darrow suite command through the real

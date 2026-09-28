@@ -5,6 +5,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parse as parseYaml } from "yaml";
 import { TICKETCTL } from "../fixture-ticket";
+import { conditionedCase, extensionConfiguration } from "./benchmark-condition";
 
 type RecordValue = Record<string, unknown>;
 
@@ -2348,13 +2349,7 @@ async function preparedMounts(details: RecordValue, hostValue: unknown) {
 }
 
 function withoutSkill(configuration: unknown): boolean {
-  const selected = record(configuration ?? {}, "extension configuration");
-  const extra = Object.keys(selected).filter((key) => key !== "withoutSkill");
-  if (extra.length)
-    throw new Error(`unsupported extension configuration: ${extra.join(", ")}`);
-  if (selected.withoutSkill !== undefined && selected.withoutSkill !== true)
-    throw new Error("withoutSkill configuration must be true");
-  return selected.withoutSkill === true;
+  return extensionConfiguration(configuration).withoutSkill;
 }
 
 function requireCaseHost(hostIds: unknown, hostValue: unknown): void {
@@ -2507,7 +2502,7 @@ export async function auditCaseCompatibility(root: string) {
   };
 }
 
-export async function resolveCase(params: RecordValue) {
+async function selectedCase(params: RecordValue) {
   const url = string(params.projectRoot, "project root");
   if (!url.startsWith("file:///"))
     throw new Error("project root must be a file URL");
@@ -2525,8 +2520,28 @@ export async function resolveCase(params: RecordValue) {
         ? "selected case ID is ambiguous"
         : "selected case ID was not found",
     );
+  return { ...matches[0]!, root };
+}
+
+export async function selectedCaseFixture(params: RecordValue) {
+  const selected = await selectedCase(params);
+  return caseFixture(caseDefinition(selected.value).fixture).fixture;
+}
+
+export async function resolveCase(params: RecordValue) {
+  const selected = await selectedCase(params);
   return {
-    cases: [await neutralCase(matches[0]!.value, matches[0]!.source, root)],
+    cases: [
+      await neutralCase(
+        conditionedCase(
+          selected.value,
+          extensionConfiguration(params.configuration).benchmarkCondition,
+          params.host,
+        ),
+        selected.source,
+        selected.root,
+      ),
+    ],
   };
 }
 
@@ -5222,6 +5237,7 @@ if (import.meta.main) {
             protocols: ["sevro.extension.v1"],
             requiredCapabilities: ["sevro.host.exec"],
             optionalCapabilities: [
+              "sevro.case.host-route",
               "sevro.fixture.setup",
               "sevro.host.continuation",
               "sevro.host.native-controls",

@@ -21,6 +21,299 @@ const extension = resolve(import.meta.dir, "../../sevro-extension/index.ts");
 const projectRoot = resolve(import.meta.dir, "../../..");
 const roots: string[] = [];
 
+test("Darrow condition files render the actual candidate route through Sevro", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-condition-"));
+  roots.push(root);
+  const cases = join(root, "evals/experiments/example/cases");
+  await mkdir(cases, { recursive: true });
+  const conditionFile = join(root, "instructions.md");
+  const text = "  Route {{harness}}|{{model}}|{{effort}}.  \n";
+  await writeFile(conditionFile, text);
+  const runCommand = resolve(import.meta.dir, "../../sevro-extension/run.ts");
+  for (const harness of ["codex", "claude"]) {
+    const expected = `Route ${harness}|candidate-${harness}|high.\n\nReturn ready.`;
+    await writeFile(
+      join(cases, "condition.yaml"),
+      JSON.stringify({
+        id: "condition-case",
+        invariant: "CONDITION-C1",
+        prompt: "Return ready.",
+        fixture: {
+          commits: [
+            {
+              message: "chore: initialize",
+              files: { "README.md": "fixture\n" },
+            },
+          ],
+        },
+        checks: [],
+        output_checks: [{ name: "instructions", expect_exact: expected }],
+      }),
+    );
+    const adapter = join(root, `${harness}.ts`);
+    await writeFile(
+      adapter,
+      `export default {
+      id: "sevro.host.${harness}", model: "candidate-${harness}", effort: "high",
+      async run({ prompt }) { return { finalMessage: prompt, complete: true }; }
+    };`,
+    );
+    const results = join(root, `results-${harness}`);
+    const proc = Bun.spawn(
+      [
+        process.execPath,
+        runCommand,
+        "--case-id",
+        "condition-case",
+        "--project-root",
+        root,
+        "--results-root",
+        results,
+        "--benchmark-condition-file",
+        conditionFile,
+        "--benchmark-condition-label",
+        "route-probe",
+        "--without-skill",
+        "--",
+        "--adapter-module",
+        adapter,
+        "--condition",
+        "passive",
+        "--trials",
+        "1",
+        "--threshold",
+        "1",
+        "--shell-isolation",
+      ],
+      { stdout: "pipe", stderr: "pipe" },
+    );
+    const [stdout, stderr, code] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
+    expect(code, stderr + stdout).toBe(0);
+    const result = JSON.parse(stdout);
+    expect(result.task.verdict).toBe("passed");
+    const evidence = JSON.parse(await readFile(result.evidencePath, "utf8"));
+    expect(
+      await readFile(new URL(evidence.trials[0].rawResult.path), "utf8"),
+    ).toBe(expected);
+    expect(evidence.extension.capabilities).toContain("sevro.case.host-route");
+    expect(
+      JSON.parse(
+        await readFile(
+          join(results, "darrow-extension-redacted-configuration.json"),
+          "utf8",
+        ),
+      ),
+    ).toEqual({
+      withoutSkill: true,
+      benchmarkCondition: {
+        label: "route-probe",
+        sha256: createHash("sha256").update(text).digest("hex"),
+      },
+    });
+  }
+});
+
+test("Darrow conditions preserve route rendering on the follow-up turn", async () => {
+  const root = await mkdtemp(
+    join(tmpdir(), "darrow-sevro-condition-followup-"),
+  );
+  roots.push(root);
+  const cases = join(root, "evals/experiments/example/cases");
+  await mkdir(cases, { recursive: true });
+  await writeFile(
+    join(cases, "followup.yaml"),
+    JSON.stringify({
+      id: "condition-followup",
+      invariant: "CONDITION-C2",
+      prompt: "Return ready.",
+      follow_up_prompt: "Continue on {{harness}}|{{model}}|{{effort}}.",
+      fixture: {
+        commits: [
+          { message: "chore: initialize", files: { "README.md": "fixture\n" } },
+        ],
+      },
+      checks: [],
+    }),
+  );
+  const text = "Use the declared route.";
+  const resolved = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(root).href,
+      selectors: { caseIds: ["condition-followup"] },
+      host: {
+        id: "sevro.host.codex",
+        model: "candidate",
+        effort: "high",
+        capabilities: ["sevro.host.continuation"],
+      },
+      configuration: {
+        benchmarkCondition: {
+          label: "followup",
+          text,
+          sha256: createHash("sha256").update(text).digest("hex"),
+        },
+      },
+    }),
+  );
+  expect(resolved.value.error).toBeUndefined();
+  expect(resolved.value.result.cases[0]).toMatchObject({
+    prompt: "Use the declared route.\n\nReturn ready.",
+    followUpPrompt: "Continue on codex|candidate|high.",
+  });
+});
+
+test("Darrow condition routes resolve after corpus preflight", async () => {
+  const root = await mkdtemp(
+    join(tmpdir(), "darrow-sevro-condition-preflight-"),
+  );
+  roots.push(root);
+  const cases = join(root, "evals/experiments/example/cases");
+  await mkdir(cases, { recursive: true });
+  const expected =
+    "Use the candidate route.\n\nStart on codex.|Continue on candidate|high.";
+  await writeFile(
+    join(cases, "preflight.yaml"),
+    JSON.stringify({
+      id: "condition-preflight",
+      invariant: "CONDITION-C4",
+      prompt: "Start on {{harness}}.",
+      follow_up_prompt: "Continue on {{model}}|{{effort}}.",
+      fixture: {
+        commits: [
+          { message: "chore: initialize", files: { "README.md": "fixture\n" } },
+        ],
+      },
+      checks: [],
+      output_checks: [{ name: "prompts", expect_exact: expected }],
+    }),
+  );
+  const condition = join(root, "prefix.md");
+  await writeFile(condition, "Use the candidate route.");
+  const adapter = join(root, "candidate.ts");
+  await writeFile(
+    adapter,
+    `export default {
+    id: "sevro.host.codex", model: "candidate", effort: "high",
+    hostCapabilities: ["sevro.host.continuation"],
+    async run({ prompt, followUpPrompt }) { return { finalMessage: prompt + "|" + followUpPrompt, complete: true }; }
+  };`,
+  );
+  const proc = Bun.spawn(
+    [
+      process.execPath,
+      resolve(import.meta.dir, "../../sevro-extension/run.ts"),
+      "--case-id",
+      "condition-preflight",
+      "--project-root",
+      root,
+      "--results-root",
+      join(root, "results"),
+      "--benchmark-condition-file",
+      condition,
+      "--",
+      "--adapter-module",
+      adapter,
+      "--condition",
+      "passive",
+      "--trials",
+      "1",
+      "--threshold",
+      "1",
+      "--shell-isolation",
+    ],
+    { stdout: "pipe", stderr: "pipe" },
+  );
+  const [stdout, stderr, code] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  expect(code, stderr + stdout).toBe(0);
+  const result = JSON.parse(stdout);
+  expect(result.task.verdict).toBe("passed");
+  const evidence = JSON.parse(await readFile(result.evidencePath, "utf8"));
+  expect(
+    await readFile(new URL(evidence.trials[0].rawResult.path), "utf8"),
+  ).toBe(expected);
+});
+
+test("Darrow rejects invalid condition inputs before candidate execution", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-condition-invalid-"));
+  roots.push(root);
+  const cases = join(root, "evals/experiments/example/cases");
+  await mkdir(cases, { recursive: true });
+  await writeFile(
+    join(cases, "invalid.yaml"),
+    JSON.stringify({
+      id: "condition-invalid",
+      invariant: "CONDITION-C3",
+      prompt: "Return ready.",
+      fixture: {
+        commits: [
+          { message: "chore: initialize", files: { "README.md": "fixture\n" } },
+        ],
+      },
+      checks: [],
+    }),
+  );
+  const marker = join(root, "candidate-started");
+  const adapter = join(root, "candidate.ts");
+  await writeFile(
+    adapter,
+    `export default {
+    id: "sevro.host.codex", model: "candidate", effort: "low",
+    async run() { await Bun.write(${JSON.stringify(marker)}, "started"); return { finalMessage: "ready", complete: true }; }
+  };`,
+  );
+  const invalid = [
+    ["oversized.md", "x".repeat(64 * 1024 + 1), 64],
+    ["invalid-utf8.md", Buffer.from([0xff]), 64],
+    ["nul.md", "instruction\0", 64],
+    ["template.md", "Use {{unknown}}.", 70],
+  ] as const;
+  for (const [name, text, expectedCode] of invalid) {
+    const path = join(root, name);
+    await writeFile(path, text);
+    const proc = Bun.spawn(
+      [
+        process.execPath,
+        resolve(import.meta.dir, "../../sevro-extension/run.ts"),
+        "--case-id",
+        "condition-invalid",
+        "--project-root",
+        root,
+        "--results-root",
+        join(root, `results-${name}`),
+        "--benchmark-condition-file",
+        path,
+        "--",
+        "--adapter-module",
+        adapter,
+        "--condition",
+        "passive",
+        "--trials",
+        "1",
+        "--threshold",
+        "1",
+        "--shell-isolation",
+      ],
+      { stdout: "pipe", stderr: "pipe" },
+    );
+    const [stdout, stderr, code] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
+    expect(code, stderr + stdout).toBe(expectedCode);
+    expect(await Bun.file(marker).exists()).toBe(false);
+  }
+});
+
 test("guide disclosure uses retained response evidence through Sevro", async () => {
   const original = parseYaml(
     await readFile(

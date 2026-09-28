@@ -98,6 +98,41 @@ Other case fields and fixture mechanics fail explicitly. The legacy
 `{{repo_dir}}` prompt token maps to Sevro's per-trial
 workspace token. Other prompt templates still fail explicitly.
 
+## Benchmark condition files
+
+Pass `--benchmark-condition-file /absolute/path/to/instructions.md` before
+`--` on the Darrow run entrypoint. This replaces the legacy runner's text-file
+`--condition` option; Sevro's forwarded `--condition` still selects `passive`
+or `enforced` execution.
+
+```sh
+bun evals/sevro-extension/run.ts \
+  --case-id selected-case \
+  --results-root /absolute/path/to/results \
+  --benchmark-condition-file /absolute/path/to/instructions.md \
+  --benchmark-condition-label vanilla \
+  -- --host codex --condition passive --trials 1 --threshold 1 --shell-isolation
+```
+
+The label defaults to the filename without its extension. The entrypoint accepts
+regular UTF-8 files up to 64 KiB and retains their original content digest.
+It prefixes only the initial prompt with trimmed instructions.
+`{{harness}}`, `{{model}}`, and `{{effort}}` render from the actual candidate
+adapter's negotiated route context in both turns. Unmounted controls keep the
+same instructions. `{{repo_dir}}` retains its per-trial workspace meaning.
+`{{skill_invocation}}` still requires an owning skill and verified native
+dispatch; repository commands on Claude must lead the combined initial prompt.
+Unknown templates and missing route context fail before candidate execution.
+Corpus preflight reads the fixture declaration without rendering either prompt;
+route rendering happens later through Sevro's selected adapter context.
+
+The condition file joins the protected extension source inputs. Private and
+redacted configuration files remain in the run's results root; the redacted
+copy contains only the condition label and digest, plus an optional unmounted
+control flag. Sevro binds that copy into its configuration identity. This slice
+supports the standalone run entrypoint. Suite `condition` and
+`condition_by_harness` fields and owning skill overrides remain pending.
+
 To inventory case compatibility before switching a workflow, run:
 
 ```sh
@@ -308,7 +343,8 @@ The first focused live run is recorded in [live-validation.md](live-validation.m
 Suite activation regressions and the focused native Claude suite are recorded
 in [suite-validation.md](suite-validation.md).
 
-The entrypoint supplies `index.ts`, `run.ts`, `sevro-command.ts`, the local
+The entrypoint supplies `index.ts`, `run.ts`, `benchmark-condition.ts`,
+`sevro-command.ts`, the local
 ticket command, the corpus
 source validator, the repository `package.json`, and `bun.lock` as extension source files so the executable,
 invocation, and YAML parser version are included in Sevro's source digest. Case
