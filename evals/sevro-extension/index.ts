@@ -1220,6 +1220,7 @@ function caseOwnership(selected: RecordValue, skillDir: string | null) {
 }
 
 const TRANSCRIPT_EVIDENCE = new Map([
+  ["guide-no-owner-or-goal-control", ["sevro.host.native-controls"]],
   ["no-agent-spawn", ["sevro.codex.native-calls"]],
   ["one-owner-accepted", ["sevro.codex.native-calls"]],
   ["owner-route", ["sevro.codex.native-calls"]],
@@ -1363,13 +1364,28 @@ function claudeSelectedOwnerCasePolicy(transcript: unknown) {
   };
 }
 
+function guideTranscriptChecks(value: unknown, skillDir: string | null) {
+  const checks = caseTranscriptChecks(value);
+  if (skillDir !== ".agents/skills/darrow-guide") return checks;
+  return (
+    checks?.map((check) =>
+      check.kind === "no-owner-or-goal-control"
+        ? { ...check, kind: "guide-no-owner-or-goal-control" }
+        : check,
+    ) ?? null
+  );
+}
+
 function casePolicy(selected: RecordValue, skillDir: string | null) {
   if (selected.id === "claude-readiness-nonready-stops")
     return claudeReadinessCasePolicy(selected.transcript_checks);
   if (selected.id === "goal-review-high-selected-claude")
     return claudeSelectedOwnerCasePolicy(selected.transcript_checks);
   const ownership = caseOwnership(selected, skillDir);
-  const transcriptChecks = caseTranscriptChecks(selected.transcript_checks);
+  const transcriptChecks = guideTranscriptChecks(
+    selected.transcript_checks,
+    skillDir,
+  );
   return {
     checks: [
       ...(ownership?.checks ?? []),
@@ -2353,25 +2369,44 @@ function requireCaseHost(hostIds: unknown, hostValue: unknown): void {
     throw new Error("selected case excludes the candidate host");
 }
 
+function requiredNativeRoute(details: RecordValue) {
+  const portable =
+    details.ownership === undefined &&
+    Array.isArray(details.transcriptChecks) &&
+    details.transcriptChecks.length > 0 &&
+    details.transcriptChecks.every(
+      (check) =>
+        activationData(check)?.kind === "guide-no-owner-or-goal-control",
+    );
+  if (portable)
+    return {
+      ids: ["sevro.host.codex", "sevro.host.claude"],
+      capability: "sevro.host.native-controls",
+    };
+  const claude =
+    details.ownership === "claude" || details.ownership === "claude-selected";
+  return {
+    ids: [claude ? "sevro.host.claude" : "sevro.host.codex"],
+    capability: claude ? "sevro.claude.tool-calls" : "sevro.codex.native-calls",
+  };
+}
+
 function requireNativeEvidence(details: RecordValue, hostValue: unknown) {
   if (details.ownership === undefined && details.transcriptChecks === undefined)
     return;
   const host = record(hostValue, "candidate host");
-  const claudePolicy =
-    details.ownership === "claude" || details.ownership === "claude-selected";
-  const id = claudePolicy ? "sevro.host.claude" : "sevro.host.codex";
-  const capability = claudePolicy
-    ? "sevro.claude.tool-calls"
-    : "sevro.codex.native-calls";
+  const { ids, capability } = requiredNativeRoute(details);
   if (
-    host.id !== id ||
+    !ids.includes(String(host.id)) ||
     !Array.isArray(host.capabilities) ||
     !host.capabilities.includes(capability)
   )
     throw new Error(
-      claudePolicy
-        ? "native checks require Claude tool-call evidence"
-        : "native checks require Codex native-call evidence",
+      capability === "sevro.host.native-controls"
+        ? "native checks require native control evidence"
+        : capability === "sevro.claude.tool-calls"
+          ? "native checks require Claude tool-call evidence"
+          : "native checks require Codex native-call evidence",
     );
 }
 
@@ -4334,8 +4369,158 @@ async function nativeTranscriptChecks(
   };
   return selected.map((entry) => ({
     id: string(entry.id, "native transcript check ID"),
-    ...transcriptOutcome(entry, context),
+    ...(entry.kind === "guide-no-owner-or-goal-control"
+      ? guideNativeControlOutcome(observations)
+      : transcriptOutcome(entry, context)),
   }));
+}
+
+function validPortableCall(
+  call: RecordValue,
+  index: number,
+  calls: RecordValue[],
+) {
+  return (
+    Number.isSafeInteger(call.ordinal) &&
+    (call.ordinal as number) >= 0 &&
+    (index === 0 ||
+      (call.ordinal as number) > (calls[index - 1]!.ordinal as number)) &&
+    typeof call.namespace === "string" &&
+    typeof call.name === "string" &&
+    /^[A-Za-z0-9_.:-]{1,256}$/.test(call.name)
+  );
+}
+
+function portableControlCounts(
+  data: RecordValue,
+  source: string,
+  calls: RecordValue[],
+) {
+  if (source === "sevro.host.claude")
+    return (
+      data.acceptedAgentCount === null &&
+      data.submittedExecCalls === null &&
+      calls.every((call) => call.namespace === "claude")
+    );
+  const attempts = calls.filter(
+    (call) => call.namespace === "collaboration" && call.name === "spawn_agent",
+  ).length;
+  return (
+    Number.isSafeInteger(data.acceptedAgentCount) &&
+    (data.acceptedAgentCount as number) >= 0 &&
+    (data.acceptedAgentCount as number) <= attempts &&
+    data.submittedExecCalls === 0 &&
+    calls.every(validNativeToolCall)
+  );
+}
+
+function portableObservationData(observations: unknown) {
+  const observation = uniqueObservation(
+    observations,
+    "sevro.host.native-controls",
+  );
+  const data = observation ? activationData(observation.data) : null;
+  if (
+    observation?.completeness !== "complete" ||
+    !["sevro.host.codex", "sevro.host.claude"].includes(
+      String(observation.source),
+    ) ||
+    data?.method !== "native_control_calls" ||
+    data.truncated !== false ||
+    !Array.isArray(data.calls) ||
+    data.calls.length > 128
+  )
+    return null;
+  return { observation, data };
+}
+
+function portableControlRecord(observations: unknown) {
+  const verified = portableObservationData(observations);
+  if (!verified) return null;
+  const { observation, data } = verified;
+  const rawCalls = data.calls as unknown[];
+  const calls = rawCalls.map(activationData);
+  if (calls.some((call) => call === null)) return null;
+  const labels = calls as RecordValue[];
+  if (
+    !labels.every(validPortableCall) ||
+    !portableControlCounts(data, String(observation.source), labels)
+  )
+    return null;
+  return { source: String(observation.source), data, calls: labels };
+}
+
+function sameNativeLabels(left: RecordValue[], right: RecordValue[]) {
+  const labels = (calls: RecordValue[]) =>
+    calls.map(({ ordinal, namespace, name }) => ({ ordinal, namespace, name }));
+  return JSON.stringify(labels(left)) === JSON.stringify(labels(right));
+}
+
+function codexControlConsistency(
+  common: NonNullable<ReturnType<typeof portableControlRecord>>,
+  observations: unknown,
+) {
+  const native = nativeControlEvidence(observations);
+  return (
+    native !== null &&
+    common.data.acceptedAgentCount === native.acceptedSpawnCount &&
+    sameNativeLabels(native.toolCalls, common.calls)
+  );
+}
+
+function claudeControlConsistency(
+  common: NonNullable<ReturnType<typeof portableControlRecord>>,
+  legacy: RecordValue,
+  observations: unknown,
+) {
+  if (legacy.completeness !== "complete") return true;
+  const calls = claudeCalls(observations);
+  const names = common.calls
+    .filter((call) => ["Skill", "Agent", "Task"].includes(String(call.name)))
+    .map((call) => (call.name === "Task" ? "Agent" : call.name));
+  return (
+    calls !== null &&
+    JSON.stringify(calls.map((call) => call.name)) === JSON.stringify(names)
+  );
+}
+
+function legacyControlConsistency(
+  common: NonNullable<ReturnType<typeof portableControlRecord>>,
+  observations: unknown,
+) {
+  const claude = common.source === "sevro.host.claude";
+  const id = claude ? "sevro.claude.tool-calls" : "sevro.codex.native-calls";
+  const matches = (observations as unknown[])
+    .map(activationData)
+    .filter((observation) => observation?.id === id);
+  if (!matches.length) return true;
+  if (matches.length !== 1 || matches[0]?.source !== common.source)
+    return false;
+  return claude
+    ? claudeControlConsistency(common, matches[0]!, observations)
+    : codexControlConsistency(common, observations);
+}
+
+function guideNativeControlOutcome(observations: unknown) {
+  const common = portableControlRecord(observations);
+  const available =
+    common !== null && legacyControlConsistency(common, observations);
+  const prohibited =
+    available &&
+    common.calls.some(
+      (call) =>
+        ["Agent", "Task"].includes(String(call.name)) ||
+        (call.namespace === "collaboration" && call.name === "spawn_agent") ||
+        (["functions", "claude"].includes(String(call.namespace)) &&
+          ["create_goal", "update_goal"].includes(String(call.name))),
+    );
+  return {
+    status: !available ? "unavailable" : prohibited ? "failed" : "passed",
+    detail: available
+      ? "Graded owner and goal-control absence from complete native labels"
+      : "Native control evidence unavailable, incomplete, or contradictory",
+    evidenceRefs: available ? ["sevro.host.native-controls"] : [],
+  };
 }
 
 function validClaudeAgent(call: RecordValue) {
@@ -5039,6 +5224,7 @@ if (import.meta.main) {
             optionalCapabilities: [
               "sevro.fixture.setup",
               "sevro.host.continuation",
+              "sevro.host.native-controls",
               "sevro.codex.plugin-marketplace",
               "sevro.codex.explicit-invocation",
               "sevro.codex.repository-invocation",

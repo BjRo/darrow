@@ -976,7 +976,7 @@ test("repository guide assertions forbid owner and goal-control attempts", async
   const resolved = await resolveGuide("guide-mutation");
   expect(resolved.code, resolved.stderr).toBe(0);
   const selected = resolved.value.result.cases[0]!;
-  expect(selected.requiredEvidence).toEqual(["sevro.codex.native-calls"]);
+  expect(selected.requiredEvidence).toEqual(["sevro.host.native-controls"]);
   expect((await resolveGuide("guide-orchestration")).code).toBe(0);
   const native = {
     id: "sevro.codex.native-calls",
@@ -991,12 +991,27 @@ test("repository guide assertions forbid owner and goal-control attempts", async
     },
   };
   const status = async (observations: unknown[]) => {
+    const portable = observations
+      .map((value) => value as typeof native)
+      .filter((value) => value.id === "sevro.codex.native-calls")
+      .map(({ source, completeness, data }) => ({
+        id: "sevro.host.native-controls",
+        source,
+        completeness,
+        data: {
+          method: "native_control_calls",
+          calls: data.toolCalls,
+          acceptedAgentCount: data.acceptedSpawns.length,
+          submittedExecCalls: data.submittedExecCalls,
+          truncated: false,
+        },
+      }));
     const result = await command<{
       result: { checks: Array<{ id: string; status: string }> };
     }>(
       [process.execPath, extension],
       request("evaluate", {
-        observations,
+        observations: [...observations, ...portable],
         extensionData: selected.extensionData,
       }),
     );
@@ -1035,6 +1050,137 @@ test("repository guide assertions forbid owner and goal-control attempts", async
     "unavailable",
   );
   expect(await status([native, native])).toBe("unavailable");
+  expect(
+    await status([
+      { ...native, data: { ...native.data, submittedExecCalls: 1 } },
+    ]),
+  ).toBe("unavailable");
+});
+
+test("guide native control assertions prepare and grade on Claude", async () => {
+  const resolved = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(projectRoot).href,
+      selectors: { caseIds: ["guide-mutation"] },
+    }),
+  );
+  const selected = resolved.value.result.cases[0]!;
+  expect(selected.requiredEvidence).toEqual(["sevro.host.native-controls"]);
+  const capabilities = [
+    "sevro.claude.repository-invocation",
+    "sevro.host.native-controls",
+  ];
+  const prepare = (caps: string[]) =>
+    command<{
+      result?: { claudeRepositorySkillInvocation: { skillName: string } };
+      error?: { message: string };
+    }>(
+      [process.execPath, extension],
+      request("prepare", {
+        case: selected,
+        host: { id: "sevro.host.claude", capabilities: caps },
+        condition: "passive",
+        configuration: {},
+      }),
+    );
+  const ready = await prepare(capabilities);
+  expect(ready.value.result, ready.value.error?.message).toBeDefined();
+  expect(ready.value.result?.claudeRepositorySkillInvocation).toEqual({
+    skillName: "darrow-guide",
+  });
+  expect(
+    (await prepare(capabilities.slice(0, 1))).value.error?.message,
+  ).toContain("native control evidence");
+  const native = {
+    id: "sevro.host.native-controls",
+    source: "sevro.host.claude",
+    completeness: "complete",
+    data: {
+      method: "native_control_calls",
+      calls: [],
+      acceptedAgentCount: null,
+      submittedExecCalls: null,
+      truncated: false,
+    },
+  };
+  const status = async (observations: unknown[]) => {
+    const result = await command<{
+      result: { checks: Array<{ id: string; status: string }> };
+    }>(
+      [process.execPath, extension],
+      request("evaluate", {
+        observations,
+        extensionData: selected.extensionData,
+      }),
+    );
+    return result.value.result.checks.find(
+      (check) => check.id === "darrow.evals.transcript.1",
+    )?.status;
+  };
+  expect(await status([native])).toBe("passed");
+  for (const name of ["Agent", "Task", "create_goal", "update_goal"])
+    expect(
+      await status([
+        {
+          ...native,
+          data: {
+            ...native.data,
+            calls: [{ ordinal: 1, namespace: "claude", name }],
+          },
+        },
+      ]),
+    ).toBe("failed");
+  for (const altered of [
+    { ...native, completeness: "partial" },
+    { ...native, source: "foreign.host" },
+    { ...native, data: { ...native.data, truncated: true } },
+    { ...native, data: { ...native.data, acceptedAgentCount: 0 } },
+    {
+      ...native,
+      data: {
+        ...native.data,
+        calls: [{ ordinal: 1, namespace: "functions", name: "Read" }],
+      },
+    },
+    {
+      ...native,
+      data: {
+        ...native.data,
+        calls: [
+          { ordinal: 1, namespace: "claude", name: "Read" },
+          { ordinal: 1, namespace: "claude", name: "Read" },
+        ],
+      },
+    },
+  ])
+    expect(await status([altered])).toBe("unavailable");
+  expect(await status([])).toBe("unavailable");
+  expect(await status([native, native])).toBe("unavailable");
+  const legacy = {
+    id: "sevro.claude.tool-calls",
+    source: "sevro.host.claude",
+    completeness: "complete",
+    data: {
+      method: "stream_tool_calls",
+      truncated: false,
+      calls: [
+        {
+          ordinal: 1,
+          actor: "parent",
+          parentToolUseId: null,
+          name: "Agent",
+          toolUseId: "owner-call",
+          subagentType: "worker",
+          runInBackground: false,
+          model: null,
+          promptSha256: "a".repeat(64),
+          promptFirstLineSha256: "b".repeat(64),
+        },
+      ],
+    },
+  };
+  expect(await status([native, legacy])).toBe("unavailable");
 });
 
 test("Darrow doctor controls require intact negative evidence", async () => {

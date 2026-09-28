@@ -34,6 +34,13 @@ and the Codex non-applicable result. Missing, partial, duplicate, or foreign
 response evidence stays unavailable. Unmapped guide assertions that depend on
 the legacy response file or harness variable fail resolution explicitly.
 
+The guide's owner and goal-control exclusion uses `sevro.host.native-controls`
+on both hosts. Darrow grades the native labels and explicit counts, rejects
+contradictory older receipts when present, and cannot infer control absence
+inside uninspected Codex submitted code. Claude's acceptance count remains
+unknown. The assertion fails on launch or mutation attempts without requiring
+agent acceptance.
+
 For a plugin-local case, `prepare` mounts the selected skill's files under
 `.agents/skills/` and excludes their exact paths from Git status. Colocated
 `evals/` files and generated caches stay out of the candidate fixture. Skill

@@ -70,6 +70,14 @@ primary-Codex disclosures. Codex retains the assertion's non-applicable result.
 Missing, duplicate, partial, or foreign response evidence stays unavailable;
 absence of legacy environment variables or a response file cannot make it pass.
 
+The guide's no-owner and no-goal-control assertion uses the common
+`sevro.host.native-controls` observation on either host. Darrow interprets its
+ordered native labels and explicit counts; Sevro does not grade the assertion.
+Agent-launch or goal-mutation attempts fail it even when no agent was accepted.
+Missing, duplicate, partial, malformed, foreign, or contradictory records remain
+unavailable. Submitted Codex code that has not been inspected cannot establish
+control absence. Claude's unknown acceptance count cannot establish acceptance.
+
 A setup-only generated fixture starts with an empty Git history. Its setup may
 create the initial snapshot; no placeholder commit may be synthesized before
 that setup runs.
