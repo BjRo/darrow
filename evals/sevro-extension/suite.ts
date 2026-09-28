@@ -29,8 +29,8 @@ import {
 import type { BenchmarkCondition } from "./benchmark-condition";
 import {
   benchmarkArguments,
-  benchmarkPolicyConfiguration,
   modeBenchmarkPolicy,
+  requestedBenchmarkPolicy,
 } from "./benchmark-policy";
 import {
   loadSkillOverride,
@@ -63,6 +63,7 @@ function modeConfig(name: string, raw: unknown) {
         "skill_dir",
         "mount_plugin_skills",
         "require_evaluation_records",
+        "effective_owner_routes",
       ].includes(key),
   );
   if (unsupported.length)
@@ -420,6 +421,7 @@ type ExpectedCell = {
   skillDir?: string;
   mountPluginSkills?: true;
   requireEvaluationRecords?: true;
+  effectiveOwnerRoute?: import("./benchmark-owner").OwnerRoute;
 };
 
 function verifyEvidence(
@@ -579,7 +581,7 @@ function cellCommand(request: SuiteRequest, selected: CellSelection) {
     ...(mode.withoutSkill ? ["--without-skill"] : []),
     ...conditionArguments(request.benchmarkConditions[mode.name]?.[harness]),
     ...skillArguments(mode, request.projectRoot),
-    ...benchmarkArguments(mode),
+    ...benchmarkArguments(requestedBenchmarkPolicy(mode, caseId), caseId),
     "--",
     ...candidateArguments(
       [...request.forwarded, ...(request.hostOptions?.[harness] ?? [])],
@@ -614,7 +616,7 @@ function cellExpectation(
     withoutSkill: mode.withoutSkill,
     ...(mode.skillDir ? { skillDir: mode.skillDir } : {}),
     ...(mode.mountPluginSkills ? { mountPluginSkills: true } : {}),
-    ...benchmarkPolicyConfiguration(mode),
+    ...requestedBenchmarkPolicy(mode, caseId),
   };
 }
 
@@ -992,6 +994,7 @@ async function preflightCases(
   for (const mode of suite.modes) {
     for (const harness of suite.harnesses) {
       for (const caseId of caseIds) {
+        const policy = preflightBenchmarkPolicy(mode, harness, caseId);
         const details = await preflightCaseDetails({
           projectRoot: pathToFileURL(request.projectRoot).href,
           selectors: { caseIds: [caseId] },
@@ -1001,7 +1004,7 @@ async function preflightCases(
               request.benchmarkConditionDefinitions,
             ),
             ...skillMountConfiguration(mode),
-            ...benchmarkPolicyConfiguration(mode),
+            ...policy,
           },
         });
         if (mode.withoutSkill && details.invocation !== undefined)
@@ -1018,6 +1021,17 @@ async function preflightCases(
     }
   }
   return expectations;
+}
+
+function preflightBenchmarkPolicy(
+  mode: SuiteConfig["modes"][number],
+  harness: Harness,
+  caseId: string,
+) {
+  const policy = requestedBenchmarkPolicy(mode, caseId);
+  if (policy.effectiveOwnerRoute && harness !== "codex")
+    throw new Error(`${caseId}: native effective owner routes require Codex`);
+  return policy;
 }
 
 async function runSelectedCells(

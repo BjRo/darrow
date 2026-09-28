@@ -184,6 +184,38 @@ for a selected adaptive-delivery mount: no standalone record checks are declared
 for it. This exception does not establish ownership; the selected case's policy
 or an explicit benchmark route check must supply that assertion.
 
+## Benchmark owner routes
+
+Pass `--assert-effective-owner-routes '{"case-id":{"model":"gpt-5.6-luna","effort":"high"}}'`
+before `--` on the run entrypoint, or declare mode `effective_owner_routes` as
+the same case-ID map in a suite. Only the selected case's expectation is applied;
+focused runs keep their case selection when a map also names other cases.
+The map is bounded to 64 KiB. Model identifiers use at most 128 letters,
+digits, dots, underscores, or hyphens and begin with a letter or digit. Effort
+must be `low`, `medium`, `high`, `xhigh`, `max`, or `ultra`.
+
+The added `darrow.evals.benchmark.effective-owner-route` check preserves the
+legacy name “native owner effective route matches expectation.” It requires
+one complete Codex native observation correlating one accepted child's launch,
+host start, and acceptance. That child must use `forkTurns: none` and the exact
+expected model and effort. The check records the applied child route; its
+private contract selection stays unverified. The parent candidate keeps its
+own route, and the expectation changes no launch input or instrumentation.
+
+An observed route mismatch or a complete observation without one unique
+accepted child fails. Missing, partial, duplicate, foreign, malformed, or
+route-incomplete receipts remain unavailable. Existing task checks continue
+running. Unavailable evidence produces Sevro exit `4`, grading `unavailable`,
+and task `not_assessed`; the suite retains that raw result and exits `1`.
+Dry preparation stays unassessed. Redacted configuration retains the selected
+`effectiveOwnerRoute`, and the suite verifies it against its request.
+
+This legacy assertion is Codex-specific. A suite requesting it for a selected
+Claude cell exits `64` before any cells start. Standalone preparation rejects
+hosts missing Codex native-call evidence. Invalid maps also exit `64` before
+candidate execution. Claude's existing selected-owner cases keep their separate
+Claude policy; this option supplies no replacement for that policy.
+
 To inventory case compatibility before switching a workflow, run:
 
 ```sh
@@ -323,7 +355,7 @@ named modes. Repeatable `--case <substring>` filters replace the suite filters
 for a focused run. Selection errors fail before any cells start. It accepts
 `owner_evaluation`, `without_skill`, `model_by_harness`, `effort`, `condition`,
 `condition_by_harness`, `skill_dir`, `mount_plugin_skills`, and
-`require_evaluation_records` in each mode. Candidate model and effort overrides require Sevro's bundled hosts;
+`require_evaluation_records`, and `effective_owner_routes` in each mode. Candidate model and effort overrides require Sevro's bundled hosts;
 they replace the corresponding options in the host route and preserve the
 semantic and advisory routes. The manifest records requested routes and
 validates the actual model and effort against retained Sevro evidence.
@@ -355,8 +387,8 @@ and harness. Incomplete observations and empty metric denominators remain
 unknown; unmounted controls supply no measurements. Named ablations write
 `ablation-report.json` and `ablation-report.md` with per-case pass rate, time,
 token, and cost deltas; missing measurements stay unknown. Missing cells or
-mismatched identity dimensions invalidate the comparison. Effective owner-route
-assertions still use the legacy suite command.
+mismatched identity dimensions invalidate the comparison. Other legacy
+goal-route and dimension overrides still require migration.
 
 Mode `skill_dir` selects a candidate override relative to the suite file.
 `mount_plugin_skills: true` includes its sibling set. Selected override inputs
@@ -440,7 +472,7 @@ Suite activation regressions and the focused native Claude suite are recorded
 in [suite-validation.md](suite-validation.md).
 
 The entrypoint supplies `index.ts`, `run.ts`, `benchmark-condition.ts`,
-`benchmark-policy.ts`, `skill-mount.ts`,
+`benchmark-policy.ts`, `benchmark-owner.ts`, `skill-mount.ts`,
 `sevro-command.ts`, the local
 ticket command, the corpus
 source validator, the repository `package.json`, and `bun.lock` as extension source files so the executable,

@@ -4,6 +4,7 @@ import { lstat, readFile, readdir, realpath, stat } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { isDeepStrictEqual } from "node:util";
+import { nativeOwnerRouteChecks } from "./benchmark-owner";
 import {
   benchmarkCasePolicy,
   benchmarkRecordChecks,
@@ -2524,6 +2525,7 @@ async function prepareCase(params: RecordValue) {
   const details = record(data["darrow.case"], "Darrow case data");
   requireMountConfiguration(details, params.configuration);
   requireCaseHost(details.hostIds, params.host);
+  requireBenchmarkOwnerHost(details, params.host);
   const omitSkills = withoutSkill(params.configuration);
   if (omitSkills && details.invocation !== undefined)
     throw new Error("explicit skill invocation cannot run without skills");
@@ -2537,6 +2539,19 @@ async function prepareCase(params: RecordValue) {
     ...(setup ? { fixtureSetup: setup } : {}),
     extensionData: {},
   };
+}
+
+function requireBenchmarkOwnerHost(details: RecordValue, value: unknown) {
+  if (details.benchmarkOwnerRoute === undefined) return;
+  const host = record(value, "candidate host");
+  if (
+    host.id !== "sevro.host.codex" ||
+    !Array.isArray(host.capabilities) ||
+    !host.capabilities.includes("sevro.codex.native-calls")
+  )
+    throw new Error(
+      "native effective owner routes require Codex native-call evidence",
+    );
 }
 
 function requireMountConfiguration(details: RecordValue, value: unknown) {
@@ -5318,10 +5333,7 @@ async function evaluateCase(params: RecordValue) {
   const ownership = await caseOwnershipChecks(details, params);
   const checks = [
     ...guideDisclosureOutcomes(details.disclosureChecks, params.observations),
-    ...benchmarkRecordChecks(
-      details.benchmarkRecords,
-      uniqueObservation(params.observations, "sevro.observation.final-message"),
-    ),
+    ...caseBenchmarkChecks(details, params),
     ...(details.ownership === "composition"
       ? ownership.slice(0, 2)
       : ownership),
@@ -5355,6 +5367,19 @@ async function evaluateCase(params: RecordValue) {
       },
     ],
   };
+}
+
+function caseBenchmarkChecks(details: RecordValue, params: RecordValue) {
+  return [
+    ...benchmarkRecordChecks(
+      details.benchmarkRecords,
+      uniqueObservation(params.observations, "sevro.observation.final-message"),
+    ),
+    ...nativeOwnerRouteChecks(
+      details.benchmarkOwnerRoute,
+      nativeControlEvidence(params.observations),
+    ),
+  ];
 }
 
 if (import.meta.main) {

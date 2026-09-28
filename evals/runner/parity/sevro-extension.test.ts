@@ -21,6 +21,126 @@ const extension = resolve(import.meta.dir, "../../sevro-extension/index.ts");
 const projectRoot = resolve(import.meta.dir, "../../..");
 const roots: string[] = [];
 
+test("Darrow benchmark owner routes require complete correlated native acceptance", async () => {
+  const expected = { model: "gpt-5.6-luna", effort: "high" };
+  const spawn = {
+    requestedOrdinal: 1,
+    startedOrdinal: 2,
+    acceptedOrdinal: 3,
+    agentRef: "/root/owner",
+    threadId: "child-thread",
+    forkTurns: "none",
+    model: expected.model,
+    reasoningEffort: expected.effort,
+  };
+  const observation = {
+    id: "sevro.codex.native-calls",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "native_session",
+      calls: [
+        {
+          ordinal: 1,
+          namespace: "collaboration",
+          name: "spawn_agent",
+          evidence: "invocation_attempt",
+        },
+      ],
+      toolCalls: [
+        { ordinal: 1, namespace: "collaboration", name: "spawn_agent" },
+      ],
+      acceptedSpawns: [spawn],
+      submittedExecCalls: 0,
+    },
+  };
+  const status = async (observations: unknown[]) => {
+    const reply = await command<{
+      result: { checks: Array<{ id: string; status: string }> };
+    }>(
+      [process.execPath, extension],
+      request("evaluate", {
+        configuration: { effectiveOwnerRoute: expected },
+        extensionData: { "darrow.case": { benchmarkOwnerRoute: expected } },
+        observations,
+      }),
+    );
+    expect(reply.code, reply.stderr).toBe(0);
+    expect(reply.value.result.checks).toHaveLength(1);
+    return reply.value.result.checks[0]!.status;
+  };
+  expect(await status([observation])).toBe("passed");
+  for (const [change, verdict] of [
+    [{ model: "gpt-5.6-terra" }, "failed"],
+    [{ reasoningEffort: "medium" }, "failed"],
+    [{ forkTurns: "all" }, "failed"],
+    [{ forkTurns: undefined }, "unavailable"],
+    [{ model: undefined }, "unavailable"],
+    [{ reasoningEffort: null }, "unavailable"],
+    [{ model: "bad model" }, "unavailable"],
+    [{ acceptedOrdinal: 1 }, "unavailable"],
+  ] as const)
+    expect(
+      await status([
+        {
+          ...observation,
+          data: {
+            ...observation.data,
+            acceptedSpawns: [{ ...spawn, ...change }],
+          },
+        },
+      ]),
+    ).toBe(verdict);
+  expect(
+    await status([
+      {
+        ...observation,
+        data: {
+          ...observation.data,
+          calls: [],
+          toolCalls: [],
+          acceptedSpawns: [],
+        },
+      },
+    ]),
+  ).toBe("failed");
+  const second = {
+    ...spawn,
+    requestedOrdinal: 4,
+    startedOrdinal: 5,
+    acceptedOrdinal: 6,
+    agentRef: "/root/other",
+    threadId: "other-thread",
+  };
+  expect(
+    await status([
+      {
+        ...observation,
+        data: {
+          ...observation.data,
+          calls: [
+            ...observation.data.calls,
+            { ...observation.data.calls[0], ordinal: 4 },
+          ],
+          toolCalls: [
+            ...observation.data.toolCalls,
+            { ...observation.data.toolCalls[0], ordinal: 4 },
+          ],
+          acceptedSpawns: [spawn, second],
+        },
+      },
+    ]),
+  ).toBe("failed");
+  expect(await status([])).toBe("unavailable");
+  expect(await status([observation, observation])).toBe("unavailable");
+  expect(await status([{ ...observation, completeness: "partial" }])).toBe(
+    "unavailable",
+  );
+  expect(await status([{ ...observation, source: "sevro.host.claude" }])).toBe(
+    "unavailable",
+  );
+});
+
 test("Darrow record checks require one complete final response and unique integer records", async () => {
   const complete =
     "ready\nevaluation_child_invocations\t2\nevaluation_human_interruptions: 0\n";

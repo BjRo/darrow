@@ -1,5 +1,44 @@
 # Suite validation
 
+## Benchmark owner routes
+
+The Darrow run command and suite modes now preserve case-bound native owner
+route assertions separately from the parent candidate route. The public-command
+regressions use the real Sevro CLI or extension protocol with synthetic hosts.
+Complete native acceptance establishes an applied route; private contract
+selection stays unverified.
+
+Working directory:
+`/Users/bjro/Sources/darrow/.worktrees/feat/issue-95-darrow-extension`.
+
+1. Red — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-suite.test.ts -t "suite grades benchmark owner routes separately from the parent candidate route"'`:
+   exit `64`, because mode `effective_owner_routes` was unsupported.
+2. Green — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-suite.test.ts -t "suite grades benchmark owner routes separately from the parent candidate route"'`:
+   one test passed with 13 assertions. The parent remains on Terra/medium;
+   a matching accepted Luna/high child passes, while a mismatched child fails
+   only its added route check. Retained configuration binds the expectation.
+
+Additional guards passed four tests with 79 assertions. They cover incomplete,
+duplicate, foreign, malformed, and route-incomplete receipts, inherited context,
+no or multiple accepted children, malformed maps, selected Claude rejection,
+focused maps, and dry unassessed results. A real CLI run with a route-incomplete
+receipt retains completed execution, unavailable grading, task `not_assessed`,
+and Sevro exit `4`; the suite exits `1` while preserving the passing task check.
+These guards were added after implementation, without a test-first claim. No
+live model call was made. Release pinning and normal workflow cutover remain
+pending.
+
+The final installed-package gate passed 104 tests with 1,670 assertions across
+three files in 172.78 seconds:
+
+```sh
+SEVRO_PACKAGE_TARBALL=/tmp/sevro-0.1.0-dev.0.tgz lean-ctx -c 'bun run test:eval-runner-sevro-package'
+```
+
+The tarball was packed from clean Sevro commit `08b5371`. Darrow typechecking,
+ESLint, formatting, and the 377/377 case resolution inventory passed. This
+inventory does not prove live behavior or complete workflow compatibility.
+
 ## Benchmark evaluation records
 
 The Darrow run command and suite modes now preserve the requested evaluation

@@ -427,6 +427,29 @@ policy or an explicitly requested benchmark route check; suppressing record
 checks does not establish ownership. Other mounted skills and unmounted
 experiments retain the record check when requested.
 
+### Benchmark owner-route checks
+
+The Sevro run entrypoint preserves `--assert-effective-owner-routes` as a JSON
+map of exact case IDs to model and effort expectations. Suite modes preserve
+`effective_owner_routes`. A selected case's expectation enters extension
+configuration and retained evidence separately from the parent candidate route.
+It adds the named native effective-route check without changing other checks
+or launch inputs. Unselected map entries do not change focused case selection.
+
+This check requires one complete, sourced Codex native acceptance receipt with
+correlated launch, host-start, and acceptance ordinals. Exactly one accepted
+child must use `forkTurns: none` and the expected model and reasoning effort.
+An observed mismatch or a complete observation with no unique accepted child
+fails. Missing, partial, duplicate, foreign, malformed, or route-incomplete
+evidence remains unavailable. The receipt establishes the applied route;
+contract selection and private launch intent are not inferred.
+Expectations require a bounded nonempty model identifier and one of `low`,
+`medium`, `high`, `xhigh`, `max`, or `ultra`. Invalid maps fail before execution.
+The legacy effective-route check is Codex-specific. A Sevro suite requesting it
+for Claude fails preflight explicitly; standalone preparation rejects that
+unsupported host route. Dry preparation remains unassessed. Suite retained
+configuration must agree with the selected case's requested expectation.
+
 ### Benchmark conditions
 
 The Darrow Sevro run entrypoint accepts an absolute benchmark condition file

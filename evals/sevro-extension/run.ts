@@ -11,6 +11,7 @@ import {
   writeRunConfiguration,
 } from "./benchmark-condition";
 import { skillOverrideOptions } from "./skill-mount";
+import { runBenchmarkPolicy } from "./benchmark-policy";
 
 const repositoryRoot = resolve(import.meta.dir, "../..");
 const extension = join(import.meta.dir, "index.ts");
@@ -21,6 +22,7 @@ const sourceFiles = [
   join(import.meta.dir, "benchmark-condition.ts"),
   join(import.meta.dir, "skill-mount.ts"),
   join(import.meta.dir, "benchmark-policy.ts"),
+  join(import.meta.dir, "benchmark-owner.ts"),
   join(import.meta.dir, "sevro-command.ts"),
   join(repositoryRoot, "evals/corpus/orchestration/source.ts"),
   join(repositoryRoot, "package.json"),
@@ -109,6 +111,7 @@ function runOptions(argv: string[]) {
       "skill-dir": { type: "string" },
       "mount-plugin-skills": { type: "boolean", default: false },
       "require-evaluation-records": { type: "boolean", default: false },
+      "assert-effective-owner-routes": { type: "string" },
       "benchmark-condition-file": { type: "string" },
       "benchmark-condition-label": { type: "string" },
       "benchmark-condition-sha256": { type: "string" },
@@ -137,6 +140,11 @@ export function invocation(argv: string[]) {
     skillDir: values["skill-dir"],
     mountPluginSkills: values["mount-plugin-skills"],
   });
+  const policy = runBenchmarkPolicy(
+    values["require-evaluation-records"],
+    values["assert-effective-owner-routes"],
+    caseId,
+  );
   validateForwarded(forwarded);
   const commandFile = join(resultsRoot, "darrow-extension-command.json");
   return {
@@ -147,9 +155,7 @@ export function invocation(argv: string[]) {
     withoutSkill: values["without-skill"],
     ...benchmark,
     ...skillMount,
-    ...(values["require-evaluation-records"]
-      ? { requireEvaluationRecords: true as const }
-      : {}),
+    ...policy,
     command: sevroArgs({
       commandFile,
       caseId,
@@ -159,7 +165,7 @@ export function invocation(argv: string[]) {
       configuration:
         values["without-skill"] ||
         !!benchmark.conditionFile ||
-        values["require-evaluation-records"] ||
+        Object.keys(policy).length > 0 ||
         Object.keys(skillMount).length > 0,
       conditionFile: benchmark.conditionFile,
     }),

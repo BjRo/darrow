@@ -3,6 +3,7 @@ import { lstat, readFile, writeFile } from "node:fs/promises";
 import { basename, extname, isAbsolute, join } from "node:path";
 import { loadSkillOverride, skillMountConfiguration } from "./skill-mount";
 import { benchmarkPolicyConfiguration } from "./benchmark-policy";
+import type { OwnerRoute } from "./benchmark-owner";
 
 type RecordValue = Record<string, unknown>;
 export type BenchmarkCondition = {
@@ -79,6 +80,7 @@ export function extensionConfiguration(value: unknown) {
       "skillDir",
       "mountPluginSkills",
       "requireEvaluationRecords",
+      "effectiveOwnerRoute",
     ],
     "extension configuration",
   );
@@ -200,6 +202,7 @@ type RunConfigurationOptions = {
   skillDir?: string;
   mountPluginSkills?: true;
   requireEvaluationRecords?: true;
+  effectiveOwnerRoute?: OwnerRoute;
 };
 
 async function runBenchmarkCondition(options: RunConfigurationOptions) {
@@ -239,7 +242,8 @@ export async function writeRunConfiguration(options: RunConfigurationOptions) {
     !options.conditionFile &&
     !options.skillDir &&
     !options.mountPluginSkills &&
-    !options.requireEvaluationRecords
+    !options.requireEvaluationRecords &&
+    !options.effectiveOwnerRoute
   )
     return;
   const benchmarkCondition = await runBenchmarkCondition(options);

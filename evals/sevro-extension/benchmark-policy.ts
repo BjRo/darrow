@@ -1,5 +1,15 @@
+import {
+  ownerRoute,
+  ownerRoutes,
+  ownerRouteCasePolicy,
+  selectedOwnerRoute,
+  type OwnerRoute,
+} from "./benchmark-owner";
 type RecordValue = Record<string, unknown>;
-export type BenchmarkPolicyConfiguration = { requireEvaluationRecords?: true };
+export type BenchmarkPolicyConfiguration = {
+  requireEvaluationRecords?: true;
+  effectiveOwnerRoute?: OwnerRoute;
+};
 
 const recordChecks = [
   {
@@ -22,9 +32,14 @@ export function benchmarkPolicyConfiguration(
     value.requireEvaluationRecords !== true
   )
     throw new Error("requireEvaluationRecords configuration must be true");
-  return value.requireEvaluationRecords === true
-    ? { requireEvaluationRecords: true }
-    : {};
+  return {
+    ...(value.requireEvaluationRecords === true
+      ? { requireEvaluationRecords: true as const }
+      : {}),
+    ...(value.effectiveOwnerRoute === undefined
+      ? {}
+      : { effectiveOwnerRoute: ownerRoute(value.effectiveOwnerRoute) }),
+  };
 }
 
 export function modeBenchmarkPolicy(mode: RecordValue) {
@@ -33,18 +48,67 @@ export function modeBenchmarkPolicy(mode: RecordValue) {
     typeof mode.require_evaluation_records !== "boolean"
   )
     throw new Error("require_evaluation_records must be a boolean");
-  return mode.require_evaluation_records === true
-    ? { requireEvaluationRecords: true as const }
-    : {};
+  return {
+    ...(mode.require_evaluation_records === true
+      ? { requireEvaluationRecords: true as const }
+      : {}),
+    ...(mode.effective_owner_routes === undefined
+      ? {}
+      : { effectiveOwnerRoutes: ownerRoutes(mode.effective_owner_routes) }),
+  };
 }
 
-export function benchmarkArguments(policy: BenchmarkPolicyConfiguration) {
-  return policy.requireEvaluationRecords
-    ? ["--require-evaluation-records"]
-    : [];
+export function requestedBenchmarkPolicy(
+  mode: {
+    requireEvaluationRecords?: true;
+    effectiveOwnerRoutes?: Record<string, OwnerRoute>;
+  },
+  caseId: string,
+): BenchmarkPolicyConfiguration {
+  return benchmarkPolicyConfiguration({
+    ...(mode.requireEvaluationRecords
+      ? { requireEvaluationRecords: true }
+      : {}),
+    effectiveOwnerRoute: selectedOwnerRoute(mode.effectiveOwnerRoutes, caseId),
+  });
 }
 
-export function benchmarkCasePolicy(
+export function runBenchmarkPolicy(
+  required: boolean,
+  map: string | undefined,
+  caseId: string,
+) {
+  if (map !== undefined && Buffer.byteLength(map) > 64 * 1024)
+    throw new Error("owner route JSON exceeds 64 KiB");
+  return requestedBenchmarkPolicy(
+    {
+      ...(required ? { requireEvaluationRecords: true } : {}),
+      ...(map === undefined
+        ? {}
+        : { effectiveOwnerRoutes: ownerRoutes(JSON.parse(map)) }),
+    },
+    caseId,
+  );
+}
+
+export function benchmarkArguments(
+  policy: BenchmarkPolicyConfiguration,
+  caseId: string,
+) {
+  return [
+    ...(policy.requireEvaluationRecords
+      ? ["--require-evaluation-records"]
+      : []),
+    ...(policy.effectiveOwnerRoute
+      ? [
+          "--assert-effective-owner-routes",
+          JSON.stringify({ [caseId]: policy.effectiveOwnerRoute }),
+        ]
+      : []),
+  ];
+}
+
+function recordCasePolicy(
   configuration: BenchmarkPolicyConfiguration,
   skillDir: string | null,
 ) {
@@ -69,6 +133,19 @@ export function benchmarkCasePolicy(
           })),
         }
       : {},
+  };
+}
+
+export function benchmarkCasePolicy(
+  configuration: BenchmarkPolicyConfiguration,
+  skillDir: string | null,
+) {
+  const records = recordCasePolicy(configuration, skillDir);
+  const owner = ownerRouteCasePolicy(configuration.effectiveOwnerRoute);
+  return {
+    checks: [...records.checks, ...owner.checks],
+    requiredEvidence: [...records.requiredEvidence, ...owner.requiredEvidence],
+    details: { ...records.details, ...owner.details },
   };
 }
 

@@ -110,13 +110,7 @@ export function conditionEvidenceMatches(
   withoutSkill: boolean,
   mount: SkillMountConfiguration & BenchmarkPolicyConfiguration = {},
 ) {
-  if (value === undefined)
-    return (
-      input === null &&
-      !mount.skillDir &&
-      !mount.mountPluginSkills &&
-      !mount.requireEvaluationRecords
-    );
+  if (value === undefined) return !requiresRetainedConfiguration(input, mount);
   const expected = {
     ...(withoutSkill ? { withoutSkill: true } : {}),
     ...(mount.skillDir ? { skillDir: mount.skillDir } : {}),
@@ -127,4 +121,17 @@ export function conditionEvidenceMatches(
       : {}),
   };
   return isDeepStrictEqual(value, expected);
+}
+
+function requiresRetainedConfiguration(
+  input: ConditionInput | null,
+  mount: SkillMountConfiguration & BenchmarkPolicyConfiguration,
+) {
+  return Boolean(
+    input ||
+    mount.skillDir ||
+    mount.mountPluginSkills ||
+    mount.requireEvaluationRecords ||
+    mount.effectiveOwnerRoute,
+  );
 }

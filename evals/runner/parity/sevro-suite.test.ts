@@ -105,6 +105,305 @@ async function invoke(
   return { stdout, stderr, code };
 }
 
+test("suite grades benchmark owner routes separately from the parent candidate route", async () => {
+  const { root, cases, suite, adapter, results } = await fixture();
+  for (const id of ["suite-alpha", "suite-beta"]) {
+    const path = join(cases, `${id}.yaml`);
+    const definition = JSON.parse(await readFile(path, "utf8"));
+    definition.prompt = id;
+    await writeFile(path, JSON.stringify(definition));
+  }
+  const expected = { model: "gpt-5.6-luna", effort: "high" };
+  await writeFile(
+    suite,
+    JSON.stringify({
+      version: 1,
+      experiment: "owner-routes",
+      harnesses: ["codex"],
+      case_filter: "suite-",
+      modes: {
+        routed: {
+          owner_evaluation: "passive",
+          effective_owner_routes: {
+            "suite-alpha": expected,
+            "suite-beta": expected,
+          },
+        },
+      },
+    }),
+  );
+  await writeFile(
+    adapter,
+    `export default {
+    id: "sevro.host.codex", model: "gpt-5.6-terra", effort: "medium", hostCapabilities: ["sevro.codex.native-calls"],
+    async run({ prompt, condition }) {
+      return { finalMessage: "ready", complete: true, actualCondition: condition,
+        observations: [{ id: "sevro.codex.native-calls", completeness: "complete", data: {
+          method: "native_session", calls: [{ ordinal: 1, namespace: "collaboration", name: "spawn_agent", evidence: "invocation_attempt" }],
+          toolCalls: [{ ordinal: 1, namespace: "collaboration", name: "spawn_agent" }], submittedExecCalls: 0,
+          acceptedSpawns: [{ requestedOrdinal: 1, startedOrdinal: 2, acceptedOrdinal: 3, agentRef: "/root/owner", threadId: "child-thread",
+            forkTurns: "none", model: prompt === "suite-alpha" ? "gpt-5.6-luna" : "gpt-5.6-terra", reasoningEffort: "high" }],
+        } }],
+      };
+    }
+  };`,
+  );
+  const run = await invoke([
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+  ]);
+  expect(run.code, run.stderr + run.stdout).toBe(1);
+  const manifest = JSON.parse(
+    await readFile(join(results, "suite-run.json"), "utf8"),
+  );
+  expect(manifest.cells).toHaveLength(2);
+  for (const [index, status] of ["passed", "failed"].entries()) {
+    const cell = manifest.cells[index];
+    const result = JSON.parse(await readFile(cell.result, "utf8"));
+    expect(cell.exitCode, JSON.stringify(result)).toBe(index);
+    expect(result.task.verdict).toBe(status);
+    expect(cell.provenance.routes[0]).toMatchObject({
+      role: "candidate",
+      model: "gpt-5.6-terra",
+      effort: "medium",
+    });
+    const evidence = JSON.parse(await readFile(result.evidencePath, "utf8"));
+    expect(evidence.configuration.redacted.extensionConfiguration).toEqual({
+      effectiveOwnerRoute: expected,
+    });
+    expect(result.cases[0].trials[0].checks).toMatchObject([
+      { id: "darrow.output.1", status: "passed" },
+      { id: "darrow.evals.benchmark.effective-owner-route", status },
+    ]);
+  }
+});
+
+test("suite rejects invalid owner-route maps and unsupported selected hosts before execution", async () => {
+  const { root, suite, adapter, results } = await fixture();
+  const definition = JSON.parse(await readFile(suite, "utf8"));
+  const expected = { model: "gpt-5.6-luna", effort: "high" };
+  for (const routes of [
+    null,
+    [],
+    { "suite-alpha": "route" },
+    { "suite-alpha": { model: "", effort: "high" } },
+    { "suite-alpha": { model: "bad model", effort: "high" } },
+    { "suite-alpha": { model: expected.model, effort: "none" } },
+    { "suite-alpha": { ...expected, provider: "openai" } },
+    { "": expected },
+    { "suite-alpha": { model: expected.model } },
+  ]) {
+    await writeFile(
+      suite,
+      JSON.stringify({
+        ...definition,
+        modes: { selected: { effective_owner_routes: routes } },
+      }),
+    );
+    const run = await invoke([
+      "--suite",
+      suite,
+      "--project-root",
+      root,
+      "--results-root",
+      results,
+      "--",
+      "--adapter-module",
+      adapter,
+    ]);
+    expect(run.code, run.stderr + run.stdout).toBe(64);
+    expect(
+      await Bun.file(
+        join(results, "cell-1/darrow-extension-command.json"),
+      ).exists(),
+    ).toBeFalse();
+  }
+  await writeFile(
+    suite,
+    JSON.stringify({
+      ...definition,
+      harnesses: ["claude"],
+      modes: {
+        selected: { effective_owner_routes: { "suite-alpha": expected } },
+      },
+    }),
+  );
+  const unsupported = await invoke([
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+    "--",
+    "--adapter-module",
+    adapter,
+  ]);
+  expect(unsupported.code, unsupported.stderr + unsupported.stdout).toBe(64);
+  expect(unsupported.stderr).toContain("require Codex");
+  expect(
+    await Bun.file(
+      join(results, "cell-1/darrow-extension-command.json"),
+    ).exists(),
+  ).toBeFalse();
+});
+
+test("suite focuses owner-route maps and keeps dry results unassessed", async () => {
+  const { root, suite, adapter, results } = await fixture();
+  const expected = { model: "gpt-5.6-luna", effort: "high" };
+  await writeFile(
+    suite,
+    JSON.stringify({
+      version: 1,
+      experiment: "owner-focus",
+      harnesses: ["codex"],
+      case_filter: "suite-",
+      modes: {
+        selected: {
+          owner_evaluation: "passive",
+          effective_owner_routes: { "suite-beta": expected },
+        },
+      },
+    }),
+  );
+  const base = [
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+  ];
+  const focused = await invoke([
+    ...base,
+    "--case",
+    "suite-alpha",
+    "--results-root",
+    results,
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+  ]);
+  expect(focused.code, focused.stderr + focused.stdout).toBe(0);
+  const manifest = JSON.parse(
+    await readFile(join(results, "suite-run.json"), "utf8"),
+  );
+  expect(manifest.caseIds).toEqual(["suite-alpha"]);
+  const dryRoot = join(root, "dry");
+  await writeFile(
+    adapter,
+    `export default { id: "sevro.host.codex", model: "synthetic", effort: "none",
+    hostCapabilities: ["sevro.codex.native-calls"], async run() { throw new Error("dry host started"); } };`,
+  );
+  const dry = await invoke([
+    ...base,
+    "--case",
+    "suite-beta",
+    "--results-root",
+    dryRoot,
+    "--",
+    "--dry",
+    "--adapter-module",
+    adapter,
+  ]);
+  expect(dry.code, dry.stderr + dry.stdout).toBe(0);
+  const retained = JSON.parse(
+    await readFile(join(dryRoot, "suite-run.json"), "utf8"),
+  );
+  const raw = JSON.parse(await readFile(retained.cells[0].result, "utf8"));
+  expect(raw.task.verdict).toBe("not_assessed");
+  const report = JSON.parse(await readFile(retained.report.jsonPath, "utf8"));
+  expect(report.rows[0].taskPassRate).toBeNull();
+  const evidence = JSON.parse(await readFile(raw.evidencePath, "utf8"));
+  expect(evidence.configuration.redacted.extensionConfiguration).toEqual({
+    effectiveOwnerRoute: expected,
+  });
+});
+
+test("suite retains unavailable benchmark owner routes without successful assessment", async () => {
+  const { root, suite, adapter, results } = await fixture();
+  await writeFile(
+    suite,
+    JSON.stringify({
+      version: 1,
+      experiment: "owner-unavailable",
+      harnesses: ["codex"],
+      case_filter: "suite-alpha",
+      modes: {
+        selected: {
+          owner_evaluation: "passive",
+          effective_owner_routes: {
+            "suite-alpha": { model: "gpt-5.6-luna", effort: "high" },
+          },
+        },
+      },
+    }),
+  );
+  await writeFile(
+    adapter,
+    `export default {
+    id: "sevro.host.codex", model: "synthetic", effort: "none", hostCapabilities: ["sevro.codex.native-calls"],
+    async run({ condition }) {
+      return { finalMessage: "ready", complete: true, actualCondition: condition, observations: [{ id: "sevro.codex.native-calls", completeness: "complete", data: {
+        method: "native_session", calls: [{ ordinal: 1, namespace: "collaboration", name: "spawn_agent", evidence: "invocation_attempt" }],
+        toolCalls: [{ ordinal: 1, namespace: "collaboration", name: "spawn_agent" }], submittedExecCalls: 0,
+        acceptedSpawns: [{ requestedOrdinal: 1, startedOrdinal: 2, acceptedOrdinal: 3, agentRef: "/root/owner", threadId: "child-thread", forkTurns: "none" }],
+      } }] };
+    }
+  };`,
+  );
+  const run = await invoke([
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+  ]);
+  expect(run.code, run.stderr + run.stdout).toBe(1);
+  const manifest = JSON.parse(
+    await readFile(join(results, "suite-run.json"), "utf8"),
+  );
+  expect(manifest.cells[0].exitCode).toBe(4);
+  const result = JSON.parse(await readFile(manifest.cells[0].result, "utf8"));
+  expect(result).toMatchObject({
+    execution: { status: "completed" },
+    grading: { status: "unavailable" },
+    task: { verdict: "not_assessed" },
+    exitCode: 4,
+  });
+  expect(result.cases[0].trials[0].checks).toMatchObject([
+    { id: "darrow.output.1", status: "passed" },
+    {
+      id: "darrow.evals.benchmark.effective-owner-route",
+      status: "unavailable",
+    },
+  ]);
+});
+
 test("suite gates requested evaluation records independently of existing task checks", async () => {
   const { root, cases, suite, adapter, results } = await fixture();
   for (const id of ["suite-alpha", "suite-beta"]) {
