@@ -4,7 +4,8 @@ import { cp, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
-import type { EvalCase } from "./types";
+
+type OracleCase = { checks: { name: string; run?: string }[] };
 
 const roots: string[] = [];
 afterEach(async () => {
@@ -24,7 +25,7 @@ const cases = [
     file: "fix-verification-resolved",
     check: "both fix verifiers retain exact default route evidence",
     claude: ["claude-opus-5", "xhigh"],
-    codex: ["gpt-5.6-sol", "xhigh"],
+    codex: ["gpt-6-sol", "xhigh"],
   },
 ] as const;
 type Mutation =
@@ -147,12 +148,16 @@ async function runGate(
       ),
       "utf8",
     ),
-  ) as EvalCase;
+  ) as OracleCase;
   const check = evalCase.checks.find((check) => check.name === entry.check);
   if (!check?.run) throw new Error(`missing gate: ${entry.check}`);
   return spawnSync("/bin/bash", ["-c", check.run], {
     cwd: root,
-    env: { ...process.env, DARROW_EVAL_HARNESS: host },
+    env: {
+      ...process.env,
+      DARROW_EVAL_HARNESS: host,
+      DARROW_REVIEW_STATE_DIR: join(root, ".git"),
+    },
     encoding: "utf8",
   });
 }
@@ -163,7 +168,7 @@ describe("reviewer route eval identity gates", () => {
       test(`${entry.file} accepts distinct ${host} readers`, async () => {
         const result = await runGate(entry, host, "valid");
         expect(result.error).toBeUndefined();
-        expect(result.status).toBe(0);
+        expect(result.status, result.stderr || result.stdout).toBe(0);
       });
       for (const mutation of [
         "reused child",

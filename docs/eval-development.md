@@ -7,6 +7,9 @@ constraints for producing and interpreting that evidence.
 
 ## Case contracts
 
+- Keep independent Darrow oracle and repository-tooling tests under
+  `evals/domain/`. Invoke the owning oracle directly or use Sevro's public CLI
+  and protocol; do not import generic runner implementation or its private types.
 - Give every skill colocated eval cases that verify its public behavior and
   intent boundaries. Test deterministic scripts separately when present.
 - Start with the exact normative invariant or public promise under test. An

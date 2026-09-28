@@ -1096,6 +1096,10 @@ not prove equivalence or savings.
   the verified archive and package identity with its logs even on failure, and
   exercise the public command without package Git metadata. This candidate gate
   does not replace automatic verification of the eventual frozen dependency pin.
+  Darrow-owned oracle and repository-tooling tests belong outside the generic
+  runner tree. They may execute their owning plugin's public oracle, but must
+  not import runner implementation or private runner types. Their input types
+  describe only the domain fields that the oracle consumes.
 
 - **SE-C29 — Independent direct runner roots.** An explicit project root
   controls case and supporting-asset resolution and the default result path;

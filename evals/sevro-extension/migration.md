@@ -6,6 +6,8 @@ and extension protocol. Normal `bun eval`, `bun run eval:orchestration`, and
 when an explicit package or checkout route is set.
 The exact published
 release pin, normal command cutover, and generic runner removal remain pending.
+The [runner cutover inventory](runner-cutover-inventory.md) records the remaining
+ownership groups, source dependencies, and domain tests already moved out.
 The ownership boundary is recorded in
 [ADR-0010](../../docs/decisions/ADR-0010-extract-the-evaluation-runner-into-sevro.md)
 and the extension contract in
