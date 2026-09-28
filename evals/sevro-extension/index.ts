@@ -730,6 +730,7 @@ const CONTINUATION_CHANGED_PATTERN = String.raw`"type":"darrow\.eval\.follow_up_
 const OWNER_AFTER_CONTINUATION_PATTERN = String.raw`"type":"darrow.eval.follow_up_turn"[\s\S]*"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"`;
 const NO_OWNER_BEFORE_CONTINUATION_PATTERN = String.raw`"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"[\s\S]*"type":"darrow.eval.follow_up_turn"`;
 const NO_NATIVE_GOAL_CONTROL_PATTERN = String.raw`"type":"darrow\.codex_native_goal_control"[^\n]*"tool":"(?:create_goal|update_goal)"`;
+const NO_OWNER_OR_GOAL_CONTROL_PATTERN = String.raw`"type":"darrow\.(?:codex_native_goal_control|codex_native_spawn|codex_native_single_agent_accepted|goal_agent_completion|review_agent_launch)"`;
 const PR_EVIDENCE_INACTIVE_PATTERN = String.raw`"skill":"publish-pr-evidence"|"name":"Skill"[^\n]*publish-pr-evidence`;
 const TICKET_RECIPE_INACTIVE_PATTERN = String.raw`"skill":"ticket-to-pr"|"skill":"adaptive-delivery"|"name":"Skill"[^\n]*(?:ticket-to-pr|adaptive-delivery)|"tool":"spawn_agent"`;
 const STEERING_SAME_OWNER_PATTERN = String.raw`(?:"type":"darrow.codex_native_single_agent_accepted"[^\n]*"agent_ref":"([^"]+)"[\s\S]*"type":"darrow.codex_native_feedback"[^\n]*"tool":"(?:followup_task|send_message)"[^\n]*"agent_ref":"\1"[^\n]*"same_owner":true[^\n]*"after_follow_up":true[^\n]*"delivery":"unverified"|"type":"darrow.goal_agent_completion"[^\n]*"agent_id":"([^"]+)"[\s\S]*"type":"darrow.goal_agent_resumption"[^\n]*"agent_id":"\2"[^\n]*"same_owner":true)`;
@@ -850,6 +851,7 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     { kind: "no-owner-before-continuation" },
   ],
   [NO_NATIVE_GOAL_CONTROL_PATTERN, { kind: "no-native-goal-control" }],
+  [NO_OWNER_OR_GOAL_CONTROL_PATTERN, { kind: "no-owner-or-goal-control" }],
   [
     PLAINTEXT_FEEDBACK_MISMATCH_PATTERN,
     { kind: "no-plaintext-feedback-mismatch" },
@@ -1210,6 +1212,7 @@ const TRANSCRIPT_EVIDENCE = new Map([
     ["sevro.codex.native-calls", "sevro.codex.follow-up-events"],
   ],
   ["no-native-goal-control", ["sevro.codex.native-calls"]],
+  ["no-owner-or-goal-control", ["sevro.codex.native-calls"]],
   ["skills-inactive", ["sevro.codex.native-calls", "sevro.codex.skill-reads"]],
   ["same-owner-feedback", ["sevro.codex.native-calls"]],
   ["pre-owner-skill-read", ["sevro.codex.native-calls"]],
@@ -3064,6 +3067,29 @@ function noNativeGoalControlOutcome(
   };
 }
 
+function noOwnerOrGoalControlOutcome(
+  native: ReturnType<typeof nativeControlEvidence>,
+) {
+  return {
+    status: !native
+      ? "unavailable"
+      : native.attemptedSpawn ||
+          native.attemptedGoalControl ||
+          native.acceptedSpawnCount > 0
+        ? "failed"
+        : "passed",
+    detail:
+      "Owner absence and goal-control absence require complete native evidence",
+    evidenceRefs: native ? ["sevro.codex.native-calls"] : [],
+  };
+}
+
+const NATIVE_CONTROL_GRADERS = new Map([
+  ["no-agent-spawn", noAgentOutcome],
+  ["no-native-goal-control", noNativeGoalControlOutcome],
+  ["no-owner-or-goal-control", noOwnerOrGoalControlOutcome],
+]);
+
 function noSecondOwnerOutcome(
   native: ReturnType<typeof nativeControlEvidence>,
 ) {
@@ -3859,9 +3885,8 @@ function nativeTranscriptOutcome(
   native: ReturnType<typeof nativeControlEvidence>,
   skills: ReturnType<typeof observedActivation>,
 ) {
-  if (selected.kind === "no-agent-spawn") return noAgentOutcome(native);
-  if (selected.kind === "no-native-goal-control")
-    return noNativeGoalControlOutcome(native);
+  const control = NATIVE_CONTROL_GRADERS.get(String(selected.kind));
+  if (control) return control(native);
   if (selected.kind === "skills-inactive")
     return skillsInactiveOutcome(selected, native, skills);
   if (selected.kind === "supporting-skill-read")

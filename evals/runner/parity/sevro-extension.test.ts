@@ -812,6 +812,79 @@ test("Darrow translates no-agent transcript assertions into bounded native check
   }
 });
 
+test("repository guide assertions forbid owner and goal-control attempts", async () => {
+  const resolveGuide = (id: string) =>
+    command<ExtensionReply>(
+      [process.execPath, extension],
+      request("resolve", {
+        projectRoot: pathToFileURL(projectRoot).href,
+        selectors: { caseIds: [id] },
+      }),
+    );
+  const resolved = await resolveGuide("guide-mutation");
+  expect(resolved.code, resolved.stderr).toBe(0);
+  const selected = resolved.value.result.cases[0]!;
+  expect(selected.requiredEvidence).toEqual(["sevro.codex.native-calls"]);
+  expect((await resolveGuide("guide-orchestration")).code).toBe(0);
+  const native = {
+    id: "sevro.codex.native-calls",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "native_session",
+      calls: [],
+      toolCalls: [],
+      acceptedSpawns: [],
+      submittedExecCalls: 0,
+    },
+  };
+  const status = async (observations: unknown[]) => {
+    const result = await command<{
+      result: { checks: Array<{ id: string; status: string }> };
+    }>(
+      [process.execPath, extension],
+      request("evaluate", {
+        observations,
+        extensionData: selected.extensionData,
+      }),
+    );
+    expect(result.code, result.stderr).toBe(0);
+    return result.value.result.checks.find(
+      (check) => check.id === "darrow.evals.transcript.1",
+    )?.status;
+  };
+  expect(await status([native])).toBe("passed");
+  for (const [namespace, name] of [
+    ["collaboration", "spawn_agent"],
+    ["functions", "create_goal"],
+    ["functions", "update_goal"],
+  ]) {
+    const call = { ordinal: 0, namespace, name };
+    expect(
+      await status([
+        {
+          ...native,
+          data: {
+            ...native.data,
+            calls: [{ ...call, evidence: "invocation_attempt" }],
+            toolCalls: [call],
+          },
+        },
+      ]),
+    ).toBe("failed");
+    expect(
+      await status([
+        { ...native, data: { ...native.data, calls: [], toolCalls: [call] } },
+      ]),
+    ).toBe("unavailable");
+  }
+  expect(await status([])).toBe("unavailable");
+  expect(await status([{ ...native, completeness: "partial" }])).toBe(
+    "unavailable",
+  );
+  expect(await status([native, native])).toBe("unavailable");
+});
+
 test("Darrow doctor controls require intact negative evidence", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-doctor-"));
   roots.push(root);

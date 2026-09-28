@@ -598,7 +598,11 @@ not prove equivalence or savings.
   observation when the assertion has no other condition. Any observed agent
   spawn attempt fails the check. Missing, partial, duplicate, or malformed
   native-call evidence makes the check unavailable; absence from CLI output
-  alone cannot prove that no agent launched. Other transcript assertions remain
+  alone cannot prove that no agent launched. A combined repository-guide
+  assertion forbidding both owner launch and native goal control uses the same
+  complete observation. Spawn, accepted-owner, `create_goal`, or `update_goal`
+  evidence fails it; checking spawn absence alone cannot satisfy that assertion.
+  Other transcript assertions remain
   unsupported until an equivalent evidence source and grader are defined.
 
 - **SE-C32 — Ledger absence across host evidence.** A migrated assertion that
