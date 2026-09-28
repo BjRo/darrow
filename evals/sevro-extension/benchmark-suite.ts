@@ -1,93 +1,58 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { parse as parseYaml } from "yaml";
-import { optionValue } from "./suite-routes";
+import { callerHostOptions } from "./caller-host-options";
+import { CODEX_EVAL_ROLE_DEFAULTS } from "../runner/model-defaults";
 import { sevroCommand } from "./sevro-command";
 
 const repositoryRoot = resolve(import.meta.dir, "../..");
-const nativeOptions = new Set([
-  "--codex-bin",
-  "--codex-auth-file",
-  "--claude-bin",
-  "--claude-credential-file",
-  "--claude-uv-cache-dir",
-  "--claude-project-settings",
-  "--toolchain-bin-dir",
-  "--config-root",
-  "--run-state-root",
-  "--protected-root",
-  "--jobs",
-  "--shell-isolation",
-]);
-const claudeOptions = new Set([
-  "--claude-bin",
-  "--claude-credential-file",
-  "--claude-uv-cache-dir",
-  "--claude-project-settings",
-]);
-
-function nativeOption(args: string[], index: number) {
-  const token = args[index]!;
-  const name = token.split("=", 1)[0]!;
-  if (!nativeOptions.has(name))
-    throw new Error(`Benchmark option cannot be forwarded: ${name}`);
-  const takesValue = ![
-    "--shell-isolation",
-    "--claude-project-settings",
-  ].includes(name);
-  if (!takesValue || token.includes("="))
-    return { name, args: [token], next: index + 1 };
-  const value = args[index + 1];
-  if (value === undefined || value.startsWith("--"))
-    throw new Error(`Missing value for ${name}`);
-  return { name, args: [token, value], next: index + 2 };
-}
-
-function nativeArguments(args: string[], host: string) {
-  const result: string[] = [];
-  for (let index = 0; index < args.length;) {
-    const option = nativeOption(args, index);
-    if (host === "claude" || !claudeOptions.has(option.name))
-      result.push(...option.args);
-    index = option.next;
-  }
-  return result;
-}
-
-function binary(name: string) {
-  const path = Bun.which(name);
-  if (!path) throw new Error(`${name} command is unavailable`);
-  return path;
-}
+const benchmarkOptions = {
+  suite: { type: "string" },
+  harness: { type: "string", multiple: true },
+  mode: { type: "string", multiple: true },
+  case: { type: "string", multiple: true },
+  trials: { type: "string", default: "5" },
+  threshold: { type: "string", default: "0.8" },
+  seed: { type: "string" },
+  output: { type: "string" },
+  "project-root": { type: "string" },
+  effort: {
+    type: "string",
+    default: CODEX_EVAL_ROLE_DEFAULTS.candidate.effort,
+  },
+  "codex-model": {
+    type: "string",
+    default: CODEX_EVAL_ROLE_DEFAULTS.candidate.model,
+  },
+  "claude-model": { type: "string", default: "claude-sonnet-5" },
+  dry: { type: "boolean", default: false },
+  "no-judge": { type: "boolean", default: false },
+  "semantic-check-harness": { type: "string", default: "codex" },
+  "semantic-check-model": {
+    type: "string",
+    default: CODEX_EVAL_ROLE_DEFAULTS.semanticOutputGrader.model,
+  },
+  "semantic-check-effort": {
+    type: "string",
+    default: CODEX_EVAL_ROLE_DEFAULTS.semanticOutputGrader.effort,
+  },
+  "judge-harness": { type: "string", default: "codex" },
+  "judge-model": {
+    type: "string",
+    default: CODEX_EVAL_ROLE_DEFAULTS.qualityJudge.model,
+  },
+  "judge-effort": {
+    type: "string",
+    default: CODEX_EVAL_ROLE_DEFAULTS.qualityJudge.effort,
+  },
+} as const;
 
 function invocation(argv: string[]) {
   const separator = argv.indexOf("--");
   const { values } = parseArgs({
     args: separator < 0 ? argv : argv.slice(0, separator),
-    options: {
-      suite: { type: "string" },
-      harness: { type: "string", multiple: true },
-      mode: { type: "string", multiple: true },
-      case: { type: "string", multiple: true },
-      trials: { type: "string", default: "5" },
-      threshold: { type: "string", default: "0.8" },
-      seed: { type: "string" },
-      output: { type: "string" },
-      "project-root": { type: "string" },
-      effort: { type: "string", default: "medium" },
-      "codex-model": { type: "string", default: "gpt-5.6-terra" },
-      "claude-model": { type: "string", default: "claude-sonnet-5" },
-      dry: { type: "boolean", default: false },
-      "no-judge": { type: "boolean", default: false },
-      "semantic-check-harness": { type: "string", default: "codex" },
-      "semantic-check-model": { type: "string", default: "gpt-5.6-luna" },
-      "semantic-check-effort": { type: "string", default: "low" },
-      "judge-harness": { type: "string", default: "codex" },
-      "judge-model": { type: "string", default: "gpt-5.6-sol" },
-      "judge-effort": { type: "string", default: "low" },
-    },
+    options: benchmarkOptions,
     strict: true,
   });
   const projectRoot = values["project-root"] ?? repositoryRoot;
@@ -114,23 +79,7 @@ function invocation(argv: string[]) {
 type Request = ReturnType<typeof invocation>;
 
 function hostArguments(host: string, request: Request) {
-  const args = nativeArguments(request.forwarded, host);
-  const defaults: Array<[string, () => string]> = [
-    ["--codex-bin", () => binary("codex")],
-    [
-      "--codex-auth-file",
-      () =>
-        join(process.env.CODEX_HOME ?? join(homedir(), ".codex"), "auth.json"),
-    ],
-    ...(host === "claude"
-      ? [["--claude-bin", () => binary("claude")] as [string, () => string]]
-      : []),
-  ];
-  for (const [name, value] of defaults)
-    if (optionValue(args, name) === null) args.push(name, value());
-  if (host === "claude" && !args.includes("--claude-project-settings"))
-    args.push("--claude-project-settings");
-  if (!args.includes("--shell-isolation")) args.push("--shell-isolation");
+  const args = callerHostOptions(request.forwarded, host);
   return [
     "--host",
     host,

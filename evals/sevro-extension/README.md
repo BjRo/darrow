@@ -7,8 +7,9 @@ retained results.
 
 See [migration.md](migration.md) for local development, command and evidence
 changes, the compatibility matrix, and release update and rollback steps.
-Normal Darrow callers still use the legacy runner; publication, the exact release
-pin, and command cutover remain pending.
+Normal Darrow callers use the legacy runner by default. The direct, benchmark,
+and guide callers select Sevro with an explicit package or checkout route;
+publication, the exact release pin, and default cutover remain pending.
 
 This migration slice resolves one selected skill-free experiment case or
 plugin-local skill case, with optional candidate skill overrides. It accepts generated Git commits or a pinned corpus
@@ -142,6 +143,74 @@ unreadable, contradictory, or unsupported inputs, with diagnostics and valid
 peer inputs retained. Exit `64` means invalid invocation. Other comparison
 formats remain preserved in their original files and are explicitly unsupported
 by this reader. See [historical validation](history-validation.md).
+
+## Direct evaluation caller
+
+Set an explicit Sevro route on the existing direct command:
+
+```sh
+SEVRO_CHECKOUT=/absolute/path/to/sevro bun eval \
+  --harness codex --owner-evaluation passive \
+  --skill create-commit --case commit \
+  --trials 1 --jobs 1 --threshold 1 \
+  --results-root /absolute/path/to/results -- \
+  --codex-bin /absolute/path/to/codex \
+  --codex-auth-file /absolute/path/to/auth.json
+```
+
+With neither runner variable, the caller keeps its legacy backend. Invalid
+explicit routes fail without fallback. Skill and plugin ownership filters
+intersect; repeatable case substrings match any supplied value. With no filters,
+all discovered cases are selected. Cases stay sorted and run sequentially;
+`--jobs` bounds trials within each case and defaults to three.
+
+The caller retains candidate model/effort options and per-case `--case-routes`
+JSON overrides. It keeps the independent semantic and optional advisory routes.
+Unlike the benchmark caller, direct evaluation requests no advisory judge until
+`--judge-harness` is supplied. Codex defaults are shared with the legacy policy:
+candidate `gpt-5.6-terra/medium`, semantic `gpt-5.6-luna/low`, advisory
+`gpt-5.6-sol/low`. Claude candidate defaults remain `claude-sonnet-5/medium`;
+requested Claude grader routes fail explicitly. Dry execution never grades an
+observed response or establishes success, even when grader routes are retained.
+
+`--owner-evaluation` maps to Sevro's condition and keeps the historical enforced
+default. Bundled hosts currently refuse enforced execution; choose passive
+explicitly for a native trial. The text-file `--condition` and optional
+`--condition-label` remain separate benchmark prompt inputs. Skill overrides,
+unmounted controls, plugin skill mounting, evaluation-record checks, and
+effective-owner route assertions keep their existing option names.
+
+Relative project, configuration, result, active storage, condition, skill, and
+output paths resolve from the invocation directory. Result storage defaults to
+the evaluated project's `evals/results`. Native host options follow `--`;
+caller-owned roots, candidate/grader routes, conditions, and limits cannot be
+overridden there. The same native host defaults as the benchmark caller apply,
+including shell isolation and Claude project settings.
+
+Stdout becomes the existing `darrow-sevro-selection-v1` manifest. Each selected
+case retains its original public CLI JSON, evidence path, and exit category.
+Optional `--output` writes the identical manifest atomically after the selection
+finishes, including a cancelled prefix. Its containing directory is created and
+protected from isolated candidate tools and shell checks; choose a separate
+evidence directory. The whole requested results root receives the same
+protection, including prior attempts and sibling cases without `--output`.
+This deliberately replaces legacy result arrays and terminal
+tables. Terminal presentation flags are accepted for the plain JSON output.
+Selection exits `1` for any failed case, `64` for invalid invocation, and
+preserves SIGINT `130` and SIGTERM `143`. Ordinary failures do not skip later
+cases; cancellation stops before the next case.
+
+The direct caller retains activation as a separate Darrow gate. Failed or
+unavailable live activation also returns `1` at the requested threshold while
+the raw public task verdict and exit code stay unchanged. Each run records
+`activation` and `activationError` separately. Dry activation is `not_run`;
+unmounted controls are `not_requested`. An activation-assessment error is
+retained and fails the aggregate.
+
+Private goal assertions, custom `--corpus-manifest` paths, and manually supplied
+`--human-review-minutes` remain explicit migration gaps and are rejected.
+Prepared corpus cases still use the canonical manifest. See
+[direct caller validation](direct-caller-validation.md).
 
 ## Direct case selection
 

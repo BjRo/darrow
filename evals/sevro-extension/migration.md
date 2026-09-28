@@ -1,10 +1,9 @@
 # Sevro migration
 
 The migration entrypoints already run Darrow cases through Sevro's public CLI
-and extension protocol. Normal `bun eval` and `bun run eval:orchestration`
-use the legacy runner by default. The orchestration suite caller and
-`evals/repository-guide.ts` select Sevro when an explicit package or checkout
-route is set; their defaults remain legacy.
+and extension protocol. Normal `bun eval`, `bun run eval:orchestration`, and
+`evals/repository-guide.ts` use the legacy runner by default and select Sevro
+when an explicit package or checkout route is set.
 The exact published
 release pin, normal command cutover, and generic runner removal remain pending.
 The ownership boundary is recorded in
@@ -49,7 +48,7 @@ The package installation directory is not run storage.
 
 | Legacy workflow                            | Migration entrypoint or current gap                                                                                                                                                                                                          |
 | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Single-case `bun eval`                     | `bun evals/sevro-extension/run.ts --case-id <exact-id> ... -- <Sevro-options>`.                                                                                                                                                              |
+| Direct `bun eval`                          | Set an explicit Sevro route on the existing command. Select cases with its existing filters; use the migration entrypoint's `--case-id` for one exact ID. See [direct caller](README.md#direct-evaluation-caller).                           |
 | `--harness codex\|claude`                  | Forward `--host codex\|claude`, explicit host binary, model, effort, and credentials.                                                                                                                                                        |
 | Text-file `--condition`                    | Use Darrow `--benchmark-condition-file` and optional label before `--`. Forwarded Sevro `--condition` selects `passive` or `enforced`.                                                                                                       |
 | `--skill`, `--plugin`, repeatable `--case` | Use the same filters before `--` on the migration run entrypoint. Exact ownership filters intersect; repeatable ID substrings narrow that set. Filtered runs retain a selection manifest and each public result.                             |
@@ -65,6 +64,16 @@ before execution; completed and cancelled cells retain its executed prefix.
 An omitted seed generates a retained timestamp, and an empty seed is valid.
 See [ordering validation](ordering-validation.md). This covers execution order;
 normal benchmark caller cutover and unsupported enforcement policies remain pending.
+
+The direct caller retains selectors, candidate and grader routes, text conditions,
+skill controls, trials/jobs/threshold, and storage options. Relative paths resolve
+from the invocation directory. `--output` now receives the selection manifest;
+its containing directory is protected from isolated tools and checks. Stdout is
+the same JSON rather than legacy terminal presentation. Individual public exit
+categories stay in the manifest; the caller aggregates case failures as exit `1`,
+rejects invalid invocation with `64`, and preserves cancellation exits. Custom
+corpus-manifest paths and manually supplied human-review minutes remain explicit
+migration gaps. See [direct caller validation](direct-caller-validation.md).
 
 The suite caller preserves relative `--suite` and `--output`, default storage,
 selectors, evidence limits, seeds, dry execution, and supported native routes.

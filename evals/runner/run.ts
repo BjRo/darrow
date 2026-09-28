@@ -99,6 +99,14 @@ import type {
   TrialResult,
 } from "./types";
 
+if (
+  process.env.SEVRO_PACKAGE_BIN !== undefined ||
+  process.env.SEVRO_CHECKOUT !== undefined
+) {
+  const { runSevroDirect } = await import("../sevro-extension/direct-caller");
+  process.exit(await runSevroDirect(Bun.argv.slice(2)));
+}
+
 interface GoalRouteExpectation {
   model: string;
   effort: string;

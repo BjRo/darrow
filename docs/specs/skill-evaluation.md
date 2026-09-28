@@ -515,6 +515,45 @@ for other harnesses supported by the complete suite. Every entry is validated,
 every selected harness needs a route, and unknown harnesses are rejected. The
 complete file digest remains in the manifest; only selected routes execute.
 
+The existing `bun eval` and `evals/runner/run.ts` caller selects Sevro when
+`SEVRO_PACKAGE_BIN` or `SEVRO_CHECKOUT` is explicitly set. With neither route,
+it retains the legacy backend until the published package pin permits default
+cutover. Invalid explicit routes cannot fall back. The caller preserves exact
+skill/plugin ownership filters, repeatable case substrings, sorted case order,
+candidate and independent grader routes, trials, threshold, jobs, dry runs,
+skill overrides, unmounted controls, text conditions, evaluation-record checks,
+and effective-owner assertions. Relative project, configuration, result, active
+storage, skill, condition, and output paths resolve from the invocation directory.
+Result storage defaults to the evaluated project's `evals/results`.
+
+The candidate defaults remain Codex `gpt-5.6-terra/medium` and Claude
+`claude-sonnet-5/medium`; the semantic default is Codex `gpt-5.6-luna/low`.
+An advisory judge is requested only by `--judge-harness`, with Codex
+`gpt-5.6-sol/low` defaults. Requested Claude graders fail explicitly. Per-case
+candidate routes override only the parent model and effort. The historical
+default owner condition remains enforced and cannot become passive silently.
+Native host options follow `--` and cannot override caller-owned routes,
+conditions, roots, limits, or graders. Bundled-host enforcement and private goal
+assertions remain explicitly unsupported.
+
+The direct caller uses the existing public selection command and its
+`darrow-sevro-selection-v1` manifest. Stdout and optional `--output` contain that
+manifest, rather than legacy arrays or terminal tables. The output file's
+containing directory and the complete requested results root are created and
+protected from isolated evaluated tools and shell checks. Protection includes
+prior attempts, sibling cases, and selection manifests, even without
+`--output`. Each selected case retains its original
+public CLI result and exit category. The selection exits `1` for a case failure,
+`64` for invalid invocation, and preserves cancellation's `130` or `143`.
+The direct aggregate also exits `1` when requested live activation is failed
+or unavailable at the requested threshold. Its manifest records that Darrow
+gate separately; the public task verdict and exit code remain unchanged.
+Dry preparation and unmounted controls do not fail this activation gate.
+Dry and unknown evidence cannot become measured success. Terminal presentation
+flags remain accepted for the plain JSON output. Custom corpus-manifest paths
+and manually supplied human-review minutes remain explicit migration gaps;
+they cannot be silently ignored.
+
 The existing `bun run eval:orchestration` and `evals/runner/suite.ts` caller
 selects Sevro when `SEVRO_PACKAGE_BIN` or `SEVRO_CHECKOUT` is explicitly set.
 With neither route, it retains the legacy backend until the published package

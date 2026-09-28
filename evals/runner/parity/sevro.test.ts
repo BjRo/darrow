@@ -110,12 +110,17 @@ function startCommand(
   cwd: string,
   extra: Record<string, string> = {},
 ) {
+  const environment = credentialFreeEnvironment({
+    SEVRO_PARITY_SCENARIO: scenario,
+    ...extra,
+  });
+  if (argv.includes(join(runnerRoot, "run.ts"))) {
+    delete environment.SEVRO_CHECKOUT;
+    delete environment.SEVRO_PACKAGE_BIN;
+  }
   return Bun.spawn(argv, {
     cwd,
-    env: credentialFreeEnvironment({
-      SEVRO_PARITY_SCENARIO: scenario,
-      ...extra,
-    }),
+    env: environment,
     stdout: "pipe",
     stderr: "pipe",
   });
