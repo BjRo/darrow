@@ -5,6 +5,7 @@ import {
   loadBenchmarkCondition,
   type BenchmarkCondition,
 } from "./benchmark-condition";
+import type { SkillMountConfiguration } from "./skill-mount";
 
 type Harness = "codex" | "claude";
 export type ConditionInput = { path: string; label: string; sha256: string };
@@ -103,10 +104,14 @@ export function conditionEvidenceMatches(
   value: unknown,
   input: ConditionInput | null,
   withoutSkill: boolean,
+  mount: SkillMountConfiguration = {},
 ) {
-  if (value === undefined) return input === null;
+  if (value === undefined)
+    return input === null && !mount.skillDir && !mount.mountPluginSkills;
   const expected = {
     ...(withoutSkill ? { withoutSkill: true } : {}),
+    ...(mount.skillDir ? { skillDir: mount.skillDir } : {}),
+    ...(mount.mountPluginSkills ? { mountPluginSkills: true } : {}),
     ...(input
       ? { benchmarkCondition: { label: input.label, sha256: input.sha256 } }
       : {}),

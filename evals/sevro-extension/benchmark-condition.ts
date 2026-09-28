@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { lstat, readFile, writeFile } from "node:fs/promises";
 import { basename, extname, isAbsolute, join } from "node:path";
+import { loadSkillOverride, skillMountConfiguration } from "./skill-mount";
 
 type RecordValue = Record<string, unknown>;
 export type BenchmarkCondition = {
@@ -71,7 +72,7 @@ export function extensionConfiguration(value: unknown) {
   const selected = object(value ?? {}, "extension configuration");
   knownFields(
     selected,
-    ["withoutSkill", "benchmarkCondition"],
+    ["withoutSkill", "benchmarkCondition", "skillDir", "mountPluginSkills"],
     "extension configuration",
   );
   if (selected.withoutSkill !== undefined && selected.withoutSkill !== true)
@@ -90,7 +91,11 @@ export function extensionConfiguration(value: unknown) {
       throw new Error("benchmark condition digest differs from its text");
     benchmarkCondition = { label, text, sha256 };
   }
-  return { withoutSkill: selected.withoutSkill === true, benchmarkCondition };
+  return {
+    withoutSkill: selected.withoutSkill === true,
+    benchmarkCondition,
+    ...skillMountConfiguration(selected),
+  };
 }
 
 export async function loadBenchmarkCondition(
@@ -177,14 +182,18 @@ export function conditionedCase(
   };
 }
 
-export async function writeRunConfiguration(options: {
+type RunConfigurationOptions = {
+  projectRoot: string;
   resultsRoot: string;
   withoutSkill: boolean;
   conditionFile?: string;
   conditionLabel?: string;
   conditionSha256?: string;
-}) {
-  if (!options.withoutSkill && !options.conditionFile) return;
+  skillDir?: string;
+  mountPluginSkills?: true;
+};
+
+async function runBenchmarkCondition(options: RunConfigurationOptions) {
   const benchmarkCondition = options.conditionFile
     ? await loadBenchmarkCondition(
         options.conditionFile,
@@ -196,7 +205,34 @@ export async function writeRunConfiguration(options: {
     benchmarkCondition?.sha256 !== options.conditionSha256
   )
     throw new Error("benchmark condition input changed since preflight");
-  const control = options.withoutSkill ? { withoutSkill: true } : {};
+  return benchmarkCondition;
+}
+
+async function runMountConfiguration(options: RunConfigurationOptions) {
+  return {
+    ...(options.withoutSkill ? { withoutSkill: true } : {}),
+    ...(options.skillDir
+      ? {
+          skillDir: await loadSkillOverride(
+            options.projectRoot,
+            options.skillDir,
+          ),
+        }
+      : {}),
+    ...(options.mountPluginSkills ? { mountPluginSkills: true } : {}),
+  };
+}
+
+export async function writeRunConfiguration(options: RunConfigurationOptions) {
+  if (
+    !options.withoutSkill &&
+    !options.conditionFile &&
+    !options.skillDir &&
+    !options.mountPluginSkills
+  )
+    return;
+  const benchmarkCondition = await runBenchmarkCondition(options);
+  const control = await runMountConfiguration(options);
   const configuration = {
     ...control,
     ...(benchmarkCondition ? { benchmarkCondition } : {}),

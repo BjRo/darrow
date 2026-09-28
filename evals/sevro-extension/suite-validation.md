@@ -1,5 +1,48 @@
 # Suite validation
 
+## Candidate skill overrides
+
+The run and suite commands now accept candidate skill overrides and sibling
+mount selection through Darrow's extension configuration. The selected
+experiment case stays unchanged; unmounted controls mount no skills. These
+regressions use Sevro's public CLI or extension protocol with synthetic hosts.
+
+Working directory:
+`/Users/bjro/Sources/darrow/.worktrees/feat/issue-95-darrow-extension`.
+
+1. Red — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-suite.test.ts -t "suite mounts candidate skill overrides without changing experiment selection"'`:
+   exit `64`, because `skill_dir` and `mount_plugin_skills` were unsupported mode fields.
+2. Green — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-suite.test.ts -t "suite mounts candidate skill overrides without changing experiment selection"'`:
+   one test passed with 14 assertions. The candidate receives both sibling bodies;
+   the control receives none. Both retain the selected experiment without an
+   activation grade, and configuration and artifacts bind their mount settings.
+3. Red — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-extension.test.ts -t "Darrow refuses override mounts that contradict preparation configuration"'`:
+   preparation returned both skill artifacts after its sibling setting was removed.
+4. Green — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-extension.test.ts -t "Darrow refuses override mounts that contradict preparation configuration"'`:
+   one test passed with four assertions. Contradictory configuration is rejected;
+   matching configuration returns the two declared artifacts.
+
+Additional guard coverage checks malformed, missing, foreign, and symlinked
+inputs before any cell starts, Claude plugin packaging, and a matched ablation
+with the same override declared in both modes. These tests were added after
+implementation, without a test-first claim. An initial ablation assertion used
+the wrong report level; it was corrected to the documented comparison's case
+row without changing product behavior. No live model call was made.
+
+The additional guards passed three tests with 37 assertions. The final
+installed-package gate passed 95 tests with 1,511 assertions across three files
+in 166.58 seconds:
+
+```sh
+SEVRO_PACKAGE_TARBALL=/tmp/sevro-0.1.0-dev.0.tgz lean-ctx -c 'bun run test:eval-runner-sevro-package'
+```
+
+The tarball was packed from clean Sevro commit `08b5371`. Darrow typechecking,
+ESLint, and formatting passed. The compatibility inventory resolves 377/377
+cases; resolution alone does not establish live behavior or full extraction
+parity. Benchmark owner-route and evaluation-record policies, the release pin,
+and the normal workflow cutover remain pending.
+
 ## Suite condition selection
 
 Suite modes now support shared `condition` files and host-specific

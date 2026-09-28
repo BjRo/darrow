@@ -1,6 +1,13 @@
 import { afterEach, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { selectCaseIds } from "../../sevro-extension/index";
@@ -97,6 +104,285 @@ async function invoke(
   ]);
   return { stdout, stderr, code };
 }
+
+test("suite mounts candidate skill overrides without changing experiment selection", async () => {
+  const { root, cases, adapter, results } = await fixture();
+  const plugin = join(root, "plugins/capability/candidate");
+  for (const name of ["probe", "rival"]) {
+    await mkdir(join(plugin, "skills", name, "evals"), { recursive: true });
+    await writeFile(join(plugin, "skills", name, "SKILL.md"), `${name} body\n`);
+    await writeFile(
+      join(plugin, "skills", name, "evals/hidden.txt"),
+      "hidden\n",
+    );
+  }
+  const suiteDir = join(root, "suites");
+  await mkdir(suiteDir);
+  const suite = join(suiteDir, "suite.yaml");
+  await writeFile(
+    suite,
+    JSON.stringify({
+      version: 1,
+      experiment: "candidate-mount",
+      harnesses: ["codex"],
+      case_filter: "suite-alpha",
+      modes: {
+        candidate: {
+          owner_evaluation: "passive",
+          skill_dir: "../plugins/capability/candidate/skills/probe",
+          mount_plugin_skills: true,
+        },
+        control: {
+          owner_evaluation: "passive",
+          skill_dir: "../plugins/capability/candidate/skills/probe",
+          mount_plugin_skills: true,
+          without_skill: true,
+        },
+      },
+    }),
+  );
+  const definition = JSON.parse(
+    await readFile(join(cases, "suite-alpha.yaml"), "utf8"),
+  );
+  definition.output_checks = [
+    { name: "selected mounts", expect_regex: "^(probe,rival|none)$" },
+  ];
+  await writeFile(join(cases, "suite-alpha.yaml"), JSON.stringify(definition));
+  await writeFile(
+    adapter,
+    `export default {
+    id: "sevro.host.codex", model: "synthetic", effort: "none",
+    async run({ workspace, condition }) {
+      const names = [];
+      for (const name of ["probe", "rival"]) {
+        const path = workspace + "/.agents/skills/" + name;
+        if (await Bun.file(path + "/SKILL.md").exists()) names.push(name);
+        if (await Bun.file(path + "/evals/hidden.txt").exists()) throw new Error("eval leaked");
+      }
+      return { finalMessage: names.join(",") || "none", complete: true, actualCondition: condition };
+    }
+  };`,
+  );
+  const run = await invoke([
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+  ]);
+  expect(run.code, run.stderr + run.stdout).toBe(0);
+  const manifest = JSON.parse(
+    await readFile(join(results, "suite-run.json"), "utf8"),
+  );
+  expect(manifest.caseIds).toEqual(["suite-alpha"]);
+  expect(manifest.cells).toHaveLength(2);
+  for (const [index, message] of ["probe,rival", "none"].entries()) {
+    const cell = manifest.cells[index];
+    expect(cell.activation.status).toBe("not_requested");
+    expect(cell.exitCode).toBe(0);
+    const result = JSON.parse(await readFile(cell.result, "utf8"));
+    const evidence = JSON.parse(await readFile(result.evidencePath, "utf8"));
+    expect(
+      await readFile(new URL(evidence.trials[0].rawResult.path), "utf8"),
+    ).toBe(message);
+    expect(evidence.configuration.redacted.extensionConfiguration).toEqual({
+      ...(index === 1 ? { withoutSkill: true } : {}),
+      skillDir: "plugins/capability/candidate/skills/probe",
+      mountPluginSkills: true,
+    });
+    expect(evidence.trials[0].artifactRefs).toHaveLength(index === 0 ? 2 : 0);
+  }
+}, 20_000);
+
+test("suite rejects invalid skill override inputs before starting any cells", async () => {
+  const { root, suite, adapter, results } = await fixture();
+  const definition = JSON.parse(await readFile(suite, "utf8"));
+  const skills = join(root, "plugins/capability/example/skills");
+  await mkdir(join(skills, "body-link"), { recursive: true });
+  await writeFile(join(root, "body.md"), "body\n");
+  await symlink(join(root, "body.md"), join(skills, "body-link/SKILL.md"));
+  await symlink(join(root, "evals"), join(skills, "directory-link"));
+  const invalid = [
+    { skill_dir: null },
+    { skill_dir: "" },
+    { skill_dir: 42 },
+    { mount_plugin_skills: "true" },
+    { mount_plugin_skills: true },
+    { skill_dir: "plugins/capability/example/skills/missing" },
+    { skill_dir: "/tmp" },
+    { skill_dir: "plugins/capability/example/skills/body-link" },
+    { skill_dir: "plugins/capability/example/skills/directory-link" },
+  ];
+  for (const mode of invalid) {
+    await writeFile(
+      suite,
+      JSON.stringify({
+        ...definition,
+        modes: {
+          first: { owner_evaluation: "passive" },
+          invalid: { owner_evaluation: "passive", ...mode },
+        },
+      }),
+    );
+    const run = await invoke([
+      "--suite",
+      suite,
+      "--project-root",
+      root,
+      "--results-root",
+      results,
+      "--",
+      "--adapter-module",
+      adapter,
+      "--shell-isolation",
+    ]);
+    expect(run.code, run.stderr + run.stdout).toBe(64);
+    expect(
+      await Bun.file(join(results, "suite-run.json")).exists(),
+    ).toBeFalse();
+    expect(
+      await Bun.file(
+        join(results, "cell-1/darrow-extension-command.json"),
+      ).exists(),
+    ).toBeFalse();
+  }
+});
+
+test("suite packages a Claude candidate override through the public host contract", async () => {
+  const { root, suite, adapter, results } = await fixture();
+  const plugin = join(root, "plugins/capability/example");
+  for (const manifest of [".claude-plugin", ".codex-plugin"]) {
+    await mkdir(join(plugin, manifest), { recursive: true });
+    await writeFile(
+      join(plugin, manifest, "plugin.json"),
+      JSON.stringify({
+        name: "example",
+        version: "0.1.0",
+        skills: "./skills/",
+      }),
+    );
+  }
+  await mkdir(join(plugin, "skills/probe/evals"), { recursive: true });
+  await writeFile(join(plugin, "skills/probe/SKILL.md"), "Probe body\n");
+  await writeFile(join(plugin, "skills/probe/evals/hidden.txt"), "hidden\n");
+  await writeFile(
+    suite,
+    JSON.stringify({
+      version: 1,
+      experiment: "claude-mount",
+      harnesses: ["claude"],
+      case_filter: "suite-alpha",
+      modes: {
+        candidate: {
+          owner_evaluation: "passive",
+          skill_dir: "plugins/capability/example/skills/probe",
+        },
+      },
+    }),
+  );
+  await writeFile(
+    adapter,
+    `export default {
+    id: "sevro.host.claude", model: "synthetic", effort: "none", hostCapabilities: ["sevro.claude.plugin-dirs"],
+    async run({ workspace, claudePluginDirs, condition }) {
+      if (claudePluginDirs?.artifactRoots.length !== 1) throw new Error("plugin route missing");
+      const root = workspace + "/" + claudePluginDirs.artifactRoots[0];
+      if (await Bun.file(root + "/skills/probe/SKILL.md").text() !== "Probe body\\n") throw new Error("skill body missing");
+      if (await Bun.file(root + "/skills/probe/evals/hidden.txt").exists()) throw new Error("eval leaked");
+      return { finalMessage: "ready", complete: true, actualCondition: condition };
+    }
+  };`,
+  );
+  const run = await invoke([
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+  ]);
+  expect(run.code, run.stderr + run.stdout).toBe(0);
+  const manifest = JSON.parse(
+    await readFile(join(results, "suite-run.json"), "utf8"),
+  );
+  expect(manifest.cells[0].activation.status).toBe("not_requested");
+  expect(manifest.cells[0].provenance.routes[0].host).toBe("sevro.host.claude");
+});
+
+test("suite compares a shared experiment with the same declared skill override", async () => {
+  const { root, suite, adapter } = await fixture();
+  const results = await mkdtemp(
+    join(tmpdir(), "darrow-sevro-override-ablation-"),
+  );
+  roots.push(results);
+  const directory = join(root, "plugins/capability/example/skills/probe");
+  await mkdir(directory, { recursive: true });
+  await writeFile(join(directory, "SKILL.md"), "Probe body\n");
+  const mode = {
+    owner_evaluation: "passive",
+    skill_dir: "plugins/capability/example/skills/probe",
+  };
+  await writeFile(
+    suite,
+    JSON.stringify({
+      version: 1,
+      experiment: "override-ablation",
+      harnesses: ["codex"],
+      case_filter: "suite-alpha",
+      modes: { baseline: { ...mode, without_skill: true }, candidate: mode },
+      ablations: [
+        { name: "skill", baseline: "baseline", candidate: "candidate" },
+      ],
+    }),
+  );
+  const run = await invoke([
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+  ]);
+  expect(run.code, run.stderr + run.stdout).toBe(0);
+  const manifest = JSON.parse(
+    await readFile(join(results, "suite-run.json"), "utf8"),
+  );
+  const report = JSON.parse(
+    await readFile(manifest.ablationReport.jsonPath, "utf8"),
+  );
+  expect(report.valid).toBeTrue();
+  expect(report.comparisons).toHaveLength(1);
+  expect(report.comparisons[0].cases[0].passRate).toEqual({
+    baseline: 1,
+    candidate: 1,
+    delta: 0,
+  });
+});
 
 test("suite selects benchmark condition files per mode and host", async () => {
   const { root, cases, results } = await fixture();

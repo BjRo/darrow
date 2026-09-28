@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { lstat, readFile, readdir, realpath, stat } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { isDeepStrictEqual } from "node:util";
 import { parse as parseYaml } from "yaml";
 import { TICKETCTL } from "../fixture-ticket";
 import {
@@ -10,6 +11,11 @@ import {
   conditionedCase,
   extensionConfiguration,
 } from "./benchmark-condition";
+import {
+  loadSkillOverride,
+  skillMountConfiguration,
+  type SkillMountConfiguration,
+} from "./skill-mount";
 
 type RecordValue = Record<string, unknown>;
 
@@ -553,11 +559,17 @@ function caseActivation(
   };
 }
 
-function caseMount(value: unknown, source: string, root: string) {
-  const skillDir = skillDirForSource(source);
+function caseMount(
+  value: unknown,
+  source: string,
+  root: string,
+  configuration: SkillMountConfiguration,
+) {
+  const skillDir = configuration.skillDir ?? skillDirForSource(source);
   if (value !== undefined && typeof value !== "boolean")
     throw new Error("mount_plugin_skills must be a boolean");
-  const mountPluginSkills = value === true;
+  const mountPluginSkills =
+    value === true || configuration.mountPluginSkills === true;
   if (mountPluginSkills && skillDir?.startsWith(".agents/"))
     throw new Error("repository skills cannot request plugin sibling mounts");
   if (mountPluginSkills && !skillDir)
@@ -565,15 +577,25 @@ function caseMount(value: unknown, source: string, root: string) {
   return {
     skillDir,
     mountPluginSkills,
-    ...(skillDir
-      ? {
-          mount: {
-            projectRoot: pathToFileURL(root).href,
-            skillDir,
-            mountPluginSkills,
-          },
-        }
-      : {}),
+    ...mountDetails(root, skillDir, mountPluginSkills, configuration),
+  };
+}
+
+function mountDetails(
+  root: string,
+  skillDir: string | null,
+  mountPluginSkills: boolean,
+  configuration: SkillMountConfiguration,
+) {
+  if (!skillDir) return {};
+  const override = skillMountConfiguration(configuration);
+  return {
+    mount: {
+      projectRoot: pathToFileURL(root).href,
+      skillDir,
+      mountPluginSkills,
+      ...(Object.keys(override).length ? { configuration: override } : {}),
+    },
   };
 }
 
@@ -1491,26 +1513,31 @@ async function neutralCase(
   value: unknown,
   source: string,
   root: string,
-  deferRoute = false,
+  options: SkillMountConfiguration & { deferRoute?: boolean } = {},
 ) {
   const selected = caseDefinition(value);
   const id = string(selected.id, "case ID");
-  const invariant = string(selected.invariant, "case invariant");
-  const hostIds = caseHostIds(selected.harnesses);
   const { fixture, ...setup } = caseFixture(selected.fixture);
+  if (options.skillDir)
+    await loadSkillOverride(root, join(root, options.skillDir));
   const { skillDir, mountPluginSkills, ...mount } = caseMount(
     selected.mount_plugin_skills,
     source,
     root,
+    options,
   );
   const additionalMounts = caseAdditionalMounts(selected, skillDir);
   const { invocation, prompt, ...followUp } = await casePrompts(
     selected,
     root,
     skillDir,
-    deferRoute,
+    options.deferRoute,
   );
-  const { policy, checks } = await caseAssessment(selected, root, skillDir);
+  const { policy, checks } = await caseAssessment(
+    selected,
+    root,
+    skillDirForSource(source),
+  );
   return {
     id,
     prompt,
@@ -1520,9 +1547,7 @@ async function neutralCase(
     requiredEvidence: policy.requiredEvidence,
     extensionData: {
       "darrow.case": {
-        invariant,
-        ...(hostIds ? { hostIds } : {}),
-        source,
+        ...caseFacts(selected, source, mountPluginSkills),
         projectRoot: pathToFileURL(root).href,
         ...setup,
         ...mount,
@@ -1530,11 +1555,24 @@ async function neutralCase(
         ...(invocation ? { invocation } : {}),
         ...policy.details,
         ...disclosureDetails(checks),
-        ...caseActivation(selected, skillDir, mountPluginSkills),
-        checkNames: checkNames(selected),
-        ...caseMetricDetails(selected),
       },
     },
+  };
+}
+
+function caseFacts(
+  selected: RecordValue,
+  source: string,
+  mountPluginSkills: boolean,
+) {
+  const hostIds = caseHostIds(selected.harnesses);
+  return {
+    invariant: string(selected.invariant, "case invariant"),
+    ...(hostIds ? { hostIds } : {}),
+    source,
+    ...caseActivation(selected, skillDirForSource(source), mountPluginSkills),
+    checkNames: checkNames(selected),
+    ...caseMetricDetails(selected),
   };
 }
 
@@ -1593,14 +1631,18 @@ async function siblingSkillSources(root: string, skillRoot: string) {
   return sources;
 }
 
-async function skillMountSource(details: RecordValue) {
+async function skillMountSource(details: RecordValue, configuration: unknown) {
   const mount = record(details.mount, "skill mount");
   const rootUrl = string(mount.projectRoot, "mount project root");
   if (!rootUrl.startsWith("file:///"))
     throw new Error("mount project root must be a file URL");
   const root = await realpath(fileURLToPath(rootUrl));
   const skillDir = string(mount.skillDir, "mount skill directory");
-  if (skillDir !== skillDirForSource(string(details.source, "case source")))
+  if (
+    skillDir !==
+    (extensionConfiguration(configuration).skillDir ??
+      skillDirForSource(string(details.source, "case source")))
+  )
     throw new Error("skill mount does not match the selected case");
   const skillRoot = await realpath(join(root, skillDir));
   if (!within(root, skillRoot) || !(await stat(skillRoot)).isDirectory())
@@ -2339,14 +2381,16 @@ async function repositorySkillMounts(
   };
 }
 
-async function preparedMounts(details: RecordValue, hostValue: unknown) {
+async function preparedMounts(
+  details: RecordValue,
+  hostValue: unknown,
+  configuration: unknown,
+) {
   const sources =
-    details.mount === undefined ? [] : await skillMountSource(details);
-  if (
-    skillDirForSource(string(details.source, "case source"))?.startsWith(
-      ".agents/",
-    )
-  )
+    details.mount === undefined
+      ? []
+      : await skillMountSource(details, configuration);
+  if (repositoryMount(details))
     return repositorySkillMounts(details, sources, hostValue);
   const { owner, additional } = mergeAdditionalSkills(
     sources,
@@ -2382,6 +2426,16 @@ async function preparedMounts(details: RecordValue, hostValue: unknown) {
       invocation,
     }),
   };
+}
+
+function repositoryMount(details: RecordValue) {
+  return (
+    details.mount !== undefined &&
+    string(
+      record(details.mount, "skill mount").skillDir,
+      "skill directory",
+    ).startsWith(".agents/")
+  );
 }
 
 function withoutSkill(configuration: unknown): boolean {
@@ -2445,6 +2499,7 @@ async function prepareCase(params: RecordValue) {
   const selected = record(params.case, "prepared case");
   const data = record(selected.extensionData, "case extension data");
   const details = record(data["darrow.case"], "Darrow case data");
+  requireMountConfiguration(details, params.configuration);
   requireCaseHost(details.hostIds, params.host);
   const omitSkills = withoutSkill(params.configuration);
   if (omitSkills && details.invocation !== undefined)
@@ -2454,11 +2509,19 @@ async function prepareCase(params: RecordValue) {
   return {
     ...(omitSkills
       ? { artifacts: [] }
-      : await preparedMounts(details, params.host)),
+      : await preparedMounts(details, params.host, params.configuration)),
     requestedInstrumentation: [],
     ...(setup ? { fixtureSetup: setup } : {}),
     extensionData: {},
   };
+}
+
+function requireMountConfiguration(details: RecordValue, value: unknown) {
+  const configuration = skillMountConfiguration(extensionConfiguration(value));
+  const mount =
+    details.mount === undefined ? {} : record(details.mount, "skill mount");
+  if (!isDeepStrictEqual(mount.configuration ?? {}, configuration))
+    throw new Error("skill mount differs from preparation configuration");
 }
 
 function within(root: string, path: string): boolean {
@@ -2567,14 +2630,13 @@ export async function selectedCaseFixture(params: RecordValue) {
 /** Validate a suite input's templates and return policy facts, without a host route. */
 export async function preflightCaseDetails(params: RecordValue) {
   const selected = await selectedCase(params);
-  const condition = extensionConfiguration(
-    params.configuration,
-  ).benchmarkCondition;
+  const configuration = extensionConfiguration(params.configuration);
+  const condition = configuration.benchmarkCondition;
   const resolved = await neutralCase(
     caseWithCondition(selected.value, condition),
     selected.source,
     selected.root,
-    condition !== undefined,
+    { ...configuration, deferRoute: condition !== undefined },
   );
   return resolved.extensionData["darrow.case"];
 }
@@ -2591,6 +2653,7 @@ export async function resolveCase(params: RecordValue) {
         ),
         selected.source,
         selected.root,
+        extensionConfiguration(params.configuration),
       ),
     ],
   };

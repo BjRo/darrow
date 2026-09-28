@@ -6,7 +6,7 @@ owns fixture construction, host execution, built-in checks, isolation, and
 retained results.
 
 This migration slice resolves one selected skill-free experiment case or
-plugin-local skill case. It accepts generated Git commits or a pinned corpus
+plugin-local skill case, with optional candidate skill overrides. It accepts generated Git commits or a pinned corpus
 repository, optional working-tree and staged files, committed scaffolding,
 Git hooks, fixture stub binaries, local fixture tickets, fixture setup scripts,
 hidden shell checks with exit-code and stdout assertions,
@@ -128,13 +128,35 @@ route rendering happens later through Sevro's selected adapter context.
 
 The condition file joins the protected extension source inputs. Private and
 redacted configuration files remain in the run's results root; the redacted
-copy contains only the condition label and digest, plus an optional unmounted
-control flag. Sevro binds that copy into its configuration identity and retains
+copy contains the condition label and digest, an optional unmounted control
+flag, and any candidate mount settings. Sevro binds that copy into its configuration identity and retains
 it in `configuration.redacted.extensionConfiguration`. The run entrypoint also
 accepts `--benchmark-condition-sha256 <digest>` to require the file's original
 bytes to match an earlier validated input. A mismatch exits `64` before Sevro
-or the candidate starts. Suite condition selection is described below; owning
-skill overrides remain pending.
+or the candidate starts. Suite condition selection is described below.
+
+## Candidate skill overrides
+
+Pass `--skill-dir /absolute/project/path/to/skill` before `--` on the run
+entrypoint to override the mounted candidate skill. `--mount-plugin-skills`
+adds its plugin's sibling skills; without an override, it adds the colocated
+owner's siblings. Existing case sibling declarations stay enabled.
+
+Overrides must name a readable `plugins/<kind>/<plugin>/skills/<skill>` or
+`.agents/skills/<skill>` directory inside the evaluated project. Missing bodies,
+symbolic-link aliases, and paths outside that project fail before execution.
+External skill snapshots need migration into one of those project locations.
+Repository skills keep their existing Claude mirror and project-setting
+requirements and cannot request plugin sibling mounts.
+
+The override changes mounting, while case discovery, source, hidden checks,
+schemas, and owning activation target remain tied to the original case.
+Skill-free experiments stay without an activation grade. A colocated case still
+requires its original activation target in the mounted set. The candidate's
+native invocation uses its selected mount. Unmounted controls retain settings
+but mount no skills. Redacted configuration records the project-relative
+`skillDir` and optional `mountPluginSkills: true`; fixture artifact digests bind
+the mounted bytes. Preparation rejects settings that contradict resolution.
 
 To inventory case compatibility before switching a workflow, run:
 
@@ -306,9 +328,17 @@ and harness. Incomplete observations and empty metric denominators remain
 unknown; unmounted controls supply no measurements. Named ablations write
 `ablation-report.json` and `ablation-report.md` with per-case pass rate, time,
 token, and cost deltas; missing measurements stay unknown. Missing cells or
-mismatched identity dimensions invalidate the comparison. Owning skill overrides
-and effective owner-route assertions still use the
-legacy suite command.
+mismatched identity dimensions invalidate the comparison. Effective owner-route
+assertions still use the legacy suite command.
+
+Mode `skill_dir` selects a candidate override relative to the suite file.
+`mount_plugin_skills: true` includes its sibling set. Selected override inputs
+are validated before any cells start, and the manifest retains their normalized
+project-relative paths. Each cell verifies those settings against Sevro's
+retained redacted configuration; contradictions fail with `70` while leaving
+the raw task result unchanged. A matched ablation declares the same override
+and sibling selection in both modes, with `without_skill: true` only on its
+baseline, so the selected case and prompt stay identical.
 
 Mode `condition` names a shared benchmark instruction file. A
 `condition_by_harness` entry overrides it for the named host; missing entries
@@ -382,7 +412,7 @@ The first focused live run is recorded in [live-validation.md](live-validation.m
 Suite activation regressions and the focused native Claude suite are recorded
 in [suite-validation.md](suite-validation.md).
 
-The entrypoint supplies `index.ts`, `run.ts`, `benchmark-condition.ts`,
+The entrypoint supplies `index.ts`, `run.ts`, `benchmark-condition.ts`, `skill-mount.ts`,
 `sevro-command.ts`, the local
 ticket command, the corpus
 source validator, the repository `package.json`, and `bun.lock` as extension source files so the executable,

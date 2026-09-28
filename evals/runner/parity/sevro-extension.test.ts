@@ -21,6 +21,65 @@ const extension = resolve(import.meta.dir, "../../sevro-extension/index.ts");
 const projectRoot = resolve(import.meta.dir, "../../..");
 const roots: string[] = [];
 
+test("Darrow refuses override mounts that contradict preparation configuration", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-override-binding-"));
+  roots.push(root);
+  const cases = join(root, "evals/experiments/example/cases");
+  const skillDir = "plugins/capability/example/skills/probe";
+  await mkdir(cases, { recursive: true });
+  for (const name of ["probe", "rival"]) {
+    const directory = join(root, "plugins/capability/example/skills", name);
+    await mkdir(directory, { recursive: true });
+    await writeFile(join(directory, "SKILL.md"), `${name} body\n`);
+  }
+  await writeFile(
+    join(cases, "override.yaml"),
+    JSON.stringify({
+      id: "override-binding",
+      invariant: "MOUNT-C1",
+      prompt: "Return ready.",
+      fixture: {
+        commits: [
+          { message: "chore: init", files: { "README.md": "ready\n" } },
+        ],
+      },
+      checks: [],
+    }),
+  );
+  const resolved = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(root).href,
+      selectors: { caseIds: ["override-binding"] },
+      configuration: { skillDir, mountPluginSkills: true },
+    }),
+  );
+  expect(resolved.code, resolved.stderr).toBe(0);
+  const rejected = await command<{ error: { message: string } }>(
+    [process.execPath, extension],
+    request("prepare", {
+      case: resolved.value.result.cases[0],
+      host: { id: "sevro.host.codex", capabilities: [] },
+      condition: "passive",
+      configuration: { skillDir },
+    }),
+  );
+  expect(rejected.value).toMatchObject({
+    error: { message: expect.stringMatching(/mount.*configuration/i) },
+  });
+  const prepared = await command<{ result: { artifacts: unknown[] } }>(
+    [process.execPath, extension],
+    request("prepare", {
+      case: resolved.value.result.cases[0],
+      host: { id: "sevro.host.codex", capabilities: [] },
+      condition: "passive",
+      configuration: { skillDir, mountPluginSkills: true },
+    }),
+  );
+  expect(prepared.code, prepared.stderr).toBe(0);
+  expect(prepared.value.result.artifacts).toHaveLength(2);
+});
+
 test("Darrow condition files render the actual candidate route through Sevro", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-condition-"));
   roots.push(root);

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { createHash } from "node:crypto";
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
-import { isAbsolute, join, resolve, sep } from "node:path";
+import { dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { isDeepStrictEqual, parseArgs } from "node:util";
 import { parse as parseYaml } from "yaml";
 import { preflightCaseDetails, selectCaseIds } from "./index";
@@ -27,6 +27,12 @@ import {
   type SuiteConditions,
 } from "./suite-conditions";
 import type { BenchmarkCondition } from "./benchmark-condition";
+import {
+  loadSkillOverride,
+  modeSkillConfig,
+  skillArguments,
+  skillMountConfiguration,
+} from "./skill-mount";
 
 const repositoryRoot = resolve(import.meta.dir, "../..");
 type Harness = "codex" | "claude";
@@ -49,6 +55,8 @@ function modeConfig(name: string, raw: unknown) {
         "effort",
         "condition",
         "condition_by_harness",
+        "skill_dir",
+        "mount_plugin_skills",
       ].includes(key),
   );
   if (unsupported.length)
@@ -67,6 +75,7 @@ function modeConfig(name: string, raw: unknown) {
     withoutSkill: mode.without_skill === true,
     ...modeRouteConfig(mode),
     ...modeConditionConfig(mode),
+    ...modeSkillConfig(mode),
   };
 }
 
@@ -401,6 +410,8 @@ type ExpectedCell = {
   requestedRoute: CandidateRoute;
   benchmarkCondition: ConditionInput | null;
   withoutSkill: boolean;
+  skillDir?: string;
+  mountPluginSkills?: true;
 };
 
 function verifyEvidence(
@@ -442,6 +453,7 @@ function verifyEvidence(
       ).extensionConfiguration,
       expected.benchmarkCondition,
       expected.withoutSkill,
+      expected,
     ),
   ];
   if (matches.some((matched) => !matched))
@@ -558,6 +570,7 @@ function cellCommand(request: SuiteRequest, selected: CellSelection) {
     cellRoot,
     ...(mode.withoutSkill ? ["--without-skill"] : []),
     ...conditionArguments(request.benchmarkConditions[mode.name]?.[harness]),
+    ...skillArguments(mode, request.projectRoot),
     "--",
     ...candidateArguments(
       [...request.forwarded, ...(request.hostOptions?.[harness] ?? [])],
@@ -590,6 +603,8 @@ function cellExpectation(
     benchmarkCondition:
       request.benchmarkConditions[mode.name]?.[harness] ?? null,
     withoutSkill: mode.withoutSkill,
+    ...(mode.skillDir ? { skillDir: mode.skillDir } : {}),
+    ...(mode.mountPluginSkills ? { mountPluginSkills: true } : {}),
   };
 }
 
@@ -970,10 +985,13 @@ async function preflightCases(
         const details = await preflightCaseDetails({
           projectRoot: pathToFileURL(request.projectRoot).href,
           selectors: { caseIds: [caseId] },
-          configuration: preflightConfiguration(
-            request.benchmarkConditions[mode.name]?.[harness],
-            request.benchmarkConditionDefinitions,
-          ),
+          configuration: {
+            ...preflightConfiguration(
+              request.benchmarkConditions[mode.name]?.[harness],
+              request.benchmarkConditionDefinitions,
+            ),
+            ...skillMountConfiguration(mode),
+          },
         });
         if (mode.withoutSkill && details.invocation !== undefined)
           throw new Error(
@@ -1091,6 +1109,13 @@ async function suiteInputs(request: SuiteRequest) {
   );
   request.benchmarkConditions = conditions.inputs;
   request.benchmarkConditionDefinitions = conditions.definitions;
+  for (const mode of suite.modes) {
+    if (mode.skillDir)
+      mode.skillDir = await loadSkillOverride(
+        projectRoot,
+        resolve(dirname(suitePath), mode.skillDir),
+      );
+  }
   if (
     suite.ablations.length &&
     (resultsRoot === projectRoot ||

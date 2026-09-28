@@ -127,6 +127,18 @@ Selection happens before fixture resolution and mounted-skill overrides.
 does not select cases or change their ownership. `--without-skill` likewise
 changes mounting without changing the selected case set.
 
+The Sevro run entrypoint preserves `--skill-dir` and `--mount-plugin-skills`
+as Darrow extension configuration. Suite mode `skill_dir` resolves relative
+to the suite file; `mount_plugin_skills: true` adds the candidate plugin's
+sibling skills to any sibling selection already required by the case. An
+override must name a readable plugin or repository skill inside the evaluated
+project. Missing inputs and paths escaping that project fail before execution.
+The selected case source and its owning activation target remain unchanged;
+skill-less experiments do not acquire an activation grade through an override.
+Unmounted controls retain the declared override in configuration but mount no
+skills. Retained redacted configuration and fixture artifact digests bind the
+selected mount. Suite evidence must agree with the requested mount settings.
+
 ### Invariant coverage
 
 The coverage command scans one or more normative Markdown specifications and

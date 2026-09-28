@@ -10,6 +10,7 @@ import {
   benchmarkConditionOptions,
   writeRunConfiguration,
 } from "./benchmark-condition";
+import { skillOverrideOptions } from "./skill-mount";
 
 const repositoryRoot = resolve(import.meta.dir, "../..");
 const extension = join(import.meta.dir, "index.ts");
@@ -18,6 +19,7 @@ const sourceFiles = [
   join(repositoryRoot, "evals/fixture-ticket.ts"),
   join(import.meta.dir, "run.ts"),
   join(import.meta.dir, "benchmark-condition.ts"),
+  join(import.meta.dir, "skill-mount.ts"),
   join(import.meta.dir, "sevro-command.ts"),
   join(repositoryRoot, "evals/corpus/orchestration/source.ts"),
   join(repositoryRoot, "package.json"),
@@ -53,7 +55,7 @@ function sevroArgs(options: {
   projectRoot: string;
   resultsRoot: string;
   forwarded: string[];
-  withoutSkill: boolean;
+  configuration: boolean;
   conditionFile?: string;
 }): string[] {
   const {
@@ -62,7 +64,7 @@ function sevroArgs(options: {
     projectRoot,
     resultsRoot,
     forwarded,
-    withoutSkill,
+    configuration,
     conditionFile,
   } = options;
   const route = sevroCommand();
@@ -81,7 +83,7 @@ function sevroArgs(options: {
     projectRoot,
     "--results-root",
     resultsRoot,
-    ...(withoutSkill || conditionFile
+    ...(configuration
       ? [
           "--extension-configuration-file",
           join(resultsRoot, "darrow-extension-configuration.json"),
@@ -103,6 +105,8 @@ function runOptions(argv: string[]) {
       "project-root": { type: "string" },
       "results-root": { type: "string" },
       "without-skill": { type: "boolean", default: false },
+      "skill-dir": { type: "string" },
+      "mount-plugin-skills": { type: "boolean", default: false },
       "benchmark-condition-file": { type: "string" },
       "benchmark-condition-label": { type: "string" },
       "benchmark-condition-sha256": { type: "string" },
@@ -127,6 +131,10 @@ export function invocation(argv: string[]) {
     conditionLabel: values["benchmark-condition-label"],
     conditionSha256: values["benchmark-condition-sha256"],
   });
+  const skillMount = skillOverrideOptions({
+    skillDir: values["skill-dir"],
+    mountPluginSkills: values["mount-plugin-skills"],
+  });
   validateForwarded(forwarded);
   const commandFile = join(resultsRoot, "darrow-extension-command.json");
   return {
@@ -136,13 +144,17 @@ export function invocation(argv: string[]) {
     caseId,
     withoutSkill: values["without-skill"],
     ...benchmark,
+    ...skillMount,
     command: sevroArgs({
       commandFile,
       caseId,
       projectRoot,
       resultsRoot,
       forwarded,
-      withoutSkill: values["without-skill"],
+      configuration:
+        values["without-skill"] ||
+        !!benchmark.conditionFile ||
+        Object.keys(skillMount).length > 0,
       conditionFile: benchmark.conditionFile,
     }),
   };
