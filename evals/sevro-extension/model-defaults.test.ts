@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import type { HarnessAdapter } from "./types";
 import {
   CODEX_EVAL_ROLE_DEFAULTS,
   defaultEvalRoute,
@@ -10,11 +9,11 @@ import {
 const codex = {
   name: "codex",
   defaultModel: "adapter-fallback",
-} as HarnessAdapter;
+};
 const claude = {
   name: "claude",
   defaultModel: "claude-default",
-} as HarnessAdapter;
+};
 
 describe("evaluation role defaults", () => {
   test("resolves independent GPT-5.6 Codex defaults for every role", () => {

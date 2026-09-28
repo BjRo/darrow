@@ -9,7 +9,10 @@ import {
 } from "./ablation";
 import { claudeAdapter } from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
-import { CODEX_EVAL_ROLE_DEFAULTS, resolveEvalRoute } from "./model-defaults";
+import {
+  CODEX_EVAL_ROLE_DEFAULTS,
+  resolveEvalRoute,
+} from "../sevro-extension/model-defaults";
 
 if (
   process.env.SEVRO_PACKAGE_BIN !== undefined ||

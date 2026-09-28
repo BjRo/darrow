@@ -29,7 +29,7 @@ import {
   verifiedCodexAcceptedOwner,
   verifiedCodexSpawnAttestation,
 } from "../codex-spawn-guard";
-import { CODEX_EVAL_ROLE_DEFAULTS } from "../model-defaults";
+import { CODEX_EVAL_ROLE_DEFAULTS } from "../../sevro-extension/model-defaults";
 import { retainedCodexGoalControls } from "./codex-goal-tools";
 import {
   reviewAxesFromTaskName,

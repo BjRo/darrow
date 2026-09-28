@@ -3,7 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { callerHostOptions } from "./caller-host-options";
-import { CODEX_EVAL_ROLE_DEFAULTS } from "../runner/model-defaults";
+import { CODEX_EVAL_ROLE_DEFAULTS } from "./model-defaults";
 import { runSelection, type SelectionRun } from "./selection";
 import { activationGate, type ActivationExpectation } from "./activation";
 import { preflightCaseDetails } from "./index";

@@ -1,4 +1,7 @@
-import type { HarnessAdapter } from "./types";
+interface HostDefaults {
+  name: string;
+  defaultModel: string;
+}
 
 export type EvalModelRole =
   "candidate" | "qualityJudge" | "semanticOutputGrader";
@@ -27,7 +30,7 @@ const ROLE_EFFORT_DEFAULTS: Readonly<Record<EvalModelRole, string>> =
   });
 
 export function defaultEvalRoute(
-  adapter: HarnessAdapter,
+  adapter: HostDefaults,
   role: EvalModelRole,
 ): EvalRoute {
   if (adapter.name === "codex") return { ...CODEX_EVAL_ROLE_DEFAULTS[role] };
@@ -38,7 +41,7 @@ export function defaultEvalRoute(
 }
 
 export function resolveEvalRoute(
-  adapter: HarnessAdapter,
+  adapter: HostDefaults,
   role: EvalModelRole,
   overrides: Partial<EvalRoute>,
 ): EvalRoute {

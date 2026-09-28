@@ -30,6 +30,13 @@ distinct from task outcomes and skill-value ablation.
 
 ## Public contract
 
+### Repository-owned model routes
+
+Darrow owns its candidate, semantic-grader, and advisory-grader model and
+effort defaults in the evaluation extension. Repository callers use that
+policy without importing generic runner types or implementation. Moving the
+policy does not change the configured defaults or explicit route overrides.
+
 ### Repository-owned fixture sources
 
 The extraction compatibility inventory includes canonical repository-skill,

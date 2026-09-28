@@ -59,7 +59,10 @@ import {
   hasClaudeGoalAgentEvidence,
 } from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
-import { CODEX_EVAL_ROLE_DEFAULTS, resolveEvalRoute } from "./model-defaults";
+import {
+  CODEX_EVAL_ROLE_DEFAULTS,
+  resolveEvalRoute,
+} from "../sevro-extension/model-defaults";
 import { EvalCliUi, resolvePresentation, type TrialLine } from "./cli-ui";
 import { mapWithConcurrency } from "./concurrency";
 import {

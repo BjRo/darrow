@@ -3,7 +3,7 @@ import { isAbsolute, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { parse as parseYaml } from "yaml";
 import { callerHostOptions } from "./caller-host-options";
-import { CODEX_EVAL_ROLE_DEFAULTS } from "../runner/model-defaults";
+import { CODEX_EVAL_ROLE_DEFAULTS } from "./model-defaults";
 import { sevroCommand } from "./sevro-command";
 
 const repositoryRoot = resolve(import.meta.dir, "../..");
