@@ -97,6 +97,19 @@ source checkout, the evaluated project root, or a separate configuration root.
 Git worktrees belonging to those roots receive the same protection. A
 packaged runner source without Git metadata remains usable.
 
+On the public Sevro CLI, `--project-root` and `--results-root` are explicit
+absolute paths. Optional `--config-root` is also absolute and defaults to the
+project root. Import only `agents.max_concurrent_threads_per_session` from
+`<config-root>/.codex/config.toml` for every configured Codex role. A missing
+file or missing setting retains the host default; malformed, unreadable, or
+invalid declared configuration fails before candidate execution. The setting
+must be a positive TOML integer within JavaScript's safe integer range.
+Unrelated model, permission, hook, credential, and environment settings are
+never imported. Capture the value once per invocation and include each role's
+effective setting in retained configuration and comparison identity. Changing
+that setting must change evaluation identity. Protect the selected configuration
+root and its linked worktrees from candidates and isolated checks.
+
 The direct runner accepts `--results-root <directory>` for its default result
 bundles and `--run-state-root <directory>` for active ownership records,
 checkpoints, and retained attempts. The results root defaults to

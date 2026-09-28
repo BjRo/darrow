@@ -98,6 +98,18 @@ Other case fields and fixture mechanics fail explicitly. The legacy
 `{{repo_dir}}` prompt token maps to Sevro's per-trial
 workspace token. Other prompt templates still fail explicitly.
 
+## Separate configuration roots
+
+Forward `--config-root /absolute/path/to/configuration` after `--` on the Darrow
+run or suite entrypoint. Sevro defaults it to the evaluated project root and
+imports only `agents.max_concurrent_threads_per_session` from
+`.codex/config.toml` for configured Codex roles. Case discovery, supporting
+plugins, schemas, and corpus assets remain under Darrow's `--project-root`.
+The imported value enters retained configuration and comparison identity;
+unrelated settings are ignored. Invalid or unreadable declared settings fail
+before execution. Sevro protects the configuration repository and its linked
+worktrees from bundled candidates and isolated shell checks.
+
 ## Claude follow-up turns
 
 Cases with `follow_up_prompt` can resume the same native Claude session under

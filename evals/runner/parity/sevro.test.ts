@@ -387,7 +387,7 @@ function sevroArguments(
     "--adapter-module",
     paths.sevroAdapter,
     "--shell-isolation",
-    ...(paths.configRoot ? ["--protected-root", paths.configRoot] : []),
+    ...(paths.configRoot ? ["--config-root", paths.configRoot] : []),
     "--project-root",
     paths.projectRoot,
     "--results-root",

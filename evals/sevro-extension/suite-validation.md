@@ -1,5 +1,67 @@
 # Suite validation
 
+## Separate project and configuration roots
+
+Sevro's public `--config-root` preserves the explicit Codex configuration import
+independently of Darrow case and asset discovery. The extension entrypoint forwards
+that absolute option after `--`. The imported concurrency setting is captured
+once, applied to configured Codex roles, and retained in comparison identity.
+Invalid declared configuration fails before execution. The shared isolation
+boundary also protects primary and linked worktrees for declared source roots.
+
+The test-first trace is retained in Sevro's
+`docs/configuration-root-validation.md` at `/Users/bjro/Sources/sevro`.
+It records five observed red/green slices through the public CLI: importing a
+separate root, denying linked configuration worktree reads, refusing unreadable
+declared configuration links, and rejecting an explicitly empty configuration
+root. Seven new tests contain 76 assertions.
+Additional guards cover defaults, every Codex role, malformed settings, invalid
+TOML integer types and ranges, and unusable roots. No live model call was made.
+
+Darrow's integration guard was added after implementation, without a test-first
+claim. This command passed one test with seven assertions:
+
+```sh
+SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-extension.test.ts -t "Darrow separates case discovery from imported Codex configuration"'
+```
+
+The real Darrow and Sevro commands discover the selected case from one project
+and import the limit from another root. The declared candidate model remains
+unchanged; unrelated TOML settings are absent from evidence. Dry execution stays
+`not_run` and task success `not_assessed`. Existing source-isolation parity now
+uses `--config-root` on both public commands.
+
+The full installed-package gate passed 109 tests with 1,744 assertions across
+three files in 203.49 seconds after the review repairs:
+
+```sh
+SEVRO_PACKAGE_TARBALL=/private/tmp/darrow-issue95-config-root-repaired.PMKCOa/sevro-0.1.0-dev.0.tgz lean-ctx -c 'bun run test:eval-runner-sevro-package'
+```
+
+Tarball SHA-256:
+`f7579e569769a8045df28ed8ccd0ff09621f42477a5453eda07cd16890dc7ca9`.
+It was packed from the stable Sevro working candidate on parent `fe8faf5`,
+subsequently committed as `4a6482a`. The public installation uses no source checkout or
+runner Git metadata. Sevro's final full gate passed 217 tests with 1,207
+assertions across 36 files in 80.11 seconds, plus typechecking and formatting.
+Its standalone package installation check also passed before the two bounded
+review repairs. Darrow typechecking, ESLint, and formatting passed.
+
+The required independent review found a dangling `.codex` directory link that
+silently retained the default and an explicitly empty `--config-root` that
+silently selected the project. Both repairs have observed public CLI red/green
+traces. Bounded repair verification resolved both findings with no regressions
+or evidence gaps against the final working candidate
+`WORKTREE@fe8faf52b75005b3e4597d00fff3dc8bb0a44a94+eb180edf50d8b0a1f581ea637e48d413527cd4e7`.
+The complete local report is
+`/Users/bjro/.darrow/reviews-issue95-configuration-root/8794a1ce3463a83e1434abc110042a76e2397e27951a9a5cbf42214d9bbfc77b/darrow-review.8_nwne6o/verification.md`.
+
+The first Sevro full gate hit the existing eight-scenario Claude guard's default
+five-second timeout. Its explicit bound is now ten seconds, with assertions
+unchanged; the focused guard and full gate then passed. This timeout repair is
+test harness maintenance. Release pinning and normal command cutover remain
+pending.
+
 ## Claude continuation through the public CLI
 
 Sevro commit `fe8faf5` adds UUID-bound native Claude resumption. Darrow's

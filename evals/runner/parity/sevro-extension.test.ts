@@ -21,6 +21,82 @@ const extension = resolve(import.meta.dir, "../../sevro-extension/index.ts");
 const projectRoot = resolve(import.meta.dir, "../../..");
 const roots: string[] = [];
 
+test("Darrow separates case discovery from imported Codex configuration", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-project-root-"));
+  const configRoot = await mkdtemp(join(tmpdir(), "darrow-sevro-config-root-"));
+  roots.push(root, configRoot);
+  const cases = join(root, "evals/experiments/example/cases");
+  await mkdir(cases, { recursive: true });
+  await mkdir(join(configRoot, ".codex"));
+  await writeFile(
+    join(configRoot, ".codex/config.toml"),
+    'model = "ignored-config-route"\n[agents]\nmax_concurrent_threads_per_session = 7\n',
+  );
+  await writeFile(
+    join(cases, "selected.yaml"),
+    JSON.stringify({
+      id: "separate-configuration",
+      invariant: "SE-C29",
+      prompt: "Return ready.",
+      fixture: {
+        commits: [
+          { message: "chore: initial", files: { "README.md": "fixture\n" } },
+        ],
+      },
+      checks: [],
+      output_checks: [{ name: "answer", expect_exact: "ready" }],
+    }),
+  );
+  const run = await command<{
+    task: { verdict: string };
+    execution: { status: string };
+    evidencePath: string;
+    cases: Array<{ caseId: string }>;
+  }>([
+    process.execPath,
+    resolve(import.meta.dir, "../../sevro-extension/run.ts"),
+    "--case-id",
+    "separate-configuration",
+    "--project-root",
+    root,
+    "--results-root",
+    join(root, "results"),
+    "--",
+    "--config-root",
+    configRoot,
+    "--host",
+    "codex",
+    "--codex-bin",
+    process.execPath,
+    "--codex-auth-file",
+    join(root, "unused-auth.json"),
+    "--model",
+    "synthetic-codex",
+    "--effort",
+    "low",
+    "--condition",
+    "passive",
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--dry",
+  ]);
+  expect(run.code, run.stderr + JSON.stringify(run.value)).toBe(0);
+  expect(run.value.execution.status).toBe("not_run");
+  expect(run.value.task.verdict).toBe("not_assessed");
+  expect(run.value.cases[0]!.caseId).toBe("separate-configuration");
+  const evidence = JSON.parse(await readFile(run.value.evidencePath, "utf8"));
+  expect(evidence.configuration.redacted.hostConfiguration).toEqual({
+    candidate: { "sevro.codex.agent-concurrency-limit": 7 },
+  });
+  expect(evidence.routes[0]).toMatchObject({
+    model: "synthetic-codex",
+    effort: "low",
+  });
+  expect(JSON.stringify(evidence)).not.toContain("ignored-config-route");
+});
+
 test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
   "Darrow runs a Claude follow-up through Sevro's public CLI",
   async () => {
