@@ -1,5 +1,60 @@
 # Suite validation
 
+## Parent candidate case routes
+
+Suite `case_routes` and mode `apply_case_routes` now preserve exact-case parent
+candidate overrides independently of owner expectations and grader routes.
+The public-command regressions use Sevro's bundled hosts with synthetic
+executables; no live model call was made.
+
+Working directory:
+`/Users/bjro/Sources/darrow/.worktrees/feat/issue-95-darrow-extension`.
+
+1. Red — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-suite.test.ts -t "suite applies enabled case routes before mode candidate defaults"'`:
+   exit `64`, because suite `case_routes` was unsupported.
+2. Green — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-suite.test.ts -t "suite applies enabled case routes before mode candidate defaults"'`:
+   one test passed with 16 assertions. The enabled exact-case route overrides
+   the mode's candidate model and effort; unmapped cases and inactive modes
+   retain the mode defaults. Actual retained routes agree and task checks pass.
+
+The first green attempt exposed a fixture mistake: its synthetic executable
+was inside the protected source tree. Moving it to a separate temporary
+directory restored the intended host boundary. The literal command above
+then passed; the protected-source failure was not a missing-behavior red.
+
+Additional guards passed two tests with 44 assertions. They cover malformed
+maps, a missing enabled harness map, invalid flags, both host configurations,
+focused cases, inactive false flags, and dry unassessed results. These guards
+were added after implementation, without a test-first claim.
+
+The final installed-package gate passed 107 tests with 1,730 assertions across
+three files in 182.17 seconds:
+
+```sh
+SEVRO_PACKAGE_TARBALL=/tmp/sevro-0.1.0-dev.0.tgz lean-ctx -c 'bun run test:eval-runner-sevro-package'
+```
+
+The tarball was packed from clean Sevro commit `08b5371`. Darrow typechecking,
+ESLint, and formatting passed. The previous 377/377 resolution inventory stays
+separate from these execution checks; it does not establish complete workflow
+compatibility. Release pinning and normal command cutover remain pending.
+
+## Existing adaptation-fidelity dry preparation
+
+Before the case-route changes, clean Darrow commit `a518624d` and clean Sevro
+commit `08b5371` prepared an existing benchmark mode successfully:
+
+```sh
+SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun evals/sevro-extension/suite.ts --suite /Users/bjro/Sources/darrow/.worktrees/feat/issue-95-darrow-extension/evals/experiments/orchestration/adaptation-fidelity-suite.yaml --mode routed-terra --case orchestration-routing-localized-mechanical --results-root /private/tmp/darrow-issue95-adaptation-fidelity-owner-dry --trials 1 --threshold 1 -- --host codex --codex-bin /opt/homebrew/bin/codex --codex-auth-file /Users/bjro/.codex/auth.json --model gpt-5.6-terra --effort medium --shell-isolation --dry'
+```
+
+The command exited `0` with one cell. Retained configuration identifies the
+condition, adaptive-delivery mount, and expected Luna/medium child separately
+from the Terra/medium parent. Execution is `not_run`; the task is
+`not_assessed`. This verifies preparation and configuration binding, without
+establishing native skill dispatch, owner acceptance, or benchmark behavior.
+The local checkout identity remains explicit; release pinning is pending.
+
 ## Benchmark owner routes
 
 The Darrow run command and suite modes now preserve case-bound native owner

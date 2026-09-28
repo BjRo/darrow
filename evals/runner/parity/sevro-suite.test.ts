@@ -105,6 +105,275 @@ async function invoke(
   return { stdout, stderr, code };
 }
 
+test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
+  "suite applies enabled case routes before mode candidate defaults",
+  async () => {
+    const { root, suite, results } = await fixture();
+    const host = await syntheticCandidateHost(root, "codex");
+    const definition = JSON.parse(await readFile(suite, "utf8"));
+    await writeFile(
+      suite,
+      JSON.stringify({
+        ...definition,
+        case_routes: {
+          codex: { "suite-alpha": { model: "case-model", effort: "high" } },
+        },
+        modes: {
+          inactive: {
+            owner_evaluation: "passive",
+            model_by_harness: { codex: "mode-model" },
+            effort: "medium",
+          },
+          active: {
+            owner_evaluation: "passive",
+            model_by_harness: { codex: "mode-model" },
+            effort: "medium",
+            apply_case_routes: true,
+          },
+        },
+      }),
+    );
+    const run = await invoke([
+      "--suite",
+      suite,
+      "--project-root",
+      root,
+      "--results-root",
+      results,
+      "--trials",
+      "1",
+      "--threshold",
+      "1",
+      "--",
+      ...host,
+      "--shell-isolation",
+    ]);
+    expect(run.code, run.stderr + run.stdout).toBe(0);
+    const manifest = JSON.parse(
+      await readFile(join(results, "suite-run.json"), "utf8"),
+    );
+    expect(manifest.caseRoutes).toEqual({
+      codex: { "suite-alpha": { model: "case-model", effort: "high" } },
+    });
+    expect(manifest.cells).toHaveLength(4);
+    const expected = [
+      { model: "mode-model", effort: "medium" },
+      { model: "mode-model", effort: "medium" },
+      { model: "case-model", effort: "high" },
+      { model: "mode-model", effort: "medium" },
+    ];
+    for (const [index, cell] of manifest.cells.entries()) {
+      expect(cell.requestedRoute).toEqual(expected[index]);
+      expect(cell.provenance.routes[0]).toEqual({
+        role: "candidate",
+        host: "sevro.host.codex",
+        ...expected[index],
+      });
+      const result = JSON.parse(await readFile(cell.result, "utf8"));
+      expect(result.task.verdict).toBe("passed");
+    }
+  },
+  20_000,
+);
+
+test("suite rejects malformed case routes and missing selected harness maps before execution", async () => {
+  const { root, suite, adapter, results } = await fixture();
+  const definition = JSON.parse(await readFile(suite, "utf8"));
+  const route = { model: "case-model", effort: "high" };
+  for (const routes of [
+    null,
+    [],
+    { unknown: {} },
+    { codex: null },
+    { codex: [] },
+    { codex: { "suite-alpha": "route" } },
+    { codex: { "": route } },
+    { codex: { "suite-alpha": { model: "", effort: "high" } } },
+    { codex: { "suite-alpha": { model: route.model } } },
+    { codex: { "suite-alpha": { ...route, provider: "other" } } },
+    { codex: { "suite-alpha": { ...route, model: "bad\nmodel" } } },
+  ]) {
+    await writeFile(
+      suite,
+      JSON.stringify({ ...definition, case_routes: routes }),
+    );
+    const run = await invoke([
+      "--suite",
+      suite,
+      "--project-root",
+      root,
+      "--results-root",
+      results,
+      "--",
+      "--adapter-module",
+      adapter,
+    ]);
+    expect(run.code, run.stderr + run.stdout).toBe(64);
+    expect(
+      await Bun.file(
+        join(results, "cell-1/darrow-extension-command.json"),
+      ).exists(),
+    ).toBeFalse();
+  }
+  for (const mode of [
+    { apply_case_routes: "true" },
+    { apply_case_routes: true },
+  ]) {
+    await writeFile(
+      suite,
+      JSON.stringify({ ...definition, modes: { routed: mode } }),
+    );
+    const run = await invoke([
+      "--suite",
+      suite,
+      "--project-root",
+      root,
+      "--results-root",
+      results,
+      "--",
+      "--adapter-module",
+      adapter,
+    ]);
+    expect(run.code, run.stderr + run.stdout).toBe(64);
+    expect(
+      await Bun.file(
+        join(results, "cell-1/darrow-extension-command.json"),
+      ).exists(),
+    ).toBeFalse();
+  }
+});
+
+test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
+  "suite focuses case routes for both hosts and keeps false and dry modes unassessed",
+  async () => {
+    const { root, suite, results } = await fixture();
+    const hostOptions = join(root, "hosts.json");
+    await writeFile(
+      hostOptions,
+      JSON.stringify({
+        codex: await syntheticCandidateHost(root, "codex"),
+        claude: await syntheticCandidateHost(root, "claude"),
+      }),
+    );
+    const definition = JSON.parse(await readFile(suite, "utf8"));
+    await writeFile(
+      suite,
+      JSON.stringify({
+        ...definition,
+        harnesses: ["codex", "claude"],
+        case_routes: {
+          codex: {
+            "suite-alpha": { model: "case-codex", effort: "high" },
+            "suite-beta": { model: "unused-codex", effort: "low" },
+          },
+          claude: { "suite-alpha": { model: "case-claude", effort: "medium" } },
+        },
+        modes: {
+          inactive: { owner_evaluation: "passive", apply_case_routes: false },
+          active: { owner_evaluation: "passive", apply_case_routes: true },
+        },
+      }),
+    );
+    const run = await invoke([
+      "--suite",
+      suite,
+      "--case",
+      "suite-alpha",
+      "--project-root",
+      root,
+      "--results-root",
+      results,
+      "--host-options-file",
+      hostOptions,
+      "--trials",
+      "1",
+      "--threshold",
+      "1",
+      "--",
+      "--shell-isolation",
+      "--dry",
+    ]);
+    expect(run.code, run.stderr + run.stdout).toBe(0);
+    const manifest = JSON.parse(
+      await readFile(join(results, "suite-run.json"), "utf8"),
+    );
+    expect(manifest.caseIds).toEqual(["suite-alpha"]);
+    expect(manifest.cells).toHaveLength(4);
+    expect(
+      manifest.cells.map(
+        (cell: { requestedRoute: unknown }) => cell.requestedRoute,
+      ),
+    ).toEqual([
+      { model: null, effort: null },
+      { model: null, effort: null },
+      { model: "case-codex", effort: "high" },
+      { model: "case-claude", effort: "medium" },
+    ]);
+    for (const [index, cell] of manifest.cells.entries()) {
+      const expected =
+        index < 2
+          ? { model: "base-model", effort: "low" }
+          : index === 2
+            ? { model: "case-codex", effort: "high" }
+            : { model: "case-claude", effort: "medium" };
+      expect(cell.provenance.routes[0]).toMatchObject(expected);
+      const result = JSON.parse(await readFile(cell.result, "utf8"));
+      expect(result.task.verdict).toBe("not_assessed");
+      expect(result.execution.status).toBe("not_run");
+    }
+  },
+  15_000,
+);
+
+async function syntheticCandidateHost(
+  root: string,
+  harness: "codex" | "claude",
+) {
+  const binaryRoot = await mkdtemp(
+    join(tmpdir(), "darrow-sevro-case-route-bin-"),
+  );
+  roots.push(binaryRoot);
+  const binary = join(binaryRoot, `synthetic-${harness}`);
+  const credential = join(root, `${harness}-auth.json`);
+  const realCodex = `'${Bun.which("codex")!.replaceAll("'", `'"'"'`)}'`;
+  const events = [
+    { type: "thread.started", thread_id: "synthetic-case-route" },
+    { type: "item.completed", item: { type: "agent_message", text: "ready" } },
+    { type: "turn.completed", usage: { input_tokens: 1, output_tokens: 1 } },
+  ]
+    .map((event) => JSON.stringify(event))
+    .join("\n");
+  await writeFile(credential, '{"test":"synthetic-login"}', { mode: 0o600 });
+  await writeFile(
+    binary,
+    harness === "codex"
+      ? `#!/bin/sh
+if [ "$1" = sandbox ]; then exec ${realCodex} "$@"; fi
+if [ "$1" = --version ]; then printf 'synthetic-codex\\n'; exit 0; fi
+if [ "$1" != exec ]; then exit 99; fi
+/bin/cat >/dev/null
+/bin/cat <<'SEVRO_EVENTS'
+${events}
+SEVRO_EVENTS
+`
+      : `#!/bin/sh
+test -r "$CLAUDE_CONFIG_DIR/.credentials.json" || exit 3
+printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"result":"ready","usage":{"input_tokens":1,"output_tokens":1},"total_cost_usd":0}'
+`,
+    { mode: 0o700 },
+  );
+  return [
+    "--host",
+    harness,
+    `--${harness}-bin`,
+    binary,
+    harness === "codex" ? "--codex-auth-file" : "--claude-credential-file",
+    credential,
+    "--model=base-model",
+    "--effort=low",
+  ];
+}
+
 test("suite grades benchmark owner routes separately from the parent candidate route", async () => {
   const { root, cases, suite, adapter, results } = await fixture();
   for (const id of ["suite-alpha", "suite-beta"]) {

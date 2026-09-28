@@ -15,7 +15,9 @@ import {
   modeRouteConfig,
   optionValue,
   requestedCandidateRoute,
+  suiteCaseRoutes,
   type CandidateRoute,
+  type CaseRoutes,
 } from "./suite-routes";
 import {
   conditionArguments,
@@ -64,6 +66,7 @@ function modeConfig(name: string, raw: unknown) {
         "mount_plugin_skills",
         "require_evaluation_records",
         "effective_owner_routes",
+        "apply_case_routes",
       ].includes(key),
   );
   if (unsupported.length)
@@ -166,6 +169,7 @@ function suiteConfig(value: unknown) {
         "case_filter",
         "modes",
         "ablations",
+        "case_routes",
       ].includes(key),
   );
   if (extra.length)
@@ -196,6 +200,7 @@ function suiteConfig(value: unknown) {
     experiment: suite.experiment,
     harnesses,
     filters: filters as string[],
+    caseRoutes: suiteCaseRoutes(suite.case_routes),
     modes: selectedModes,
     ablations: ablationConfig(suite.ablations, selectedModes),
   };
@@ -268,6 +273,7 @@ function suiteInvocation(argv: string[]) {
     modes: values.mode,
     cases: values.case,
     hostOptions: null as Partial<Record<Harness, string[]>> | null,
+    caseRoutes: {} as CaseRoutes,
     benchmarkConditions: {} as SuiteConditions,
     benchmarkConditionDefinitions: new Map<string, BenchmarkCondition>(),
     ...evidenceLimits(values.trials!, values.threshold!),
@@ -585,7 +591,7 @@ function cellCommand(request: SuiteRequest, selected: CellSelection) {
     "--",
     ...candidateArguments(
       [...request.forwarded, ...(request.hostOptions?.[harness] ?? [])],
-      requestedCandidateRoute(mode, harness),
+      requestedCandidateRoute(mode, harness, caseId, request.caseRoutes),
     ),
     "--condition",
     mode.condition,
@@ -610,7 +616,12 @@ function cellExpectation(
     threshold: request.threshold,
     exitCode,
     activation: selected.activation,
-    requestedRoute: requestedCandidateRoute(mode, harness),
+    requestedRoute: requestedCandidateRoute(
+      mode,
+      harness,
+      caseId,
+      request.caseRoutes,
+    ),
     benchmarkCondition:
       request.benchmarkConditions[mode.name]?.[harness] ?? null,
     withoutSkill: mode.withoutSkill,
@@ -994,6 +1005,7 @@ async function preflightCases(
   for (const mode of suite.modes) {
     for (const harness of suite.harnesses) {
       for (const caseId of caseIds) {
+        requestedCandidateRoute(mode, harness, caseId, request.caseRoutes);
         const policy = preflightBenchmarkPolicy(mode, harness, caseId);
         const details = await preflightCaseDetails({
           projectRoot: pathToFileURL(request.projectRoot).href,
@@ -1087,6 +1099,7 @@ function suiteManifest(
     hostOptionsFile: request.hostOptionsFile ?? null,
     hostOptionsSha256: inputs.hostOptionsDigest,
     modes: suite.modes,
+    caseRoutes: suite.caseRoutes,
     benchmarkConditions: request.benchmarkConditions,
     ablations: suite.ablations,
     caseIds: inputs.caseIds,
@@ -1121,6 +1134,7 @@ async function suiteInputs(request: SuiteRequest) {
     suiteConfig(parseYaml(source) as unknown),
     request,
   );
+  request.caseRoutes = suite.caseRoutes;
   const hostOptions = await loadHostOptions(
     request,
     suite.harnesses,

@@ -1,5 +1,49 @@
 type Harness = "codex" | "claude";
 export type CandidateRoute = { model: string | null; effort: string | null };
+export type CaseRoutes = Partial<
+  Record<Harness, Record<string, { model: string; effort: string }>>
+>;
+
+function caseRouteMap(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("case_routes host map must be an object");
+  return Object.fromEntries(
+    Object.entries(value).map(([id, raw]) => {
+      if (!id.trim() || id.length > 128 || /[\r\n\0]/.test(id))
+        throw new Error("case route ID must be a bounded nonempty line");
+      if (!raw || typeof raw !== "object" || Array.isArray(raw))
+        throw new Error("case route must be a model/effort object");
+      const route = raw as Record<string, unknown>;
+      if (Object.keys(route).some((key) => key !== "model" && key !== "effort"))
+        throw new Error("case route must contain only model and effort");
+      return [
+        id,
+        {
+          model: routeValue(route.model, "case route model"),
+          effort: routeValue(route.effort, "case route effort"),
+        },
+      ];
+    }),
+  );
+}
+
+export function suiteCaseRoutes(value: unknown): CaseRoutes {
+  if (value === undefined) return {};
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    Buffer.byteLength(JSON.stringify(value)) > 64 * 1024
+  )
+    throw new Error("case_routes must be a bounded harness map");
+  return Object.fromEntries(
+    Object.entries(value).map(([harness, routes]) => {
+      if (harness !== "codex" && harness !== "claude")
+        throw new Error("case_routes must name codex or claude");
+      return [harness, caseRouteMap(routes)];
+    }),
+  );
+}
 
 function routeValue(value: unknown, label: string): string {
   if (
@@ -27,7 +71,13 @@ function modelOverrides(value: unknown) {
 }
 
 export function modeRouteConfig(mode: Record<string, unknown>) {
+  if (
+    mode.apply_case_routes !== undefined &&
+    typeof mode.apply_case_routes !== "boolean"
+  )
+    throw new Error("apply_case_routes must be boolean");
   return {
+    ...(mode.apply_case_routes === true ? { applyCaseRoutes: true } : {}),
     ...(mode.model_by_harness === undefined
       ? {}
       : { modelByHarness: modelOverrides(mode.model_by_harness) }),
@@ -37,13 +87,34 @@ export function modeRouteConfig(mode: Record<string, unknown>) {
   };
 }
 
+function selectedCaseRoute(
+  enabled: boolean | undefined,
+  harness: Harness,
+  caseId: string,
+  caseRoutes: CaseRoutes,
+) {
+  if (!enabled) return undefined;
+  const routes = caseRoutes[harness];
+  if (!routes)
+    throw new Error(`mode requests case routes but none exist for ${harness}`);
+  return Object.hasOwn(routes, caseId) ? routes[caseId] : undefined;
+}
+
 export function requestedCandidateRoute(
   mode: ReturnType<typeof modeRouteConfig>,
   harness: Harness,
+  caseId: string,
+  caseRoutes: CaseRoutes,
 ): CandidateRoute {
+  const route = selectedCaseRoute(
+    mode.applyCaseRoutes,
+    harness,
+    caseId,
+    caseRoutes,
+  );
   return {
-    model: mode.modelByHarness?.[harness] ?? null,
-    effort: mode.effort ?? null,
+    model: route?.model ?? mode.modelByHarness?.[harness] ?? null,
+    effort: route?.effort ?? mode.effort ?? null,
   };
 }
 

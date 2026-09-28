@@ -394,6 +394,16 @@ contradictory candidate model or effort evidence makes the cell unsuccessful.
 Comparisons across different candidate routes remain ineligible for matched
 ablation deltas.
 
+Suite `case_routes` maps supported harness names to exact case IDs and complete
+model/effort routes. A mode enables these parent candidate overrides with
+`apply_case_routes: true`. A selected case's route takes precedence over that
+mode's candidate overrides; cases absent from the map keep the mode or CLI
+route. An omitted or false flag leaves the map inactive. Grader routes and
+owner-route expectations stay independent. Malformed maps and an enabled mode
+without a map for a selected harness fail before any cell starts. The manifest
+retains the declared maps, selected request, and independently observed route;
+dry results remain unassessed and contradictory retained routes fail closed.
+
 The Sevro suite route defaults an omitted `harnesses` declaration to Claude
 and Codex, in that order. Repeatable `--harness` and `--mode` options select
 supported hosts and named modes before any cell starts. Repeatable `--case`

@@ -354,8 +354,9 @@ This suite route accepts a nonempty, unique `harnesses` list containing `codex`,
 named modes. Repeatable `--case <substring>` filters replace the suite filters
 for a focused run. Selection errors fail before any cells start. It accepts
 `owner_evaluation`, `without_skill`, `model_by_harness`, `effort`, `condition`,
-`condition_by_harness`, `skill_dir`, `mount_plugin_skills`, and
-`require_evaluation_records`, and `effective_owner_routes` in each mode. Candidate model and effort overrides require Sevro's bundled hosts;
+`condition_by_harness`, `skill_dir`, `mount_plugin_skills`,
+`require_evaluation_records`, `effective_owner_routes`, and `apply_case_routes`
+in each mode. Candidate model and effort overrides require Sevro's bundled hosts;
 they replace the corresponding options in the host route and preserve the
 semantic and advisory routes. The manifest records requested routes and
 validates the actual model and effort against retained Sevro evidence.
@@ -389,6 +390,27 @@ unknown; unmounted controls supply no measurements. Named ablations write
 token, and cost deltas; missing measurements stay unknown. Missing cells or
 mismatched identity dimensions invalidate the comparison. Other legacy
 goal-route and dimension overrides still require migration.
+
+Suite `case_routes` maps `codex` or `claude` to exact case IDs and complete
+`{model, effort}` routes. Enable it in a mode with `apply_case_routes: true`.
+The selected case route overrides that mode's parent candidate model and effort;
+unmapped cases retain the mode or CLI defaults. An omitted or false flag keeps
+the map inactive. Grader routes and effective owner-route assertions are
+independent. Malformed maps and an enabled mode without a selected harness map
+fail before any cells start. The manifest retains `caseRoutes`, each cell's
+`requestedRoute`, and verified actual route evidence. Dry results remain
+unassessed. For example:
+
+```yaml
+case_routes:
+  codex:
+    orchestration-routing-localized-mechanical:
+      { model: gpt-5.6-luna, effort: medium }
+modes:
+  direct:
+    owner_evaluation: passive
+    apply_case_routes: true
+```
 
 Mode `skill_dir` selects a candidate override relative to the suite file.
 `mount_plugin_skills: true` includes its sibling set. Selected override inputs
