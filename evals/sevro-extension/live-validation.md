@@ -1,5 +1,33 @@
 # Focused live validation
 
+## Claude guide control absence
+
+On 2026-09-28, the existing `guide-mutation` case ran through Sevro's bundled
+Claude host with native repository scope, `--claude-project-settings`, one
+passive trial, `claude-sonnet-5` at low effort, and shell isolation. Semantic
+grading used the separate Codex route, `gpt-5.6-terra` at medium effort.
+
+The fresh run returned exit code `0`, execution `completed`, grading
+`completed`, and task `passed`. All eight checks passed: four shell checks,
+disclosure, nearby evidence, semantic grading, and the guide's owner and
+goal-control absence assertion. The last check uses the complete, sourced
+`sevro.host.native-controls` observation. Positive activation passed separately
+from the native Claude repository-command receipt.
+
+The retained run ID is `81c9552e-e599-4611-8574-2eb6de343363`. The SHA-256
+of its `run.json` is
+`7e5eff7ab57860046c68abf68c70d5e29e9726e670f2ced87294f268d1cc9c71`.
+Evidence records Sevro revision `ce384800fb855ca22bf9de01423b6472394b0eca`
+and Darrow revision `0fae56e6df99bf9837cae991bcd1ffe899be2fe6`, both
+without dirty patches.
+
+The full Sevro suite passed 204 tests. Darrow's installed Sevro `0.1.0-dev.0`
+tarball gate passed all 70 public-command parity tests. Those tests cover
+Codex and Claude control labels, attempted agent and goal launches,
+contradictory receipts, and unavailable observations. This establishes one
+fresh Claude guide case and deterministic control-check parity. Full live
+suite coverage and the published release pin remain pending.
+
 ## Claude repository dispatch and disclosure
 
 On 2026-09-28, the existing `guide-explicit` case ran through Sevro's bundled
