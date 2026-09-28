@@ -13,13 +13,13 @@ Return &#96;findings&#96; to owner
 - **Evidence:** Avoid &#96;debug&#96; output
 
 ### 2. MEDIUM — ADVISORY (Spec)
-- **Location:** src/two&#95;file.js:2
+- **Location:** src/two_file.js:2
 - **Source:** objective &lt;v1&gt; &amp; details
 - **Evidence:** Keep &#91;evidence&#93; intact
 
 ## Checks
 - **PASS** (applicable) — bash check&#95;&#91;review&#93;.sh --label &#96;nightly&#96;: All tests passed
-- **NOT_APPLICABLE** (not&#95;applicable) — none: No typecheck applies
+- **NOT_APPLICABLE** (not_applicable) — none: No typecheck applies
 
 ## Risks
 - Risk &lt;one&gt; &amp; two

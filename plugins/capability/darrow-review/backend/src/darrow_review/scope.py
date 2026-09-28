@@ -273,8 +273,17 @@ def assemble(
     return names, labels, b"".join(packet for _, (_, packet) in chunks)
 
 
+def requested_base(options: ScopeOptions) -> str:
+    if options.base:
+        return options.base
+    require(options.prior_manifest, "--base is required without --prior-manifest")
+    show(options.prior_manifest)
+    base = manifest(options.prior_manifest).get("base", "")
+    require(base, "prior manifest is missing its effective base")
+    return base
+
+
 def prepare(options: ScopeOptions) -> str:
-    require(options.base, "--base is required")
     require(options.target, "--target is required")
     require(
         not options.allow_empty or options.prior_manifest,
@@ -283,6 +292,7 @@ def prepare(options: ScopeOptions) -> str:
     repo = root_directory(options.repo)
     safe_line(str(repo), "repository path")
     target = target_commit(repo, options)
+    options.base = requested_base(options)
     base = effective_base(
         repo, resolve_commit(repo, options.base, "base"), target, options.merge_base
     )

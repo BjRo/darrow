@@ -10,7 +10,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import NoReturn
 
-from . import check, provider, report, result, routing, scope, storage
+from . import check, finalization, provider, report, result, routing, scope, storage
 from .common import ReviewError, read_text, require, root_directory, serialize
 from .records import validate_result
 
@@ -90,8 +90,8 @@ def prepare_scope(args: list[str]) -> str:
     parsed = options(
         "review-scope prepare",
         args,
-        ("base", "target"),
-        ("repo", "prior-manifest"),
+        ("target",),
+        ("repo", "base", "prior-manifest"),
         ("merge-base", "staged", "unstaged", "untracked", "allow-empty"),
     )
     parsed.repo = parsed.repo or "."
@@ -161,6 +161,8 @@ def unpin_scope(args: list[str]) -> str:
 def result_command(args: list[str]) -> str:
     require(args, "Usage: review-result COMMAND FILE [FILE]")
     command, rest = args[0], args[1:]
+    if command == "finalize":
+        return finalize_result(rest)
     counts = {
         "validate": 1,
         "validate-verification": 1,
@@ -176,6 +178,18 @@ def result_command(args: list[str]) -> str:
         "Usage: review-result COMMAND FILE [FILE]",
     )
     return result_operation(command, rest)
+
+
+def finalize_result(args: list[str]) -> str:
+    parser = argparse.ArgumentParser(prog="review-result finalize", allow_abbrev=False)
+    for name in ("manifest", "draft", "output"):
+        parser.add_argument("--" + name, required=True)
+    parser.add_argument("--check", action="append", default=[])
+    parser.add_argument("--original", default="")
+    parsed = parser.parse_args(args)
+    return finalization.finalize(
+        parsed.manifest, parsed.draft, parsed.output, parsed.check, parsed.original
+    )
 
 
 def result_operation(command: str, args: list[str]) -> str:

@@ -157,6 +157,11 @@ VERIFICATION_REGRESSION = object_schema(
 )
 
 SCHEMAS = {
+    "darrow-review-check-v3": document(
+        "darrow-review-check-v3",
+        {"checks": array(CHECK, 1), "exit_code": string("0|[1-9][0-9]*")},
+        ("checks", "exit_code"),
+    ),
     "darrow-review-axis-v3": document(
         "darrow-review-axis-v3",
         {

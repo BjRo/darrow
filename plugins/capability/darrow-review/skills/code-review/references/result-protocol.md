@@ -51,7 +51,10 @@ review-state run and terminal manifest when scope preparation stopped early.
 
 ## Completed result schema
 
-Create one valid JSON object with these named fields. Replace placeholders and repeat array entries as needed:
+The completed object has these fields. Normal drafts supply only contextual
+axis judgments, sources, selected findings, risks, and the next action;
+finalization supplies the scope, captured checks, and verdict. The full schema
+also remains available for external records and terminal blocked results:
 
 ```json
 {
@@ -89,9 +92,10 @@ Create one valid JSON object with these named fields. Replace placeholders and r
 }
 ```
 
-For a resolved scope, obtain the complete `base`, `target`, and `changed_files`
-fields with `uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result scope-records "$manifest"`. Copy them into the aggregate; do not retype hashes or reconstruct the file list.
-This command validates the pinned diff and refuses incomplete scope records.
+For a resolved scope, `review-result finalize` reads `base`, `target`, and the
+complete changed-file set directly from the manifest. Do not retype them in
+the draft. `scope-records` remains a read-only inspection command and
+`validate-scope` can independently check an externally assembled record.
 
 Every applicable `checks` entry preserves the exact field values from a retained
 `darrow-review-check-v3` artifact produced beneath this scope. Coordinator prose
@@ -128,20 +132,28 @@ records. If validation reveals missing evidence, change the affected state to
 
 ## Validate and return
 
-Write the draft only beneath the scope artifact directory and run:
+Write the draft beneath the scope artifact directory and finalize it:
 
 ```sh
-uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result validate-scope "$manifest" "$result_record"
+uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result finalize \
+  --manifest "$manifest" --draft "$draft_record" --output "$result_record" \
+  [--check "$check_record" ...]
 ```
 
-This validates both the schema and the exact base, target, and complete
-changed-file set against the pinned manifest. A mismatch is an assembly error;
-recopy the authoritative scope records without changing reader judgment. For
-a terminal scope failure with no resolved manifest, retain the blocked schema
-and use `validate "$result_record"` instead. Standalone `validate` remains a
-serialization check for external records, not proof of scope binding.
+Pass every retained check file with a separate `--check`. Without captured
+commands, supply only the explicit `not_applicable` check in the draft. The
+helper validates scope, copies check records unchanged, derives the verdict,
+validates the JSON, and materializes its report. Output must belong to the
+current private review run. Applicable claims without captured files are
+refused. It preserves selected reader reasoning rather than authoring it.
 
-Correct serialization errors only. In default mode, first run:
+For a terminal scope failure or capture failure without a receipt, retain the
+honest blocked schema and use ordinary validation. A capture failure records
+the failed capture command and actual error, not invented output for the check
+that never ran. Standalone `validate` checks serialization; it does not prove
+scope binding. Use `validate-scope` when that blocked record has a resolved
+nonempty scope. For these exceptional blocked records only, materialize the
+report before the final invocation:
 
 ```sh
 review_report="$(dirname "$result_record")/review.md"
@@ -311,21 +323,23 @@ uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result valid
 
 That command validates the record and prior-verification chain. The
 fix-verification workflow also requires `validate-original` whenever the original
-comprehensive result is retained. Obtain
-the immutable objects with `original-findings`; do not retype their evidence or
-assign a new finding order. An external handoff without that artifact still
+comprehensive result is retained. Normal fix finalization accepts `--original`
+with that result, a validated immediately prior verification, or a complete
+external handoff file. It reads immutable original records directly, preserves
+legacy field absence, and binds prior/current targets from the scope manifests.
+It also copies captured checks and derives the outcome. A prior verification
+provides its checksum and history mechanically. Do not retype original
+evidence or assign a new finding order. An external handoff without that artifact still
 requires complete immutable original records, preserved exactly as supplied;
 missing original evidence requires a blocked gap.
 
 In default mode render with:
 
 ```sh
-verification_report="$(dirname "$verification_record")/verification.md"
-uv run --quiet --no-project "$backend/scripts/run_locked.py" review-report render-verification "$verification_record" >"$verification_report"
 uv run --quiet --no-project "$backend/scripts/run_locked.py" review-report render-verification "$verification_record"
 ```
 
-After confirming `verification.md` is readable and nonempty, make the second
+After confirming `verification.md` is readable and nonempty, make this
 renderer invocation the last tool command and copy its stdout verbatim as the
 entire response. A handwritten summary is incomplete. When the requester
 explicitly asks for verification JSON or machine format, return only the

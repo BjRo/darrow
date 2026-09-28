@@ -388,6 +388,398 @@ A later [single fixed-candidate run](../../evals/results/2026-09-26T09-38-22-799
 | [code-review-reviewer-route-override](../../plugins/capability/darrow-review/skills/code-review/evals/reviewer-route-override.yaml)                       | Final response preserves every canonical rendered line failed.                                                                                                                            | Mixed / uncertain | Make the canonical review checker pass deterministically first; rerun, then repair skill output if still failing. |
 | [code-review-spec-only](../../plugins/capability/darrow-review/skills/code-review/evals/spec-only.yaml)                                                   | Canonical TSV is retained beneath the review scope artifact failed. Also: final response preserves every canonical rendered line.                                                         | Mixed / uncertain | Make the canonical review checker pass deterministically first; rerun, then repair skill output if still failing. |
 
+#### Review follow-up: nine original failures, n:5 (2026-09-28)
+
+All nine originally failing cases were rerun against `darrow-review` **0.7.3**
+at commit `4d3ffcc`, using Codex CLI **0.156.1**, candidate
+**gpt-6-luna/medium**, five trials per case, three concurrent trials, and a
+100% threshold. Cases ran sequentially; completed failures were inspected before
+starting the next case. The semantic grader remained **gpt-5.6-luna/low**.
+Independent readers retained the plugin's configured routes: bundled
+**gpt-6-sol/xhigh**, or **gpt-5.5/xhigh** in the override case. No plugin,
+fixture, or assertion changes were made during this rerun.
+
+**Task: 24/45. Activation: 42/45. Two of nine cases passed 5/5 for both.**
+These are raw results, including the fixture and grading problems below.
+The shared review outcome and route checks separately passed **84/84**; the
+outcome checks included both Bash variants.
+
+| Case                                                                                                                       | Task | Activation | What failed                                                                                                                                                                               | Assessment                                                                                                                                                                                     | Recommendation                                                                                                                                             |
+| -------------------------------------------------------------------------------------------------------------------------- | ---: | ---------: | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Both axes](../../evals/results/review-luna-n5-2026-09-28/code-review-both-axes.json)                                      |  3/5 |        5/5 | Trial 2 returned a canonical blocked report, citing prohibited reader delegation. Trial 4 read the skill but returned prose without checks, retained artifacts, or repair guidance.       | Skill workflow. The cited host-policy interpretation cannot be independently verified from the bounded trace; other trials successfully launched readers.                                      | Investigate the shared reader-authorization and workflow entry instructions; preserve independent review and evidence requirements.                        |
+| [Progress and advisory](../../evals/results/review-luna-n5-2026-09-28/code-review-fix-verification-progress-advisory.json) |  2/5 |        3/5 | Trials 2 and 5 did not load the skill and returned prose. Trial 3 loaded it but blocked because legacy findings lacked repair-guidance fields.                                            | Skill activation and workflow. The references explicitly permit paired absence of legacy guidance fields.                                                                                      | Address implicit fix-verification selection and clarify the supported legacy handoff at the shared input gate.                                             |
+| [Resolved fixes](../../evals/results/review-luna-n5-2026-09-28/code-review-fix-verification-resolved.json)                 |  4/5 |        5/5 | Trial 3 resolved both blockers but blocked the advisory because its cited maintenance note was not supplied. Scope, both reader routes, and final rendering passed in all five trials.    | Fixture likely. The fixture supplies only the source label "maintenance note" and expects all three findings resolved. Advisory evidence-gap handling also deserves a separate contract check. | Supply the authoritative maintenance note before changing reviewer judgment or weakening the all-resolved assertion.                                       |
+| [Unavailable evidence](../../evals/results/review-luna-n5-2026-09-28/code-review-fix-verification-unavailable.json)        |  2/5 |        5/5 | Trials 1, 2, and 4 returned canonical blocked reports but substituted an authored unavailable-check description for captured check evidence; the provided command was not run.            | Skill workflow. The expected blocked decision was correct, but the required canonical capture was missing.                                                                                     | Strengthen the shared check-capture boundary so unavailable commands still produce actual retained evidence before aggregation.                            |
+| [Low noise](../../evals/results/review-luna-n5-2026-09-28/code-review-low-noise.json)                                      |  0/5 |        4/5 | Trial 1 missed activation; trial 3 loaded the skill but returned only "No findings." Trials 2, 4, and 5 completed the review but changed escaping in rendered source paths.               | Skill activation, workflow, and presentation. The substantive review assertions passed in the three copy-only failures.                                                                        | Treat selection, mandatory workflow execution, and canonical rendering as shared plugin problems; retain formatter evidence and the accepted local design. |
+| [Default presentation](../../evals/results/review-luna-n5-2026-09-28/code-review-presentation-default.json)                |  3/5 |        5/5 | Trials 2 and 3 changed the final report-link destination from `_b` to `&#95;b`. Trial 3's semantic grader also rejected the renderer's prescribed title and verdict line as repetition.   | Skill presentation plus an eval grading defect. Both failed trials independently failed canonical comparison.                                                                                  | Address report copying across the plugin. Exempt required renderer labels from the concision proposition and calibrate that check before rerunning.        |
+| [Pull request](../../evals/results/review-luna-n5-2026-09-28/code-review-pull-request.json)                                |  0/5 |        5/5 | All five reviewers flagged the newline in `ok\n` against a PR body requiring "exactly ok," while the oracle expected a passing review. Trial 1 also changed an escaped changed-file path. | Fixture defect, with a separate skill presentation failure in trial 1. Scope and read-only checks passed throughout.                                                                           | Align the PR requirement and file bytes, preserving the scope assertions; handle the copy failure through the shared presentation boundary.                |
+| [Reviewer route override](../../evals/results/review-luna-n5-2026-09-28/code-review-reviewer-route-override.json)          |  5/5 |        5/5 | None. Both configured native reader routes and canonical final rendering passed.                                                                                                          | Passing sample.                                                                                                                                                                                | Keep the current route contract and use this case as a control for later workflow changes.                                                                 |
+| [Spec only](../../evals/results/review-luna-n5-2026-09-28/code-review-spec-only.json)                                      |  5/5 |        5/5 | None. All retained reports identify the missing Anonymous fallback with advisory repair guidance.                                                                                         | Passing sample.                                                                                                                                                                                | Keep the current case as a control for implicit review selection and canonical execution.                                                                  |
+
+The common problem is broader than activation. The three activation misses
+occurred in progress/advisory (two) and low-noise (one). **Eighteen of the 21
+task failures loaded or explicitly invoked the skill.** Seven of those loaded
+trials omitted or misinterpreted workflow requirements, six altered canonical
+report text, and five failed solely on the fixture concerns described above.
+These categories describe the retained outcomes, not every private command's
+root cause. The semantic false negative overlaps a report-copy failure; fixing
+it alone would not change that trial's task result.
+
+The presentation failures share a concrete pattern: the coordinator changes
+Markdown entity escaping when copying renderer output, including source paths
+and the final artifact link. Canonical comparison already ignores blank lines,
+so these are not trailing-whitespace failures. The loaded workflow failures
+instead concern reader delegation, taking a prose shortcut, rejecting supported
+legacy findings, or replacing check capture with a description. All evaluated
+read-only and publication-boundary checks passed.
+
+Recommended sequence: first repair the PR-content ambiguity, supply the missing
+advisory source, and calibrate the concision grader. Then discuss a plugin-wide
+approach to execution and presentation before editing the skill. A description
+change alone cannot address the loaded failures. Retain reviewer isolation,
+actual check capture, immutable findings, and canonical artifact validation;
+do not make the ambiguous fixtures dictate review judgment. No solution was
+implemented in this follow-up.
+
+Raw evidence is retained in the nine linked case files. The
+[aggregate](../../evals/results/review-luna-n5-2026-09-28/overview.json) combines
+those separate fresh five-trial runs; its
+[source manifest](../../evals/results/review-luna-n5-2026-09-28/sources.json)
+records their provenance. No failed trial was replaced with a retry. The earlier
+single-trial both-axes pass and interrupted single-trial progress/advisory run
+are excluded. This rerun covers the nine historical failures, not all 30 review
+cases; it does not measure Claude Code, native Windows, or long-run reliability.
+
+#### Review follow-up: eval repairs and next options (2026-09-28)
+
+The three eval concerns above were repaired at plugin **0.7.4**. The PR body
+now explicitly requires `ok` followed by one trailing newline, matching the
+fixture file. Resolved-fixes supplies a committed maintenance note and binds
+the original advisory to its absolute path. The concision proposition permits
+the renderer's prescribed labels while requiring compact findings and checks,
+short sections, complete evidence, and no substantial free-form repetition
+or review-step narration. The corresponding eval invariants were clarified;
+the skill, runtime behavior, and canonical comparison were unchanged.
+
+The final proposition accepted **all five retained valid reports** and rejected
+**three counterexamples**: repeated findings with process narration, an
+incomplete summary, and an otherwise complete report with excessive distinct
+explanatory detail. One bounded independent challenge identified the missing
+compact-detail requirement before the final calibration. The fixture setup
+check passed separately. Calibration regrades are not fresh candidate trials.
+
+Fresh results use Codex **gpt-6-luna/medium**, CLI **0.156.1**, five trials per
+case, three concurrent trials, a 100% threshold, and the unchanged
+**gpt-5.6-luna/low** semantic-grader route:
+
+**Final fresh sample: 12/15 task and 15/15 activation. One of three cases
+passed the 100% task threshold.** These changes repair eval defects; they do
+not establish a reliable execution or presentation solution.
+
+| Case                                                                                                                  | Task | Activation | What failed                                                                                                                                                                                                           | Assessment and next step                                                                                                                                                                                                                                                                                                   |
+| --------------------------------------------------------------------------------------------------------------------- | ---: | ---------: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Pull request](../../evals/results/review-luna-eval-repairs-2026-09-28/code-review-pull-request.json)                 |  5/5 |        5/5 | None.                                                                                                                                                                                                                 | The fixture ambiguity is repaired. Preserve the passing scope, read-only, route, verdict, and canonical-report assertions.                                                                                                                                                                                                 |
+| [Resolved fixes](../../evals/results/review-luna-eval-repairs-2026-09-28/code-review-fix-verification-resolved.json)  |  4/5 |        5/5 | Trial 1 returned a validated blocked report because the current base was the broken-config commit, while the supplied prior manifest used its parent. No independent reader routes were retained.                     | Shared skill workflow ambiguity: fix verification requires the prior base but also refers to the ordinary scope table, which chooses HEAD for uncommitted changes. Clarify repair-base selection; consider deriving it mechanically from the validated prior manifest. The missing maintenance-note failure did not recur. |
+| [Default presentation](../../evals/results/review-luna-eval-repairs-2026-09-28/code-review-presentation-default.json) |  3/5 |        5/5 | Trials 1 and 3 copied the check applicability as `not&#95_applicable` rather than canonical `not&#95;applicable`, dropping the entity semicolon. All five concision assessments and substantive review checks passed. | Skill presentation: both failures change visible text, not merely equivalent encoding. Improve the shared renderer/copy boundary; retain checks that reject malformed entities.                                                                                                                                            |
+
+The base-selection assessment is grounded in the retained failed response and
+the two conflicting instruction passages, not a recovered private command
+transcript. The supplied prior manifest remains valid. The previous **24/45**
+task and **42/45** activation sample remains historical evidence; these changed
+cases do not create a fresh full-plugin result.
+
+The presentation run already underway when the independent challenge tightened
+the proposition finished **4/5 task and 5/5 activation**. Its sole failure was
+an underscore-encoding difference in the changed-file path. That
+[intermediate sample](../../evals/results/review-luna-eval-repairs-2026-09-28/code-review-presentation-default-before-compactness-check.json)
+is retained separately and excluded from the final 15-trial
+[aggregate](../../evals/results/review-luna-eval-repairs-2026-09-28/overview.json).
+The [source manifest](../../evals/results/review-luna-eval-repairs-2026-09-28/sources.json)
+records all three final runs, the intermediate sample, and calibration/probe
+paths. No failed trial was replaced. This follow-up does not measure the other
+review cases, Claude Code, or long-run reliability.
+
+The observed underscore substitutions also deserve a narrower interpretation.
+Local probes with the repository's Markdown parser show that `_b` and
+`&#95;b` produce identical displayed source paths and report-link destinations.
+Changed destinations, converting escaped literal asterisks into emphasis, and
+dropping the semicolon in a numeric reference produce different output. The
+last defect occurred in the final presentation run: `not&#95;applicable` became
+`not&#95_applicable`, changing the visible applicability text. This agrees with
+[CommonMark's character-reference rules](https://spec.commonmark.org/0.31.2/#entity-and-numeric-character-references).
+These probes establish equivalence for the demonstrated substitutions, not
+every field of each failed report or every host's renderer. The current
+complete-rendering contract still requires unmodified canonical output, so the
+copy failures remain failures under that contract.
+
+A further local probe confirms that the renderer can display
+`(not_applicable)` without encoding its underscore. CommonMark disallows
+underscore emphasis inside ordinary words; see its
+[emphasis rules](https://spec.commonmark.org/0.31.2/#emphasis-and-strong-emphasis).
+Reducing unnecessary entity syntax in ordinary labels is therefore a concrete
+renderer experiment to consider. Preserve escaping of arbitrary content that
+could alter structure; these probes do not justify globally removing escaping.
+
+Three plugin-wide approaches remain for discussion:
+
+| Approach                                                                             | Benefit                                                                                                                                                                                                                                                                     | Limitation                                                                                                                                                        |
+| ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tighten the shared comprehensive and fix-verification instructions                   | Resolve the base-selection conflict and make legacy inputs, actual check capture, and mandatory readers easier to follow.                                                                                                                                                   | Prompt-only changes still depend on the coordinator executing every gate and copying evidence accurately.                                                         |
+| Move repeatable evidence handling into narrow helpers in the existing review backend | Derive repair bases from validated prior scope, carry immutable records and actual check receipts mechanically, and validate/finalize retained evidence without model transcription. Keep source selection, contextual judgment, and native reader delegation in the skill. | Helpers reduce transfer mistakes but cannot guarantee implicit activation or prevent a prose shortcut. A separate presentation-contract decision is still needed. |
+| Return a short inline verdict and link to the full retained report                   | Avoid copying a long report through the final-response channel while preserving the artifact.                                                                                                                                                                               | Changes the current promise of a complete inline report and requires updates to consumers and composition evals.                                                  |
+
+Recommendation: pursue the helper approach, starting with repair-scope
+preparation and evidence assembly inside this independently installable
+plugin, and test a renderer that avoids unnecessary escaping of safe labels.
+Separately discuss deterministic comparison of parsed Markdown
+structure, text, and link destinations for human output, retaining exact
+canonical artifact validation. This would require an explicit presentation
+contract change; it must reject omitted content, changed links, and changed
+markup, and must not decode whole Markdown strings indiscriminately. Test
+compatibility with the host renderer and the verification consumer before
+adoption. It would address representation differences rather than prove better
+activation or execution, and it would correctly reject the malformed numeric
+references observed above. No product solution has been implemented yet.
+
+#### Review follow-up: helper implementation, n:5 (2026-09-28)
+
+The approved helper approach is implemented in `darrow-review` **0.8.0**.
+Repair scope inherits the effective base from the validated prior manifest.
+The new `review-result finalize` command copies retained scope and check
+receipts, preserves authoritative original findings and verification history,
+derives the outcome, validates the completed record, and materializes the report.
+The coordinator still supplies contextual judgment and reader findings.
+Comprehensive review and repair verification both use this path. Independent
+native readers, read-only boundaries, complete inline reports, and exact
+canonical comparison remain required. Safe identifiers such as
+`not_applicable` now remain literal; hostile Markdown still receives escaping.
+
+The [invariants](../specs/code-review.md) were updated before implementation.
+Both plugin manifests, the backend project, and its lock declare **0.8.0**.
+No runtime dependency or eval-runner change was introduced.
+
+All nine historical failure cases were rerun on the working-tree version
+above, with Codex CLI **0.156.1**, candidate **gpt-6-luna/medium**, five trials
+per case, three concurrent trials, and a 100% threshold. Cases ran sequentially;
+failures were inspected before moving on. The semantic grader remained
+**gpt-5.6-luna/low**. Native readers retained **gpt-6-sol/xhigh**, or the
+configured **gpt-5.5/xhigh** in the override case. All **45 trials** completed;
+no failed trial was replaced and no implementation changed during these runs.
+
+**Task: 30/45. Activation: 43/45. Two of nine cases passed 5/5 for both.**
+All evaluated read-only and publication-boundary checks passed.
+
+| Case                                                                                                                            | Task | Activation | What failed                                                                                                                                                                                                                                                                | Assessment                                                                                                                                                                           | Recommendation                                                                                                                                                     |
+| ------------------------------------------------------------------------------------------------------------------------------- | ---: | ---------: | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [Both axes](../../evals/results/review-luna-helpers-2026-09-28/code-review-both-axes.json)                                      |  2/5 |        4/5 | Trial 2 missed activation. Trials 3 and 5 loaded the skill but returned defect prose without retained artifacts, native readers, or repair guidance.                                                                                                                       | Skill activation and workflow. The findings alone do not satisfy the intended review contract.                                                                                       | Investigate the shared workflow entry and why a loaded skill is bypassed; preserve usable guidance and canonical evidence.                                         |
+| [Progress and advisory](../../evals/results/review-luna-helpers-2026-09-28/code-review-fix-verification-progress-advisory.json) |  5/5 |        5/5 | None. Legacy findings were accepted, blocker progress kept convergence open, and advisory findings remained nonblocking.                                                                                                                                                   | Passing sample; the earlier activation and legacy-input problems did not recur.                                                                                                      | Retain this case as a repair-verification control.                                                                                                                 |
+| [Resolved fixes](../../evals/results/review-luna-helpers-2026-09-28/code-review-fix-verification-resolved.json)                 |  3/5 |        5/5 | Trial 1 returned a canonical blocked artifact without launching readers, citing an active delegation constraint. Trial 4 cleared all findings but changed source paths and the report link, including dropping the `folders` path segment.                                 | Loaded workflow and presentation failures. The exact cited host policy is unavailable in the bounded trace. The prior-base mismatch did not recur.                                   | Resolve the shared reviewer-authorization boundary; treat altered paths as substantive copying errors that exact comparison must continue to reject.               |
+| [Unavailable evidence](../../evals/results/review-luna-helpers-2026-09-28/code-review-fix-verification-unavailable.json)        |  4/5 |        5/5 | Trial 2 returned prose, incorrectly assumed external-check.sh was absent, and retained neither the required check receipt nor verification report. The fixture command exists and exits 127 to report an unavailable external verifier.                                    | Skill workflow and an unsupported availability assumption. The other four trials captured the command and returned valid blocked reports.                                            | Run the requested check and retain its actual unavailable-verifier evidence; helpers enforce receipts only when invoked.                                           |
+| [Low noise](../../evals/results/review-luna-helpers-2026-09-28/code-review-low-noise.json)                                      |  1/5 |        5/5 | Trial 1 returned only “No findings.” Trials 2 and 5 produced blocked reader evidence without launching readers; trial 5 cited a delegation prohibition. Trial 3 completed substantive review but changed underscore escaping in paths. Trial 2 also changed path escaping. | Loaded workflow and presentation failures; a possible host-policy conflict remains unverified. The formatter was captured in the retained-artifact trials.                           | Address shared execution and reader authorization first, then report copying; keep the formatter as check evidence and the accepted local design.                  |
+| [Default presentation](../../evals/results/review-luna-helpers-2026-09-28/code-review-presentation-default.json)                |  3/5 |        5/5 | Trials 1 and 4 changed the changed-file path from canonical `&#95;b` to `_b`. Substantive checks and all five concision assessments passed.                                                                                                                                | Skill presentation under the current exact-copy contract. These particular encodings render equivalently; the malformed applicability entity from the previous sample did not recur. | Discuss path presentation or a narrowly defined rendered-equivalence contract separately; preserve checks for changed paths, lost content, and malformed entities. |
+| [Pull request](../../evals/results/review-luna-helpers-2026-09-28/code-review-pull-request.json)                                |  4/5 |        5/5 | Trial 4 launched both readers but reported a standards record with an invalid sources array, then returned a canonical blocked report. The corrected newline requirement passed.                                                                                           | Native-reader handoff failure, based on the coordinator's retained validation report; the private reader record is unavailable. The fixture ambiguity did not recur.                 | Inspect the reader packet and require its owning reader to validate or correct it before handoff; retain truthful blocking for invalid evidence.                   |
+| [Reviewer route override](../../evals/results/review-luna-helpers-2026-09-28/code-review-reviewer-route-override.json)          |  5/5 |        5/5 | None. Both configured routes and complete canonical output passed.                                                                                                                                                                                                         | Passing sample.                                                                                                                                                                      | Keep the route control and independent reviewer boundary.                                                                                                          |
+| [Spec only](../../evals/results/review-luna-helpers-2026-09-28/code-review-spec-only.json)                                      |  3/5 |        4/5 | Trial 4 loaded the skill but returned only the defect description; trial 5 missed activation. Both identified the missing Anonymous fallback but omitted retained review artifacts.                                                                                        | Skill activation and workflow. This previously passing control is unstable in the fresh sample.                                                                                      | Include the same shared entry and execution repair used for both-axes; correct defect detection alone is insufficient.                                             |
+
+The remaining problem is primarily execution after selection. **Thirteen of
+15 failed trials loaded the skill.** Their primary failure categories were:
+five prose shortcuts, three blocked reports without launched readers, one
+invalid reader handoff, and four copy-only failures. The other two trials
+missed activation. Low-noise trial 2 additionally overlaps the copying category.
+These counts describe retained outcomes; they do not prove every private
+command's root cause.
+
+The new helpers provide validated scope, check transfer, and immutable finding
+history when used. They do not force the coordinator to start that workflow,
+authorize a host-prohibited action, make a reader's packet valid, or transfer
+tool stdout directly into the final assistant response. No wrong repair base,
+rejection of legacy guidance absence, or malformed applicability entity was
+observed in this sample. Exact copying of paths remains unstable.
+
+The previous baseline was **24/45 task and 42/45 activation**. This follow-up
+also includes the earlier eval repairs, and individual cases vary: resolved
+fixes fell from 4/5 to 3/5, both-axes from 3/5 to 2/5, and spec-only from 5/5
+to 3/5. The aggregate increase is not a controlled estimate of the helpers'
+effect. The repaired PR case separately passed 5/5 before this follow-up and
+now passed 4/5 because of the reader handoff. Five-trial samples establish
+observed behavior, not guaranteed stability.
+
+Recommended next discussion: first inspect the effective host delegation
+policy and loaded-trial entry behavior across both review modes. Resolve that
+boundary before adding case-specific wording or weakening the native-reader
+requirement. Then strengthen the existing reader validation handoff with its
+owning reader. Treat final presentation as a separate contract decision:
+equivalent entity encoding can be distinguished from missing path segments,
+but complete content, usable links, literal hostile content, and the currently
+required exact report must remain protected until that decision is accepted.
+The helper implementation alone has not reached 5/5 reliability.
+
+Raw trials are retained in the nine linked case files. The
+[aggregate](../../evals/results/review-luna-helpers-2026-09-28/overview.json) and
+[source manifest](../../evals/results/review-luna-helpers-2026-09-28/sources.json)
+record the final sample, case digests, result checksums, and routes. This is a
+nine-case Codex/macOS follow-up with native readers; the remaining plugin cases
+and other hosts were outside this run.
+
+The observed test-first slices below ran from
+`plugins/capability/darrow-review/backend`:
+
+1. Prior-base inheritance.
+
+   Red — `uv run --quiet --frozen --group dev pytest -q tests/test_cli_contract.py -k repair_scope_inherits_prior_base`: the scope CLI required `--base` despite the supplied prior manifest.
+
+   Green — `uv run --quiet --frozen --group dev pytest -q tests/test_cli_contract.py -k repair_scope_inherits_prior_base`: 1 passed.
+
+2. Scope and retained-check finalization.
+
+   Red — `uv run --quiet --frozen --group dev pytest -q tests/test_cli_contract.py -k finalization_reads_scope_and_captured_checks`: the result CLI had no finalization command.
+
+   Green — `uv run --quiet --frozen --group dev pytest -q tests/test_cli_contract.py -k finalization_reads_scope_and_captured_checks`: 1 passed.
+
+3. Authoritative legacy-finding preservation.
+
+   Red — `uv run --quiet --frozen --group dev pytest -q tests/test_cli_contract.py -k verification_finalization_preserves_external_legacy_findings`: finalization did not accept `--original`.
+
+   Green — `uv run --quiet --frozen --group dev pytest -q tests/test_cli_contract.py -k verification_finalization_preserves_external_legacy_findings`: 1 passed.
+
+4. Readable safe identifiers with literal hostile content.
+
+   Red — `uv run --quiet --frozen --group dev pytest -q tests/test_cli_contract.py -k renderer_keeps_safe_words_readable_and_hostile_markup_literal`: the renderer still encoded the underscore in `not_applicable`.
+
+   Green — `uv run --quiet --frozen --group dev pytest -q tests/test_cli_contract.py -k renderer_keeps_safe_words_readable_and_hostile_markup_literal`: 1 passed.
+
+**Implementation gates passed:** the focused scope, finalization, CLI, and
+golden-report suite passed **48 tests**. `bun run check:python` passed across
+all registered packages; the review package passed **253 tests**, Ruff,
+formatting, and strict typing, with **97.50% statement coverage** and
+**95.59% branch coverage**. `bun run check:docs` passed. The fresh copied
+plugin passed all seven entrypoints with the provider transcript mocked.
+One fresh-context skill audit and the shared inspector found no material
+issues. These checks do not replace live native-reader evidence.
+
+#### Review follow-up: conditional session reminder (2026-09-28)
+
+Further inspection found an **eval gap** in the preceding spec-only sample.
+Trial 2 passed the then-current checks with a valid blocked report, no findings,
+and no native reviewer launches. Thus the historical **30/45 task** count is
+the recorded outcome under those checks, not proof of 30 complete independent
+reviews. The repaired spec-only case requires Standards pass, Spec/verdict
+fail, a blocking Spec finding, semantic detection of the missing Anonymous
+fallback, and both configured native reader routes. Valid blocked reports no
+longer satisfy that seeded-defect case.
+
+The **0.8.1** candidate adds a static SessionStart reminder for review and
+repair-verification intent. It advertises the complete coordinator workflow,
+configured native readers, captured checks, and the canonical report. It
+does not initiate review or grant implementation/publication authority.
+Delegated axis readers remain within their assigned role. Codex and Claude
+have separate native hook registrations and share the same contained context.
+There is no eval-runner change or final-copy contract change.
+Codex supports a manifest-selected hook file; Claude merges its default hook
+file with manifest registrations, so the Codex config uses a non-default name
+to prevent Claude from also loading it. See the
+[Codex hook reference](https://learn.chatgpt.com/docs/hooks#plugin-bundled-hooks)
+and [Claude plugin manifest reference](https://code.claude.com/docs/en/plugins-reference#hooks).
+
+The comparison uses identical Codex candidates except for hook registrations
+and resources. Each of five implicit positive cases and two implementation
+negative controls runs **n:5 per arm**, with **gpt-6-luna/medium**, three jobs,
+and a 100% threshold. Reader routes remain **gpt-6-sol/xhigh**. Activation,
+actual native axis launches, canonical-artifact gates, and task outcome are
+reported separately. A bounded external observer records whether the native
+developer context contains the reminder marker before fixture cleanup; it
+does not alter the candidate, runner, or grading.
+
+A preliminary spec-only run is preserved separately. It exposed a semantic
+grader error: desired post-repair behavior in the report's resolution-evidence
+field was treated as a contradictory claim about current behavior. The
+proposition now distinguishes current diagnosis from desired repair behavior.
+Calibration accepts the historical valid response and the preliminary valid
+diagnosis, and rejects the historical blocked response and an unrelated Spec
+finding. These regrades are calibration evidence, not fresh behavior trials.
+The preliminary run's raw outcome was **1/5 task, 5/5 activation, 5/5 native
+axis launches, and 5/5 valid canonical artifacts**. Three trials had that
+grader error; two failed exact copying, with one overlapping trial. One copy
+failure changed underscore escaping; the other truncated the target
+fingerprint. This preliminary sample is excluded from the matched totals.
+
+Implementation checks passed: both Bash versions emitted the exact context,
+including a simulated Claude environment without `PLUGIN_ROOT`; Claude
+manifest validation; documentation validation; and all registered Python
+quality gates, including **253 review backend tests**. A bounded fresh-context
+audit identified the Claude root-variable packaging issue, which was repaired
+before freezing the comparison candidates. Live Claude hook behavior and
+PowerShell execution remain unverified.
+
+The matched comparison completed **70/70 trials** without stopping or replacing
+failures. The frozen case digests match across arms, and candidate file hashes
+confirm that only hook registrations and resources differ. The reminder marker
+was observed in native developer context for **35/35 hook-on coordinators** and
+**0/35 hook-off coordinators**. No delegated reader started another review.
+
+Each table entry is **hook off / hook on**, with five trials per arm. “Routed
+axes” counts trials with native launch evidence for every applicable axis at
+`gpt-6-sol/xhigh`; it is separate from activation and valid artifact creation.
+
+| Positive case                              |              Task |        Activation |       Routed axes | Valid canonical artifact |
+| ------------------------------------------ | ----------------: | ----------------: | ----------------: | -----------------------: |
+| `code-review-spec-only`                    |     3/5 / **5/5** |     3/5 / **5/5** |     3/5 / **5/5** |            3/5 / **5/5** |
+| `code-review-both-axes`                    |         3/5 / 3/5 |     4/5 / **5/5** |     3/5 / **5/5** |            4/5 / **5/5** |
+| `code-review-low-noise`                    |         3/5 / 3/5 |         5/5 / 5/5 |         5/5 / 5/5 |                5/5 / 5/5 |
+| `code-review-fix-verification-resolved`    |         5/5 / 5/5 |         5/5 / 5/5 |         5/5 / 5/5 |                5/5 / 5/5 |
+| `code-review-fix-verification-unavailable` |     3/5 / **5/5** |         5/5 / 5/5 |         3/5 / 2/5 |            3/5 / **5/5** |
+| **All positive trials**                    | **17/25 / 21/25** | **22/25 / 25/25** | **19/25 / 22/25** |        **20/25 / 25/25** |
+
+The unavailable-evidence case deliberately expects a blocked result. Every
+hook-on trial ran the required script, retained its exit-127 receipt, and
+returned the complete canonical blocked verification report. Trials 2, 3,
+and 5 stopped before launching readers; trials 1 and 4 launched one Standards
+reader. These are task passes for evidence-backed blocking, **not evidence of
+five independent fix reviews**. Hook-off trials 1, 4, and 5 also retained blocked
+reports and launched one reader each. The current workflow permits a blocked
+terminal result without a coordinator's repair judgment, but the boundary
+between blocking at check capture and proceeding to delegated verification
+needs clarification before tightening that case's launch assertion.
+
+Across the other four positive cases, native reviewers launched for every
+applicable axis in **20/20 hook-on trials versus 16/20 hook-off trials**. All
+20 hook-on trials loaded the complete skill and retained valid artifacts;
+task checks passed **16/20 versus 14/20**. This reviewable subset explains the
+delegation effect; the all-positive totals above retain the unavailable case.
+
+| Negative control                                         | Task, off / on | Skill avoided, off / on | Review artifacts, off / on | Native readers, off / on |
+| -------------------------------------------------------- | -------------: | ----------------------: | -------------------------: | -----------------------: |
+| Ordinary implementation, without an explicit review veto |      5/5 / 5/5 |               5/5 / 5/5 |                  0/5 / 0/5 |                    0 / 0 |
+| Edit request explicitly excluding review                 |      5/5 / 5/5 |               5/5 / 5/5 |                  0/5 / 0/5 |                    0 / 0 |
+
+Transcript inspection classifies all **12 failed task trials**:
+
+| Failure cluster                                   | Cases and trials                                                           | What failed                                                                                                                                                                                                                  | Assessment and next action                                                                                                                                                                                                                                        |
+| ------------------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Skill not loaded                                  | Hook off: spec-only 3 and 5; both-axes 4                                   | Prose identified the seeded defects, but there was no verified skill read, native reader launch, or canonical artifact.                                                                                                      | Skill/host activation limitation. Retain the conditional reminder; these misses were absent in the hook sample.                                                                                                                                                   |
+| Loaded skill, unsupported availability conclusion | Hook off: both-axes 3                                                      | A valid blocked report claimed readers were unavailable, with no observed native launch attempt or seeded findings. The exact host policy was not retained.                                                                  | Skill execution gap; availability reasoning remains unverified. Preserve actual host rejection evidence and distinguish it from an unattempted launch.                                                                                                            |
+| Loaded skill, fix-verification workflow skipped   | Hook off: unavailable 2 and 3                                              | Trial 2 explicitly did not run the required check and suggested resolution by inspection. Trial 3 incorrectly rejected the supported legacy external handoff. Neither retained a verification artifact or launched a reader. | Skill execution gap. The hook sample completed check capture and canonical blocking in all five trials. Preserve that complete-workflow reminder.                                                                                                                 |
+| Canonical report copied with different escaping   | Hook on: both-axes 3 and 5, low-noise 2 and 4; hook off: low-noise 2 and 3 | Both configured readers ran and substantive checks passed. The final answer changed canonical underscore entity escaping in source or scope paths; the retained artifacts were valid.                                        | Skill presentation failure under the existing exact-copy contract. These six are legitimate current-contract failures, even though the paths render equivalently. Address delivery of the canonical report across the plugin before making case-specific changes. |
+
+**Recommendation:** retain the SessionStart reminder in **0.8.1**. This sample
+supports improved selection and complete workflow execution, with no observed
+ordinary-implementation boundary regression. It does not establish guaranteed
+activation or a full-plugin 5/5 result. The next discussion should focus on
+mechanically reliable canonical-report delivery: all **four remaining hook-on
+task failures** share that presentation boundary, rather than missing reviewer
+launches. Separately agree on whether a real unavailable required check should
+stop before delegation, then encode that policy in the skill and its eval.
+Neither follow-up is implemented here; the exact-copy contract remains intact.
+
+The local [comparison overview](../../evals/results/review-hook-ab-2026-09-28/overview.md)
+links every raw result and the trial assessments. Its colocated `overview.json`,
+`summary.json`, `variants.json`, `protocol.json`, metrics, and hook receipts
+retain hashes, native launch observations, and provenance. Results are
+gitignored; this Markdown section preserves the conclusions in the repository.
+The earlier preliminary five trials remain excluded and retained. These
+measurements cover the seven selected cases on Codex CLI **0.156.1**, not every
+case in the plugin or live Claude/Windows execution.
+
 ### darrow-skill-authoring
 
 | Case                                                                                                                                            | What failed                                                                                                       | Assessment                                  | Recommended next step                                                                                                                                                                                                                                                                            |

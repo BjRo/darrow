@@ -14,6 +14,11 @@ fixture:
           # Repository instructions
 
           DEBUG must remain false. Run `bash check.sh` for config changes.
+        maintenance-note.md: |
+          # Maintenance note
+
+          Remove the obsolete LEGACY export from src/config.js. Retaining it is
+          an advisory maintenance finding; it does not block convergence.
         src/config.js: |
           export const DEBUG = false;
           export const TIMEOUT_MS = 2500;
@@ -54,7 +59,7 @@ fixture:
         "original_findings": [
             {"key": f"standards:1:{target}", "axis": "standards", "order": "1", "severity": "high", "disposition": "blocking", "location": "src/config.js:1", "source": f"{repo}/AGENTS.md", "evidence": "DEBUG remained enabled"},
             {"key": f"spec:2:{target}", "axis": "spec", "order": "2", "severity": "high", "disposition": "blocking", "location": "src/config.js:2", "source": "requirement: TIMEOUT_MS must be 2500", "evidence": "TIMEOUT_MS was 1000"},
-            {"key": f"spec:3:{target}", "axis": "spec", "order": "3", "severity": "low", "disposition": "advisory", "location": "src/config.js:3", "source": "maintenance note", "evidence": "LEGACY was retained"},
+            {"key": f"spec:3:{target}", "axis": "spec", "order": "3", "severity": "low", "disposition": "advisory", "location": "src/config.js:3", "source": f"{repo}/maintenance-note.md", "evidence": "LEGACY was retained"},
         ],
         "attempted": [
             f"standards:1:{target}", f"spec:2:{target}", f"spec:3:{target}",

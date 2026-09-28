@@ -10,6 +10,30 @@ Review is explicitly requested, either directly or as a selected clause in a
 larger goal contract. The plugin does not trigger merely because an agent edited
 code.
 
+### Session reminder
+
+A plugin-local SessionStart hook adds a short, conditional reminder to load
+`code-review` for review and repair-verification requests, launch its configured
+independent readers, and complete its canonical report. Delegated axis readers
+stay within their assigned role. The reminder does not initiate review or grant
+authority for implementation or publication.
+
+Codex uses Bash on Unix and PowerShell on Windows. Claude has its own Bash hook
+registration. Native hook trust must be enabled in the host. The coordinator
+still launches reviewers through native tools; this static reminder cannot
+override host restrictions.
+
+In a 70-trial Codex comparison at `gpt-6-luna/medium`, positive activation was
+**25/25 with the reminder versus 22/25 without it**. Across the four cases with
+available review evidence, all configured native reviewer axes launched in
+**20/20 versus 16/20** trials. Both arms avoided review on **10/10** ordinary
+implementation controls. Task passes were **21/25 versus 17/25**; the four
+remaining reminder-enabled failures changed escaping when copying the canonical
+report. This is a measured improvement, not a guarantee of 5/5 across the plugin.
+Live Claude and Windows hook execution remain unverified. See the
+[evaluation findings](../../../docs/research/gpt-6-luna-evals-issue-228.md#review-follow-up-conditional-session-reminder-2026-09-28)
+for the case breakdown, blocked-check results, and retained failures.
+
 ## What it provides
 
 ### `code-review`
@@ -91,6 +115,10 @@ discovered later unless the repair directly caused it.
 Resolves and snapshots the requested review scope. It accounts for committed,
 staged, unstaged, renamed, deleted, and untracked paths as appropriate so every
 reviewer examines the same immutable change packet.
+For fix verification, `prepare --prior-manifest <absolute-scope.json>` derives
+the effective base from that validated manifest when `--base` is omitted.
+An explicitly different base is refused. The current target and working-tree
+layers still come from the requested repair.
 
 ### Review state and cleanup
 
@@ -132,6 +160,22 @@ cross-axis keys; `validate-original` checks a follow-up against that retained
 comprehensive result, including advisory entries and exact source/evidence text,
 repair guidance, and resolution evidence. The guidance fields are a paired
 additive extension; legacy v1 records without them remain valid.
+
+`finalize --manifest <scope.json> --draft <draft.json> --output <result.json>`
+copies scope identity and captured checks from retained files, derives the
+verdict, validates the result, and materializes its complete Markdown report.
+Repeat `--check <absolute-check.json>` for each captured command. Applicable
+checks require retained receipts; inapplicability remains an explicit draft
+decision. For fix verification, use `verification.json` and add `--original`
+with the original comprehensive result, immediately prior verification, or
+complete external handoff. The helper preserves immutable original findings,
+legacy guidance absence, target bindings, and prior-verification history.
+It writes only inside the current private review run. Readers still own
+judgment; the coordinator still chooses sources, checks, and accepted findings.
+
+The human renderer keeps ordinary identifiers such as `not_applicable` readable
+while escaping arbitrary content that could alter Markdown structure. The final
+response continues to contain the complete canonical report and artifact link.
 
 ### Reviewer routes
 

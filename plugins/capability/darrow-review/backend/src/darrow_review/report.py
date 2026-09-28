@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections import Counter
 from pathlib import Path
 
@@ -59,12 +60,14 @@ ESCAPES = str.maketrans(
 
 
 def escape(value: str) -> str:
-    return (
-        value.translate(ESCAPES)
-        .replace("\r", "\\r")
-        .replace("\n", "\\n")
-        .replace("\t", "\\t")
+    # CommonMark does not recognize underscore emphasis inside ordinary words.
+    # Keep those identifiers readable while escaping every surrounding delimiter.
+    chunks = re.split(r"([^\W_]+(?:_[^\W_]+)+)", value)
+    escaped = "".join(
+        chunk if index % 2 else chunk.translate(ESCAPES)
+        for index, chunk in enumerate(chunks)
     )
+    return escaped.replace("\r", "\\r").replace("\n", "\\n").replace("\t", "\\t")
 
 
 def guidance(item: dict[str, str], prefix: str = "") -> str:

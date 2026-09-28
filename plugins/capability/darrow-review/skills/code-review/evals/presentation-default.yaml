@@ -58,7 +58,11 @@ semantic_output_checks:
   - name: review is result first concise and complete
     proposition: >-
       The Markdown response puts the verdict and next action before detailed
-      findings, checks, risks, scope, and sources. It uses direct and familiar
-      language without repeating the conclusion or narrating the review
-      process, while retaining every finding, check, risk, scope field, source,
-      and safety boundary from the validated review result.
+      findings, checks, risks, scope, and sources. Its free-form content uses
+      direct and familiar language, compact findings and checks, and short sections
+      without substantial repetition of conclusions or narration of review steps.
+      The prescribed title, verdict and finding-count
+      line, section headings, final artifact link, and brief safety boundaries are
+      permitted and do not count as unwanted repetition. The detailed report
+      retains findings, check results, risks, scope, and sources; a short summary
+      that omits those sections does not satisfy this proposition.

@@ -211,7 +211,9 @@ unique `check-N.json` beneath the scope artifact directory and run:
 uv run --quiet --no-project "$backend/scripts/run_locked.py" review-check run --output "$check_record" --command "$literal_command"
 ```
 
-Read the retained `darrow-review-check-v3` object and preserve its `checks` entry values exactly in the aggregate result and reader evidence. Never infer,
+Read the retained `darrow-review-check-v3` object for reader evidence and pass
+its absolute path to finalization. The helper copies its `checks` entries into
+the aggregate. Never infer,
 restate, or override its status from memory. Never execute an applicable
 command directly: `review-check` is its sole execution boundary. Exit 0 is
 `pass`, an ordinary nonzero exit is `fail`, and an unavailable command is
@@ -281,22 +283,28 @@ Different repair advice is not a reason to merge two findings and synthesize a
 third recommendation. For a duplicate, retain one complete reader-authored
 record. Legacy records may lack guidance; do not manufacture it.
 
-Assemble the JSON result beneath the scope artifact directory. Copy its base,
-target, and `changed_files` fields using `scope-records`; never retype their
-identifiers. Run `validate-scope` with the pinned manifest and result before
-rendering, as specified in the result protocol. A schema-only pass cannot
-establish scope binding.
-For the default human presentation, materialize and validate the handoff:
+Write `draft.json` beneath the scope artifact directory with the selected
+reader findings, axis states and sources, risks, and authorized `next_action`.
+Keep reader reasoning unchanged. Omit base, target, changed files, verdict,
+and captured checks; the finalizer owns those fields. If no command applies,
+include the explicit `not_applicable` check in the draft.
+
+Finalize from the pinned manifest and every retained check file:
 
 ```sh
-review_report="$(dirname "$result_record")/review.md"
-uv run --quiet --no-project "$backend/scripts/run_locked.py" review-report render "$result_record" >"$review_report"
-test -r "$review_report" && test -s "$review_report"
+uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result finalize \
+  --manifest "$manifest" --draft "$draft_record" --output "$result_record" \
+  [--check "$check_record" ...]
 ```
 
-If either command fails, do not substitute coordinator prose; return a blocked
-evidence gap. Otherwise make this standalone renderer invocation the final tool
-call:
+Use `--output <scope-artifact-dir>/result.json`. Repeat `--check` for every
+captured command and omit it only when none applies. The helper reads scope and
+check records directly, derives the verdict, validates the complete result,
+and materializes `review.md`. It refuses applicable-check claims without a
+retained capture. Confirm its returned report is readable and nonempty.
+If capture or finalization fails, follow the result protocol's blocked-evidence
+path; never replace missing evidence with a passing claim or a prose summary.
+Then make this standalone renderer invocation the final tool call:
 
 ```sh
 uv run --quiet --no-project "$backend/scripts/run_locked.py" review-report render "$result_record"

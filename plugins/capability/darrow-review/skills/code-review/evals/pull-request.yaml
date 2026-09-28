@@ -21,7 +21,7 @@ fixture:
       esac
       base=$(git rev-parse HEAD~1)
       head=$(git rev-parse HEAD)
-      printf '{"baseRefOid":"%s","headRefOid":"%s","body":"Requirement: add health.txt containing exactly ok.","url":"https://example.invalid/pr/12"}\n' "$base" "$head"
+      printf '{"baseRefOid":"%s","headRefOid":"%s","body":"Requirement: add health.txt containing exactly ok followed by one trailing newline.","url":"https://example.invalid/pr/12"}\n' "$base" "$head"
   setup: |
     mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:

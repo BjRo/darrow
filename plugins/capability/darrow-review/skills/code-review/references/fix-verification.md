@@ -33,6 +33,11 @@ The order runs across both axes in the original result, not separately per
 axis. Preserve the complete original source and evidence text, including
 advisories and both guidance fields; a shorter paraphrase is a changed record.
 Preserve absent fields in legacy records without inventing prior advice.
+Their paired absence is supported input, not an evidence gap. Bind the
+authoritative file as `original_input`: the original comprehensive result for
+a first follow-up, the immediately prior verification for a later follow-up,
+or the caller's complete external handoff. Finalization copies its original
+records directly; do not make another shortened finding document.
 For an external handoff
 without that artifact, preserve the caller's complete immutable finding records
 and canonical order exactly as supplied. A validated prior verification also
@@ -73,10 +78,14 @@ uv run --quiet --no-project "$backend/scripts/run_locked.py" review-scope locate
 Use its one validated absolute manifest. A missing or ambiguous result blocks;
 never scan `.git` or guess a run from filenames.
 
-Prepare the exact current base/target scope with the ordinary scope table plus:
+Choose the current target and working-tree layers from the main skill's table.
+Keep the prior review's effective base: omit `--base` so the helper derives it
+from the validated prior manifest. `HEAD` describes the uncommitted target's
+parent, not a replacement review base. An explicitly supplied different base
+is inconsistent evidence and blocks.
 
 ```sh
-uv run --quiet --no-project "$backend/scripts/run_locked.py" review-scope prepare --repo "$repo" --base "$base" --target "$target" \
+uv run --quiet --no-project "$backend/scripts/run_locked.py" review-scope prepare --repo "$repo" --target "$target" \
   [working-tree flags] --allow-empty --prior-manifest "$prior_scope_manifest"
 ```
 
@@ -99,8 +108,10 @@ check_record="$(dirname "$manifest")/check-1.json" # increment for later checks
 uv run --quiet --no-project "$backend/scripts/run_locked.py" review-check run --output "$check_record" --command "$literal_command"
 ```
 
-Preserve the retained record's canonical `checks` entry values exactly in reader
-evidence and `verification.json`; never reinterpret the observed status. A check
+Preserve the retained record's canonical `checks` entry values in reader
+evidence and pass its absolute path to finalization; never reinterpret the
+observed status. An unavailable command still runs through `review-check` and
+produces its actual retained blocked capture; describing it is insufficient. A check
 failure belongs in the convergence set only as evidence for a direct
 repair-caused regression tied to an attempted original finding. An unavailable
 required check or failed evidence capture is an evidence gap and blocks
@@ -175,13 +186,12 @@ entered aggregation.
 
 ## 4. Derive and return verification
 
-Read [`result-protocol.md`](result-protocol.md) completely. Assemble
-`verification.json` beneath the current scope artifact directory. Preserve every
+Read [`result-protocol.md`](result-protocol.md) completely. Write a draft beneath
+the current scope artifact directory with the verification format, reader
+attempts and regressions, evidence gaps, and authorized next action. Preserve every
 original record and verifier state. Order direct regressions by causing
 original finding order, then by their reader order, and derive their stable
-regression keys mechanically. For a first verification write
-`previous_verification none none`. For a later verification write the prior
-artifact's Git blob checksum and absolute path, carry every prior regression
+regression keys mechanically. For a later verification, carry every prior regression
 under the same key, immutable causal fields, and original guidance and resolution
 evidence, and replace only its status,
 progress, and evidence from `regression_attempt`. New regression orders follow
@@ -189,21 +199,38 @@ all carried regression orders. Regression order is its own sequence: when no
 regression is carried, the first new regression has order `1`, regardless of
 the causing original finding's order.
 
-When the original comprehensive artifact is retained, run:
+Finalize the draft from retained inputs:
+
+```sh
+uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result finalize \
+  --manifest "$manifest" --draft "$draft_record" --original "$original_input" \
+  --output "$verification_record" [--check "$check_record" ...]
+```
+
+Use `--output <current-artifact-dir>/verification.json` and repeat `--check`
+for every captured command. Only when none applies, omit those arguments and
+include an explicit `not_applicable` check in the draft. Omit original findings,
+original/prior/current targets, outcome, and copied checks from the draft.
+The helper reads the authoritative original input, binds targets from both
+manifests, preserves legacy field absence, copies check receipts, validates
+history, and materializes the complete `verification.md`. A prior verification
+also supplies its checksum and target history mechanically. A complete external
+handoff supplies its previous-verification marker and history when applicable.
+Never substitute authored unavailable-check evidence for a retained receipt.
+
+After finalization, when the original comprehensive artifact is retained, run:
 
 ```sh
 uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result validate-original "$original_result" "$verification_record"
 ```
 
-This validates the verification schema and compares the complete original
-target and ordered findings against the comprehensive result. A mismatch is a
-serialization error: restore the helper's exact original rows without changing
-reader judgment. For a complete external handoff or validated prior verification,
-compare the original row field values and order exactly with that authoritative input and run
-ordinary `validate-verification`. Incomplete original evidence only permits a
-blocked record carrying that evidence gap.
+This also compares the completed ordered original set against that artifact.
+Incomplete original evidence permits only a validated blocked record carrying
+the actual evidence gap. If capture itself fails before a receipt exists,
+preserve the failed capture command and its error through the blocked-result
+validation path; do not claim that the original check executed.
 
-The validator derives the outcome: `clear` when all blockers and regressions
+The finalizer derives the outcome: `clear` when all blockers and regressions
 are resolved; `continue` only for materially progressing blockers or
 regressions; `no_progress` for repetition, oscillation, or unchanged failure
 evidence; and `blocked` for evidence gaps or unavailable states. Advisory state
@@ -212,13 +239,11 @@ never keeps the gate open.
 In default mode run:
 
 ```sh
-verification_report="$(dirname "$verification_record")/verification.md"
-uv run --quiet --no-project "$backend/scripts/run_locked.py" review-report render-verification "$verification_record" >"$verification_report"
 uv run --quiet --no-project "$backend/scripts/run_locked.py" review-report render-verification "$verification_record"
 ```
 
-Confirm that the report is a readable, nonempty regular file before the second
-renderer invocation. Make that second invocation the last tool command and
+Confirm the finalizer's report is a readable, nonempty regular file before this
+renderer invocation. Make this invocation the last tool command and
 copy its stdout verbatim as the entire final response. For an explicit
 verification-v3, raw JSON, or machine request, return the validated JSON bytes
 only. In composed use, return the selected presentation and exit this read-only

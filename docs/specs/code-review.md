@@ -147,7 +147,10 @@ axis and report `not_available`. Do not invent requirements.
 
 1. **CR-C1 — Intent mapping only.** The skill is model-invoked from explicit
    review intent. It MUST NOT require a router skill, external orchestrator, or
-   another Darrow plugin.
+   another Darrow plugin. A self-contained SessionStart reminder may advertise
+   that intent and the complete coordinator workflow. It must not start review,
+   grant authority, or override host restrictions. Delegated axis readers follow
+   their bounded assignment rather than starting another coordinated review.
 2. **CR-C2 — Fixed point first.** Resolve and validate the base and target
    in the requester-bound repository before starting reviewer agents. An
    explicit repository path overrides ambient Git repository-selection state
@@ -190,7 +193,10 @@ axis and report `not_available`. Do not invent requirements.
 7. **CR-C7 — Tools before taste.** Run or validate applicable deterministic
    gates through bundled check-evidence capture. Preserve each literal command,
    actual exit status, and bounded output in a canonical record, and copy its
-   check entry without reinterpretation. Suppress model findings that merely
+   check entry without reinterpretation. Normal result finalization reads
+   retained check records directly instead of requiring copied check entries;
+   applicable check claims without a retained capture are refused. A failure
+   to capture evidence remains an explicit blocked evidence gap. Suppress model findings that merely
    restate tool-enforced formatting, lint, type, or test results.
 8. **CR-C8 — Traceable Spec findings.** Every blocking Spec finding cites the
    source requirement it violates. Unsupported assumptions and personal
@@ -242,7 +248,10 @@ axis and report `not_available`. Do not invent requirements.
     sequences. Conventional `path:line` values remain bare, while hostile field
     content is escaped only as needed to preserve the report structure and its
     visible, copyable value. These presentation rules do not change the
-    canonical JSON.
+    canonical JSON. Safe fixed labels such as `not_applicable` remain readable
+    without character-reference encoding. Underscores inside ordinary words
+    may remain literal when they cannot alter Markdown structure; arbitrary
+    field content retains the escaping needed to preserve its visible value.
     Human presentation is first materialized as a nonempty canonical Markdown
     artifact beside the JSON, then emitted by one dedicated final renderer
     invocation whose complete stdout is returned without coordinator rewriting.
@@ -258,7 +267,11 @@ axis and report `not_available`. Do not invent requirements.
     inspects only attempted original findings, carried repair-caused
     regressions, the mechanically pinned prior-to-current repair delta between
     manifests with the same effective base, current checks, and their direct
-    consequences. Caller prose alone cannot establish
+    consequences. When preparing a repair, derive the effective base from its
+    validated prior manifest unless the caller supplies an explicit matching
+    base. The ordinary comprehensive scope table selects the current target
+    and working-tree layers; it does not replace the prior review's base.
+    Caller prose alone cannot establish
     repair causality. A new unrelated observation MUST NOT enter its finding
     set. Every direct regression identifies the attempted original finding
     whose repair caused it. Resolution is judged against the original violated
@@ -273,6 +286,10 @@ axis and report `not_available`. Do not invent requirements.
     disposition, and compare that complete ordered set before accepting
     follow-up output. Complete external handoffs remain supported and must
     preserve their supplied immutable records and canonical order exactly.
+    Normal finalization reads the authoritative original-result, external
+    handoff, or prior-verification file directly, and binds the current target
+    from the validated current scope. These copies do not authorize mechanics
+    to invent reader judgments, history, or repair evidence.
     Every attempted
     finding is `resolved`, `unresolved`, or `blocked`; unresolved blocking
     evidence is `progressing` or `unchanged`. Duplicate or unknown keys are
@@ -486,11 +503,18 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
 
 1. **CR-E1 — Correct triggering.** Fresh-context cases trigger for explicit
    branch, PR, fixed-point, work-in-progress, and uncommitted-change review
-   intent, but not merely because an agent has edited code.
+   intent, but not merely because an agent has edited code. Matched reminder
+   comparisons include ordinary implementation requests and report activation,
+   native reader launches, artifact completion, and task outcome separately.
 2. **CR-E2 — Axis isolation.** Seeded changes independently fail Standards,
-   Spec, both, and neither; findings remain on their assigned axes.
+   Spec, both, and neither; findings remain on their assigned axes. Positive
+   seeded-defect cases require detection of the seeded defect and the expected
+   axis outcome, alongside independent-reader evidence. A schema-valid blocked
+   result alone does not satisfy a seeded-defect detection case.
 3. **CR-E3 — Scope coverage.** Evals cover committed, staged, unstaged, and
    untracked files, invalid bases, empty diffs, and merge-base branch review.
+   Pull-request fixture content agrees with its originating body requirement,
+   including whether a trailing newline is required or permitted.
 4. **CR-E4 — Traceability.** Blocking Spec findings cite the request, and
    Standards findings cite repository guidance or label a bundled smell as a
    heuristic.
@@ -535,6 +559,9 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
     summaries is insufficient. Unavailable-check evidence is compared with the
     captured canonical check entry rather than a separately prescribed diagnostic
     sentence.
+    Cases expecting a finding to be resolved supply its cited authoritative
+    requirement; a source label without the underlying requirement is
+    insufficient fixture evidence.
 14. **CR-E14 — Reviewer route application.** Deterministic and cross-harness
     evidence covers bundled GPT-6 Sol/xhigh and Opus/xhigh defaults, repository
     overrides in a config that may also contain adaptive-delivery routes, direct
@@ -571,6 +598,10 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
     result-first clarity, concision, semantic completeness, activation, and
     read-only safety. Assertions grade meaning and ordering rather than one
     preferred prose rendering, while exact machine fields remain deterministic.
+    Concision checks allow the renderer's fixed title, verdict and finding-count
+    line, section headings, final artifact link, and brief safety boundaries.
+    They reject substantial repetition in free-form content and narration of
+    review steps rather than treating those prescribed labels as repetition.
 
 Representative issue-32 control/candidate evidence and its N=1 limitations are
 recorded in
