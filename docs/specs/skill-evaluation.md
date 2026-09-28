@@ -32,6 +32,10 @@ distinct from task outcomes and skill-value ablation.
 
 ### Repository-owned fixture sources
 
+The extraction compatibility inventory includes canonical repository-skill,
+plugin-skill, and skill-less experiment cases. Unsupported scopes remain named
+failures; omitting a scope cannot produce a valid migration gate.
+
 Repository guide fixtures exercise implementation-derived explanations against
 Darrow-owned evaluation code, such as its Sevro extension. Their snapshots must
 not copy generic runner implementation. Keep the question, source inventory,

@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { auditCaseCompatibility, resolveCase } from "./index";
+import { auditCaseCompatibility, resolveCase, selectCaseIds } from "./index";
 
 const roots: string[] = [];
 
@@ -144,4 +144,49 @@ test("resolves continuation prompts including a later skill invocation", async (
   expect(invoked.cases[0]?.extensionData["darrow.case"]).toMatchObject({
     invocation: { pluginName: "probe", skillName: "probe" },
   });
+});
+
+test("compatibility inventory includes unsupported repository skills", async () => {
+  const root = await mkdtemp(
+    join(tmpdir(), "darrow-sevro-repository-inventory-"),
+  );
+  roots.push(root);
+  const cases = join(root, ".agents/skills/probe/evals");
+  await mkdir(cases, { recursive: true });
+  const source = join(cases, "probe.yaml");
+  await writeFile(
+    source,
+    JSON.stringify({
+      id: "repository-probe",
+      invariant: "EXAMPLE-R1",
+      activation: "positive",
+      prompt: "Use the probe capability.",
+      fixture: {
+        commits: [{ message: "Initial", files: { "README.md": "fixture\n" } }],
+      },
+      checks: [],
+    }),
+  );
+  expect(await selectCaseIds(root, ["repository-"])).toEqual([
+    "repository-probe",
+  ]);
+  const inventory = await auditCaseCompatibility(root);
+  expect(inventory).toMatchObject({
+    total: 1,
+    supported: 0,
+    valid: false,
+    failures: [
+      {
+        id: "repository-probe",
+        source: await realpath(source),
+        error: expect.stringContaining("repository-skill"),
+      },
+    ],
+  });
+  await expect(
+    resolveCase({
+      projectRoot: pathToFileURL(root).href,
+      selectors: { caseIds: ["repository-probe"] },
+    }),
+  ).rejects.toThrow(/repository-skill/);
 });

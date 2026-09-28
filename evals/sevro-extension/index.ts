@@ -1387,9 +1387,18 @@ async function casePrompts(
   };
 }
 
-async function neutralCase(value: unknown, source: string, root: string) {
+function caseDefinition(value: unknown, source: string): RecordValue {
+  if (/^\.agents\/skills\/[^/]+\/evals\/[^/]+\.yaml$/.test(source))
+    throw new Error(
+      "repository-skill cases are not yet supported by the Sevro extension",
+    );
   const selected = record(value, "case");
   keys(selected, CASE_FIELDS, "case");
+  return selected;
+}
+
+async function neutralCase(value: unknown, source: string, root: string) {
+  const selected = caseDefinition(value, source);
   const id = string(selected.id, "case ID");
   const invariant = string(selected.invariant, "case invariant");
   const hostIds = caseHostIds(selected.harnesses);
@@ -2223,9 +2232,10 @@ async function caseEntries(root: string) {
   for (const pattern of [
     "evals/experiments/*/cases/*.yaml",
     "plugins/*/*/skills/*/evals/*.yaml",
+    ".agents/skills/*/evals/*.yaml",
   ]) {
     const glob = new Bun.Glob(pattern);
-    for await (const source of glob.scan({ cwd: root })) {
+    for await (const source of glob.scan({ cwd: root, dot: true })) {
       const path = await realpath(join(root, source));
       if (!within(root, path))
         throw new Error("case path escapes the project root");
