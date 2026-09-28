@@ -20,7 +20,9 @@ Implicit repository-skill cases mount their owning skill under `.agents/skills/`
 on Codex without a plugin wrapper. Explicit repository cases negotiate
 `sevro.codex.repository-invocation` and use the native `$skill` token. Their
 separate declaration binds repository scope in configuration and run identity.
-Claude mounts and provider composition remain unavailable pending their native
+Repository cases can compose supporting plugins or selected plugin skills while
+keeping the owning skill outside their packages. Ordered activation validates
+the combined set. Claude repository mounts remain unavailable pending native
 scope support.
 For a plugin-local case, `prepare` mounts the selected skill's files under
 `.agents/skills/` and excludes their exact paths from Git status. Colocated

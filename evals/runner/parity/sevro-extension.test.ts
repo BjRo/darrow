@@ -6401,6 +6401,106 @@ test("additional plugins and selected skills remain independent Codex packages",
     "provider",
     "selective",
   ]);
+  const repositoryOwner = join(root, ".agents/skills/owner");
+  await mkdir(join(repositoryOwner, "evals"), { recursive: true });
+  await writeFile(
+    join(repositoryOwner, "SKILL.md"),
+    "---\nname: owner\ndescription: Repository owner\n---\nUse this skill.\n",
+  );
+  await writeFile(
+    join(repositoryOwner, "evals/composed.yaml"),
+    JSON.stringify({
+      ...definition,
+      id: "repository-composition",
+      prompt:
+        "Use {{skill_invocation}} with the provider and selective skills to report ready.",
+      activation_sequence: ["owner", "provider", "selective"],
+      output_checks: [{ name: "ready", expect_exact: "ready" }],
+    }),
+  );
+  const repositoryResolved = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(root).href,
+      selectors: { caseIds: ["repository-composition"] },
+    }),
+  );
+  expect(repositoryResolved.code, repositoryResolved.stderr).toBe(0);
+  const repositoryPrepared = await command<{
+    result: {
+      artifacts: Array<{ relativePath: string }>;
+      codexMarketplace: { pluginNames: string[] };
+      codexRepositorySkillInvocation: { skillName: string };
+    };
+  }>(
+    [process.execPath, extension],
+    request("prepare", {
+      case: repositoryResolved.value.result.cases[0],
+      host: {
+        id: "sevro.host.codex",
+        capabilities: [
+          "sevro.codex.plugin-marketplace",
+          "sevro.codex.repository-invocation",
+        ],
+      },
+      condition: "passive",
+      configuration: {},
+    }),
+  );
+  expect(repositoryPrepared.code, repositoryPrepared.stderr).toBe(0);
+  expect(repositoryPrepared.value.result.codexMarketplace.pluginNames).toEqual([
+    "provider",
+    "selective",
+  ]);
+  expect(
+    repositoryPrepared.value.result.codexRepositorySkillInvocation,
+  ).toEqual({ skillName: "owner" });
+  expect(
+    repositoryPrepared.value.result.artifacts.map((item) => item.relativePath),
+  ).toContain(".agents/skills/owner/SKILL.md");
+  expect(
+    repositoryPrepared.value.result.artifacts.map((item) => item.relativePath),
+  ).not.toContain(".sevro-marketplace/plugin/skills/owner/SKILL.md");
+  const candidate = join(root, "repository-candidate.ts");
+  await writeFile(
+    candidate,
+    `export default {
+    id: "sevro.host.codex", model: "synthetic-v1", effort: "none",
+    hostCapabilities: ["sevro.codex.plugin-marketplace", "sevro.codex.repository-invocation"],
+    async run({ prompt, workspace, explicitSkillInvocation, codexMarketplace }) {
+      if (prompt !== "Use $owner with the provider and selective skills to report ready." || explicitSkillInvocation?.scope !== "repository") throw new Error("native repository dispatch lost");
+      if (JSON.stringify(codexMarketplace.pluginNames) !== JSON.stringify(["provider", "selective"])) throw new Error("provider packages differ");
+      for (const path of [".agents/skills/owner/SKILL.md", ".sevro-marketplace/plugins/0-provider/skills/provider/SKILL.md", ".sevro-marketplace/plugins/1-selective/skills/selective/SKILL.md"]) {
+        if (!(await Bun.file(workspace + "/" + path).exists())) throw new Error("composed mount missing");
+      }
+      return { finalMessage: "ready", complete: true, observations: [{ id: "sevro.codex.explicit-invocation", source: "sevro.host.codex", completeness: "complete", data: { method: "explicit_invocation", primarySkill: "owner", observedSkills: ["owner", "provider", "selective"] } }] };
+    }
+  };`,
+  );
+  const composedRun = await command<CliReply>([
+    process.execPath,
+    resolve(import.meta.dir, "../../sevro-extension/run.ts"),
+    "--case-id",
+    "repository-composition",
+    "--project-root",
+    root,
+    "--results-root",
+    join(root, "repository-results"),
+    "--",
+    "--adapter-module",
+    candidate,
+    "--condition",
+    "passive",
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+  ]);
+  expect(composedRun.code, composedRun.stderr).toBe(0);
+  expect(composedRun.value.task.verdict).toBe("passed");
+  expect(composedRun.value.cases[0]!.trials[0]!.domainOutcomes).toMatchObject([
+    { id: "darrow.evals.activation", status: "passed" },
+  ]);
   await writeFile(
     caseFile,
     JSON.stringify({ ...definition, additional_plugins: ["../provider"] }),

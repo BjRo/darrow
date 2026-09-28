@@ -146,7 +146,7 @@ test("resolves continuation prompts including a later skill invocation", async (
   });
 });
 
-test("compatibility inventory includes unsupported repository composition", async () => {
+test("compatibility inventory includes repository invocation and composition", async () => {
   const root = await mkdtemp(
     join(tmpdir(), "darrow-sevro-repository-inventory-"),
   );
@@ -162,6 +162,7 @@ test("compatibility inventory includes unsupported repository composition", asyn
       activation: "positive",
       prompt: "{{skill_invocation}} Use the probe capability.",
       additional_plugins: ["plugins/capability/provider"],
+      activation_sequence: ["probe", "provider"],
       fixture: {
         commits: [{ message: "Initial", files: { "README.md": "fixture\n" } }],
       },
@@ -174,20 +175,17 @@ test("compatibility inventory includes unsupported repository composition", asyn
   const inventory = await auditCaseCompatibility(root);
   expect(inventory).toMatchObject({
     total: 1,
-    supported: 0,
-    valid: false,
-    failures: [
-      {
-        id: "repository-probe",
-        source: await realpath(source),
-        error: expect.stringContaining("repository-skill"),
-      },
-    ],
+    supported: 1,
+    valid: true,
+    failures: [],
   });
-  await expect(
-    resolveCase({
-      projectRoot: pathToFileURL(root).href,
-      selectors: { caseIds: ["repository-probe"] },
-    }),
-  ).rejects.toThrow(/repository-skill/);
+  const resolved = await resolveCase({
+    projectRoot: pathToFileURL(root).href,
+    selectors: { caseIds: ["repository-probe"] },
+  });
+  expect(resolved.cases[0]?.extensionData["darrow.case"]).toMatchObject({
+    invocation: { scope: "repository", skillName: "probe" },
+    additionalPlugins: ["plugins/capability/provider"],
+    activation: { sequence: ["probe", "provider"] },
+  });
 });

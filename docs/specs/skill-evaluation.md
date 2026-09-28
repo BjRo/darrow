@@ -45,6 +45,13 @@ enter retained configuration and comparison identity. Plugin dispatch declaratio
 cannot substitute for repository dispatch. Other hosts remain unavailable until
 their native scope is supported.
 
+Repository cases can compose independently installed `additional_plugins` or
+selected `additional_skills`. The owning repository skill keeps its native
+scope; supporting providers keep their manifests and mechanics. Validate skill
+name uniqueness and activation membership over the combined set. An ordered
+activation sequence can use these explicit providers without mounting plugin
+siblings. Apply the shared artifact count and byte bounds across all mounts.
+
 Repository guide fixtures exercise implementation-derived explanations against
 Darrow-owned evaluation code, such as its Sevro extension. Their snapshots must
 not copy generic runner implementation. Keep the question, source inventory,

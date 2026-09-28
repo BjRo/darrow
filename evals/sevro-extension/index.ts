@@ -487,14 +487,14 @@ function validateActivationSequence(
 function validateActivationClass(
   value: unknown,
   targetSkill: string,
-  mountPluginSkills: boolean,
+  mounts: { siblings: boolean; supporting: boolean },
   sequence: string[] | undefined,
 ): asserts value is "positive" | "negative" | "competition" {
   if (value !== "positive" && value !== "negative" && value !== "competition")
     throw new Error("case uses an unsupported activation class");
-  if (value === "competition" && !mountPluginSkills)
+  if (value === "competition" && !mounts.siblings)
     throw new Error("competition activation requires sibling skill mounts");
-  validateActivationSequence(value, targetSkill, mountPluginSkills, sequence);
+  validateActivationSequence(value, targetSkill, mounts.supporting, sequence);
 }
 
 function caseActivation(
@@ -513,7 +513,13 @@ function caseActivation(
   validateActivationClass(
     value,
     targetSkill,
-    mountPluginSkills,
+    {
+      siblings: mountPluginSkills,
+      supporting:
+        mountPluginSkills ||
+        selected.additional_plugins !== undefined ||
+        selected.additional_skills !== undefined,
+    },
     lists.sequence,
   );
   return {
@@ -1395,22 +1401,14 @@ async function casePrompts(
   };
 }
 
-function caseDefinition(value: unknown, source: string): RecordValue {
+function caseDefinition(value: unknown): RecordValue {
   const selected = record(value, "case");
   keys(selected, CASE_FIELDS, "case");
-  if (
-    source.startsWith(".agents/") &&
-    (selected.additional_plugins !== undefined ||
-      selected.additional_skills !== undefined)
-  )
-    throw new Error(
-      "repository-skill provider composition is not yet supported",
-    );
   return selected;
 }
 
 async function neutralCase(value: unknown, source: string, root: string) {
-  const selected = caseDefinition(value, source);
+  const selected = caseDefinition(value);
   const id = string(selected.id, "case ID");
   const invariant = string(selected.invariant, "case invariant");
   const hostIds = caseHostIds(selected.harnesses);
@@ -1889,11 +1887,11 @@ function appendMarketplaceManifest(
   );
 }
 
-async function codexPluginArtifacts(
+async function owningPluginPackage(
   sources: { skillRoot: string; skillName: string }[],
-  ownerName: string,
-  additional: Awaited<ReturnType<typeof additionalPluginSources>> = [],
-): Promise<SkillArtifact[]> {
+  ownerName: string | null,
+) {
+  if (ownerName === null) return [];
   const pluginRoot = dirname(dirname(sources[0]!.skillRoot));
   if (
     sources.some((source) => dirname(dirname(source.skillRoot)) !== pluginRoot)
@@ -1901,8 +1899,17 @@ async function codexPluginArtifacts(
     throw new Error("plugin package mixes source roots");
   if ((await pluginName(pluginRoot)) !== ownerName)
     throw new Error("Codex plugin name changed after resolution");
+  return [{ pluginRoot, name: ownerName, sources, destination: "plugin" }];
+}
+
+async function codexPluginArtifacts(
+  sources: { skillRoot: string; skillName: string }[],
+  ownerName: string | null,
+  additional: Awaited<ReturnType<typeof additionalPluginSources>> = [],
+  artifacts: SkillArtifact[] = [],
+): Promise<SkillArtifact[]> {
   const packages = [
-    { pluginRoot, name: ownerName, sources, destination: "plugin" },
+    ...(await owningPluginPackage(sources, ownerName)),
     ...additional.map((item, index) => ({
       ...item,
       destination: `plugins/${index}-${item.name}`,
@@ -1910,7 +1917,6 @@ async function codexPluginArtifacts(
   ];
   if (new Set(packages.map((item) => item.name)).size !== packages.length)
     throw new Error("Codex marketplace plugin names must be unique");
-  const artifacts: SkillArtifact[] = [];
   const total = { bytes: 0 };
   for (const item of packages) {
     const destination = `${MARKETPLACE_ROOT}/${item.destination}`;
@@ -2109,7 +2115,10 @@ function packageDeclarations(options: {
           codexMarketplace: {
             artifactRoot: MARKETPLACE_ROOT,
             marketplaceName: "darrow-eval",
-            pluginNames: [ownerName!, ...additional.map((item) => item.name)],
+            pluginNames: [
+              ...(ownerName ? [ownerName] : []),
+              ...additional.map((item) => item.name),
+            ],
           },
           ...(invocation ? { codexSkillInvocation: invocation } : {}),
         }
@@ -2159,9 +2168,36 @@ async function repositorySkillMounts(
 ) {
   if (record(hostValue, "candidate host").id === "sevro.host.claude")
     throw new Error("repository-skill mounts on Claude are not yet supported");
-  requireActivationSkills(details, sources);
+  const { owner, additional } = mergeAdditionalSkills(
+    sources,
+    await additionalPluginSources(details),
+    await additionalSkillSources(details),
+  );
+  const mounted = [...owner, ...additional.flatMap((item) => item.sources)];
+  if (new Set(mounted.map((item) => item.skillName)).size !== mounted.length)
+    throw new Error("mounted skill names must be unique");
+  requireActivationSkills(details, mounted);
+  const codexPackages = codexPackageHost(
+    hostValue,
+    additional.length > 0,
+    false,
+  );
   return {
-    artifacts: await skillArtifacts(sources),
+    artifacts: codexPackages
+      ? await codexPluginArtifacts(
+          [],
+          null,
+          additional,
+          await skillArtifacts(owner),
+        )
+      : await skillArtifacts(mounted),
+    ...packageDeclarations({
+      codexPackages,
+      claudePackages: false,
+      ownerName: null,
+      additional,
+      invocation: null,
+    }),
     ...repositoryInvocation(details, hostValue),
   };
 }
