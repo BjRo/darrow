@@ -1090,6 +1090,12 @@ not prove equivalence or savings.
   evidence completeness, passive/enforced conditions, retained artifacts, and
   exit categories. Normalize only variable fields and document intentional
   contract changes separately.
+  A manually selected published candidate must bind an exact package version
+  and SHA-256 before installation; ranges and distribution tags are invalid.
+  The installed integration gate must clear source-checkout overrides, retain
+  the verified archive and package identity with its logs even on failure, and
+  exercise the public command without package Git metadata. This candidate gate
+  does not replace automatic verification of the eventual frozen dependency pin.
 
 - **SE-C29 — Independent direct runner roots.** An explicit project root
   controls case and supporting-asset resolution and the default result path;

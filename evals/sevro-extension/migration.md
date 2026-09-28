@@ -225,12 +225,25 @@ and result paths for the applicable rows below.
 | Generic passive and enforced execution | Shared parity fixtures with adapters that declare the relevant capabilities                                                       | Covers condition identity, grading, interruption, ownership, and isolation. It does not establish enforced execution by bundled hosts.                                                                                               |
 | Bundled Codex and Claude               | Supported passive suite and extension fixtures with synthetic executables and complete or deliberately incomplete native receipts | Covers host-specific preparation, route binding, continuation, activation, and unavailable evidence. These deterministic checks make no live model claim.                                                                            |
 | Focused native behavior                | One understood trial at a time on the selected native host                                                                        | [live-validation.md](live-validation.md) records Codex negative activation, Claude repository dispatch/control checks, and standalone Claude continuation. Their models and routes are explicit; one trial is not a stability claim. |
-| Published Darrow pin                   | Frozen dependency installation and the installed integration gate against the exact release                                       | Pending publication and pinning. Darrow's current documentation CI does not run this gate.                                                                                                                                           |
+| Published Darrow pin                   | Frozen dependency installation and the installed integration gate against the exact release                                       | Pending publication and pinning. The manual [installed candidate workflow](../../.github/workflows/sevro-integration.yml) is prepared; automatic verification of the frozen pin remains pending.                                     |
 
 Native isolation checks require the relevant host's sandbox or macOS sandbox
 support. A skipped platform or unavailable-host assertion is not evidence for
 that boundary. Before claiming a new host or platform combination, add it to the
 matrix and retain its corresponding public-interface evidence.
+
+The `Installed Sevro integration` workflow accepts an exact published version
+and the reviewed archive's SHA-256. It downloads that package from npm, verifies
+its name, version, and digest before installation, and runs the existing installed
+parity gate on macOS with Node 24 and Bun 1.3.13. Source-checkout and preselected
+executable overrides are cleared. The workflow retains the downloaded archive,
+npm metadata, verified candidate identity, Darrow revision, and parity log for
+30 days, including failed runs. It does not publish a package or run live models.
+There is no default candidate version. A first remote execution awaits a
+published release; local workflow validation does not prove remote CI success.
+See [installed CI validation](installed-ci-validation.md) for the local checks.
+After the exact development dependency is pinned, add automatic pull-request
+verification against that installed pin rather than relying on manual dispatch.
 
 Before cutover:
 
