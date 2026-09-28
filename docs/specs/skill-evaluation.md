@@ -767,6 +767,16 @@ reads the same archival inputs and writes JSON or Markdown to standard output.
 Neither path executes a host, requires Sevro or Git metadata, rewrites input
 artifacts, or imports the generic runner to interpret them.
 
+The legacy report command's default Markdown route uses this same interpreter.
+It preserves its adjacent `report.md` output and explicit `--output` destination;
+`--json` writes the versioned view to standard output. The standalone entrypoint
+writes to standard output by default and accepts an explicit Markdown output.
+Neither command may overwrite an input archive, including an aliased path.
+Both human routes expose the historical view's recorded claims, completeness,
+measured rates, diagnostics, input digests, and retained evidence. The old
+cross-cell rollup layout is deliberately retired; its numeric summaries remain
+recorded facts rather than evidence of complete measured runs.
+
 The view identifies every input by absolute path and content digest. It retains
 recorded summary values, named trial checks, exact candidate and grader routes,
 activation, advisory and semantic outcomes, and requested versus observed policy

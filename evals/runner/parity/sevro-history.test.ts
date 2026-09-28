@@ -2,14 +2,16 @@ import { afterEach, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import {
   copyFile,
+  link,
   mkdir,
   mkdtemp,
   readFile,
   rm,
+  symlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 
 const roots: string[] = [];
 const legacyCommand = resolve(import.meta.dir, "../report.ts");
@@ -193,9 +195,14 @@ async function fixture() {
   return { root, result, manifest, sample };
 }
 
-async function invoke(input: string, command = legacyCommand, json = true) {
+async function invoke(
+  input: string,
+  command = legacyCommand,
+  json = true,
+  args: string[] = [],
+) {
   const child = Bun.spawn(
-    [process.execPath, command, input, ...(json ? ["--json"] : [])],
+    [process.execPath, command, input, ...(json ? ["--json"] : []), ...args],
     {
       stdout: "pipe",
       stderr: "pipe",
@@ -248,6 +255,112 @@ test("historical report JSON retains explicit manifest provenance without rewrit
   expect(await readFile(result, "utf8")).toBe(originalResult);
   expect(await readFile(manifest, "utf8")).toBe(originalManifest);
 });
+
+test("default historical report writes the standalone archival view", async () => {
+  const { root, result, manifest } = await fixture();
+  const originals = await Promise.all([
+    readFile(result, "utf8"),
+    readFile(manifest, "utf8"),
+  ]);
+  const run = await invoke(manifest, legacyCommand, false);
+  expect(run.code, run.stderr).toBe(0);
+  expect(run.stdout).toContain(`Report: ${join(root, "report.md")}`);
+  const markdown = await readFile(join(root, "report.md"), "utf8");
+  expect(markdown).toContain("# Historical Darrow evaluation results");
+  expect(markdown).toContain(
+    "| historical-sample | codex | historical | executed | complete | 1 | 1 | 1 | unknown |",
+  );
+  expect(markdown).toContain("Recorded pass rates are archival claims");
+  expect(markdown).toContain("SHA-256:");
+  expect(
+    await Promise.all([readFile(result, "utf8"), readFile(manifest, "utf8")]),
+  ).toEqual(originals);
+});
+
+test.each([legacyCommand, standaloneCommand])(
+  "historical report output cannot replace archive inputs (%s)",
+  async (command) => {
+    const { root, result, manifest } = await fixture();
+    const fileAlias = join(root, "archive-alias.md");
+    const hardAlias = join(root, "archive-hardlink.md");
+    const directoryAlias = join(root, "archive-directory");
+    await symlink(result, fileAlias);
+    await link(result, hardAlias);
+    await symlink(root, directoryAlias, "dir");
+    const originals = await Promise.all([
+      readFile(result, "utf8"),
+      readFile(manifest, "utf8"),
+    ]);
+    for (const output of [
+      manifest,
+      result,
+      fileAlias,
+      hardAlias,
+      join(directoryAlias, basename(result)),
+    ]) {
+      const run = await invoke(manifest, command, false, ["--output", output]);
+      expect(run.code, run.stderr).toBe(64);
+      expect(run.stderr).toContain("input archive");
+      expect(
+        await Promise.all([
+          readFile(result, "utf8"),
+          readFile(manifest, "utf8"),
+        ]),
+      ).toEqual(originals);
+    }
+    const output = join(root, "selected-report.md");
+    await writeFile(output, "previous report");
+    const run = await invoke(manifest, command, false, ["--output", output]);
+    expect(run.code, run.stderr).toBe(0);
+    expect(run.stdout).toContain(`Report: ${output}`);
+    expect(await readFile(output, "utf8")).toContain(
+      "# Historical Darrow evaluation results",
+    );
+    expect(
+      await Promise.all([readFile(result, "utf8"), readFile(manifest, "utf8")]),
+    ).toEqual(originals);
+  },
+);
+
+test.each([legacyCommand, standaloneCommand])(
+  "historical file reports retain unreadable child diagnostics and valid peers (%s)",
+  async (command) => {
+    const { root, result, manifest } = await fixture();
+    const blocker = join(root, "blocker");
+    const unreadable = join(blocker, "child.json");
+    await writeFile(blocker, "regular file");
+    const definition = JSON.parse(await readFile(manifest, "utf8"));
+    definition.cells.push({
+      result: "blocker/child.json",
+      harness: "claude",
+      mode: "unreadable",
+      exitCode: 1,
+    });
+    await writeFile(manifest, JSON.stringify(definition));
+    const inputs = [result, manifest, blocker];
+    const originals = await Promise.all(inputs.map((path) => readFile(path)));
+    const output = join(root, "report.md");
+    const args = command === legacyCommand ? [] : ["--output", output];
+    const run = await invoke(manifest, command, false, args);
+    expect(run.code, run.stderr).toBe(1);
+    expect(run.stdout).toContain(`Report: ${output}`);
+    const markdown = await readFile(output, "utf8");
+    expect(markdown).toContain("| historical-sample | codex | historical |");
+    expect(markdown).toContain(`- ${unreadable}:`);
+    expect(markdown).toContain("ENOTDIR");
+    expect(await Promise.all(inputs.map((path) => readFile(path)))).toEqual(
+      originals,
+    );
+    const refused = await invoke(manifest, command, false, [
+      "--output",
+      join(blocker, "report.md"),
+    ]);
+    expect(refused.code, refused.stderr).toBe(64);
+    expect(await Promise.all(inputs.map((path) => readFile(path)))).toEqual(
+      originals,
+    );
+  },
+);
 
 test("historical reporting remains usable without the generic runner or a Sevro installation", async () => {
   const { root, manifest } = await fixture();

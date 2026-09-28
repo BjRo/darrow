@@ -208,9 +208,14 @@ The standalone reader handles legacy arrays, suite manifests, and trial
 checkpoints without Sevro or the generic runner. It preserves archive bytes,
 separates recorded claims from complete executed measurements, and keeps
 unknown provenance and partial attempts unmeasured. The legacy report command
-exposes the same JSON view with `--json`. See the
+uses the same view for Markdown and `--json`. Its default remains adjacent
+`report.md`; `--output` selects another Markdown destination. The standalone
+reader defaults to stdout. Both refuse input archives and their aliases as
+output. The human layout deliberately replaces the old rollups with the
+historical view's recorded facts and explicit measurement boundaries. See the
 [historical reader contract](../evals/sevro-extension/README.md#historical-result-interpretation)
-and [validation](../evals/sevro-extension/history-validation.md).
+and [validation](../evals/sevro-extension/history-validation.md), plus
+[report-command validation](../evals/sevro-extension/legacy-report-command-validation.md).
 
 Shell checks, including dry checks, use the same outer isolation mechanism as
 candidate execution with a separate credential-free home and environment.

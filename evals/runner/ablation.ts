@@ -1,8 +1,13 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import type { ReportCell } from "./report";
 import type { CaseResult } from "./types";
+
+export interface ReportCell {
+  harness: string;
+  mode: string;
+  results: CaseResult[];
+}
 
 export interface AblationMode {
   without_skill?: boolean;

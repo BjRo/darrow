@@ -113,14 +113,22 @@ Read legacy result arrays, `darrow-orchestration-suite-v1` manifests, or
 bun evals/sevro-extension/legacy-report.ts /absolute/path/to/suite-run.json
 bun evals/sevro-extension/legacy-report.ts /absolute/path/to/results.json --json
 bun evals/runner/report.ts /absolute/path/to/suite-run.json --json
+bun evals/runner/report.ts /absolute/path/to/suite-run.json --output /absolute/path/to/report.md
 ```
 
 The standalone command writes Markdown by default and `darrow-legacy-report-v1`
 JSON with `--json`. Its only local dependencies are `legacy-report.ts` and
 `legacy-evidence.ts`; it needs Bun, but no Sevro installation, generic runner,
-Git metadata, host credentials, or model calls. It writes only to stdout and
-leaves archive bytes unchanged. Relative cell result paths resolve beside the
-input manifest. The legacy command's existing Markdown behavior remains available.
+Git metadata, host credentials, or model calls. Relative cell result paths
+resolve beside the input manifest. Both commands leave archive bytes unchanged.
+The legacy command now uses this view for Markdown too, preserving adjacent
+`report.md` and `--output` destinations. The standalone command writes Markdown
+to stdout by default and accepts `--output` for a file. File output prints its
+absolute path and replaces an existing report atomically. Input destinations,
+including symbolic links and hard links, are refused.
+`--json` always writes JSON to stdout; combining it with `--output` is invalid.
+The old cross-cell rollup layout is retired. Recorded summaries and separate
+outcomes remain in the historical table and retained evidence.
 
 The view retains absolute input paths and SHA-256 digests, recorded summary
 claims, named checks, candidate and grader routes, activation, advisory and
@@ -140,9 +148,13 @@ execution is explicit. Checkpoints always stay partial.
 Exit `0` means the supported archive was interpreted, including failed trials;
 it does not mean the evaluated task passed. Exit `1` means malformed,
 unreadable, contradictory, or unsupported inputs, with diagnostics and valid
-peer inputs retained. Exit `64` means invalid invocation. Other comparison
+peer inputs retained. Exit `64` means invalid invocation or refused/unwritable
+output. Unsupported or unversioned suite manifests are diagnosed; their result
+arrays can still be interpreted separately without inventing suite provenance.
+Other comparison
 formats remain preserved in their original files and are explicitly unsupported
-by this reader. See [historical validation](history-validation.md).
+by this reader. See [historical validation](history-validation.md) and
+[report-command validation](legacy-report-command-validation.md).
 
 Compare two legacy result arrays through the existing command or its standalone
 entrypoint:

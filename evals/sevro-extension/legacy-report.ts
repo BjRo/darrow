@@ -1,6 +1,14 @@
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import {
+  mkdtemp,
+  readFile,
+  realpath,
+  rename,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
+import { basename, dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 
 import {
@@ -185,19 +193,98 @@ function markdown(report: Awaited<ReturnType<typeof legacyReport>>) {
   ].join("\n");
 }
 
-export async function runLegacyReport(args: string[]) {
+function missingPath(error: NodeJS.ErrnoException) {
+  if (error.code === "ENOENT" || error.code === "ENOTDIR") return null;
+  throw error;
+}
+
+async function pathIdentity(path: string) {
+  const directory = await realpath(dirname(path)).catch(missingPath);
+  const info = await stat(path, { bigint: true }).catch(missingPath);
+  return {
+    path: resolve(directory ?? dirname(path), basename(path)),
+    inode: info ? `${info.dev}:${info.ino}` : null,
+  };
+}
+
+async function protectedOutput(
+  report: Awaited<ReturnType<typeof legacyReport>>,
+  output: string,
+) {
+  const destination = await pathIdentity(output);
+  const inputs = await Promise.all(
+    report.inputs.map(async (input) => ({
+      input: input.path,
+      identity: await pathIdentity(input.path),
+    })),
+  );
+  const source = inputs.find(
+    ({ identity }) =>
+      destination.path === identity.path ||
+      (destination.inode !== null && destination.inode === identity.inode),
+  );
+  if (source)
+    throw new Error(`--output cannot replace input archive: ${source.input}`);
+  return destination.path;
+}
+
+async function writeMarkdown(
+  report: Awaited<ReturnType<typeof legacyReport>>,
+  requestedOutput: string,
+) {
+  const output = await protectedOutput(report, requestedOutput);
+  const temporary = await mkdtemp(join(dirname(output), ".darrow-report-"));
+  try {
+    const path = join(temporary, "report.md");
+    await writeFile(path, markdown(report));
+    await rename(path, output);
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
+}
+
+async function emitReport(
+  report: Awaited<ReturnType<typeof legacyReport>>,
+  values: { json?: boolean; output?: string },
+  defaultMarkdownOutput: boolean,
+) {
+  if (values.json) {
+    process.stdout.write(JSON.stringify(report, null, 2) + "\n");
+    return;
+  }
+  const output =
+    values.output !== undefined
+      ? resolve(values.output)
+      : defaultMarkdownOutput
+        ? resolve(dirname(report.inputs[0]!.path), "report.md")
+        : null;
+  if (output) {
+    await writeMarkdown(report, output);
+    process.stdout.write(`Report: ${output}\n`);
+  } else process.stdout.write(markdown(report));
+}
+
+export async function runLegacyReport(
+  args: string[],
+  options: { defaultMarkdownOutput?: boolean } = {},
+) {
   try {
     const { positionals, values } = parseArgs({
       args,
       allowPositionals: true,
-      options: { json: { type: "boolean" } },
+      options: { json: { type: "boolean" }, output: { type: "string" } },
     });
     if (positionals.length !== 1)
-      throw new Error("usage: legacy-report <historical input> [--json]");
+      throw new Error(
+        "usage: legacy-report <historical input> [--json | --output report.md]",
+      );
+    if (values.output === "") throw new Error("--output cannot be empty");
+    if (values.json && values.output !== undefined)
+      throw new Error(
+        "--json writes to standard output; --output requires Markdown",
+      );
     const report = await legacyReport(positionals[0]!);
-    process.stdout.write(
-      values.json ? JSON.stringify(report, null, 2) + "\n" : markdown(report),
-    );
+    await emitReport(report, values, options.defaultMarkdownOutput ?? false);
     return report.errors.length ? 1 : 0;
   } catch (error) {
     process.stderr.write(

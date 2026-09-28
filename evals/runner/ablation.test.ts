@@ -3,8 +3,8 @@ import {
   analyzeAblations,
   renderAblationReport,
   validateAblationDefinitions,
+  type ReportCell,
 } from "./ablation";
-import type { ReportCell } from "./report";
 import type { CaseResult } from "./types";
 
 function result(overrides: Partial<CaseResult> = {}): CaseResult {

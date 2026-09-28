@@ -151,7 +151,7 @@ does not directly interpret legacy arrays. Darrow's standalone
 `darrow-orchestration-suite-v1` manifests, and `darrow-eval-trial-v1` checkpoints.
 It writes Markdown or `--json` to standard output, needs no Sevro installation
 or generic runner, and preserves the original files. The existing legacy
-report command also exposes this view with `--json`. See the
+report command now uses this view for both Markdown and `--json`. See the
 [historical reader contract](README.md#historical-result-interpretation) and
 [validation](history-validation.md).
 Missing execution mode, evaluator identity, or completeness stays unknown.
@@ -167,6 +167,21 @@ formats; this reader does not convert them into Sevro comparison inputs or
 replace every specialized comparison command. Those workflows still need an
 explicit migration or retirement before their implementation can be removed.
 
+The legacy report command preserves adjacent `report.md` and explicit `--output`
+destinations. Its human format deliberately changes to the historical view,
+including input digests, completeness, diagnostics, and retained evidence.
+The old cross-cell efficiency, judge-overhead, and activation rollup tables
+are retired; recorded summary values and distinct trial outcomes remain archival
+facts. The standalone reader still defaults to stdout and now accepts Markdown
+`--output`. Neither command accepts an input archive or its aliases as output.
+JSON remains stdout-only. Invalid arguments or refused/unwritable output exit
+`64`; invalid archive input exits `1` with a diagnostic report. Valid interpreted
+archives exit `0` even when trials failed or measured rates are unavailable.
+Unversioned suite manifests are now diagnosed by the default route too; pass
+their result arrays separately to retain unknown suite provenance. The old
+formatter and its private function tests are removed. See
+[report-command validation](legacy-report-command-validation.md).
+
 The documented `evals/runner/compare.ts <baseline.json> <candidate.json>` command
 now delegates legacy array comparison to `evals/sevro-extension/legacy-compare.ts`.
 It retains condition labels and recorded metric deltas without generic runner
@@ -178,8 +193,7 @@ establish complete planned runs or current evaluator equivalence. Missing
 grading metadata remains unknown. See the
 [command contract](README.md#historical-result-interpretation) and
 [comparison validation](legacy-compare-validation.md). Other specialized
-comparison formats and the old report command's default Markdown route retain
-their migration gates.
+comparison formats retain their migration gates.
 
 ## Release, update, and rollback
 
