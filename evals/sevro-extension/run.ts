@@ -19,6 +19,8 @@ const sourceFiles = [
   extension,
   join(repositoryRoot, "evals/fixture-ticket.ts"),
   join(import.meta.dir, "run.ts"),
+  join(import.meta.dir, "selection.ts"),
+  join(import.meta.dir, "schemas/cli-result-v1.schema.json"),
   join(import.meta.dir, "benchmark-condition.ts"),
   join(import.meta.dir, "skill-mount.ts"),
   join(import.meta.dir, "benchmark-policy.ts"),
@@ -105,6 +107,9 @@ function runOptions(argv: string[]) {
     args: argv.slice(0, separator),
     options: {
       "case-id": { type: "string" },
+      skill: { type: "string" },
+      plugin: { type: "string" },
+      case: { type: "string", multiple: true },
       "project-root": { type: "string" },
       "results-root": { type: "string" },
       "without-skill": { type: "boolean", default: false },
@@ -205,30 +210,49 @@ async function repositorySourceArgs(
 
 if (import.meta.main) {
   try {
-    const selected = invocation(process.argv.slice(2));
-    await mkdir(selected.resultsRoot, { recursive: true });
-    await writeFile(
-      selected.commandFile,
-      JSON.stringify([process.execPath, extension]),
-    );
-    await writeRunConfiguration(selected);
-    const sourceArgs = await repositorySourceArgs(
-      selected.projectRoot,
-      selected.caseId,
-      selected.resultsRoot,
-    );
-    const child = Bun.spawn([...selected.command, ...sourceArgs], {
-      stdout: "inherit",
-      stderr: "inherit",
-      stdin: "inherit",
-    });
-    const forwardInterrupt = () => child.kill("SIGINT");
-    const forwardTerminate = () => child.kill("SIGTERM");
-    process.on("SIGINT", forwardInterrupt);
-    process.on("SIGTERM", forwardTerminate);
-    process.exitCode = await child.exited;
-    process.off("SIGINT", forwardInterrupt);
-    process.off("SIGTERM", forwardTerminate);
+    const argv = process.argv.slice(2);
+    const { values } = runOptions(argv);
+    if (
+      values.skill !== undefined ||
+      values.plugin !== undefined ||
+      values.case !== undefined
+    ) {
+      if (values["case-id"] !== undefined)
+        throw new Error("--case-id cannot be combined with selection filters");
+      const { runSelection } = await import("./selection");
+      process.exitCode = await runSelection(argv, {
+        projectRoot: values["project-root"] ?? repositoryRoot,
+        resultsRoot: values["results-root"],
+        skill: values.skill,
+        plugin: values.plugin,
+        filters: values.case ?? [],
+      });
+    } else {
+      const selected = invocation(process.argv.slice(2));
+      await mkdir(selected.resultsRoot, { recursive: true });
+      await writeFile(
+        selected.commandFile,
+        JSON.stringify([process.execPath, extension]),
+      );
+      await writeRunConfiguration(selected);
+      const sourceArgs = await repositorySourceArgs(
+        selected.projectRoot,
+        selected.caseId,
+        selected.resultsRoot,
+      );
+      const child = Bun.spawn([...selected.command, ...sourceArgs], {
+        stdout: "inherit",
+        stderr: "inherit",
+        stdin: "inherit",
+      });
+      const forwardInterrupt = () => child.kill("SIGINT");
+      const forwardTerminate = () => child.kill("SIGTERM");
+      process.on("SIGINT", forwardInterrupt);
+      process.on("SIGTERM", forwardTerminate);
+      process.exitCode = await child.exited;
+      process.off("SIGINT", forwardInterrupt);
+      process.off("SIGTERM", forwardTerminate);
+    }
   } catch (error) {
     process.stderr.write(`${error instanceof Error ? error.message : error}\n`);
     process.exitCode = 64;

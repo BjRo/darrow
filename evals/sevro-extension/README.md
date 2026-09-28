@@ -103,6 +103,59 @@ Other case fields and fixture mechanics fail explicitly. The legacy
 `{{repo_dir}}` prompt token maps to Sevro's per-trial
 workspace token. Other prompt templates still fail explicitly.
 
+## Direct case selection
+
+Use `--skill <exact-owning-directory>` or `--plugin <exact-plugin-directory>`
+before `--` instead of `--case-id`. The two ownership filters intersect.
+Repeat `--case <substring>` to keep IDs matching any supplied substring.
+Owning-skill selection includes repository skills and excludes experiments;
+plugin selection excludes both repository skills and experiments. Filtering
+happens before `--skill-dir` overrides and `--without-skill` controls.
+
+```sh
+SEVRO_CHECKOUT=/absolute/path/to/sevro bun evals/sevro-extension/run.ts \
+  --plugin darrow-git --skill create-commit --case commit \
+  --results-root /absolute/path/to/results -- \
+  --host codex --codex-bin /absolute/path/to/codex \
+  --codex-auth-file /absolute/path/to/auth.json \
+  --model <model> --effort medium --condition passive \
+  --trials 1 --threshold 1 --shell-isolation
+```
+
+The entrypoint resolves all selected IDs before execution, rejects duplicates
+and empty selections, and runs the sorted cases sequentially. Exact `--case-id`
+still emits Sevro's public result. Filtered selection emits and retains
+`selection-run.json` with format `darrow-sevro-selection-v1`. Each `runs` row
+holds its case ID, raw process exit code, parsed Sevro result, raw result path,
+diagnostics, and any result error. The manifest names its `attemptId` and absolute
+`manifestPath` under `attempts/<attempt-id>/selection-run.json`. CLI files live
+under that attempt's `cases/<case-id-sha256>/` directory;
+their Sevro evidence paths preserve task, execution, grading, and domain outcomes.
+Use those per-case CLI files as generic Sevro report inputs; the selection
+manifest is a Darrow format.
+Repeating a selection under the same results root preserves earlier attempts.
+The root `selection-run.json` is an atomically updated current-result alias;
+updates to each retained attempt manifest are also atomic.
+
+Missing, unsupported, contradictory, or foreign public results remain unavailable
+and cannot produce aggregate success. Ordinary case failures remain recorded
+while later cases run; the aggregate exits `1`. SIGINT or SIGTERM cancels the
+active command, retains its result, stops selection, and exits `130` or `143`
+respectively. A fully successful selection, including dry unassessed runs,
+exits `0`. Invalid selection exits `64` before any cases start.
+Parallel `--jobs` and the normal command cutover remain pending.
+
+Selection validates the complete public result with Ajv and the bundled
+[`cli-result-v1.schema.json`](schemas/cli-result-v1.schema.json) contract snapshot.
+It comes from Sevro commit `4a6482a`, with SHA-256
+`34e8995c9065e198272f3ed300c98cfb95becc2baeb9e4e80ab635b4d143bf01`.
+It includes nested case/trial fields and state consistency, without importing
+engine internals. Additional Darrow checks bind the selected case, process exit,
+and absolute evidence path. Refresh the snapshot from Sevro's public `schemas/`
+contract when adopting a compatible release, update this provenance, and rerun
+selection and installed-package parity checks. The schema participates in the
+retained extension content digest.
+
 ## Separate configuration roots
 
 Forward `--config-root /absolute/path/to/configuration` after `--` on the Darrow

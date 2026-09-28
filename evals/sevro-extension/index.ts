@@ -2603,6 +2603,53 @@ export async function selectCaseIds(root: string, filters: string[]) {
   return [...selected].sort();
 }
 
+type RunOwnership = { skill?: string; plugin?: string };
+
+function validateRunSelectors(filters: string[], ownership: RunOwnership) {
+  if (
+    filters.some((filter) => !filter.trim()) ||
+    Object.values(ownership).some(
+      (value) => value !== undefined && !value.trim(),
+    )
+  )
+    throw new Error("selection needs nonempty selectors");
+}
+
+function matchesRunOwnership(source: string, ownership: RunOwnership) {
+  const owner = skillDirForSource(source);
+  if (
+    ownership.skill !== undefined &&
+    owner?.split("/").at(-1) !== ownership.skill
+  )
+    return false;
+  const plugin = owner?.startsWith("plugins/")
+    ? owner.split("/")[2]
+    : undefined;
+  return ownership.plugin === undefined || plugin === ownership.plugin;
+}
+
+/** Apply the direct runner's ownership and case filters before resolution. */
+export async function selectRunCaseIds(
+  root: string,
+  filters: string[],
+  ownership: RunOwnership,
+) {
+  validateRunSelectors(filters, ownership);
+  const projectRoot = await realpath(root);
+  const ids = new Set<string>();
+  const selected: string[] = [];
+  for (const entry of await caseEntries(projectRoot)) {
+    const id = string(record(entry.value, "case").id, "case ID");
+    if (ids.has(id)) throw new Error(`duplicate case ID: ${id}`);
+    ids.add(id);
+    if (!matchesRunOwnership(entry.source, ownership)) continue;
+    if (!filters.length || filters.some((filter) => id.includes(filter)))
+      selected.push(id);
+  }
+  if (!selected.length) throw new Error("No cases matched.");
+  return selected.sort();
+}
+
 /** Inventory every Darrow case against the current extension before a switch. */
 export async function auditCaseCompatibility(root: string) {
   const projectRoot = await realpath(root);

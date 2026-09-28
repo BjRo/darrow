@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:sevro:schema:cli-result:v1",
+  "title": "Sevro CLI JSON result v1",
+  "type": "object",
+  "required": [
+    "format",
+    "runId",
+    "execution",
+    "grading",
+    "task",
+    "exitCode",
+    "evidencePath",
+    "cases"
+  ],
+  "properties": {
+    "format": { "const": "sevro.cli-result.v1" },
+    "runId": { "type": ["string", "null"] },
+    "execution": { "$ref": "#/$defs/execution" },
+    "grading": { "$ref": "#/$defs/grading" },
+    "task": { "$ref": "#/$defs/task" },
+    "exitCode": { "enum": [0, 1, 2, 3, 4, 64, 70, 130, 143] },
+    "evidencePath": { "type": ["string", "null"] },
+    "cases": { "type": "array", "items": { "$ref": "#/$defs/case" } },
+    "diagnostic": { "$ref": "#/$defs/diagnostic" }
+  },
+  "allOf": [{ "$ref": "#/$defs/stateConsistency" }],
+  "additionalProperties": false,
+  "$defs": {
+    "stateConsistency": {
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "execution": {
+                "properties": {
+                  "status": { "enum": ["failed", "cancelled", "not_run"] }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "task": {
+                "properties": { "verdict": { "not": { "const": "passed" } } }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "grading": {
+                "properties": {
+                  "status": {
+                    "enum": ["error", "unavailable", "not_requested"]
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "task": {
+                "properties": { "verdict": { "not": { "const": "passed" } } }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "execution": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": { "enum": ["completed", "failed", "cancelled", "not_run"] },
+        "errorCode": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "grading": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "enum": ["completed", "error", "unavailable", "not_requested"]
+        },
+        "errorCode": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "task": {
+      "type": "object",
+      "required": ["verdict"],
+      "properties": {
+        "verdict": { "enum": ["passed", "failed", "not_assessed"] }
+      },
+      "additionalProperties": false
+    },
+    "check": {
+      "type": "object",
+      "required": ["id", "grader", "status"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "grader": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["passed", "failed", "unavailable"] },
+        "detail": { "type": "string", "maxLength": 4096 },
+        "evidenceRefs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "domainOutcome": {
+      "type": "object",
+      "required": ["id", "status", "evidenceRefs"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$",
+          "maxLength": 128
+        },
+        "status": { "enum": ["passed", "failed", "unavailable"] },
+        "detail": { "type": "string", "maxLength": 4096 },
+        "evidenceRefs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "data": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    "trial": {
+      "type": "object",
+      "required": [
+        "trial",
+        "execution",
+        "grading",
+        "task",
+        "checks",
+        "artifactPath"
+      ],
+      "properties": {
+        "trial": { "type": "integer", "minimum": 1 },
+        "execution": { "$ref": "#/$defs/execution" },
+        "grading": { "$ref": "#/$defs/grading" },
+        "task": { "$ref": "#/$defs/task" },
+        "checks": { "type": "array", "items": { "$ref": "#/$defs/check" } },
+        "domainOutcomes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/domainOutcome" }
+        },
+        "artifactPath": { "type": ["string", "null"] }
+      },
+      "allOf": [{ "$ref": "#/$defs/stateConsistency" }],
+      "additionalProperties": false
+    },
+    "case": {
+      "type": "object",
+      "required": ["caseId", "execution", "grading", "task", "trials"],
+      "properties": {
+        "caseId": { "type": "string", "minLength": 1 },
+        "execution": { "$ref": "#/$defs/execution" },
+        "grading": { "$ref": "#/$defs/grading" },
+        "task": { "$ref": "#/$defs/task" },
+        "trials": { "type": "array", "items": { "$ref": "#/$defs/trial" } }
+      },
+      "allOf": [{ "$ref": "#/$defs/stateConsistency" }],
+      "additionalProperties": false
+    },
+    "diagnostic": {
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1, "maxLength": 4096 }
+      },
+      "additionalProperties": false
+    }
+  }
+}

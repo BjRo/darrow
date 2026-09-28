@@ -140,6 +140,30 @@ Selection happens before fixture resolution and mounted-skill overrides.
 does not select cases or change their ownership. `--without-skill` likewise
 changes mounting without changing the selected case set.
 
+The Sevro run entrypoint accepts these same ownership and substring selectors
+before `--`, as an alternative to exact `--case-id`. Exact and filtered selection
+cannot be combined. Resolve the complete selected set, reject duplicate IDs,
+and sort exact IDs before starting any public Sevro commands. Empty or blank
+selectors fail before execution. Each selected case keeps its public Sevro JSON,
+exit category, and evidence path in a `darrow-sevro-selection-v1` manifest under
+the requested results root. The manifest does not flatten task, execution,
+grading, or activation states into one verdict. Exact `--case-id` retains its
+existing public result format. Filtering precedes skill overrides and unmounted
+controls, and neither can change ownership selection.
+Selected cases run sequentially in this migration entrypoint. Interrupting it
+forwards cancellation to the active public command, retains that command's
+interrupted result in the selection manifest, stops before any later case starts,
+and exits `130` for SIGINT or `143` for SIGTERM. Ordinary nonzero case exits remain recorded while later selected
+cases run; the aggregate exits `1` if any recorded case command failed.
+Missing, malformed, or unsupported public CLI JSON cannot produce an aggregate
+success even when the process exits zero. Retain its raw output and exit code,
+name the result error, and keep the case's structured result unavailable.
+Each selection attempt has a unique retained manifest and raw-result directory
+under the requested results root. Its manifest names the absolute `manifestPath`
+and `attemptId`. Repeating the selection preserves earlier attempt artifacts.
+`selection-run.json` at the results root is an atomically updated current-result
+alias; the attempt manifest is also updated atomically as case results arrive.
+
 The Sevro run entrypoint preserves `--skill-dir` and `--mount-plugin-skills`
 as Darrow extension configuration. Suite mode `skill_dir` resolves relative
 to the suite file; `mount_plugin_skills: true` adds the candidate plugin's
