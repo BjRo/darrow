@@ -41,6 +41,7 @@ type SelectionOptions = {
   filters: string[];
   caseRoutes?: CaseRoutes["codex"];
   outputPath?: string;
+  humanReviewMinutes?: number;
   assessActivation?: (
     run: SelectionRun,
     argv: string[],
@@ -66,6 +67,8 @@ type SelectionManifest = {
   caseIds: string[];
   runs: SelectionRun[];
   interrupted: boolean;
+  humanReviewMinutes: number | null;
+  humanReviewMinutesSource: "user_supplied" | null;
 };
 type CancellationState = {
   active: ReturnType<typeof Bun.spawn> | undefined;
@@ -304,6 +307,9 @@ export async function runSelection(argv: string[], options: SelectionOptions) {
     caseIds,
     runs: [],
     interrupted: false,
+    humanReviewMinutes: options.humanReviewMinutes ?? null,
+    humanReviewMinutesSource:
+      options.humanReviewMinutes === undefined ? null : "user_supplied",
   };
   await mkdir(join(roots.resultsRoot, "attempts"), { recursive: true });
   await mkdir(attemptRoot);

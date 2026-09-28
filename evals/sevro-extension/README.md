@@ -299,8 +299,19 @@ native tools. Repeated attempts keep the same corpus identity; changed manifest
 bytes change it. Reusing a results root preserves the earlier provenance files.
 See [corpus validation](corpus-caller-validation.md).
 
-Private goal assertions and manually supplied `--human-review-minutes` remain
-explicit migration gaps and are rejected. See
+The direct command accepts `--human-review-minutes <number>` before `--`.
+It records manually supplied minutes per trial in the selection manifest's
+`humanReviewMinutes`, with `humanReviewMinutesSource: "user_supplied"`.
+Omitting it records both fields as `null`; zero is an explicit value. Empty,
+negative, or non-finite values fail before selection storage or execution.
+The annotation applies to all selected cases and stays in the initial,
+per-attempt, latest, optional output, failed, and interrupted manifests.
+It does not assert that a review happened or enter Sevro's task grading,
+evaluator identity, automated measurements, or generic reports. Dry execution
+remains unassessed. The Darrow direct caller owns this option and refuses it
+after `--`. See [manual-review validation](manual-review-validation.md).
+
+Private goal assertions remain an explicit migration gap and are rejected. See
 [direct caller validation](direct-caller-validation.md).
 
 ## Direct case selection

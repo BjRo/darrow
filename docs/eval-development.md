@@ -426,6 +426,9 @@ separate reports. See the
 The direct caller retains its selection and route options but writes the new
 selection manifest to stdout and optional `--output`; see its
 [caller contract](../evals/sevro-extension/README.md#direct-evaluation-caller).
+The direct caller's `--human-review-minutes` records a user-supplied per-trial
+annotation in its selection manifest. Omitted values stay unknown. It does not
+change Sevro's evaluator identity or grading, and dry runs remain unassessed.
 The cross-runner fixture clears Sevro route variables for the legacy command so
 it still compares two implementations.
 

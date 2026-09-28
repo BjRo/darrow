@@ -75,8 +75,13 @@ rejects invalid invocation with `64`, and preserves cancellation exits.
 `--corpus-manifest` selects an explicit pinned corpus with retained manifest
 identity and source provenance. Its paths resolve from the invocation directory
 on the direct command; the migration entrypoint requires an absolute path before
-`--`. See [corpus validation](corpus-caller-validation.md). Manually supplied
-human-review minutes remain an explicit migration gap. See
+`--`. See [corpus validation](corpus-caller-validation.md).
+The direct caller also accepts `--human-review-minutes` before `--`, retaining
+minutes per trial as a user-supplied selection annotation. Missing values stay
+unknown, zero is explicit, and empty, negative, or non-finite values fail before
+execution. The annotation does not enter Sevro grading, identity, automated
+measurements, or generic reports. See [manual-review validation](manual-review-validation.md)
+and
 [direct caller validation](direct-caller-validation.md).
 
 The suite caller preserves relative `--suite` and `--output`, default storage,

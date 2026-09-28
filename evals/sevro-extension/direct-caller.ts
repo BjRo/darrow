@@ -22,6 +22,7 @@ const directOptions = {
   plugin: { type: "string" },
   "skill-dir": { type: "string" },
   "corpus-manifest": { type: "string" },
+  "human-review-minutes": { type: "string" },
   "without-skill": { type: "boolean" },
   "mount-plugin-skills": { type: "boolean" },
   condition: { type: "string" },
@@ -104,6 +105,16 @@ function validateGraders(values: Values) {
     throw new Error("Sevro direct caller graders currently require Codex");
 }
 
+function reviewMinutes(value: string | undefined) {
+  if (value === undefined) return undefined;
+  const minutes = Number(value);
+  if (!value.trim() || !Number.isFinite(minutes) || minutes < 0)
+    throw new Error(
+      "--human-review-minutes must be a finite non-negative number",
+    );
+  return minutes;
+}
+
 function requestOptions(argv: string[]) {
   const { values, forwarded } = parseOptions(argv);
   const host = candidateHost(values.harness);
@@ -129,6 +140,7 @@ function requestOptions(argv: string[]) {
     projectRoot,
     resultsRoot,
     outputPath,
+    humanReviewMinutes: reviewMinutes(values["human-review-minutes"]),
     filters: values.case ?? [],
   };
 }
@@ -277,6 +289,7 @@ export async function runSevroDirect(argv: string[]) {
       plugin: request.values.plugin,
       caseRoutes: request.caseRoutes,
       outputPath: request.outputPath,
+      humanReviewMinutes: request.humanReviewMinutes,
       assessActivation: (run, argv) => directActivation(request, run, argv),
     });
   } catch (error) {

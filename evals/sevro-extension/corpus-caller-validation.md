@@ -121,5 +121,6 @@ resolve. This is case translation coverage, not evidence of live execution.
 These are local package, fixture, and native-sandbox checks with synthetic host
 responses. They do not establish live host stability, a published release,
 default cutover, or completion of issue #95. Non-macOS runs do not exercise the
-macOS sandbox checks. Private goal assertions and manually supplied human-review
-minutes remain migration gaps.
+macOS sandbox checks. Private goal assertions remain a migration gap.
+The separate [manual-review validation](manual-review-validation.md) covers
+supplied review-minute annotations.

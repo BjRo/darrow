@@ -571,8 +571,16 @@ evidence paths must not make otherwise identical corpus inputs appear different.
 Reusing a results root with changed corpus metadata preserves prior source
 provenance files rather than overwriting them.
 The default manifest remains under the evaluated project's corpus directory.
-Manually supplied human-review minutes remain an explicit migration gap and
-cannot be silently ignored.
+The direct command accepts `--human-review-minutes` as a finite, non-negative
+number of manually supplied minutes per trial. Zero is explicit; empty or
+invalid values fail with exit `64` before creating selection storage or running
+cases. The Darrow selection manifest retains `humanReviewMinutes` and
+`humanReviewMinutesSource: "user_supplied"`; an omitted value retains both as
+`null`. This annotation applies to the selected cases and remains in per-attempt,
+latest, optional output, failed, and interrupted manifests. It does not assert
+that a review occurred, establish a task assessment, enter Sevro grading or
+evaluator identity, or become an automated duration, token, or cost measurement.
+Dry and unassessed runs remain unassessed when the annotation is supplied.
 
 The existing `bun run eval:orchestration` and `evals/runner/suite.ts` caller
 selects Sevro when `SEVRO_PACKAGE_BIN` or `SEVRO_CHECKOUT` is explicitly set.

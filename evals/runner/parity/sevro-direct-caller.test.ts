@@ -1,4 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
+import { existsSync } from "node:fs";
 
 import {
   mkdir,
@@ -125,6 +126,8 @@ test("direct caller routes a filtered dry evaluation through Sevro", async () =>
     resultsRoot: output,
     caseIds: ["direct-beta"],
     interrupted: false,
+    humanReviewMinutes: null,
+    humanReviewMinutesSource: null,
   });
   expect(manifest.runs).toHaveLength(1);
   const cell = manifest.runs[0];
@@ -165,6 +168,101 @@ test("direct caller routes a filtered dry evaluation through Sevro", async () =>
   );
 }, 30_000);
 
+function reviewArguments(
+  root: string,
+  binary: string,
+  credential: string,
+  resultsRoot: string,
+) {
+  return [
+    "--project-root",
+    root,
+    "--results-root",
+    resultsRoot,
+    "--harness",
+    "codex",
+    "--owner-evaluation",
+    "passive",
+    "--case",
+    "alpha",
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--jobs",
+    "1",
+    "--dry",
+    "--",
+    ...nativeArgs(binary, credential),
+  ];
+}
+
+test("direct caller retains supplied review minutes as an annotation", async () => {
+  const { root, binary, credential } = await fixture();
+  const results = await realpath(
+    await mkdtemp(join(tmpdir(), "darrow-review-minutes-")),
+  );
+  roots.push(results);
+  const args = reviewArguments(root, binary, credential, results);
+  const identities: string[] = [];
+  for (const minutes of ["0", "2.5"]) {
+    const run = await invoke(root, [
+      "--human-review-minutes",
+      minutes,
+      "--output",
+      join(results, "output.json"),
+      ...args,
+    ]);
+    expect(run.code, run.stderr + run.stdout).toBe(0);
+    const manifest = JSON.parse(run.stdout);
+    expect(manifest).toMatchObject({
+      humanReviewMinutes: Number(minutes),
+      humanReviewMinutesSource: "user_supplied",
+    });
+    for (const path of [
+      manifest.manifestPath,
+      join(results, "selection-run.json"),
+      join(results, "output.json"),
+    ]) {
+      expect(JSON.parse(await readFile(path, "utf8"))).toEqual(manifest);
+    }
+    const result = manifest.runs[0].result;
+    expect(result).toMatchObject({
+      execution: { status: "not_run" },
+      grading: { status: "not_requested" },
+      task: { verdict: "not_assessed" },
+      exitCode: 0,
+    });
+    expect(
+      JSON.parse(await readFile(manifest.runs[0].resultPath, "utf8")),
+    ).toEqual(result);
+    const evidence = JSON.parse(await readFile(result.evidencePath, "utf8"));
+    expect(evidence.trials[0].metrics).toEqual([]);
+    identities.push(evidence.evaluationIdentity.digest);
+  }
+  expect(identities[0]).toMatch(/^[a-f0-9]{64}$/);
+  expect(identities[1]).toBe(identities[0]);
+}, 30_000);
+
+test.each(["-1", "NaN", "Infinity", "-Infinity", "", " "])(
+  "direct caller refuses invalid review minutes before selection: %s",
+  async (minutes) => {
+    const { root, binary, credential } = await fixture();
+    const results = join(root, "invalid-review-results");
+    const run = await invoke(root, [
+      "--human-review-minutes=" + minutes,
+      ...reviewArguments(root, binary, credential, results),
+    ]);
+    expect(run.code, run.stderr + run.stdout).toBe(64);
+    expect(run.stderr).toContain("--human-review-minutes");
+    expect(run.stdout).toBe("");
+    expect(await Bun.file(join(results, "selection-run.json")).exists()).toBe(
+      false,
+    );
+    expect(existsSync(results)).toBe(false);
+  },
+);
+
 test("direct caller rejects forwarded overrides and unsupported legacy policies", async () => {
   const { root, binary, credential } = await fixture();
   const base = [
@@ -178,6 +276,7 @@ test("direct caller rejects forwarded overrides and unsupported legacy policies"
   ];
   for (const forwarded of [
     ["--model", "override"],
+    ["--human-review-minutes", "2"],
     ["--condition", "passive"],
     ["--jobs", "1"],
     ["--config-root", root],
@@ -197,7 +296,6 @@ test("direct caller rejects forwarded overrides and unsupported legacy policies"
     ["--expected-goal-routes", "{}"],
     ["--assert-goal-routes", "{}"],
     ["--assert-goal-dimensions", "{}"],
-    ["--human-review-minutes", "5"],
   ]) {
     const run = await invoke(root, [...base, ...args]);
     expect(run.code, run.stderr).toBe(64);
@@ -304,6 +402,8 @@ await new Promise(() => setInterval(() => {}, 1000));
           "1",
           "--threshold",
           "1",
+          "--human-review-minutes",
+          "1.25",
           "--",
           ...nativeArgs(binary, credential),
         ],
@@ -320,6 +420,10 @@ await new Promise(() => setInterval(() => {}, 1000));
           await readFile(join(output, "selection-run.json"), "utf8"),
         );
         expect(initial.caseIds).toEqual(["direct-alpha", "direct-beta"]);
+        expect(initial).toMatchObject({
+          humanReviewMinutes: 1.25,
+          humanReviewMinutesSource: "user_supplied",
+        });
         expect(initial.runs).toEqual([]);
         child.kill(signal);
         const [stdout, stderr, code] = await Promise.all([
@@ -330,6 +434,10 @@ await new Promise(() => setInterval(() => {}, 1000));
         expect(code, stderr + stdout).toBe(signal === "SIGINT" ? 130 : 143);
         const manifest = JSON.parse(stdout);
         expect(manifest.interrupted).toBe(true);
+        expect(manifest).toMatchObject({
+          humanReviewMinutes: 1.25,
+          humanReviewMinutesSource: "user_supplied",
+        });
         expect(manifest.runs).toHaveLength(1);
         expect(manifest.runs[0]).toMatchObject({
           caseId: "direct-alpha",
@@ -411,6 +519,8 @@ for (const event of [
       "1",
       "--output",
       outputPath,
+      "--human-review-minutes",
+      "3.5",
       "--case-routes",
       JSON.stringify({
         "direct-alpha": { model: "alpha-model", effort: "high" },
@@ -421,6 +531,10 @@ for (const event of [
     expect(run.code, run.stderr + run.stdout).toBe(1);
     const manifest = JSON.parse(run.stdout);
     expect(manifest.caseIds).toEqual(["direct-alpha", "direct-beta"]);
+    expect(manifest).toMatchObject({
+      humanReviewMinutes: 3.5,
+      humanReviewMinutesSource: "user_supplied",
+    });
     expect(
       manifest.runs.map((cell: { exitCode: number }) => cell.exitCode),
       run.stdout,

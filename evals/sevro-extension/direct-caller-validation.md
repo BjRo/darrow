@@ -162,13 +162,13 @@ under comparison. The benchmark's existing rejection diagnostic is preserved.
 ## Remaining cutover gates
 
 Published pinning, installed CI, default cutover, generic runner removal, private
-goal assertions, bundled-host enforcement, manually
-supplied human-review minutes, and specialized historical comparisons remain
+goal assertions, bundled-host enforcement, and specialized historical comparisons remain
 pending. Selection JSON is a documented output migration; legacy arrays remain
 interpretable through the standalone historical reader.
 
 Custom corpus manifests are now covered by [corpus validation](corpus-caller-validation.md),
 including installed-package source-worktree isolation and retained provenance.
+Manual review minutes are covered by [manual-review validation](manual-review-validation.md).
 
 ## Review repairs
 
