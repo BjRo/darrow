@@ -5452,6 +5452,137 @@ test("Darrow fixture setup runs through Sevro and rejects changed source", async
   expect(initialized.value.cases[0]!.trials[0]!.checks).toHaveLength(3);
 });
 
+test("Darrow runs implicit repository skills without a plugin wrapper", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-repository-skill-"));
+  roots.push(root);
+  const skillRoot = join(root, ".agents/skills/probe");
+  await mkdir(join(skillRoot, "evals"), { recursive: true });
+  await mkdir(join(skillRoot, "scripts"));
+  const skillBody =
+    "---\nname: probe\ndescription: Return ready.\n---\n\nReturn ready.\n";
+  await writeFile(join(skillRoot, "SKILL.md"), skillBody);
+  await writeFile(join(skillRoot, "scripts/helper.sh"), "#!/bin/sh\nexit 0\n", {
+    mode: 0o700,
+  });
+  await writeFile(
+    join(skillRoot, "evals/probe.yaml"),
+    JSON.stringify({
+      id: "repository-probe",
+      invariant: "EXAMPLE-R1",
+      activation: "positive",
+      prompt: "Use the probe capability to return ready.",
+      fixture: {
+        setup: [
+          "printf 'fixture\\n' > README.md",
+          "git add README.md",
+          "git -c user.name=Fixture -c user.email=fixture@example.invalid commit -qm Initial",
+          "mkdir -p .git/fixture-bin",
+          "printf '%s\\n' '#!/bin/sh' \"printf 'fixture-bin-ready\\\\n'\" > .git/fixture-bin/sevro-probe",
+          "chmod +x .git/fixture-bin/sevro-probe",
+        ].join("\n"),
+      },
+      checks: [
+        {
+          name: "fixture tool",
+          run: "sevro-probe",
+          expect_exact: "fixture-bin-ready",
+        },
+        {
+          name: "repository unchanged",
+          run: 'test "$(git rev-list --count HEAD)" -eq 1 && test -z "$(git status --porcelain)"',
+        },
+      ],
+      output_checks: [{ name: "response", expect_exact: "ready" }],
+    }),
+  );
+  const resolved = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(root).href,
+      selectors: { caseIds: ["repository-probe"] },
+    }),
+  );
+  expect(resolved.code, resolved.stderr).toBe(0);
+  const selected = resolved.value.result.cases[0]!;
+  const prepared = await command<{
+    result: {
+      artifacts: Array<{ relativePath: string }>;
+      codexMarketplace?: unknown;
+    };
+  }>(
+    [process.execPath, extension],
+    request("prepare", {
+      case: selected,
+      host: { id: "sevro.host.codex", capabilities: [] },
+      condition: "passive",
+      configuration: {},
+    }),
+  );
+  expect(prepared.code, prepared.stderr).toBe(0);
+  expect(
+    prepared.value.result.artifacts.map((item) => item.relativePath),
+  ).toEqual([
+    ".agents/skills/probe/SKILL.md",
+    ".agents/skills/probe/scripts/helper.sh",
+  ]);
+  expect(prepared.value.result.codexMarketplace).toBeUndefined();
+  const claude = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("prepare", {
+      case: selected,
+      host: { id: "sevro.host.claude", capabilities: [] },
+      condition: "passive",
+      configuration: {},
+    }),
+  );
+  expect(claude.value.error.message).toMatch(
+    /repository-skill mounts on Claude/,
+  );
+  const adapter = join(root, "candidate.ts");
+  await writeFile(
+    adapter,
+    `export default {
+  id: "sevro.host.codex", model: "synthetic-v1", effort: "none",
+  async run({ workspace, fixtureBinDir }) {
+    if ((await Bun.file(workspace + "/.agents/skills/probe/SKILL.md").text()) !== ${JSON.stringify(skillBody)}) throw new Error("skill mount differs");
+    if (await Bun.file(workspace + "/.agents/skills/probe/evals/probe.yaml").exists()) throw new Error("eval exposed");
+    const child = Bun.spawn(["sevro-probe"], { cwd: workspace, env: { PATH: fixtureBinDir + ":/usr/bin:/bin" }, stdout: "pipe" });
+    if ((await new Response(child.stdout).text()).trim() !== "fixture-bin-ready" || await child.exited !== 0) throw new Error("fixture tool unavailable");
+    return {
+      finalMessage: "ready", complete: true,
+      observations: [{ id: "sevro.codex.skill-reads", source: "sevro.host.codex", completeness: "complete", data: { method: "skill_file_read_probe", primarySkill: "probe", observedSkills: ["probe"] } }],
+    };
+  },
+};
+`,
+  );
+  const run = await command<CliReply>([
+    process.execPath,
+    resolve(import.meta.dir, "../../sevro-extension/run.ts"),
+    "--case-id",
+    "repository-probe",
+    "--project-root",
+    root,
+    "--results-root",
+    join(root, "results"),
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+    "--condition",
+    "passive",
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+  ]);
+  expect(run.code, run.stderr).toBe(0);
+  expect(run.value.task.verdict).toBe("passed");
+  expect(run.value.cases[0]!.trials[0]!.domainOutcomes).toMatchObject([
+    { id: "darrow.evals.activation", status: "passed" },
+  ]);
+});
+
 test("Darrow runs a pinned corpus repository with committed overlay and setup", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-corpus-"));
   roots.push(root);

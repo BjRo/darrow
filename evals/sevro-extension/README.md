@@ -16,8 +16,9 @@ propositions graded by Sevro's separate evaluator route.
 Setup-only generated fixtures omit the commit list and begin with an empty Git
 history. Their setup creates the initial snapshot without a placeholder commit.
 The compatibility inventory also includes `.agents/skills/*/evals/*.yaml`.
-Repository-skill cases currently remain explicit unsupported failures; they are
-not omitted from the migration gate or run as skill-less cases.
+Implicit repository-skill cases mount their owning skill under `.agents/skills/`
+on Codex without a plugin wrapper. Explicit repository dispatch, Claude mounts,
+and provider composition remain unavailable pending their native scope support.
 For a plugin-local case, `prepare` mounts the selected skill's files under
 `.agents/skills/` and excludes their exact paths from Git status. Colocated
 `evals/` files and generated caches stay out of the candidate fixture. Skill

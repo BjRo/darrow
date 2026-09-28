@@ -391,13 +391,11 @@ function headChecks(value: unknown) {
 
 function skillDirForSource(source: string): string | null {
   const parts = source.split("/");
-  return parts.length === 7 &&
-    parts[0] === "plugins" &&
-    parts[3] === "skills" &&
-    parts[5] === "evals" &&
-    parts[6]?.endsWith(".yaml")
-    ? parts.slice(0, 5).join("/")
-    : null;
+  if (/^\.agents\/skills\/[^/]+\/evals\/[^/]+\.yaml$/.test(source))
+    return parts.slice(0, 3).join("/");
+  if (/^plugins\/[^/]+\/[^/]+\/skills\/[^/]+\/evals\/[^/]+\.yaml$/.test(source))
+    return parts.slice(0, 5).join("/");
+  return null;
 }
 
 function checkNames(selected: RecordValue) {
@@ -528,6 +526,8 @@ function caseMount(value: unknown, source: string, root: string) {
   if (value !== undefined && typeof value !== "boolean")
     throw new Error("mount_plugin_skills must be a boolean");
   const mountPluginSkills = value === true;
+  if (mountPluginSkills && skillDir?.startsWith(".agents/"))
+    throw new Error("repository skills cannot request plugin sibling mounts");
   if (mountPluginSkills && !skillDir)
     throw new Error("sibling skill mounts require a colocated owning skill");
   return {
@@ -635,6 +635,10 @@ async function invocationForCase(
   if (!prompt.includes("{{skill_invocation}}")) return null;
   if (!skillDir)
     throw new Error("skill invocation requires a plugin-local case");
+  if (skillDir.startsWith(".agents/"))
+    throw new Error(
+      "explicit repository-skill invocation is not yet supported",
+    );
   const pluginRoot = await realpath(join(root, dirname(dirname(skillDir))));
   if (!within(root, pluginRoot))
     throw new Error("owning plugin escapes the project root");
@@ -1388,12 +1392,16 @@ async function casePrompts(
 }
 
 function caseDefinition(value: unknown, source: string): RecordValue {
-  if (/^\.agents\/skills\/[^/]+\/evals\/[^/]+\.yaml$/.test(source))
-    throw new Error(
-      "repository-skill cases are not yet supported by the Sevro extension",
-    );
   const selected = record(value, "case");
   keys(selected, CASE_FIELDS, "case");
+  if (
+    source.startsWith(".agents/") &&
+    (selected.additional_plugins !== undefined ||
+      selected.additional_skills !== undefined)
+  )
+    throw new Error(
+      "repository-skill provider composition is not yet supported",
+    );
   return selected;
 }
 
@@ -2119,9 +2127,26 @@ function packageDeclarations(options: {
   };
 }
 
+async function repositorySkillMounts(
+  details: RecordValue,
+  sources: { skillRoot: string; skillName: string }[],
+  hostValue: unknown,
+) {
+  if (record(hostValue, "candidate host").id === "sevro.host.claude")
+    throw new Error("repository-skill mounts on Claude are not yet supported");
+  requireActivationSkills(details, sources);
+  return { artifacts: await skillArtifacts(sources) };
+}
+
 async function preparedMounts(details: RecordValue, hostValue: unknown) {
   const sources =
     details.mount === undefined ? [] : await skillMountSource(details);
+  if (
+    skillDirForSource(string(details.source, "case source"))?.startsWith(
+      ".agents/",
+    )
+  )
+    return repositorySkillMounts(details, sources, hostValue);
   const { owner, additional } = mergeAdditionalSkills(
     sources,
     await additionalPluginSources(details),
