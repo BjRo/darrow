@@ -652,6 +652,54 @@ checks remain inspectable but produce no behavioral success or comparative
 scores. Historical execution mode may be recovered from an explicit suite
 manifest; absent provenance stays unknown.
 
+### Historical legacy interpretation
+
+Recorded trial success that contradicts a failed harness or named check is
+invalid evidence. Preserve its recorded facts and diagnostic, but publish no
+measured rate for that row.
+Retained semantic assessment names and verdicts must agree with their named
+checks. Contradictory semantic evidence stays visible with diagnostics and no
+measured rates; malformed assessment entries also fail interpretation.
+Semantic facts that lack corresponding check outcomes remain unavailable.
+Duplicate named checks or trial numbers, trial numbers beyond the declared
+planned count, and malformed cell exit codes are invalid archive structure and
+must produce diagnostics and an unsuccessful interpreter exit.
+
+Darrow owns a read-only interpreter for retained legacy result arrays, suite
+manifests, and `darrow-eval-trial-v1` checkpoints. The documented legacy report
+command accepts `--json` for its `darrow-legacy-report-v1` view. The independently
+usable migration entrypoint is `evals/sevro-extension/legacy-report.ts`; it
+reads the same archival inputs and writes JSON or Markdown to standard output.
+Neither path executes a host, requires Sevro or Git metadata, rewrites input
+artifacts, or imports the generic runner to interpret them.
+
+The view identifies every input by absolute path and content digest. It retains
+recorded summary values, named trial checks, exact candidate and grader routes,
+activation, advisory and semantic outcomes, and requested versus observed policy
+assistance separately. Runner revision, dirty state and patch identity are
+legacy facts; absent evaluator metadata stays unknown. The view never supplies
+a current Sevro package, protocol or evaluator identity and does not establish
+comparison eligibility.
+
+Execution comes only from consistent case/trial declarations and an explicitly
+linked suite manifest's `dry` boolean. Empty responses, zero timing and successful
+checks do not establish execution. Missing or conflicting declarations stay
+unknown. Case completeness requires a manifest's planned trial count, all unique
+trial numbers, and a finished cell exit of zero or one. Standalone arrays with no
+planned count remain unknown; checkpoints remain partial even when their retained
+single trial matches `plannedTrials`. A partial attempt is not a completed
+threshold run.
+
+Recorded rates remain visible as archival claims. Measured task quality and
+protocol rates require known executed and complete evidence; dry, unknown,
+partial or unavailable required trial facts leave their rates null. Legacy task
+quality excludes only the two exact bookkeeping check names. Bookkeeping
+requires both named checks; missing policy or outcomes stay unknown. Activation,
+semantic gates and advisory assessments do not become interchangeable rates.
+Malformed, unreadable or contradictory inputs retain a diagnostic and make the
+interpreter unsuccessful. Other valid inputs remain visible. Original snapshots,
+transcripts and comparison inputs remain preserved in their own recorded formats.
+
 Before Darrow switches to a packaged runner, the same command-level
 compatibility cases must run against the in-repository runner and the candidate
 package through their public commands. Compare case selection, named check

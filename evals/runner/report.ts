@@ -581,7 +581,10 @@ if (import.meta.main) {
   const { values, positionals } = parseArgs({
     args: Bun.argv.slice(2),
     allowPositionals: true,
-    options: { output: { type: "string" } },
+    options: {
+      output: { type: "string" },
+      json: { type: "boolean" },
+    },
   });
   if (positionals.length !== 1) {
     throw new Error(
@@ -589,33 +592,39 @@ if (import.meta.main) {
     );
   }
   const manifestPath = resolve(process.cwd(), positionals[0]!);
-  const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
-    dry?: boolean;
-    cells: Array<{ harness: string; mode: string; result: string }>;
-  };
-  const cells: ReportCell[] = [];
-  for (const cell of manifest.cells) {
-    cells.push({
-      harness: cell.harness,
-      mode: cell.mode,
-      results: (
-        JSON.parse(await readFile(cell.result, "utf8")) as CaseResult[]
-      ).map((result) => ({
-        ...result,
-        executionMode: executionMode(
-          result,
-          typeof manifest.dry === "boolean"
-            ? manifestExecutionMode(manifest.dry)
-            : undefined,
-        ),
-      })),
-    });
+  if (values.json) {
+    const { runLegacyReport } =
+      await import("../sevro-extension/legacy-report");
+    process.exitCode = await runLegacyReport(Bun.argv.slice(2));
+  } else {
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
+      dry?: boolean;
+      cells: Array<{ harness: string; mode: string; result: string }>;
+    };
+    const cells: ReportCell[] = [];
+    for (const cell of manifest.cells) {
+      cells.push({
+        harness: cell.harness,
+        mode: cell.mode,
+        results: (
+          JSON.parse(await readFile(cell.result, "utf8")) as CaseResult[]
+        ).map((result) => ({
+          ...result,
+          executionMode: executionMode(
+            result,
+            typeof manifest.dry === "boolean"
+              ? manifestExecutionMode(manifest.dry)
+              : undefined,
+          ),
+        })),
+      });
+    }
+    const outputPath = values.output
+      ? resolve(process.cwd(), values.output)
+      : join(dirname(manifestPath), "report.md");
+    await writeFile(outputPath, renderSuiteReport(cells));
+    console.log(`Report: ${outputPath}`);
   }
-  const outputPath = values.output
-    ? resolve(process.cwd(), values.output)
-    : join(dirname(manifestPath), "report.md");
-  await writeFile(outputPath, renderSuiteReport(cells));
-  console.log(`Report: ${outputPath}`);
 }
 import {
   executionLabel,

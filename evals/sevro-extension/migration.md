@@ -102,12 +102,26 @@ this extraction. The intended enforcement migration remains a cutover gate.
 
 Preserve original legacy arrays, manifests, transcripts, and comparison inputs.
 The Sevro report command consumes its versioned CLI and evidence formats; it
-does not directly interpret legacy arrays. Darrow still needs a historical
-interpreter or explicit migration layer before removing its legacy reports.
+does not directly interpret legacy arrays. Darrow's standalone
+`evals/sevro-extension/legacy-report.ts` now reads legacy result arrays,
+`darrow-orchestration-suite-v1` manifests, and `darrow-eval-trial-v1` checkpoints.
+It writes Markdown or `--json` to standard output, needs no Sevro installation
+or generic runner, and preserves the original files. The existing legacy
+report command also exposes this view with `--json`. See the
+[historical reader contract](README.md#historical-result-interpretation) and
+[validation](history-validation.md).
 Missing execution mode, evaluator identity, or completeness stays unknown.
 Never infer execution from an empty response or zero timing, manufacture a
 current Sevro identity, or silently make different grading and instrumentation
 eligible for comparison.
+
+Recorded summaries remain archival claims. Measured quality, protocol, and
+bookkeeping require a complete executed suite boundary and available facts;
+checkpoints remain partial. Invalid inputs fail interpretation while valid peers
+remain visible. Other historical comparison snapshots retain their original
+formats; this reader does not convert them into Sevro comparison inputs or
+replace every specialized comparison command. Those workflows still need an
+explicit migration or retirement before their implementation can be removed.
 
 ## Release, update, and rollback
 

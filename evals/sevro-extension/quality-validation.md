@@ -68,5 +68,6 @@ snapshot is a public contract, with no Sevro implementation imports.
 The default quality metric applies to the default task policy. A selected
 custom policy remains in retained trial evidence and has no inferred quality
 rate; its public task verdict is still authoritative. Raw advisory and activation
-evidence remains separate. Historical legacy arrays still need their own
-interpreter before the legacy report can be removed.
+evidence remains separate. Historical legacy arrays use the separate
+[Darrow archive interpreter](history-validation.md); it does not establish
+numerical equivalence to this Sevro report.

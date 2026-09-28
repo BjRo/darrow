@@ -202,6 +202,16 @@ boolean supply missing provenance. Standalone historical results without such
 provenance remain unknown; empty responses and zero timings do not establish
 execution mode.
 
+For read-only historical interpretation, run
+`bun evals/sevro-extension/legacy-report.ts /absolute/path/to/input.json [--json]`.
+The standalone reader handles legacy arrays, suite manifests, and trial
+checkpoints without Sevro or the generic runner. It preserves archive bytes,
+separates recorded claims from complete executed measurements, and keeps
+unknown provenance and partial attempts unmeasured. The legacy report command
+exposes the same JSON view with `--json`. See the
+[historical reader contract](../evals/sevro-extension/README.md#historical-result-interpretation)
+and [validation](../evals/sevro-extension/history-validation.md).
+
 Shell checks, including dry checks, use the same outer isolation mechanism as
 candidate execution with a separate credential-free home and environment.
 They retain fixture tool access while source worktrees, peer fixtures, global

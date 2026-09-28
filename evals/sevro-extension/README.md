@@ -103,6 +103,46 @@ Other case fields and fixture mechanics fail explicitly. The legacy
 `{{repo_dir}}` prompt token maps to Sevro's per-trial
 workspace token. Other prompt templates still fail explicitly.
 
+## Historical result interpretation
+
+Read legacy result arrays, `darrow-orchestration-suite-v1` manifests, or
+`darrow-eval-trial-v1` checkpoints without executing an evaluator:
+
+```sh
+bun evals/sevro-extension/legacy-report.ts /absolute/path/to/suite-run.json
+bun evals/sevro-extension/legacy-report.ts /absolute/path/to/results.json --json
+bun evals/runner/report.ts /absolute/path/to/suite-run.json --json
+```
+
+The standalone command writes Markdown by default and `darrow-legacy-report-v1`
+JSON with `--json`. Its only local dependencies are `legacy-report.ts` and
+`legacy-evidence.ts`; it needs Bun, but no Sevro installation, generic runner,
+Git metadata, host credentials, or model calls. It writes only to stdout and
+leaves archive bytes unchanged. Relative cell result paths resolve beside the
+input manifest. The legacy command's existing Markdown behavior remains available.
+
+The view retains absolute input paths and SHA-256 digests, recorded summary
+claims, named checks, candidate and grader routes, activation, advisory and
+semantic evidence, and requested versus observed policy assistance. Missing
+evaluator metadata stays unknown. It supplies no current Sevro identity or
+comparison eligibility. Raw responses and transcripts remain in the original
+input artifacts and are not copied into this view.
+
+Measured task quality excludes only the two historical bookkeeping checks;
+protocol rate retains the recorded trial verdict. Bookkeeping requires both
+named checks. All rates require complete executed evidence and their relevant
+facts. Dry, unknown, partial, unavailable, or contradictory evidence stays
+unmeasured. Raw recorded rates remain visible as archival claims. A standalone
+array without the planned run boundary stays incomplete or unknown, even when
+execution is explicit. Checkpoints always stay partial.
+
+Exit `0` means the supported archive was interpreted, including failed trials;
+it does not mean the evaluated task passed. Exit `1` means malformed,
+unreadable, contradictory, or unsupported inputs, with diagnostics and valid
+peer inputs retained. Exit `64` means invalid invocation. Other comparison
+formats remain preserved in their original files and are explicitly unsupported
+by this reader. See [historical validation](history-validation.md).
+
 ## Direct case selection
 
 Use `--skill <exact-owning-directory>` or `--plugin <exact-plugin-directory>`
