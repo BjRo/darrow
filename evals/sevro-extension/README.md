@@ -98,6 +98,24 @@ Other case fields and fixture mechanics fail explicitly. The legacy
 `{{repo_dir}}` prompt token maps to Sevro's per-trial
 workspace token. Other prompt templates still fail explicitly.
 
+## Claude follow-up turns
+
+Cases with `follow_up_prompt` can resume the same native Claude session under
+passive conditions. Sevro keeps the workspace, settings, credentials, model,
+and effort unchanged across calls and requires both terminal results to name
+the requested session. A failed or unbound result cannot produce a successful
+assessment; an invalid initial result prevents resumption. The final turn's
+response is graded. Separate initial and follow-up event artifacts remain
+private alongside the bounded combined stream.
+
+The sourced `sevro.claude.continuation` observation records the bound session
+and whether visible worktree contents stayed unchanged before feedback.
+Unmeasured fingerprints remain partial and unknown. Unbound native results
+leave usage and cost unknown. Existing ownership and feedback assertions keep
+their declared host and evidence requirements. Deterministic integration
+coverage is in [suite-validation.md](suite-validation.md); one installed-build
+live continuation is in [live-validation.md](live-validation.md).
+
 ## Benchmark condition files
 
 Pass `--benchmark-condition-file /absolute/path/to/instructions.md` before

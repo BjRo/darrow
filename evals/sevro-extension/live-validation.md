@@ -1,5 +1,54 @@
 # Focused live validation
 
+## Installed standalone Claude continuation
+
+On 2026-09-28, Sevro's installed `0.1.0-dev.0` package ran one native Claude
+continuation after a fresh dry preparation. It used `claude-sonnet-5` at low
+effort, passive execution, one trial, threshold `1`, a generated Git fixture,
+one built-in regex check, and required `sevro.claude.continuation` evidence.
+The case uses no Darrow extension. Claude authentication succeeded.
+
+The dry run exited `0` with execution `not_run` and task `not_assessed`. The
+fresh live run exited `0` with execution `completed`, grading `completed`, and
+task `passed`. Its initial response was `waiting`; its resumed response was
+`ready`. Each turn retained exactly one terminal native result, both bound to
+session `a471a14b-3e63-462d-8ee6-2023b8301931`. The complete continuation
+observation records an unchanged visible worktree before feedback.
+
+The package was packed from clean Sevro commit `fe8faf5` and installed in a
+separate temporary consumer. Evidence records package source `sevro`, version
+`0.1.0-dev.0`, and build digest
+`1fba1ea3df2476543a12e4ffa6c67f11428e0f19d618bf40be3aeccf8b7c2136`.
+The archive SHA-256 is
+`53b54ca057fa00968af3e7337764dcda95f3d6ca811f53ad7a3795c47b84985d`.
+Neither a checkout override nor runner Git metadata was used. Darrow and
+Sevro source roots were explicitly protected.
+
+Command, from
+`/private/tmp/darrow-issue95-claude-resume-package.d3MnL2/consumer`:
+
+```sh
+lean-ctx -c '/private/tmp/darrow-issue95-claude-resume-package.d3MnL2/consumer/node_modules/.bin/sevro run --json --case-file /private/tmp/darrow-issue95-claude-resume-package.d3MnL2/project/case.json --host claude --claude-bin /opt/homebrew/bin/claude --model claude-sonnet-5 --effort low --project-root /private/tmp/darrow-issue95-claude-resume-package.d3MnL2/project --condition passive --trials 1 --threshold 1 --protected-root /Users/bjro/Sources/sevro --protected-root /Users/bjro/Sources/darrow --results-root /private/tmp/darrow-issue95-claude-resume-package.d3MnL2/live > /private/tmp/darrow-issue95-claude-resume-package.d3MnL2/live-result.json'
+```
+
+The preceding dry invocation used the same command with `--dry`, result root
+`/private/tmp/darrow-issue95-claude-resume-package.d3MnL2/dry`, and output file
+`/private/tmp/darrow-issue95-claude-resume-package.d3MnL2/dry-result.json`.
+
+Retained evidence:
+
+- Run ID: `be89be17-4d34-467f-87f7-7c64cbae68ec`.
+- Run path: `/private/tmp/darrow-issue95-claude-resume-package.d3MnL2/live/be89be17-4d34-467f-87f7-7c64cbae68ec/run.json`.
+- Run SHA-256: `4af73bd48458eb880feb0ec83d98e3595e18d4d356c47d31f5ce87c8bef2dd85`.
+- CLI-result SHA-256: `fb6a83dae1b02f5a4eda5dcc125bfbb6a3daf68b4b9166cbbdf4733458895016`.
+- Complete host-reported usage: 50,615 input tokens including cache buckets,
+  nine output tokens, and cost `0.2079892`.
+
+This verifies one native same-session continuation and built-in grading from
+an installed development package. It does not establish stability, an owner
+handoff, private message delivery, or complete cross-host workflow parity.
+The package remains unpublished; exact release pinning is pending.
+
 ## Claude guide control absence
 
 On 2026-09-28, the existing `guide-mutation` case ran through Sevro's bundled

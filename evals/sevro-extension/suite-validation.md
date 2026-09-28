@@ -1,5 +1,41 @@
 # Suite validation
 
+## Claude continuation through the public CLI
+
+Sevro commit `fe8faf5` adds UUID-bound native Claude resumption. Darrow's
+`follow_up_prompt` translation reaches that host through the negotiated
+`sevro.host.continuation` capability. Existing task and output checks run
+against the completed second turn.
+
+The focused command passed one test with seven assertions:
+
+```sh
+SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-extension.test.ts -t "Darrow runs a Claude follow-up through Sevro"'
+```
+
+It runs the real Darrow entrypoint and Sevro CLI with a synthetic Claude
+executable and credentials. The resumed call verifies the session and prompt,
+creates the expected fixture effect, and supplies the final response. The
+result passes the hidden shell and output checks, retains both turn artifacts,
+and binds a complete continuation observation with an unchanged visible
+worktree before feedback. This integration guard was added after Sevro's
+implementation, without a test-first claim.
+
+The final installed-package gate passed 108 tests with 1,737 assertions across
+three files in 182.96 seconds:
+
+```sh
+SEVRO_PACKAGE_TARBALL=/private/tmp/darrow-issue95-claude-resume-package.d3MnL2/sevro-0.1.0-dev.0.tgz lean-ctx -c 'bun run test:eval-runner-sevro-package'
+```
+
+The tarball was packed from clean Sevro commit `fe8faf5`. Its own full suite
+passed 210 tests with 1,131 assertions across 36 files, plus typechecking,
+formatting, and package installation without source Git metadata. Darrow
+typechecking, ESLint, and formatting passed. The new integration fixture uses
+no live model call. A separate native continuation is recorded in
+[live-validation.md](live-validation.md). Release pinning and command cutover
+remain pending.
+
 ## Parent candidate case routes
 
 Suite `case_routes` and mode `apply_case_routes` now preserve exact-case parent

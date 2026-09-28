@@ -333,6 +333,26 @@ diagnostic output, not proof of an owner launch, message delivery, or skill
 activation. Resumption must not overwrite the only evidence explaining why
 the first turn ended; private reasoning and tool payloads remain excluded.
 
+### Claude continuation through Sevro
+
+A case's `follow_up_prompt` resumes the same native Claude session after a
+successful initial turn. Both terminal results must identify the requested
+session. A failed, malformed, missing, or foreign initial result prevents
+resumption; a failed or unbound follow-up cannot produce a successful task
+assessment. Both calls use the same isolated workspace, credentials, settings,
+model, and effort. Explicit repository-command activation remains bound to
+the initial turn.
+
+Retained evidence includes the combined bounded event stream and separate
+initial and follow-up streams when resumption occurs. A sourced
+`sevro.claude.continuation` observation records the session and whether visible
+worktree contents stayed unchanged before feedback, without retaining file
+names or contents. Missing fingerprints remain partial with an unknown value.
+The final response comes from the last turn; usage and cost are summed only
+when all included host results supply valid measurements. These facts establish
+session continuity and bounded state observations, without proving an owner
+handoff or private message delivery.
+
 ### Semantic output checks
 
 An eval case may declare one or more gating semantic output checks when the

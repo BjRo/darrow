@@ -21,6 +21,119 @@ const extension = resolve(import.meta.dir, "../../sevro-extension/index.ts");
 const projectRoot = resolve(import.meta.dir, "../../..");
 const roots: string[] = [];
 
+test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
+  "Darrow runs a Claude follow-up through Sevro's public CLI",
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "darrow-sevro-claude-resume-"));
+    const binRoot = await mkdtemp(
+      join(tmpdir(), "darrow-sevro-claude-resume-bin-"),
+    );
+    roots.push(root, binRoot);
+    const cases = join(root, "evals/experiments/example/cases");
+    await mkdir(cases, { recursive: true });
+    await writeFile(
+      join(cases, "continuation.yaml"),
+      JSON.stringify({
+        id: "claude-continuation",
+        invariant: "CONTINUATION-C1",
+        prompt: "Wait for feedback.",
+        follow_up_prompt: "Finish and return ready.",
+        fixture: {
+          commits: [
+            { message: "chore: initial", files: { "README.md": "fixture\n" } },
+          ],
+        },
+        checks: [
+          {
+            name: "follow-up effect",
+            run: 'test "$(cat .git/final-turn.txt)" = done',
+          },
+        ],
+        output_checks: [{ name: "final response", expect_exact: "ready" }],
+      }),
+    );
+    const credential = join(root, "synthetic-credentials.json");
+    await writeFile(credential, '{"test":"synthetic-login"}', { mode: 0o600 });
+    const binary = join(binRoot, "claude-wrapper");
+    await writeFile(
+      binary,
+      `#!${process.execPath}
+import { readFile, writeFile } from "node:fs/promises";
+const args = process.argv.slice(2);
+const resumed = args.includes("--resume");
+const session = args[args.indexOf(resumed ? "--resume" : "--session-id") + 1];
+if (!/^[0-9a-f-]{36}$/.test(session)) process.exit(9);
+if (resumed) {
+  if (await readFile(".git/session", "utf8") !== session || args[args.indexOf("-p") + 1] !== "Finish and return ready.") process.exit(10);
+  await writeFile(".git/final-turn.txt", "done\\n");
+} else await writeFile(".git/session", session);
+process.stdout.write(JSON.stringify({ type: "result", subtype: "success", is_error: false, session_id: session,
+  result: resumed ? "ready" : "waiting", usage: { input_tokens: 1, output_tokens: 1 }, total_cost_usd: 0.01 }) + "\\n");
+`,
+      { mode: 0o700 },
+    );
+    const run = await command<{
+      task: { verdict: string };
+      evidencePath: string;
+    }>([
+      process.execPath,
+      resolve(import.meta.dir, "../../sevro-extension/run.ts"),
+      "--case-id",
+      "claude-continuation",
+      "--project-root",
+      root,
+      "--results-root",
+      join(root, "results"),
+      "--",
+      "--host",
+      "claude",
+      "--claude-bin",
+      binary,
+      "--claude-credential-file",
+      credential,
+      "--model",
+      "sonnet",
+      "--effort",
+      "low",
+      "--condition",
+      "passive",
+      "--trials",
+      "1",
+      "--threshold",
+      "1",
+      "--shell-isolation",
+    ]);
+    expect(run.code, run.stderr + JSON.stringify(run.value)).toBe(0);
+    expect(run.value.task.verdict).toBe("passed");
+    const evidence = JSON.parse(await readFile(run.value.evidencePath, "utf8"));
+    expect(evidence.extension.capabilities).toContain(
+      "sevro.host.continuation",
+    );
+    expect(
+      evidence.trials[0].observations.find(
+        (item: { id: string }) => item.id === "sevro.claude.continuation",
+      ),
+    ).toMatchObject({
+      source: "sevro.host.claude",
+      completeness: "complete",
+      data: {
+        method: "same_session_resume",
+        preFollowUpWorktreeUnchanged: true,
+      },
+    });
+    expect(
+      await readFile(new URL(evidence.trials[0].rawResult.path), "utf8"),
+    ).toBe("ready");
+    expect(
+      evidence.trials[0].artifactRefs.map((item: { id: string }) => item.id),
+    ).toContain("sevro.claude.initial-events");
+    expect(
+      evidence.trials[0].artifactRefs.map((item: { id: string }) => item.id),
+    ).toContain("sevro.claude.follow-up-events");
+  },
+  10_000,
+);
+
 test("Darrow benchmark owner routes require complete correlated native acceptance", async () => {
   const expected = { model: "gpt-5.6-luna", effort: "high" };
   const spawn = {
