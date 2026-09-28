@@ -11,6 +11,15 @@ import { claudeAdapter } from "./adapters/claude";
 import { codexAdapter } from "./adapters/codex";
 import { CODEX_EVAL_ROLE_DEFAULTS, resolveEvalRoute } from "./model-defaults";
 
+if (
+  process.env.SEVRO_PACKAGE_BIN !== undefined ||
+  process.env.SEVRO_CHECKOUT !== undefined
+) {
+  const { runSevroBenchmarkSuite } =
+    await import("../sevro-extension/benchmark-suite");
+  process.exit(await runSevroBenchmarkSuite(Bun.argv.slice(2)));
+}
+
 interface ModeConfig {
   effective_owner_routes?: Record<string, { model: string; effort: string }>;
   model_by_harness?: Record<string, string>;

@@ -515,6 +515,34 @@ for other harnesses supported by the complete suite. Every entry is validated,
 every selected harness needs a route, and unknown harnesses are rejected. The
 complete file digest remains in the manifest; only selected routes execute.
 
+The existing `bun run eval:orchestration` and `evals/runner/suite.ts` caller
+selects Sevro when `SEVRO_PACKAGE_BIN` or `SEVRO_CHECKOUT` is explicitly set.
+With neither route, it retains the legacy backend until the published package
+pin permits default cutover. An invalid explicit route cannot fall back.
+The caller preserves suite, harness, mode, case, trials, threshold, seed, dry,
+and candidate and grader route options. Relative suite and output paths resolve
+from the invocation directory; default output remains under the evaluated
+project's `evals/results/<experiment>/<timestamp>`. An optional absolute
+`--project-root` selects another evaluated checkout. Native host options follow
+`--`; caller-owned selection, routing, condition, storage, and grading options
+cannot be overridden there. Active-run storage remains a native forwarded
+option; result storage is owned by the caller.
+
+Candidate defaults remain Codex `gpt-5.6-terra/medium` and Claude
+`claude-sonnet-5/medium`. The separate semantic route remains Codex
+`gpt-5.6-luna/low`, and the optional advisory judge remains Codex
+`gpt-5.6-sol/low`. `--no-judge` disables only advisory grading; dry execution
+requests no advisory judge. Requested Claude grader routes remain explicitly
+unsupported until Sevro supplies their native route. Mode and case candidate
+overrides do not change either grader. The caller writes a retained host-route
+argument file and uses the existing Sevro suite command for execution and
+reports. Its stdout becomes that command's JSON summary, with the absolute
+evidence directory on stderr. Public result categories, unknown measurements,
+condition identity, and cancellation exits remain those of the suite route.
+This is a deliberate output migration from legacy result arrays and console
+tables. Unsupported private goal policy or bundled-host enforcement remains an
+explicit failure; the caller never rewrites an enforced mode to passive.
+
 The Sevro suite preserves benchmark `--seed` before `--`. A supplied seed,
 including an empty string, deterministically shuffles the selected host/mode
 blocks with the legacy suite's ordering rule. An omitted seed uses a generated

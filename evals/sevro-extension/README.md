@@ -325,6 +325,52 @@ Without an explicit Sevro route, the command retains its legacy backend until
 the published release is pinned. See [guide validation](guide-validation.md)
 for the test-first evidence and synthetic-host limits.
 
+## Benchmark suite caller
+
+The existing suite command selects Sevro when `SEVRO_CHECKOUT` or
+`SEVRO_PACKAGE_BIN` is set. For example, from the Darrow checkout:
+
+```sh
+SEVRO_PACKAGE_BIN=/absolute/path/to/sevro bun run eval:orchestration \
+  --suite evals/experiments/orchestration/adaptation-fidelity-suite.yaml \
+  --mode preflight-terra --case orchestration-routing-localized-mechanical \
+  --trials 1 --threshold 1 --seed diagnosis-1 --no-judge --dry \
+  --output /absolute/path/to/evidence -- \
+  --codex-bin /absolute/path/to/codex \
+  --codex-auth-file /absolute/path/to/auth.json
+```
+
+`bun evals/runner/suite.ts` exposes the same caller. Remove `--dry` only for a
+focused native trial whose preceding result is understood. Relative suite and
+output paths resolve from the invocation directory. Optional `--project-root`
+is absolute and defaults to this checkout. Default output remains
+`<project-root>/evals/results/<experiment>/<timestamp>`. Ablations require an
+external `--output` so their result files do not change project identity.
+
+Existing `--harness`, `--mode`, `--case`, `--trials`, `--threshold`, `--seed`,
+`--codex-model`, `--claude-model`, `--effort`, and grader options remain before
+`--`. Candidate defaults are Codex `gpt-5.6-terra/medium` and Claude
+`claude-sonnet-5/medium`; suite and case overrides retain their precedence.
+Semantic grading defaults to Codex `gpt-5.6-luna/low`, while advisory grading
+defaults to Codex `gpt-5.6-sol/low`. `--no-judge` disables only advisory grading;
+dry execution requests no advisory judge. Claude grader routes remain explicitly
+unsupported. Candidate mode overrides leave both graders unchanged.
+
+Forward native binaries, credential files, Claude settings/cache, configuration
+and run-state roots, protected roots, toolchain paths, and trial jobs after `--`.
+Routing, condition, grading, and result-storage options are caller-owned. The
+caller retains `caller-host-options.json`, then invokes the public suite route.
+Stdout is its JSON summary; stderr prints `Suite evidence: <absolute-directory>`.
+Separate quality, activation, and ablation reports retain their existing gates.
+Cancellation forwards to the active suite and retains its cancelled prefix.
+
+Neither caller changes enforced modes to passive or substitutes unavailable
+private goal policies. The adaptation study's enforced cell and suites using
+retired private goal fields still fail explicitly. Without a Sevro route the
+caller retains its legacy backend until release pinning and default cutover.
+An invalid explicit route cannot fall back. See
+[caller validation](benchmark-caller-validation.md).
+
 ## Candidate skill overrides
 
 Pass `--skill-dir /absolute/project/path/to/skill` before `--` on the run

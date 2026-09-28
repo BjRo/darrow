@@ -398,8 +398,13 @@ child tests. The local-checkout path records Sevro revision and patch state.
 The [Sevro migration guide](../evals/sevro-extension/migration.md) records
 command and evidence changes, remaining benchmark and historical-result gaps,
 the compatibility matrix, and release update and rollback steps. The migration
-entrypoints are available for coordinated development; normal Darrow callers
-still use the legacy runner until publication, exact release pinning, and cutover.
+entrypoints are available for coordinated development. The existing guide and
+orchestration suite callers select Sevro when an explicit package or checkout
+route is set; their default backends remain legacy until publication, exact
+release pinning, and cutover. The suite caller retains selectors, route options,
+seeded ordering, and cancellation while migrating output to a JSON summary and
+separate reports. See the
+[caller contract](../evals/sevro-extension/README.md#benchmark-suite-caller).
 
 The Sevro suite writes a Darrow-owned quality report separately from its generic
 report. It distinguishes non-record task checks, bookkeeping completeness, and
