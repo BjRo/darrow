@@ -4,6 +4,11 @@ import { lstat, readFile, readdir, realpath, stat } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { isDeepStrictEqual } from "node:util";
+import {
+  benchmarkCasePolicy,
+  benchmarkRecordChecks,
+  type BenchmarkPolicyConfiguration,
+} from "./benchmark-policy";
 import { parse as parseYaml } from "yaml";
 import { TICKETCTL } from "../fixture-ticket";
 import {
@@ -1501,22 +1506,39 @@ async function caseAssessment(
   selected: RecordValue,
   root: string,
   skillDir: string | null,
+  configuration: SkillMountConfiguration & BenchmarkPolicyConfiguration,
 ) {
   const policy = casePolicy(selected, skillDir);
+  const benchmark = benchmarkCasePolicy(
+    configuration,
+    configuration.skillDir ?? skillDir,
+  );
   return {
-    policy,
-    checks: [...(await caseChecks(selected, root, skillDir)), ...policy.checks],
+    policy: {
+      ...policy,
+      requiredEvidence: [
+        ...new Set([...policy.requiredEvidence, ...benchmark.requiredEvidence]),
+      ],
+      details: { ...policy.details, ...benchmark.details },
+    },
+    checks: [
+      ...(await caseChecks(selected, root, skillDir)),
+      ...policy.checks,
+      ...benchmark.checks,
+    ],
   };
 }
+
+type CaseConfiguration = SkillMountConfiguration &
+  BenchmarkPolicyConfiguration & { deferRoute?: boolean };
 
 async function neutralCase(
   value: unknown,
   source: string,
   root: string,
-  options: SkillMountConfiguration & { deferRoute?: boolean } = {},
+  options: CaseConfiguration = {},
 ) {
   const selected = caseDefinition(value);
-  const id = string(selected.id, "case ID");
   const { fixture, ...setup } = caseFixture(selected.fixture);
   if (options.skillDir)
     await loadSkillOverride(root, join(root, options.skillDir));
@@ -1537,9 +1559,10 @@ async function neutralCase(
     selected,
     root,
     skillDirForSource(source),
+    options,
   );
   return {
-    id,
+    id: string(selected.id, "case ID"),
     prompt,
     ...followUp,
     fixture,
@@ -5295,6 +5318,10 @@ async function evaluateCase(params: RecordValue) {
   const ownership = await caseOwnershipChecks(details, params);
   const checks = [
     ...guideDisclosureOutcomes(details.disclosureChecks, params.observations),
+    ...benchmarkRecordChecks(
+      details.benchmarkRecords,
+      uniqueObservation(params.observations, "sevro.observation.final-message"),
+    ),
     ...(details.ownership === "composition"
       ? ownership.slice(0, 2)
       : ownership),
@@ -5367,6 +5394,7 @@ if (import.meta.main) {
               "darrow.evals.ownership",
               "darrow.evals.transcript",
               "darrow.evals.disclosure",
+              "darrow.evals.benchmark",
             ],
             taskVerdictPolicies: [],
           }

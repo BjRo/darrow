@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { lstat, readFile, writeFile } from "node:fs/promises";
 import { basename, extname, isAbsolute, join } from "node:path";
 import { loadSkillOverride, skillMountConfiguration } from "./skill-mount";
+import { benchmarkPolicyConfiguration } from "./benchmark-policy";
 
 type RecordValue = Record<string, unknown>;
 export type BenchmarkCondition = {
@@ -72,7 +73,13 @@ export function extensionConfiguration(value: unknown) {
   const selected = object(value ?? {}, "extension configuration");
   knownFields(
     selected,
-    ["withoutSkill", "benchmarkCondition", "skillDir", "mountPluginSkills"],
+    [
+      "withoutSkill",
+      "benchmarkCondition",
+      "skillDir",
+      "mountPluginSkills",
+      "requireEvaluationRecords",
+    ],
     "extension configuration",
   );
   if (selected.withoutSkill !== undefined && selected.withoutSkill !== true)
@@ -95,6 +102,7 @@ export function extensionConfiguration(value: unknown) {
     withoutSkill: selected.withoutSkill === true,
     benchmarkCondition,
     ...skillMountConfiguration(selected),
+    ...benchmarkPolicyConfiguration(selected),
   };
 }
 
@@ -191,6 +199,7 @@ type RunConfigurationOptions = {
   conditionSha256?: string;
   skillDir?: string;
   mountPluginSkills?: true;
+  requireEvaluationRecords?: true;
 };
 
 async function runBenchmarkCondition(options: RunConfigurationOptions) {
@@ -220,6 +229,7 @@ async function runMountConfiguration(options: RunConfigurationOptions) {
         }
       : {}),
     ...(options.mountPluginSkills ? { mountPluginSkills: true } : {}),
+    ...benchmarkPolicyConfiguration(options),
   };
 }
 
@@ -228,7 +238,8 @@ export async function writeRunConfiguration(options: RunConfigurationOptions) {
     !options.withoutSkill &&
     !options.conditionFile &&
     !options.skillDir &&
-    !options.mountPluginSkills
+    !options.mountPluginSkills &&
+    !options.requireEvaluationRecords
   )
     return;
   const benchmarkCondition = await runBenchmarkCondition(options);

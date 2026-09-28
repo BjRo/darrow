@@ -158,6 +158,32 @@ but mount no skills. Redacted configuration records the project-relative
 `skillDir` and optional `mountPluginSkills: true`; fixture artifact digests bind
 the mounted bytes. Preparation rejects settings that contradict resolution.
 
+## Benchmark evaluation records
+
+Pass `--require-evaluation-records` before `--` on the run entrypoint, or
+declare mode `require_evaluation_records: true` in a suite. Darrow adds two
+checks to the existing task checks:
+
+| Legacy check name                 | Sevro check ID                               |
+| --------------------------------- | -------------------------------------------- |
+| reported child invocation count   | `darrow.evals.benchmark.child-invocations`   |
+| reported human intervention count | `darrow.evals.benchmark.human-interruptions` |
+
+The complete final response must contain exactly one record for each count,
+using a tab or `: ` followed by digits. Missing, malformed, or duplicate
+records fail; incomplete, duplicate, or foreign response evidence remains
+unavailable. These checks validate self-reported counts without asserting that
+native observations confirm them. They add to task grading and preserve the
+separate activation, semantic, and advisory outcomes. Dry runs remain unassessed.
+
+The request is retained as `requireEvaluationRecords: true` in redacted
+configuration. A suite validates its declaration before any cells start and
+verifies it against retained configuration. Omitted or false suite declarations
+leave the record policy inactive. Preserve the legacy applicability exception
+for a selected adaptive-delivery mount: no standalone record checks are declared
+for it. This exception does not establish ownership; the selected case's policy
+or an explicit benchmark route check must supply that assertion.
+
 To inventory case compatibility before switching a workflow, run:
 
 ```sh
@@ -296,7 +322,8 @@ This suite route accepts a nonempty, unique `harnesses` list containing `codex`,
 named modes. Repeatable `--case <substring>` filters replace the suite filters
 for a focused run. Selection errors fail before any cells start. It accepts
 `owner_evaluation`, `without_skill`, `model_by_harness`, `effort`, `condition`,
-and `condition_by_harness` in each mode. Candidate model and effort overrides require Sevro's bundled hosts;
+`condition_by_harness`, `skill_dir`, `mount_plugin_skills`, and
+`require_evaluation_records` in each mode. Candidate model and effort overrides require Sevro's bundled hosts;
 they replace the corresponding options in the host route and preserve the
 semantic and advisory routes. The manifest records requested routes and
 validates the actual model and effort against retained Sevro evidence.
@@ -412,7 +439,8 @@ The first focused live run is recorded in [live-validation.md](live-validation.m
 Suite activation regressions and the focused native Claude suite are recorded
 in [suite-validation.md](suite-validation.md).
 
-The entrypoint supplies `index.ts`, `run.ts`, `benchmark-condition.ts`, `skill-mount.ts`,
+The entrypoint supplies `index.ts`, `run.ts`, `benchmark-condition.ts`,
+`benchmark-policy.ts`, `skill-mount.ts`,
 `sevro-command.ts`, the local
 ticket command, the corpus
 source validator, the repository `package.json`, and `bun.lock` as extension source files so the executable,

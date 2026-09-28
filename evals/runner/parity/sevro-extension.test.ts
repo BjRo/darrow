@@ -21,6 +21,58 @@ const extension = resolve(import.meta.dir, "../../sevro-extension/index.ts");
 const projectRoot = resolve(import.meta.dir, "../../..");
 const roots: string[] = [];
 
+test("Darrow record checks require one complete final response and unique integer records", async () => {
+  const complete =
+    "ready\nevaluation_child_invocations\t2\nevaluation_human_interruptions: 0\n";
+  const evaluate = async (observations: unknown[]) => {
+    const reply = await command<{
+      result: { checks: Array<{ id: string; status: string }> };
+    }>(
+      [process.execPath, extension],
+      request("evaluate", {
+        configuration: { requireEvaluationRecords: true },
+        extensionData: { "darrow.case": { benchmarkRecords: true } },
+        observations,
+      }),
+    );
+    expect(reply.code, reply.stderr).toBe(0);
+    return reply.value.result.checks.map((check) => check.status);
+  };
+  for (const source of ["sevro.host.codex", "sevro.host.claude"]) {
+    const observation = {
+      id: "sevro.observation.final-message",
+      source,
+      completeness: "complete",
+      data: { text: complete },
+    };
+    expect(await evaluate([observation])).toEqual(["passed", "passed"]);
+    for (const [text, statuses] of [
+      [complete + "evaluation_child_invocations: 2", ["failed", "passed"]],
+      [complete + "evaluation_human_interruptions\t0", ["passed", "failed"]],
+      [
+        "evaluation_child_invocations: -1\nevaluation_human_interruptions: 0.5",
+        ["failed", "failed"],
+      ],
+      ["ready", ["failed", "failed"]],
+    ] as const)
+      expect(await evaluate([{ ...observation, data: { text } }])).toEqual([
+        ...statuses,
+      ]);
+    expect(
+      await evaluate([{ ...observation, completeness: "partial" }]),
+    ).toEqual(["unavailable", "unavailable"]);
+    expect(await evaluate([observation, observation])).toEqual([
+      "unavailable",
+      "unavailable",
+    ]);
+    expect(await evaluate([{ ...observation, source: "other.host" }])).toEqual([
+      "unavailable",
+      "unavailable",
+    ]);
+  }
+  expect(await evaluate([])).toEqual(["unavailable", "unavailable"]);
+});
+
 test("Darrow refuses override mounts that contradict preparation configuration", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-override-binding-"));
   roots.push(root);

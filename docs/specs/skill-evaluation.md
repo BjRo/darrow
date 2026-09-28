@@ -407,6 +407,26 @@ for other harnesses supported by the complete suite. Every entry is validated,
 every selected harness needs a route, and unknown harnesses are rejected. The
 complete file digest remains in the manifest; only selected routes execute.
 
+### Benchmark record checks
+
+The Sevro run entrypoint accepts `--require-evaluation-records`; suite modes
+preserve `require_evaluation_records`. The request enters Darrow's extension
+configuration and retained redacted evidence. Applicable trials require exactly
+one `evaluation_child_invocations` and one `evaluation_human_interruptions`
+record in the complete final response. Each uses a nonnegative integer after
+a tab or `: ` separator. These are self-reported counts, without an assertion
+that native observations confirm their accuracy. Missing, malformed, or duplicate
+records fail their named checks. Missing, partial, duplicate, or foreign final
+response evidence remains unavailable. The checks add to existing task checks;
+they do not replace task, activation, semantic, or advisory outcomes.
+
+Preserve the legacy applicability exception for an adaptive-delivery mount. The
+record request remains in configuration, while no standalone record checks
+are declared for that mount. Ownership assertions remain in the selected case's
+policy or an explicitly requested benchmark route check; suppressing record
+checks does not establish ownership. Other mounted skills and unmounted
+experiments retain the record check when requested.
+
 ### Benchmark conditions
 
 The Darrow Sevro run entrypoint accepts an absolute benchmark condition file

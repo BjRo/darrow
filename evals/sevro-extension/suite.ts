@@ -28,6 +28,11 @@ import {
 } from "./suite-conditions";
 import type { BenchmarkCondition } from "./benchmark-condition";
 import {
+  benchmarkArguments,
+  benchmarkPolicyConfiguration,
+  modeBenchmarkPolicy,
+} from "./benchmark-policy";
+import {
   loadSkillOverride,
   modeSkillConfig,
   skillArguments,
@@ -57,6 +62,7 @@ function modeConfig(name: string, raw: unknown) {
         "condition_by_harness",
         "skill_dir",
         "mount_plugin_skills",
+        "require_evaluation_records",
       ].includes(key),
   );
   if (unsupported.length)
@@ -76,6 +82,7 @@ function modeConfig(name: string, raw: unknown) {
     ...modeRouteConfig(mode),
     ...modeConditionConfig(mode),
     ...modeSkillConfig(mode),
+    ...modeBenchmarkPolicy(mode),
   };
 }
 
@@ -412,6 +419,7 @@ type ExpectedCell = {
   withoutSkill: boolean;
   skillDir?: string;
   mountPluginSkills?: true;
+  requireEvaluationRecords?: true;
 };
 
 function verifyEvidence(
@@ -571,6 +579,7 @@ function cellCommand(request: SuiteRequest, selected: CellSelection) {
     ...(mode.withoutSkill ? ["--without-skill"] : []),
     ...conditionArguments(request.benchmarkConditions[mode.name]?.[harness]),
     ...skillArguments(mode, request.projectRoot),
+    ...benchmarkArguments(mode),
     "--",
     ...candidateArguments(
       [...request.forwarded, ...(request.hostOptions?.[harness] ?? [])],
@@ -605,6 +614,7 @@ function cellExpectation(
     withoutSkill: mode.withoutSkill,
     ...(mode.skillDir ? { skillDir: mode.skillDir } : {}),
     ...(mode.mountPluginSkills ? { mountPluginSkills: true } : {}),
+    ...benchmarkPolicyConfiguration(mode),
   };
 }
 
@@ -991,6 +1001,7 @@ async function preflightCases(
               request.benchmarkConditionDefinitions,
             ),
             ...skillMountConfiguration(mode),
+            ...benchmarkPolicyConfiguration(mode),
           },
         });
         if (mode.withoutSkill && details.invocation !== undefined)

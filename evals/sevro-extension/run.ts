@@ -20,6 +20,7 @@ const sourceFiles = [
   join(import.meta.dir, "run.ts"),
   join(import.meta.dir, "benchmark-condition.ts"),
   join(import.meta.dir, "skill-mount.ts"),
+  join(import.meta.dir, "benchmark-policy.ts"),
   join(import.meta.dir, "sevro-command.ts"),
   join(repositoryRoot, "evals/corpus/orchestration/source.ts"),
   join(repositoryRoot, "package.json"),
@@ -107,6 +108,7 @@ function runOptions(argv: string[]) {
       "without-skill": { type: "boolean", default: false },
       "skill-dir": { type: "string" },
       "mount-plugin-skills": { type: "boolean", default: false },
+      "require-evaluation-records": { type: "boolean", default: false },
       "benchmark-condition-file": { type: "string" },
       "benchmark-condition-label": { type: "string" },
       "benchmark-condition-sha256": { type: "string" },
@@ -145,6 +147,9 @@ export function invocation(argv: string[]) {
     withoutSkill: values["without-skill"],
     ...benchmark,
     ...skillMount,
+    ...(values["require-evaluation-records"]
+      ? { requireEvaluationRecords: true as const }
+      : {}),
     command: sevroArgs({
       commandFile,
       caseId,
@@ -154,6 +159,7 @@ export function invocation(argv: string[]) {
       configuration:
         values["without-skill"] ||
         !!benchmark.conditionFile ||
+        values["require-evaluation-records"] ||
         Object.keys(skillMount).length > 0,
       conditionFile: benchmark.conditionFile,
     }),

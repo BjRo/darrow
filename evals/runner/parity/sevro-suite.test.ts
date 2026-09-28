@@ -105,6 +105,199 @@ async function invoke(
   return { stdout, stderr, code };
 }
 
+test("suite gates requested evaluation records independently of existing task checks", async () => {
+  const { root, cases, suite, adapter, results } = await fixture();
+  for (const id of ["suite-alpha", "suite-beta"]) {
+    const path = join(cases, `${id}.yaml`);
+    const definition = JSON.parse(await readFile(path, "utf8"));
+    definition.prompt = id;
+    definition.output_checks = [{ name: "response", expect_regex: "^ready" }];
+    await writeFile(path, JSON.stringify(definition));
+  }
+  await writeFile(
+    suite,
+    JSON.stringify({
+      version: 1,
+      experiment: "records",
+      harnesses: ["codex"],
+      case_filter: "suite-",
+      modes: {
+        measured: {
+          owner_evaluation: "passive",
+          require_evaluation_records: true,
+        },
+      },
+    }),
+  );
+  await writeFile(
+    adapter,
+    `export default {
+    id: "sevro.host.codex", model: "synthetic", effort: "none",
+    async run({ prompt, condition }) {
+      const finalMessage = "ready\\nevaluation_child_invocations\\t2" +
+        (prompt === "suite-alpha" ? "\\nevaluation_human_interruptions: 0" : "");
+      return { finalMessage, complete: true, actualCondition: condition };
+    }
+  };`,
+  );
+  const run = await invoke([
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+  ]);
+  expect(run.code, run.stderr + run.stdout).toBe(1);
+  const manifest = JSON.parse(
+    await readFile(join(results, "suite-run.json"), "utf8"),
+  );
+  expect(manifest.cells).toHaveLength(2);
+  for (const [index, task] of ["passed", "failed"].entries()) {
+    const cell = manifest.cells[index];
+    const result = JSON.parse(await readFile(cell.result, "utf8"));
+    expect(cell.exitCode, JSON.stringify(result)).toBe(index);
+    expect(result.task.verdict).toBe(task);
+    const evidence = JSON.parse(await readFile(result.evidencePath, "utf8"));
+    expect(evidence.configuration.redacted.extensionConfiguration).toEqual({
+      requireEvaluationRecords: true,
+    });
+    expect(result.cases[0].trials[0].checks).toMatchObject([
+      { id: "darrow.output.1", status: "passed" },
+      { id: "darrow.evals.benchmark.child-invocations", status: "passed" },
+      { id: "darrow.evals.benchmark.human-interruptions", status: task },
+    ]);
+  }
+});
+
+test("suite preserves dry and adaptive-delivery record exceptions", async () => {
+  const { root, suite, adapter, results } = await fixture();
+  const skillDir = "plugins/orchestration/example/skills/adaptive-delivery";
+  await mkdir(join(root, skillDir), { recursive: true });
+  await writeFile(join(root, skillDir, "SKILL.md"), "Adaptive delivery body\n");
+  await writeFile(
+    suite,
+    JSON.stringify({
+      version: 1,
+      experiment: "record-exceptions",
+      harnesses: ["codex"],
+      case_filter: "suite-alpha",
+      modes: {
+        requested: {
+          owner_evaluation: "passive",
+          require_evaluation_records: true,
+        },
+        adaptive: {
+          owner_evaluation: "passive",
+          require_evaluation_records: true,
+          skill_dir: skillDir,
+        },
+        omitted: {
+          owner_evaluation: "passive",
+          require_evaluation_records: false,
+        },
+      },
+    }),
+  );
+  const base = [
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+  ];
+  const dry = await invoke([
+    ...base,
+    "--mode",
+    "requested",
+    "--results-root",
+    results,
+    "--",
+    "--dry",
+    "--adapter-module",
+    adapter,
+  ]);
+  expect(dry.code, dry.stderr + dry.stdout).toBe(0);
+  const manifest = JSON.parse(
+    await readFile(join(results, "suite-run.json"), "utf8"),
+  );
+  const result = JSON.parse(await readFile(manifest.cells[0].result, "utf8"));
+  expect(result.task.verdict).toBe("not_assessed");
+  const report = JSON.parse(await readFile(manifest.report.jsonPath, "utf8"));
+  expect(report.rows[0].taskPassRate).toBeNull();
+  const liveRoot = join(root, "live");
+  const live = await invoke([
+    ...base,
+    "--mode",
+    "adaptive",
+    "--mode",
+    "omitted",
+    "--results-root",
+    liveRoot,
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+  ]);
+  expect(live.code, live.stderr + live.stdout).toBe(0);
+  const retained = JSON.parse(
+    await readFile(join(liveRoot, "suite-run.json"), "utf8"),
+  );
+  for (const cell of retained.cells) {
+    const raw = JSON.parse(await readFile(cell.result, "utf8"));
+    expect(raw.task.verdict).toBe("passed");
+    expect(raw.cases[0].trials[0].checks).toHaveLength(1);
+  }
+});
+
+test("suite rejects malformed record policies before any cells start", async () => {
+  const { root, suite, adapter, results } = await fixture();
+  const definition = JSON.parse(await readFile(suite, "utf8"));
+  for (const value of [null, "true", 1, []]) {
+    await writeFile(
+      suite,
+      JSON.stringify({
+        ...definition,
+        modes: {
+          first: { owner_evaluation: "passive" },
+          invalid: { require_evaluation_records: value },
+        },
+      }),
+    );
+    const run = await invoke([
+      "--suite",
+      suite,
+      "--project-root",
+      root,
+      "--results-root",
+      results,
+      "--",
+      "--adapter-module",
+      adapter,
+    ]);
+    expect(run.code, run.stderr + run.stdout).toBe(64);
+    expect(
+      await Bun.file(join(results, "suite-run.json")).exists(),
+    ).toBeFalse();
+    expect(
+      await Bun.file(
+        join(results, "cell-1/darrow-extension-command.json"),
+      ).exists(),
+    ).toBeFalse();
+  }
+});
+
 test("suite mounts candidate skill overrides without changing experiment selection", async () => {
   const { root, cases, adapter, results } = await fixture();
   const plugin = join(root, "plugins/capability/candidate");

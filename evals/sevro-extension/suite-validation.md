@@ -1,5 +1,43 @@
 # Suite validation
 
+## Benchmark evaluation records
+
+The Darrow run command and suite modes now preserve the requested evaluation
+record checks. They require a complete final response and exactly one integer
+child count and human-intervention count, while retaining existing task checks.
+The regressions use Sevro's public CLI and extension protocol with synthetic
+candidates. The counts are self-reported, without native accuracy attestation.
+
+Working directory:
+`/Users/bjro/Sources/darrow/.worktrees/feat/issue-95-darrow-extension`.
+
+1. Red — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-suite.test.ts -t "suite gates requested evaluation records independently of existing task checks"'`:
+   exit `64`, because mode `require_evaluation_records` was unsupported.
+2. Green — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-suite.test.ts -t "suite gates requested evaluation records independently of existing task checks"'`:
+   one test passed with 11 assertions. Both existing task checks pass; the
+   missing human-intervention record fails only its added check and the task.
+   Retained redacted configuration identifies the requested policy.
+
+Additional guard coverage passed three tests with 56 assertions. It covers
+both hosts, duplicate and malformed records, incomplete and foreign final
+responses, malformed suite declarations before execution, dry unassessed
+results, an omitted policy, and the legacy adaptive-delivery applicability
+exception. These guards were added after implementation, without a test-first
+claim. Initial assertions used the wrong retained check and dry metric locations;
+they were corrected to the public CLI trial checks and report's task pass rate.
+No live model call was made. Ownership checks and release cutover remain pending.
+
+The final installed-package gate passed 99 tests with 1,578 assertions across
+three files in 167.65 seconds:
+
+```sh
+SEVRO_PACKAGE_TARBALL=/tmp/sevro-0.1.0-dev.0.tgz lean-ctx -c 'bun run test:eval-runner-sevro-package'
+```
+
+The tarball was packed from clean Sevro commit `08b5371`. Darrow typechecking,
+ESLint, formatting, and the 377/377 case resolution inventory passed. This
+inventory does not prove live behavior or complete workflow compatibility.
+
 ## Candidate skill overrides
 
 The run and suite commands now accept candidate skill overrides and sibling

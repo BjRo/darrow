@@ -6,6 +6,10 @@ import {
   type BenchmarkCondition,
 } from "./benchmark-condition";
 import type { SkillMountConfiguration } from "./skill-mount";
+import {
+  benchmarkPolicyConfiguration,
+  type BenchmarkPolicyConfiguration,
+} from "./benchmark-policy";
 
 type Harness = "codex" | "claude";
 export type ConditionInput = { path: string; label: string; sha256: string };
@@ -104,14 +108,20 @@ export function conditionEvidenceMatches(
   value: unknown,
   input: ConditionInput | null,
   withoutSkill: boolean,
-  mount: SkillMountConfiguration = {},
+  mount: SkillMountConfiguration & BenchmarkPolicyConfiguration = {},
 ) {
   if (value === undefined)
-    return input === null && !mount.skillDir && !mount.mountPluginSkills;
+    return (
+      input === null &&
+      !mount.skillDir &&
+      !mount.mountPluginSkills &&
+      !mount.requireEvaluationRecords
+    );
   const expected = {
     ...(withoutSkill ? { withoutSkill: true } : {}),
     ...(mount.skillDir ? { skillDir: mount.skillDir } : {}),
     ...(mount.mountPluginSkills ? { mountPluginSkills: true } : {}),
+    ...benchmarkPolicyConfiguration(mount),
     ...(input
       ? { benchmarkCondition: { label: input.label, sha256: input.sha256 } }
       : {}),
