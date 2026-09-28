@@ -144,6 +144,33 @@ peer inputs retained. Exit `64` means invalid invocation. Other comparison
 formats remain preserved in their original files and are explicitly unsupported
 by this reader. See [historical validation](history-validation.md).
 
+Compare two legacy result arrays through the existing command or its standalone
+entrypoint:
+
+```sh
+bun evals/runner/compare.ts /absolute/path/to/baseline.json /absolute/path/to/candidate.json
+bun evals/sevro-extension/legacy-compare.ts /absolute/path/to/baseline.json /absolute/path/to/candidate.json
+```
+
+Both commands show recorded metric deltas, condition labels, and absolute input
+paths. Their only local dependencies are `legacy-compare.ts` and
+`legacy-evidence.ts`. They need no generic runner, Sevro installation, Git
+metadata, credentials, or model calls and leave input bytes unchanged.
+
+An archival delta requires explicit matching invariant, evaluation digest,
+threshold, host and version, candidate model and effort, and recorded trial
+count. Different policy assistance, token accounting, grader routes, effective
+owner routes, or named check instrumentation are incomparable. Missing grading
+metadata stays unknown; matching recorded facts do not establish evaluator
+equivalence. Dry, unknown, contradictory, malformed, duplicate, or empty inputs
+exit `1`. Missing cases and asymmetric optional metrics also exit `1`.
+
+Exit `0` means the recorded summaries were compared. It does not establish a
+complete planned run, current evaluator equivalence, or live behavioral
+stability. Comparison of suite manifests and checkpoints remains unsupported;
+interpret those with the historical reader. See
+[comparison validation](legacy-compare-validation.md).
+
 ## Direct evaluation caller
 
 Set an explicit Sevro route on the existing direct command:

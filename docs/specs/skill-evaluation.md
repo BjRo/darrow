@@ -794,6 +794,19 @@ Malformed, unreadable or contradictory inputs retain a diagnostic and make the
 interpreter unsuccessful. Other valid inputs remain visible. Original snapshots,
 transcripts and comparison inputs remain preserved in their own recorded formats.
 
+The documented `evals/runner/compare.ts` command delegates historical array
+comparison to Darrow-owned standalone tooling. It retains recorded metric
+deltas and requires explicit matching invariant, evaluation digest, threshold,
+host/version, candidate model/effort, and trial count. Two absent identity fields
+cannot establish a match. Dry, unknown, contradictory, or invalid evidence is
+incomparable and exits unsuccessfully. Comparison of archival summaries does
+not silently equate different recorded policy assistance, token accounting,
+grader routes, effective owner routes, or named check instrumentation. Missing
+grading or instrumentation facts remain visibly unknown. Archival comparison does
+not establish a complete run boundary, current evaluator equivalence, or live
+behavioral stability. It must retain that limitation rather than manufacture
+Sevro identity or measured success.
+
 Before Darrow switches to a packaged runner, the same command-level
 compatibility cases must run against the in-repository runner and the candidate
 package through their public commands. Compare case selection, named check

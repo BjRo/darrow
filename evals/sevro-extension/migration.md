@@ -167,6 +167,20 @@ formats; this reader does not convert them into Sevro comparison inputs or
 replace every specialized comparison command. Those workflows still need an
 explicit migration or retirement before their implementation can be removed.
 
+The documented `evals/runner/compare.ts <baseline.json> <candidate.json>` command
+now delegates legacy array comparison to `evals/sevro-extension/legacy-compare.ts`.
+It retains condition labels and recorded metric deltas without generic runner
+imports. Missing required identity, different recorded grading or
+instrumentation, and invalid, dry, or unknown evidence are incomparable and
+exit `1`. Input bytes stay intact, and paths in output are absolute.
+The output explicitly limits these deltas to archival claims: they do not
+establish complete planned runs or current evaluator equivalence. Missing
+grading metadata remains unknown. See the
+[command contract](README.md#historical-result-interpretation) and
+[comparison validation](legacy-compare-validation.md). Other specialized
+comparison formats and the old report command's default Markdown route retain
+their migration gates.
+
 ## Release, update, and rollback
 
 Sevro maintainers own its package version, public CLI and protocol compatibility,
