@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { isAbsolute, join, resolve, sep } from "node:path";
 import { parseArgs } from "node:util";
 import { parse as parseYaml } from "yaml";
@@ -9,6 +9,7 @@ import { pathToFileURL } from "node:url";
 import { sevroCommand } from "./sevro-command";
 
 const repositoryRoot = resolve(import.meta.dir, "../..");
+type Harness = "codex" | "claude";
 
 function object(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value))
@@ -90,6 +91,19 @@ function ablationConfig(raw: unknown, modes: ReturnType<typeof modeConfig>[]) {
   return raw.map((entry) => ablationEntry(entry, modes, names));
 }
 
+function suiteHarnesses(raw: unknown): Harness[] {
+  if (
+    !Array.isArray(raw) ||
+    !raw.length ||
+    raw.some((host) => host !== "codex" && host !== "claude") ||
+    new Set(raw).size !== raw.length
+  )
+    throw new Error(
+      "harnesses must be a unique nonempty list of codex or claude",
+    );
+  return raw as Harness[];
+}
+
 function suiteConfig(value: unknown) {
   const suite = object(value, "suite");
   const extra = Object.keys(suite).filter(
@@ -111,8 +125,7 @@ function suiteConfig(value: unknown) {
     !suite.experiment
   )
     throw new Error("suite needs version 1 and an experiment name");
-  if (JSON.stringify(suite.harnesses) !== JSON.stringify(["codex"]))
-    throw new Error("Sevro suites currently require harnesses: [codex]");
+  const harnesses = suiteHarnesses(suite.harnesses);
   const filters = Array.isArray(suite.case_filter)
     ? suite.case_filter
     : [suite.case_filter];
@@ -128,6 +141,7 @@ function suiteConfig(value: unknown) {
   );
   return {
     experiment: suite.experiment,
+    harnesses,
     filters: filters as string[],
     modes: selectedModes,
     ablations: ablationConfig(suite.ablations, selectedModes),
@@ -174,22 +188,27 @@ function suiteInvocation(argv: string[]) {
       "results-root": { type: "string" },
       trials: { type: "string", default: "5" },
       threshold: { type: "string", default: "0.8" },
+      "host-options-file": { type: "string" },
     },
     strict: true,
   });
   const suitePath = values.suite;
   const projectRoot = values["project-root"] ?? repositoryRoot;
   const resultsRoot = values["results-root"];
+  const hostOptionsFile = values["host-options-file"];
   if (
     !suitePath ||
     !resultsRoot ||
-    ![suitePath, projectRoot, resultsRoot].every(isAbsolute)
+    ![suitePath, projectRoot, resultsRoot].every(isAbsolute) ||
+    (hostOptionsFile !== undefined && !isAbsolute(hostOptionsFile))
   )
     throw new Error("suite and results roots must be absolute");
   return {
     suitePath,
     projectRoot,
     resultsRoot,
+    hostOptionsFile,
+    hostOptions: null as Partial<Record<Harness, string[]>> | null,
     ...evidenceLimits(values.trials!, values.threshold!),
     forwarded: forwardedOptions(argv.slice(separator + 1)),
   };
@@ -197,8 +216,93 @@ function suiteInvocation(argv: string[]) {
 
 type SuiteRequest = ReturnType<typeof suiteInvocation>;
 type SuiteConfig = ReturnType<typeof suiteConfig>;
+
+function optionValue(args: string[], name: string): string | null {
+  const matching = args.filter(
+    (arg) => arg === name || arg.startsWith(`${name}=`),
+  );
+  if (matching.length > 1) throw new Error(`duplicate route option: ${name}`);
+  const token = matching[0];
+  if (!token) return null;
+  const value =
+    token === name
+      ? args[args.indexOf(token) + 1]
+      : token.slice(name.length + 1);
+  if (!value || value.startsWith("--"))
+    throw new Error(`missing route value: ${name}`);
+  return value;
+}
+
+function hostArguments(value: unknown, harness: Harness): string[] {
+  if (
+    !Array.isArray(value) ||
+    value.length > 256 ||
+    value.some((arg) => typeof arg !== "string" || !arg)
+  )
+    throw new Error(`invalid ${harness} host argument list`);
+  const args = forwardedOptions(value as string[]);
+  const host = optionValue(args, "--host");
+  const adapter = optionValue(args, "--adapter-module");
+  if ((!host && !adapter) || (host && adapter) || (host && host !== harness))
+    throw new Error(`${harness}: declare one matching host or adapter route`);
+  return args;
+}
+
+function verifySharedOptions(shared: string[], routes: string[][]) {
+  const candidateOptions = new Set([
+    "--host",
+    "--model",
+    "--effort",
+    "--adapter-module",
+  ]);
+  const routeOptions = new Set(
+    routes
+      .flat()
+      .filter((arg) => arg.startsWith("--"))
+      .map((arg) => arg.split("=", 1)[0]!),
+  );
+  for (const arg of shared.filter((token) => token.startsWith("--"))) {
+    const name = arg.split("=", 1)[0]!;
+    if (
+      candidateOptions.has(name) ||
+      name.startsWith("--claude-") ||
+      routeOptions.has(name)
+    )
+      throw new Error(`shared option conflicts with host routes: ${name}`);
+  }
+}
+
+async function loadHostOptions(request: SuiteRequest, harnesses: Harness[]) {
+  const path = request.hostOptionsFile;
+  if (!path) {
+    if (harnesses.length > 1)
+      throw new Error("multiple harnesses require --host-options-file");
+    const host = optionValue(request.forwarded, "--host");
+    if (host && host !== harnesses[0])
+      throw new Error("forwarded host differs from suite harness");
+    return { options: null, digest: null };
+  }
+  if ((await stat(path)).size > 64 * 1024)
+    throw new Error("host options file exceeds 64 KiB");
+  const source = await readFile(path, "utf8");
+  if (Buffer.byteLength(source, "utf8") > 64 * 1024)
+    throw new Error("host options file exceeds 64 KiB");
+  const raw = object(JSON.parse(source) as unknown, "host options");
+  if (
+    Object.keys(raw).length !== harnesses.length ||
+    Object.keys(raw).some((host) => !harnesses.includes(host as Harness))
+  )
+    throw new Error("host options must name exactly the selected harnesses");
+  const options = Object.fromEntries(
+    harnesses.map((host) => [host, hostArguments(raw[host], host)]),
+  );
+  verifySharedOptions(request.forwarded, Object.values(options));
+  return { options, digest: createHash("sha256").update(source).digest("hex") };
+}
+
 type Cell = {
   caseId: string;
+  harness: Harness;
   mode: string;
   condition: "passive" | "enforced";
   result: string | null;
@@ -218,6 +322,7 @@ type EvidenceSummary = {
 };
 type ExpectedCell = {
   caseId: string;
+  harness: Harness;
   condition: "passive" | "enforced";
   trials: number;
   threshold: number;
@@ -233,6 +338,11 @@ function verifyEvidence(
   const dimensions = object(identity.dimensions, "identity dimensions");
   const retained = object(evidence.result, "retained result");
   const selected = retained.cases;
+  const candidateRoutes = Array.isArray(evidence.routes)
+    ? evidence.routes.filter(
+        (route) => object(route, "host route").role === "candidate",
+      )
+    : [];
   const matches = [
     evidence.format === "sevro.run-evidence.v1",
     evidence.runId === result.runId,
@@ -245,6 +355,9 @@ function verifyEvidence(
     dimensions.trialCount === expected.trials,
     dimensions.passThreshold === expected.threshold,
     typeof identity.digest === "string",
+    candidateRoutes.length === 1 &&
+      object(candidateRoutes[0], "candidate route").host ===
+        `sevro.host.${expected.harness}`,
   ];
   if (matches.some((matched) => !matched))
     throw new Error("retained Sevro evidence differs from suite cell");
@@ -325,12 +438,16 @@ function cellStatus(
   return { exitCode };
 }
 
-function cellCommand(
-  request: SuiteRequest,
-  mode: SuiteConfig["modes"][number],
-  caseId: string,
-  cellRoot: string,
-) {
+type CellSelection = {
+  mode: SuiteConfig["modes"][number];
+  caseId: string;
+  harness: Harness;
+  index: number;
+};
+
+function cellCommand(request: SuiteRequest, selected: CellSelection) {
+  const { mode, caseId, harness, index } = selected;
+  const cellRoot = join(request.resultsRoot, `cell-${index}`);
   return [
     process.execPath,
     join(import.meta.dir, "run.ts"),
@@ -343,6 +460,7 @@ function cellCommand(
     ...(mode.withoutSkill ? ["--without-skill"] : []),
     "--",
     ...request.forwarded,
+    ...(request.hostOptions?.[harness] ?? []),
     "--condition",
     mode.condition,
     "--trials",
@@ -354,12 +472,11 @@ function cellCommand(
 
 async function runCell(
   request: SuiteRequest,
-  mode: SuiteConfig["modes"][number],
-  caseId: string,
-  index: number,
+  selected: CellSelection,
 ): Promise<{ cell: Cell; interrupted: Interrupt | null }> {
+  const { mode, caseId, harness, index } = selected;
   const cellRoot = join(request.resultsRoot, `cell-${index}`);
-  const child = Bun.spawn(cellCommand(request, mode, caseId, cellRoot), {
+  const child = Bun.spawn(cellCommand(request, selected), {
     stdout: "pipe",
     stderr: "pipe",
     stdin: "inherit",
@@ -375,6 +492,7 @@ async function runCell(
   if (resultPath) await writeFile(resultPath, JSON.stringify(result, null, 2));
   const { provenance, evidenceError } = await cellProvenance(result, {
     caseId,
+    harness,
     condition: mode.condition,
     trials: request.trials,
     threshold: request.threshold,
@@ -382,6 +500,7 @@ async function runCell(
   });
   const cell: Cell = {
     caseId,
+    harness,
     mode: mode.name,
     condition: mode.condition,
     result: resultPath,
@@ -563,6 +682,7 @@ function matchedCell(pair: MatchedPair, rows: Record<string, unknown>[]) {
     errors,
     comparison: {
       caseId,
+      harness: baseline.harness,
       baseline: definition.baseline,
       candidate: definition.candidate,
       passRate: metricPair(baseMetrics.passRate, candidateMetrics.passRate),
@@ -587,27 +707,40 @@ function compareDefinition(input: {
   cells: Cell[];
   rows: Record<string, unknown>[];
   hasReport: boolean;
+  harnesses: Harness[];
 }) {
-  const { definition, caseIds, cells, rows, hasReport } = input;
+  const { definition, caseIds, cells, rows, hasReport, harnesses } = input;
   const errors: string[] = [];
   const cases: NonNullable<ReturnType<typeof matchedCell>["comparison"]>[] = [];
   if (!hasReport) errors.push("public Sevro report is unavailable");
-  for (const caseId of caseIds) {
+  for (const { caseId, harness } of harnesses.flatMap((harness) =>
+    caseIds.map((caseId) => ({ caseId, harness })),
+  )) {
     const baseline = cells.filter(
-      (cell) => cell.caseId === caseId && cell.mode === definition.baseline,
+      (cell) =>
+        cell.caseId === caseId &&
+        cell.harness === harness &&
+        cell.mode === definition.baseline,
     );
     const candidate = cells.filter(
-      (cell) => cell.caseId === caseId && cell.mode === definition.candidate,
+      (cell) =>
+        cell.caseId === caseId &&
+        cell.harness === harness &&
+        cell.mode === definition.candidate,
     );
     if (baseline.length !== 1 || candidate.length !== 1) {
-      errors.push(`${caseId}: expected one baseline and candidate cell`);
+      errors.push(
+        `${harness}/${caseId}: expected one baseline and candidate cell`,
+      );
       continue;
     }
     const matched = matchedCell(
       { definition, caseId, baseline: baseline[0]!, candidate: candidate[0]! },
       rows,
     );
-    errors.push(...matched.errors.map((error) => `${caseId}: ${error}`));
+    errors.push(
+      ...matched.errors.map((error) => `${harness}/${caseId}: ${error}`),
+    );
     if (matched.comparison) cases.push(matched.comparison);
   }
   return { ...definition, cases, errors };
@@ -621,7 +754,7 @@ function markdownRow(
     (metric) =>
       `${metricText(metric.baseline)} / ${metricText(metric.candidate)} / ${metricText(metric.delta)}`,
   );
-  return `| ${name} | ${row.caseId} | ${cells.join(" | ")} |`;
+  return `| ${name} | ${row.harness} | ${row.caseId} | ${cells.join(" | ")} |`;
 }
 
 function ablationMarkdown(analysis: {
@@ -635,8 +768,8 @@ function ablationMarkdown(analysis: {
     "",
     `Valid: ${analysis.valid ? "yes" : "no"}`,
     "",
-    "| Ablation | Case | Pass rate baseline / candidate / delta | Time ms baseline / candidate / delta | Tokens baseline / candidate / delta | Cost USD baseline / candidate / delta |",
-    "| --- | --- | --- | --- | --- | --- |",
+    "| Ablation | Harness | Case | Pass rate baseline / candidate / delta | Time ms baseline / candidate / delta | Tokens baseline / candidate / delta | Cost USD baseline / candidate / delta |",
+    "| --- | --- | --- | --- | --- | --- | --- |",
     ...comparisons.flatMap((comparison) =>
       comparison.cases.map((row) => markdownRow(comparison.name, row)),
     ),
@@ -653,6 +786,7 @@ async function ablationReports(input: {
   caseIds: string[];
   cells: Cell[];
   reportPath: string | null;
+  harnesses: Harness[];
 }) {
   const { resultsRoot, definitions, caseIds, cells, reportPath } = input;
   if (!definitions.length) return null;
@@ -672,6 +806,7 @@ async function ablationReports(input: {
       cells,
       rows: reportRows,
       hasReport: report !== null,
+      harnesses: input.harnesses,
     }),
   );
   const errors = comparisons.flatMap((comparison) =>
@@ -726,18 +861,19 @@ async function preflightCases(
 
 async function runSelectedCells(
   request: SuiteRequest,
-  modes: SuiteConfig["modes"],
+  suite: SuiteConfig,
   caseIds: string[],
   manifest: { cells: Cell[]; interrupted: Interrupt | null },
 ) {
-  cells: for (const mode of modes) {
-    for (const caseId of caseIds) {
-      const outcome = await runCell(
-        request,
+  cells: for (const mode of suite.modes) {
+    for (const selected of suite.harnesses.flatMap((harness) =>
+      caseIds.map((caseId) => ({ harness, caseId })),
+    )) {
+      const outcome = await runCell(request, {
+        ...selected,
         mode,
-        caseId,
-        manifest.cells.length + 1,
-      );
+        index: manifest.cells.length + 1,
+      });
       manifest.cells.push(outcome.cell);
       manifest.interrupted = outcome.interrupted;
       await saveManifest(request.resultsRoot, manifest);
@@ -746,11 +882,43 @@ async function runSelectedCells(
   }
 }
 
+function suiteManifest(
+  request: SuiteRequest,
+  suite: SuiteConfig,
+  inputs: {
+    source: string;
+    caseIds: string[];
+    hostOptionsDigest: string | null;
+  },
+) {
+  return {
+    format: "darrow-sevro-suite-v1",
+    suite: request.suitePath,
+    suiteSha256: createHash("sha256").update(inputs.source).digest("hex"),
+    experiment: suite.experiment,
+    projectRoot: request.projectRoot,
+    trials: request.trials,
+    threshold: request.threshold,
+    harnesses: suite.harnesses,
+    hostOptionsFile: request.hostOptionsFile ?? null,
+    hostOptionsSha256: inputs.hostOptionsDigest,
+    modes: suite.modes,
+    ablations: suite.ablations,
+    caseIds: inputs.caseIds,
+    interrupted: null as Interrupt | null,
+    cells: [] as Cell[],
+    report: null as Awaited<ReturnType<typeof suiteReports>> | null,
+    ablationReport: null as Awaited<ReturnType<typeof ablationReports>>,
+  };
+}
+
 export async function runSuite(argv: string[]) {
   const request = suiteInvocation(argv);
-  const { suitePath, projectRoot, resultsRoot, trials, threshold } = request;
+  const { suitePath, projectRoot, resultsRoot } = request;
   const source = await readFile(suitePath, "utf8");
   const suite = suiteConfig(parseYaml(source) as unknown);
+  const hostOptions = await loadHostOptions(request, suite.harnesses);
+  request.hostOptions = hostOptions.options;
   if (
     suite.ablations.length &&
     (resultsRoot === projectRoot ||
@@ -759,25 +927,13 @@ export async function runSuite(argv: string[]) {
     throw new Error("ablation results root must be outside the project root");
   const caseIds = await selectCaseIds(projectRoot, suite.filters);
   await preflightCases(projectRoot, suite, caseIds);
-  const manifest = {
-    format: "darrow-sevro-suite-v1",
-    suite: suitePath,
-    suiteSha256: createHash("sha256").update(source).digest("hex"),
-    experiment: suite.experiment,
-    projectRoot,
-    trials,
-    threshold,
-    harnesses: ["codex"],
-    modes: suite.modes,
-    ablations: suite.ablations,
+  const manifest = suiteManifest(request, suite, {
+    source,
     caseIds,
-    interrupted: null as Interrupt | null,
-    cells: [] as Cell[],
-    report: null as Awaited<ReturnType<typeof suiteReports>> | null,
-    ablationReport: null as Awaited<ReturnType<typeof ablationReports>>,
-  };
+    hostOptionsDigest: hostOptions.digest,
+  });
   await mkdir(resultsRoot, { recursive: true });
-  await runSelectedCells(request, suite.modes, caseIds, manifest);
+  await runSelectedCells(request, suite, caseIds, manifest);
   manifest.report = await suiteReports(resultsRoot, manifest.cells);
   manifest.ablationReport = await ablationReports({
     resultsRoot,
@@ -785,6 +941,7 @@ export async function runSuite(argv: string[]) {
     caseIds,
     cells: manifest.cells,
     reportPath: manifest.report.jsonPath,
+    harnesses: suite.harnesses,
   });
   await saveManifest(resultsRoot, manifest);
   return {

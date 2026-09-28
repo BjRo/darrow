@@ -135,6 +135,15 @@ must fail explicitly rather than appear as successful empty coverage.
 
 ### Matched skill ablation
 
+The Sevro suite entrypoint accepts a nonempty, unique list of `codex` and
+`claude` harnesses. A suite with multiple harnesses supplies an absolute
+`--host-options-file` containing one Sevro argument list per selected harness.
+Shared forwarded options cannot override those routes. The manifest binds the
+options file by digest and verifies each retained candidate route against its
+cell's declared harness. Missing, foreign, or contradictory route evidence
+makes that cell unsuccessful. Ablations match baseline and candidate cells
+within each harness and retain the harness in every comparison row.
+
 An evaluation suite may declare a named ablation with exactly one baseline mode
 and one candidate mode. The baseline mode mounts no skill. The candidate mode
 mounts the skill selected by each case or an explicit candidate skill path.

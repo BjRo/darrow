@@ -205,8 +205,8 @@ run; explicit skill-invocation cases are rejected for this mode. Options after
 extension command file at a stable path. The command emits Sevro's JSON result
 and exit category. Unsupported case features still fail during resolution.
 
-For suites containing only Codex cells and passive or enforced modes, run the
-Darrow suite entrypoint with an absolute suite path:
+For suites with passive or enforced modes, run the Darrow suite entrypoint with
+an absolute suite path:
 
 ```sh
 SEVRO_CHECKOUT=/absolute/path/to/sevro bun evals/sevro-extension/suite.ts \
@@ -217,9 +217,11 @@ SEVRO_CHECKOUT=/absolute/path/to/sevro bun evals/sevro-extension/suite.ts \
   --model gpt-5.6-terra --effort medium --shell-isolation
 ```
 
-This suite route requires `harnesses: [codex]` and accepts
+This suite route accepts a nonempty, unique `harnesses` list containing `codex`,
+`claude`, or both. It accepts
 `owner_evaluation` and `without_skill` in each mode. Named ablations pair a
-no-skill baseline with a mounted candidate under the same condition. Ablation
+no-skill baseline with a mounted candidate under the same condition and compare
+each harness separately. Ablation
 results must be outside the evaluated project so result files cannot change its
 digest between cells. It resolves `case_filter` substrings to exact
 case IDs before starting, rejects duplicate IDs and unsupported suite fields,
@@ -237,6 +239,31 @@ grading, routes, and unknown measurements. Named ablations also write
 token, and cost deltas; missing measurements stay unknown. Missing cells or
 mismatched identity dimensions invalidate the comparison. Route overrides and
 Darrow-specific benchmark interpretation still use the legacy suite command.
+
+For multiple harnesses, pass `--host-options-file /absolute/path/to/hosts.json`
+before `--`. That file maps each selected harness to its Sevro candidate options:
+
+```json
+{
+  "codex": [
+    "--host",
+    "codex",
+    "--model",
+    "gpt-5.6-terra",
+    "--effort",
+    "medium"
+  ],
+  "claude": ["--host", "claude", "--model", "sonnet", "--effort", "medium"]
+}
+```
+
+Add binary, credential-file, and project-setting options to the relevant list.
+Repository skill cases need `--claude-project-settings` in the Claude list.
+Shared options after `--` can select shell isolation or a semantic grader, but
+cannot override candidate routes or duplicate a route option. The manifest
+retains the file's digest and each cell's declared harness; foreign or missing
+candidate route evidence makes the cell unsuccessful. A single-harness suite
+can continue forwarding its candidate options after `--`.
 
 The parity test also prepares the mounted skill through Sevro's bundled Codex
 route with `--dry`, validating its protocol identity and retained artifacts

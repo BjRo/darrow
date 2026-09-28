@@ -226,6 +226,217 @@ test("suite runs every selected mode and case through Sevro public commands", as
   }
 }, 15_000);
 
+test("suite binds separate host routes and compares ablations per harness", async () => {
+  const { root, adapter, suite } = await fixture();
+  const results = await mkdtemp(join(tmpdir(), "darrow-sevro-host-ablation-"));
+  roots.push(results);
+  const plugin = join(root, "plugins/capability/example");
+  const skill = join(plugin, "skills/probe");
+  await mkdir(join(skill, "evals"), { recursive: true });
+  for (const host of ["claude", "codex"]) {
+    await mkdir(join(plugin, `.${host}-plugin`));
+    await writeFile(
+      join(plugin, `.${host}-plugin/plugin.json`),
+      JSON.stringify({ name: "example", version: "0.1.0" }),
+    );
+  }
+  await writeFile(
+    join(skill, "SKILL.md"),
+    "---\nname: probe\ndescription: Return ready.\n---\nReturn ready.\n",
+  );
+  await writeFile(
+    join(skill, "evals/suite-skill.yaml"),
+    JSON.stringify({
+      id: "suite-skill",
+      invariant: "EXAMPLE-SKILL",
+      prompt: "Return ready.",
+      fixture: {
+        commits: [
+          { message: "chore: init", files: { "README.md": "ready\n" } },
+        ],
+      },
+      checks: [],
+      output_checks: [{ name: "response", expect_exact: "ready" }],
+    }),
+  );
+  const claudeAdapter = join(root, "claude-adapter.ts");
+  await writeFile(
+    claudeAdapter,
+    (await readFile(adapter, "utf8"))
+      .replace(
+        'id: "sevro.host.codex"',
+        'id: "sevro.host.claude", hostCapabilities: ["sevro.claude.plugin-dirs"]',
+      )
+      .replace('model: "synthetic"', 'model: "claude-synthetic"'),
+  );
+  await writeFile(
+    suite,
+    JSON.stringify({
+      version: 1,
+      experiment: "both-hosts",
+      harnesses: ["codex", "claude"],
+      case_filter: "suite-skill",
+      modes: {
+        baseline: { owner_evaluation: "passive", without_skill: true },
+        candidate: { owner_evaluation: "passive" },
+      },
+      ablations: [
+        { name: "skill-value", baseline: "baseline", candidate: "candidate" },
+      ],
+    }),
+  );
+  const optionsFile = join(root, "hosts.json");
+  await writeFile(
+    optionsFile,
+    JSON.stringify({
+      codex: ["--adapter-module", adapter],
+      claude: ["--adapter-module", claudeAdapter],
+    }),
+  );
+  const args = [
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--host-options-file",
+    optionsFile,
+    "--",
+    "--shell-isolation",
+  ];
+  const run = await invoke(args);
+  const manifest = JSON.parse(
+    await readFile(join(results, "suite-run.json"), "utf8"),
+  );
+  expect(run.code, `${run.stderr}\n${JSON.stringify(manifest)}`).toBe(0);
+  expect(manifest.harnesses).toEqual(["codex", "claude"]);
+  expect(manifest.hostOptionsSha256).toMatch(/^[a-f0-9]{64}$/);
+  expect(
+    manifest.cells.map((cell: { harness: string; mode: string }) => [
+      cell.mode,
+      cell.harness,
+    ]),
+  ).toEqual([
+    ["baseline", "codex"],
+    ["baseline", "claude"],
+    ["candidate", "codex"],
+    ["candidate", "claude"],
+  ]);
+  for (const cell of manifest.cells) {
+    expect(cell.provenance.routes[0].host).toBe(`sevro.host.${cell.harness}`);
+    expect(cell.provenance.routes[0].model).toBe(
+      cell.harness === "codex" ? "synthetic" : "claude-synthetic",
+    );
+  }
+  const analysis = JSON.parse(
+    await readFile(manifest.ablationReport.jsonPath, "utf8"),
+  );
+  expect(analysis.valid).toBeTrue();
+  expect(
+    analysis.comparisons[0].cases.map(
+      (row: { harness: string }) => row.harness,
+    ),
+  ).toEqual(["codex", "claude"]);
+  expect(
+    analysis.comparisons[0].cases.every(
+      (row: { passRate: { delta: number } }) => row.passRate.delta === 0,
+    ),
+  ).toBeTrue();
+
+  await writeFile(
+    optionsFile,
+    JSON.stringify({
+      codex: ["--adapter-module", adapter],
+      claude: ["--adapter-module", adapter],
+    }),
+  );
+  const mismatchedResults = join(results, "mismatched");
+  const mismatched = await invoke(
+    args.map((arg) => (arg === results ? mismatchedResults : arg)),
+  );
+  expect(mismatched.code).toBe(1);
+  const mismatch = JSON.parse(
+    await readFile(join(mismatchedResults, "suite-run.json"), "utf8"),
+  );
+  expect(
+    mismatch.cells
+      .filter((cell: { harness: string }) => cell.harness === "claude")
+      .every(
+        (cell: { exitCode: number; provenance: unknown }) =>
+          cell.exitCode === 70 && cell.provenance === null,
+      ),
+  ).toBeTrue();
+  expect(mismatch.ablationReport.valid).toBeFalse();
+}, 30_000);
+
+test("suite rejects ambiguous or conflicting host routes before execution", async () => {
+  const { root, suite, results } = await fixture();
+  const definition = JSON.parse(await readFile(suite, "utf8"));
+  const optionsFile = join(root, "hosts.json");
+  const base = [
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+  ];
+  for (const harnesses of [[], ["codex", "codex"], ["foreign"]]) {
+    await writeFile(suite, JSON.stringify({ ...definition, harnesses }));
+    expect((await invoke([...base, "--", "--dry"])).code).toBe(64);
+  }
+  await writeFile(
+    suite,
+    JSON.stringify({ ...definition, harnesses: ["codex", "claude"] }),
+  );
+  const missing = await invoke([...base, "--", "--dry"]);
+  expect(missing.code).toBe(64);
+  expect(missing.stderr).toContain(
+    "multiple harnesses require --host-options-file",
+  );
+  for (const options of [
+    { codex: ["--host", "codex"] },
+    { codex: ["--host", "codex"], claude: ["--host", "codex"] },
+    { codex: ["--condition", "passive"], claude: ["--host", "claude"] },
+  ]) {
+    await writeFile(optionsFile, JSON.stringify(options));
+    expect(
+      (
+        await invoke([
+          ...base,
+          "--host-options-file",
+          optionsFile,
+          "--",
+          "--dry",
+        ])
+      ).code,
+    ).toBe(64);
+  }
+  await writeFile(
+    optionsFile,
+    JSON.stringify({
+      codex: ["--host", "codex"],
+      claude: ["--host", "claude"],
+    }),
+  );
+  const conflict = await invoke([
+    ...base,
+    "--host-options-file",
+    optionsFile,
+    "--",
+    "--host",
+    "codex",
+    "--dry",
+  ]);
+  expect(conflict.code).toBe(64);
+  expect(await Bun.file(results).exists()).toBeFalse();
+});
+
 test("suite compares a mounted skill with a no-skill baseline", async () => {
   const { root, adapter, suite } = await fixture();
   const results = await mkdtemp(join(tmpdir(), "darrow-sevro-ablation-"));
