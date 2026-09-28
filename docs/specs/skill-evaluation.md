@@ -30,6 +30,13 @@ distinct from task outcomes and skill-value ablation.
 
 ## Public contract
 
+### Repository-owned fixture sources
+
+Repository guide fixtures exercise implementation-derived explanations against
+Darrow-owned evaluation code, such as its Sevro extension. Their snapshots must
+not copy generic runner implementation. Keep the question, source inventory,
+and acceptance checks aligned with the copied source.
+
 ### Direct runner roots
 
 The direct runner accepts `--project-root <directory>` for case discovery,

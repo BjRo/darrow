@@ -12,7 +12,7 @@ done
 for file in README.md CONTRIBUTING.md LICENSE package.json; do
   cp "$source_root/$file" "$file"
 done
-mkdir -p docs evals/runner .claude-plugin
+mkdir -p docs evals/sevro-extension .claude-plugin
 for file in "$source_root"/docs/*.md; do cp "$file" docs/; done
 for directory in specs decisions assets; do cp -R "$source_root/docs/$directory" docs/; done
 mkdir -p docs/research
@@ -23,7 +23,7 @@ for file in "$source_root"/docs/research/*.md; do
   esac
   cp "$file" docs/research/
 done
-cp "$source_root/evals/runner/run.ts" evals/runner/run.ts
+cp "$source_root/evals/sevro-extension/index.ts" evals/sevro-extension/index.ts
 cp "$source_root/.claude-plugin/marketplace.json" .claude-plugin/marketplace.json
 for category in "$source_root"/plugins/*; do
   mkdir -p "plugins/$(basename "$category")"
@@ -52,7 +52,7 @@ if [ "${1:-}" = diagnosis ]; then
   cp "$DARROW_EVAL_CASE_DIR/fixtures/diagnose-plugin.template.md" .claude/skills/diagnose-plugin/SKILL.md
 fi
 : > .git/guide-effects
-git add README.md CONTRIBUTING.md LICENSE package.json docs evals/runner .claude-plugin plugins
+git add README.md CONTRIBUTING.md LICENSE package.json docs evals/sevro-extension .claude-plugin plugins
 git -c user.name=Fixture -c user.email=fixture@example.invalid commit -qm "chore: snapshot guide sources"
 git rev-parse HEAD > .git/guide-base
 cp .git/config .git/guide-config

@@ -10,6 +10,8 @@ cd "$test_dir"
 git init -q
 DARROW_EVAL_CASE_DIR="$case_dir" "$BASH" "$case_dir/fixtures/setup.sh" conflict
 test -f docs/specs/repository-guide.md
+cmp "$case_dir/../../../../evals/sevro-extension/index.ts" evals/sevro-extension/index.ts
+test ! -e evals/runner
 test -f docs/research/README.md
 test -f docs/research/adaptive-ticket-to-pr-opportunity.md
 test -f plugins/capability/darrow-git/.codex-plugin/plugin.json
