@@ -243,7 +243,13 @@ records the suite content digest, selected cells, Sevro result paths, evidence
 paths, exit codes, and the runner, project, extension, model, and effort
 provenance verified from each retained Sevro result. Failed cells remain in the manifest while later cells
 run. SIGINT or SIGTERM cancels the active run, retains its cell, and stops the
-suite. The command exits 1 if any cell or the public report fails. The suite
+suite. Each cell also records an independent `activation` gate with its
+declared class, target skill, pass rate, threshold, and trial counts. Task
+success does not imply activation success. Missing or incomplete activation
+stays `unavailable` with a null pass rate; dry preparation is `not_run`, and
+unmounted controls are `not_requested`. The command exits 1 if any cell,
+live activation gate, or public report fails. Sevro's task verdict and cell
+exit code remain unchanged by the activation gate. The suite
 also invokes `sevro report` and writes its versioned `report.json` and Markdown
 `report.md` beside the manifest. The manifest records their absolute paths and
 any cells without a JSON result. The generic report preserves task, execution,

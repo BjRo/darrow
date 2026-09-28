@@ -2,11 +2,12 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { isAbsolute, join, resolve, sep } from "node:path";
-import { parseArgs } from "node:util";
+import { isDeepStrictEqual, parseArgs } from "node:util";
 import { parse as parseYaml } from "yaml";
 import { resolveCase, selectCaseIds } from "./index";
 import { pathToFileURL } from "node:url";
 import { sevroCommand } from "./sevro-command";
+import { activationGate, type ActivationExpectation } from "./activation";
 
 const repositoryRoot = resolve(import.meta.dir, "../..");
 type Harness = "codex" | "claude";
@@ -308,6 +309,7 @@ type Cell = {
   result: string | null;
   evidencePath: string | null;
   provenance: EvidenceSummary | null;
+  activation: ReturnType<typeof activationGate>;
   exitCode: number;
   error?: string;
 };
@@ -327,6 +329,7 @@ type ExpectedCell = {
   trials: number;
   threshold: number;
   exitCode: number;
+  activation: ActivationExpectation | null;
 };
 
 function verifyEvidence(
@@ -347,6 +350,10 @@ function verifyEvidence(
     evidence.format === "sevro.run-evidence.v1",
     evidence.runId === result.runId,
     retained.exitCode === result.exitCode,
+    isDeepStrictEqual(retained.cases, result.cases),
+    isDeepStrictEqual(retained.execution, result.execution),
+    isDeepStrictEqual(retained.grading, result.grading),
+    isDeepStrictEqual(retained.task, result.task),
     result.exitCode === expected.exitCode,
     Array.isArray(selected) &&
       selected.length === 1 &&
@@ -378,7 +385,7 @@ function routeSummary(value: unknown): EvidenceSummary["routes"][number] {
 async function retainedSummary(
   result: Record<string, unknown>,
   expected: ExpectedCell,
-): Promise<EvidenceSummary> {
+) {
   const path = result.evidencePath;
   if (typeof path !== "string" || !isAbsolute(path))
     throw new Error("retained evidence path is missing");
@@ -390,7 +397,7 @@ async function retainedSummary(
   const routes = evidence.routes;
   if (!Array.isArray(routes))
     throw new Error("retained Sevro routes are missing");
-  return {
+  const provenance: EvidenceSummary = {
     evaluationDigest,
     dimensions: object(
       object(evidence.evaluationIdentity, "evaluation identity").dimensions,
@@ -404,22 +411,35 @@ async function retainedSummary(
         : object(evidence.extension, "extension provenance"),
     routes: routes.map(routeSummary),
   };
+  const retained = object(evidence.result, "retained result");
+  return {
+    provenance,
+    activation: activationGate(
+      expected.activation,
+      expected,
+      (retained.cases as unknown[])[0],
+    ),
+  };
 }
 
 async function cellProvenance(
   result: Record<string, unknown> | null,
   expected: ExpectedCell,
 ) {
-  if (!result) return { provenance: null, evidenceError: false };
+  const missing = {
+    provenance: null,
+    activation: activationGate(expected.activation, expected, null),
+  };
+  if (!result) return { ...missing, evidenceError: false };
   if (!result.evidencePath)
-    return { provenance: null, evidenceError: result.exitCode === 0 };
+    return { ...missing, evidenceError: result.exitCode === 0 };
   try {
     return {
-      provenance: await retainedSummary(result, expected),
+      ...(await retainedSummary(result, expected)),
       evidenceError: false,
     };
   } catch {
-    return { provenance: null, evidenceError: true };
+    return { ...missing, evidenceError: true };
   }
 }
 
@@ -443,6 +463,7 @@ type CellSelection = {
   caseId: string;
   harness: Harness;
   index: number;
+  activation: ActivationExpectation | null;
 };
 
 function cellCommand(request: SuiteRequest, selected: CellSelection) {
@@ -490,14 +511,18 @@ async function runCell(
   }
   const resultPath = result ? join(cellRoot, "result.json") : null;
   if (resultPath) await writeFile(resultPath, JSON.stringify(result, null, 2));
-  const { provenance, evidenceError } = await cellProvenance(result, {
-    caseId,
-    harness,
-    condition: mode.condition,
-    trials: request.trials,
-    threshold: request.threshold,
-    exitCode,
-  });
+  const { provenance, activation, evidenceError } = await cellProvenance(
+    result,
+    {
+      caseId,
+      harness,
+      condition: mode.condition,
+      trials: request.trials,
+      threshold: request.threshold,
+      exitCode,
+      activation: selected.activation,
+    },
+  );
   const cell: Cell = {
     caseId,
     harness,
@@ -507,6 +532,7 @@ async function runCell(
     evidencePath:
       typeof result?.evidencePath === "string" ? result.evidencePath : null,
     provenance,
+    activation,
     ...cellStatus(result, exitCode, evidenceError),
   };
   return { cell, interrupted };
@@ -839,7 +865,7 @@ async function preflightCases(
   suite: SuiteConfig,
   caseIds: string[],
 ) {
-  if (!suite.modes.some((mode) => mode.withoutSkill)) return;
+  const expectations = new Map<string, ActivationExpectation | null>();
   for (const caseId of caseIds) {
     const selected = await resolveCase({
       projectRoot: pathToFileURL(projectRoot).href,
@@ -850,21 +876,33 @@ async function preflightCases(
       "case extension data",
     );
     const details = object(data["darrow.case"], "Darrow case data");
-    if (details.invocation !== undefined)
+    expectations.set(
+      caseId,
+      (details.activation as ActivationExpectation | undefined) ?? null,
+    );
+    if (
+      suite.modes.some((mode) => mode.withoutSkill) &&
+      details.invocation !== undefined
+    )
       throw new Error(
         `${caseId}: explicit skill invocation cannot run without skills`,
       );
     if (suite.ablations.length && details.mount === undefined)
       throw new Error(`${caseId}: ablation candidate has no owning skill`);
   }
+  return expectations;
 }
 
 async function runSelectedCells(
   request: SuiteRequest,
   suite: SuiteConfig,
-  caseIds: string[],
+  selection: {
+    caseIds: string[];
+    expectations: Map<string, ActivationExpectation | null>;
+  },
   manifest: { cells: Cell[]; interrupted: Interrupt | null },
 ) {
+  const { caseIds, expectations } = selection;
   cells: for (const mode of suite.modes) {
     for (const selected of suite.harnesses.flatMap((harness) =>
       caseIds.map((caseId) => ({ harness, caseId })),
@@ -873,6 +911,9 @@ async function runSelectedCells(
         ...selected,
         mode,
         index: manifest.cells.length + 1,
+        activation: mode.withoutSkill
+          ? null
+          : (expectations.get(selected.caseId) ?? null),
       });
       manifest.cells.push(outcome.cell);
       manifest.interrupted = outcome.interrupted;
@@ -926,14 +967,14 @@ export async function runSuite(argv: string[]) {
   )
     throw new Error("ablation results root must be outside the project root");
   const caseIds = await selectCaseIds(projectRoot, suite.filters);
-  await preflightCases(projectRoot, suite, caseIds);
+  const expectations = await preflightCases(projectRoot, suite, caseIds);
   const manifest = suiteManifest(request, suite, {
     source,
     caseIds,
     hostOptionsDigest: hostOptions.digest,
   });
   await mkdir(resultsRoot, { recursive: true });
-  await runSelectedCells(request, suite, caseIds, manifest);
+  await runSelectedCells(request, suite, { caseIds, expectations }, manifest);
   manifest.report = await suiteReports(resultsRoot, manifest.cells);
   manifest.ablationReport = await ablationReports({
     resultsRoot,
@@ -948,6 +989,12 @@ export async function runSuite(argv: string[]) {
     manifest: join(resultsRoot, "suite-run.json"),
     cells: manifest.cells.length,
     failed: manifest.cells.filter((cell) => cell.exitCode !== 0).length,
+    activationFailed: manifest.cells.filter(
+      (cell) => cell.activation.status === "failed",
+    ).length,
+    activationUnavailable: manifest.cells.filter(
+      (cell) => cell.activation.status === "unavailable",
+    ).length,
     interrupted: manifest.interrupted,
     report: manifest.report,
     ablationReport: manifest.ablationReport,
@@ -964,6 +1011,8 @@ if (import.meta.main) {
         : result.interrupted === "SIGTERM"
           ? 143
           : result.failed ||
+              result.activationFailed ||
+              result.activationUnavailable ||
               result.report.error ||
               result.ablationReport?.valid === false
             ? 1

@@ -92,6 +92,210 @@ async function invoke(args: string[]) {
   return { stdout, stderr, code };
 }
 
+async function activationFixture() {
+  const { root, adapter, suite, results } = await fixture();
+  const skill = join(root, "plugins/capability/example/skills/probe");
+  await mkdir(join(skill, "evals"), { recursive: true });
+  await writeFile(
+    join(skill, "SKILL.md"),
+    "---\nname: probe\ndescription: Return ready.\n---\nReturn ready.\n",
+  );
+  await writeFile(
+    join(skill, "evals/suite-activation.yaml"),
+    JSON.stringify({
+      id: "suite-activation",
+      invariant: "EXAMPLE-ACTIVATION",
+      activation: "positive",
+      prompt: "Return ready.",
+      fixture: {
+        commits: [
+          { message: "chore: init", files: { "README.md": "ready\n" } },
+        ],
+      },
+      checks: [],
+      output_checks: [{ name: "response", expect_exact: "ready" }],
+    }),
+  );
+  await writeFile(
+    adapter,
+    `let runs = 0;
+export default {
+  id: "sevro.host.codex", model: "synthetic", effort: "none",
+  async run({ condition }) {
+    const skills = ++runs === 1 ? ["probe"] : [];
+    return { finalMessage: "ready", complete: true, actualCondition: condition,
+      observations: [{ id: "sevro.codex.skill-reads", completeness: "complete",
+        data: { method: "skill_file_read_probe", primarySkill: skills[0] ?? null,
+          observedSkills: skills } }] };
+  },
+};\n`,
+  );
+  await writeFile(
+    suite,
+    JSON.stringify({
+      version: 1,
+      experiment: "activation",
+      harnesses: ["codex"],
+      case_filter: "suite-activation",
+      modes: { candidate: { owner_evaluation: "passive" } },
+    }),
+  );
+  return { root, adapter, suite, results };
+}
+
+test("suite gates activation independently when all task checks pass", async () => {
+  const { root, adapter, suite, results } = await activationFixture();
+  const run = await invoke([
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+    "--trials",
+    "2",
+    "--threshold",
+    "1",
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+  ]);
+  const manifest = JSON.parse(
+    await readFile(join(results, "suite-run.json"), "utf8"),
+  );
+  const cell = manifest.cells[0];
+  const result = JSON.parse(await readFile(cell.result, "utf8"));
+  expect(result.task.verdict).toBe("passed");
+  expect(
+    result.cases[0].trials.map(
+      (trial: { domainOutcomes: unknown[] }) => trial.domainOutcomes,
+    ),
+  ).toMatchObject([
+    [{ id: "darrow.evals.activation", status: "passed" }],
+    [{ id: "darrow.evals.activation", status: "failed" }],
+  ]);
+  expect(run.code, `${run.stderr}\n${run.stdout}`).toBe(1);
+  expect(cell.exitCode).toBe(0);
+  expect(cell.activation).toEqual({
+    status: "failed",
+    class: "positive",
+    targetSkill: "probe",
+    trials: 2,
+    measured: 2,
+    passed: 1,
+    failed: 1,
+    unavailable: 0,
+    passRate: 0.5,
+    threshold: 1,
+  });
+  expect(JSON.parse(run.stdout)).toMatchObject({
+    cells: 1,
+    failed: 0,
+    activationFailed: 1,
+    activationUnavailable: 0,
+  });
+}, 15_000);
+
+test("suite retains unknown activation without averaging the measured subset", async () => {
+  const { root, adapter, suite, results } = await activationFixture();
+  await writeFile(
+    adapter,
+    (await readFile(adapter, "utf8")).replace(
+      'completeness: "complete"',
+      'completeness: runs === 1 ? "complete" : "partial"',
+    ),
+  );
+  const run = await invoke([
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+    "--trials",
+    "2",
+    "--threshold",
+    "0.5",
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+  ]);
+  expect(run.code, `${run.stderr}\n${run.stdout}`).toBe(1);
+  const manifest = JSON.parse(
+    await readFile(join(results, "suite-run.json"), "utf8"),
+  );
+  const cell = manifest.cells[0];
+  expect(cell.exitCode).toBe(0);
+  expect(cell.activation).toMatchObject({
+    status: "unavailable",
+    class: "positive",
+    measured: 1,
+    passed: 1,
+    failed: 0,
+    unavailable: 1,
+    passRate: null,
+    threshold: 0.5,
+  });
+  expect(JSON.parse(run.stdout)).toMatchObject({
+    activationFailed: 0,
+    activationUnavailable: 1,
+  });
+  const result = JSON.parse(await readFile(cell.result, "utf8"));
+  expect(result.task.verdict).toBe("passed");
+}, 15_000);
+
+test("suite labels dry activation and excludes unmounted controls from its gate", async () => {
+  const { root, adapter, suite, results } = await activationFixture();
+  const definition = JSON.parse(await readFile(suite, "utf8"));
+  definition.modes.baseline = {
+    owner_evaluation: "passive",
+    without_skill: true,
+  };
+  await writeFile(suite, JSON.stringify(definition));
+  const args = [
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+    "--trials",
+    "2",
+    "--threshold",
+    "0.5",
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+  ];
+  const dry = await invoke([...args, "--dry"]);
+  expect(dry.code, `${dry.stderr}\n${dry.stdout}`).toBe(0);
+  const preparation = JSON.parse(
+    await readFile(join(results, "suite-run.json"), "utf8"),
+  );
+  expect(preparation.cells[0].activation).toMatchObject({
+    status: "not_run",
+    passRate: null,
+    measured: 0,
+  });
+  expect(preparation.cells[1].activation).toEqual({ status: "not_requested" });
+  const liveResults = join(results, "live");
+  const live = await invoke(
+    args.map((arg) => (arg === results ? liveResults : arg)),
+  );
+  expect(live.code, `${live.stderr}\n${live.stdout}`).toBe(0);
+  const execution = JSON.parse(
+    await readFile(join(liveResults, "suite-run.json"), "utf8"),
+  );
+  expect(execution.cells[0].activation).toMatchObject({
+    status: "passed",
+    passRate: 0.5,
+  });
+  expect(execution.cells[1].activation).toEqual({ status: "not_requested" });
+}, 15_000);
+
 test("suite selection rejects duplicate IDs and unsupported modes before running", async () => {
   const { root, cases, suite, results } = await fixture();
   expect(await selectCaseIds(root, ["suite-"])).toEqual([

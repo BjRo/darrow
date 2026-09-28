@@ -357,6 +357,16 @@ adjacent capability on a negative trial is not a false positive. An incomplete
 observation set or a zero precision denominator is reported as `unknown` rather
 than averaged over the available subset.
 
+The Sevro suite route retains an independent activation gate on each mounted
+case that declares activation. It reports the declared class, target skill,
+threshold, measured pass rate, and `passed`, `failed`, `unavailable`, or
+`not_run` status. Cases without activation and unmounted controls are
+`not_requested`. A missing trial or missing, duplicate, malformed, or
+unavailable activation outcome leaves the gate unavailable and its pass rate
+null. A failed or unavailable live activation gate makes the suite exit
+unsuccessfully without changing Sevro's task verdict, checks, or exit code.
+Dry preparation retains `not_run` and does not establish activation success.
+
 ### Evidence lifecycle
 
 Shell checks execute candidate-controlled code inside the runner's outer
