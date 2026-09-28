@@ -231,7 +231,10 @@ SEVRO_CHECKOUT=/absolute/path/to/sevro bun evals/sevro-extension/suite.ts \
 ```
 
 This suite route accepts a nonempty, unique `harnesses` list containing `codex`,
-`claude`, or both. It accepts
+`claude`, or both; an omitted list defaults to `[claude, codex]`. Repeat
+`--harness <host>` or `--mode <name>` before `--` to select supported hosts or
+named modes. Repeatable `--case <substring>` filters replace the suite filters
+for a focused run. Selection errors fail before any cells start. It accepts
 `owner_evaluation`, `without_skill`, `model_by_harness`, and `effort` in each
 mode. Candidate model and effort overrides require Sevro's bundled hosts;
 they replace the corresponding options in the host route and preserve the
@@ -265,11 +268,14 @@ and harness. Incomplete observations and empty metric denominators remain
 unknown; unmounted controls supply no measurements. Named ablations write
 `ablation-report.json` and `ablation-report.md` with per-case pass rate, time,
 token, and cost deltas; missing measurements stay unknown. Missing cells or
-mismatched identity dimensions invalidate the comparison. Route overrides and
-Darrow-specific benchmark interpretation still use the legacy suite command.
+mismatched identity dimensions invalidate the comparison. Benchmark conditions,
+owning skill overrides, and effective owner-route assertions still use the
+legacy suite command.
 
 For multiple harnesses, pass `--host-options-file /absolute/path/to/hosts.json`
-before `--`. That file maps each selected harness to its Sevro candidate options:
+before `--`. That file maps each selected harness to its Sevro candidate options.
+It may also retain routes for supported harnesses omitted by `--harness`; all
+entries are validated and the entire file digest is retained:
 
 ```json
 {

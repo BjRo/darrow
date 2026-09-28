@@ -146,7 +146,9 @@ function suiteConfig(value: unknown) {
     !suite.experiment
   )
     throw new Error("suite needs version 1 and an experiment name");
-  const harnesses = suiteHarnesses(suite.harnesses);
+  const harnesses = suiteHarnesses(
+    suite.harnesses === undefined ? ["claude", "codex"] : suite.harnesses,
+  );
   const filters = Array.isArray(suite.case_filter)
     ? suite.case_filter
     : [suite.case_filter];
@@ -205,6 +207,9 @@ function suiteInvocation(argv: string[]) {
     args: argv.slice(0, separator),
     options: {
       suite: { type: "string" },
+      harness: { type: "string", multiple: true },
+      mode: { type: "string", multiple: true },
+      case: { type: "string", multiple: true },
       "project-root": { type: "string" },
       "results-root": { type: "string" },
       trials: { type: "string", default: "5" },
@@ -229,6 +234,9 @@ function suiteInvocation(argv: string[]) {
     projectRoot,
     resultsRoot,
     hostOptionsFile,
+    harnesses: values.harness,
+    modes: values.mode,
+    cases: values.case,
     hostOptions: null as Partial<Record<Harness, string[]>> | null,
     ...evidenceLimits(values.trials!, values.threshold!),
     forwarded: forwardedOptions(argv.slice(separator + 1)),
@@ -237,6 +245,33 @@ function suiteInvocation(argv: string[]) {
 
 type SuiteRequest = ReturnType<typeof suiteInvocation>;
 type SuiteConfig = ReturnType<typeof suiteConfig>;
+
+function selectedModes(
+  names: string[] | undefined,
+  modes: SuiteConfig["modes"],
+) {
+  const selected = names ?? modes.map((mode) => mode.name);
+  if (!selected.length || new Set(selected).size !== selected.length)
+    throw new Error("mode selection must be unique and nonempty");
+  return selected.map((name) => {
+    const mode = modes.find((entry) => entry.name === name);
+    if (!mode) throw new Error(`unknown suite mode: ${name}`);
+    return mode;
+  });
+}
+
+function selectedSuite(suite: SuiteConfig, request: SuiteRequest) {
+  const harnesses = suiteHarnesses(request.harnesses ?? suite.harnesses);
+  if (harnesses.some((host) => !suite.harnesses.includes(host)))
+    throw new Error("suite does not support a selected harness");
+  return {
+    ...suite,
+    harnesses,
+    allowedHarnesses: suite.harnesses,
+    modes: selectedModes(request.modes, suite.modes),
+    filters: request.cases ?? suite.filters,
+  };
+}
 
 function hostArguments(value: unknown, harness: Harness): string[] {
   if (
@@ -277,7 +312,11 @@ function verifySharedOptions(shared: string[], routes: string[][]) {
   }
 }
 
-async function loadHostOptions(request: SuiteRequest, harnesses: Harness[]) {
+async function loadHostOptions(
+  request: SuiteRequest,
+  harnesses: Harness[],
+  allowedHarnesses: Harness[],
+) {
   const path = request.hostOptionsFile;
   if (!path) {
     if (harnesses.length > 1)
@@ -294,12 +333,20 @@ async function loadHostOptions(request: SuiteRequest, harnesses: Harness[]) {
     throw new Error("host options file exceeds 64 KiB");
   const raw = object(JSON.parse(source) as unknown, "host options");
   if (
-    Object.keys(raw).length !== harnesses.length ||
-    Object.keys(raw).some((host) => !harnesses.includes(host as Harness))
+    Object.keys(raw).some(
+      (host) => !allowedHarnesses.includes(host as Harness),
+    ) ||
+    harnesses.some((host) => !Object.hasOwn(raw, host))
   )
-    throw new Error("host options must name exactly the selected harnesses");
+    throw new Error("host options must cover selected and supported harnesses");
+  const declared = Object.fromEntries(
+    Object.entries(raw).map(([host, args]) => [
+      host,
+      hostArguments(args, host as Harness),
+    ]),
+  );
   const options = Object.fromEntries(
-    harnesses.map((host) => [host, hostArguments(raw[host], host)]),
+    harnesses.map((host) => [host, declared[host]!]),
   );
   verifySharedOptions(request.forwarded, Object.values(options));
   return { options, digest: createHash("sha256").update(source).digest("hex") };
@@ -956,6 +1003,7 @@ function suiteManifest(
     modes: suite.modes,
     ablations: suite.ablations,
     caseIds: inputs.caseIds,
+    caseFilters: suite.filters,
     interrupted: null as Interrupt | null,
     cells: [] as Cell[],
     report: null as Awaited<ReturnType<typeof suiteReports>> | null,
@@ -979,12 +1027,18 @@ function suiteCounts(cells: Cell[]) {
   };
 }
 
-export async function runSuite(argv: string[]) {
-  const request = suiteInvocation(argv);
+async function suiteInputs(request: SuiteRequest) {
   const { suitePath, projectRoot, resultsRoot } = request;
   const source = await readFile(suitePath, "utf8");
-  const suite = suiteConfig(parseYaml(source) as unknown);
-  const hostOptions = await loadHostOptions(request, suite.harnesses);
+  const suite = selectedSuite(
+    suiteConfig(parseYaml(source) as unknown),
+    request,
+  );
+  const hostOptions = await loadHostOptions(
+    request,
+    suite.harnesses,
+    suite.allowedHarnesses,
+  );
   request.hostOptions = hostOptions.options;
   if (
     suite.ablations.length &&
@@ -994,11 +1048,21 @@ export async function runSuite(argv: string[]) {
     throw new Error("ablation results root must be outside the project root");
   const caseIds = await selectCaseIds(projectRoot, suite.filters);
   const expectations = await preflightCases(projectRoot, suite, caseIds);
-  const manifest = suiteManifest(request, suite, {
+  return {
     source,
+    suite,
     caseIds,
+    expectations,
     hostOptionsDigest: hostOptions.digest,
-  });
+  };
+}
+
+export async function runSuite(argv: string[]) {
+  const request = suiteInvocation(argv);
+  const { resultsRoot } = request;
+  const inputs = await suiteInputs(request);
+  const { suite, caseIds, expectations } = inputs;
+  const manifest = suiteManifest(request, suite, inputs);
   await mkdir(resultsRoot, { recursive: true });
   await runSelectedCells(request, suite, { caseIds, expectations }, manifest);
   manifest.report = await suiteReports(resultsRoot, manifest.cells);

@@ -382,6 +382,19 @@ contradictory candidate model or effort evidence makes the cell unsuccessful.
 Comparisons across different candidate routes remain ineligible for matched
 ablation deltas.
 
+The Sevro suite route defaults an omitted `harnesses` declaration to Claude
+and Codex, in that order. Repeatable `--harness` and `--mode` options select
+supported hosts and named modes before any cell starts. Repeatable `--case`
+filters replace the suite's filters, preserving the existing focused-run
+contract. Invalid, duplicate, or unsupported host and mode selections fail
+before execution. The manifest records the effective selections while the
+source suite digest still identifies the complete input. Selecting only part
+of an ablation does not permit a comparison with its missing counterpart.
+When narrowing the harness selection, a host-options file may retain routes
+for other harnesses supported by the complete suite. Every entry is validated,
+every selected harness needs a route, and unknown harnesses are rejected. The
+complete file digest remains in the manifest; only selected routes execute.
+
 ### Evidence lifecycle
 
 Shell checks execute candidate-controlled code inside the runner's outer

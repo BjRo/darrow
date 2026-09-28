@@ -100,3 +100,33 @@ Sevro requires a bundled host for `--model` and `--effort`. The fixture was
 corrected before the recorded red/green sequence. This proves command and
 evidence behavior; it makes no claim about live model quality or the remaining
 benchmark condition and skill overrides.
+
+## Defaults and focused selection
+
+Red — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-suite.test.ts -t "suite supports legacy defaults"'`:
+the unchanged command rejected `--harness` with exit `64`.
+
+Green — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-suite.test.ts -t "suite supports legacy defaults"'`:
+one test passed. A suite without a harness declaration selects Codex,
+the enforced mode, and `suite-beta` when those CLI selectors are supplied;
+the case filter overrides the suite's `suite-alpha` filter as in the legacy
+command. Only the selected cell runs.
+
+Red — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-suite.test.ts -t "suite keeps both-host options"'`:
+the narrowed run rejected its existing two-host options file with exit `64`.
+
+Green — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-suite.test.ts -t "suite keeps both-host options"'`:
+one test passed. The same options file works for a selected Codex run and for
+the default Claude/Codex matrix, with the same file digest retained. A malformed
+unused route remains an error before execution.
+
+The three focused selection tests passed with 32 assertions. They also reject
+unsupported or duplicate hosts and modes, unknown cases, and empty filters
+before creating a results directory. These tests use the public CLI and
+synthetic candidate adapters without live model calls.
+
+After candidate routes and focused selection were added, the installed Sevro
+`0.1.0-dev.0` package gate passed all 80 tests with 1,347 assertions across the
+three public-command parity files. Typechecking, ESLint, and formatting also
+passed. This validates the installed development package; a published release
+pin and the remaining benchmark options are still pending.

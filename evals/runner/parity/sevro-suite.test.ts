@@ -411,6 +411,158 @@ export default {
   return { root, adapter, suite, results };
 }
 
+test("suite supports legacy defaults and focused host, mode, and case selection", async () => {
+  const { root, adapter, suite, results } = await fixture();
+  const definition = JSON.parse(await readFile(suite, "utf8"));
+  delete definition.harnesses;
+  definition.case_filter = "suite-alpha";
+  await writeFile(suite, JSON.stringify(definition));
+  const run = await invoke([
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+    "--harness",
+    "codex",
+    "--mode",
+    "enforced",
+    "--case",
+    "suite-beta",
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+  ]);
+  expect(run.code, `${run.stderr}\n${run.stdout}`).toBe(0);
+  const manifest = JSON.parse(
+    await readFile(join(results, "suite-run.json"), "utf8"),
+  );
+  expect(manifest.harnesses).toEqual(["codex"]);
+  expect(manifest.caseIds).toEqual(["suite-beta"]);
+  expect(manifest.modes).toEqual([
+    { name: "enforced", condition: "enforced", withoutSkill: false },
+  ]);
+  expect(manifest.cells).toHaveLength(1);
+  expect(manifest.cells[0]).toMatchObject({
+    harness: "codex",
+    mode: "enforced",
+    caseId: "suite-beta",
+  });
+}, 15_000);
+
+test("suite keeps both-host options when narrowing a default-host suite", async () => {
+  const { root, adapter, suite, results } = await fixture();
+  const definition = JSON.parse(await readFile(suite, "utf8"));
+  delete definition.harnesses;
+  definition.case_filter = "suite-alpha";
+  definition.modes = { passive: definition.modes.passive };
+  await writeFile(suite, JSON.stringify(definition));
+  const claudeAdapter = join(root, "claude-adapter.ts");
+  await writeFile(
+    claudeAdapter,
+    (await readFile(adapter, "utf8")).replace(
+      'id: "sevro.host.codex"',
+      'id: "sevro.host.claude"',
+    ),
+  );
+  const optionsFile = join(root, "hosts.json");
+  await writeFile(
+    optionsFile,
+    JSON.stringify({
+      codex: ["--adapter-module", adapter],
+      claude: ["--adapter-module", claudeAdapter],
+    }),
+  );
+  const args = [
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+    "--host-options-file",
+    optionsFile,
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--",
+    "--shell-isolation",
+  ];
+  const focusedRoot = join(results, "focused");
+  const focusedArgs = args.map((arg) => (arg === results ? focusedRoot : arg));
+  const separator = focusedArgs.indexOf("--");
+  focusedArgs.splice(separator, 0, "--harness", "codex");
+  const focused = await invoke(focusedArgs);
+  expect(focused.code, `${focused.stderr}\n${focused.stdout}`).toBe(0);
+  const selected = JSON.parse(
+    await readFile(join(focusedRoot, "suite-run.json"), "utf8"),
+  );
+  expect(selected.harnesses).toEqual(["codex"]);
+  expect(selected.cells).toHaveLength(1);
+  const both = await invoke(args);
+  expect(both.code, `${both.stderr}\n${both.stdout}`).toBe(0);
+  const matrix = JSON.parse(
+    await readFile(join(results, "suite-run.json"), "utf8"),
+  );
+  expect(matrix.harnesses).toEqual(["claude", "codex"]);
+  expect(matrix.cells.map((cell: { harness: string }) => cell.harness)).toEqual(
+    ["claude", "codex"],
+  );
+  expect(matrix.hostOptionsSha256).toBe(selected.hostOptionsSha256);
+  await writeFile(
+    optionsFile,
+    JSON.stringify({
+      codex: ["--adapter-module", adapter],
+      claude: ["--host", "codex"],
+    }),
+  );
+  const invalidRoot = join(results, "invalid-unused-host");
+  const invalid = await invoke(
+    focusedArgs.map((arg) => (arg === focusedRoot ? invalidRoot : arg)),
+  );
+  expect(invalid.code, invalid.stderr).toBe(64);
+  expect(await Bun.file(invalidRoot).exists()).toBeFalse();
+}, 15_000);
+
+test("suite rejects unsupported focus selections before starting cells", async () => {
+  const { root, adapter, suite, results } = await fixture();
+  const base = [
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+  ];
+  for (const selected of [
+    ["--harness", "claude"],
+    ["--harness", "foreign"],
+    ["--harness", "codex", "--harness", "codex"],
+    ["--mode", "missing"],
+    ["--mode", "passive", "--mode", "passive"],
+    ["--case", "missing"],
+    ["--case", ""],
+  ]) {
+    const run = await invoke([
+      ...base,
+      ...selected,
+      "--",
+      "--dry",
+      "--adapter-module",
+      adapter,
+    ]);
+    expect(run.code, `${run.stderr}\n${run.stdout}`).toBe(64);
+    expect(await Bun.file(results).exists()).toBeFalse();
+  }
+});
+
 test("suite rejects invalid mode model and effort declarations before execution", async () => {
   const { root, suite, results } = await fixture();
   const definition = JSON.parse(await readFile(suite, "utf8"));
