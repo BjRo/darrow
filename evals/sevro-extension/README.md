@@ -228,6 +228,63 @@ accepts `--benchmark-condition-sha256 <digest>` to require the file's original
 bytes to match an earlier validated input. A mismatch exits `64` before Sevro
 or the candidate starts. Suite condition selection is described below.
 
+## Repository-guide caller
+
+The existing guide command selects Sevro when `SEVRO_CHECKOUT` or
+`SEVRO_PACKAGE_BIN` is set:
+
+```sh
+SEVRO_CHECKOUT=/absolute/path/to/sevro bun evals/repository-guide.ts \
+  --only guide-negative --harness codex --dry
+```
+
+It preserves repeatable `--only`, inventory order, the default Codex-then-Claude
+host order, one trial, one job, and threshold one. Live execution stops after
+the first command, task, activation, or evidence failure. An unmounted
+`--without-skill` control still requires a passed task and makes no activation
+success claim. Dry results remain unassessed. Both interrupt signals stop later
+cells and preserve the active command's retained evidence and exit category.
+
+The default results path remains `evals/results/guide-v<inventory-version>/<timestamp>/`.
+Each `<question>-<host>.json` now contains raw public Sevro JSON; it is not a
+legacy result array. The adjacent `<question>-<host>/` directory contains the
+run evidence. Schema validation, exact case selection, and agreement with that
+evidence are required before continuing.
+Invalid or incomplete output stays unchanged. The adjacent directory retains
+`guide-result-error.json` with its raw-output path, process exit code, recorded
+interruption, validation error, and `result: null`. The caller preserves nonzero
+command and interruption exits; invalid output from a zero-exit command exits
+one. This diagnostic is Darrow-owned evidence, not a fabricated Sevro result.
+
+Use absolute `--project-root` and `--results-root` before `--` to select another
+checkout and storage location. Forward supported Sevro options after it,
+including host binaries and credentials, model and effort, semantic model and
+effort, configuration and run-state roots, protected roots, and toolchain paths.
+Candidate and semantic adapter modules are not accepted: this caller evaluates
+native hosts and uses the Codex semantic judge. Host, case, condition, trial,
+job, threshold, dry, and storage options are owned by the caller.
+
+Candidate defaults are Codex `gpt-5.6-terra/medium` and Claude
+`claude-sonnet-5/medium`. Semantic grading uses Codex `gpt-5.6-terra/medium`.
+The caller resolves binaries from `PATH` and Codex authentication from
+`<CODEX_HOME>/auth.json`, defaulting to `~/.codex/auth.json`. Claude uses its
+native login unless an explicit credential file is forwarded, and repository
+project skill settings are enabled. For example:
+
+```sh
+SEVRO_PACKAGE_BIN=/absolute/path/to/sevro bun evals/repository-guide.ts \
+  --only guide-orientation --harness claude \
+  --project-root /absolute/path/to/darrow \
+  --results-root /absolute/path/to/results \
+  -- --claude-bin /absolute/path/to/claude \
+  --codex-bin /absolute/path/to/codex \
+  --codex-auth-file /absolute/path/to/auth.json
+```
+
+Without an explicit Sevro route, the command retains its legacy backend until
+the published release is pinned. See [guide validation](guide-validation.md)
+for the test-first evidence and synthetic-host limits.
+
 ## Candidate skill overrides
 
 Pass `--skill-dir /absolute/project/path/to/skill` before `--` on the run

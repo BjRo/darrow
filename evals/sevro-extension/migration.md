@@ -1,8 +1,10 @@
 # Sevro migration
 
 The migration entrypoints already run Darrow cases through Sevro's public CLI
-and extension protocol. Normal `bun eval`, `bun run eval:orchestration`, and
-`evals/repository-guide.ts` still use the legacy runner. The exact published
+and extension protocol. Normal `bun eval` and `bun run eval:orchestration`
+still use the legacy runner. `evals/repository-guide.ts` selects Sevro when an
+explicit package or checkout route is set; its default remains legacy.
+The exact published
 release pin, normal command cutover, and generic runner removal remain pending.
 The ownership boundary is recorded in
 [ADR-0010](../../docs/decisions/ADR-0010-extract-the-evaluation-runner-into-sevro.md)
@@ -44,17 +46,17 @@ The package installation directory is not run storage.
 
 ## Command and evidence changes
 
-| Legacy workflow                            | Migration entrypoint or current gap                                                                                                                                                                              |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Single-case `bun eval`                     | `bun evals/sevro-extension/run.ts --case-id <exact-id> ... -- <Sevro-options>`.                                                                                                                                  |
-| `--harness codex\|claude`                  | Forward `--host codex\|claude`, explicit host binary, model, effort, and credentials.                                                                                                                            |
-| Text-file `--condition`                    | Use Darrow `--benchmark-condition-file` and optional label before `--`. Forwarded Sevro `--condition` selects `passive` or `enforced`.                                                                           |
-| `--skill`, `--plugin`, repeatable `--case` | Use the same filters before `--` on the migration run entrypoint. Exact ownership filters intersect; repeatable ID substrings narrow that set. Filtered runs retain a selection manifest and each public result. |
-| `--jobs`                                   | Forward `--jobs <positive integer>` after `--`. Sevro defaults to three simultaneous trials within each case; `--jobs 1` is serial. Selected cases remain sequential. Normal command cutover remains pending.    |
-| Suite execution                            | `bun evals/sevro-extension/suite.ts`; host, mode, and case filters plus supported condition, mount, record, and route declarations are documented in [README.md](README.md).                                     |
-| `--output` result array                    | Retain public CLI JSON and per-run evidence under the explicit results root. Legacy output compatibility is not provided by the migration entrypoint.                                                            |
-| Legacy suite manifest                      | New suites retain `suite-run.json`, each raw Sevro result, and separate task, activation, and ablation reports.                                                                                                  |
-| Repository-guide evaluation                | Its sequential legacy caller still needs migration while preserving separate task and activation gates and stopping at the first live failure.                                                                   |
+| Legacy workflow                            | Migration entrypoint or current gap                                                                                                                                                                                    |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Single-case `bun eval`                     | `bun evals/sevro-extension/run.ts --case-id <exact-id> ... -- <Sevro-options>`.                                                                                                                                        |
+| `--harness codex\|claude`                  | Forward `--host codex\|claude`, explicit host binary, model, effort, and credentials.                                                                                                                                  |
+| Text-file `--condition`                    | Use Darrow `--benchmark-condition-file` and optional label before `--`. Forwarded Sevro `--condition` selects `passive` or `enforced`.                                                                                 |
+| `--skill`, `--plugin`, repeatable `--case` | Use the same filters before `--` on the migration run entrypoint. Exact ownership filters intersect; repeatable ID substrings narrow that set. Filtered runs retain a selection manifest and each public result.       |
+| `--jobs`                                   | Forward `--jobs <positive integer>` after `--`. Sevro defaults to three simultaneous trials within each case; `--jobs 1` is serial. Selected cases remain sequential. Normal command cutover remains pending.          |
+| Suite execution                            | `bun evals/sevro-extension/suite.ts`; host, mode, and case filters plus supported condition, mount, record, and route declarations are documented in [README.md](README.md).                                           |
+| `--output` result array                    | Retain public CLI JSON and per-run evidence under the explicit results root. Legacy output compatibility is not provided by the migration entrypoint.                                                                  |
+| Legacy suite manifest                      | New suites retain `suite-run.json`, each raw Sevro result, and separate task, activation, and ablation reports.                                                                                                        |
+| Repository-guide evaluation                | Set an explicit Sevro route on `bun evals/repository-guide.ts`. Existing selectors, dry runs, controls, and first-failure stopping remain; per-cell JSON uses the public Sevro format. Default cutover awaits the pin. |
 
 Sevro's task, execution, and grading states remain separate. Activation,
 semantic gates, and advisory assessments retain their own evidence. The direct

@@ -241,6 +241,13 @@ The guide driver pins semantic grading to Codex `gpt-5.6-terra` / medium;
 the shared runner's default lightweight grader remains unchanged. The route
 was calibrated against retained correct and reversed-delegation diagrams.
 
+With `SEVRO_CHECKOUT` or `SEVRO_PACKAGE_BIN`, that same command uses Sevro's
+public CLI and retains separate task and activation outcomes. Its per-cell
+JSON uses the Sevro format. Optional absolute project and results roots and
+forwarded host options are documented in the
+[guide caller migration](../evals/sevro-extension/README.md#repository-guide-caller).
+The default backend remains legacy until the published release is pinned.
+
 ## Live-run controls
 
 Use `--owner-evaluation passive` for native trials of the shipped adaptive-delivery

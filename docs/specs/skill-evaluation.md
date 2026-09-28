@@ -163,6 +163,7 @@ retain their evidence before cancellation or a persistence failure finalizes.
 Missing, malformed, or unsupported public CLI JSON cannot produce an aggregate
 success even when the process exits zero. Retain its raw output and exit code,
 name the result error, and keep the case's structured result unavailable.
+
 Each selection attempt has a unique retained manifest and raw-result directory
 under the requested results root. Its manifest names the absolute `manifestPath`
 and `attemptId`. Repeating the selection preserves earlier attempt artifacts.
@@ -180,6 +181,41 @@ skill-less experiments do not acquire an activation grade through an override.
 Unmounted controls retain the declared override in configuration but mount no
 skills. Retained redacted configuration and fixture artifact digests bind the
 selected mount. Suite evidence must agree with the requested mount settings.
+
+### Repository-guide caller migration
+
+The existing `evals/repository-guide.ts` command uses the public Sevro CLI when
+`SEVRO_PACKAGE_BIN` or `SEVRO_CHECKOUT` selects an explicit migration route.
+Until an exact published release is pinned, invocation without either route
+continues to use the legacy runner. Preserve repeatable `--only`, `--harness`,
+`--dry`, and `--without-skill`. Selected inventory questions run in inventory
+order, with Codex then Claude by default, one trial and one job per invocation,
+and a threshold of one. Stop before another cell starts after any failed task,
+activation gate, command, or evidence validation.
+
+Retain the raw public CLI JSON for each question and host. Validate its schema,
+exact case, exit category, and agreement with retained run evidence. A live cell
+requires completed execution and grading and a passed task. Mounted cases also
+require their declared activation outcome to pass; an unmounted control does not
+claim activation success. Dry cells retain not-run, unassessed results and do
+not provide behavior evidence. Forward SIGINT and SIGTERM to the active command,
+retain its interrupted result, stop selection, and preserve exits 130 and 143.
+If public output is missing, invalid, or disagrees with retained evidence, keep
+the raw bytes and a companion diagnostic with the process exit code, validation
+error, and unavailable structured result. Preserve any nonzero command exit or
+recorded interruption; invalid output from a zero-exit command exits one.
+
+The migration route accepts explicit absolute project and results roots and
+forwards supported public Sevro options after `--`. Candidate and semantic
+adapter modules are refused because this caller assesses native hosts with the
+Codex semantic judge. Caller-owned case, storage, host,
+condition, trial, job, threshold, and dry options cannot be overridden there.
+Candidate defaults preserve Codex `gpt-5.6-terra/medium` and Claude
+`claude-sonnet-5/medium`; the semantic judge remains Codex
+`gpt-5.6-terra/medium`. Explicit model and effort overrides enter retained routes.
+Claude repository trials enable project skill settings. The default auth and
+binary paths use the local host configuration, with explicit public overrides
+available for deterministic tests and coordinated development.
 
 ### Invariant coverage
 
