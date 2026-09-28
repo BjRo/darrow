@@ -1,5 +1,52 @@
 # Focused live validation
 
+## Claude repository dispatch and disclosure
+
+On 2026-09-28, the existing `guide-explicit` case ran through Sevro's bundled
+Claude host with native repository scope, `--claude-project-settings`, one
+passive trial, `claude-sonnet-5` at low effort, and shell isolation. Semantic
+grading used the separate Codex route, `gpt-5.6-terra` at medium effort.
+
+The fresh run returned exit code `0`, execution `completed`, grading
+`completed`, and task `passed`. Four shell checks, the retained-response
+disclosure assertion, the nearby-evidence output check, and the semantic
+question contract all passed. Positive activation passed separately from a
+complete `sevro.claude.repository-invocation` observation with method
+`native_repository_command`, `accepted: true`, and primary skill
+`darrow-guide`. This receipt binds the native command to the mounted body,
+arguments, and session; it does not depend on a later Skill call.
+
+The retained run ID is `e84d70f6-882e-4bbd-85ed-12840ef493cb`. The SHA-256
+of its `run.json` is
+`1c9454ea21c95544baccf2f878a3a3d84a4b35d7c60c94bbf6f45975e0eb7c05`.
+Evidence records Sevro revision `ca2c8f455c40ab34719c43f34badb73da9601306`
+and Darrow revision `72fc24729069da82d6b8d087536217d78895e421`, both
+without dirty patches.
+
+Earlier attempts exposed two harness prerequisites: project settings are
+required to discover Claude repository skills, and Claude reported a revoked
+OAuth token. After the login was refreshed, a completed trial exposed a legacy
+disclosure check that could skip its assertion because Sevro did not supply
+the old environment variable and response file. The extension now grades the
+same declared patterns against complete final-response evidence. Regrading
+the retained response passed; a fresh trial then produced the result above.
+The failed-authentication run remains execution `failed`, grading
+`not_requested`, and task `not_assessed`, with private host artifacts retained.
+
+The installed Sevro `0.1.0-dev.0` tarball also passed all 69 Darrow parity
+tests across the three public-command test files. Those deterministic tests
+include separate Codex and Claude suite routes, comparisons within each
+harness, and rejection of contradictory candidate route evidence. They do
+not establish live suite or ablation behavior.
+
+This live result establishes explicit Claude repository dispatch, separate
+positive activation, semantic grading, fixture effects, disclosure grading,
+and retention for one case. It does not establish implicit or competition
+activation parity, all guide transcript assertions, all suite options, or a
+published release pin. The legacy command cutover remains pending.
+
+## Codex negative activation
+
 On 2026-09-26, the Sevro CLI ran the existing
 `code-review-no-trigger-after-edit` case through the Darrow extension and the
 bundled Codex host. A dry preparation completed first; it retained the selected
