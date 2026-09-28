@@ -378,6 +378,12 @@ installed `sevro` command through the same Darrow parity fixtures, checks
 package provenance in retained evidence, and clears `SEVRO_CHECKOUT` for the
 child tests. The local-checkout path records Sevro revision and patch state.
 
+The [Sevro migration guide](../evals/sevro-extension/migration.md) records
+command and evidence changes, remaining benchmark and historical-result gaps,
+the compatibility matrix, and release update and rollback steps. The migration
+entrypoints are available for coordinated development; normal Darrow callers
+still use the legacy runner until publication, exact release pinning, and cutover.
+
 This development test launches Darrow's runner and Sevro's CLI as separate
 processes against one synthetic case definition. It compares the selected
 case, shell and output check outcomes, source and configuration-root isolation,

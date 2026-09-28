@@ -5,6 +5,11 @@ importing Sevro internals. Darrow owns case discovery and translation; Sevro
 owns fixture construction, host execution, built-in checks, isolation, and
 retained results.
 
+See [migration.md](migration.md) for local development, command and evidence
+changes, the compatibility matrix, and release update and rollback steps.
+Normal Darrow callers still use the legacy runner; publication, the exact release
+pin, and command cutover remain pending.
+
 This migration slice resolves one selected skill-free experiment case or
 plugin-local skill case, with optional candidate skill overrides. It accepts generated Git commits or a pinned corpus
 repository, optional working-tree and staged files, committed scaffolding,
