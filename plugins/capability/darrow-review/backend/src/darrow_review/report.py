@@ -3,11 +3,43 @@
 from __future__ import annotations
 
 from collections import Counter
+from pathlib import Path
 
 from . import report_templates as templates
-from .common import read_text
+from .common import read_text, require
 from .records import Records, validate_result
 from .verification import validate_verification
+
+DESTINATION_ESCAPES = str.maketrans(
+    {
+        "%": "%25",
+        " ": "%20",
+        "#": "%23",
+        "?": "%3F",
+        "<": "%3C",
+        ">": "%3E",
+        "\\": "%5C",
+    }
+)
+
+
+def escape_destination(value: str) -> str:
+    """Escape Markdown URI delimiters without double-escaping replacements."""
+    return value.translate(DESTINATION_ESCAPES)
+
+
+def report_link(command: str, result_path: str) -> str:
+    report_name = "verification.md" if command == "render-verification" else "review.md"
+    report_path = Path(result_path).parent.resolve(strict=True) / report_name
+    destination = str(report_path)
+    require(
+        not any(
+            ord(character) < 32 or ord(character) == 127 for character in destination
+        ),
+        "report path contains a control character",
+    )
+    return f"\nComplete review report: [report](<{escape_destination(destination)}>)\n"
+
 
 ESCAPES = str.maketrans(
     {
@@ -196,5 +228,7 @@ def verification(result: Records) -> str:
 def render(command: str, path: str) -> str:
     text = read_text(path, "result")
     if command == "render-verification":
-        return verification(validate_verification(text, path))
-    return comprehensive(validate_result(text))
+        rendered = verification(validate_verification(text, path))
+    else:
+        rendered = comprehensive(validate_result(text))
+    return rendered + report_link(command, path)

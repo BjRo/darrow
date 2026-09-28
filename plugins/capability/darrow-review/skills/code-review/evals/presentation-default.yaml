@@ -42,7 +42,6 @@ checks:
       ! grep -F '<code>' .git/last-message.md &&
       ! grep -F '</code>' .git/last-message.md &&
       ! grep -F '`' .git/last-message.md &&
-      ! grep -E '\[[^][]+\]\([^)]*\)' .git/last-message.md &&
       esc=$(printf '\033]8;') && ! grep -F "$esc" .git/last-message.md
   - name: final response preserves every canonical rendered line
     run: >-

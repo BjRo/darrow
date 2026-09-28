@@ -35,7 +35,10 @@ delivery under #155. It does not execute QA or create reviewer-facing evidence p
   and scope of content identities: different checksum or
   scope-fingerprint schemes are not by themselves a mismatch. Relate them through
   observed common content; an unavailable relationship is a gap, not an invented
-  mismatch. Findings, checks and repair evidence MUST
+  mismatch. A successful current check supports a criterion only to the extent
+  that its exact command and, for script-backed checks, the current script
+  contents assert that criterion; a shape-only check cannot prove a required
+  value. Findings, checks and repair evidence MUST
   remain accessible in their complete provider result, with absolute local
   references when available; evidence packaging is not required.
   When a provider retains a local report artifact, a narrow handoff renderer MUST
@@ -43,7 +46,10 @@ delivery under #155. It does not execute QA or create reviewer-facing evidence p
   absolute report reference. It MUST refuse missing, unreadable or empty inputs
   without interpreting provider formats, deciding findings or writing product
   files. This mechanical report handoff is not a reviewer-facing evidence package
-  or a storage/retention policy.
+  or a storage/retention policy. A provider that retains a report MUST expose
+  its path through its public result. If that reference is absent, verification
+  MUST return a blocked handoff rather than infer the provider's storage layout
+  or treat a known retained report as inline-only evidence.
 - **VF-C4 — Optional is selected explicitly.** QA and reviewer-facing evidence
   are independently adoptable future extensions. Installation alone MUST NOT
   select them; absent unselected capabilities MUST permit review-only operation.

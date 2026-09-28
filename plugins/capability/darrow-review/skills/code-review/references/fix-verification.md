@@ -133,7 +133,8 @@ Each verifier receives only:
 - the original, prior, history, and current target fingerprints;
 - the validated prior verification artifact or explicit first-verification
   marker;
-- the authoritative prior/current manifests, fixed repair-delta show command,
+- the authoritative prior/current manifests, whose current manifest supplies
+  the fixed repair-delta show command,
   and changed paths relevant to those findings;
 - current deterministic-check evidence; and
 - its isolated fix-verifier schema.

@@ -170,6 +170,10 @@ axis and report `not_available`. Do not invent requirements.
    summary written by the change author. Generated authoritative show and repair
    commands shell-quote every argument and remain executable from another
    directory when tool or manifest paths contain spaces or shell metacharacters.
+   Each reader obtains the applicable command from its authoritative scope
+   manifest rather than from a coordinator-copied command string. Both readers
+   receive the exact readable manifest path returned by scope preparation;
+   a failed read retains the attempted path and error.
 4. **CR-C4 — Isolated axes.** Standards and Spec run as fresh, read-only
    subagents with separate bounded prompts so one axis does not anchor the
    other. When no spec exists, the Spec subagent is not spawned.
@@ -178,7 +182,11 @@ axis and report `not_available`. Do not invent requirements.
    finding neither reviewer reported.
 6. **CR-C6 — Repository standards win.** The Standards reviewer reads the
    relevant repository guidance. Documented local decisions override any
-   bundled smell heuristic.
+   bundled smell heuristic. When a bundled baseline is applicable, the
+   coordinator MUST resolve its installed absolute path and confirm that it is
+   readable before passing that exact path to a fresh reader. An unreadable
+   baseline blocks Standards before reader launch rather than becoming a
+   malformed or guessed source in the reader prompt.
 7. **CR-C7 — Tools before taste.** Run or validate applicable deterministic
    gates through bundled check-evidence capture. Preserve each literal command,
    actual exit status, and bounded output in a canonical record, and copy its
@@ -238,6 +246,10 @@ axis and report `not_available`. Do not invent requirements.
     Human presentation is first materialized as a nonempty canonical Markdown
     artifact beside the JSON, then emitted by one dedicated final renderer
     invocation whose complete stdout is returned without coordinator rewriting.
+    The renderer's final line MUST link to that materialized report at its
+    absolute path. This one mechanical artifact link is separate from field
+    rendering and is included in the canonical Markdown bytes. The same public
+    result and link are returned to a direct requester or a composing capability.
 17. **CR-C17 — Explicit review modes.** Comprehensive initial review retains
     the complete-diff, isolated-axis behavior above. Fix verification requires
     the original finding set and target binding and MUST NOT silently fall back

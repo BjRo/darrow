@@ -532,6 +532,79 @@ The first full-suite attempt was interrupted after a task-correct ambiguous-seam
 | [verification-followup-missing-history](../../plugins/capability/darrow-verification/skills/verify-change/evals/followup-missing-history.yaml) | It notes missing prior findings and history, but still declares the candidate clear/pass based on an initial full review rather than blocking targeted follow-up.                       | Skill likely     | Repair provider evidence and final handoff; rerun this case.                                           |
 | [verification-incomplete](../../plugins/capability/darrow-verification/skills/verify-change/evals/incomplete.yaml)                             | Activation missed verify-change; observed none.                                                                                                                                         | Skill activation | Check trigger and mounted-skill discovery; rerun this case with a matched control.                     |
 
+Follow-up (2026-09-27): Fresh Codex `gpt-6-luna`/medium single trials passed task
+and activation for criterion gap
+(`evals/results/2026-09-27T18-39-14-262Z-codex-gpt-6-luna-medium.json`), missing
+follow-up history
+(`evals/results/2026-09-27T18-46-37-499Z-codex-gpt-6-luna-medium.json`), and
+incomplete input
+(`evals/results/2026-09-27T18-47-29-269Z-codex-gpt-6-luna-medium.json`).
+The existing-review trial retained a canonical review under the runner's
+`DARROW_REVIEW_STATE_DIR`, but four checks still searched `.git`; that was an eval
+defect, not a missing provider result. The case now checks the review-state
+directory, and both plugin manifests moved to 0.2.10. A fresh single trial
+passed every task and activation check
+(`evals/results/2026-09-27T18-53-33-538Z-codex-gpt-6-luna-medium.json`).
+
+The corrected existing-review case then passed **3/5 task** and **5/5 activation**
+at a 100% threshold
+(`evals/results/2026-09-27T18-58-09-500Z-codex-gpt-6-luna-medium.json`).
+In trials 4 and 5, canonical review records and reports validated, but the
+verification response supplied inline review text instead of the renderer's
+final absolute report link. Trial 5 also concluded blocked because the returned
+provider text did not directly establish C2; whether that is a valid evidence
+gap or a missed available observation needs a focused provider-handoff audit.
+At that point, the full 16-case n:5 pass had not run because this case remained
+below threshold.
+The original sweep counts above remain historical.
+
+Follow-up completion (2026-09-28): `darrow-verification` **0.2.10** now has a
+fresh five-trial result for each of its 16 Codex cases: **80/80 task checks** and
+**80/80 activation checks**, including 5/5 negative avoidance. Candidate route:
+`gpt-6-luna`/medium; semantic grader: `gpt-5.6-luna`/low; Codex CLI 0.156.1;
+threshold 100%, jobs 3. The [complete case evidence](../../evals/results/verification-luna-followup-full.json)
+is assembled from separate case runs, with [source-run provenance](../../evals/results/verification-luna-followup-full-sources.json).
+This is a measured five-trial outcome, not a guarantee of future stability.
+
+The repair spans the public review/verification boundary. `darrow-review`
+**0.7.3** appends a canonical absolute report link in both comprehensive and
+fix-verification Markdown. Verification requires that promised reference,
+validates its exact filesystem path, and preserves its complete rendered
+handoff. It reads script-backed check assertions when reconciling criterion
+coverage. The existing-review fixture now identifies the caller's checksum
+scheme and asserts `retries=3` in its check, so C2 has real current evidence.
+
+The broader pass also found a mode error: every trial of missing-history
+initially substituted a comprehensive review for the requested fix verification.
+Three were incorrectly accepted by the old semantic assertion because they
+avoided claiming historical repair lineage. The skill now binds follow-up mode
+before assessment and blocks missing history without launching a replacement
+review. The eval checks the blocked result and absence of a replacement report;
+its fresh confirmation passed 5/5. Criterion-gap's concision check and
+missing-review's owner-binding wording were narrowed after retained valid
+answers were rejected for harmless restatements. Each revised assertion was
+calibrated against a valid answer and a plausible counterexample before fresh
+trials.
+
+Existing-review remained intermittent during the pass: a 3/5 run reported an
+unreadable report path and an unavailable Standards baseline; a later 4/5 run
+reported that both readers could not read their scope manifest. The review skill
+now preflights the exact baseline path and copies the scope helper's manifest
+path unchanged to both readers, retaining the attempted path and error on a
+failed read. The [final existing-review run](../../evals/results/2026-09-27T22-47-22-356Z-codex-gpt-6-luna-medium.json)
+passed 5/5 task and activation. These were provider/handoff failures, not missed
+skill activation; the path-transfer explanation is supported by the reported
+gaps, but the bounded retained trace does not establish every failed command.
+
+Focused review checks also exposed stale eval expectations: presentation checks
+forbade the newly required report link, and fix-verification still expected its
+scope manifest under `.git`. The checks now follow the public renderer and
+review-state contracts. Fresh comprehensive presentation and resolved-fix
+verification trials each passed task and activation. The review backend's 238
+tests and the repository Python gate passed after the renderer change. The full
+review-plugin live suite and Claude/native Windows behavior were not rerun in
+this follow-up.
+
 ## Separate repository-guide driver
 
 The guide driver also pins its semantic grader to `gpt-6-luna/medium`. It stopped after `guide-selection` failed, as designed. The remaining questions were run individually with the same candidate, grader, trial count, and threshold. Combined result: **11 passed, 11 failed** across 22 unique questions. These are additional trials; guide cases above may have different outcomes because they used the direct runner's lightweight grader.

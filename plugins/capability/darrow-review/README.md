@@ -272,7 +272,8 @@ or use `/darrow-review:code-review` in Claude Code, followed by your request.
 ## Expected result
 
 A pinned report leads with its verdict and next action, then retains findings,
-checks, risks, scope, and sources. Validated evidence artifacts remain available,
+checks, risks, scope, and sources. Its final link opens the retained complete
+report. Validated evidence artifacts remain available,
 and product files stay unchanged.
 
 ## Troubleshooting

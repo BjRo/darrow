@@ -24,7 +24,12 @@ def test_complete_report_bytes(name: str, operation: str, tmp_path: Path) -> Non
     record.write_text(source.replace("/workspace/", root), encoding="utf-8")
     actual = cli.report_command([operation, str(record)])
     expected = (GOLDEN / f"{name}.txt").read_text(encoding="utf-8")
-    assert actual == expected.replace("/workspace/", root)
+    report_name = "verification.md" if name == "verification" else "review.md"
+    report_path = record.parent / report_name
+    assert actual == (
+        expected.replace("/workspace/", root)
+        + f"\nComplete review report: [report](<{report_path}>)\n"
+    )
 
 
 def test_checksum_bound_report_bytes(tmp_path: Path) -> None:
@@ -44,8 +49,16 @@ def test_checksum_bound_report_bytes(tmp_path: Path) -> None:
     path = tmp_path / "current.json"
     path.write_text(serialize(current), encoding="utf-8")
     actual = cli.report_command(["render-verification", str(path)])
-    assert actual.replace(report.escape(str(previous)), "PREVIOUS_ARTIFACT") == (
-        GOLDEN / "verification-next.txt"
-    ).read_text(encoding="utf-8").replace(
-        "PREVIOUS_CHECKSUM", blob_hash(previous.read_bytes())
+    assert (
+        actual.replace(report.escape(str(previous)), "PREVIOUS_ARTIFACT")
+        == (GOLDEN / "verification-next.txt")
+        .read_text(encoding="utf-8")
+        .replace("PREVIOUS_CHECKSUM", blob_hash(previous.read_bytes()))
+        + f"\nComplete review report: [report](<{path.parent / 'verification.md'}>)\n"
+    )
+
+
+def test_report_destination_escapes_markdown_delimiters() -> None:
+    assert report.escape_destination("/tmp/a% b#c?d<e>f\\g") == (
+        "/tmp/a%25%20b%23c%3Fd%3Ce%3Ef%5Cg"
     )

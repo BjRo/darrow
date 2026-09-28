@@ -22,7 +22,8 @@ human mode, first materialize the bundled renderer's complete stdout as the
 named Markdown artifact beside the JSON and confirm that artifact is readable
 and nonempty. Then invoke the renderer once more as a standalone final tool
 call. Copy that last invocation's stdout in full as the entire final response,
-including every section through Scope and Sources. Do not reconstruct the
+including every section through Scope and Sources and the final absolute report
+link. Do not reconstruct the
 report from the JSON or reader findings. After that final renderer invocation,
 issue no more tool calls and add no preface, recap, interpretation, or
 follow-up. This applies equally to standalone and composed review. In machine
@@ -117,7 +118,7 @@ In either mode, the final presentation comes from the bundled renderer, not
 coordinator prose. Materialize comprehensive output as `review.md` beside
 `result.json` and fix-verification output as `verification.md` beside
 `verification.json`. A shortened response that preserves the heading or outcome
-but omits a rendered section is incomplete.
+but omits a rendered section or the report link is incomplete.
 
 ### 1. Pin the comprehensive scope
 
@@ -177,6 +178,23 @@ unchanged local design to evaluate the diff. Refuse unreadable applicable
 guidance. Only when repository sources are silent, read
 [`references/design-smells.md`](references/design-smells.md) completely and use
 its small baseline as labeled heuristics; repository decisions always win.
+Resolve that baseline from the already bound absolute `skill_dir`, confirm the
+file is readable and nonempty, and pass that exact absolute path to the Standards
+reader. If it cannot be read, block Standards before launching its reader. Do
+not reconstruct the path from a plugin name, report text, or a relative working
+directory.
+
+```sh
+baseline=$(cd "$skill_dir/references" && pwd -P)/design-smells.md
+test -r "$baseline" && test -s "$baseline" || {
+  printf '%s\n' "Standards baseline is unreadable: $baseline" >&2
+  exit 1
+}
+```
+
+Read `$baseline` completely and give the Standards reader this exact path,
+without replacing its directory with the backend, repository, or another skill
+mount.
 
 For Spec, use the user's originating objective/acceptance criteria, an explicit
 spec, or a PR body that actually defines the request. Search reasonable local
@@ -218,7 +236,12 @@ isolation in one context. When Spec is unavailable, invoke Standards only.
 
 Give each reader only its template plus:
 
-- the absolute manifest, fixed `show_command`, and absolute changed paths;
+- the exact absolute `manifest` value returned by `review-scope prepare`, copied
+  byte for byte into both reader prompts; do not derive it from `artifact_dir`,
+  the target fingerprint, or a relative path. Confirm this file is readable and
+  nonempty immediately before launching either reader. Give the absolute
+  changed paths from that manifest; the reader obtains the fixed `show_command`
+  from the manifest itself;
 - its own axis sources, never the other axis's sources or analysis;
 - relevant deterministic check evidence;
 - the strict axis schema and eight-finding limit.
@@ -237,6 +260,10 @@ uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result valid
 An invalid or missing record, or missing or mismatched route-application
 evidence, blocks that axis. Do not fix its judgment, reassign its finding,
 manufacture replacement evidence, or retry on another route.
+If a reader cannot read the manifest, preserve the exact path it attempted and
+the read error in that axis's blocked evidence. A generic “scope unreadable”
+description loses the information needed to distinguish a bad handoff from an
+unavailable file.
 
 **Complete when:** every available axis has one fresh, isolated, schema-valid
 record and exact-route evidence—or its evidence-backed blocked state is
@@ -276,7 +303,8 @@ uv run --quiet --no-project "$backend/scripts/run_locked.py" review-report rende
 ```
 
 Copy its complete stdout as the entire response. The renderer validates the
-JSON, preserves every semantic field, and escapes hostile Markdown content. Only
+JSON, preserves every semantic field, escapes hostile Markdown content, and
+ends with the absolute link to the materialized `review.md`. Only
 when the requester explicitly asked for raw JSON, v3, or machine format, copy
 the validated JSON bytes verbatim instead. Never concatenate the Markdown and
 JSON forms.

@@ -70,7 +70,7 @@ checks:
     run: git hash-object src/config.js >.git/config-after; cmp .git/config-before .git/config-after
   - name: verification remains read only
     run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
-  - name: current verification scope remains in the requested repository
+  - name: current verification scope binds the requested repository
     run: >-
       verification=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
       test -n "$verification" &&
@@ -78,10 +78,9 @@ checks:
       manifest=$artifact_dir/scope.json &&
       test -r "$manifest" &&
       expected_repo=$(pwd -P) &&
-      git_dir=$(git rev-parse --absolute-git-dir) &&
-      git_dir=$(cd "$git_dir" && pwd -P) &&
+      state_dir=$(cd "$DARROW_REVIEW_STATE_DIR" && pwd -P) &&
       python3 .git/eval-checks/review/tests/evals/assert_records.py "$manifest" has repository "$expected_repo" &&
-      case "$manifest" in "$git_dir"/*) ;; *) exit 1 ;; esac
+      case "$manifest" in "$state_dir"/*) ;; *) exit 1 ;; esac
   - name: additive verification artifact validates and clears
     run: |
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
@@ -119,5 +118,4 @@ checks:
       ! grep -F '<code>' .git/last-message.md &&
       ! grep -F '</code>' .git/last-message.md &&
       ! grep -F '`' .git/last-message.md &&
-      ! grep -E '\[[^][]+\]\([^)]*\)' .git/last-message.md &&
       esc=$(printf '\033]8;') && ! grep -F "$esc" .git/last-message.md
