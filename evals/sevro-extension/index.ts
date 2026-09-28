@@ -200,7 +200,39 @@ function caseFixture(value: unknown) {
   };
 }
 
-function shellChecks(value: unknown) {
+const GUIDE_DISCLOSURE_SCRIPT = `if [ "$DARROW_EVAL_HARNESS" = claude ] && [ -f .git/last-message.md ]; then grep -Ei "best.effort" .git/last-message.md >/dev/null && grep -Ei "primar[^.]*Codex|Codex[^.]*primar" .git/last-message.md >/dev/null; fi`;
+
+function guideDisclosure(run: string, skillDir: string | null) {
+  if (skillDir !== ".agents/skills/darrow-guide") return false;
+  if (run.replace(/\s+/g, " ").trim() === GUIDE_DISCLOSURE_SCRIPT) return true;
+  if (
+    run.includes("$DARROW_EVAL_HARNESS") ||
+    run.includes(".git/last-message.md")
+  )
+    throw new Error("unsupported legacy guide response check");
+  return false;
+}
+
+function shellConfiguration(check: RecordValue, run: string) {
+  if (check.exit_code !== undefined && check.expect_exit !== undefined)
+    throw new Error("check declares both exit code fields");
+  return {
+    run,
+    ...(check.exit_code === undefined && check.expect_exit === undefined
+      ? {}
+      : { expectedExitCode: check.exit_code ?? check.expect_exit }),
+    ...(check.expect_exact === undefined
+      ? {}
+      : { expectExact: check.expect_exact }),
+    ...(check.expect_regex === undefined
+      ? {}
+      : { expectRegex: check.expect_regex }),
+    ...(check.not_regex === undefined ? {} : { notRegex: check.not_regex }),
+    ...(check.flags === undefined ? {} : { flags: check.flags }),
+  };
+}
+
+function shellChecks(value: unknown, skillDir: string | null) {
   if (!Array.isArray(value)) throw new Error("case checks must be an array");
   return value.map((entry, index) => {
     const check = record(entry, `check ${index + 1}`);
@@ -221,25 +253,14 @@ function shellChecks(value: unknown) {
     );
     string(check.name, `check ${index + 1} name`);
     const run = string(check.run, `check ${index + 1} run`);
-    if (check.exit_code !== undefined && check.expect_exit !== undefined)
-      throw new Error(`check ${index + 1} declares both exit code fields`);
-    const configuration = {
-      run,
-      ...(check.exit_code === undefined && check.expect_exit === undefined
-        ? {}
-        : { expectedExitCode: check.exit_code ?? check.expect_exit }),
-      ...(check.expect_exact === undefined
-        ? {}
-        : { expectExact: check.expect_exact }),
-      ...(check.expect_regex === undefined
-        ? {}
-        : { expectRegex: check.expect_regex }),
-      ...(check.not_regex === undefined ? {} : { notRegex: check.not_regex }),
-      ...(check.flags === undefined ? {} : { flags: check.flags }),
-    };
+    const disclosure = guideDisclosure(run, skillDir);
+    if (disclosure) keys(check, ["name", "run"], "guide disclosure check");
+    const configuration = disclosure ? {} : shellConfiguration(check, run);
     return {
-      id: `darrow.shell.${index + 1}`,
-      grader: "sevro.shell",
+      id: disclosure
+        ? `darrow.evals.disclosure.${index + 1}`
+        : `darrow.shell.${index + 1}`,
+      grader: disclosure ? "darrow.evals.disclosure" : "sevro.shell",
       configuration,
     };
   });
@@ -1374,7 +1395,7 @@ async function caseChecks(
   skillDir: string | null,
 ) {
   return [
-    ...shellChecks(selected.checks),
+    ...shellChecks(selected.checks, skillDir),
     ...headChecks(selected.expect_head_change),
     ...(await outputChecks(selected.output_checks, root, skillDir)),
     ...semanticOutputChecks(selected.semantic_output_checks),
@@ -1405,6 +1426,13 @@ function caseDefinition(value: unknown): RecordValue {
   const selected = record(value, "case");
   keys(selected, CASE_FIELDS, "case");
   return selected;
+}
+
+function disclosureDetails(checks: { id: string; grader: string }[]) {
+  const ids = checks
+    .filter((check) => check.grader === "darrow.evals.disclosure")
+    .map((check) => check.id);
+  return ids.length ? { disclosureChecks: ids } : {};
 }
 
 async function neutralCase(value: unknown, source: string, root: string) {
@@ -1448,6 +1476,7 @@ async function neutralCase(value: unknown, source: string, root: string) {
         ...additionalMounts,
         ...(invocation ? { invocation } : {}),
         ...policy.details,
+        ...disclosureDetails(checks),
         ...caseActivation(selected, skillDir, mountPluginSkills),
         checkNames: checkNames(selected),
         ...(checkMetrics.length ? { checkMetrics } : {}),
@@ -4904,6 +4933,43 @@ async function caseOwnershipChecks(details: RecordValue, params: RecordValue) {
   return [];
 }
 
+function guideDisclosureStatus(observations: unknown): OwnershipStatus {
+  const final = uniqueObservation(
+    observations,
+    "sevro.observation.final-message",
+  );
+  const text = final ? activationData(final.data)?.text : undefined;
+  const available =
+    final?.completeness === "complete" &&
+    ["sevro.host.codex", "sevro.host.claude"].includes(String(final.source)) &&
+    typeof text === "string";
+  if (!available) return "unavailable";
+  if (final.source === "sevro.host.codex") return "passed";
+  return /best.effort/i.test(text) &&
+    /primar[^.]*Codex|Codex[^.]*primar/i.test(text)
+    ? "passed"
+    : "failed";
+}
+
+function guideDisclosureOutcomes(checkIds: unknown, observations: unknown) {
+  if (checkIds === undefined) return [];
+  if (!Array.isArray(checkIds) || !checkIds.length || checkIds.length > 128)
+    throw new Error("guide disclosure check IDs are invalid");
+  const ids = checkIds.map((id) => string(id, "guide disclosure check ID"));
+  if (new Set(ids).size !== ids.length)
+    throw new Error("duplicate guide disclosure check ID");
+  const status = guideDisclosureStatus(observations);
+  const available = status !== "unavailable";
+  return ids.map((id) => ({
+    id,
+    status,
+    detail: available
+      ? "Graded host disclosure from the retained final response"
+      : "Host response evidence unavailable or incomplete",
+    evidenceRefs: available ? ["sevro.observation.final-message"] : [],
+  }));
+}
+
 async function evaluateCase(params: RecordValue) {
   const omitSkills = withoutSkill(params.configuration);
   const extensionData = record(
@@ -4914,6 +4980,7 @@ async function evaluateCase(params: RecordValue) {
   const metrics = caseMetrics(details, params);
   const ownership = await caseOwnershipChecks(details, params);
   const checks = [
+    ...guideDisclosureOutcomes(details.disclosureChecks, params.observations),
     ...(details.ownership === "composition"
       ? ownership.slice(0, 2)
       : ownership),
@@ -4980,7 +5047,11 @@ if (import.meta.main) {
               "sevro.claude.explicit-invocation",
               "sevro.claude.repository-invocation",
             ],
-            graders: ["darrow.evals.ownership", "darrow.evals.transcript"],
+            graders: [
+              "darrow.evals.ownership",
+              "darrow.evals.transcript",
+              "darrow.evals.disclosure",
+            ],
             taskVerdictPolicies: [],
           }
         : method === "resolve"

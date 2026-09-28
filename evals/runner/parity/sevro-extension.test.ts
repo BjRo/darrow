@@ -21,6 +21,158 @@ const extension = resolve(import.meta.dir, "../../sevro-extension/index.ts");
 const projectRoot = resolve(import.meta.dir, "../../..");
 const roots: string[] = [];
 
+test("guide disclosure uses retained response evidence through Sevro", async () => {
+  const original = parseYaml(
+    await readFile(
+      join(
+        projectRoot,
+        ".agents/skills/darrow-guide/evals/guide-explicit.yaml",
+      ),
+      "utf8",
+    ),
+  );
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-disclosure-"));
+  roots.push(root);
+  const skill = join(root, ".agents/skills/darrow-guide");
+  await mkdir(join(skill, "evals"), { recursive: true });
+  await mkdir(join(root, ".claude/skills/darrow-guide"), { recursive: true });
+  const body =
+    "---\nname: darrow-guide\ndescription: Explain this repository.\n---\nUse local sources.\n";
+  await writeFile(join(skill, "SKILL.md"), body);
+  await writeFile(join(root, ".claude/skills/darrow-guide/SKILL.md"), body);
+  await writeFile(
+    join(skill, "evals/disclosure.yaml"),
+    JSON.stringify({
+      id: "guide-disclosure",
+      invariant: "RG-C8",
+      prompt: "Explain the repository.",
+      fixture: {
+        commits: [
+          { message: "chore: initialize", files: { "README.md": "source\n" } },
+        ],
+      },
+      checks: [
+        original.checks.find(
+          (check: { name: string }) => check.name === "Claude host disclosure",
+        ),
+      ],
+    }),
+  );
+  const resolved = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(root).href,
+      selectors: { caseIds: ["guide-disclosure"] },
+      configuration: {},
+    }),
+  );
+  const selected = resolved.value.result.cases[0]!;
+  expect(selected.checks).toMatchObject([
+    { id: "darrow.evals.disclosure.1", grader: "darrow.evals.disclosure" },
+  ]);
+  const final = {
+    id: "sevro.observation.final-message",
+    source: "sevro.host.claude",
+    completeness: "complete",
+    data: {
+      text: "Claude support is best-effort; development is primarily with Codex.",
+    },
+  };
+  for (const [observations, status] of [
+    [[final], "passed"],
+    [[{ ...final, data: { text: "Claude is supported." } }], "failed"],
+    [
+      [
+        {
+          ...final,
+          source: "sevro.host.codex",
+          data: { text: "Repository guide." },
+        },
+      ],
+      "passed",
+    ],
+    [[], "unavailable"],
+    [[final, final], "unavailable"],
+    [[{ ...final, completeness: "partial" }], "unavailable"],
+    [[{ ...final, source: "foreign.host" }], "unavailable"],
+  ] as const) {
+    const response = await command<{
+      result: { checks: Array<{ status: string }> };
+    }>(
+      [process.execPath, extension],
+      request("evaluate", {
+        caseId: "guide-disclosure",
+        execution: { status: "completed" },
+        observations,
+        builtinChecks: [],
+        artifacts: [],
+        extensionData: selected.extensionData,
+        configuration: {},
+      }),
+    );
+    expect(response.value.result.checks[0]?.status).toBe(status);
+  }
+  const commandFile = join(root, "extension-command.json");
+  const adapter = join(root, "candidate.ts");
+  await writeFile(commandFile, JSON.stringify([process.execPath, extension]));
+  const route = sevroCommand();
+  for (const [text, complete, code, status] of [
+    [final.data.text, true, 0, "passed"],
+    ["Claude is supported.", true, 1, "failed"],
+    [final.data.text, false, 4, "unavailable"],
+  ] as const) {
+    await writeFile(
+      adapter,
+      `export default {
+      id: "sevro.host.claude", model: "synthetic", effort: "none",
+      hostCapabilities: ["sevro.claude.repository-invocation"],
+      async run() { return { finalMessage: ${JSON.stringify(text)}, complete: ${complete} }; }
+    };`,
+    );
+    const result = await command<CliReply>([
+      ...route.launch,
+      "run",
+      "--json",
+      ...route.extraArgs,
+      "--extension-command-file",
+      commandFile,
+      "--extension-source-file",
+      extension,
+      "--case-id",
+      "guide-disclosure",
+      "--project-root",
+      root,
+      "--results-root",
+      join(root, "results"),
+      "--adapter-module",
+      adapter,
+      "--condition",
+      "passive",
+      "--trials",
+      "1",
+      "--threshold",
+      "1",
+    ]);
+    expect(result.code, result.stderr).toBe(code);
+    expect(result.value.cases[0]?.trials[0]?.checks[0]?.status).toBe(status);
+  }
+  const casePath = join(skill, "evals/disclosure.yaml");
+  const changed = JSON.parse(await readFile(casePath, "utf8"));
+  changed.checks[0].run += "; echo changed";
+  await writeFile(casePath, JSON.stringify(changed));
+  const unsupported = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(root).href,
+      selectors: { caseIds: ["guide-disclosure"] },
+      configuration: {},
+    }),
+  );
+  expect(unsupported.value.error.message).toContain(
+    "unsupported legacy guide response check",
+  );
+});
+
 afterEach(async () => {
   await Promise.all(
     roots.splice(0).map((root) => rm(root, { recursive: true, force: true })),

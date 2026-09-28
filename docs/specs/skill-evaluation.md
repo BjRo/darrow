@@ -64,6 +64,12 @@ Darrow-owned evaluation code, such as its Sevro extension. Their snapshots must
 not copy generic runner implementation. Keep the question, source inventory,
 and acceptance checks aligned with the copied source.
 
+The guide's legacy Claude host-disclosure assertion is graded from the complete
+retained final response. On Claude, it requires the declared best-effort and
+primary-Codex disclosures. Codex retains the assertion's non-applicable result.
+Missing, duplicate, partial, or foreign response evidence stays unavailable;
+absence of legacy environment variables or a response file cannot make it pass.
+
 A setup-only generated fixture starts with an empty Git history. Its setup may
 create the initial snapshot; no placeholder commit may be synthesized before
 that setup runs.

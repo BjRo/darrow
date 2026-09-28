@@ -28,6 +28,12 @@ receipt; an ordinary Skill call cannot repair an unverified command. Supporting
 plugins keep their own package directories on Claude too.
 Pass `--claude-project-settings` for either explicit or implicit repository
 trials. Without it, preparation rejects the unavailable project-skill route.
+The guide's legacy Claude disclosure check now uses the complete retained final
+response through `darrow.evals.disclosure`. It preserves the declared patterns
+and the Codex non-applicable result. Missing, partial, duplicate, or foreign
+response evidence stays unavailable. Unmapped guide assertions that depend on
+the legacy response file or harness variable fail resolution explicitly.
+
 For a plugin-local case, `prepare` mounts the selected skill's files under
 `.agents/skills/` and excludes their exact paths from Git status. Colocated
 `evals/` files and generated caches stay out of the candidate fixture. Skill
