@@ -622,6 +622,15 @@ the cell unsuccessful without changing Sevro's raw task verdict or exit code.
 
 ### Evidence lifecycle
 
+Sevro does not supply `DARROW_CACHE_DIR` to candidates or shell checks. Darrow's
+locked launchers select their documented cache beneath the isolated `HOME`.
+With a curated Claude UV cache, candidate and check homes remain under the
+trial's Git metadata, outside assessed worktree contents. The homes and Darrow
+caches are separate; the curated UV cache remains shared within the trial.
+Caller cache overrides and credentials are not inherited. This deliberately
+replaces the legacy shared Darrow cache environment contract without changing
+the plugin launcher's public default or introducing Darrow policy into Sevro.
+
 Shell checks execute candidate-controlled code inside the runner's outer
 isolation boundary, including during dry runs. Grading uses a private,
 credential-free environment and cannot access source worktrees, peer fixtures,

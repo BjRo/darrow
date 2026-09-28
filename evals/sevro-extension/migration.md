@@ -68,6 +68,21 @@ and exits `1` for a case failure or invalid public result; cancellation preserve
 the signal's category. The suite retains each raw category and exits `1` when a cell or
 its separate activation or comparison gate fails. Dry execution is unassessed.
 
+### Darrow cache environment
+
+Sevro no longer sets `DARROW_CACHE_DIR` in its Claude adapter or shell grader.
+Darrow's locked plugin launchers use their documented `$HOME/.darrow/cache`
+default. With `--claude-uv-cache-dir`, the candidate's home is beneath the
+trial's Git-private runtime directory, and isolated shell checks have a separate
+home there. Neither inherits the caller's cache override. Their Darrow caches
+are separate, while the copied UV cache remains shared within one trial.
+Runtime state is removed with the fixture.
+
+This is a deliberate environment migration from the legacy shared Darrow cache.
+Checks must use the launcher or its documented default rather than assume a
+Sevro-provided Darrow variable or reuse the candidate's launcher cache. No
+marketplace plugin changes or new extension capability are needed.
+
 Legacy reports distinguish task quality from requested evaluation-record
 bookkeeping. Sevro's default task verdict includes every active required check.
 Darrow's suite now retains that distinction in separate
