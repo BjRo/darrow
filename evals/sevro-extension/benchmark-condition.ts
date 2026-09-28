@@ -35,6 +35,28 @@ export function conditionLabel(value: unknown): string {
   return value;
 }
 
+export function benchmarkConditionOptions(options: {
+  conditionFile?: string;
+  conditionLabel?: string;
+  conditionSha256?: string;
+}) {
+  if (options.conditionFile !== undefined && !isAbsolute(options.conditionFile))
+    throw new Error("benchmark condition file must be absolute");
+  if (options.conditionLabel !== undefined) {
+    if (!options.conditionFile)
+      throw new Error("benchmark condition label requires a file");
+    conditionLabel(options.conditionLabel);
+  }
+  if (
+    options.conditionSha256 !== undefined &&
+    (!options.conditionFile || !/^[a-f0-9]{64}$/.test(options.conditionSha256))
+  )
+    throw new Error(
+      "benchmark condition SHA-256 requires a file and canonical digest",
+    );
+  return options;
+}
+
 function conditionText(value: unknown): string {
   if (
     typeof value !== "string" ||
@@ -113,22 +135,34 @@ function candidateRoute(value: unknown) {
   };
 }
 
+export function caseWithCondition(
+  value: unknown,
+  condition: BenchmarkCondition | undefined,
+): unknown {
+  if (!condition) return value;
+  const selected = object(value, "case");
+  if (typeof selected.prompt !== "string")
+    throw new Error("case prompt must be text");
+  const prefix = condition.text.trim();
+  return {
+    ...selected,
+    prompt: prefix ? `${prefix}\n\n${selected.prompt}` : selected.prompt,
+  };
+}
+
 export function conditionedCase(
   value: unknown,
   condition: BenchmarkCondition | undefined,
   host: unknown,
 ): unknown {
   if (!condition) return value;
-  const selected = object(value, "case");
-  if (typeof selected.prompt !== "string")
-    throw new Error("case prompt must be text");
+  const selected = object(caseWithCondition(value, condition), "case");
   const route = candidateRoute(host);
   const render = (text: string) =>
     text.replace(
       /\{\{(harness|model|effort)\}\}/g,
       (_token, name: keyof typeof route) => route[name],
     );
-  const prefix = condition.text.trim();
   if (
     selected.follow_up_prompt !== undefined &&
     typeof selected.follow_up_prompt !== "string"
@@ -136,9 +170,7 @@ export function conditionedCase(
     throw new Error("case follow-up prompt must be text");
   return {
     ...selected,
-    prompt: render(
-      prefix ? `${prefix}\n\n${selected.prompt}` : selected.prompt,
-    ),
+    prompt: render(selected.prompt as string),
     ...(typeof selected.follow_up_prompt === "string"
       ? { follow_up_prompt: render(selected.follow_up_prompt) }
       : {}),
@@ -150,6 +182,7 @@ export async function writeRunConfiguration(options: {
   withoutSkill: boolean;
   conditionFile?: string;
   conditionLabel?: string;
+  conditionSha256?: string;
 }) {
   if (!options.withoutSkill && !options.conditionFile) return;
   const benchmarkCondition = options.conditionFile
@@ -158,6 +191,11 @@ export async function writeRunConfiguration(options: {
         options.conditionLabel,
       )
     : undefined;
+  if (
+    options.conditionSha256 !== undefined &&
+    benchmarkCondition?.sha256 !== options.conditionSha256
+  )
+    throw new Error("benchmark condition input changed since preflight");
   const control = options.withoutSkill ? { withoutSkill: true } : {};
   const configuration = {
     ...control,

@@ -129,9 +129,12 @@ route rendering happens later through Sevro's selected adapter context.
 The condition file joins the protected extension source inputs. Private and
 redacted configuration files remain in the run's results root; the redacted
 copy contains only the condition label and digest, plus an optional unmounted
-control flag. Sevro binds that copy into its configuration identity. This slice
-supports the standalone run entrypoint. Suite `condition` and
-`condition_by_harness` fields and owning skill overrides remain pending.
+control flag. Sevro binds that copy into its configuration identity and retains
+it in `configuration.redacted.extensionConfiguration`. The run entrypoint also
+accepts `--benchmark-condition-sha256 <digest>` to require the file's original
+bytes to match an earlier validated input. A mismatch exits `64` before Sevro
+or the candidate starts. Suite condition selection is described below; owning
+skill overrides remain pending.
 
 To inventory case compatibility before switching a workflow, run:
 
@@ -270,8 +273,8 @@ This suite route accepts a nonempty, unique `harnesses` list containing `codex`,
 `--harness <host>` or `--mode <name>` before `--` to select supported hosts or
 named modes. Repeatable `--case <substring>` filters replace the suite filters
 for a focused run. Selection errors fail before any cells start. It accepts
-`owner_evaluation`, `without_skill`, `model_by_harness`, and `effort` in each
-mode. Candidate model and effort overrides require Sevro's bundled hosts;
+`owner_evaluation`, `without_skill`, `model_by_harness`, `effort`, `condition`,
+and `condition_by_harness` in each mode. Candidate model and effort overrides require Sevro's bundled hosts;
 they replace the corresponding options in the host route and preserve the
 semantic and advisory routes. The manifest records requested routes and
 validates the actual model and effort against retained Sevro evidence.
@@ -303,9 +306,45 @@ and harness. Incomplete observations and empty metric denominators remain
 unknown; unmounted controls supply no measurements. Named ablations write
 `ablation-report.json` and `ablation-report.md` with per-case pass rate, time,
 token, and cost deltas; missing measurements stay unknown. Missing cells or
-mismatched identity dimensions invalidate the comparison. Benchmark conditions,
-owning skill overrides, and effective owner-route assertions still use the
+mismatched identity dimensions invalidate the comparison. Owning skill overrides
+and effective owner-route assertions still use the
 legacy suite command.
+
+Mode `condition` names a shared benchmark instruction file. A
+`condition_by_harness` entry overrides it for the named host; missing entries
+use the shared file, or no prefix if none is declared. All paths resolve
+relative to the suite file. For example:
+
+```yaml
+modes:
+  vanilla:
+    owner_evaluation: passive
+    without_skill: true
+    condition: conditions/vanilla.md
+  candidate:
+    owner_evaluation: passive
+    condition: conditions/common.md
+    condition_by_harness:
+      codex: conditions/codex.md
+```
+
+The suite loads selected condition files before starting cells and validates
+the combined templates for every selected mode, host, and case. Route variables
+stay deferred until Sevro supplies the candidate adapter's context. Explicit
+invocation introduced by a condition cannot run as an unmounted control.
+Selected input errors exit `64` before cells start; unselected file routes are
+not opened.
+
+`suite-run.json` records `benchmarkConditions` by mode and host. Each cell's
+`benchmarkCondition` contains its absolute path, mode label, and original
+SHA-256 digest, or `null` when no file is selected. Suite labels use the mode
+name; unmounted controls carry `withoutSkill: true` in redacted configuration
+instead of a label suffix. The cell checks the file against the preflight digest
+before launch. Sevro then protects the source file throughout execution.
+The suite also verifies its requested label, digest, and control flag against
+Sevro's retained redacted configuration. Missing or contradictory configuration
+makes the cell fail with `70` while retaining Sevro's raw verdict and exit code.
+Condition changes remain ineligible for matched ablation deltas.
 
 For multiple harnesses, pass `--host-options-file /absolute/path/to/hosts.json`
 before `--`. That file maps each selected harness to its Sevro candidate options.

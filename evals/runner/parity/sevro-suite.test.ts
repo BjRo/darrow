@@ -1,4 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -96,6 +97,439 @@ async function invoke(
   ]);
   return { stdout, stderr, code };
 }
+
+test("suite selects benchmark condition files per mode and host", async () => {
+  const { root, cases, results } = await fixture();
+  const suiteRoot = join(root, "suites");
+  await mkdir(join(suiteRoot, "conditions"), { recursive: true });
+  const suite = join(suiteRoot, "suite.yaml");
+  const shared = "Shared {{harness}}|{{model}}|{{effort}}.\n";
+  const override = "Codex {{model}}|{{effort}}.\n";
+  const sharedPath = join(suiteRoot, "conditions/shared.md");
+  const overridePath = join(suiteRoot, "conditions/codex.md");
+  await writeFile(sharedPath, shared);
+  await writeFile(overridePath, override);
+  const definition = JSON.parse(
+    await readFile(join(cases, "suite-alpha.yaml"), "utf8"),
+  );
+  definition.output_checks = [
+    { name: "task prompt", expect_regex: "Return ready\\.$" },
+  ];
+  await writeFile(join(cases, "suite-alpha.yaml"), JSON.stringify(definition));
+  const routes: Record<string, string[]> = {};
+  for (const harness of ["codex", "claude"]) {
+    const adapter = join(root, `${harness}.ts`);
+    await writeFile(
+      adapter,
+      `export default {
+      id: "sevro.host.${harness}", model: "candidate-${harness}", effort: "high",
+      async run({ prompt, condition }) { return { finalMessage: prompt, complete: true, actualCondition: condition }; }
+    };`,
+    );
+    routes[harness] = ["--adapter-module", adapter];
+  }
+  const hostOptions = join(root, "hosts.json");
+  await writeFile(hostOptions, JSON.stringify(routes));
+  await writeFile(
+    suite,
+    JSON.stringify({
+      version: 1,
+      experiment: "conditions",
+      harnesses: ["codex", "claude"],
+      case_filter: "suite-alpha",
+      modes: {
+        shared: {
+          owner_evaluation: "passive",
+          condition: "conditions/shared.md",
+          without_skill: true,
+        },
+        overridden: {
+          owner_evaluation: "enforced",
+          condition: "conditions/shared.md",
+          condition_by_harness: { codex: "conditions/codex.md" },
+        },
+      },
+    }),
+  );
+  const run = await invoke([
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+    "--host-options-file",
+    hostOptions,
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--",
+    "--shell-isolation",
+  ]);
+  expect(run.code, run.stderr + run.stdout).toBe(0);
+  const manifest = JSON.parse(
+    await readFile(join(results, "suite-run.json"), "utf8"),
+  );
+  expect(manifest.cells).toHaveLength(4);
+  for (const cell of manifest.cells) {
+    const usesOverride = cell.mode === "overridden" && cell.harness === "codex";
+    const path = usesOverride ? overridePath : sharedPath;
+    const sha256 = createHash("sha256")
+      .update(usesOverride ? override : shared)
+      .digest("hex");
+    expect(cell.benchmarkCondition).toEqual({ path, label: cell.mode, sha256 });
+    expect(manifest.benchmarkConditions[cell.mode][cell.harness]).toEqual(
+      cell.benchmarkCondition,
+    );
+    expect(cell.condition).toBe(
+      cell.mode === "shared" ? "passive" : "enforced",
+    );
+    const result = JSON.parse(await readFile(cell.result, "utf8"));
+    expect(result.task.verdict).toBe("passed");
+    const evidence = JSON.parse(await readFile(result.evidencePath, "utf8"));
+    const prefix = usesOverride
+      ? "Codex candidate-codex|high."
+      : `Shared ${cell.harness}|candidate-${cell.harness}|high.`;
+    expect(
+      await readFile(new URL(evidence.trials[0].rawResult.path), "utf8"),
+    ).toBe(`${prefix}\n\nReturn ready.`);
+  }
+}, 15_000);
+
+test("suite refuses changed condition bytes before a later candidate starts", async () => {
+  const { root, suite, adapter, results } = await fixture();
+  const condition = join(root, "instructions.md");
+  const starts = join(root, "candidate-starts.txt");
+  await writeFile(condition, "Original instructions.");
+  await writeFile(
+    adapter,
+    `import { appendFile, readFile, writeFile } from "node:fs/promises";
+    export default {
+      id: "sevro.host.codex", model: "synthetic", effort: "none",
+      async run({ condition }) {
+        const prior = await readFile(${JSON.stringify(starts)}, "utf8").catch(() => "");
+        await appendFile(${JSON.stringify(starts)}, "started\\n");
+        if (!prior) await writeFile(${JSON.stringify(condition)}, "Changed instructions.");
+        return { finalMessage: "ready", complete: true, actualCondition: condition };
+      }
+    };`,
+  );
+  await writeFile(
+    suite,
+    JSON.stringify({
+      version: 1,
+      experiment: "condition-change",
+      harnesses: ["codex"],
+      case_filter: "suite-alpha",
+      modes: {
+        first: { owner_evaluation: "passive", condition: "instructions.md" },
+        second: { owner_evaluation: "passive", condition: "instructions.md" },
+      },
+    }),
+  );
+  const run = await invoke([
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+  ]);
+  expect(run.code, run.stderr + run.stdout).toBe(1);
+  expect(await readFile(starts, "utf8")).toBe("started\n");
+  const manifest = JSON.parse(
+    await readFile(join(results, "suite-run.json"), "utf8"),
+  );
+  expect(manifest.cells).toHaveLength(2);
+  expect(manifest.cells[0].exitCode).not.toBe(0);
+  expect(manifest.cells[1]).toMatchObject({
+    exitCode: 64,
+    result: null,
+    provenance: null,
+  });
+  expect(manifest.cells[1].benchmarkCondition.sha256).toBe(
+    createHash("sha256").update("Original instructions.").digest("hex"),
+  );
+});
+
+test("suite validates condition-aware prompts before Sevro supplies the route", async () => {
+  const { root, cases, suite, adapter, results } = await fixture();
+  const expected =
+    "Use the selected route.\n\nStart on codex.|Continue on synthetic|none.";
+  const definition = JSON.parse(
+    await readFile(join(cases, "suite-alpha.yaml"), "utf8"),
+  );
+  definition.prompt = "Start on {{harness}}.";
+  definition.follow_up_prompt = "Continue on {{model}}|{{effort}}.";
+  definition.output_checks = [{ name: "prompts", expect_exact: expected }];
+  await writeFile(join(cases, "suite-alpha.yaml"), JSON.stringify(definition));
+  await writeFile(join(root, "prefix.md"), "Use the selected route.");
+  await writeFile(
+    adapter,
+    `export default {
+    id: "sevro.host.codex", model: "synthetic", effort: "none",
+    hostCapabilities: ["sevro.host.continuation"],
+    async run({ prompt, followUpPrompt, condition }) { return { finalMessage: prompt + "|" + followUpPrompt, complete: true, actualCondition: condition }; }
+  };`,
+  );
+  await writeFile(
+    suite,
+    JSON.stringify({
+      version: 1,
+      experiment: "condition-preflight",
+      harnesses: ["codex"],
+      case_filter: "suite-alpha",
+      modes: {
+        selected: { owner_evaluation: "passive", condition: "prefix.md" },
+      },
+    }),
+  );
+  const run = await invoke([
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+  ]);
+  expect(run.code, run.stderr + run.stdout).toBe(0);
+  const manifest = JSON.parse(
+    await readFile(join(results, "suite-run.json"), "utf8"),
+  );
+  expect(manifest.cells).toHaveLength(1);
+  const result = JSON.parse(await readFile(manifest.cells[0].result, "utf8"));
+  expect(result.task.verdict).toBe("passed");
+  const evidence = JSON.parse(await readFile(result.evidencePath, "utf8"));
+  expect(
+    await readFile(new URL(evidence.trials[0].rawResult.path), "utf8"),
+  ).toBe(expected);
+});
+
+test("suite rejects contradictory retained benchmark configuration", async () => {
+  const { root, suite, adapter, results } = await fixture();
+  await writeFile(join(root, "instructions.md"), "Use the declared condition.");
+  await writeFile(
+    suite,
+    JSON.stringify({
+      version: 1,
+      experiment: "condition-evidence",
+      harnesses: ["codex"],
+      case_filter: "suite-alpha",
+      modes: {
+        selected: { owner_evaluation: "passive", condition: "instructions.md" },
+      },
+    }),
+  );
+  const route = sevroCommand();
+  const contradictory = join(root, "contradictory-sevro");
+  await writeFile(
+    contradictory,
+    `#!${process.execPath}
+    import { readFile, writeFile } from "node:fs/promises";
+    const args = process.argv.slice(2);
+    const child = Bun.spawn([...${JSON.stringify(route.launch)}, ...args,
+      ...(args[0] === "run" ? ${JSON.stringify(route.extraArgs)} : [])], { stdout: "pipe", stderr: "inherit" });
+    const [stdout, code] = await Promise.all([new Response(child.stdout).text(), child.exited]);
+    if (code === 0 && args[0] === "run") {
+      const result = JSON.parse(stdout);
+      const evidence = JSON.parse(await readFile(result.evidencePath, "utf8"));
+      const selected = evidence.configuration.redacted.extensionConfiguration;
+      if (process.env.SEVRO_TEST_BAD_CONDITION === "missing") delete evidence.configuration.redacted.extensionConfiguration;
+      else selected.benchmarkCondition[process.env.SEVRO_TEST_BAD_CONDITION] = "contradictory";
+      await writeFile(result.evidencePath, JSON.stringify(evidence));
+    }
+    process.stdout.write(stdout); process.exitCode = code;
+  `,
+    { mode: 0o700 },
+  );
+  for (const field of ["label", "sha256", "missing"]) {
+    const resultRoot = join(results, field);
+    const run = await invoke(
+      [
+        "--suite",
+        suite,
+        "--project-root",
+        root,
+        "--results-root",
+        resultRoot,
+        "--trials",
+        "1",
+        "--threshold",
+        "1",
+        "--",
+        "--adapter-module",
+        adapter,
+        "--shell-isolation",
+      ],
+      {
+        SEVRO_CHECKOUT: undefined,
+        SEVRO_PACKAGE_BIN: contradictory,
+        SEVRO_TEST_BAD_CONDITION: field,
+      },
+    );
+    expect(run.code, run.stderr + run.stdout).toBe(1);
+    const manifest = JSON.parse(
+      await readFile(join(resultRoot, "suite-run.json"), "utf8"),
+    );
+    expect(manifest.cells[0]).toMatchObject({ exitCode: 70, provenance: null });
+    const result = JSON.parse(await readFile(manifest.cells[0].result, "utf8"));
+    expect(result.task.verdict).toBe("passed");
+    expect(result.exitCode).toBe(0);
+  }
+}, 15_000);
+
+test("suite rejects invalid condition inputs before starting any cells", async () => {
+  const { root, suite, adapter, results } = await fixture();
+  await writeFile(join(root, "valid.md"), "Use the declared route.");
+  await writeFile(join(root, "unknown.md"), "Use {{unsupported}}.");
+  await writeFile(join(root, "oversized.md"), "x".repeat(64 * 1024 + 1));
+  await writeFile(join(root, "invalid-utf8.md"), Buffer.from([0xff]));
+  const invalid = [
+    { condition: null },
+    { condition: "" },
+    { condition_by_harness: [] },
+    { condition_by_harness: {} },
+    { condition_by_harness: { foreign: "valid.md" } },
+    { condition_by_harness: { codex: 42 } },
+    { condition: "missing.md" },
+    { condition: "unknown.md" },
+    { condition: "oversized.md" },
+    { condition: "invalid-utf8.md" },
+  ];
+  for (const [index, fields] of invalid.entries()) {
+    await writeFile(
+      suite,
+      JSON.stringify({
+        version: 1,
+        experiment: "invalid-conditions",
+        harnesses: ["codex"],
+        case_filter: "suite-alpha",
+        modes: {
+          valid: { owner_evaluation: "passive", condition: "valid.md" },
+          invalid: { owner_evaluation: "passive", ...fields },
+        },
+      }),
+    );
+    const resultRoot = join(results, String(index));
+    const run = await invoke([
+      "--suite",
+      suite,
+      "--project-root",
+      root,
+      "--results-root",
+      resultRoot,
+      "--",
+      "--adapter-module",
+      adapter,
+      "--shell-isolation",
+    ]);
+    expect(run.code, run.stderr + run.stdout).toBe(64);
+    expect(await Bun.file(join(resultRoot, "suite-run.json")).exists()).toBe(
+      false,
+    );
+    expect(
+      await Bun.file(
+        join(resultRoot, "cell-1/darrow-extension-command.json"),
+      ).exists(),
+    ).toBe(false);
+  }
+});
+
+test("suite checks condition-induced invocation only in selected modes", async () => {
+  const { root, suite, adapter, results } = await activationFixture();
+  const manifest = join(root, "plugins/capability/example/.codex-plugin");
+  await mkdir(manifest, { recursive: true });
+  await writeFile(
+    join(manifest, "plugin.json"),
+    JSON.stringify({ name: "example", version: "0.1.0" }),
+  );
+  await writeFile(
+    join(root, "explicit.md"),
+    "{{skill_invocation}} Return ready.",
+  );
+  await writeFile(
+    suite,
+    JSON.stringify({
+      version: 1,
+      experiment: "condition-invocation",
+      harnesses: ["codex"],
+      case_filter: "suite-activation",
+      modes: {
+        candidate: { owner_evaluation: "passive" },
+        control: {
+          owner_evaluation: "passive",
+          without_skill: true,
+          condition: "explicit.md",
+        },
+      },
+    }),
+  );
+  const args = [
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+  ];
+  const rejected = await invoke([
+    ...args,
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+  ]);
+  expect(rejected.code).toBe(64);
+  expect(rejected.stderr).toContain(
+    "explicit skill invocation cannot run without skills",
+  );
+  expect(
+    await Bun.file(
+      join(results, "cell-1/darrow-extension-command.json"),
+    ).exists(),
+  ).toBe(false);
+  const focused = await invoke([
+    ...args,
+    "--mode",
+    "candidate",
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+    "--dry",
+  ]);
+  expect(focused.code, focused.stderr + focused.stdout).toBe(0);
+  const retained = JSON.parse(
+    await readFile(join(results, "suite-run.json"), "utf8"),
+  );
+  expect(retained.cells).toHaveLength(1);
+  expect(retained.cells[0]).toMatchObject({
+    mode: "candidate",
+    benchmarkCondition: null,
+    activation: { status: "not_run" },
+  });
+});
 
 test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
   "suite applies per-mode candidate routes independently for both hosts",

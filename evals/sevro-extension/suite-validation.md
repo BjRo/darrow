@@ -1,9 +1,78 @@
 # Suite validation
 
-## Benchmark condition prerequisites
+## Suite condition selection
 
-The standalone Darrow run entrypoint now accepts a benchmark instruction file.
-The suite's condition fields remain pending. The prerequisites use the real
+Suite modes now support shared `condition` files and host-specific
+`condition_by_harness` files. Selection uses suite-relative paths, validates
+templates before execution, binds each cell to its preflight content digest,
+and checks retained redacted configuration. The command regressions use the
+real Sevro CLI and public extension protocol with synthetic candidates.
+
+Darrow working directory:
+`/Users/bjro/Sources/darrow/.worktrees/feat/issue-95-darrow-extension`.
+
+1. Red — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-suite.test.ts -t "suite selects benchmark condition files per mode and host"'`:
+   exit `64`, because the shared mode's `condition` field was unsupported.
+2. Green — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-suite.test.ts -t "suite selects benchmark condition files per mode and host"'`:
+   one test passed with 23 assertions across four cells. Host overrides take
+   precedence, missing overrides use the shared file, unmounted controls keep
+   their instructions, and retained labels and original content digests match.
+3. Red — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-suite.test.ts -t "suite refuses changed condition bytes before a later candidate starts"'`:
+   a second candidate started after the first changed the protected input.
+4. Green — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-suite.test.ts -t "suite refuses changed condition bytes before a later candidate starts"'`:
+   one test passed with seven assertions. The first run records its source
+   failure; the second cell exits `64` before candidate execution and retains
+   the original preflight digest.
+5. Red — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-suite.test.ts -t "suite validates condition-aware prompts before Sevro supplies the route"'`:
+   exit `64`, because early preflight rejected the case's route variables.
+6. Green — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-suite.test.ts -t "suite validates condition-aware prompts before Sevro supplies the route"'`:
+   one test passed with five assertions. Preflight validates deferred templates;
+   the final candidate receives its actual host, model, and effort in both turns.
+
+Sevro working directory: `/Users/bjro/Sources/sevro`.
+
+1. Red — `lean-ctx -c 'bun test tests/cli.test.ts -t "CLI retains redacted extension configuration with its identity"'`:
+   the completed run omitted its redacted extension configuration.
+2. Green — `lean-ctx -c 'bun test tests/cli.test.ts -t "CLI retains redacted extension configuration with its identity"'`:
+   one test passed with four assertions. The retained configuration matches the
+   operator's redacted snapshot, binds its identity digest, and excludes the
+   private configuration marker.
+
+Sevro commit `08b5371` passed 206 tests with 1,057 assertions across 36 files,
+typechecking, formatting, and `bun run test:package-install`.
+
+Continuing in the Darrow working directory:
+
+1. Red — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-suite.test.ts -t "suite rejects contradictory retained benchmark configuration"'`:
+   a contradicted condition label incorrectly returned suite exit `0`.
+2. Green — `SEVRO_CHECKOUT=/Users/bjro/Sources/sevro lean-ctx -c 'bun test evals/runner/parity/sevro-suite.test.ts -t "suite rejects contradictory retained benchmark configuration"'`:
+   one test passed with 13 assertions. Contradicted labels or digests and missing
+   retained configuration produce cell `70`; raw Sevro task `passed` and exit
+   `0` remain unchanged.
+
+Additional guard coverage passed two tests with 38 assertions. Malformed host
+maps, missing or invalid files, unknown templates, and condition-induced
+invocation in an unmounted control fail before cells start. A focused dry run
+excludes the invalid control and records activation `not_run`. These guards
+were added after implementation, without a test-first claim. They do not prove
+live behavior of the existing orchestration benchmark or owning skill overrides.
+
+The final installed-package gate passed 90 tests with 1,456 assertions across
+three files in 154.39 seconds:
+
+```sh
+SEVRO_PACKAGE_TARBALL=/tmp/sevro-0.1.0-dev.0.tgz lean-ctx -c 'bun run test:eval-runner-sevro-package'
+```
+
+The tarball was packed from clean Sevro commit `08b5371`. Darrow typechecking,
+ESLint, and formatting passed. The compatibility inventory resolves 377/377
+cases; this inventory does not prove execution or behavioral parity for all of
+them. No live model call was made for these suite condition regressions.
+
+## Standalone condition prerequisites
+
+At this milestone, the standalone Darrow run entrypoint accepted a benchmark
+instruction file, while suite condition fields were pending. The prerequisites used the real
 Sevro CLI and public extension protocol with synthetic candidates.
 
 Sevro working directory: `/Users/bjro/Sources/sevro`.

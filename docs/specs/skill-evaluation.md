@@ -409,6 +409,23 @@ or unsupported templates fail before candidate execution. Unmounted controls
 preserve the same condition text. Native invocation placeholders retain their
 existing declaration and host dispatch requirements.
 
+Sevro suites preserve mode `condition` and `condition_by_harness` declarations
+as benchmark instruction inputs. A host-specific file takes precedence over
+the shared file; absent host overrides use the shared file or no prefix. Paths
+resolve relative to the suite file. Selected inputs are validated before cells
+start. The manifest records each cell's absolute source path, mode label, and
+original content digest separately from its passive or enforced condition.
+Each cell checks its condition bytes against the preflight digest before
+candidate execution. A changed input makes the cell unsuccessful; it cannot
+start under the previously recorded input.
+Suite preflight validates each mode's combined case and condition templates
+without inventing a candidate route. It checks activation and unmounted-control
+eligibility for that mode and host. Actual route rendering remains in Sevro's
+case-resolution lifecycle.
+The suite verifies its condition label and digest against Sevro's retained
+redacted extension configuration. Missing or contradictory configuration makes
+the cell unsuccessful without changing Sevro's raw task verdict or exit code.
+
 ### Evidence lifecycle
 
 Shell checks execute candidate-controlled code inside the runner's outer

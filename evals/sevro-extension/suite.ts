@@ -4,7 +4,7 @@ import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { isAbsolute, join, resolve, sep } from "node:path";
 import { isDeepStrictEqual, parseArgs } from "node:util";
 import { parse as parseYaml } from "yaml";
-import { resolveCase, selectCaseIds } from "./index";
+import { preflightCaseDetails, selectCaseIds } from "./index";
 import { pathToFileURL } from "node:url";
 import { sevroCommand } from "./sevro-command";
 import { activationGate, type ActivationExpectation } from "./activation";
@@ -17,6 +17,16 @@ import {
   requestedCandidateRoute,
   type CandidateRoute,
 } from "./suite-routes";
+import {
+  conditionArguments,
+  conditionEvidenceMatches,
+  loadSuiteConditions,
+  modeConditionConfig,
+  preflightConfiguration,
+  type ConditionInput,
+  type SuiteConditions,
+} from "./suite-conditions";
+import type { BenchmarkCondition } from "./benchmark-condition";
 
 const repositoryRoot = resolve(import.meta.dir, "../..");
 type Harness = "codex" | "claude";
@@ -37,6 +47,8 @@ function modeConfig(name: string, raw: unknown) {
         "without_skill",
         "model_by_harness",
         "effort",
+        "condition",
+        "condition_by_harness",
       ].includes(key),
   );
   if (unsupported.length)
@@ -54,6 +66,7 @@ function modeConfig(name: string, raw: unknown) {
     condition,
     withoutSkill: mode.without_skill === true,
     ...modeRouteConfig(mode),
+    ...modeConditionConfig(mode),
   };
 }
 
@@ -238,6 +251,8 @@ function suiteInvocation(argv: string[]) {
     modes: values.mode,
     cases: values.case,
     hostOptions: null as Partial<Record<Harness, string[]>> | null,
+    benchmarkConditions: {} as SuiteConditions,
+    benchmarkConditionDefinitions: new Map<string, BenchmarkCondition>(),
     ...evidenceLimits(values.trials!, values.threshold!),
     forwarded: forwardedOptions(argv.slice(separator + 1)),
   };
@@ -362,6 +377,7 @@ type Cell = {
   provenance: EvidenceSummary | null;
   activation: ReturnType<typeof activationGate>;
   requestedRoute: CandidateRoute;
+  benchmarkCondition: ConditionInput | null;
   exitCode: number;
   error?: string;
 };
@@ -383,6 +399,8 @@ type ExpectedCell = {
   exitCode: number;
   activation: ActivationExpectation | null;
   requestedRoute: CandidateRoute;
+  benchmarkCondition: ConditionInput | null;
+  withoutSkill: boolean;
 };
 
 function verifyEvidence(
@@ -417,6 +435,14 @@ function verifyEvidence(
     typeof identity.digest === "string",
     candidateRoutes.length === 1 &&
       candidateRouteMatches(candidateRoutes[0], expected),
+    conditionEvidenceMatches(
+      object(
+        object(evidence.configuration, "retained configuration").redacted,
+        "redacted configuration",
+      ).extensionConfiguration,
+      expected.benchmarkCondition,
+      expected.withoutSkill,
+    ),
   ];
   if (matches.some((matched) => !matched))
     throw new Error("retained Sevro evidence differs from suite cell");
@@ -531,6 +557,7 @@ function cellCommand(request: SuiteRequest, selected: CellSelection) {
     "--results-root",
     cellRoot,
     ...(mode.withoutSkill ? ["--without-skill"] : []),
+    ...conditionArguments(request.benchmarkConditions[mode.name]?.[harness]),
     "--",
     ...candidateArguments(
       [...request.forwarded, ...(request.hostOptions?.[harness] ?? [])],
@@ -545,6 +572,27 @@ function cellCommand(request: SuiteRequest, selected: CellSelection) {
   ];
 }
 
+function cellExpectation(
+  request: SuiteRequest,
+  selected: CellSelection,
+  exitCode: number,
+): ExpectedCell {
+  const { mode, caseId, harness } = selected;
+  return {
+    caseId,
+    harness,
+    condition: mode.condition,
+    trials: request.trials,
+    threshold: request.threshold,
+    exitCode,
+    activation: selected.activation,
+    requestedRoute: requestedCandidateRoute(mode, harness),
+    benchmarkCondition:
+      request.benchmarkConditions[mode.name]?.[harness] ?? null,
+    withoutSkill: mode.withoutSkill,
+  };
+}
+
 async function runCell(
   request: SuiteRequest,
   selected: CellSelection,
@@ -557,7 +605,8 @@ async function runCell(
     stdin: "inherit",
   });
   const { stdout, exitCode, interrupted } = await captureCell(child);
-  const requestedRoute = requestedCandidateRoute(mode, harness);
+  const expected = cellExpectation(request, selected, exitCode);
+  const { requestedRoute, benchmarkCondition } = expected;
   let result: Record<string, unknown> | null = null;
   try {
     result = object(JSON.parse(stdout) as unknown, "Sevro result");
@@ -568,16 +617,7 @@ async function runCell(
   if (resultPath) await writeFile(resultPath, JSON.stringify(result, null, 2));
   const { provenance, activation, evidenceError } = await cellProvenance(
     result,
-    {
-      caseId,
-      harness,
-      condition: mode.condition,
-      trials: request.trials,
-      threshold: request.threshold,
-      exitCode,
-      activation: selected.activation,
-      requestedRoute,
-    },
+    expected,
   );
   const cell: Cell = {
     caseId,
@@ -591,6 +631,7 @@ async function runCell(
     activation,
     requestedRoute,
     ...cellStatus(result, exitCode, evidenceError),
+    benchmarkCondition,
   };
   return { cell, interrupted };
 }
@@ -918,34 +959,34 @@ async function saveManifest(resultsRoot: string, manifest: unknown) {
 }
 
 async function preflightCases(
-  projectRoot: string,
+  request: SuiteRequest,
   suite: SuiteConfig,
   caseIds: string[],
 ) {
   const expectations = new Map<string, ActivationExpectation | null>();
-  for (const caseId of caseIds) {
-    const selected = await resolveCase({
-      projectRoot: pathToFileURL(projectRoot).href,
-      selectors: { caseIds: [caseId] },
-    });
-    const data = object(
-      selected.cases[0]?.extensionData,
-      "case extension data",
-    );
-    const details = object(data["darrow.case"], "Darrow case data");
-    expectations.set(
-      caseId,
-      (details.activation as ActivationExpectation | undefined) ?? null,
-    );
-    if (
-      suite.modes.some((mode) => mode.withoutSkill) &&
-      details.invocation !== undefined
-    )
-      throw new Error(
-        `${caseId}: explicit skill invocation cannot run without skills`,
-      );
-    if (suite.ablations.length && details.mount === undefined)
-      throw new Error(`${caseId}: ablation candidate has no owning skill`);
+  for (const mode of suite.modes) {
+    for (const harness of suite.harnesses) {
+      for (const caseId of caseIds) {
+        const details = await preflightCaseDetails({
+          projectRoot: pathToFileURL(request.projectRoot).href,
+          selectors: { caseIds: [caseId] },
+          configuration: preflightConfiguration(
+            request.benchmarkConditions[mode.name]?.[harness],
+            request.benchmarkConditionDefinitions,
+          ),
+        });
+        if (mode.withoutSkill && details.invocation !== undefined)
+          throw new Error(
+            `${caseId}: explicit skill invocation cannot run without skills`,
+          );
+        if (suite.ablations.length && details.mount === undefined)
+          throw new Error(`${caseId}: ablation candidate has no owning skill`);
+        expectations.set(
+          JSON.stringify([mode.name, harness, caseId]),
+          (details.activation as ActivationExpectation | undefined) ?? null,
+        );
+      }
+    }
   }
   return expectations;
 }
@@ -970,7 +1011,9 @@ async function runSelectedCells(
         index: manifest.cells.length + 1,
         activation: mode.withoutSkill
           ? null
-          : (expectations.get(selected.caseId) ?? null),
+          : (expectations.get(
+              JSON.stringify([mode.name, selected.harness, selected.caseId]),
+            ) ?? null),
       });
       manifest.cells.push(outcome.cell);
       manifest.interrupted = outcome.interrupted;
@@ -1001,6 +1044,7 @@ function suiteManifest(
     hostOptionsFile: request.hostOptionsFile ?? null,
     hostOptionsSha256: inputs.hostOptionsDigest,
     modes: suite.modes,
+    benchmarkConditions: request.benchmarkConditions,
     ablations: suite.ablations,
     caseIds: inputs.caseIds,
     caseFilters: suite.filters,
@@ -1040,6 +1084,13 @@ async function suiteInputs(request: SuiteRequest) {
     suite.allowedHarnesses,
   );
   request.hostOptions = hostOptions.options;
+  const conditions = await loadSuiteConditions(
+    suitePath,
+    suite.modes,
+    suite.harnesses,
+  );
+  request.benchmarkConditions = conditions.inputs;
+  request.benchmarkConditionDefinitions = conditions.definitions;
   if (
     suite.ablations.length &&
     (resultsRoot === projectRoot ||
@@ -1047,7 +1098,7 @@ async function suiteInputs(request: SuiteRequest) {
   )
     throw new Error("ablation results root must be outside the project root");
   const caseIds = await selectCaseIds(projectRoot, suite.filters);
-  const expectations = await preflightCases(projectRoot, suite, caseIds);
+  const expectations = await preflightCases(request, suite, caseIds);
   return {
     source,
     suite,

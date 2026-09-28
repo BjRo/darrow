@@ -6,7 +6,10 @@ import { parseArgs } from "node:util";
 import { resolveCorpusSource } from "../corpus/orchestration/source";
 import { selectedCaseFixture } from "./index";
 import { sevroCommand } from "./sevro-command";
-import { conditionLabel, writeRunConfiguration } from "./benchmark-condition";
+import {
+  benchmarkConditionOptions,
+  writeRunConfiguration,
+} from "./benchmark-condition";
 
 const repositoryRoot = resolve(import.meta.dir, "../..");
 const extension = join(import.meta.dir, "index.ts");
@@ -102,6 +105,7 @@ function runOptions(argv: string[]) {
       "without-skill": { type: "boolean", default: false },
       "benchmark-condition-file": { type: "string" },
       "benchmark-condition-label": { type: "string" },
+      "benchmark-condition-sha256": { type: "string" },
     },
     strict: true,
   });
@@ -118,15 +122,11 @@ export function invocation(argv: string[]) {
     throw new Error("--case-id and --results-root are required");
   if (!isAbsolute(projectRoot) || !isAbsolute(resultsRoot))
     throw new Error("project and results roots must be absolute");
-  const conditionFile = values["benchmark-condition-file"];
-  const label = values["benchmark-condition-label"];
-  if (conditionFile !== undefined && !isAbsolute(conditionFile))
-    throw new Error("benchmark condition file must be absolute");
-  if (label !== undefined) {
-    if (!conditionFile)
-      throw new Error("benchmark condition label requires a file");
-    conditionLabel(label);
-  }
+  const benchmark = benchmarkConditionOptions({
+    conditionFile: values["benchmark-condition-file"],
+    conditionLabel: values["benchmark-condition-label"],
+    conditionSha256: values["benchmark-condition-sha256"],
+  });
   validateForwarded(forwarded);
   const commandFile = join(resultsRoot, "darrow-extension-command.json");
   return {
@@ -135,8 +135,7 @@ export function invocation(argv: string[]) {
     projectRoot,
     caseId,
     withoutSkill: values["without-skill"],
-    conditionFile,
-    conditionLabel: label,
+    ...benchmark,
     command: sevroArgs({
       commandFile,
       caseId,
@@ -144,7 +143,7 @@ export function invocation(argv: string[]) {
       resultsRoot,
       forwarded,
       withoutSkill: values["without-skill"],
-      conditionFile,
+      conditionFile: benchmark.conditionFile,
     }),
   };
 }

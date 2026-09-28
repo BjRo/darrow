@@ -5,7 +5,11 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parse as parseYaml } from "yaml";
 import { TICKETCTL } from "../fixture-ticket";
-import { conditionedCase, extensionConfiguration } from "./benchmark-condition";
+import {
+  caseWithCondition,
+  conditionedCase,
+  extensionConfiguration,
+} from "./benchmark-condition";
 
 type RecordValue = Record<string, unknown>;
 
@@ -639,12 +643,19 @@ function caseAdditionalMounts(selected: RecordValue, skillDir: string | null) {
   };
 }
 
-function casePrompt(value: unknown, invocation: string | null) {
+function casePrompt(
+  value: unknown,
+  invocation: string | null,
+  deferRoute = false,
+) {
   const prompt = string(value, "case prompt");
   if (prompt.includes("{{skill_invocation}}") && !invocation)
     throw new Error("skill invocation requires a plugin-local case");
+  const template = deferRoute
+    ? prompt.replace(/\{\{(?:harness|model|effort)\}\}/g, "")
+    : prompt;
   if (
-    prompt
+    template
       .replaceAll("{{repo_dir}}", "")
       .replaceAll("{{skill_invocation}}", "")
       .includes("{{")
@@ -1423,6 +1434,7 @@ async function casePrompts(
   selected: RecordValue,
   root: string,
   skillDir: string | null,
+  deferRoute = false,
 ) {
   const invocation = await invocationForCase(
     root,
@@ -1432,10 +1444,16 @@ async function casePrompts(
   const token = invocation ? "{{sevro.skill_invocation}}" : null;
   return {
     invocation,
-    prompt: casePrompt(selected.prompt, token),
+    prompt: casePrompt(selected.prompt, token, deferRoute),
     ...(selected.follow_up_prompt === undefined
       ? {}
-      : { followUpPrompt: casePrompt(selected.follow_up_prompt, token) }),
+      : {
+          followUpPrompt: casePrompt(
+            selected.follow_up_prompt,
+            token,
+            deferRoute,
+          ),
+        }),
   };
 }
 
@@ -1452,7 +1470,29 @@ function disclosureDetails(checks: { id: string; grader: string }[]) {
   return ids.length ? { disclosureChecks: ids } : {};
 }
 
-async function neutralCase(value: unknown, source: string, root: string) {
+function caseMetricDetails(selected: RecordValue) {
+  const checkMetrics = caseCheckMetrics(selected);
+  return checkMetrics.length ? { checkMetrics } : {};
+}
+
+async function caseAssessment(
+  selected: RecordValue,
+  root: string,
+  skillDir: string | null,
+) {
+  const policy = casePolicy(selected, skillDir);
+  return {
+    policy,
+    checks: [...(await caseChecks(selected, root, skillDir)), ...policy.checks],
+  };
+}
+
+async function neutralCase(
+  value: unknown,
+  source: string,
+  root: string,
+  deferRoute = false,
+) {
   const selected = caseDefinition(value);
   const id = string(selected.id, "case ID");
   const invariant = string(selected.invariant, "case invariant");
@@ -1468,13 +1508,9 @@ async function neutralCase(value: unknown, source: string, root: string) {
     selected,
     root,
     skillDir,
+    deferRoute,
   );
-  const policy = casePolicy(selected, skillDir);
-  const checks = [
-    ...(await caseChecks(selected, root, skillDir)),
-    ...policy.checks,
-  ];
-  const checkMetrics = caseCheckMetrics(selected);
+  const { policy, checks } = await caseAssessment(selected, root, skillDir);
   return {
     id,
     prompt,
@@ -1496,7 +1532,7 @@ async function neutralCase(value: unknown, source: string, root: string) {
         ...disclosureDetails(checks),
         ...caseActivation(selected, skillDir, mountPluginSkills),
         checkNames: checkNames(selected),
-        ...(checkMetrics.length ? { checkMetrics } : {}),
+        ...caseMetricDetails(selected),
       },
     },
   };
@@ -2526,6 +2562,21 @@ async function selectedCase(params: RecordValue) {
 export async function selectedCaseFixture(params: RecordValue) {
   const selected = await selectedCase(params);
   return caseFixture(caseDefinition(selected.value).fixture).fixture;
+}
+
+/** Validate a suite input's templates and return policy facts, without a host route. */
+export async function preflightCaseDetails(params: RecordValue) {
+  const selected = await selectedCase(params);
+  const condition = extensionConfiguration(
+    params.configuration,
+  ).benchmarkCondition;
+  const resolved = await neutralCase(
+    caseWithCondition(selected.value, condition),
+    selected.source,
+    selected.root,
+    condition !== undefined,
+  );
+  return resolved.extensionData["darrow.case"];
 }
 
 export async function resolveCase(params: RecordValue) {
