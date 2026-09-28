@@ -534,11 +534,26 @@ an absolute suite path:
 ```sh
 SEVRO_CHECKOUT=/absolute/path/to/sevro bun evals/sevro-extension/suite.ts \
   --suite /absolute/path/to/suite.yaml \
-  --results-root /absolute/path/to/results --trials 1 --threshold 1 -- \
+  --results-root /absolute/path/to/results --trials 1 --threshold 1 \
+  --seed comparison-1 -- \
   --host codex --codex-bin /absolute/path/to/codex \
   --codex-auth-file /absolute/path/to/auth.json \
   --model gpt-5.6-terra --effort medium --shell-isolation
 ```
+
+Pass `--seed <value>` before `--` to replay the legacy host/mode block shuffle.
+The base block list follows selected harness order, then selected mode order;
+cases within each shuffled block keep sorted exact-ID order. An empty seed is
+valid. Without `--seed`, the command generates and retains a timestamp seed.
+The same seed and ordered selections reproduce the plan.
+
+Before the first case command starts, `suite-run.json` records `orderSeed` and
+the complete `cellPlan`, with one-based `index`, `harness`, `mode`, and `caseId`.
+Completed or cancelled `cells` form its executed prefix with the same indices.
+Selection lists describe the selected set, while the plan describes execution
+order. The seed changes no evaluation or comparison-eligibility dimension.
+See [ordering validation](ordering-validation.md) for replay and interruption
+evidence. Each case still uses its own public Sevro command.
 
 This suite route accepts a nonempty, unique `harnesses` list containing `codex`,
 `claude`, or both; an omitted list defaults to `[claude, codex]`. Repeat

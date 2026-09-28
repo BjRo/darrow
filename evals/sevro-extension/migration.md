@@ -58,6 +58,13 @@ The package installation directory is not run storage.
 | Legacy suite manifest                      | New suites retain `suite-run.json`, each raw Sevro result, and separate task, activation, and ablation reports.                                                                                                        |
 | Repository-guide evaluation                | Set an explicit Sevro route on `bun evals/repository-guide.ts`. Existing selectors, dry runs, controls, and first-failure stopping remain; per-cell JSON uses the public Sevro format. Default cutover awaits the pin. |
 
+Suite `--seed` remains before `--` and preserves the legacy host/mode block
+shuffle. The manifest retains `orderSeed` and the full indexed `cellPlan`
+before execution; completed and cancelled cells retain its executed prefix.
+An omitted seed generates a retained timestamp, and an empty seed is valid.
+See [ordering validation](ordering-validation.md). This covers execution order;
+normal benchmark caller cutover and unsupported enforcement policies remain pending.
+
 Sevro's task, execution, and grading states remain separate. Activation,
 semantic gates, and advisory assessments retain their own evidence. The direct
 CLI exits `0` for passed or unassessed execution, `1` for a failed task assessment,

@@ -515,6 +515,24 @@ for other harnesses supported by the complete suite. Every entry is validated,
 every selected harness needs a route, and unknown harnesses are rejected. The
 complete file digest remains in the manifest; only selected routes execute.
 
+The Sevro suite preserves benchmark `--seed` before `--`. A supplied seed,
+including an empty string, deterministically shuffles the selected host/mode
+blocks with the legacy suite's ordering rule. An omitted seed uses a generated
+timestamp retained as `orderSeed`. The initial block list follows selected
+harness order, then selected mode order. Within each block, cases keep their
+sorted exact-ID order. Harness and mode selection lists describe the selected
+set; they do not describe execution order.
+
+Before the first public case command starts, retain the complete `cellPlan`
+with consecutive one-based `index`, `harness`, `mode`, and `caseId` values in
+execution order. Completed or cancelled `cells` are its executed prefix, with
+the same indices and identities. Reusing a seed and the same ordered selections
+reproduces the plan without changing any case, route, condition, grader, or
+comparison-eligibility dimension. Ordinary cell failures do not skip later
+planned cells; cancellation stops before the next one. This preserves legacy
+block ordering while making the new per-case CLI calls explicit. The seed
+does not establish measured task success or make unlike conditions comparable.
+
 ### Benchmark record checks
 
 The Sevro run entrypoint accepts `--require-evaluation-records`; suite modes

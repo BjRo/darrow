@@ -250,6 +250,7 @@ function suiteInvocation(argv: string[]) {
       "results-root": { type: "string" },
       trials: { type: "string", default: "5" },
       threshold: { type: "string", default: "0.8" },
+      seed: { type: "string" },
       "host-options-file": { type: "string" },
     },
     strict: true,
@@ -269,6 +270,7 @@ function suiteInvocation(argv: string[]) {
     suitePath,
     projectRoot,
     resultsRoot,
+    orderSeed: values.seed ?? new Date().toISOString().replace(/[:.]/g, "-"),
     hostOptionsFile,
     harnesses: values.harness,
     modes: values.mode,
@@ -392,6 +394,7 @@ async function loadHostOptions(
 }
 
 type Cell = {
+  index: number;
   caseId: string;
   harness: Harness;
   mode: string;
@@ -661,6 +664,7 @@ async function runCell(
     expected,
   );
   const cell: Cell = {
+    index,
     caseId,
     harness,
     mode: mode.name,
@@ -1057,35 +1061,50 @@ function preflightBenchmarkPolicy(
   return policy;
 }
 
+function seededShuffle<T>(items: T[], seed: string): T[] {
+  let state = 2166136261;
+  for (let i = 0; i < seed.length; i++)
+    state = Math.imul(state ^ seed.charCodeAt(i), 16777619) >>> 0;
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i--) {
+    state ^= state << 13;
+    state ^= state >>> 17;
+    state ^= state << 5;
+    const j = (state >>> 0) % (i + 1);
+    [result[i], result[j]] = [result[j]!, result[i]!];
+  }
+  return result;
+}
+
+function plannedCells(suite: SuiteConfig, caseIds: string[], seed: string) {
+  const blocks = suite.harnesses.flatMap((harness) =>
+    suite.modes.map((mode) => ({ harness, mode })),
+  );
+  return seededShuffle(blocks, seed)
+    .flatMap((block) => caseIds.map((caseId) => ({ ...block, caseId })))
+    .map((cell, index) => ({ ...cell, index: index + 1 }));
+}
+
 async function runSelectedCells(
   request: SuiteRequest,
-  suite: SuiteConfig,
-  selection: {
-    caseIds: string[];
-    expectations: Awaited<ReturnType<typeof preflightCases>>;
-  },
+  plan: ReturnType<typeof plannedCells>,
+  expectations: Awaited<ReturnType<typeof preflightCases>>,
   manifest: { cells: Cell[]; interrupted: Interrupt | null },
 ) {
-  const { caseIds, expectations } = selection;
-  cells: for (const mode of suite.modes) {
-    for (const selected of suite.harnesses.flatMap((harness) =>
-      caseIds.map((caseId) => ({ harness, caseId })),
-    )) {
-      const expectation = expectations.get(
-        JSON.stringify([mode.name, selected.harness, selected.caseId]),
-      )!;
-      const outcome = await runCell(request, {
-        ...selected,
-        mode,
-        index: manifest.cells.length + 1,
-        activation: mode.withoutSkill ? null : expectation.activation,
-        recordChecksRequested: expectation.recordChecksRequested,
-      });
-      manifest.cells.push(outcome.cell);
-      manifest.interrupted = outcome.interrupted;
-      await saveManifest(request.resultsRoot, manifest);
-      if (outcome.interrupted) break cells;
-    }
+  for (const selected of plan) {
+    const { mode, harness, caseId } = selected;
+    const expectation = expectations.get(
+      JSON.stringify([mode.name, harness, caseId]),
+    )!;
+    const outcome = await runCell(request, {
+      ...selected,
+      activation: mode.withoutSkill ? null : expectation.activation,
+      recordChecksRequested: expectation.recordChecksRequested,
+    });
+    manifest.cells.push(outcome.cell);
+    manifest.interrupted = outcome.interrupted;
+    await saveManifest(request.resultsRoot, manifest);
+    if (outcome.interrupted) break;
   }
 }
 
@@ -1097,6 +1116,7 @@ function suiteManifest(
     caseIds: string[];
     hostOptionsDigest: string | null;
   },
+  plan: ReturnType<typeof plannedCells>,
 ) {
   return {
     format: "darrow-sevro-suite-v1",
@@ -1106,6 +1126,13 @@ function suiteManifest(
     projectRoot: request.projectRoot,
     trials: request.trials,
     threshold: request.threshold,
+    orderSeed: request.orderSeed,
+    cellPlan: plan.map(({ index, harness, mode, caseId }) => ({
+      index,
+      harness,
+      mode: mode.name,
+      caseId,
+    })),
     harnesses: suite.harnesses,
     hostOptionsFile: request.hostOptionsFile ?? null,
     hostOptionsSha256: inputs.hostOptionsDigest,
@@ -1189,9 +1216,11 @@ export async function runSuite(argv: string[]) {
   const { resultsRoot } = request;
   const inputs = await suiteInputs(request);
   const { suite, caseIds, expectations } = inputs;
-  const manifest = suiteManifest(request, suite, inputs);
+  const plan = plannedCells(suite, caseIds, request.orderSeed);
+  const manifest = suiteManifest(request, suite, inputs, plan);
   await mkdir(resultsRoot, { recursive: true });
-  await runSelectedCells(request, suite, { caseIds, expectations }, manifest);
+  await saveManifest(resultsRoot, manifest);
+  await runSelectedCells(request, plan, expectations, manifest);
   manifest.report = await suiteReports(resultsRoot, manifest.cells);
   manifest.qualityReport = await qualityReports(
     resultsRoot,

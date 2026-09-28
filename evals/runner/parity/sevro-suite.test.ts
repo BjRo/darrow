@@ -91,7 +91,16 @@ async function waitForFile(path: string) {
 async function invoke(
   args: string[],
   environment: Record<string, string | undefined> = {},
+  orderSeed: string | null = "existing-order-1",
 ) {
+  const separator = args.indexOf("--");
+  if (orderSeed !== null && !args.slice(0, separator).includes("--seed"))
+    args = [
+      ...args.slice(0, separator),
+      "--seed",
+      orderSeed,
+      ...args.slice(separator),
+    ];
   const proc = Bun.spawn([process.execPath, suiteCommand, ...args], {
     stdout: "pipe",
     stderr: "pipe",
@@ -2546,6 +2555,143 @@ test("suite selection rejects duplicate IDs and unsupported modes before running
   expect(await Bun.file(results).exists()).toBeFalse();
 });
 
+test("suite retains generated and empty seeds for filtered selections", async () => {
+  const { root, adapter, suite, results } = await fixture();
+  for (const seed of [undefined, ""]) {
+    const output = join(results, seed === undefined ? "generated" : "empty");
+    const run = await invoke(
+      [
+        "--suite",
+        suite,
+        "--project-root",
+        root,
+        "--results-root",
+        output,
+        "--mode",
+        "passive",
+        "--case",
+        "beta",
+        "--trials",
+        "1",
+        "--threshold",
+        "1",
+        ...(seed === undefined ? [] : ["--seed", seed]),
+        "--",
+        "--adapter-module",
+        adapter,
+        "--shell-isolation",
+      ],
+      {},
+      null,
+    );
+    expect(run.code, run.stderr + run.stdout).toBe(0);
+    const manifest = JSON.parse(
+      await readFile(join(output, "suite-run.json"), "utf8"),
+    );
+    if (seed === undefined)
+      expect(manifest.orderSeed).toMatch(
+        /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z$/,
+      );
+    else expect(manifest.orderSeed).toBe("");
+    expect(manifest.caseIds).toEqual(["suite-beta"]);
+    expect(manifest.cellPlan).toEqual([
+      { index: 1, harness: "codex", mode: "passive", caseId: "suite-beta" },
+    ]);
+    expect(manifest.cells[0]).toMatchObject(manifest.cellPlan[0]);
+  }
+}, 15_000);
+
+test("suite seeded execution preserves legacy block order and replay", async () => {
+  const { root, adapter, suite, results } = await fixture();
+  const definition = JSON.parse(await readFile(suite, "utf8"));
+  definition.harnesses = ["codex", "claude"];
+  await writeFile(suite, JSON.stringify(definition));
+  const claudeAdapter = join(root, "claude-adapter.ts");
+  await writeFile(
+    claudeAdapter,
+    (await readFile(adapter, "utf8")).replace(
+      'id: "sevro.host.codex"',
+      'id: "sevro.host.claude"',
+    ),
+  );
+  const optionsFile = join(root, "host-options.json");
+  await writeFile(
+    optionsFile,
+    JSON.stringify({
+      codex: ["--adapter-module", adapter],
+      claude: ["--adapter-module", claudeAdapter],
+    }),
+  );
+  const plans: unknown[] = [];
+  for (const [attempt, seed] of [
+    "order-95",
+    "order-95",
+    "order-96",
+  ].entries()) {
+    const output = join(results, String(attempt));
+    const run = await invoke([
+      "--suite",
+      suite,
+      "--project-root",
+      root,
+      "--results-root",
+      output,
+      "--host-options-file",
+      optionsFile,
+      "--trials",
+      "1",
+      "--threshold",
+      "1",
+      "--seed",
+      seed,
+      "--",
+      "--shell-isolation",
+    ]);
+    expect(run.code, run.stderr + run.stdout).toBe(0);
+    const manifest = JSON.parse(
+      await readFile(join(output, "suite-run.json"), "utf8"),
+    );
+    expect(manifest.orderSeed).toBe(seed);
+    expect(manifest.harnesses).toEqual(["codex", "claude"]);
+    expect(manifest.modes.map((mode: { name: string }) => mode.name)).toEqual([
+      "passive",
+      "enforced",
+    ]);
+    expect(manifest.cellPlan).toHaveLength(8);
+    const actual = manifest.cells.map(
+      (cell: {
+        index: number;
+        harness: string;
+        mode: string;
+        caseId: string;
+      }) => ({
+        index: cell.index,
+        harness: cell.harness,
+        mode: cell.mode,
+        caseId: cell.caseId,
+      }),
+    );
+    expect(actual).toEqual(manifest.cellPlan);
+    plans.push(manifest.cellPlan);
+  }
+  const expected = [
+    ["claude", "enforced"],
+    ["claude", "passive"],
+    ["codex", "enforced"],
+    ["codex", "passive"],
+  ].flatMap(([harness, mode], group) =>
+    ["suite-alpha", "suite-beta"].map((caseId, item) => ({
+      index: group * 2 + item + 1,
+      harness,
+      mode,
+      caseId,
+    })),
+  );
+  expect(plans[0]).toEqual(expected);
+  expect(plans[1]).toEqual(expected);
+  expect(plans[2]).not.toEqual(expected);
+}, 45_000);
+
 test("suite runs every selected mode and case through Sevro public commands", async () => {
   const { root, adapter, suite, results } = await fixture();
   const route = process.env.SEVRO_CHECKOUT
@@ -3219,6 +3365,8 @@ test("suite interruption cancels the active Sevro cell and stops selection", asy
       "1",
       "--threshold",
       "1",
+      "--seed",
+      "order-95",
       "--",
       "--adapter-module",
       adapter,
@@ -3232,6 +3380,18 @@ test("suite interruption cancels the active Sevro cell and stops selection", asy
   );
   try {
     await waitForFile(ready);
+    const initial = JSON.parse(
+      await readFile(join(results, "suite-run.json"), "utf8"),
+    );
+    expect(initial.orderSeed).toBe("order-95");
+    expect(initial.cells).toEqual([]);
+    expect(initial.interrupted).toBeNull();
+    expect(initial.cellPlan).toEqual([
+      { index: 1, harness: "codex", mode: "enforced", caseId: "suite-alpha" },
+      { index: 2, harness: "codex", mode: "enforced", caseId: "suite-beta" },
+      { index: 3, harness: "codex", mode: "passive", caseId: "suite-alpha" },
+      { index: 4, harness: "codex", mode: "passive", caseId: "suite-beta" },
+    ]);
     child.kill("SIGTERM");
     const [stdout, code] = await Promise.all([
       new Response(child.stdout).text(),
@@ -3247,6 +3407,8 @@ test("suite interruption cancels the active Sevro cell and stops selection", asy
     );
     expect(manifest.interrupted).toBe("SIGTERM");
     expect(manifest.cells).toHaveLength(1);
+    expect(manifest.cellPlan).toEqual(initial.cellPlan);
+    expect(manifest.cells[0]).toMatchObject(initial.cellPlan[0]);
     const report = JSON.parse(await readFile(manifest.report.jsonPath, "utf8"));
     expect(report.rows).toHaveLength(1);
     expect(report.rows[0].execution).toBe("cancelled");
