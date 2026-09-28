@@ -5609,7 +5609,7 @@ test("Darrow runs implicit and explicit repository skills without a plugin wrapp
     }),
   );
   expect(claude.value.error.message).toMatch(
-    /repository-skill mounts on Claude/,
+    /Claude repository skill mirror is missing or unsafe/,
   );
   const adapter = join(root, "candidate.ts");
   await writeFile(
@@ -5692,6 +5692,180 @@ test("Darrow runs implicit and explicit repository skills without a plugin wrapp
   expect(explicitRun.value.cases[0]!.trials[0]!.domainOutcomes).toMatchObject([
     { id: "darrow.evals.activation", status: "passed" },
   ]);
+});
+
+test("Claude repository activation requires its complete bound command receipt", async () => {
+  const details = {
+    source: ".agents/skills/probe/evals/probe.yaml",
+    activation: { class: "positive", targetSkill: "probe" },
+    invocation: { scope: "repository", skillName: "probe" },
+  };
+  const receipt = {
+    id: "sevro.claude.repository-invocation",
+    source: "sevro.host.claude",
+    completeness: "complete",
+    data: {
+      method: "native_repository_command",
+      accepted: true,
+      skill: "probe",
+      primarySkill: "probe",
+      observedSkills: ["probe"],
+    },
+  };
+  const tools = {
+    id: "sevro.claude.tool-calls",
+    source: "sevro.host.claude",
+    completeness: "complete",
+    data: {
+      method: "stream_tool_calls",
+      truncated: false,
+      calls: [
+        {
+          ordinal: 1,
+          actor: "parent",
+          parentToolUseId: null,
+          name: "Skill",
+          skill: "probe",
+          invocation: "probe",
+        },
+      ],
+    },
+  };
+  const status = async (observations: unknown[], explicit = true) => {
+    const selected: Record<string, unknown> = { ...details };
+    if (!explicit) delete selected.invocation;
+    const result = await command<{
+      result: { domainOutcomes: Array<{ status: string }> };
+    }>(
+      [process.execPath, extension],
+      request("evaluate", {
+        observations,
+        extensionData: { "darrow.case": selected },
+      }),
+    );
+    expect(result.code, result.stderr).toBe(0);
+    return result.value.result.domainOutcomes[0]!.status;
+  };
+  expect(await status([receipt])).toBe("passed");
+  for (const observations of [
+    [],
+    [tools],
+    [receipt, receipt],
+    [{ ...receipt, source: "foreign.host" }],
+    [{ ...receipt, completeness: "partial" }, tools],
+    [{ ...receipt, data: { ...receipt.data, accepted: false } }, tools],
+    [{ ...receipt, data: { ...receipt.data, skill: "other" } }],
+  ])
+    expect(await status(observations)).toBe("unavailable");
+  expect(await status([tools], false)).toBe("passed");
+  const foreign = {
+    ...tools,
+    data: {
+      ...tools.data,
+      calls: [{ ...tools.data.calls[0], invocation: "foreign:probe" }],
+    },
+  };
+  expect(await status([foreign], false)).toBe("unavailable");
+  expect(
+    await status(
+      [{ ...tools, data: { ...tools.data, truncated: true } }],
+      false,
+    ),
+  ).toBe("unavailable");
+});
+
+test("Darrow runs native Claude repository skills using their required mirror", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-claude-repository-"));
+  roots.push(root);
+  const canonical = join(root, ".agents/skills/probe");
+  const mirror = join(root, ".claude/skills/probe");
+  await mkdir(join(canonical, "evals"), { recursive: true });
+  await mkdir(join(mirror, "evals"), { recursive: true });
+  await writeFile(join(canonical, "SKILL.md"), "Codex source\n");
+  const body =
+    "---\nname: probe\ndescription: Claude probe\n---\nReturn ready.\n";
+  await writeFile(join(mirror, "SKILL.md"), body);
+  await writeFile(join(mirror, "evals/hidden.txt"), "private criteria\n");
+  const caseFile = join(canonical, "evals/probe.yaml");
+  const definition = {
+    id: "claude-repository-probe",
+    invariant: "EXAMPLE-CLAUDE",
+    activation: "positive",
+    prompt: "Return ready with the probe capability.",
+    fixture: {
+      commits: [{ message: "Initial", files: { "README.md": "fixture\n" } }],
+    },
+    checks: [],
+    output_checks: [{ name: "response", expect_exact: "ready" }],
+  };
+  await writeFile(caseFile, JSON.stringify(definition));
+  const adapter = join(root, "candidate.ts");
+  await writeFile(
+    adapter,
+    `export default {
+    id: "sevro.host.claude", model: "synthetic-v1", effort: "none",
+    hostCapabilities: ["sevro.claude.repository-invocation"],
+    async run({ workspace, prompt, explicitSkillInvocation, claudePluginDirs }) {
+      if ((await Bun.file(workspace + "/.claude/skills/probe/SKILL.md").text()) !== ${JSON.stringify(body)}) throw new Error("Claude mirror differs");
+      if (await Bun.file(workspace + "/.claude/skills/probe/evals/hidden.txt").exists()) throw new Error("eval exposed");
+      if (await Bun.file(workspace + "/.agents/skills/probe/SKILL.md").exists() || claudePluginDirs) throw new Error("repository scope changed");
+      if (explicitSkillInvocation && (prompt !== "/probe Return ready." || explicitSkillInvocation.scope !== "repository" || explicitSkillInvocation.token !== "/probe")) throw new Error("native invocation differs");
+      return { finalMessage: "ready", complete: true, observations: [
+        { id: "sevro.claude.tool-calls", completeness: "complete", data: { method: "stream_tool_calls", truncated: false, calls: [{ ordinal: 1, actor: "parent", parentToolUseId: null, name: "Skill", skill: "probe", invocation: "probe" }] } },
+        ...(explicitSkillInvocation ? [{ id: "sevro.claude.repository-invocation", completeness: "complete", data: { method: "native_repository_command", accepted: true, skill: "probe", primarySkill: "probe", observedSkills: ["probe"] } }] : [])
+      ] };
+    }
+  };`,
+  );
+  const invoke = (destination: string) =>
+    command<CliReply>([
+      process.execPath,
+      resolve(import.meta.dir, "../../sevro-extension/run.ts"),
+      "--case-id",
+      definition.id,
+      "--project-root",
+      root,
+      "--results-root",
+      join(root, destination),
+      "--",
+      "--adapter-module",
+      adapter,
+      "--condition",
+      "passive",
+      "--trials",
+      "1",
+      "--threshold",
+      "1",
+    ]);
+  const implicit = await invoke("implicit-results");
+  expect(implicit.code, implicit.stderr).toBe(0);
+  expect(implicit.value.cases[0]!.trials[0]!.domainOutcomes).toMatchObject([
+    {
+      id: "darrow.evals.activation",
+      status: "passed",
+      evidenceRefs: ["sevro.claude.tool-calls"],
+    },
+  ]);
+  await writeFile(
+    caseFile,
+    JSON.stringify({
+      ...definition,
+      prompt: "{{skill_invocation}} Return ready.",
+    }),
+  );
+  const explicit = await invoke("explicit-results");
+  expect(explicit.code, explicit.stderr).toBe(0);
+  expect(explicit.value.cases[0]!.trials[0]!.domainOutcomes).toMatchObject([
+    {
+      id: "darrow.evals.activation",
+      status: "passed",
+      evidenceRefs: ["sevro.claude.repository-invocation"],
+    },
+  ]);
+  const evidence = await Bun.file(explicit.value.evidencePath).json();
+  expect(
+    evidence.configuration.redacted.claudeRepositorySkillInvocation,
+  ).toEqual({ skillName: "probe" });
 });
 
 test("Darrow runs a pinned corpus repository with committed overlay and setup", async () => {
@@ -6527,6 +6701,53 @@ test("additional plugins and selected skills remain independent Codex packages",
     }),
   );
   expect(unsafeSkill.value.error.message).toMatch(/plugin skill/);
+});
+
+test("Claude guide composition retains repository scope and independent providers", async () => {
+  const resolved = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(projectRoot).href,
+      selectors: { caseIds: ["guide-visual-present"] },
+    }),
+  );
+  expect(resolved.code, resolved.stderr).toBe(0);
+  const prepared = await command<{
+    result: {
+      claudeRepositorySkillInvocation: { skillName: string };
+      claudePluginDirs: { artifactRoots: string[] };
+      artifacts: Array<{ relativePath: string }>;
+    };
+  }>(
+    [process.execPath, extension],
+    request("prepare", {
+      case: resolved.value.result.cases[0],
+      host: {
+        id: "sevro.host.claude",
+        capabilities: [
+          "sevro.claude.plugin-dirs",
+          "sevro.claude.repository-invocation",
+        ],
+      },
+      condition: "passive",
+      configuration: {},
+    }),
+  );
+  expect(prepared.code, prepared.stderr).toBe(0);
+  expect(prepared.value.result.claudeRepositorySkillInvocation).toEqual({
+    skillName: "darrow-guide",
+  });
+  expect(prepared.value.result.claudePluginDirs.artifactRoots).toEqual([
+    ".sevro-marketplace/plugins/0-darrow-explanation",
+  ]);
+  expect(
+    prepared.value.result.artifacts.map((item) => item.relativePath),
+  ).toContain(".claude/skills/darrow-guide/SKILL.md");
+  expect(
+    prepared.value.result.artifacts.map((item) => item.relativePath),
+  ).toContain(
+    ".sevro-marketplace/plugins/0-darrow-explanation/skills/explain-visually/SKILL.md",
+  );
 });
 
 test("real composition providers fit the Sevro preparation boundary", async () => {

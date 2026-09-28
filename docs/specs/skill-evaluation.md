@@ -42,8 +42,13 @@ assets, and preserve activation grading. An explicit repository case negotiates
 `sevro.codex.repository-invocation`, declares its mounted owning skill, and uses
 exactly one runner-rendered `$skill` token. The declaration and repository scope
 enter retained configuration and comparison identity. Plugin dispatch declarations
-cannot substitute for repository dispatch. Other hosts remain unavailable until
-their native scope is supported.
+cannot substitute for repository dispatch. Claude uses the required mirror at
+`.claude/skills/<name>`, refuses a missing or unsafe mirror, and negotiates
+`sevro.claude.repository-invocation` for the native `/skill` command. Explicit
+activation requires one complete native command receipt bound to the mounted
+body, arguments, and session. Later Skill calls cannot repair a partial or
+rejected receipt. Implicit Claude activation uses complete ordered Skill-call
+metadata. Task grading and activation remain separate.
 
 Repository cases can compose independently installed `additional_plugins` or
 selected `additional_skills`. The owning repository skill keeps its native

@@ -2127,7 +2127,7 @@ function packageDeclarations(options: {
       ? {
           claudePluginDirs: {
             artifactRoots: [
-              `${MARKETPLACE_ROOT}/plugin`,
+              ...(ownerName ? [`${MARKETPLACE_ROOT}/plugin`] : []),
               ...additional.map(
                 (item, index) =>
                   `${MARKETPLACE_ROOT}/plugins/${index}-${item.name}`,
@@ -2144,21 +2144,67 @@ function repositoryInvocation(details: RecordValue, hostValue: unknown) {
   if (details.invocation === undefined) return {};
   const invocation = record(details.invocation, "repository skill invocation");
   const host = record(hostValue, "candidate host");
+  const claude = host.id === "sevro.host.claude";
+  const capability = claude
+    ? "sevro.claude.repository-invocation"
+    : "sevro.codex.repository-invocation";
   if (
-    host.id !== "sevro.host.codex" ||
+    !["sevro.host.codex", "sevro.host.claude"].includes(String(host.id)) ||
     !Array.isArray(host.capabilities) ||
-    !host.capabilities.includes("sevro.codex.repository-invocation")
+    !host.capabilities.includes(capability)
   )
     throw new Error(
-      "repository skill invocation requires a capable Codex host",
+      "repository skill invocation requires a capable native host",
     );
   if (invocation.scope !== "repository")
     throw new Error("repository skill invocation has an invalid scope");
-  return {
-    codexRepositorySkillInvocation: {
-      skillName: string(invocation.skillName, "invoked repository skill"),
-    },
+  const declaration = {
+    skillName: string(invocation.skillName, "invoked repository skill"),
   };
+  return claude
+    ? { claudeRepositorySkillInvocation: declaration }
+    : { codexRepositorySkillInvocation: declaration };
+}
+
+async function claudeRepositorySources(
+  details: RecordValue,
+  sources: { skillRoot: string; skillName: string }[],
+) {
+  const root = await realpath(
+    fileURLToPath(string(details.projectRoot, "case project root")),
+  );
+  return Promise.all(
+    sources.map(async ({ skillName }) => {
+      const path = join(root, ".claude/skills", skillName);
+      const entry = await lstat(path).catch(() => null);
+      if (!entry?.isDirectory() || entry.isSymbolicLink())
+        throw new Error("Claude repository skill mirror is missing or unsafe");
+      const skillRoot = await realpath(path);
+      if (!within(root, skillRoot))
+        throw new Error(
+          "Claude repository skill mirror escapes the project root",
+        );
+      return { skillRoot, skillName };
+    }),
+  );
+}
+
+async function repositoryArtifacts(
+  owner: { skillRoot: string; skillName: string }[],
+  additional: Awaited<ReturnType<typeof additionalPluginSources>>,
+  options: { packaged: boolean; destination: string },
+) {
+  if (options.packaged)
+    return codexPluginArtifacts(
+      [],
+      null,
+      additional,
+      await skillArtifacts(owner, options.destination),
+    );
+  return skillArtifacts(
+    [...owner, ...additional.flatMap((item) => item.sources)],
+    options.destination,
+  );
 }
 
 async function repositorySkillMounts(
@@ -2166,10 +2212,9 @@ async function repositorySkillMounts(
   sources: { skillRoot: string; skillName: string }[],
   hostValue: unknown,
 ) {
-  if (record(hostValue, "candidate host").id === "sevro.host.claude")
-    throw new Error("repository-skill mounts on Claude are not yet supported");
+  const claude = record(hostValue, "candidate host").id === "sevro.host.claude";
   const { owner, additional } = mergeAdditionalSkills(
-    sources,
+    claude ? await claudeRepositorySources(details, sources) : sources,
     await additionalPluginSources(details),
     await additionalSkillSources(details),
   );
@@ -2182,18 +2227,15 @@ async function repositorySkillMounts(
     additional.length > 0,
     false,
   );
+  const claudePackages = claudePackageHost(hostValue, additional.length > 0);
   return {
-    artifacts: codexPackages
-      ? await codexPluginArtifacts(
-          [],
-          null,
-          additional,
-          await skillArtifacts(owner),
-        )
-      : await skillArtifacts(mounted),
+    artifacts: await repositoryArtifacts(owner, additional, {
+      packaged: codexPackages || claudePackages,
+      destination: claude ? ".claude/skills" : ".agents/skills",
+    }),
     ...packageDeclarations({
       codexPackages,
-      claudePackages: false,
+      claudePackages,
       ownerName: null,
       additional,
       invocation: null,
@@ -2441,9 +2483,13 @@ function activationObservation(
       item &&
       typeof item === "object" &&
       (explicit
-        ? item.id === "sevro.codex.explicit-invocation"
+        ? [
+            "sevro.codex.explicit-invocation",
+            "sevro.claude.repository-invocation",
+          ].includes(item.id)
         : item.id === "darrow.activation" ||
-          item.id === "sevro.codex.skill-reads"),
+          item.id === "sevro.codex.skill-reads" ||
+          item.id === "sevro.claude.tool-calls"),
   );
   return matches.length === 1
     ? record(matches[0], "activation observation")
@@ -2463,18 +2509,35 @@ function skillSequence(value: unknown): string[] | null {
   return value as string[];
 }
 
+function supportedExplicitActivation(
+  observation: RecordValue,
+  data: RecordValue,
+) {
+  if (observation.id === "sevro.claude.repository-invocation")
+    return (
+      observation.source === "sevro.host.claude" &&
+      data.method === "native_repository_command" &&
+      data.accepted === true
+    );
+  return (
+    observation.id === "sevro.codex.explicit-invocation" &&
+    observation.source === "sevro.host.codex" &&
+    data.method === "explicit_invocation"
+  );
+}
+
 function supportedActivationSource(
   observation: RecordValue,
   data: RecordValue,
   explicit: boolean,
 ): boolean {
-  if (explicit)
-    return (
-      observation.id === "sevro.codex.explicit-invocation" &&
-      observation.source === "sevro.host.codex" &&
-      data.method === "explicit_invocation"
-    );
+  if (explicit) return supportedExplicitActivation(observation, data);
   if (observation.id === "darrow.activation") return true;
+  if (observation.id === "sevro.claude.tool-calls")
+    return (
+      observation.source === "sevro.host.claude" &&
+      data.method === "stream_tool_calls"
+    );
   return (
     observation.id === "sevro.codex.skill-reads" &&
     observation.source === "sevro.host.codex" &&
@@ -2500,6 +2563,50 @@ function observedActivation(
 
 function nonemptyString(value: unknown): value is string {
   return typeof value === "string" && value.length > 0;
+}
+
+function implicitClaudeActivation(
+  selected: RecordValue,
+  observations: unknown,
+  details: RecordValue,
+): RecordValue {
+  const calls = claudeCalls(observations);
+  if (!calls) return { ...selected, completeness: "partial" };
+  const target = activationExpectation(details.activation).targetSkill;
+  const skills = calls.filter((call) => call.name === "Skill");
+  const repository = String(details.source).startsWith(".agents/");
+  const foreignOwner =
+    repository &&
+    skills.some((call) => call.skill === target && call.invocation !== target);
+  const observedSkills = [...new Set(skills.map((call) => String(call.skill)))];
+  return {
+    ...selected,
+    completeness: foreignOwner ? "partial" : "complete",
+    data: {
+      ...record(selected.data, "Claude calls"),
+      primarySkill: observedSkills[0] ?? null,
+      observedSkills,
+    },
+  };
+}
+
+function caseActivationObservation(
+  observations: unknown,
+  details: RecordValue,
+) {
+  const explicit = details.invocation !== undefined;
+  const selected = activationObservation(observations, explicit);
+  if (!selected) return null;
+  if (selected.id === "sevro.claude.repository-invocation") {
+    const invocation = record(details.invocation, "repository invocation");
+    const data = activationData(selected.data);
+    return invocation.scope === "repository" &&
+      data?.skill === invocation.skillName
+      ? selected
+      : null;
+  }
+  if (selected.id !== "sevro.claude.tool-calls") return selected;
+  return implicitClaudeActivation(selected, observations, details);
 }
 
 function matchesSkillExpectations(
@@ -4807,7 +4914,7 @@ async function evaluateCase(params: RecordValue) {
     return { checks, metrics, domainOutcomes: [] };
   const expected = activationExpectation(details.activation);
   const explicit = details.invocation !== undefined;
-  const observation = activationObservation(params.observations, explicit);
+  const observation = caseActivationObservation(params.observations, details);
   const observed = observedActivation(observation, explicit);
   const status = activationStatus(expected, observed);
   return {
@@ -4858,6 +4965,7 @@ if (import.meta.main) {
               "sevro.codex.native-calls",
               "sevro.claude.plugin-dirs",
               "sevro.claude.explicit-invocation",
+              "sevro.claude.repository-invocation",
             ],
             graders: ["darrow.evals.ownership", "darrow.evals.transcript"],
             taskVerdictPolicies: [],
