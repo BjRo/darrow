@@ -294,6 +294,8 @@ without starting a model turn. On macOS with Codex installed, it also drives a
 controlled JSONL turn through the bundled host to verify complete and partial
 native activation receipts end to end without a model call.
 The first focused live run is recorded in [live-validation.md](live-validation.md).
+Suite activation regressions and the focused native Claude suite are recorded
+in [suite-validation.md](suite-validation.md).
 
 The entrypoint supplies `index.ts`, `run.ts`, `sevro-command.ts`, the local
 ticket command, the corpus
