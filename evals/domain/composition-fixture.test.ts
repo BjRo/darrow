@@ -1,31 +1,40 @@
 import { expect, test } from "bun:test";
-import { readFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
-import { parse } from "yaml";
-import { runChecks } from "./checks";
-import { buildFixture, destroyFixture } from "./fixture";
-import type { EvalCase } from "./types";
+import { readFixtureCase, runFixtureChecks } from "./fixture-command";
+import { gitPluginFixtureFiles } from "./fixture-git-plugin";
+import { prepareUvFixtureRuntime } from "./fixture-runtime";
+
+const plugin = new URL(
+  "../../plugins/task-recipe/darrow-ticket-to-pr/",
+  import.meta.url,
+);
+const cases = new URL("skills/ticket-to-pr/evals/", plugin);
+
+function assertPassed(result: Awaited<ReturnType<typeof runFixtureChecks>>) {
+  expect(result.exitCode, result.diagnostic).toBe(0);
+  expect(result.value.execution.status).toBe("completed");
+  expect(result.value.grading.status).toBe("completed");
+  expect(result.value.task.verdict).toBe("passed");
+  expect(result.checks.every((check) => check.status === "passed")).toBe(true);
+}
 
 test("composition records only successful UV publication", async () => {
-  const path = resolve(
-    import.meta.dir,
-    "../../plugins/task-recipe/darrow-ticket-to-pr/skills/ticket-to-pr/evals/composition-existing-pr.yaml",
-  );
-  const entry = parse(await readFile(path, "utf8")) as EvalCase;
-  const repo = await buildFixture({
-    fixture: entry.fixture,
-    caseDir: dirname(path),
-    skillDir: resolve(
-      import.meta.dir,
-      "../../plugins/capability/darrow-git/skills/create-pr",
-    ),
-    skillMounts: [],
-    sourceClaudePlugin: true,
-  });
+  const source = new URL("composition-existing-pr.yaml", cases);
+  const { fixture } = await readFixtureCase(source);
+  const runtime = await prepareUvFixtureRuntime();
+  fixture.files = {
+    ...fixture.files,
+    ...(await gitPluginFixtureFiles()),
+    ".fixture-uv": runtime.bin.uv!,
+  };
+  fixture.bin = { ...fixture.bin, ...runtime.bin };
+  fixture.setup = `${runtime.setupPrefix}\n${fixture.setup ?? ""}\nmv .fixture-plugin .git/eval-plugin\nmv .fixture-uv .git/eval-plugin/fixture-uv\nchmod +x .git/eval-plugin/fixture-uv\nprintf '%s\\n' "$PWD/.git/eval-plugin/fixture-uv" >.git/fixture-bin/uv-command\nuv sync --quiet --frozen --no-dev --project .git/eval-plugin/backend`;
   const command =
     "uv run --quiet --frozen --no-dev --project .git/eval-plugin/backend darrow-create-pr";
-  try {
-    const results = await runChecks(repo, [
+  const result = await runFixtureChecks({
+    source,
+    fixture,
+    fixtureAssets: plugin,
+    checks: [
       {
         name: "inspection is not publication",
         run: `${command} inspect && test ! -e .git/builtin-publications`,
@@ -51,67 +60,53 @@ test("composition records only successful UV publication", async () => {
         name: "exact successful observations",
         run: 'test "$(wc -l < .git/builtin-publications | tr -d " ")" = 2 && test "$(sort -u .git/builtin-publications)" = "$(git rev-parse HEAD)" && test ! -e .git/forbidden-forge-effects',
       },
-    ]);
-    expect(results.filter((result) => !result.passed)).toEqual([]);
-  } finally {
-    await destroyFixture(repo);
-  }
-}, 30000);
+    ],
+  });
+  assertPassed(result);
+}, 30_000);
 
 test("ticket-to-pr options oracle preserves a stricter caller repair limit", async () => {
-  const path = resolve(
-    import.meta.dir,
-    "../../plugins/task-recipe/darrow-ticket-to-pr/skills/ticket-to-pr/evals/explicit-options-delegation.yaml",
-  );
-  const evalCase = parse(await readFile(path, "utf8")) as EvalCase;
-  const repoDir = await buildFixture({
-    skillDir: "",
-    skillMounts: [],
-    fixture: { commits: evalCase.fixture.commits, bin: evalCase.fixture.bin },
-  });
-  try {
-    const record =
-      "record-ticket-to-pr-options https://example.invalid/tickets/99 release/2.x draft";
-    const results = await runChecks(repoDir, [
+  const source = new URL("explicit-options-delegation.yaml", cases);
+  const { fixture, checks } = await readFixtureCase(source);
+  const check = checks[0];
+  if (!check) throw new Error("canonical explicit-options oracle is missing");
+  const record =
+    "record-ticket-to-pr-options https://example.invalid/tickets/99 release/2.x draft";
+  const result = await runFixtureChecks({
+    source,
+    fixture: { commits: fixture.commits, bin: fixture.bin },
+    checks: [
       { name: "missing repair limit is rejected", run: record, exit_code: 1 },
       {
         name: "default cannot replace explicit limit",
-        run: `${record} 2 && (${evalCase.checks[0]!.run})`,
+        run: `${record} 2 && (${check.run})`,
         exit_code: 1,
       },
       {
         name: "omitted caller limit fails the oracle",
-        run: `${record} unspecified && (${evalCase.checks[0]!.run})`,
+        run: `${record} unspecified && (${check.run})`,
         exit_code: 1,
       },
       { name: "explicit limit is accepted", run: `${record} 1` },
-      evalCase.checks[0]!,
+      check,
       {
         name: "changed receipt fails the oracle",
-        run: `printf '%s\\t%s\\t%s\\t%s\\n' https://example.invalid/tickets/99 release/2.x draft 2 >.git/ticket-to-pr-options && (${evalCase.checks[0]!.run})`,
+        run: `printf '%s\\t%s\\t%s\\t%s\\n' https://example.invalid/tickets/99 release/2.x draft 2 >.git/ticket-to-pr-options && (${check.run})`,
         exit_code: 1,
       },
-    ]);
-    expect(results.filter((result) => !result.passed)).toEqual([]);
-  } finally {
-    await destroyFixture(repoDir);
-  }
-});
+    ],
+  });
+  assertPassed(result);
+}, 20_000);
 
 for (const variant of ["existing-pr", "replacement"]) {
   test(`composition ${variant} ticket and oracle agree on trailing newlines`, async () => {
-    const path = resolve(
-      import.meta.dir,
-      `../../plugins/task-recipe/darrow-ticket-to-pr/skills/ticket-to-pr/evals/composition-${variant}.yaml`,
-    );
-    const evalCase = parse(await readFile(path, "utf8")) as EvalCase;
-    const repoDir = await buildFixture({
-      skillDir: "",
-      skillMounts: [],
-      fixture: { commits: evalCase.fixture.commits, bin: evalCase.fixture.bin },
-    });
-    try {
-      const results = await runChecks(repoDir, [
+    const source = new URL(`composition-${variant}.yaml`, cases);
+    const { fixture } = await readFixtureCase(source);
+    const result = await runFixtureChecks({
+      source,
+      fixture: { commits: fixture.commits, bin: fixture.bin },
+      checks: [
         {
           name: "ticket states the oracle's newline policy",
           run: "fetch-work-item https://example.invalid/tickets/42",
@@ -135,10 +130,8 @@ for (const variant of ["existing-pr", "replacement"]) {
           run: `printf '%s\\n' '{"timeoutMs":2500}' 'extra' >config.json && bash check.sh`,
           exit_code: 1,
         },
-      ]);
-      expect(results.filter((result) => !result.passed)).toEqual([]);
-    } finally {
-      await destroyFixture(repoDir);
-    }
-  });
+      ],
+    });
+    assertPassed(result);
+  }, 20_000);
 }

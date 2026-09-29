@@ -165,6 +165,9 @@ semantic-check declarations; see
 [discovery oracle validation](discovery-oracle-validation.md).
 The feedback fixture's six tests retain scoped delivery, rejected approval, and
 bounded diagnostics; see [feedback fixture validation](feedback-fixture-validation.md).
+The four composition fixture tests retain actual publication observations,
+explicit repair limits, and newline policy; see
+[composition fixture validation](composition-fixture-validation.md).
 
 ## Remaining benchmark contracts
 

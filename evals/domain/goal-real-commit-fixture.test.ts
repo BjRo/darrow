@@ -5,13 +5,10 @@ import {
   type OracleCheck,
 } from "./fixture-command";
 import { prepareUvFixtureRuntime } from "./fixture-runtime";
+import { gitPluginFixtureFiles } from "./fixture-git-plugin";
 
 const source = new URL(
   "../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/real-create-commit-composition.yaml",
-  import.meta.url,
-);
-const gitPlugin = new URL(
-  "../../plugins/capability/darrow-git/",
   import.meta.url,
 );
 const notes = "# Notes\nReal commit capability composes.\n";
@@ -24,26 +21,7 @@ const commit =
 async function realCommitFixture() {
   const { fixture } = await readFixtureCase(source);
   const runtime = await prepareUvFixtureRuntime();
-  const files: Record<string, string> = {};
-  const backend = new URL("backend/", gitPlugin);
-  for (const name of ["pyproject.toml", "uv.lock", "scripts/run_locked.py"])
-    files[`.fixture-plugin/backend/${name}`] = await Bun.file(
-      new URL(name, backend),
-    ).text();
-  for await (const name of new Bun.Glob("src/**/*.{py,typed,md}").scan(
-    backend.pathname,
-  ))
-    files[`.fixture-plugin/backend/${name}`] = await Bun.file(
-      new URL(name, backend),
-    ).text();
-  for (const manifest of [
-    ".claude-plugin/plugin.json",
-    ".codex-plugin/plugin.json",
-  ])
-    files[`.fixture-plugin/${manifest}`] = await Bun.file(
-      new URL(manifest, gitPlugin),
-    ).text();
-  fixture.files = { ...fixture.files, ...files };
+  fixture.files = { ...fixture.files, ...(await gitPluginFixtureFiles()) };
   fixture.bin = { ...fixture.bin, ...runtime.bin };
   fixture.setup = `${runtime.setupPrefix}\n${fixture.setup ?? ""}\nmv .fixture-plugin .git/eval-plugin\nuv sync --quiet --frozen --no-dev --project .git/eval-plugin/backend`;
   return fixture;
