@@ -31,7 +31,11 @@ fixture:
       }
   setup: |
     git status --porcelain --untracked-files=all >.git/status-before
+    mkdir -p .git/eval-checks/review/tests/evals
+    cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
+  - name: human response excludes machine JSON
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
   - name: seeded trailing-character defect is detected
     metric: defect_detection
     run: >-
@@ -51,7 +55,9 @@ checks:
       test -n "$record" || exit 1;
       python3 -c 'import json,re,sys; record=json.load(open(sys.argv[1])); assert not any(re.search(r"abstract|inline|generalit",item["evidence"],re.I) for item in record["findings"])' "$record"
   - name: comparative review remains read-only
-    run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
+    run: |
+      git status --porcelain --untracked-files=all >.git/status-after
+      diff -u .git/status-before .git/status-after
   - name: canonical JSON is retained beneath the review scope artifact
     run: >-
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
@@ -73,15 +79,11 @@ checks:
       test -r "$report" && test -s "$report" && test -n "$tool" &&
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render "$record" >.git/expected-review.md &&
       cmp .git/expected-review.md "$report"
-  - name: default response does not expose canonical JSON
-    run: "! grep -F 'darrow-review-result-v3' .git/last-message.md"
-  - name: final response preserves every canonical rendered line
-    run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
-      test -n "$record" || exit 1;
-      tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n '1');
-      test -n "$tool" || exit 1;
-      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render "$record" >.git/expected-review.md &&
-      awk 'NF' .git/expected-review.md >.git/expected-review-normalized.md &&
-      awk 'NF' .git/last-message.md >.git/actual-review-normalized.md &&
-      cmp .git/expected-review-normalized.md .git/actual-review-normalized.md
+semantic_output_checks:
+  - name: review outcome and issues are understandable inline
+    proposition: >-
+      The response identifies that parsePort wrongly accepts a decimal prefix
+      followed by trailing characters, contrary to the requirement to accept only
+      decimal integer strings from 1 through 65535. It explains the issue inline
+      and suggests enforcing the complete input format while retaining the
+      accepted inline design.

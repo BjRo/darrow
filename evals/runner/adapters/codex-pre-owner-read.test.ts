@@ -219,6 +219,28 @@ test("pre-owner read evidence uses complete parent-local pages and native ordina
         complete_body_in_output: true,
       }),
     ]);
+    const secondReader = JSON.parse(
+      JSON.stringify(spawn)
+        .replaceAll("owner-call", "second-call")
+        .replaceAll("/root/worker", "/root/second")
+        .replaceAll('"child"', '"second-child"'),
+    ) as typeof spawn;
+    expect(
+      nativeParentReadDiagnostics(
+        encode([
+          read(2, body),
+          ...spawn,
+          ...secondReader.map((entry) => ({
+            ...entry,
+            ordinal: entry.ordinal + 10,
+          })),
+        ]),
+        repo,
+        roots,
+      ),
+    ).toEqual([
+      expect.objectContaining({ ordinal: 2, complete_body_in_output: true }),
+    ]);
     expect(
       nativeParentReadDiagnostics(
         encode([read(2, body.slice(0, midpoint))]),

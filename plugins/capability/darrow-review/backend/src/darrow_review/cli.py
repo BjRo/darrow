@@ -173,6 +173,7 @@ def result_command(args: list[str]) -> str:
     require(args, "Usage: review-result COMMAND FILE [FILE]")
     command, rest = args[0], args[1:]
     readers = {
+        "read-evidence": read_evidence,
         "prepare-reader": prepare_reader,
         "read-reader": read_reader,
         "reader-feedback": reader_correction,
@@ -196,6 +197,11 @@ def result_command(args: list[str]) -> str:
         "Usage: review-result COMMAND FILE [FILE]",
     )
     return result_operation(command, rest)
+
+
+def read_evidence(args: list[str]) -> str:
+    parsed = options("review-result read-evidence", args, ("repo", "input"))
+    return result.read_evidence(parsed.repo, parsed.input)
 
 
 def prepare_reader(args: list[str]) -> str:

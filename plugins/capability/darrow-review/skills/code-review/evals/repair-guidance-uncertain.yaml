@@ -31,7 +31,11 @@ fixture:
       }
   setup: |
     git hash-object src/send.js >.git/before
+    mkdir -p .git/eval-checks/review/tests/evals
+    cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
+  - name: human response excludes machine JSON
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
   - name: supported signing finding survives uncertainty
     run: |
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n 1)

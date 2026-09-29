@@ -41,7 +41,12 @@ fixture:
           git_dir=$(git rev-parse --git-dir)
           record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
           test -n "$record"
-          python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has outcome clear
+          python3 - "$record" <<'PY'
+          import json, sys
+          with open(sys.argv[1], encoding="utf-8") as source:
+              record = json.load(source)
+          assert record["outcome"] == "clear"
+          PY
           printf '%s\n' complete >"$git_dir/goal-complete"
   files:
     src/config.js: |
@@ -53,6 +58,8 @@ fixture:
     printf '%s\n' "$backend" >.git/review-backend
     mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
+  - name: human response excludes machine JSON
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
   - name: original guidance survives the real review and repair chain
     run: |
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
@@ -83,15 +90,13 @@ checks:
       grep -F 'RETRY_COUNT = 3' "$(dirname "$record")/diff.patch" >/dev/null
   - name: composed repair creates no commit
     run: test "$(git rev-list --count HEAD)" -eq 1
-  - name: default response does not expose raw verification JSON
-    run: "! grep -F 'format	darrow-review-verification-v3' .git/last-message.md"
 semantic_output_checks:
   - name: enclosing goal reports completion
     proposition: The response says the bounded goal completed successfully.
   - name: completion reports the initial independent review outcome
     proposition: >-
       The response says the initial independent review found a blocking
-      RETRY_COUNT or retry-count problem before the repair.
+      problem before the repair. Naming that problem again is not required.
   - name: completion reports clear fix verification
     proposition: >-
       The response says independent fix verification cleared or passed the

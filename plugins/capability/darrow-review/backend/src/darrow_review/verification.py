@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
-from .common import ReviewError, blob_hash, read_text, require
+from . import schema
+from .common import ReviewError, blob_hash, read_text, record_file, require
 from .records import Record, Records, check_records, state
 
 
@@ -235,3 +237,44 @@ def preserve_targets(result: Records, prior: Records) -> None:
         )
     for target in current - expected:
         result.check(False, f"unbound target appeared in target history: {target}")
+
+
+def prior_input(binding: dict[str, Any], prior_target: str) -> Records | None:
+    reference = binding.get(
+        "previous_verification", {"path": "none", "checksum": "none"}
+    )
+    schema.validate_node(
+        reference, schema.object_schema(("path", "checksum")), "previous verification"
+    )
+    path, checksum = reference["path"], reference["checksum"]
+    if path == checksum == "none":
+        require(
+            binding["original_target"] == prior_target
+            and not binding.get("history_targets"),
+            "first reader verification must match original target",
+            4,
+        )
+        return None
+    raw = record_file(path)
+    require(
+        blob_hash(Path(path).read_bytes(), sha256=len(checksum) == 64) == checksum,
+        "previous reader verification checksum differs",
+        4,
+    )
+    prior = validate_verification(raw, path)
+    require(
+        prior.value("current_target") == prior_target
+        and prior.value("original_target") == binding["original_target"]
+        and prior.items("original_findings") == binding["original_findings"],
+        "previous reader verification does not match original or prior target",
+        4,
+    )
+    expected = list(
+        dict.fromkeys([*prior.strings("history_targets"), prior.value("prior_target")])
+    )
+    require(
+        "history_targets" not in binding or binding["history_targets"] == expected,
+        "external reader history differs from validated prior verification",
+        4,
+    )
+    return prior

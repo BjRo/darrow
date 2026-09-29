@@ -88,6 +88,19 @@ def verify_scope(backend: Path, repo: Path) -> None:
         literal,
     )
     check = json.loads((artifact / "check.json").read_text())["checks"][0]
+    evidence = json.loads(
+        runtime(
+            backend,
+            repo.parent,
+            "review-result",
+            "read-evidence",
+            "--repo",
+            str(repo),
+            "--input",
+            str(artifact / "check.json"),
+        )
+    )
+    assert evidence["record"]["checks"] == [check]
     reader_context = artifact / "standards-context.json"
     reader_context.write_text(json.dumps({"sources": []}), encoding="utf-8")
     reader = json.loads(

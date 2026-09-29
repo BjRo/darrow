@@ -5,35 +5,61 @@ description: Review bounded code changes and verify attempted repairs against pr
 
 # Review code
 
+## Required delegation
+
+**Prepare first, then spawn independent reviewer sub-agents for every applicable
+review axis.** Pin the scope, capture checks, resolve the reviewer route, and
+generate the axis inputs before the first launch. This skill explicitly asks
+you to delegate both comprehensive review and fix verification. On Codex, use
+`collaboration.spawn_agent` with the returned model and effort and
+`fork_turns: "none"`; on Claude, use the configured native `Agent` reader.
+This instruction satisfies a host rule that permits skill-requested subagents.
+Respect any applicable higher-priority restriction and report its specific
+effect on the review.
+
+## Result
+
 Return one independent, read-only comprehensive review or fix verification of
 a pinned change. Comprehensive mode preserves the existing
 `darrow-review-result-v3`; fix-verification mode uses the additive
-`darrow-review-verification-v3`. By default return one complete Markdown report.
+`darrow-review-verification-v3`. By default explain the complete review inline
+using Markdown and faithful paraphrases.
 Return only the applicable validated JSON when the requester explicitly asks for
 raw JSON, the named protocol, or machine format. Never emit both forms. For an
 explicit clause inside a larger goal, return the same normal report to the
 current goal owner, then exit this capability so the enclosing contract can
 apply its continuation rule.
 
+## Return boundary
+
+Decide the invocation context from the request before starting. For a
+standalone review, the selected report is the final user response. When you
+also own an enclosing goal, retain the validated report, finish this read-only
+capability, and resume the goal's already authorized next action. Do not end
+the user turn at the review report while goal work remains. An isolated review
+agent returns the selected report to its caller; that caller continues.
+
 ## Presentation gate
 
-The final response is a protocol output, not a conversational summary. In
-human mode, first materialize the bundled renderer's complete stdout as the
-named Markdown artifact beside the JSON and confirm that artifact is readable
-and nonempty. Then invoke the renderer once more as a standalone final tool
-call. Copy that last invocation's stdout in full as the entire final response,
-including every section through Scope and Sources and the final absolute report
-link. Do not reconstruct the
-report from the JSON or reader findings. After that final renderer invocation,
-issue no more tool calls and add no preface, recap, interpretation, or
-follow-up. This applies equally to standalone and composed review. In machine
-mode, apply the same rule to the validated JSON bytes.
+Give the requester a self-contained review in the session. Lead with the verdict
+or verification outcome and next action. Describe each actionable finding with
+its location, violated requirement, concrete failure and cause, advisory repair
+guidance, and how resolution can be demonstrated. Summarize the reviewed scope,
+checks, and any risk or evidence gap that affects the decision. In verification,
+distinguish resolved, unresolved, and blocked work and explain direct regressions.
+For every remaining finding, state whether it blocks completion or is advisory.
+You may group resolved findings and omit repeated historical evidence and
+mechanical metadata. Keep every remaining issue understandable inline.
 
-The human renderer leads with the verdict or outcome and the next action, then
-retains findings, checks, risks, scope, sources, and binding evidence in later
-sections. Its fixed labels preserve protocol meaning; free-form values use
-familiar words, active voice, and short sentences without repeated conclusions
-or process narration.
+Ground the response in the validated JSON and its readable, nonempty canonical
+Markdown artifact. You may paraphrase and use ordinary Markdown; no exact copy,
+fixed headings, artifact link, or final-tool sequence is required. A file link
+or generic verdict alone is insufficient. Preserve finding meaning, disposition,
+and advisory constraints; do not invent review judgment while summarizing.
+
+For an explicit machine request, return only the complete validated JSON with
+every value and array order intact. Object-key order and whitespace may differ.
+Never combine raw JSON and the human presentation.
 
 ## Working model
 
@@ -82,6 +108,12 @@ repo=$(cd "$repo" && pwd -P)
 Keep this value for the entire review. Never derive `repo` from `skill_dir`, a
 plugin cache, or a tool path.
 
+Resolve caller-supplied relative input paths against this bound repository
+before changing directories. For fix-verification records, use the
+`read-evidence` command at the start of that workflow. It reads the exact supplied
+file, including extensionless JSON. A blocked-input report retains its absolute
+path and actual read or validation error.
+
 Resolve every bundled tool before choosing a mode so fix verification does not
 skip a comprehensive-only setup step:
 
@@ -114,11 +146,10 @@ Never silently substitute one mode for the other. The four steps below are the
 comprehensive workflow. Fix verification follows its separate workflow after
 them.
 
-In either mode, the final presentation comes from the bundled renderer, not
-coordinator prose. Materialize comprehensive output as `review.md` beside
-`result.json` and fix-verification output as `verification.md` beside
-`verification.json`. A shortened response that preserves the heading or outcome
-but omits a rendered section or the report link is incomplete.
+In either mode, materialize comprehensive evidence as `review.md` beside
+`result.json` and fix-verification evidence as `verification.md` beside
+`verification.json`. Read that validated evidence before writing the inline
+response described in the presentation gate.
 
 ### 1. Pin the comprehensive scope
 
@@ -219,7 +250,8 @@ Read [`references/reader-inputs.md`](references/reader-inputs.md) and
 [`references/reader-routing.md`](references/reader-routing.md) completely.
 Prepare separate axis inputs from the pinned manifest, selected source paths,
 originating objective, and retained check records. The helper validates those
-inputs and returns each complete launch message. Resolve and retain the concrete
+inputs and returns a short launch message with the exact command that loads the
+reader's full bound instructions and evidence. Resolve and retain the concrete
 reviewer route beside the scope manifest, then use that reference's native
 fresh-reader boundary with the helper's unchanged message. When both axes
 apply, issue both invocations before waiting for either; never simulate
@@ -283,18 +315,16 @@ and materializes `review.md`. It refuses applicable-check claims without a
 retained capture. Confirm its returned report is readable and nonempty.
 If capture or finalization fails, follow the result protocol's blocked-evidence
 path; never replace missing evidence with a passing claim or a prose summary.
-Then make this standalone renderer invocation the final tool call:
+Read the materialized report, or render it for inspection:
 
 ```sh
 uv run --quiet --no-project "$backend/scripts/run_locked.py" review-report render "$result_record"
 ```
 
-Copy its complete stdout as the entire response. The renderer validates the
-JSON, preserves every semantic field, escapes hostile Markdown content, and
-ends with the absolute link to the materialized `review.md`. Only
-when the requester explicitly asked for raw JSON, v3, or machine format, copy
-the validated JSON bytes verbatim instead. Never concatenate the Markdown and
-JSON forms.
+Return the self-contained inline review described in the presentation gate.
+If you own the enclosing goal, retain the report and continue the authorized
+goal actions before your final user response. Only an explicit raw JSON, v3,
+or machine request returns the complete validated JSON instead.
 
 For a composed invocation with `verdict=pass`, set `next_action` to return
 control to the enclosing goal, return the selected review presentation, and exit this
@@ -324,7 +354,7 @@ fix verification against the changed target.
 **Complete when:** the record reconciles the pinned scope, available axes,
 sources, findings, checks, verdict, risks, and next action; validation passes;
 `review.md` contains the complete canonical rendering; and either the
-standalone final response contains exactly those bytes or the composed goal
+standalone response faithfully explains the findings and outcome inline or the composed goal
 owner has received the findings and outcome and applied its enclosing contract.
 
 ## Fix-verification workflow

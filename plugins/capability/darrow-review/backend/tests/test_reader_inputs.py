@@ -13,8 +13,7 @@ from darrow_review import cli
 from darrow_review.common import ReviewError, document, package_root, serialize
 from fixtures import result_record, verification_record, write
 from test_cli_contract import invoke
-from test_finalization import capture, finalize, prepare
-from test_verification import regression
+from test_finalization import capture, finalize, prepare, prior_with_regression
 
 
 def context(run: Path, **values: object) -> str:
@@ -75,6 +74,10 @@ def test_inputs_bind_exact_scope_and_installed_baseline(repo: Path, axis: str) -
     assert result["message"].startswith(f"- review_axis: {axis}\n")
     assert "[READER_INPUT_COMMAND]" not in result["message"]
     assert "read-reader" in result["message"]
+    assert "instructions" in packet
+    assert "darrow-review-axis-v3" in packet["instructions"]
+    assert "repair_guidance" in packet["instructions"]
+    assert "darrow-review-axis-v3" not in result["message"]
     if axis == "standards":
         baseline = (
             package_root().parent / "skills/code-review/references/design-smells.md"
@@ -147,9 +150,12 @@ def test_fix_input_preserves_complete_axis_findings_and_prior_scope(
     assert packet["repair"]["prior_scope"]["manifest"] == prior
     assert "repair_show_command" in packet["scope"]
     assert "Standards" not in result["message"]
+    assert "darrow-review-fix-axis-v3" in packet["instructions"]
+    assert "regression_attempts" in packet["instructions"]
+    assert "darrow-review-fix-axis-v3" not in result["message"]
 
 
-@pytest.mark.parametrize("kind", ["manifest", "source", "packet"])
+@pytest.mark.parametrize("kind", ["manifest", "source", "packet", "instructions"])
 def test_changed_inputs_are_refused_before_reader_use(repo: Path, kind: str) -> None:
     (repo / "file.txt").write_text("changed\n", encoding="utf-8")
     manifest = prepare(repo)
@@ -157,13 +163,19 @@ def test_changed_inputs_are_refused_before_reader_use(repo: Path, kind: str) -> 
     rule.write_text("original\n", encoding="utf-8")
     source = context(Path(manifest).parent, sources=[str(rule)])
     packet = prepared(manifest, "standards", source)["input"]
-    path = {"manifest": Path(manifest), "source": rule, "packet": Path(packet)}[kind]
+    path = {
+        "manifest": Path(manifest),
+        "source": rule,
+        "packet": Path(packet),
+        "instructions": Path(packet),
+    }[kind]
     data = path.read_text(encoding="utf-8")
     if kind == "source":
         path.write_text("changed\n", encoding="utf-8")
-    elif kind == "packet":
+    elif kind in ("packet", "instructions"):
         altered = document(data)
-        cast(dict[str, object], altered["evidence"])["axis"] = "spec"
+        field = "axis" if kind == "packet" else "instructions"
+        cast(dict[str, object], altered["evidence"])[field] = "spec"
         path.write_text(serialize(altered), encoding="utf-8")
     else:
         path.write_text(data + " ", encoding="utf-8")
@@ -302,30 +314,6 @@ def test_comprehensive_original_can_seed_fix_inputs(
         read_packet(packet)["repair"]["original_findings"][0]["key"]
         == f"{axis}:1:{target}"
     )
-
-
-def prior_with_regression(repo: Path) -> tuple[str, str]:
-    (repo / "file.txt").write_text("broken\n", encoding="utf-8")
-    original_scope = prepare(repo)
-    original_target = str(document(Path(original_scope).read_text())["target"])
-    (repo / "file.txt").write_text("first repair\n", encoding="utf-8")
-    prior_scope = prepare(repo, original_scope)
-    prior_target = str(document(Path(prior_scope).read_text())["target"])
-    record = verification_record()
-    record.update(
-        original_target=original_target,
-        prior_target=original_target,
-        current_target=prior_target,
-        outcome="continue",
-    )
-    key = f"spec:1:{original_target}"
-    record["original_findings"][0]["key"] = key
-    record["attempts"][0]["key"] = key
-    carried = regression()
-    carried.update(key=f"regression:1:{key}", caused_by=key)
-    record["regressions"] = [carried]
-    original = write(Path(prior_scope).parent / "verification.json", record)
-    return prior_scope, original
 
 
 @pytest.mark.parametrize("external", [False, True])

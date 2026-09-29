@@ -8,9 +8,19 @@ from pathlib import Path
 from typing import Any, cast
 
 from . import scope
-from .common import ReviewError, document, read_text, require
+from .common import ReviewError, document, read_text, require, root_directory, serialize
 from .records import Record, Records, validate_axis, validate_fix_axis, validate_result
 from .verification import validate_verification
+
+
+def read_evidence(repo: str, supplied: str) -> str:
+    path = (root_directory(repo) / supplied).resolve()
+    require(path.is_file(), f"evidence is not a regular file: {path}")
+    try:
+        record = document(read_text(path, "evidence"))
+    except ReviewError as exc:
+        raise ReviewError(f"cannot read evidence {path}: {exc}", exc.code) from exc
+    return serialize({"path": str(path), "record": record})
 
 
 def original_findings(original: Records) -> list[Record]:

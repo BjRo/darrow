@@ -23,8 +23,12 @@ fixture:
     git status --porcelain --untracked-files=all >.git/status-before
     mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
+  - name: human response excludes machine JSON
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
   - name: every declared layer remains unchanged
-    run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
+    run: |
+      git status --porcelain --untracked-files=all >.git/status-after
+      diff -u .git/status-before .git/status-after
   - name: review creates no commit
     run: test "$(git rev-list --all --reflog --count)" -eq 2
   - name: canonical JSON is retained beneath the review scope artifact
@@ -40,9 +44,7 @@ checks:
       test -n "$record" || exit 1;
       python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has spec not_available &&
       python3 -c 'import json,sys; files=json.load(open(sys.argv[1]))["changed_files"]; assert len(files)==3 and all(sum(path.endswith("/"+name+".txt") for path in files)==1 for name in ("committed","staged","untracked"))' "$record"
-  - name: default response does not duplicate canonical JSON
-    run: "! grep -F 'format	darrow-review-result-v3' .git/last-message.md"
-  - name: final response preserves every canonical rendered line
+  - name: retained Markdown preserves every canonical rendered line
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
@@ -51,5 +53,10 @@ checks:
       expected=.git/expected-review.md;
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render "$record" >"$expected" &&
       awk 'NF' "$expected" >.git/expected-review-normalized.md &&
-      awk 'NF' .git/last-message.md >.git/actual-review-normalized.md &&
+      awk 'NF' "$(dirname "$record")/review.md" >.git/actual-review-normalized.md &&
       cmp .git/expected-review-normalized.md .git/actual-review-normalized.md
+semantic_output_checks:
+  - name: review outcome and issues are understandable inline
+    proposition: >-
+      The response reports the review outcome inline. It does not require the
+      user to open a report file to learn whether review passed or found issues.

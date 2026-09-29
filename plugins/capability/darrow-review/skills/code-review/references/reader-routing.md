@@ -32,7 +32,9 @@ evidence. Repository configuration comes only from the active worktree root.
 
 ## Codex readers
 
-For every applicable axis, use `spawn_agent` with:
+**Call `collaboration.spawn_agent` for every applicable axis, including fix
+verification.** This is an explicit delegation instruction from this skill.
+Use:
 
 - `fork_turns` set to `none` so the context is fresh and route overrides apply;
 - `model` set to the exact selected model;
@@ -73,7 +75,7 @@ child ID are internally consistent. It is not launch evidence by itself. A
 Codex result is admissible only while the coordinator also retains the host's
 accepted `spawn_agent` event for that same child ID, exact model and effort,
 `fork_turns: none`, and a host-visible axis marker in the native task name or
-retained prompt. `confirm-codex` therefore writes a `["route_bound", "true"]`
+retained prompt. `confirm-codex` therefore writes `route_bound: "true"` in a
 binding record, never a standalone verification claim. Missing native evidence
 still blocks the axis.
 
@@ -136,10 +138,14 @@ transcript is insufficient.
 
 ## Bind route failure
 
+If delegation is unavailable, identify the actual applicable host restriction,
+absent native tool, or returned launch error. A conditional host rule that
+permits skill-requested delegation is satisfied by the instruction above.
+
 In comprehensive mode, materialize a schema-valid axis record with
-`["status", "blocked"]` and a `source` naming the exact route evidence gap. In
-fix-verification mode, materialize a schema-valid fix-axis record containing an
-`evidence_gap` naming it. Preserve the selected route record and any observed
+`status: "blocked"` and `sources` naming the exact route evidence gap. In
+fix-verification mode, materialize a schema-valid fix-axis record whose
+`evidence_gaps` names it. Preserve the selected route record and any observed
 route record. Never replace unavailable independent judgment with coordinator
 analysis.
 

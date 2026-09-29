@@ -6,49 +6,8 @@ from pathlib import Path
 from typing import Any
 
 from . import finalization, schema, scope, verification
-from .common import blob_hash, record_file, require, serialize
+from .common import blob_hash, require, serialize
 from .records import Records
-
-
-def previous(binding: dict[str, Any], prior_target: str) -> Records | None:
-    reference = binding.get(
-        "previous_verification", {"path": "none", "checksum": "none"}
-    )
-    schema.validate_node(
-        reference, schema.object_schema(("path", "checksum")), "previous verification"
-    )
-    path, checksum = reference["path"], reference["checksum"]
-    if path == checksum == "none":
-        require(
-            binding["original_target"] == prior_target
-            and not binding.get("history_targets"),
-            "first reader verification must match original target",
-            4,
-        )
-        return None
-    raw = record_file(path)
-    require(
-        blob_hash(Path(path).read_bytes(), sha256=len(checksum) == 64) == checksum,
-        "previous reader verification checksum differs",
-        4,
-    )
-    prior = verification.validate_verification(raw, path)
-    require(
-        prior.value("current_target") == prior_target
-        and prior.value("original_target") == binding["original_target"]
-        and prior.items("original_findings") == binding["original_findings"],
-        "previous reader verification does not match original or prior target",
-        4,
-    )
-    expected = list(
-        dict.fromkeys([*prior.strings("history_targets"), prior.value("prior_target")])
-    )
-    require(
-        "history_targets" not in binding or binding["history_targets"] == expected,
-        "external reader history differs from validated prior verification",
-        4,
-    )
-    return prior
 
 
 def repair_input(
@@ -87,7 +46,7 @@ def repair_input(
         "reader attempted keys must belong to its original axis",
     )
     records.finish()
-    prior = previous(binding, prior_scope["target"])
+    prior = verification.prior_input(binding, prior_scope["target"])
     regressions = prior.items("regressions") if prior else []
     own_regressions = [row for row in regressions if row["axis"] == axis]
     require(

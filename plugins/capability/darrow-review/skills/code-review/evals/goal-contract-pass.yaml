@@ -32,14 +32,21 @@ fixture:
           git_dir=$(git rev-parse --git-dir)
           record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n 1)
           test -n "$record"
-          python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has verdict pass
-          python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has next_action 'return control to enclosing goal'
+          python3 - "$record" <<'PY'
+          import json, sys
+          with open(sys.argv[1], encoding="utf-8") as source:
+              record = json.load(source)
+          assert record["verdict"] == "pass"
+          assert record["next_action"] == "return control to enclosing goal"
+          PY
           printf '%s\n' complete >"$git_dir/goal-complete"
   files:
     src/rate.js: "export const RATE_LIMIT = 2;\n"
   setup: |
     mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
+  - name: human response excludes machine JSON
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
   - name: passing review returns control to the enclosing goal
     run: test "$(cat .git/goal-complete)" = complete
   - name: candidate content remains unchanged
@@ -59,8 +66,6 @@ checks:
       python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has next_action 'return control to enclosing goal' &&
       python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks-key findings
     expect_regex: "^valid: darrow-review-result-v3$"
-  - name: default response does not duplicate canonical JSON
-    run: "! grep -F 'format	darrow-review-result-v3' .git/last-message.md"
 semantic_output_checks:
   - name: enclosing goal reports completion
     proposition: The response says the bounded goal completed successfully.

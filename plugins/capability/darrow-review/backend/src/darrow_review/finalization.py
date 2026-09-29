@@ -113,6 +113,19 @@ def original_binding(path: str) -> dict[str, object]:
     }
 
 
+def retained_attempts(draft: Records, previous: Records | None) -> list[Record]:
+    current = draft.items("attempts")
+    if previous is None:
+        return current
+    supplied = {row["key"] for row in current}
+    carried = [
+        row
+        for row in previous.items("attempts")
+        if row["status"] == "resolved" and row["key"] not in supplied
+    ]
+    return [*current, *carried]
+
+
 def repaired(
     draft: Records, manifest: str, original: str, output: str
 ) -> dict[str, object]:
@@ -122,9 +135,22 @@ def repaired(
     require(prior_path, "fix verification requires a pinned prior manifest", 4)
     scope.compare(prior_path, manifest)
     prior = scope.manifest(prior_path)
+    binding = original_binding(original)
+    previous = verification.prior_input(binding, prior["target"])
+    history = (
+        list(
+            dict.fromkeys(
+                [*previous.strings("history_targets"), previous.value("prior_target")]
+            )
+        )
+        if previous
+        else []
+    )
     data = {
         **draft.data,
-        **original_binding(original),
+        **binding,
+        "history_targets": history,
+        "attempts": retained_attempts(draft, previous),
         "prior_target": prior["target"],
         "current_target": current["target"],
         "outcome": "blocked",

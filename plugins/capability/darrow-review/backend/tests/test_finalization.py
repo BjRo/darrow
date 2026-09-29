@@ -15,6 +15,7 @@ from darrow_review import cli
 from darrow_review.common import ReviewError, blob_hash, serialize
 from darrow_review.records import Records
 from fixtures import result_record, verification_record, write
+from test_verification import regression
 
 
 def prepare(repo: Path, prior: str = "") -> str:
@@ -103,6 +104,100 @@ def test_prior_verification_history_is_carried_without_transcription(
     assert result.value("prior_target") == previous.value("current_target")
     assert result.items("original_findings") == previous.items("original_findings")
     assert result.value("outcome") == "clear"
+
+
+def prior_with_regression(repo: Path) -> tuple[str, str]:
+    (repo / "file.txt").write_text("broken\n", encoding="utf-8")
+    original_scope = prepare(repo)
+    original_target = Records(Path(original_scope).read_text(encoding="utf-8")).value(
+        "target"
+    )
+    (repo / "file.txt").write_text("first repair\n", encoding="utf-8")
+    prior_scope = prepare(repo, original_scope)
+    prior_target = Records(Path(prior_scope).read_text(encoding="utf-8")).value(
+        "target"
+    )
+    record = verification_record()
+    record.update(
+        original_target=original_target,
+        prior_target=original_target,
+        current_target=prior_target,
+        outcome="continue",
+    )
+    key = f"spec:1:{original_target}"
+    record["original_findings"][0]["key"] = key
+    record["attempts"][0]["key"] = key
+    carried = regression()
+    carried.update(key=f"regression:1:{key}", caused_by=key)
+    record["regressions"] = [carried]
+    original = write(Path(prior_scope).parent / "verification.json", record)
+    return prior_scope, original
+
+
+@pytest.mark.parametrize("history", [None, [], ["unbound"]])
+def test_external_history_finalization(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, history: list[str] | None
+) -> None:
+    prior_scope, previous = prior_with_regression(repo)
+    old = Records(Path(previous).read_text(encoding="utf-8"))
+    handoff: dict[str, object] = {
+        "original_target": old.value("original_target"),
+        "original_findings": old.items("original_findings"),
+        "previous_verification": {
+            "path": previous,
+            "checksum": blob_hash(Path(previous).read_bytes()),
+        },
+    }
+    if history is not None:
+        handoff["history_targets"] = history
+    source = write(Path(prior_scope).parent / "external.json", handoff)
+    (repo / "file.txt").write_text("second repair\n", encoding="utf-8")
+    manifest = prepare(repo, prior_scope)
+    draft = {**old.data, "next_action": "return control to enclosing goal"}
+    # History comes from the bound prior artifact, never a copied draft.
+    draft.pop("history_targets", None)
+    draft_path = write(Path(manifest).parent / "draft.json", draft)
+    receipt = capture(repo, manifest, monkeypatch)
+    if history is not None:
+        with pytest.raises(ReviewError, match="history"):
+            finalize(manifest, draft_path, receipt, source)
+        assert not (Path(manifest).parent / "verification.json").exists()
+        return
+    output = finalize(manifest, draft_path, receipt, source)
+    final = Records(Path(output).read_text(encoding="utf-8"))
+    assert final.strings("history_targets") == [old.value("original_target")]
+    assert final.items("original_findings") == old.items("original_findings")
+    assert final.value("outcome") == "continue"
+
+
+@pytest.mark.parametrize("reopened", [False, True])
+def test_regression_only_finalization_preserves_resolved_originals(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, reopened: bool
+) -> None:
+    prior_scope, previous = prior_with_regression(repo)
+    old = Records(Path(previous).read_text(encoding="utf-8"))
+    (repo / "file.txt").write_text("regression repaired\n", encoding="utf-8")
+    manifest = prepare(repo, prior_scope)
+    current = {
+        **old.items("attempts")[0],
+        "status": "unresolved",
+        "progress": "unchanged",
+        "evidence": "current verifier observed the original defect again",
+    }
+    draft = {
+        "format": "darrow-review-verification-v3",
+        "attempts": [current] if reopened else [],
+        "regressions": [
+            {**row, "status": "resolved", "progress": "resolved", "evidence": "fixed"}
+            for row in old.items("regressions")
+        ],
+        "next_action": "return control to enclosing goal",
+    }
+    source = write(Path(manifest).parent / "draft.json", draft)
+    output = finalize(manifest, source, capture(repo, manifest, monkeypatch), previous)
+    final = Records(Path(output).read_text(encoding="utf-8"))
+    assert final.items("attempts") == ([current] if reopened else old.items("attempts"))
+    assert final.value("outcome") == ("no_progress" if reopened else "clear")
 
 
 @pytest.mark.parametrize(

@@ -13,15 +13,18 @@ code.
 ### Session reminder
 
 A plugin-local SessionStart hook adds a short, conditional reminder to load
-`code-review` for review and repair-verification requests, launch its configured
-independent readers, and complete its canonical report. Delegated axis readers
+`code-review` for review and repair-verification requests, gives its resolved
+absolute skill path, and asks the coordinator to launch its configured
+independent readers and complete its canonical report. Delegated axis readers
 stay within their assigned role. The reminder does not initiate review or grant
 authority for implementation or publication.
 
 Codex uses Bash on Unix and PowerShell on Windows. Claude has its own Bash hook
 registration. Native hook trust must be enabled in the host. The coordinator
 still launches reviewers through native tools; this static reminder cannot
-override host restrictions.
+override host restrictions. When the host permits subagents requested by a
+skill, the review skill's explicit reader requirement satisfies that condition.
+An unconditional prohibition still blocks review.
 
 In a 70-trial Codex comparison of version **0.8.1** at `gpt-6-luna/medium`, positive activation was
 **25/25 with the reminder versus 22/25 without it**. Across the four cases with
@@ -34,44 +37,20 @@ Live Claude and Windows hook execution remain unverified. See the
 [evaluation findings](../../../docs/research/gpt-6-luna-evals-issue-228.md#review-follow-up-conditional-session-reminder-2026-09-28)
 for the case breakdown, blocked-check results, and retained failures.
 
-A focused **0.8.2** renderer follow-up preserved readable leading underscores
-using CommonMark syntax rules. Exact final copying passed **15/15** trials
-across both-axes review, low-noise review, and resolved fix verification,
-with five trials per case. Task checks passed **13/15**; the two remaining
-low-noise failures involved unreadable reviewer input paths. All configured
-reviewer axes launched, but those input failures blocked one axis per failed
-trial. See the
-[renderer follow-up](../../../docs/research/gpt-6-luna-evals-issue-228.md#review-follow-up-syntax-based-underscore-rendering-2026-09-28)
-for retained failures and the recommended next discussion.
+The [stabilization report](../../../docs/research/darrow-review-luna-medium-stabilization-2026-09-29.md)
+tracks the current Luna/medium follow-up, including workflow repairs, eval
+corrections, activation-observer fixes, and their evidence limits. Earlier
+renderer, reader-input, and current-format measurements remain in the
+[evaluation history](../../../docs/research/gpt-6-luna-evals-issue-228.md).
 
-A focused **0.8.3** follow-up generates separate reader inputs for both review
-modes and permits one diagnostic-only correction to the same native reader.
-Low-noise and pull-request review each passed **5/5**. Across four selected
-cases, task checks passed **18/20** and activation passed **20/20**; both-axes
-review and resolved fix verification each passed **4/5**. The remaining failures
-were final-report copying and incorrect rejection of a supported legacy
-handoff before delegation. This is not a full-plugin pass. See the
-[reader-input follow-up](../../../docs/research/gpt-6-luna-evals-issue-228.md#review-follow-up-generated-reader-inputs-2026-09-28)
-for all results, assessments, and evidence limits.
-
-A focused **0.9.0** follow-up removes legacy finding-format support and updates
-the prepared handoffs to include repair guidance and resolution evidence.
-Resolved fix verification passed **2/5**, with activation, both native reviewer
-launches, valid artifacts, and exact final copying each passing **5/5**.
-In two failed trials the coordinator discarded returned judgments because it
-reported changed task messages. The third reported an incorrect Standards
-helper path. The actual launch messages were absent from retained evidence.
-The changed contract and fixture prevent a matched comparison with 0.8.3.
-See the [current-format follow-up](../../../docs/research/gpt-6-luna-evals-issue-228.md#review-follow-up-current-finding-records-only-2026-09-28)
-for failures, the adjacent delivery check, and remaining limitations.
-
-The **0.9.1** cleanup also removes a missed sentence in the main skill that still
-allowed absent legacy guidance. A fresh comparison on the same modern fixture
-passed **4/5 on 0.8.3** and **5/5 on unchanged 0.9.0**; the corrected 0.9.1 then
-passed **5/5** under the same conditions. The earlier 2/5 result is retained;
-these small samples do not establish a causal improvement or reliable 5/5
-behavior. See the [matched comparison](../../../docs/research/gpt-6-luna-evals-issue-228.md#review-follow-up-matched-current-format-comparison-2026-09-28)
-for the correction, complete evidence, and final candidate verification.
+For **0.10.6**, all 31 Codex Luna/medium cases have a passing n:5 batch: 155/155
+task and activation/avoidance passes in the selected coverage runs. These are
+sequential runs and focused retests, not one uninterrupted clean sweep. Two
+earlier read-only failures remain open: PR and Standards-only review each left
+an unidentified worktree change once, then passed two unchanged n:5 repeats.
+Each is 14/15 task across those three batches. The stabilization report preserves
+those failures and the improved changed-path diagnostics; clean repeats do not
+establish a fix.
 
 ## What it provides
 
@@ -80,10 +59,13 @@ for the correction, complete evidence, and final candidate verification.
 Reviews a pull request, branch, fixed-point diff, or selected working-tree
 layer. It pins the base, target, and complete changed-file set before review;
 runs applicable deterministic checks; delegates standards and specification
-analysis independently; then returns one complete Markdown report with only
-evidence-backed findings. The validated `darrow-review-result-v3` remains the
+analysis independently; then explains the outcome and evidence-backed findings directly in the session. The validated `darrow-review-result-v3` remains the
 canonical artifact beneath the review scope and is returned only when explicitly
 requested as raw machine format.
+
+The response may use concise paraphrases and ordinary Markdown. It includes the
+issues, evidence, advice, and blockers inline; opening a report file is not
+required. Complete JSON and Markdown artifacts remain retained for verification.
 
 Each finding explains the failure and its cause, then carries the originating
 reviewer's suggested repair, rationale, important constraints, and observable
@@ -106,8 +88,8 @@ and unresolved advisories never gate convergence.
 
 Example: _“Review all uncommitted changes.”_
 
-The default response starts with the decision a human needs, then keeps the
-full traceability later in the same report:
+The default response starts with the decision a human needs and explains each
+issue inline. For example:
 
 ```md
 # Code review — FAIL
@@ -194,6 +176,11 @@ aggregate, each fix-verification axis, and additive repair-verification records.
 This keeps status, severity, lifecycle identity, progress, prior-artifact
 continuity, evidence, and target binding mechanically consistent while leaving
 code judgment to the reviewers.
+`read-evidence --repo <repository> --input <supplied-path>` reads an exact
+caller-owned JSON file before fix verification. Relative paths resolve against
+the repository, including extensionless files. The output contains its absolute
+path and unchanged record; directories and invalid or unreadable files produce
+concrete errors.
 `original-findings` copies the complete original finding entries with stable
 cross-axis keys; `validate-original` checks a follow-up against that retained
 comprehensive result, including advisory entries and exact source/evidence text,
@@ -214,12 +201,14 @@ required guidance fields, target bindings, and prior-verification history.
 It writes only inside the current private review run. Readers still own
 judgment; the coordinator still chooses sources, checks, and accepted findings.
 
-`prepare-reader` generates a separate immutable input and complete launch
-message for each axis. It binds the scope and retained checks, embeds readable
+`prepare-reader` generates a separate immutable input and short launch
+message for each axis. It binds the complete reader instructions, scope, and
+retained checks, embeds readable
 source content with original citation paths, and resolves the installed
 Standards baseline. Fix inputs preserve the axis's original findings, prior
 scope, and carried regressions. `read-reader` rejects changed or unavailable
-required evidence before judgment.
+required evidence before judgment and returns the full instructions and schema
+directly to the reader. The coordinator only relays the short loading command.
 
 An input-read error or invalid returned record permits one diagnostic-only
 correction with the same route-bound native reader. `reader-feedback` retains
@@ -232,8 +221,9 @@ The human renderer keeps ordinary identifiers such as `not_applicable` and
 leading underscores in paths such as `/_cache/file.js` readable. It preserves
 single underscores followed by a letter or digit, which cannot close Markdown
 emphasis, and escapes potential closing delimiters and repeated underscores.
-The same rule protects arbitrary content in both review modes. The final
-response continues to contain the complete canonical report and artifact link.
+The same rule protects retained report content in both review modes. The session
+response explains the issues inline and may paraphrase without repeating the
+complete report or its artifact link.
 
 ### Reviewer routes
 
@@ -373,9 +363,9 @@ or use `/darrow-review:code-review` in Claude Code, followed by your request.
 
 ## Expected result
 
-A pinned report leads with its verdict and next action, then retains findings,
-checks, risks, scope, and sources. Its final link opens the retained complete
-report. Validated evidence artifacts remain available,
+The session response leads with its verdict and next action, then explains the
+findings, relevant checks, risks, and scope inline. It may group resolved items
+and omit repeated history. Complete validated evidence artifacts remain saved,
 and product files stay unchanged.
 
 ## Troubleshooting

@@ -245,8 +245,11 @@ def validate_string(value: object, schema: dict[str, Any], path: str) -> None:
 
 
 def validate_array(value: object, schema: dict[str, Any], path: str) -> None:
-    if not isinstance(value, list) or len(value) < schema.get("minItems", 0):
-        invalid(path, "must be an array of the required size")
+    if not isinstance(value, list):
+        invalid(path, "must be an array")
+    minimum = schema.get("minItems", 0)
+    if len(value) < minimum:
+        invalid(path, f"must contain at least {minimum} item; received {len(value)}")
     for index, item in enumerate(value):
         validate_node(item, schema["items"], f"{path}[{index}]")
 

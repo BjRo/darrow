@@ -71,6 +71,8 @@ fixture:
     printf '%s\n' "$backend" >.git/review-backend
     mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
+  - name: human response excludes machine JSON
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
   - name: verification preserves the repair bytes
     run: git hash-object src/config.js >.git/config-after; cmp .git/config-before .git/config-after
   - name: verification remains read only
@@ -104,7 +106,7 @@ checks:
       uv run --quiet --frozen --no-dev --project .git/eval-checks/review
       python .git/eval-checks/review/tests/evals/eval_routes.py
       --host "$DARROW_EVAL_HARNESS" --profile default --axes standards spec
-  - name: final response is the complete rendered verification report
+  - name: retained verification report preserves the complete canonical evidence
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
       test -n "$record" &&
@@ -115,12 +117,13 @@ checks:
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render-verification "$record" >.git/expected-verification.md &&
       awk 'NF' .git/expected-verification.md >.git/expected-verification-normalized.md &&
       awk 'NF' "$report" >.git/retained-verification-normalized.md &&
-      awk 'NF' .git/last-message.md >.git/actual-verification-normalized.md &&
-      cmp .git/expected-verification-normalized.md .git/retained-verification-normalized.md &&
-      cmp .git/expected-verification-normalized.md .git/actual-verification-normalized.md
-  - name: verification response renders values as ordinary Markdown text
-    run: >-
-      ! grep -F '<code>' .git/last-message.md &&
-      ! grep -F '</code>' .git/last-message.md &&
-      ! grep -F '`' .git/last-message.md &&
-      esc=$(printf '\033]8;') && ! grep -F "$esc" .git/last-message.md
+      cmp .git/expected-verification-normalized.md .git/retained-verification-normalized.md
+semantic_output_checks:
+  - name: review outcome and issues are understandable inline
+    proposition: >-
+      The response reports clear fix verification: all prior findings are
+      resolved and current checks pass. It may group resolved findings rather
+      than repeat their individual values. If mentioned, DEBUG must be false,
+      TIMEOUT_MS must be 2500, and LEGACY must be removed. Reject a report-file
+      link or unexplained verdict alone, a remaining unresolved or blocked
+      finding, a failed current check, or incorrect claims about those values.

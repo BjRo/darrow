@@ -11,25 +11,19 @@ canonical mechanical artifact. JSON string escaping preserves tabs and newlines
 in fields. Do not select an arbitrary JSON: `scope.json` and axis records are
 not aggregate results.
 
-Default standalone and composed responses are a Markdown rendering of that
-validated artifact. Materialize it as `review.md` beside `result.json`, confirm
-that file is readable and nonempty, then use one dedicated final
-`uv run --quiet --no-project "$backend/scripts/run_locked.py" review-report render "$result_record"` invocation and return its complete
-stdout. The renderer preserves all fields, escapes hostile content, and does
-not include raw JSON. Only an explicit request for raw JSON, v3, or machine
-format returns the JSON bytes. The object has `"format": "darrow-review-result-v3"` and a required `next_action`. This applies
-to `pass`, `fail`, `blocked`, invalid-base, ambiguous-base, and empty-diff
-outcomes.
+Materialize `review.md` beside `result.json` using the bundled renderer and
+confirm that it is readable and nonempty. This artifact preserves every field
+and escapes hostile content. The default session response is a self-contained
+inline review grounded in those validated artifacts. Follow the main skill's
+presentation gate: preserve findings, outcome, advisory constraints, and
+important gaps while allowing concise paraphrases and ordinary Markdown.
+An artifact link does not replace the explanation, and no link is required.
+Only an explicit raw JSON, v3, or machine request returns the complete validated
+JSON, without prose. This applies to passing, failing, and blocked outcomes.
 
-The human rendering presents the verdict or outcome and next action first,
-then retains findings, checks, risks, scope, sources, and binding evidence in
-later sections. This order changes no canonical JSON field or meaning.
-
-For an explicit review clause inside a larger goal, return the selected normal
-presentation rather than the enclosing goal's response envelope. The goal owner
-interprets its findings and outcome, applies the enclosing continuation contract,
-and may summarize the review in its own final response. Consumers do not need
-to parse or reproduce the JSON serialization.
+In composed use, return the findings and outcome to the goal owner. When you
+also own that goal, retain the report and resume its authorized continuation
+before answering the user. Consumers need not reproduce the serialization.
 
 Use `next_action=return control to enclosing goal` for a composed pass,
 `next_action=return findings to enclosing goal` for a composed fail, and
@@ -161,13 +155,10 @@ uv run --quiet --no-project "$backend/scripts/run_locked.py" review-report rende
 test -r "$review_report" && test -s "$review_report"
 ```
 
-If that succeeds, make a standalone
-`uv run --quiet --no-project "$backend/scripts/run_locked.py" review-report render "$result_record"` the final tool call and copy its
-complete stdout as the entire response. Do not handwrite, shorten, or reconstruct
-it. In explicit machine mode, copy the validated file bytes verbatim. In
-composed mode, return the selected review report to the goal owner and exit the
-capability. Add no remediation, commit, publication, approval, merge, release,
-or deploy action inside review.
+If that succeeds, explain the blocked outcome, exact evidence gap, and next
+action inline. In machine mode, return only the complete validated JSON.
+In composed mode return the gap to the goal owner and exit the capability.
+Repair, completion, and publication remain outside review.
 
 ## Fix-verification artifact
 
@@ -339,10 +330,9 @@ In default mode render with:
 uv run --quiet --no-project "$backend/scripts/run_locked.py" review-report render-verification "$verification_record"
 ```
 
-After confirming `verification.md` is readable and nonempty, make this
-renderer invocation the last tool command and copy its stdout verbatim as the
-entire response. A handwritten summary is incomplete. When the requester
-explicitly asks for verification JSON or machine format, return only the
-validated JSON bytes. A composed caller interprets `clear`, `continue`,
-`no_progress`, or `blocked` semantically and retains all repair, stop,
-goal-status, and publication authority outside this read-only capability.
+After confirming `verification.md` is readable and nonempty, inspect it and
+return an inline verification under the main skill's presentation gate. Preserve
+the outcome, remaining issues, resolutions, checks, and evidence gaps without
+requiring exact wording or an artifact link. For an explicit machine request,
+return only the complete validated JSON. The enclosing goal retains all repair,
+stop, goal-status, completion, and publication authority.

@@ -86,6 +86,23 @@ def test_result_wire_format_uses_named_objects() -> None:
     assert data["checks"][0]["status"] == "pass"
 
 
+@pytest.mark.parametrize(
+    ("sources", "diagnostic"),
+    [
+        ("Originating request: RATE_LIMIT must equal 2", "sources: must be an array"),
+        ([], "sources: must contain at least 1 item; received 0"),
+    ],
+)
+def test_axis_source_correction_has_actionable_diagnostic(
+    sources: object, diagnostic: str
+) -> None:
+    data = axis_record()
+    data["sources"] = sources
+    with pytest.raises(ReviewError) as error:
+        validate_axis(serialize(data), "spec")
+    assert str(error.value).endswith(diagnostic)
+
+
 def test_original_report_and_handoff(tmp_path: Path) -> None:
     original = write(tmp_path / "original.json", result_record())
     verification = write(tmp_path / "verification.json", verification_record())

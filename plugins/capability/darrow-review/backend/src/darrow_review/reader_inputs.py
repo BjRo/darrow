@@ -129,6 +129,9 @@ def evidence(request: dict[str, Any]) -> dict[str, object]:
         "objective": context.get("objective", ""),
         "checks": checks,
         "check_records": [source(path) for path in request["check_records"]],
+        "instructions": template(
+            axis, "fix-verification" if request["original"] else "comprehensive"
+        ),
     }
     if axis == "standards":
         result["baseline"] = source(
@@ -164,14 +167,15 @@ def template(axis: str, mode: str) -> str:
 def launch_message(path: str, packet: dict[str, object]) -> str:
     axis, mode = str(packet["axis"]), str(packet["mode"])
     command = command_line(entrypoint("review-result", "read-reader", "--input", path))
-    prompt = template(axis, mode)
-    require(
-        prompt.count("[READER_INPUT_COMMAND]") == 1,
-        "invalid reader command placeholder",
-        4,
-    )
-    return f"- review_axis: {axis}\n" + prompt.replace(
-        "[READER_INPUT_COMMAND]", command
+    return (
+        f"- review_axis: {axis}\n"
+        f"You are the isolated {axis} reader for {mode}. Remain read-only; "
+        "do not run Git/GitHub, write files, or delegate.\n"
+        "Run this exact command, then follow the complete instructions in its "
+        "validated output and return only the requested axis JSON:\n"
+        f"{command}\n"
+        "This is a delegated reader assignment, not the code-review coordinator "
+        "workflow. Do not load or restart that workflow."
     )
 
 

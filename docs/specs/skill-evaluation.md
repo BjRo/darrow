@@ -443,6 +443,29 @@ not prove equivalence or savings.
   Missing intervals, altered content and pages split across actors do not.
   Exact source coverage may be embedded in compound command output; unrelated
   returned text neither contributes coverage nor erases verified source bytes.
+  A yielded Codex command may expose its early output only in tool-result
+  chunks. Recover those chunks only when their process identifier binds to one
+  completed native command in the same actor's session, before that completion.
+  Keep the existing successful mounted-read and complete-body requirements;
+  unmatched, ambiguous, late, or cross-actor chunks establish no read. Retain
+  bounded recovery facts, never tool output or skill text. Diagnostic fields
+  distinguish the completed command's output from recovered earlier chunks.
+  A completed executor result may also carry the complete body while the native
+  command output is empty. Recover its plain text only when one unique matching
+  executor call encloses exactly one native command completion, with no
+  interleaved tool calls, duplicate results, or reused command identity in the
+  same actor. The host's completed-executor envelope and the complete mounted
+  body remain required. Arbitrary objects and printed nested result JSON cannot
+  supply this evidence. Retain this recovery separately from yielded chunks.
+  When plain output arrives before its native command completes, bind it only
+  through a unique unconditional top-level awaited `tools.exec_command` with a
+  literal command and direct `text(result.output)`, plus one matching completed
+  native command in the same actor. Reject dynamic or conditional code, changed
+  output, mismatched working directories, duplicate commands or results, and
+  missing completion. Submitted code alone never proves execution. Retain only
+  the recovery fact, not submitted code or output.
+  Parent read diagnostics remain available when a review launches multiple
+  independent readers; diagnostic retention requires no single-owner claim.
   Native recovery reconciles completeness and shared read-order anchors without
   repairing invalid explicit dispatch. Conflicting source orders remain
   unknown; recovered earlier reads are not appended after known later reads.

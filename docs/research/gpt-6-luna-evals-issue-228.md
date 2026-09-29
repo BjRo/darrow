@@ -1128,6 +1128,198 @@ cannot prove complete native command execution or delivery. Live Claude and
 Windows behavior remains unmeasured. This is one focused case, not a full-plugin
 pass.
 
+#### Review follow-up: full Codex n:5 sweep (2026-09-29)
+
+The complete **darrow-review 0.9.1** sweep ran all **31 cases × n:5 = 155
+trials** against frozen commit `5de063cf`, using Codex CLI 0.156.1,
+`gpt-6-luna`/medium, jobs 3 and a 100% threshold. Every trial finished despite
+failures; no plugin, fixture, runner or grading change occurred during the
+measurement. The 104 snapshot files and all case hashes matched afterward.
+
+Results: **137/155 task passes**, **153/155 activation or avoidance passes**,
+and **22/31 cases at 5/5 on both**. Positive activation was **143/145**;
+negative avoidance was **10/10**. The retained native graph has **187 accepted
+`gpt-6-sol`/xhigh reader launches** and **10 `gpt-5.5`/xhigh launches** from the
+explicit override case. The semantic output grader remained
+`gpt-5.6-luna`/low. Total run time was approximately 200 minutes.
+
+The [full Markdown overview](darrow-review-luna-medium-full-sweep-2026-09-29.md)
+lists every case, the nine below threshold, ownership assessments and next
+steps. The [detailed local overview](../../evals/results/review-full-sweep-2026-09-29/overview.md)
+retains all **20 trials** that failed either task or activation, including the
+two task-passing activation evidence failures.
+
+Two goal-completion fixtures call a hidden oracle from their public completion
+script, violating the runner's deliberate grading isolation. Repair those
+fixtures first. Other failures concern supplied-input binding, report copying,
+a machine byte-order assertion stronger than CR-C15, two unverified complete
+skill reads and one reported host delegation prohibition. The exact private
+launch text, some output-transport boundaries and effective host policy remain
+unverified. None of these raw failures was regraded or replaced with a green
+rerun. Earlier history/state-transfer audit findings remain open.
+
+#### Review follow-up: inline presentation and state repairs (2026-09-29)
+
+The **0.10.0** candidate implements the user's decision to explain review issues
+directly in the session without verbatim report copying or a required artifact
+link. It also fixes public goal-completion fixtures, enclosing-goal continuation,
+prior verification history, and preservation of resolved originals in later
+regression-only rounds. Complete reviewer instructions now live in the validated
+axis input, so Luna relays a short loading command to each independent reviewer.
+
+The full Python quality gate and fresh runtime-only installation check pass.
+Progress/advisory verification, default presentation, and machine output each
+passed a fresh **5/5 task and activation** run. Default presentation first had
+an overstrict assertion requiring separate resolution-check sentences; its raw
+1/5 result, calibration, and fresh retest are retained separately.
+
+Worktree review passed task checks in three matched n:5 batches. Activation was
+**3/5, then 5/5 and 5/5** on the unchanged candidate. The user chose to resolve
+activation evidence before continuing. A controlled yielded-command probe
+reproduced an observer defect: Codex delivered the full skill in an early tool
+result, but the completed command contained only its final output chunk. The
+runner now recovers earlier chunks bound to the same process and actor. The
+controlled live retest passed task and activation, followed by **5/5 task and
+activation** in an ordinary worktree retest. The remaining sweep has resumed.
+Original early output is unavailable for the two historical misses,
+which remain unresolved individually. This is not a completed 31-case pass. The
+[stabilization report](darrow-review-luna-medium-stabilization-2026-09-29.md)
+records every failure cluster, fix, calibration, live result, and limitation.
+
+The resumed clean-goal case exposed another invalid reader record and a separate
+incomplete activation observation: **4/5 task and 4/5 activation**. Reader
+instructions contradicted their JSON schema and left inline-request citations
+unclear. **0.10.1** clarifies types and citations, and validation now gives exact
+array errors for the bounded correction. The fresh clean-goal retest passed
+**5/5 task and activation**. Its complete skill reads were observed directly;
+the older partial reads remain unresolved individually. All **325 review tests**
+and the complete Python quality gate passed. A fresh campaign then measured
+0.10.1; earlier case passes were not treated as final-version coverage.
+
+Further checks found two presentation assertions still demanding historical
+advice or literal source/axis labels. Calibration preserved defect detection
+while accepting the approved semantic response. A fresh Spec-only trial then
+misread the host's conditional delegation policy as an unconditional ban.
+**0.10.2** clarifies the skill-request exception in the skill and reminder;
+Spec-only passed **5/5 task and activation**, with all ten readers returning.
+An explicit no-delegation control made zero launch attempts and reported
+blocked. Earlier failures and all assertion-calibration counterexamples remain
+in the stabilization report.
+
+The unavailable-check case then exposed an ambiguous request and a genuine
+skill-load failure: Luna expanded a catalog alias without the plugin-name
+directory. The request now asks for the actual checks; its blocked-command
+assertions are unchanged. **0.10.3** advertises the resolved absolute skill
+entrypoint through the existing conditional session hook. The fresh case passed
+**5/5 task and activation**, with every trial reading the full skill on its first
+attempt. A new campaign then measured 0.10.3. The Python gate passed
+with **326 review tests passing and one PowerShell test skipped**.
+
+That campaign passed both negative boundaries. The override case exposed two
+eval defects: an unadvertised `gpt-5.5` fixture route and selection of an
+abandoned preparation directory. The corrected advertised override and
+finalized-scope check passed a fresh **5/5 task and activation** run. The next
+regression-follow-up case passed **4/5 task, 5/5 activation**; one coordinator
+again misread the host's conditional delegation rule after loading the skill.
+The **0.10.4** candidate puts a direct reviewer-delegation instruction first
+and at the native launch step. Its focused retest passed **5/5**. The complete
+Python gate passed with **329 review tests and one PowerShell skip**, and all
+seven entrypoints passed the fresh runtime-only installation check.
+
+The next campaign exposed an extra inherited reviewer launch before preparation,
+despite passing task checks. **0.10.5** orders preparation before delegation and
+the progress case now checks every native reviewer launch. Its fresh retest
+passed **5/5**. Machine presentation also exposed a second observer defect: one
+native command had empty aggregate output although the model-visible result
+contained the full skill. This miss is individually proven. Strict same-call,
+same-actor recovery now handles that completed-output envelope; the fresh
+machine case passed **5/5 task and activation**. Historical unproved reads remain
+separate.
+
+The 0.10.5 campaign reached **39/40 task and 40/40 activation** across eight
+cases. One alternative-repair trial mistook an extensionless JSON handoff for an
+empty directory. An unchanged diagnostic batch passed **5/5**, but retained an
+initial directory assumption and subsequent recovery in one trial. **0.10.6**
+adds an exact, repository-bound `read-evidence` command at the start of fix
+verification. Its six focused regressions and fresh-install check passed; the
+full Python gate passed with **336 review tests and one PowerShell skip**.
+A new 31-case n:5 campaign is in progress. The detailed stabilization report
+preserves all earlier failures, calibrations, and evidence limits.
+
+The 0.10.6 campaign also found an invalid requirement to duplicate a captured
+blocked check in `evidence_gaps`, and presentation assertions still requiring
+separate advice for an obvious actual-versus-required behavior. Calibrated
+assertion repairs preserve the exact blocked-check evidence, both seeded
+defects, blocking dispositions, and rejection of contradictory advice.
+
+A third activation miss is individually proven to have received the full skill:
+an early plain-text tool result preceded a later native command completion.
+A controlled reproduction failed activation before the observer fix and passed
+afterward, with the new recovery path explicitly observed. Recovery requires
+one unconditional literal command, direct output, and a unique same-actor native
+completion; ambiguous evidence remains unknown. The ordinary unavailable-check
+retest passed **5/5 task and activation**. Earlier unproved reads remain unproved.
+The runner's **97 adapter tests**, **5 compatibility tests**, typing, and affected
+lint passed.
+
+The route-override case had one interrupted partial attempt after a trial
+stalled without native activity; its four completed results remain retained.
+After correcting its presentation assertion, the fresh full case passed
+**5/5 task and activation**, with all ten readers on its configured
+`gpt-5.6-sol`/xhigh route. The unfinished trial is not counted as either a
+completed measurement or a demonstrated skill failure.
+
+Subsequent presentation checks still demanded separate advisory labels,
+repeated historical advice, exact values for grouped resolved findings, or an
+explicit discussion of an excluded recommendation. Those expectations were
+aligned with the approved inline contract, calibrated against retained valid
+responses and counterexamples, and followed by fresh n:5 passes. The unchanged
+0.10.6 candidate has completed **18 cases at 5/5 task and activation**.
+
+Pull-request review then passed **4/5 task and 5/5 activation**. One trial left
+a dirty worktree, but the old assertion discarded changed paths and the
+fixture was cleaned up. Two focused unchanged n:5 repeats passed **10/10**,
+with clean worktrees observed throughout under expanded capture. The original
+failure remains unresolved; no product fix is claimed. The user explicitly
+authorized continuing the remaining twelve cases and two adjacent composition
+checks while keeping this failure open. The second diagnostic supplies current
+PR coverage. The detailed stabilization report preserves this limitation.
+
+Continued coverage passed adversarial read-only review, repair guidance, and
+unavailable-route handling at **5/5 task and activation** each. Standards-only
+review then passed **4/5 task, 5/5 activation**; one trial left an unidentified
+additional worktree change while all review checks passed. Two unchanged n:5
+diagnostics passed **10/10** with no extra changes observed. The original failure
+remains open, and no shared cause with the PR failure is established. Status
+diffs and broader bounded worktree capture now preserve paths for future
+failures. The user explicitly authorized finishing coverage while keeping both
+original worktree failures open. The second diagnostic supplies current
+Standards-only coverage without establishing a repair.
+
+All **31 review cases now have a passing n:5 batch** on the unchanged 0.10.6
+runtime and skill: **155/155 task**, **145/145 positive activation**, and
+**10/10 negative avoidance** in the selected coverage runs. These comprise
+sequential runs and focused retests, not one uninterrupted clean sweep. The
+native audit found 191 accepted gpt-6-sol/xhigh readers and ten accepted
+gpt-5.6-sol/xhigh override readers, all with fresh context; no extra or
+unclassified launch remained. Three full skill reads naturally exercised the
+completed-call observer recovery.
+
+The two adjacent composition checks completed in passive mode, n:1 each:
+**1/2 task and 2/2 activation**. Existing-review repair passed after the same
+Luna/medium owner recovered from a blocked first follow-up. The high-risk routine
+case completed its implementation and independent review, but its owner used
+Luna/high because preflight selected `routine-plus`; the valid route assertion
+expects `routine` and Luna/medium. This is an Adaptive Delivery profile-selection
+defect for that plugin's planned later pass. Its review component passed, but
+the full adjacent gate remains failed.
+
+| Open case                                              | What failed                                                                                                       | Assessment                                                                                                  | Recommendation                                                                                                                        |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `code-review-pull-request`                             | One trial left an unidentified dirty worktree; the old check discarded changed paths.                             | Ownership unresolved. Two unchanged n:5 repeats passed; 14/15 task overall does not establish a fix.        | Keep the failure open and retain status diffs and bounded write evidence if it recurs. Preserve the read-only contract.               |
+| `code-review-standards-only`                           | One trial added worktree status content despite claiming no files were modified; changed paths were not retained. | Ownership unresolved. Two unchanged n:5 repeats passed; no shared cause with the PR failure is established. | Keep the failure open under the same expanded capture. Do not replace diagnosis with a stronger skill instruction without evidence.   |
+| `goal-preflight-high-risk-routine` (Adaptive Delivery) | Preflight selected `routine-plus` and launched Luna/high for clear, localized work; review and completion passed. | Orchestration profile-selection defect; the current Luna/medium expectation is valid.                       | Investigate risk versus reasoning-demand classification during the planned Adaptive Delivery pass; retain the failed adjacent result. |
+
 ### darrow-skill-authoring
 
 | Case                                                                                                                                            | What failed                                                                                                       | Assessment                                  | Recommended next step                                                                                                                                                                                                                                                                            |

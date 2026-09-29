@@ -32,6 +32,10 @@ import {
 import { CODEX_EVAL_ROLE_DEFAULTS } from "../model-defaults";
 import { retainedCodexGoalControls } from "./codex-goal-tools";
 import {
+  nativeCommandOutputs,
+  type RecoveredCommandOutput,
+} from "./codex-command-output";
+import {
   reviewAxesFromTaskName,
   type ReviewAxis,
 } from "../native-review-proof";
@@ -2391,26 +2395,38 @@ function nativeCommandText(value: unknown): string | undefined {
 }
 
 function nativeSkillReadEvents(session: string): CodexEvent[] {
-  return codexNativeSessionEntries(session).entries.flatMap((entry) => {
-    const { payload } = entry;
-    const item = isRecord(payload.item) ? payload.item : undefined;
-    if (payload.type !== "item_completed" || item?.type !== "CommandExecution")
-      return [];
-    const command = nativeCommandText(item.command);
-    if (!command) return [];
-    return [
-      {
-        type: "item.completed",
-        item: {
-          type: "command_execution",
-          command,
-          aggregated_output: item.aggregated_output,
-          exit_code: item.exit_code,
-          status: item.status,
-        },
-      },
-    ];
+  const { entries } = codexNativeSessionEntries(session);
+  const yielded = nativeCommandOutputs(entries);
+  return entries.flatMap((entry) => {
+    const event = nativeSkillReadEvent(entry, yielded.get(entry.ordinal));
+    return event ? [event] : [];
   });
+}
+
+function nativeSkillReadEvent(
+  entry: CodexNativeSessionEntry,
+  yielded?: RecoveredCommandOutput,
+): CodexEvent | undefined {
+  const { payload } = entry;
+  const item = isRecord(payload.item) ? payload.item : undefined;
+  if (payload.type !== "item_completed" || item?.type !== "CommandExecution")
+    return undefined;
+  const command = nativeCommandText(item.command);
+  if (!command) return undefined;
+  const output =
+    typeof item.aggregated_output === "string" ? item.aggregated_output : "";
+  return {
+    type: "item.completed",
+    item: {
+      type: "command_execution",
+      command,
+      aggregated_output: yielded
+        ? yielded.output + output
+        : item.aggregated_output,
+      exit_code: item.exit_code,
+      status: item.status,
+    },
+  };
 }
 
 function acceptedNativeChildThreadIds(session: string): string[] {
@@ -2460,13 +2476,17 @@ export function nativeParentReadDiagnostics(
   const { entries, malformed } = codexNativeSessionEntries(session);
   if (malformed) return [];
   const spawn = entries.find((entry) => isNativeSpawnCall(entry.payload));
-  if (spawn && !retainedSingleNativeAgent(entries, false).length) return [];
   const roots = codexTrackedSkillRoots(repoDir, installedSkillsRoot);
   const mounted = mountedSkillBodies(repoDir, installedSkillsRoot);
+  const yielded = nativeCommandOutputs(entries);
   const diagnostics = entries
     .filter((entry) => !spawn || entry.ordinal < spawn.ordinal)
     .flatMap((entry) =>
-      nativeReadDiagnosticsAtEntry(entry, repoDir, roots, mounted),
+      nativeReadDiagnosticsAtEntry(
+        entry,
+        { repoDir, roots, mounted },
+        yielded.get(entry.ordinal),
+      ),
     );
   return diagnostics.slice(-24).map((record) => ({
     ...record,
@@ -2474,20 +2494,42 @@ export function nativeParentReadDiagnostics(
   }));
 }
 
+function nativeReadRecoveryFacts(
+  recovery: RecoveredCommandOutput | undefined,
+  output: string,
+  body: string,
+): Record<string, unknown> {
+  if (!recovery) return {};
+  const complete = (recovery.output + output).includes(body);
+  return recovery.completedCall || recovery.literalCommandCall
+    ? {
+        ...(recovery.completedCall
+          ? { completed_call_output_recovered: true }
+          : {}),
+        ...(recovery.literalCommandCall
+          ? { literal_command_output_recovered: true }
+          : {}),
+        earlier_output_chunks: recovery.chunks,
+        complete_body_after_call_recovery: complete,
+      }
+    : {
+        yielded_output_chunks: recovery.chunks,
+        complete_body_after_yield_recovery: complete,
+      };
+}
+
 function nativeReadDiagnosticsAtEntry(
   entry: CodexNativeSessionEntry,
-  repoDir: string,
-  roots: string[],
-  mounted: MountedSkillBody[],
+  context: { repoDir: string; roots: string[]; mounted: MountedSkillBody[] },
+  yielded?: RecoveredCommandOutput,
 ): Record<string, unknown>[] {
-  const event = nativeSkillReadEvents(JSON.stringify(entry))[0];
+  const { repoDir, roots, mounted } = context;
+  const event = nativeSkillReadEvent(entry, yielded);
   if (!event) return [];
-  const output =
-    typeof event.item?.aggregated_output === "string"
-      ? event.item.aggregated_output
-      : "";
-  const recognized = eventSkillReads(event, roots, mounted);
   const item = entry.payload.item as Record<string, unknown>;
+  const output =
+    typeof item.aggregated_output === "string" ? item.aggregated_output : "";
+  const recognized = eventSkillReads(event, roots, mounted);
   return mounted
     .filter(
       (skill, index) =>
@@ -2505,6 +2547,7 @@ function nativeReadDiagnosticsAtEntry(
       recognized_read: recognized.includes(skill.name),
       complete_body_in_output: output.includes(skill.body),
       frontmatter_in_output: output.includes(skill.frontmatter),
+      ...nativeReadRecoveryFacts(yielded, output, skill.body),
       finished_command: finishedCommandForSkillRead(event) !== undefined,
       native_read_path_binds: nativeReadPathBinds(
         item,
@@ -2586,9 +2629,14 @@ function nativeChildReadDiagnostics(
     const parsed =
       session === undefined ? undefined : codexNativeSessionEntries(session);
     const available = parsed !== undefined && !parsed.malformed;
+    const yielded = nativeCommandOutputs(parsed?.entries ?? []);
     const diagnostics = available
       ? parsed.entries.flatMap((entry) =>
-          nativeReadDiagnosticsAtEntry(entry, repoDir, roots, mounted),
+          nativeReadDiagnosticsAtEntry(
+            entry,
+            { repoDir, roots, mounted },
+            yielded.get(entry.ordinal),
+          ),
         )
       : [];
     const identity = { actor: "accepted_child", child_thread_id: threadId };

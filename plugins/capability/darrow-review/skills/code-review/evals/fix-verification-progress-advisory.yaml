@@ -1,6 +1,6 @@
 id: code-review-fix-verification-progress-advisory
 activation: positive
-invariant: CR-C17,CR-C18,CR-C19,CR-E13
+invariant: CR-C17,CR-C18,CR-C19,CR-C21,CR-E13,CR-E14
 prompt: >-
   Verify my uncommitted repair against only the prior code-review findings in
   `.git/verification-input`. Use `bash check.sh` as current check evidence.
@@ -53,13 +53,23 @@ fixture:
     git status --porcelain --untracked-files=all >.git/status-before
     git hash-object src/value.js >.git/value-before
     mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
+    cp "{{case_dir}}/../../../backend/tests/evals/eval_routes.py" .git/eval-checks/review/tests/evals/
 checks:
+  - name: human response excludes machine JSON
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
   - name: progress verification remains read only
     run: >-
       git status --porcelain --untracked-files=all >.git/status-after &&
-      cmp .git/status-before .git/status-after &&
+      diff -u .git/status-before .git/status-after &&
       git hash-object src/value.js >.git/value-after &&
       cmp .git/value-before .git/value-after
+  - name: only the two configured independent verifiers are launched
+    run: >-
+      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n 1) &&
+      test -n "$tool" &&
+      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}"
+      python .git/eval-checks/review/tests/evals/eval_routes.py
+      --host "$DARROW_EVAL_HARNESS" --profile default --axes standards spec
   - name: progressing blocker keeps convergence open
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
@@ -74,7 +84,7 @@ checks:
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
       original_target=$(python3 -c 'import json; print(json.load(open(".git/verification-input"))["original_target"])') &&
       python3 -c 'import json,sys; record=json.load(open(sys.argv[1])); assert any(item["key"]==sys.argv[2] and item["status"]=="unresolved" and item["progress"]=="unchanged" for item in record["attempts"])' "$record" "standards:2:$original_target"
-  - name: final response is the complete rendered verification report
+  - name: retained verification report preserves the complete canonical evidence
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
       test -n "$record" &&
@@ -85,6 +95,12 @@ checks:
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render-verification "$record" >.git/expected-verification.md &&
       awk 'NF' .git/expected-verification.md >.git/expected-verification-normalized.md &&
       awk 'NF' "$report" >.git/retained-verification-normalized.md &&
-      awk 'NF' .git/last-message.md >.git/actual-verification-normalized.md &&
-      cmp .git/expected-verification-normalized.md .git/retained-verification-normalized.md &&
-      cmp .git/expected-verification-normalized.md .git/actual-verification-normalized.md
+      cmp .git/expected-verification-normalized.md .git/retained-verification-normalized.md
+semantic_output_checks:
+  - name: review outcome and issues are understandable inline
+    proposition: >-
+      The response explains that value 1 still violates the required minimum of
+      2, so verification must continue or further repair is needed. It identifies
+      the remaining comment as advisory and does not claim that the comment
+      blocks completion. Repeating the original nonnumeric value or defining
+      the word advisory is not required.

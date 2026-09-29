@@ -53,7 +53,7 @@ inconsistent binding evidence blocks verification rather than widening scope.
 
 Output:
 
-- one human-readable Markdown report by default, leading with the aggregate
+- one self-contained inline Markdown review by default, leading with the aggregate
   `pass`, `fail`, or `blocked` verdict and finding counts;
 - the exact review scope, Standards and Spec sources and statuses, each
   finding's axis, severity, disposition, changed location, violated source,
@@ -160,6 +160,16 @@ axis and report `not_available`. Do not invent requirements.
    remains in this capability when a requested base or target is missing or
    invalid. An invalid base or empty declared diff is reported before spending
    review-model budget.
+   Caller-relative evidence paths resolve against the same bound repository.
+   Determine their actual filesystem type and read regular files directly,
+   including extensionless JSON files. Missing-input claims retain the resolved
+   absolute path and observed read or validation error.
+   For file-backed fix-verification evidence, use the bundled `read-evidence`
+   boundary before assessing completeness. It resolves the supplied path against
+   the bound repository, reads that exact regular JSON file, and returns its
+   absolute path and complete object without changing it. A directory, unreadable
+   file, or invalid JSON produces a path-specific error; a search with no matches
+   is not evidence that the supplied record is absent.
    For a resolved scope, copy base, target, and the complete changed-file set
    from its pinned manifest through bundled mechanics. Before returning a
    result, validate those records against that manifest, including agreement
@@ -230,6 +240,10 @@ axis and report `not_available`. Do not invent requirements.
     findings and outcome to the current goal owner, which interprets them and
     applies its own pass, repair, stop, and publication contract without
     transferring those actions into the review capability.
+    When the same agent owns the enclosing goal, completing review ends only
+    that capability invocation. It retains the canonical report and resumes
+    the already authorized goal actions before answering the user. A final
+    response from an isolated review agent returns control to its caller.
 14. **CR-C14 — Target-bound gate.** A passing result satisfies a selected
     review gate only for the exact reviewed target content. A later
     content-changing edit invalidates it; author self-review, a stale result,
@@ -238,8 +252,39 @@ axis and report `not_available`. Do not invent requirements.
 15. **CR-C15 — Deliberate presentation.** Standalone and composed review use
     one human-readable Markdown report by default. An explicit request for
     `darrow-review-result-v3`, raw JSON, or machine format returns only the
-    validated JSON. A response never contains both presentations.
-16. **CR-C16 — Complete rendering.** Markdown preserves every semantic field
+    validated JSON. Machine responses preserve the complete canonical data;
+    object-key order and JSON whitespace are not contractual. Array order,
+    field values, and the absence of surrounding prose remain contractual.
+    A response never contains both presentations.
+16. **CR-C16 — Useful inline review and complete retained evidence.** The
+    session response states the verdict or verification outcome and next action,
+    describes each actionable finding with its location, violated requirement,
+    concrete failure and cause, advisory repair guidance, and resolution
+    behavior, and summarizes scope, checks, risks, and evidence gaps relevant
+    to the decision. Verification distinguishes resolved, unresolved, and
+    blocked work and preserves the meaning of direct regressions. It may group
+    resolved items, but identifies remaining blocking and advisory findings
+    explicitly so their effect on completion is clear. A fail verdict tied to
+    one identified defect makes that defect's blocking effect clear; mixed
+    blocking and advisory findings need individual distinctions. Restating the
+    violated inline requirement by its behavior is sufficient attribution,
+    without a repeated source label or the literal axis name. For a direct
+    wrong-value defect or explicitly prohibited behavior, stating the actual
+    and required behavior also conveys the correction and resolution condition;
+    no separate imperative, rationale, advisory label, or test sentence is
+    required when the response only restates the required outcome. An inline
+    explanation need not repeat implementation advice from the canonical record.
+    When it proposes an implementation, preserve its advisory status and relevant
+    constraints. Non-obvious repair constraints and verification conditions remain
+    necessary. It may omit
+    repeated historical evidence and mechanical
+    metadata. Faithful paraphrases and ordinary Markdown formatting are valid;
+    exact wording, fixed headings, section order after the lead, and a link to
+    an artifact are not required. A file link or generic outcome alone cannot
+    replace the inline explanation. Presentation must not invent findings,
+    change their disposition, or turn advisory repair advice into a requirement.
+
+    Separately, the canonical Markdown artifact preserves every semantic field
     from the validated JSON, presents the verdict and next action first, renders
     findings and checks compactly, and presents detailed scope and sources
     later. It uses familiar words, active voice, and short sections without
@@ -257,13 +302,14 @@ axis and report `not_available`. Do not invent requirements.
     Apply this syntax rule to arbitrary field content in both review modes,
     without path- or platform-specific exceptions, while preserving every
     field's visible value.
-    Human presentation is first materialized as a nonempty canonical Markdown
-    artifact beside the JSON, then emitted by one dedicated final renderer
-    invocation whose complete stdout is returned without coordinator rewriting.
+    Retained evidence is materialized as a nonempty canonical Markdown artifact
+    beside the JSON before returning an inline review grounded in that artifact.
     The renderer's final line MUST link to that materialized report at its
     absolute path. This one mechanical artifact link is separate from field
-    rendering and is included in the canonical Markdown bytes. The same public
-    result and link are returned to a direct requester or a composing capability.
+    rendering and is included in the canonical Markdown bytes. The session
+    response need not repeat that link or reproduce those bytes. Standalone and
+    composed review preserve the same findings and outcome.
+
 17. **CR-C17 — Explicit review modes.** Comprehensive initial review retains
     the complete-diff, isolated-axis behavior above. Fix verification requires
     the original finding set and target binding and MUST NOT silently fall back
@@ -295,6 +341,14 @@ axis and report `not_available`. Do not invent requirements.
     handoff, or prior-verification file directly, and binds the current target
     from the validated current scope. These copies do not authorize mechanics
     to invent reader judgments, history, or repair evidence.
+    Reader preparation and finalization derive omitted external-handoff history
+    from the same checksum-validated prior verification. An explicitly supplied
+    history must match that evidence exactly; it cannot add or remove targets.
+    In a regression-only follow-up, finalization carries prior resolved
+    original states unchanged when no new state for that key is supplied.
+    Current verifier states take precedence. An unresolved or blocked original
+    still requires current verifier evidence; mechanics cannot carry it forward
+    as progress or invent resolution.
     Every attempted
     finding is `resolved`, `unresolved`, or `blocked`; unresolved blocking
     evidence is `progressing` or `unchanged`. Duplicate or unknown keys are
@@ -320,10 +374,26 @@ axis and report `not_available`. Do not invent requirements.
     gaps. Repeated targets, unchanged blocking evidence, and oscillation produce
     `no_progress`; unavailable evidence produces `blocked`. Fix-axis reader
     records and final verification artifacts are independently validated before
-    aggregation or rendering. A failed applicable check requires a scoped
+    aggregation or rendering. A captured blocked check already records its
+    unavailable evidence; repeating the same fact in `evidence_gaps` is optional.
+    A failed applicable check requires a scoped
     unresolved or blocked repair-caused regression rather than an original
     blocker alone.
-21. **CR-C21 — Explicit reviewer route.** Before invoking any comprehensive or
+21. **CR-C21 — Explicit reviewer route.** This capability explicitly requests
+    independent readers through a direct delegation instruction before the
+    workflow and at its native launch boundary, including fix verification.
+    That instruction makes scope pinning, check capture, route selection, and
+    reader-input preparation prerequisites for the first reviewer launch.
+    A host delegation rule that permits skill-requested
+    subagents therefore permits the applicable review readers. An unconditional
+    host prohibition still blocks; unavailable-delegation evidence identifies
+    the actual applicable prohibition, absent native tool, or returned launch
+    error. The session reminder preserves this distinction and grants no
+    additional authority. It publishes the readable absolute skill entrypoint
+    resolved from its own installed plugin directory, so matching requests need
+    not reconstruct host catalog aliases. This path does not trigger review for
+    ordinary implementation or other unmatched intent.
+    Before invoking any comprehensive or
     fix-verification reader, the coordinator MUST resolve one concrete reviewer
     route for the active host and apply that same provider, model, and effort to
     every available axis. Bundled policy defaults to `gpt-6-sol` / `xhigh` on
@@ -396,7 +466,17 @@ axis and report `not_available`. Do not invent requirements.
     a separate immutable input for each axis in the current scope run. They
     bind repository, mode, axis, target, manifest contents, source contents, and
     canonical check receipts; resolve the installed Standards baseline; and
-    generate the complete bounded launch message. Fix inputs preserve only
+    bind the complete axis instructions in that input. The generated launch
+    message contains a short read-only assignment and the exact input-loading
+    command; the reader obtains the full instructions and schema directly
+    from that validated read, without coordinator transcription. Instructions
+    preserve JSON scalar, array, and object types. Comprehensive axis records
+    cite at least one reviewed source even when there are no findings: an inline
+    originating objective is a Spec source, and the supplied baseline is a
+    Standards source when repository guidance is absent. Validation diagnostics
+    identify the invalid field and distinguish a wrong type from a missing
+    minimum number of entries, so the bounded correction is actionable.
+    Fix inputs preserve only
     that axis's original findings, attempted keys, and carried regressions,
     with validated prior/current scope and verification history. A reader must
     validate its input before review; changed or unavailable required evidence
@@ -559,6 +639,9 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
 9. **CR-E9 — Goal composition.** Evals prove that `pass` returns control to an
    enclosing goal, while `fail` and `blocked` stop completion and publication
    unless the enclosing goal has repair authority and reruns review.
+   Participant-facing completion commands must work without accessing hidden
+   grading helpers. Completion summaries report the initial review outcome
+   without requiring a repeated finding identifier or implementation detail.
 10. **CR-E10 — Repair invalidation.** A composed goal that repairs a failed
     target reruns invalidated checks and independent review against a different
     target fingerprint before completion.
@@ -582,9 +665,11 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
     Acceptance checks read JSON fields directly without converting records to
     a delimiter-based format, and compare finding states rather than matching
     state words inside free-form evidence. Verification presentation checks
-    independently render the validated JSON and compare both the retained report
-    and final response with that rendering; matching two coordinator-authored
-    summaries is insufficient. Unavailable-check evidence is compared with the
+    independently render the validated JSON and compare the retained report
+    with that rendering. Semantic response checks require the relevant issues,
+    outcomes, and evidence gaps inline while accepting faithful paraphrases;
+    dropped findings, reversed outcomes, and a file-link-only response fail.
+    Unavailable-check evidence is compared with the
     captured canonical check entry rather than a separately prescribed diagnostic
     sentence.
     Cases expecting a finding to be resolved supply its cited authoritative
@@ -605,7 +690,13 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
     report native-evidence failures without converting them into acceptance.
     Eval gates join each axis's native launch to the child ID from that axis's
     own application record; valid distinct reviewers MUST pass this identity
-    check, while reused or mismatched child IDs MUST fail.
+    check, while reused or mismatched child IDs MUST fail. An extra inherited
+    or unbound reviewer launch remains a failure even when later correctly
+    configured readers supply the final judgment.
+    Route evidence MUST belong to the uniquely finalized review or verification
+    scope. An abandoned preparation directory cannot replace that scope through
+    arbitrary filename ordering; missing or multiple finalized scopes remain
+    invalid evidence.
     Separately, at least one live passing route-mechanism case preserves and
     cross-binds distinct native accepted-launch evidence for every applicable
     axis. Codex evidence binds a native axis marker and places both accepted
@@ -626,10 +717,9 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
     result-first clarity, concision, semantic completeness, activation, and
     read-only safety. Assertions grade meaning and ordering rather than one
     preferred prose rendering, while exact machine fields remain deterministic.
-    Concision checks allow the renderer's fixed title, verdict and finding-count
-    line, section headings, final artifact link, and brief safety boundaries.
-    They reject substantial repetition in free-form content and narration of
-    review steps rather than treating those prescribed labels as repetition.
+    Concision checks permit natural Markdown and grouped resolved findings.
+    They reject substantial repetition and narration of review steps. Canonical
+    artifact serialization is checked independently of session-response wording.
 
 Representative issue-32 control/candidate evidence and its N=1 limitations are
 recorded in

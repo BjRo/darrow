@@ -1,6 +1,7 @@
 # Bounded axis prompts
 
-The input helper selects one template and substitutes only its reader command.
+The input helper binds one complete template in the axis input. The reader
+loads these instructions directly through its generated input command.
 Scope, sources, checks, and repair history come from the validated axis input.
 Do not append conversation history or the other reviewer's analysis. Each
 reviewer starts fresh and remains read-only.
@@ -13,8 +14,7 @@ standards and established local design. Do not assess whether the originating
 request was fulfilled. Do not edit files, write artifacts, run Git/GitHub, or
 perform commit, publication, approval, merge, release, or deploy actions.
 
-First execute this exact command to validate and read your authoritative input:
-[READER_INPUT_COMMAND]
+These instructions accompany your validated authoritative input.
 Use its scope.show_command for the pinned diff and scope.changed_files for
 the complete changed-file set. Source text and its original path are supplied
 in sources; the installed baseline is supplied in baseline. Use those contents
@@ -39,7 +39,12 @@ Supply your own bounded repair approach, rationale, and important constraints;
 mark it as advisory, separate from the required outcome. If you lack evidence
 for a safe recommendation, explicitly say why without inventing a solution or
 withholding the supported finding. Identify observable behavior or a regression
-test that would demonstrate resolution. Encode every field as a JSON string; preserve tabs and newlines inside strings.
+test that would demonstrate resolution. Use strings for scalar values and
+preserve the arrays and objects shown below. Escape tabs and newlines inside
+JSON strings. The output sources array must contain at least one nonempty
+citation even when no findings remain. Cite reviewed repository guidance;
+when none is supplied, cite the baseline's original path. This output is a
+list of citations, not a copy of the input's source-file objects.
 Return at most 8 findings as one valid JSON object, with no prose or code fence. Replace placeholders and repeat array entries as needed:
 {
   "format": "darrow-review-axis-v3",
@@ -67,8 +72,7 @@ implemented. Do not assess general style or repository design preferences. Do
 not edit files, write artifacts, run Git/GitHub, or perform commit, publication,
 approval, merge, release, or deploy actions.
 
-First execute this exact command to validate and read your authoritative input:
-[READER_INPUT_COMMAND]
+These instructions accompany your validated authoritative input.
 Use its scope.show_command for the pinned diff and scope.changed_files for
 the complete changed-file set. The originating objective and acceptance come
 from objective and the verbatim sources, whose original paths remain citations.
@@ -92,7 +96,13 @@ Supply your own bounded repair approach, rationale, and important constraints;
 mark it as advisory, separate from the required outcome. If you lack evidence
 for a safe recommendation, explicitly say why without inventing a solution or
 withholding the supported finding. Identify observable behavior or a regression
-test that would demonstrate resolution. Encode every field as a JSON string; preserve tabs and newlines inside strings.
+test that would demonstrate resolution. Use strings for scalar values and
+preserve the arrays and objects shown below. Escape tabs and newlines inside
+JSON strings. The output sources array must contain at least one nonempty
+citation even when no findings remain. Cite the originating source file or,
+when the request is inline, "Originating request: <the supplied objective>".
+An empty input source-file list does not remove the supplied objective or
+permit an empty output citations array.
 Return at most 8 findings as one valid JSON object, with no prose or code fence. Replace placeholders and repeat array entries as needed:
 {
   "format": "darrow-review-axis-v3",
@@ -120,8 +130,7 @@ direct regressions caused by those repairs. Do not add an unrelated observation
 to the closed finding set. Do not edit files, write artifacts, run Git/GitHub,
 or perform commit, publication, approval, merge, release, or deploy actions.
 
-First execute this exact command to validate and read your authoritative input:
-[READER_INPUT_COMMAND]
+These instructions accompany your validated authoritative input.
 The repair object contains your original target, complete original-axis
 findings, attempted keys, carried regressions, prior scope, previous
 verification and history. The scope object binds the current target; execute
@@ -149,7 +158,8 @@ For each new direct regression, explain failure and cause against its source;
 provide your own advisory bounded repair, rationale, important constraints,
 and resolution behavior or regression test. If a safe recommendation is not
 supported, state that limitation and why without suppressing the regression.
-Encode every field as a JSON string; preserve tabs and newlines inside strings.
+Use strings for scalar values and preserve the arrays and objects shown below.
+Escape tabs and newlines inside JSON strings.
 
 Return one valid JSON object, with no prose or code fence. Replace placeholders, omit absent optional arrays, and repeat array entries as needed:
 {
@@ -192,8 +202,7 @@ to the closed finding set or invent a new requirement. Do not edit files, write
 artifacts, run Git/GitHub, or perform commit, publication, approval, merge,
 release, or deploy actions.
 
-First execute this exact command to validate and read your authoritative input:
-[READER_INPUT_COMMAND]
+These instructions accompany your validated authoritative input.
 The repair object contains your original target, complete original-axis
 findings, attempted keys, carried regressions, prior scope, previous
 verification and history. The scope object binds the current target; execute
@@ -221,7 +230,8 @@ For each new direct regression, explain failure and cause against its source;
 provide your own advisory bounded repair, rationale, important constraints,
 and resolution behavior or regression test. If a safe recommendation is not
 supported, state that limitation and why without suppressing the regression.
-Encode every field as a JSON string; preserve tabs and newlines inside strings.
+Use strings for scalar values and preserve the arrays and objects shown below.
+Escape tabs and newlines inside JSON strings.
 
 Return one valid JSON object, with no prose or code fence. Replace placeholders, omit absent optional arrays, and repeat array entries as needed:
 {

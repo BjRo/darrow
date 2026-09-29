@@ -72,6 +72,8 @@ fixture:
     mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
     cp "{{case_dir}}/../../../backend/tests/evals/assert_guidance.py" .git/eval-checks/review/tests/evals/
 checks:
+  - name: human response excludes machine JSON
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
   - name: new repair regression carries verifier-authored guidance
     run: |
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
@@ -97,7 +99,7 @@ checks:
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
       python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" not-contains 'renaming scale'
-  - name: final response is the complete rendered verification report
+  - name: retained verification report preserves the complete canonical evidence
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
       test -n "$record" &&
@@ -108,14 +110,17 @@ checks:
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render-verification "$record" >.git/expected-verification.md &&
       awk 'NF' .git/expected-verification.md >.git/expected-verification-normalized.md &&
       awk 'NF' "$report" >.git/retained-verification-normalized.md &&
-      awk 'NF' .git/last-message.md >.git/actual-verification-normalized.md &&
-      cmp .git/expected-verification-normalized.md .git/retained-verification-normalized.md &&
-      cmp .git/expected-verification-normalized.md .git/actual-verification-normalized.md
+      cmp .git/expected-verification-normalized.md .git/retained-verification-normalized.md
 semantic_output_checks:
   - name: regression guidance targets the repair-caused sign loss
     proposition: >-
-      The report explains that Math.abs introduced by the repair removes the
-      sign from negative results, suggests an advisory bounded repair that
-      preserves multiplier 2 and signed scaling, gives the reason, and
-      identifies a negative-input regression test or behavior such as scale(-2)
-      returning -4. It does not turn the unrelated naming TODO into a finding.
+      The response reports that verification must continue because the repair's
+      Math.abs removes the sign from negative results. It explains the failing
+      behavior, such as scale(-2) returning 4 instead of -4, and makes clear that
+      signed multiplication with multiplier 2 is required. Stating that actual
+      and required behavior, or asking to restore signed multiplication, is
+      sufficient; separate repair-rationale or advisory-label sentences are
+      not required. Any suggested implementation must preserve multiplier 2.
+      Reject a false clear outcome, omitted sign-loss regression, incorrect
+      required behavior, advice that changes multiplier back to 1, or promotion
+      of the unrelated naming TODO into a finding.

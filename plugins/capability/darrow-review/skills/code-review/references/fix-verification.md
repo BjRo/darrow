@@ -6,6 +6,20 @@ rules, remain in force throughout this branch.
 
 ## 1. Bind the closed finding set
 
+Read each supplied evidence file before deciding whether inputs are missing:
+
+```sh
+uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result read-evidence \
+  --repo "$repo" --input "<caller-supplied path>"
+```
+
+Use the returned absolute `path` and complete `record`. The command resolves
+relative paths against `repo` and reads regular JSON files even without an
+extension. If the caller supplied a directory, inspect that exact directory and
+read its relevant files with this command. Do not append `/*` to an unexamined
+path or infer missing records from search results. Only an actual read error or
+a missing required field establishes an input gap; retain that concrete error.
+
 Require all of these caller-owned inputs before reader calls:
 
 - the exact original comprehensive-review target fingerprint;
@@ -217,7 +231,12 @@ The helper reads the authoritative original input, binds targets from both
 manifests, requires complete finding records, copies check receipts, validates
 history, and materializes the complete `verification.md`. A prior verification
 also supplies its checksum and target history mechanically. A complete external
-handoff supplies its previous-verification marker and history when applicable.
+handoff supplies its previous-verification marker. Omitted history is derived
+from that validated artifact; explicitly supplied history must agree. The
+finalizer also carries previously resolved original states when the current
+reader supplied no replacement, so a regression-only repair does not require
+retyping prior resolutions. Unresolved or blocked originals still require
+current reader evidence.
 Never substitute authored unavailable-check evidence for a retained receipt.
 
 After finalization, when the original comprehensive artifact is retained, run:
@@ -244,17 +263,18 @@ In default mode run:
 uv run --quiet --no-project "$backend/scripts/run_locked.py" review-report render-verification "$verification_record"
 ```
 
-Confirm the finalizer's report is a readable, nonempty regular file before this
-renderer invocation. Make this invocation the last tool command and
-copy its stdout verbatim as the entire final response. For an explicit
-verification-v3, raw JSON, or machine request, return the validated JSON bytes
-only. In composed use, return the selected presentation and exit this read-only
-capability. The enclosing goal interprets the semantic outcome and owns every
-repair, stop, goal-status, completion, and publication decision.
+Confirm the finalizer's report is a readable, nonempty regular file and inspect
+it. Return the self-contained inline verification described by the main skill's
+presentation gate. Explain the outcome, remaining issues or evidence gaps,
+resolved work, relevant checks, and next action. Keep advisory repair advice
+separate from required behavior. Do not require the user to open an artifact.
+For an explicit verification-v3, raw JSON, or machine request, return only the
+complete validated JSON.
 
-The `verification.md` bytes are the final response contract. Do not replace
-them with a handwritten summary, even when the outcome and counts look
-equivalent.
+When you also own the enclosing goal, retain this evidence, exit the read-only
+capability, and resume the goal's already authorized continuation. An isolated
+review agent returns to its caller. The goal owns repair, stop, completion,
+and publication decisions.
 
 **Complete when:** the validated artifact binds original, prior, history, and
 current targets; contains only original attempts and directly caused

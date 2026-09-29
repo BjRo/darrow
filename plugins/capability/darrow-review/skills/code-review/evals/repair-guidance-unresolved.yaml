@@ -84,7 +84,11 @@ fixture:
     }, sys.stdout)
     PY
     git hash-object src/name.js >.git/before
+    mkdir -p .git/eval-checks/review/tests/evals
+    cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
+  - name: human response excludes machine JSON
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
   - name: following the advice does not excuse a remaining required case
     run: |
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
@@ -99,5 +103,9 @@ semantic_output_checks:
     proposition: >-
       The report keeps the original finding unresolved because whitespace-only
       strings still return an empty string instead of Anonymous: the code
-      checks the original input length rather than the trimmed result. Using
-      trim and a local variable as suggested does not establish resolution.
+      checks the original input length rather than the trimmed result.
+      Explaining that remaining behavior and cause is sufficient; repeating or
+      discussing the original trim/local-variable advice is not required.
+      Reject a false resolved or clear outcome, a different required fallback,
+      omission of the whitespace defect, or a claim that adopting the suggested
+      syntax establishes resolution despite the remaining wrong behavior.
