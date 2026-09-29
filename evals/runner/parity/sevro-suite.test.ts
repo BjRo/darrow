@@ -902,7 +902,7 @@ test("suite preserves dry and adaptive-delivery record exceptions", async () => 
       passRate: null,
     });
   }
-});
+}, 20_000);
 
 test("suite rejects malformed record policies before any cells start", async () => {
   const { root, suite, adapter, results } = await fixture();

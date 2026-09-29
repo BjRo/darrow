@@ -53,7 +53,8 @@ unknown. The assertion fails on launch or mutation attempts without requiring
 agent acceptance.
 
 For a plugin-local case, `prepare` mounts the selected skill's files under
-`.agents/skills/` and excludes their exact paths from Git status. Colocated
+`.agents/skills/` and excludes their exact paths from Git status. Unrelated setup content under
+`.agents/` remains visible to Git; the directory is not excluded wholesale. Colocated
 `evals/` files and generated caches stay out of the candidate fixture. Skill
 bytes enter the fixture identity through their retained artifact digests.
 Executable skill files keep owner execute permission in the fixture and retained
@@ -65,6 +66,8 @@ from the owning plugin through the same project-discovery path, with a shared
 artifact limit. Competition activation requires that sibling set.
 Cases with `additional_plugins` package every named provider separately in
 the isolated Codex marketplace, including its skills and contained mechanics.
+Claude retains the same provider separation. Each provider keeps its own
+manifest identity; the unsupported `source_plugin` merging field is rejected.
 `additional_skills` packages only the named skills with their own provider's
 manifests and mechanics. The shared mount is bounded to 256 files and 4 MiB.
 The provider paths are repository-relative and cannot escape the project root;

@@ -2,26 +2,26 @@
 
 Issue [#95](https://github.com/BjRo/darrow/issues/95) requires removing generic
 runner implementation and unit tests from Darrow while preserving its cases,
-policy, and product tests. The exact published dependency, benchmark migration
-decisions, and focused native validation remain cutover gates.
+policy, and product tests. The exact published dependency, the selected benchmark
+migration, and focused native validation remain cutover gates.
 
 ## Ownership at this milestone
 
-After moving nineteen domain test files, `evals/runner/` contains 75 TypeScript
+After moving nineteen domain test files, `evals/runner/` contains 74 TypeScript
 files. The groups below account for every remaining file. They describe ownership
 and remaining work; they do not certify equivalent behavior or authorize restoring
 removed runtime machinery.
 
-| Group                                                        |  Files | Cutover disposition                                                                                                                                                                                                                                               |
-| ------------------------------------------------------------ | -----: | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Command entrypoints                                          |      5 | Keep `run.ts`, `suite.ts`, `report.ts`, `compare.ts`, and `ablation.ts` as thin Darrow callers. Remove generic execution from the first two after the exact release is pinned. The three historical commands already delegate to standalone Darrow readers.       |
-| Public integration tests under `parity/`                     |     12 | Keep Darrow integration coverage. Remove the legacy launcher and its runner imports from `sevro.test.ts` after recording the final comparison. Other tests exercise the public package, Darrow protocol, or standalone historical readers.                        |
-| Legacy source-copy baseline under `compatibility/`           |      2 | Retire `baseline.test.ts` and `command.ts` after required command comparisons and deliberate migrations are recorded. They copy the generic runner and cannot remain the installed integration gate.                                                              |
-| Darrow fixture and oracle tests                              |      0 | The fixture and oracle migration is complete. Tests live under evals/domain/ and use public commands, protocol requests, or plugin-owned oracles, with no legacy runner implementation or private types.                                                          |
-| Darrow policy, rendering, and proof helpers with their tests |      7 | Activation, prompt, and owner-evidence tests use public interfaces under evals/domain/. Keep their legacy implementations until cutover. Historical review-proof commands are independent; remaining report and metrics expectations need the benchmark decision. |
-| Historical enforcement profile and tests                     |      3 | Resolve the explicit enforced-condition migration. Do not silently use passive execution or restore the removed preflight helper.                                                                                                                                 |
-| Engine, host mechanics, and associated tests                 |     46 | Remove generic implementation and unit tests after cutover. Preserve any embedded Darrow discovery, mounting, or grading policy in the extension and its public-interface tests.                                                                                  |
-| **Total remaining**                                          | **75** |                                                                                                                                                                                                                                                                   |
+| Group                                                        |  Files | Cutover disposition                                                                                                                                                                                                                                                         |
+| ------------------------------------------------------------ | -----: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Command entrypoints                                          |      5 | Keep `run.ts`, `suite.ts`, `report.ts`, `compare.ts`, and `ablation.ts` as thin Darrow callers. Remove generic execution from the first two after the exact release is pinned. The three historical commands already delegate to standalone Darrow readers.                 |
+| Public integration tests under `parity/`                     |     12 | Keep Darrow integration coverage. Remove the legacy launcher and its runner imports from `sevro.test.ts` after recording the final comparison. Other tests exercise the public package, Darrow protocol, or standalone historical readers.                                  |
+| Legacy source-copy baseline under `compatibility/`           |      2 | Retire `baseline.test.ts` and `command.ts` after required command comparisons and deliberate migrations are recorded. They copy the generic runner and cannot remain the installed integration gate.                                                                        |
+| Darrow fixture and oracle tests                              |      0 | The fixture and oracle migration is complete. Tests live under evals/domain/ and use public commands, protocol requests, or plugin-owned oracles, with no legacy runner implementation or private types.                                                                    |
+| Darrow policy, rendering, and proof helpers with their tests |      7 | Activation, prompt, and owner-evidence tests use public interfaces under evals/domain/. Keep their legacy implementations until cutover. Historical review-proof commands are independent; remaining report and metrics expectations need the selected benchmark migration. |
+| Historical enforcement profile and tests                     |      3 | Resolve the explicit enforced-condition migration. Do not silently use passive execution or restore the removed preflight helper.                                                                                                                                           |
+| Engine, host mechanics, and associated tests                 |     45 | Remove generic implementation and unit tests after cutover. Preserve any embedded Darrow discovery, mounting, or grading policy in the extension and its public-interface tests.                                                                                            |
+| **Total remaining**                                          | **74** |                                                                                                                                                                                                                                                                             |
 
 No domain fixture test remains in the runner tree. The remaining policy and
 enforcement expectations still require comparison with current authoritative
@@ -39,15 +39,16 @@ and tests. `schema.ts`, `fixture.ts`, and host adapters mix domain policy with
 mechanics; deleting them requires checking the relevant extension behavior rather
 than moving those mixed modules into Sevro unchanged.
 
-The generic permission-locked cleanup example in `fixture.test.ts` is retired
-after Sevro's public CLI regressions and independent installed-archive checks
-proved workspace removal and unchanged external link targets. The ticket
-scaffolding and three backend examples now use public interfaces under
-`evals/domain/`; six mounting examples remain. The omitted implicit Codex backend
-has been repaired with the existing contained resource collector. Remaining
-mounting and composition policy still need reconciliation; the mixed fixture
-file is not yet retired. See
-[fixture cleanup validation](fixture-cleanup-validation.md).
+The mixed `fixture.test.ts` file is now retired. Generic permission-locked
+cleanup and canonical workspace paths are covered by Sevro's public CLI
+regressions and independent installed-archive checks. Ticket scaffolding and
+backend policy use public interfaces under `evals/domain/`. The six remaining
+mounting examples have been reconciled: native resource filtering, sibling
+selection, and independent composition remain covered; blanket exclusion of
+unrelated setup files and merged `source_plugin` identity deliberately migrate
+to the current extension contract. The legacy `fixture.ts` implementation
+remains until the published-package cutover. See
+[mounting fixture validation](mounting-fixture-validation.md).
 
 ## Source dependencies outside the tree
 
@@ -88,11 +89,14 @@ get/describe/get events through the installed public command. It extracts one
 example from the mixed fixture test rather than moving that whole file. See
 [ticket fixture validation](ticket-fixture-validation.md).
 
-`evals/domain/fixture-mounting.test.ts` preserves the three backend mount examples
-through public preparation requests. It adds an installed-command check for
-implicit Codex resource mounting and a rejected external-link example. Project
-discovery now retains the owning backend, while caches and nested evals stay
-excluded. See [backend mounting validation](backend-mount-validation.md).
+`evals/domain/fixture-mounting.test.ts` contains twelve public examples.
+They cover the three backend routes, installed implicit Codex mounting, unsafe
+links, exact Git exclusions, filtered native resources on both hosts, selected
+versus sibling mounting, and independent composition packages on both hosts.
+Project discovery retains the owning backend while caches and nested evals stay
+excluded. This expands an existing domain file; the whole-file relocation count
+remains nineteen. See [backend mounting validation](backend-mount-validation.md)
+and [mounting fixture validation](mounting-fixture-validation.md).
 
 `evals/domain/goal-failed-check-fixture.test.ts` preserves its thirteen protocol
 usage and prohibited-effect examples through the installed public CLI. The
@@ -206,4 +210,4 @@ behavior evidence.
 
 Path and content-digest inventory snapshots are retained outside the repository
 under `/Users/bjro/.darrow/issue95-runner-ownership/`; the latest snapshot is
-`backend-mount-inventory.json`.
+`mounting-fixture-inventory.json`.

@@ -198,23 +198,30 @@ private contract selection unverified. See
 [owner evidence validation](owner-evidence-validation.md).
 
 The generic permission-locked cleanup test now belongs to Sevro's public CLI
-regressions. Its fix passes fresh installed-package checks; Darrow retains the
-ten mounting and ticket examples in its mixed fixture test file while their
-remaining policy is reconciled. See
+regressions. Its fix passes independent installed-package checks. See
 [fixture cleanup validation](fixture-cleanup-validation.md).
 
 The exact local ticket round-trip example now lives under `evals/domain/` and
 uses the installed public command. It retains committed scaffolding, case-asset
-setup, exact ticket body bytes, the log alias, and ordered events. The mixed
-legacy fixture test retains nine mounting examples. See
+setup, exact ticket body bytes, the log alias, and ordered events. See
 [ticket fixture validation](ticket-fixture-validation.md).
 
 The three backend mounting examples now use public preparation requests under
 `evals/domain/`. Migration exposed an omitted owning backend in implicit Codex
-project discovery; the extension now preserves `.agents/backend` with bounded,
-Git-excluded artifacts and the existing hidden-eval filtering. Native plugin
-packages retain their own backend layout. Six legacy mounting examples remain.
-See [backend mounting validation](backend-mount-validation.md).
+project discovery; the extension preserves `.agents/backend` with bounded,
+Git-excluded artifacts and hidden-eval filtering. Native plugin packages retain
+their own backend layout. See
+[backend mounting validation](backend-mount-validation.md).
+
+The remaining mounting policy is now reconciled through public preparation and
+installed-command examples. Native packages retain filtered skill-local
+mechanics, agents, hooks, and manifests; sibling selection and independent
+composition stay covered. Git exclusions apply to declared artifacts, so
+unrelated setup files under `.agents/` stay visible. The legacy merged
+`source_plugin` identity is retired in favor of separately packaged providers.
+The mixed fixture test file is removed; its canonical workspace assertion is
+preserved by a new Sevro public CLI regression and engine fix. See
+[mounting fixture validation](mounting-fixture-validation.md).
 
 ## Remaining benchmark contracts
 
