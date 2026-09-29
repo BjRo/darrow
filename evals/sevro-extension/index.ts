@@ -1917,6 +1917,29 @@ async function skillArtifacts(
 
 const MARKETPLACE_ROOT = ".sevro-marketplace";
 
+async function projectSkillArtifacts(
+  sources: { skillRoot: string; skillName: string }[],
+  ownerSkillRoot: string | undefined,
+) {
+  const artifacts = await skillArtifacts(sources);
+  if (!ownerSkillRoot) return artifacts;
+  const pluginRoot = dirname(dirname(ownerSkillRoot));
+  const backend = join(pluginRoot, "backend");
+  if (!(await optionalPluginDirectory(backend))) return artifacts;
+  await collectPluginDirectory(pluginRoot, backend, ["backend"], {
+    artifacts,
+    total: {
+      bytes: artifacts.reduce(
+        (size, artifact) =>
+          size + Buffer.from(artifact.contentBase64, "base64").byteLength,
+        0,
+      ),
+    },
+    destination: ".agents",
+  });
+  return artifacts;
+}
+
 async function optionalPluginDirectory(path: string): Promise<boolean> {
   try {
     const entry = await lstat(path);
@@ -2444,7 +2467,7 @@ async function preparedMounts(
     : null;
   const artifacts = packagePlugins
     ? await codexPluginArtifacts(owner, ownerName!, additional)
-    : await skillArtifacts(mounted);
+    : await projectSkillArtifacts(mounted, owner[0]?.skillRoot);
   return {
     artifacts,
     ...packageDeclarations({

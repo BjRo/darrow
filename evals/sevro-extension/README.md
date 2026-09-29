@@ -57,7 +57,10 @@ For a plugin-local case, `prepare` mounts the selected skill's files under
 `evals/` files and generated caches stay out of the candidate fixture. Skill
 bytes enter the fixture identity through their retained artifact digests.
 Executable skill files keep owner execute permission in the fixture and retained
-artifact copy. Cases with `mount_plugin_skills: true` mount all sibling skills
+artifact copy. Project discovery also retains the owning plugin's contained
+backend under `.agents/backend`, with the same filtering, Git exclusion, and
+artifact limits. It does not install plugin hooks or agents into project settings.
+Cases with `mount_plugin_skills: true` mount all sibling skills
 from the owning plugin through the same project-discovery path, with a shared
 artifact limit. Competition activation requires that sibling set.
 Cases with `additional_plugins` package every named provider separately in

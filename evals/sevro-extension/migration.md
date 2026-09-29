@@ -209,6 +209,13 @@ setup, exact ticket body bytes, the log alias, and ordered events. The mixed
 legacy fixture test retains nine mounting examples. See
 [ticket fixture validation](ticket-fixture-validation.md).
 
+The three backend mounting examples now use public preparation requests under
+`evals/domain/`. Migration exposed an omitted owning backend in implicit Codex
+project discovery; the extension now preserves `.agents/backend` with bounded,
+Git-excluded artifacts and the existing hidden-eval filtering. Native plugin
+packages retain their own backend layout. Six legacy mounting examples remain.
+See [backend mounting validation](backend-mount-validation.md).
+
 ## Remaining benchmark contracts
 
 Parent `case_routes` and native `effective_owner_routes` are separate inputs.

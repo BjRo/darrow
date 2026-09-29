@@ -764,6 +764,14 @@ credential-free environment and cannot access source worktrees, peer fixtures,
 harness credentials, or modify retained evidence. An unavailable isolation
 boundary is an explicit error.
 
+Plugin-local skills prepared for project discovery retain the owning plugin's
+contained backend under `.agents/backend`, alongside `.agents/skills/`. This
+includes implicit Codex preparation and adapters that use the project skill
+surface. The backend's source bytes participate in fixture identity and its
+artifacts remain Git-excluded and subject to the shared artifact limits. Native
+plugin preparation retains the backend inside its independent plugin package.
+Project discovery does not copy plugin hooks or agents into project settings.
+
 Packaged Python eval oracles remain hidden from participants. Plugin mounting
 excludes every nested `evals/` directory, including `backend/tests/evals/`.
 Fixture setup may copy grading helpers to `.git/eval-checks/`; the outer agent

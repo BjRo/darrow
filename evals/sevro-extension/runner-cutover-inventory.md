@@ -42,9 +42,10 @@ than moving those mixed modules into Sevro unchanged.
 The generic permission-locked cleanup example in `fixture.test.ts` is retired
 after Sevro's public CLI regressions and independent installed-archive checks
 proved workspace removal and unchanged external link targets. The ticket
-scaffolding example now uses the public command under `evals/domain/`; nine
-mounting examples remain. Backend resource filtering and remaining mounting
-policy still need reconciliation through public interfaces; the mixed fixture
+scaffolding and three backend examples now use public interfaces under
+`evals/domain/`; six mounting examples remain. The omitted implicit Codex backend
+has been repaired with the existing contained resource collector. Remaining
+mounting and composition policy still need reconciliation; the mixed fixture
 file is not yet retired. See
 [fixture cleanup validation](fixture-cleanup-validation.md).
 
@@ -86,6 +87,12 @@ setup, exact ticket body bytes, the compatibility log link, and the ordered
 get/describe/get events through the installed public command. It extracts one
 example from the mixed fixture test rather than moving that whole file. See
 [ticket fixture validation](ticket-fixture-validation.md).
+
+`evals/domain/fixture-mounting.test.ts` preserves the three backend mount examples
+through public preparation requests. It adds an installed-command check for
+implicit Codex resource mounting and a rejected external-link example. Project
+discovery now retains the owning backend, while caches and nested evals stay
+excluded. See [backend mounting validation](backend-mount-validation.md).
 
 `evals/domain/goal-failed-check-fixture.test.ts` preserves its thirteen protocol
 usage and prohibited-effect examples through the installed public CLI. The
@@ -199,4 +206,4 @@ behavior evidence.
 
 Path and content-digest inventory snapshots are retained outside the repository
 under `/Users/bjro/.darrow/issue95-runner-ownership/`; the latest snapshot is
-`ticket-round-trip-inventory.json`.
+`backend-mount-inventory.json`.
