@@ -7,7 +7,7 @@ decisions, and focused native validation remain cutover gates.
 
 ## Ownership at this milestone
 
-After moving seven domain test files, `evals/runner/` contains 89 TypeScript
+After moving eight domain test files, `evals/runner/` contains 88 TypeScript
 files. The groups below account for every remaining file. They describe ownership
 and remaining work; they do not certify equivalent behavior or authorize restoring
 removed runtime machinery.
@@ -17,14 +17,14 @@ removed runtime machinery.
 | Command entrypoints                                          |      5 | Keep `run.ts`, `suite.ts`, `report.ts`, `compare.ts`, and `ablation.ts` as thin Darrow callers. Remove generic execution from the first two after the exact release is pinned. The three historical commands already delegate to standalone Darrow readers. |
 | Public integration tests under `parity/`                     |     12 | Keep Darrow integration coverage. Remove the legacy launcher and its runner imports from `sevro.test.ts` after recording the final comparison. Other tests exercise the public package, Darrow protocol, or standalone historical readers.                  |
 | Legacy source-copy baseline under `compatibility/`           |      2 | Retire `baseline.test.ts` and `command.ts` after required command comparisons and deliberate migrations are recorded. They copy the generic runner and cannot remain the installed integration gate.                                                        |
-| Darrow fixture and oracle tests                              |      7 | Preserve current product-oracle behavior through plugin-local checks or public CLI fixtures, then move tests to `evals/domain/`. Their current `buildFixture`, `runChecks`, activation, and type imports must be removed.                                   |
+| Darrow fixture and oracle tests                              |      6 | Preserve current product-oracle behavior through plugin-local checks or public CLI fixtures, then move tests to `evals/domain/`. Their current `buildFixture`, `runChecks`, activation, and type imports must be removed.                                   |
 | Darrow policy, rendering, and proof helpers with their tests |     14 | Keep policy in the extension and bounded native observation mechanics in Sevro. Replace private helper tests with the appropriate owner’s coverage. Reconcile legacy report and private-contract assertions before deleting their implementation.           |
 | Historical enforcement profile and tests                     |      3 | Resolve the explicit enforced-condition migration. Do not silently use passive execution or restore the removed preflight helper.                                                                                                                           |
 | Engine, host mechanics, and associated tests                 |     46 | Remove generic implementation and unit tests after cutover. Preserve any embedded Darrow discovery, mounting, or grading policy in the extension and its public-interface tests.                                                                            |
-| **Total remaining**                                          | **89** |                                                                                                                                                                                                                                                             |
+| **Total remaining**                                          | **88** |                                                                                                                                                                                                                                                             |
 
-The seven fixture tests are `composition-fixture`, `feedback-fixture`,
-`discovery-eval-checks`, `review-outcome-eval-checks`, and the three remaining
+The six fixture tests are `composition-fixture`, `feedback-fixture`,
+`discovery-eval-checks`, `review-outcome-eval-checks`, and the two remaining
 `goal-*-fixture` tests. Some expectations refer to historical contracts; compare
 them with current authoritative cases before translating or retiring them.
 
@@ -99,6 +99,13 @@ part of committed fixture history. See
 [capability fixture validation](capability-fixture-validation.md) for the setup
 tool lookup regression and preserved diagnostic assertions.
 
+`evals/domain/goal-readiness-fixture.test.ts` preserves nine readiness-trace and
+post-launch reassessment examples through the public command. The transport
+copies explicitly declared domain assets into its temporary project. The test
+prepares a public Python runtime outside the protected developer home and binds
+the required tools without weakening isolation. See
+[readiness fixture validation](readiness-fixture-validation.md).
+
 At the first relocation milestone, `bun test evals/domain` passed all 25 tests with 51 assertions.
 The initial run failed four positive review tests because the fixture omitted the
 required review-state environment and used an older Codex default. The corrected
@@ -108,4 +115,4 @@ behavior evidence.
 
 Path and content-digest inventory snapshots are retained outside the repository
 under `/Users/bjro/.darrow/issue95-runner-ownership/`; the latest snapshot is
-`capability-inventory.json`.
+`readiness-inventory.json`.

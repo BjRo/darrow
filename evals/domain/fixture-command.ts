@@ -1,8 +1,16 @@
 import { afterEach } from "bun:test";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+  sep,
+} from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { parse } from "yaml";
 
 export type OracleCheck = {
@@ -14,6 +22,7 @@ export type OracleCheck = {
 type Fixture = Record<string, unknown> & {
   setup?: string;
   commits?: { message: string; files?: Record<string, string> }[];
+  bin?: Record<string, string>;
 };
 export type FixtureCase = {
   id: string;
@@ -49,7 +58,45 @@ type OracleOptions = {
   checks: OracleCheck[];
   setupPrefix?: string;
   fixture?: Fixture;
+  fixtureAssets?: URL;
 };
+
+async function prepareFixtureAssets(
+  root: string,
+  options: OracleOptions,
+  fixture: Fixture,
+) {
+  if (!options.fixtureAssets) return;
+  const source = fileURLToPath(options.fixtureAssets);
+  const caseDirectory = relative(
+    source,
+    dirname(fileURLToPath(options.source)),
+  );
+  if (
+    isAbsolute(caseDirectory) ||
+    caseDirectory === ".." ||
+    caseDirectory.startsWith(`..${sep}`)
+  )
+    throw new Error("fixture case must belong to its declared domain assets");
+  const target = join(root, "fixture-assets");
+  const excluded = new Set([
+    ".git",
+    ".venv",
+    "__pycache__",
+    ".hypothesis",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    "node_modules",
+    "tests",
+  ]);
+  await cp(source, target, {
+    recursive: true,
+    filter: (path) => !excluded.has(basename(path)),
+  });
+  const directory = `'${join(target, caseDirectory).replaceAll("'", "'\\''")}'`;
+  fixture.setup = `DARROW_ORACLE_CASE_ASSETS=${directory}\n${(fixture.setup ?? "").replaceAll("{{case_dir}}", "$DARROW_ORACLE_CASE_ASSETS")}`;
+}
 
 async function prepareOracle(root: string, options: OracleOptions) {
   const canonical = await readFixtureCase(options.source);
@@ -57,6 +104,7 @@ async function prepareOracle(root: string, options: OracleOptions) {
   await mkdir(caseDir, { recursive: true });
   const id = `oracle-${canonical.id}`;
   const fixture = { ...(options.fixture ?? canonical.fixture) };
+  await prepareFixtureAssets(root, options, fixture);
   if (options.setupPrefix !== undefined)
     fixture.setup = [options.setupPrefix, fixture.setup ?? ""].join("\n");
   await writeFile(

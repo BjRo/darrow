@@ -153,6 +153,9 @@ Canonical Darrow setup now resolves ambient tools before fixture wrappers, as
 the legacy setup did. Execution and shell grading still use declared fixture
 tools. The capability-review fixture's eight examples use the public command;
 see [capability fixture validation](capability-fixture-validation.md).
+The readiness fixture's nine examples also use the public command, with copied
+domain assets and explicitly prepared tools for isolated checks; see
+[readiness fixture validation](readiness-fixture-validation.md).
 
 ## Remaining benchmark contracts
 
