@@ -156,6 +156,10 @@ see [capability fixture validation](capability-fixture-validation.md).
 The readiness fixture's nine examples also use the public command, with copied
 domain assets and explicitly prepared tools for isolated checks; see
 [readiness fixture validation](readiness-fixture-validation.md).
+The real commit fixture's twelve examples retain the actual Git plugin helper,
+hook failure, guarded remediation, review evidence, and local publication
+through the public command; see
+[real commit fixture validation](real-commit-fixture-validation.md).
 
 ## Remaining benchmark contracts
 

@@ -1,12 +1,10 @@
-import { afterEach, expect, test } from "bun:test";
-import { cp, mkdtemp, realpath, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { expect, test } from "bun:test";
 import {
   readFixtureCase,
   runFixtureChecks,
   type OracleCheck,
 } from "./fixture-command";
+import { prepareUvFixtureRuntime } from "./fixture-runtime";
 
 const source = new URL(
   "../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/readiness-artifact-selected.yaml",
@@ -17,43 +15,11 @@ const postLaunch = new URL("post-launch-reassessment.yaml", source);
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 const assess =
   'uv run --quiet --frozen --no-dev --project .agents/backend adaptive-delivery-fixture readiness "$PWD"';
-const pythonRoots: string[] = [];
-afterEach(async () => {
-  await Promise.all(
-    pythonRoots
-      .splice(0)
-      .map((root) => rm(root, { recursive: true, force: true })),
-  );
-});
-
-async function publicPythonRuntime(uv: string) {
-  const found = Bun.spawnSync([uv, "python", "find", "--system", "3.13"], {
-    env: { ...process.env, UV_PYTHON_DOWNLOADS: "never" },
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  if (found.exitCode !== 0) throw new Error(found.stderr.toString());
-  const interpreter = await realpath(found.stdout.toString().trim());
-  const runtime = await mkdtemp(join(tmpdir(), "darrow-fixture-python-"));
-  pythonRoots.push(runtime);
-  await cp(dirname(dirname(interpreter)), runtime, { recursive: true });
-  return quote(join(runtime, "bin", basename(interpreter)));
-}
-
 async function postLaunchFixture() {
   const { fixture } = await readFixtureCase(postLaunch);
-  const uv = Bun.which("uv");
-  if (!uv) throw new Error("fixture tool is unavailable: uv");
-  const python = await publicPythonRuntime(uv);
-  const tools: Record<string, string> = {};
-  for (const name of ["node", "uv"]) {
-    const executable = Bun.which(name);
-    if (!executable) throw new Error(`fixture tool is unavailable: ${name}`);
-    tools[name] =
-      `#!/bin/sh\n${name === "uv" ? `export UV_OFFLINE=1 UV_PYTHON_DOWNLOADS=never UV_PYTHON=${python}\n` : ""}exec ${quote(executable)} "$@"\n`;
-  }
-  fixture.bin = { ...fixture.bin, ...tools };
-  fixture.setup = `export UV_PYTHON=${python}\n${fixture.setup ?? ""}\nuv sync --quiet --frozen --no-dev --project .agents/backend`;
+  const runtime = await prepareUvFixtureRuntime(true);
+  fixture.bin = { ...fixture.bin, ...runtime.bin };
+  fixture.setup = `${runtime.setupPrefix}\n${fixture.setup ?? ""}\nuv sync --quiet --frozen --no-dev --project .agents/backend`;
   return fixture;
 }
 

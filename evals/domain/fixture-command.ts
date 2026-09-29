@@ -18,11 +18,13 @@ export type OracleCheck = {
   run: string;
   exit_code?: number;
   expect_regex?: string;
+  expect_exact?: string;
 };
 type Fixture = Record<string, unknown> & {
   setup?: string;
   commits?: { message: string; files?: Record<string, string> }[];
   bin?: Record<string, string>;
+  files?: Record<string, string>;
 };
 export type FixtureCase = {
   id: string;
