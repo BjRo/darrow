@@ -243,6 +243,13 @@ condition instructions remain labels and task inputs; they do not establish
 private dimensions. Original snapshots retain their original interpretation.
 See [benchmark migration validation](benchmark-migration-validation.md).
 
+The suites also expose explicit `-passive` variants for observational runs.
+Each variant preserves its original benchmark inputs and route checks and sets
+`owner_evaluation: passive`. Select those mode names explicitly; selecting all
+modes also selects the original enforced variants. This installs no active
+benchmark correction and leaves ordinary fixture isolation in place. See the
+[passive commands and regression evidence](passive-benchmark-validation.md).
+
 Custom suites using `goal_expectations` or `apply_expected_goal_routes`,
 and the legacy `--expected-goal-routes`, `--assert-goal-routes`, and
 `--assert-goal-dimensions` options still fail explicitly on the Sevro route.

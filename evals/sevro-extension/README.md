@@ -550,6 +550,12 @@ for the test-first evidence and synthetic-host limits.
 
 ## Benchmark suite caller
 
+The three canonical routing benchmarks provide explicit `-passive` modes for
+observational comparisons. Their original enforced modes remain available and
+unsupported by bundled hosts. Select passive mode names explicitly; see the
+[commands and regression evidence](passive-benchmark-validation.md). The variants
+preserve task and route checks and add no active benchmark correction.
+
 The existing suite command selects Sevro when `SEVRO_CHECKOUT` or
 `SEVRO_PACKAGE_BIN` is set. For example, from the Darrow checkout:
 

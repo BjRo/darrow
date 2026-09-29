@@ -63,3 +63,43 @@ modes:
       orchestration-oss-cobra-lifecycle:
         { model: gpt-5.6-terra, effort: medium }
     effort: low
+  native-goal-passive:
+    owner_evaluation: passive
+    condition_by_harness:
+      codex: conditions/native-goal-codex.md
+    require_evaluation_records: true
+    apply_case_routes: true
+  darrow-workflow-passive:
+    owner_evaluation: passive
+    condition_by_harness:
+      codex: conditions/darrow-adaptive-delivery-workflow-codex.md
+    skill_dir: ../../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery
+    mount_plugin_skills: true
+    require_evaluation_records: true
+    effective_owner_routes:
+      orchestration-oss-ajv-instance-path: { model: gpt-5.6-sol, effort: high }
+      orchestration-oss-click-streams: { model: gpt-5.6-sol, effort: high }
+      orchestration-oss-express-links: { model: gpt-5.6-luna, effort: medium }
+      orchestration-oss-go-git-insteadof: { model: gpt-5.6-sol, effort: high }
+      orchestration-oss-requests-proxy: { model: gpt-5.6-sol, effort: high }
+      orchestration-oss-commander-env: { model: gpt-5.6-terra, effort: medium }
+      orchestration-oss-cobra-lifecycle:
+        { model: gpt-5.6-terra, effort: medium }
+    effort: low
+  darrow-workflow-risk-passive:
+    owner_evaluation: passive
+    condition_by_harness:
+      codex: conditions/darrow-adaptive-delivery-codex.md
+    skill_dir: ../../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery
+    mount_plugin_skills: true
+    require_evaluation_records: true
+    effective_owner_routes:
+      orchestration-oss-ajv-instance-path: { model: gpt-5.6-sol, effort: high }
+      orchestration-oss-click-streams: { model: gpt-5.6-sol, effort: high }
+      orchestration-oss-express-links: { model: gpt-5.6-luna, effort: medium }
+      orchestration-oss-go-git-insteadof: { model: gpt-5.6-sol, effort: high }
+      orchestration-oss-requests-proxy: { model: gpt-5.6-sol, effort: high }
+      orchestration-oss-commander-env: { model: gpt-5.6-terra, effort: medium }
+      orchestration-oss-cobra-lifecycle:
+        { model: gpt-5.6-terra, effort: medium }
+    effort: low

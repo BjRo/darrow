@@ -17,3 +17,16 @@ modes:
       orchestration-routing-localized-quality-feature:
         { model: gpt-5.6-luna, effort: high }
     effort: low
+  adaptive-policy-passive:
+    owner_evaluation: passive
+    condition_by_harness:
+      codex: conditions/darrow-adaptive-delivery-codex.md
+    skill_dir: ../../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery
+    mount_plugin_skills: true
+    require_evaluation_records: true
+    effective_owner_routes:
+      orchestration-routing-localized-mechanical:
+        { model: gpt-5.6-luna, effort: medium }
+      orchestration-routing-localized-quality-feature:
+        { model: gpt-5.6-luna, effort: high }
+    effort: low

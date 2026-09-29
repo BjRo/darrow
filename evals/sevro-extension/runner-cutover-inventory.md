@@ -227,6 +227,12 @@ At that milestone this new domain file brought the directory to 23 test files; t
 whole-file relocation count remains nineteen. See
 [benchmark migration validation](benchmark-migration-validation.md).
 
+The same domain file now also checks six explicitly named passive variants
+against their original enforced peers. Three additional public-command tests
+prepare 58 cells, retain separate conditions and identities, and preserve parent
+and owner route expectations. They do not establish live task success or
+enforced execution. See [passive benchmark validation](passive-benchmark-validation.md).
+
 `evals/domain/internal-record-policy.test.ts` preserves the twelve legacy TSV
 marker examples and both Markdown wrappers through public extension grading.
 It also checks an ordinary final answer and five unavailable-evidence inputs.

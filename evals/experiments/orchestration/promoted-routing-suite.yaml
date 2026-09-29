@@ -34,3 +34,22 @@ modes:
       orchestration-oss-cobra-lifecycle:
         { model: gpt-5.6-terra, effort: medium }
     effort: low
+  native-promoted-route-passive:
+    owner_evaluation: passive
+    condition_by_harness:
+      codex: conditions/native-goal-codex.md
+    require_evaluation_records: true
+    apply_case_routes: true
+  darrow-promoted-route-passive:
+    owner_evaluation: passive
+    condition_by_harness:
+      codex: conditions/darrow-adaptive-delivery-codex.md
+    skill_dir: ../../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery
+    mount_plugin_skills: true
+    require_evaluation_records: true
+    effective_owner_routes:
+      orchestration-oss-express-links: { model: gpt-5.6-luna, effort: medium }
+      orchestration-oss-commander-env: { model: gpt-5.6-terra, effort: medium }
+      orchestration-oss-cobra-lifecycle:
+        { model: gpt-5.6-terra, effort: medium }
+    effort: low

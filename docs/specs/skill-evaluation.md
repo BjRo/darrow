@@ -734,6 +734,16 @@ An unsupported bundled-host enforced request must still fail explicitly;
 this migration neither converts it to passive execution nor restores removed
 preflight machinery.
 
+Each canonical suite also provides explicitly named `-passive` variants of its
+existing modes. A passive variant preserves the case set, condition instructions,
+mounts, task and record checks, parent routes, and native owner-route expectations
+of its corresponding mode, and declares `owner_evaluation: passive`. Its retained
+cell condition and evaluation identity remain passive. The original mode keeps
+its enforced condition, and unsupported enforced execution still fails explicitly.
+Callers select the passive mode names when requesting native observational
+comparisons; selecting all modes also selects the original enforced variants.
+This adds no policy enforcement, launch rewriting, or benchmark correction.
+
 ### Benchmark conditions
 
 The Darrow Sevro run entrypoint accepts an absolute benchmark condition file

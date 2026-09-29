@@ -200,6 +200,76 @@ test(
   120_000,
 );
 
+async function expectPassiveComparisons(
+  filename: string,
+  routes: Routes,
+  modes: string[],
+  routedModes: string[],
+) {
+  const passiveModes = modes.map((mode) => `${mode}-passive`);
+  const manifest = await runCanonicalSuite(filename, routes, [
+    ...modes,
+    ...passiveModes,
+  ]);
+  expect(manifest.harnesses).toEqual(["codex"]);
+  expect(manifest.caseIds.slice().sort()).toEqual(Object.keys(routes).sort());
+  expect(manifest.cells).toHaveLength(
+    Object.keys(routes).length * modes.length * 2,
+  );
+  for (const cell of manifest.cells) {
+    const passive = passiveModes.includes(cell.mode);
+    const baseMode = passive
+      ? cell.mode.slice(0, -"-passive".length)
+      : cell.mode;
+    expect(modes).toContain(baseMode);
+    expect(cell.condition).toBe(passive ? "passive" : "enforced");
+    expect(cell.exitCode).toBe(0);
+    const evidence = JSON.parse(await readFile(cell.evidencePath, "utf8"));
+    expect(evidence.evaluationIdentity.dimensions.condition).toBe(
+      cell.condition,
+    );
+    expect(evidence.routes).toContainEqual({
+      role: "candidate",
+      host: "sevro.host.codex",
+      ...(routedModes.includes(baseMode)
+        ? routes[cell.caseId]
+        : { model: "benchmark-parent", effort: "low" }),
+    });
+    expect(
+      evidence.configuration.redacted.extensionConfiguration
+        .effectiveOwnerRoute ?? null,
+    ).toEqual(routedModes.includes(baseMode) ? null : routes[cell.caseId]);
+    expect(evidence.result).toMatchObject({
+      execution: { status: "not_run" },
+      grading: { status: "not_requested" },
+      task: { verdict: "not_assessed" },
+    });
+    if (passive) {
+      const original = manifest.cells.find(
+        (peer: { mode: string; caseId: string }) =>
+          peer.mode === baseMode && peer.caseId === cell.caseId,
+      );
+      expect(original).toBeDefined();
+      const peer = JSON.parse(await readFile(original.evidencePath, "utf8"));
+      expect(evidence.evaluationIdentity.digest).not.toBe(
+        peer.evaluationIdentity.digest,
+      );
+    }
+  }
+}
+
+test(
+  "profile-impact exposes passive comparisons alongside enforced modes",
+  () =>
+    expectPassiveComparisons(
+      "profile-impact-suite.yaml",
+      ossRoutes,
+      ["native-goal", "darrow-workflow", "darrow-workflow-risk"],
+      ["native-goal"],
+    ),
+  120_000,
+);
+
 test(
   "localized-routing canonical suite retains task and native owner-route comparisons",
   () =>
@@ -216,6 +286,27 @@ test(
         },
       },
       ["adaptive-policy"],
+    ),
+  30_000,
+);
+
+test(
+  "localized-routing exposes passive comparisons alongside enforced modes",
+  () =>
+    expectPassiveComparisons(
+      "localized-routing-policy-suite.yaml",
+      {
+        "orchestration-routing-localized-mechanical": {
+          model: "gpt-5.6-luna",
+          effort: "medium",
+        },
+        "orchestration-routing-localized-quality-feature": {
+          model: "gpt-5.6-luna",
+          effort: "high",
+        },
+      },
+      ["adaptive-policy"],
+      [],
     ),
   30_000,
 );
@@ -240,6 +331,31 @@ test(
         },
       },
       ["darrow-promoted-route"],
+    ),
+  45_000,
+);
+
+test(
+  "promoted-routing exposes passive comparisons alongside enforced modes",
+  () =>
+    expectPassiveComparisons(
+      "promoted-routing-suite.yaml",
+      {
+        "orchestration-oss-express-links": {
+          model: "gpt-5.6-luna",
+          effort: "medium",
+        },
+        "orchestration-oss-commander-env": {
+          model: "gpt-5.6-terra",
+          effort: "medium",
+        },
+        "orchestration-oss-cobra-lifecycle": {
+          model: "gpt-5.6-terra",
+          effort: "medium",
+        },
+      },
+      ["native-promoted-route", "darrow-promoted-route"],
+      ["native-promoted-route"],
     ),
   45_000,
 );
