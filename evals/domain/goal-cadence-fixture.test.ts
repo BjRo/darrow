@@ -1,7 +1,5 @@
 import { expect, test } from "bun:test";
-import { parse } from "yaml";
-import { buildFixture, destroyFixture } from "./fixture";
-import type { EvalCase } from "./types";
+import { readFixtureCase, runFixtureChecks } from "./fixture-command";
 
 const source = new URL(
   "../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/verification-cadence.yaml",
@@ -68,35 +66,34 @@ for (const scenario of [
   { name: "no evidence", events: [], passes: false },
 ]) {
   test(`verification cadence: ${scenario.name}`, async () => {
-    const evalCase = parse(await Bun.file(source).text()) as EvalCase;
-    const check = evalCase.checks.find(
+    const canonical = await readFixtureCase(source);
+    const check = canonical.checks.find(
       (c) => c.name === "feedback precedes final-tree verification",
-    )!;
-    const repo = await buildFixture({
-      fixture: {
-        commits: [
-          {
-            message: "Cadence fixture",
-            files: { "README.md": "Synthetic trace\n" },
-          },
-        ],
-        files: {
-          ".git/fixture-state/verification-trace":
-            scenario.events
-              .map((event) => event.replace(" ", "\t"))
-              .join("\n") + "\n",
+    );
+    if (!check) throw new Error("canonical cadence oracle is missing");
+    const trace =
+      scenario.events.map((event) => event.replace(" ", "\t")).join("\n") +
+      "\n";
+    const quoted = `'${trace.replaceAll("'", "'\\''")}'`;
+    const result = await runFixtureChecks({
+      source,
+      checks: [
+        {
+          name: "record synthetic cadence trace",
+          run: `printf '%s' ${quoted} >.git/fixture-state/verification-trace`,
         },
-      },
-      skillDir: "",
-      skillMounts: [],
+        check,
+      ],
     });
-    try {
-      const result = Bun.spawnSync(["/bin/bash", "-c", check.run], {
-        cwd: repo,
-      });
-      expect(result.exitCode === 0).toBe(scenario.passes);
-    } finally {
-      await destroyFixture(repo);
-    }
-  });
+    expect(result.exitCode, result.diagnostic).toBe(scenario.passes ? 0 : 1);
+    expect(result.value.execution.status).toBe("completed");
+    expect(result.value.grading.status).toBe("completed");
+    expect(result.value.task.verdict).toBe(
+      scenario.passes ? "passed" : "failed",
+    );
+    expect(result.checks[0]?.status).toBe("passed");
+    expect(result.checks[1]?.status).toBe(
+      scenario.passes ? "passed" : "failed",
+    );
+  }, 20_000);
 }

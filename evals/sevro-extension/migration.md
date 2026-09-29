@@ -147,6 +147,8 @@ see [verification fixture validation](verification-fixture-validation.md).
 The authorized-publication fixture's eight tests preserve draft flags, help
 state, and remote commit evidence through the same public command; see
 [publication fixture validation](publication-fixture-validation.md).
+The verification-cadence fixture's eleven synthetic trace examples also use the
+public command; see [cadence fixture validation](cadence-fixture-validation.md).
 
 ## Remaining benchmark contracts
 
