@@ -144,6 +144,9 @@ the installed package gate includes that directory. See
 preserved examples, and observed gates.
 The incomplete-verification fixture's sixteen tests also use that transport;
 see [verification fixture validation](verification-fixture-validation.md).
+The authorized-publication fixture's eight tests preserve draft flags, help
+state, and remote commit evidence through the same public command; see
+[publication fixture validation](publication-fixture-validation.md).
 
 ## Remaining benchmark contracts
 
