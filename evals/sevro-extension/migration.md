@@ -197,6 +197,12 @@ missing or malformed evidence remains unavailable. Native route evidence leaves
 private contract selection unverified. See
 [owner evidence validation](owner-evidence-validation.md).
 
+The generic permission-locked cleanup test now belongs to Sevro's public CLI
+regressions. Its fix passes fresh installed-package checks; Darrow retains the
+ten mounting and ticket examples in its mixed fixture test file while their
+remaining policy is reconciled. See
+[fixture cleanup validation](fixture-cleanup-validation.md).
+
 ## Remaining benchmark contracts
 
 Parent `case_routes` and native `effective_owner_routes` are separate inputs.

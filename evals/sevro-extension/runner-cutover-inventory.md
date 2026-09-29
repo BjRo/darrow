@@ -39,6 +39,14 @@ and tests. `schema.ts`, `fixture.ts`, and host adapters mix domain policy with
 mechanics; deleting them requires checking the relevant extension behavior rather
 than moving those mixed modules into Sevro unchanged.
 
+The generic permission-locked cleanup example in `fixture.test.ts` is retired
+after Sevro's public CLI regressions and independent installed-archive checks
+proved workspace removal and unchanged external link targets. Its ten mounting
+and ticket scaffolding examples remain. Backend resource filtering and exact
+ticket round trips still need reconciliation through public interfaces; the
+mixed fixture file is not yet retired. See
+[fixture cleanup validation](fixture-cleanup-validation.md).
+
 ## Source dependencies outside the tree
 
 - `evals/repository-guide.ts` selects the legacy command when no explicit Sevro
@@ -184,4 +192,4 @@ behavior evidence.
 
 Path and content-digest inventory snapshots are retained outside the repository
 under `/Users/bjro/.darrow/issue95-runner-ownership/`; the latest snapshot is
-`historical-review-proof-inventory.json`.
+`fixture-cleanup-inventory.json`.
