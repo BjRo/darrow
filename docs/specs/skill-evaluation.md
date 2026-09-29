@@ -89,6 +89,11 @@ A setup-only generated fixture starts with an empty Git history. Its setup may
 create the initial snapshot; no placeholder commit may be synthesized before
 that setup runs.
 
+The Darrow extension prepares `.git/fixture-state` before running a case's
+fixture setup or tools. Existing fixture protocols and acceptance oracles may
+write there without creating the directory themselves. This repository-owned
+state convention belongs in extension preparation, not the generic engine.
+
 ### Direct runner roots
 
 The direct runner accepts `--project-root <directory>` for case discovery,

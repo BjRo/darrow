@@ -134,6 +134,15 @@ policies do not acquire a default quality rate. This explicit treatment of
 unavailable evidence is not a claim of numeric equivalence to historical legacy
 quality rates. See [quality report validation](quality-validation.md).
 
+### Fixture preparation
+
+Fixture preparation now preserves the legacy `.git/fixture-state` directory
+through the Darrow extension. Generic Sevro mechanics do not create this domain
+state. The failed-check fixture's oracle tests have moved to `evals/domain/` and
+the installed package gate includes that directory. See
+[fixture-state validation](fixture-state-validation.md) for the regression,
+preserved examples, and observed gates.
+
 ## Remaining benchmark contracts
 
 Parent `case_routes` and native `effective_owner_routes` are separate inputs.

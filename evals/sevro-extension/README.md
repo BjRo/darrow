@@ -722,6 +722,19 @@ For local protocol and public CLI validation, run:
 SEVRO_CHECKOUT=/absolute/path/to/sevro bun test evals/runner/parity/sevro-extension.test.ts
 ```
 
+Darrow fixture-oracle and repository-tooling tests live under `evals/domain/`.
+The migrated fixture tests use the public CLI and protocol with an installed
+package or explicit checkout route. The package-install gate runs this directory
+alongside parity tests. For an installed command:
+
+```sh
+SEVRO_PACKAGE_BIN=/absolute/path/to/consumer/node_modules/.bin/sevro bun test evals/domain
+```
+
+The extension creates `.git/fixture-state` before case setup or tools run.
+See [fixture-state validation](fixture-state-validation.md) for the public
+regression and migrated failed-check oracle examples.
+
 To run one supported case through the Darrow entrypoint, select an installed
 Sevro command with `SEVRO_PACKAGE_BIN` or a local development checkout with
 `SEVRO_CHECKOUT`. For example:

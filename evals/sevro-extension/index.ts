@@ -2143,7 +2143,10 @@ function verifyFixturePreparation(details: RecordValue, fixture: RecordValue) {
 
 async function caseSetup(details: RecordValue, caseId: string) {
   if (details.setupDigest === undefined && details.ticketDigest === undefined)
-    return null;
+    return {
+      command: ["/bin/bash", "-c", "mkdir -p .git/fixture-state"],
+      environment: {},
+    };
   const { fixture, source } = await readBoundCase(details, caseId);
   const { script, ticket } = verifyFixturePreparation(details, fixture);
   return {
@@ -2151,6 +2154,7 @@ async function caseSetup(details: RecordValue, caseId: string) {
       "/bin/bash",
       "-c",
       [
+        "mkdir -p .git/fixture-state",
         ...(ticket ? [ticketProvision(ticket)] : []),
         ...(script
           ? [script.replaceAll("{{case_dir}}", "$DARROW_EVAL_CASE_DIR")]

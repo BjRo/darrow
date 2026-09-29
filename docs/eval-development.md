@@ -412,7 +412,7 @@ SEVRO_PACKAGE_TARBALL=/absolute/path/to/sevro-version.tgz bun run test:eval-runn
 ```
 
 The package test installs Sevro in a temporary consumer project, runs its
-installed `sevro` command through the same Darrow parity fixtures, checks
+installed `sevro` command through the Darrow parity and domain fixtures, checks
 package provenance in retained evidence, and clears `SEVRO_CHECKOUT` for the
 child tests. The local-checkout path records Sevro revision and patch state.
 
