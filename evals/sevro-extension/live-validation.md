@@ -193,3 +193,49 @@ retained under `/Users/bjro/.darrow/issue95-claude-login-retry-b7e01f8/`.
 This establishes one fresh negative guide case after authentication. It does
 not establish full live-suite parity, private contract selection, a published
 release pin, or the default caller cutover.
+
+## Claude negative guide with the first release candidate
+
+On 2026-09-29, the repository-guide caller prepared a fresh dry run and executed
+one passive `guide-negative` trial against the independently installed Sevro
+`0.1.0-rc.1` archive from source commit `9d1d8f1`. The saved Claude login
+reported `loggedIn: true` with the environment OAuth token removed. Both
+invocations removed that token and the source checkout override. Native Claude
+repository scope, project settings, and shell isolation remained enabled.
+
+The dry invocation exited 0 with execution `not_run`, grading `not_requested`,
+and task `not_assessed`. The live invocation exited 0 with execution and grading
+`completed` and task `passed`. All five checks passed: four shell checks and
+the semantic question contract. Negative activation passed separately from
+complete Claude tool-call evidence, with no primary skill and no observed skills.
+
+The literal live invocation from
+`/Users/bjro/Sources/darrow/.worktrees/feat/issue-95-darrow-extension` was:
+
+```sh
+env -u CLAUDE_CODE_OAUTH_TOKEN -u SEVRO_CHECKOUT SEVRO_PACKAGE_BIN='/Users/bjro/.darrow/issue95-license-candidate/9d1d8f1/consumer/node_modules/.bin/sevro' bun evals/repository-guide.ts --only guide-negative --harness claude --project-root '/Users/bjro/Sources/darrow/.worktrees/feat/issue-95-darrow-extension' --results-root '/Users/bjro/.darrow/issue95-claude-rc1-guide/9e599252/live' -- --effort low --protected-root /Users/bjro/Sources/sevro --protected-root /Users/bjro/Sources/darrow
+```
+
+The preceding dry invocation used `--dry` before `--` and the sibling `dry`
+results root. The candidate route was `claude-sonnet-5/low`; the separate
+semantic route was Codex `gpt-5.6-terra/medium`.
+
+The retained run is `ada39100-2aee-4a58-be2f-0acb1521ae10`. Its `run.json`
+SHA-256 is
+`e229d0d894ca843e02660fc4816291675269a9cadac93e10250ed0c737f7a44c`.
+Evidence records Darrow revision
+`9e599252ce3d80ca40447ce199e395c57932c360` without a dirty patch. Runner
+identity is package `sevro` version `0.1.0-rc.1`, with build digest
+`04c4f4162af86095b903b57fa0f16c443081285a40b4fc1cfe8b5122691b4eeb`.
+The exact archive SHA-256 is
+`796fa0882b0354b63a2d2085d34fea59379f3b5929459ecba61e45ea6ae118d6`.
+
+Commands, public results, and source and route identities are retained under
+`/Users/bjro/.darrow/issue95-claude-rc1-guide/9e599252/`.
+This is fresh live evidence for one negative guide case against the reviewed
+release candidate. The older development-archive result retains its original
+identity. This result does not establish full live-suite parity, a native owner
+benchmark comparison, enforced execution, a published release pin, or default
+caller cutover. The same archive separately passed the full installed Darrow
+gate with 513 tests and 4,733 assertions; see
+[benchmark migration validation](benchmark-migration-validation.md).
