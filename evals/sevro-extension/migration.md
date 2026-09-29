@@ -142,6 +142,8 @@ state. The failed-check fixture's oracle tests have moved to `evals/domain/` and
 the installed package gate includes that directory. See
 [fixture-state validation](fixture-state-validation.md) for the regression,
 preserved examples, and observed gates.
+The incomplete-verification fixture's sixteen tests also use that transport;
+see [verification fixture validation](verification-fixture-validation.md).
 
 ## Remaining benchmark contracts
 
