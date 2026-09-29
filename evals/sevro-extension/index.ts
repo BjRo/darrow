@@ -2154,6 +2154,7 @@ async function caseSetup(details: RecordValue, caseId: string) {
       "/bin/bash",
       "-c",
       [
+        'case "${PATH%%:*}" in */.git/fixture-bin) PATH=${PATH#*:}; export PATH ;; esac',
         "mkdir -p .git/fixture-state",
         ...(ticket ? [ticketProvision(ticket)] : []),
         ...(script

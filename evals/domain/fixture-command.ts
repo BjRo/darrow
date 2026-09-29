@@ -5,10 +5,19 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parse } from "yaml";
 
-export type OracleCheck = { name: string; run: string; exit_code?: number };
+export type OracleCheck = {
+  name: string;
+  run: string;
+  exit_code?: number;
+  expect_regex?: string;
+};
+type Fixture = Record<string, unknown> & {
+  setup?: string;
+  commits?: { message: string; files?: Record<string, string> }[];
+};
 export type FixtureCase = {
   id: string;
-  fixture: Record<string, unknown> & { setup?: string };
+  fixture: Fixture;
   checks: OracleCheck[];
 };
 type CliResult = {
@@ -39,6 +48,7 @@ type OracleOptions = {
   source: URL;
   checks: OracleCheck[];
   setupPrefix?: string;
+  fixture?: Fixture;
 };
 
 async function prepareOracle(root: string, options: OracleOptions) {
@@ -46,7 +56,7 @@ async function prepareOracle(root: string, options: OracleOptions) {
   const caseDir = join(root, "evals/experiments/fixture-oracle/cases");
   await mkdir(caseDir, { recursive: true });
   const id = `oracle-${canonical.id}`;
-  const fixture = { ...canonical.fixture };
+  const fixture = { ...(options.fixture ?? canonical.fixture) };
   if (options.setupPrefix !== undefined)
     fixture.setup = [options.setupPrefix, fixture.setup ?? ""].join("\n");
   await writeFile(

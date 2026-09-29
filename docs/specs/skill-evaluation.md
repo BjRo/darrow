@@ -93,6 +93,11 @@ The Darrow extension prepares `.git/fixture-state` before running a case's
 fixture setup or tools. Existing fixture protocols and acceptance oracles may
 write there without creating the directory themselves. This repository-owned
 state convention belongs in extension preparation, not the generic engine.
+Canonical Darrow fixture setup resolves ambient tools before declared fixture
+wrappers. A setup command that records system Git must not bind its own Git
+wrapper and recurse. Declared fixture tools remain first on `PATH` for candidate
+execution and shell grading. The extension preserves this phase distinction
+without changing generic Sevro setup policy.
 
 ### Direct runner roots
 
