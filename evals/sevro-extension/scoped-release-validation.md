@@ -107,8 +107,9 @@ and the reviewed integrity hash. `bun install --frozen-lockfile` passed.
 
 The [default caller switch](default-package-validation.md) passed its three
 successive public-command slices and complete 40-test caller gate. Generic
-runner and source-copy baseline removal, automatic frozen installed CI, and a
-focused live check after the switch remain outstanding.
+runner and source-copy baseline removal is recorded in the
+[retirement validation](runner-retirement-validation.md). Automatic frozen
+installed CI and a focused live check after the switch remain outstanding.
 
 Earlier unscoped full and live evidence keeps its original source and archive
 identity. These preparation and deterministic checks establish no new live

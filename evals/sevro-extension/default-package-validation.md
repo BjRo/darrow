@@ -56,8 +56,9 @@ default-route checks and two invalid-route checks then passed together: five
 tests / 32 assertions in 5.11 seconds. ESLint, typecheck, formatting, and the
 253-page documentation check passed for the changed scope.
 
-Generic runner files, the temporary source-copy comparison, automatic frozen
-installed CI, and the required focused live check remain the next milestones.
+Generic runner files and the temporary source-copy comparison are now
+[retired](runner-retirement-validation.md). Automatic frozen installed CI and
+the required focused live check remain the next milestones.
 Earlier live evidence retains its original archive and source identity. See
 [release validation](scoped-release-validation.md) and the
 [migration guide](migration.md).

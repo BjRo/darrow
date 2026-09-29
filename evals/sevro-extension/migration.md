@@ -4,7 +4,8 @@ Normal `bun eval`, `bun run eval:orchestration`, and `evals/repository-guide.ts`
 run Darrow cases through Sevro's public CLI and extension protocol. Darrow pins
 published `@bjoernrochel/sevro@0.1.0-rc.1` as an exact development dependency.
 Run `bun install --frozen-lockfile` before using these commands. Generic runner
-removal remains the next milestone.
+implementation, private tests, and source-copy integration are removed from
+Darrow; public integration tests and domain policy remain.
 The [runner cutover inventory](runner-cutover-inventory.md) records the remaining
 ownership groups, source dependencies, and domain tests already moved out.
 The ownership boundary is recorded in
@@ -57,7 +58,7 @@ The package installation directory is not run storage.
 | `--harness codex\|claude`                  | Forward `--host codex\|claude`, explicit host binary, model, effort, and credentials.                                                                                                                                                        |
 | Text-file `--condition`                    | Use Darrow `--benchmark-condition-file` and optional label before `--`. Forwarded Sevro `--condition` selects `passive` or `enforced`.                                                                                                       |
 | `--skill`, `--plugin`, repeatable `--case` | Use the same filters before `--` on the migration run entrypoint. Exact ownership filters intersect; repeatable ID substrings narrow that set. Filtered runs retain a selection manifest and each public result.                             |
-| `--jobs`                                   | Forward `--jobs <positive integer>` after `--`. Sevro defaults to three simultaneous trials within each case; `--jobs 1` is serial. Selected cases remain sequential. Normal command cutover remains pending.                                |
+| `--jobs`                                   | Forward `--jobs <positive integer>` after `--`. Sevro defaults to three simultaneous trials within each case; `--jobs 1` is serial. Selected cases remain sequential. Normal callers use the installed package.                              |
 | Suite execution                            | Set an explicit Sevro route on `bun run eval:orchestration` or `bun evals/runner/suite.ts`. The caller translates native model, semantic, and advisory options to the public suite route. See [README.md](README.md#benchmark-suite-caller). |
 | `--output` result array                    | Retain public CLI JSON and per-run evidence under the explicit results root. Legacy output compatibility is not provided by the migration entrypoint.                                                                                        |
 | Legacy suite manifest                      | New suites retain `suite-run.json`, each raw Sevro result, and separate task, activation, and ablation reports.                                                                                                                              |
@@ -68,7 +69,8 @@ shuffle. The manifest retains `orderSeed` and the full indexed `cellPlan`
 before execution; completed and cancelled cells retain its executed prefix.
 An omitted seed generates a retained timestamp, and an empty seed is valid.
 See [ordering validation](ordering-validation.md). This covers execution order;
-normal benchmark caller cutover and unsupported enforcement policies remain pending.
+normal benchmark callers now use the installed package. Bundled hosts still
+reject enforced requests explicitly.
 
 The direct caller retains selectors, candidate and grader routes, text conditions,
 skill controls, trials/jobs/threshold, and storage options. Relative paths resolve
@@ -183,7 +185,7 @@ command requests; see [goal review validation](goal-review-fixture-validation.md
 The twelve activation policy tests and five prompt tests now live under
 `evals/domain/`. They exercise public resolve, prepare, and evaluate requests,
 Darrow's separate activation gate, and prompt output from the installed command.
-The legacy implementation files remain until the published-package cutover.
+The legacy implementation files are removed after the published-package cutover.
 See [activation and prompt validation](activation-prompt-validation.md).
 
 Claude plugin tokens now use `/plugin:skill`, binding the installed manifest's
@@ -273,10 +275,11 @@ Bundled Sevro hosts support passive execution and refuse enforced conditions or
 unsupported instrumentation. Generic adapters can negotiate instrumentation;
 an enforced test using such an adapter does not prove enforcement by a bundled
 host. Keep an enforced suite cell distinct from passive execution.
-The legacy Codex guard conditionally uses `bin/adaptive-delivery-preflight`;
+The retired legacy Codex guard conditionally used `bin/adaptive-delivery-preflight`;
 the current adaptive-delivery plugin uses its contained Python backend and does
 not ship that helper. Restoring removed runtime machinery from history is outside
-this extraction. The intended enforcement migration remains a cutover gate.
+this extraction. Enforced variants remain explicit unsupported requests; no
+guard or active benchmark correction is added.
 
 ## Historical results
 
@@ -365,7 +368,7 @@ matrix, and marketplace boundaries. No marketplace plugin gains this runtime.
 
 ### Compatibility matrix
 
-The current unpublished local candidate uses Sevro `0.1.0-rc.1`, extension protocol
+The current published exact pin uses Sevro `0.1.0-rc.1`, extension protocol
 `sevro.extension.v1`, and Bun `1.3.13`. Each release must retain the exact package
 digest, Darrow revision and patch identity, negotiated capabilities, host route,
 and result paths for the applicable rows below.
@@ -377,7 +380,7 @@ and result paths for the applicable rows below.
 | Generic passive and enforced execution | Shared parity fixtures with adapters that declare the relevant capabilities                                                       | Covers condition identity, grading, interruption, ownership, and isolation. It does not establish enforced execution by bundled hosts.                                                                                               |
 | Bundled Codex and Claude               | Supported passive suite and extension fixtures with synthetic executables and complete or deliberately incomplete native receipts | Covers host-specific preparation, route binding, continuation, activation, and unavailable evidence. These deterministic checks make no live model claim.                                                                            |
 | Focused native behavior                | One understood trial at a time on the selected native host                                                                        | [live-validation.md](live-validation.md) records Codex negative activation, Claude repository dispatch/control checks, and standalone Claude continuation. Their models and routes are explicit; one trial is not a stability claim. |
-| Published Darrow pin                   | Frozen dependency installation and the installed integration gate against the exact release                                       | Pending publication and pinning. The manual [installed candidate workflow](../../.github/workflows/sevro-integration.yml) is prepared; automatic verification of the frozen pin remains pending.                                     |
+| Published Darrow pin                   | Frozen dependency installation and the installed integration gate against the exact release                                       | Publication, exact pinning, and frozen installation passed. The manual [installed candidate workflow](../../.github/workflows/sevro-integration.yml) is prepared; automatic verification of the frozen pin remains pending.          |
 
 Native isolation checks require the relevant host's sandbox or macOS sandbox
 support. A skipped platform or unavailable-host assertion is not evidence for

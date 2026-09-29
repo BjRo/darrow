@@ -2,14 +2,38 @@
 
 Issue [#95](https://github.com/BjRo/darrow/issues/95) requires removing generic
 runner implementation and unit tests from Darrow while preserving its cases,
-policy, and product tests. The exact published dependency, runnable benchmark
-conditions, and focused native validation remain cutover gates.
+policy, and product tests. The published exact dependency and default caller
+switch are complete. Explicit passive benchmark variants preserve task and
+native route comparisons; enforced variants remain unsupported by bundled hosts.
+Focused native validation after the switch remains required.
 
-## Ownership at this milestone
+## Current ownership
 
-After moving nineteen domain test files, `evals/runner/` contains 74 TypeScript
-files. The groups below account for every remaining file. They describe ownership
-and remaining work; they do not certify equivalent behavior or authorize restoring
+`evals/runner/` now contains 16 TypeScript files: five thin public command
+entrypoints and eleven public integration test files. The 57 inventoried legacy
+implementation, private test, and source-copy baseline files are removed. The
+temporary cross-runner comparison file is also retired after the observed
+installed comparison and documented migrations. No generic implementation or
+private runner types remain in this tree.
+
+Darrow's 24 domain test files retain fixture, oracle, activation, prompt, owner,
+and benchmark policy outside the runner tree. Historical report, comparison,
+ablation, and reviewer-routing interpretation remains in standalone Darrow
+readers. Sevro owns generic engine and host behavior and its own unit and public
+CLI regressions. No marketplace plugin gains a Sevro or Bun runtime dependency.
+
+Run `bun run test:eval-runner-compatibility` after frozen installation to exercise
+the installed public boundary and domain tests. The old script name now invokes
+those tests; it no longer copies or launches the retired generic runner.
+The [release evidence](scoped-release-validation.md),
+[caller switch](default-package-validation.md), and migration guide retain the
+observed comparisons and deliberate contract changes.
+
+## Inventory before cutover
+
+After moving nineteen domain test files, `evals/runner/` contained 74 TypeScript
+files. The groups below record that earlier inventory and its cutover
+dispositions; they do not certify equivalent behavior or authorize restoring
 removed runtime machinery.
 
 | Group                                                        |  Files | Cutover disposition                                                                                                                                                                                                                                                                             |

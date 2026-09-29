@@ -282,19 +282,19 @@ Normal execution requires `bun install --frozen-lockfile`.
 
 ## Live-run controls
 
-Use `--owner-evaluation passive` for native trials of the shipped adaptive-delivery
-skill. It omits the Codex spawn/parent guard (including its `fork_turns` rewrite)
-and Claude's adaptive-delivery-specific scheduler exclusion. The default
-`--owner-evaluation enforced` preserves the historical diagnostic condition.
+Use `--owner-evaluation passive` for observational native trials of the shipped
+adaptive-delivery skill. The default `--owner-evaluation enforced` preserves
+the requested historical diagnostic condition, which bundled Sevro hosts
+currently reject as unsupported. It never becomes passive implicitly.
 Neither mode removes ordinary fixture/credential isolation. Suite modes can
 set `owner_evaluation: passive|enforced` independently. Results retain requested
 mode on the case and actual assistance on each harness result; historical
 absence stays unknown. A dry run is not an observed passive trial.
 
-The enforced Codex guard still consumes its strict structured contract
-template. It may reject valid presentation variants allowed by the shipped
-skill. Treat those as enforcement-profile results, never native product
-failures. Passive native session evidence proves correlated acceptance and
+The retired Codex guard used a strict structured contract template and could
+reject valid presentation variants allowed by the shipped skill. Retained
+results from that guard remain historical enforcement-profile measurements.
+Passive native session evidence proves correlated acceptance and
 same-target message attempts but leaves delivery and encrypted role/contract contents
 unverified. Combine it with task and authority evidence; do not infer missing
 contract or route-selection facts.
@@ -360,108 +360,64 @@ explicitly.
 
 ## Runner compatibility baseline
 
-Run the command-level compatibility baseline without live harness calls or
-credentials:
+Install the exact published development dependency before running the public
+integration and Darrow domain gate:
 
 ```sh
-bun run test:eval-runner-compatibility
+bun install --frozen-lockfile
+env -u SEVRO_CHECKOUT -u SEVRO_PACKAGE_BIN bun run test:eval-runner-compatibility
 ```
 
-By default the suite copies `evals/runner/run.ts` into an isolated project and
-launches it with a synthetic adapter. It asserts public behavior through CLI
-arguments, exit categories, result and diagnostic artifacts, cancellation, and
-retained evidence. It does not assert terminal wording or import runner modules
-to inspect their state.
-The fixture also exercises a shell check, an output check, incomplete usage
-evidence, and both requested and observed passive/enforced modes. The two modes
-must have different evaluation digests. An incomplete optional measurement
-remains explicit while independently passing task checks remain passing.
-Separate-root cases run the direct command with `--project-root` and
-`--config-root`, check project-local supporting skills and source protection,
-and remove the runner's Git metadata to exercise packaged installation.
-Storage cases use `--results-root` and `--run-state-root` independently, then
-verify result, ownership, and checkpoint paths plus their isolation from shell
-checks. A separate `--output` file receives the same protection.
+This command exercises Sevro's installed public CLI, versioned extension
+protocol, Darrow callers, domain oracles, and standalone historical readers.
+It uses controlled native executables and credentials for deterministic host
+fixtures. Generic engine and host implementation tests belong to Sevro. No
+integration fixture copies the former runner or imports private implementation
+or types.
 
-To exercise another implementation, set `DARROW_EVAL_RUNNER_COMMAND` to a JSON
-argv array. The suite appends the runner CLI arguments and expands
-`{projectRoot}`, `{resultsRoot}`, `{runnerPath}`, and `{syntheticAdapter}` in
-each argument. The configured launcher must connect its synthetic adapter to
-the `pass`, `fail`, `incomplete-usage`, `throw-after-first`, and `wait` values supplied through
-`DARROW_EVAL_COMPAT_SCENARIO`; the wait scenario also receives
-`DARROW_EVAL_COMPAT_READY_PATH` and `DARROW_EVAL_COMPAT_CHILD_PID_PATH`.
-This launcher seam permits a compatible command adapter; Sevro's current CLI
-uses different case and argument formats, so it cannot be substituted as a
-direct command prefix.
-When comparing both implementations, inspect any failed assertion before
-changing the fixture. Normalize variable timestamps, paths, and attempt IDs;
-keep case selection, named check outcomes, completeness flags, condition
-labels, and exit categories visible. Record any deliberate migration separately.
+The source-copy compatibility launcher and temporary legacy cross-runner
+comparison are retired. Their observed results and deliberate command, output,
+condition, and historical interpretation changes remain recorded in the
+[migration guide](../evals/sevro-extension/migration.md) and its validation
+records. The retained `DARROW_EVAL_RUNNER_COMMAND` launcher seam is retired too.
 
-Run the first cross-runner command comparison with an explicit local Sevro
-checkout:
+For coordinated development, use one explicit absolute route:
 
 ```sh
 SEVRO_CHECKOUT=/absolute/path/to/sevro bun run test:eval-runner-sevro-parity
 ```
 
-To verify a packed Sevro build from a separate installation, provide its
-tarball without a source checkout:
+A separate candidate archive can be installed and exercised without its source
+checkout:
 
 ```sh
-SEVRO_PACKAGE_TARBALL=/absolute/path/to/sevro-version.tgz bun run test:eval-runner-sevro-package
+SEVRO_PACKAGE_TARBALL=/absolute/path/to/bjoernrochel-sevro-version.tgz bun run test:eval-runner-sevro-package
 ```
 
-The package test installs Sevro in a temporary consumer project, runs its
-installed `sevro` command through the Darrow parity and domain fixtures, checks
-package provenance in retained evidence, and clears `SEVRO_CHECKOUT` for the
-child tests. The local-checkout path records Sevro revision and patch state.
+The package gate installs the archive in a temporary consumer and clears its
+checkout override. Public command fixtures retain package name, version, build
+identity, and available native observations. The three default-caller tests
+also verify Darrow's own frozen pin with both overrides cleared. An explicit
+checkout retains its revision and patch identity; it is development evidence.
 
-The [Sevro migration guide](../evals/sevro-extension/migration.md) records
-command and evidence changes, remaining benchmark and historical-result gaps,
-the compatibility matrix, and release update and rollback steps. The migration
-entrypoints are available for coordinated development. The existing direct, guide,
-and orchestration suite callers use the exact installed Sevro dependency by
-default; an explicit package or checkout route overrides that dependency.
-The suite caller retains selectors, route options,
-seeded ordering, and cancellation while migrating output to a JSON summary and
-separate reports. See the
-[caller contract](../evals/sevro-extension/README.md#benchmark-suite-caller).
-The direct caller retains its selection and route options but writes the new
-selection manifest to stdout and optional `--output`; see its
-[caller contract](../evals/sevro-extension/README.md#direct-evaluation-caller).
-The direct caller's `--human-review-minutes` records a user-supplied per-trial
-annotation in its selection manifest. Omitted values stay unknown. It does not
-change Sevro's evaluator identity or grading, and dry runs remain unassessed.
-The cross-runner fixture clears Sevro route variables for the legacy command so
-it still compares two implementations.
+Normal direct, guide, and benchmark callers use the frozen installed pin. The
+suite caller retains selectors, route options, seeded ordering, and
+cancellation, with JSON summaries and separate reports. The direct caller
+retains selection and route options and writes its selection manifest to stdout
+and optional `--output`. Its `--human-review-minutes` annotation is supplied
+by the user; omitted values stay unknown and dry runs stay unassessed.
+See the [public caller contracts](../evals/sevro-extension/README.md).
 
-The Sevro suite writes a Darrow-owned quality report separately from its generic
+The suite's Darrow-owned quality report stays separate from Sevro's generic
 report. It distinguishes non-record task checks, bookkeeping completeness, and
-the public task verdict, retaining unknown rates for dry or unavailable
-evidence. See the
-[quality report contract](../evals/sevro-extension/README.md#suites) and
-[validation notes](../evals/sevro-extension/quality-validation.md).
+the public task verdict. Dry or unavailable evidence keeps rates unknown.
+See the [quality contract](../evals/sevro-extension/README.md#suites).
 
-This development test launches Darrow's runner and Sevro's CLI as separate
-processes against one synthetic case definition. It compares the selected
-case, shell and output check outcomes, source and configuration-root isolation,
-separate result and run-state roots, passive condition evidence, incomplete
-usage, retained raw output, and success or failure exits. It also compares
-enforced condition evidence and checks that the two modes have distinct
-evaluation identities. Cancellation stops both commands and retains an
-interrupted attempt. Darrow writes a diagnostic with no completed trial; Sevro
-also retains the cancelled, unassessed trial as evidence. Both commands refuse
-an equivalent run while its first owner is live; Sevro reports the refusal as
-a versioned JSON error. Darrow's additional activation check is outside this
-shared surface. The fixture uses the explicit local-checkout path while Sevro
-is unreleased. A package test packs a temporary source copy, removes that copy,
-then installs and runs Sevro in a separate consumer without Git metadata. Suite
-selection now has a separate public-command suite fixture for supported Codex
-passive/enforced cells. Its generic report runs through `sevro report` and
-retains separate task, execution, and grading states. Full ablations, route
-overrides, and Darrow-specific reports remain on the original compatibility
-baseline until their own public-command comparison passes.
+Bundled hosts explicitly reject enforced execution. Generic adapters can
+negotiate that capability for deterministic identity checks; these checks do
+not establish bundled-host enforcement. Native observational comparisons select
+the named passive modes explicitly. Neither those modes nor this extraction
+actively correct benchmark execution.
 
 - Use one trial per invocation while diagnosing so stop-at-first-failure is
   real:

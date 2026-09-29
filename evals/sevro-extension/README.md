@@ -8,11 +8,13 @@ The npm package is `@bjoernrochel/sevro`; its installed command remains `sevro`.
 
 See [migration.md](migration.md) for local development, command and evidence
 changes, the compatibility matrix, and release update and rollback steps.
-Normal Darrow callers use the legacy runner by default. The direct, benchmark,
-and guide callers select Sevro with an explicit package or checkout route;
-publication, the exact release pin, and default cutover remain pending.
+Normal direct, benchmark, and guide callers use published
+`@bjoernrochel/sevro@0.1.0-rc.1` from Darrow's frozen development dependency.
+Explicit package or checkout routes remain available for development.
 The [scoped release validation](scoped-release-validation.md) records the current
 archive identity, checks, and targeted benchmark expectation repair.
+The [runner retirement record](runner-retirement-validation.md) records generic
+implementation removal and the retained public integration boundary.
 
 This migration slice resolves one selected skill-free experiment case or
 plugin-local skill case, with optional candidate skill overrides. It accepts generated Git commits or a pinned corpus
@@ -418,7 +420,7 @@ within each case. Sevro defaults to three jobs; use `--jobs 1` for serial trials
 It retains the effective limit in configuration and evaluation identity, keeps
 trial-number order in results and checkpoints, and drains active trials before
 finalizing cancellation or persistence errors. Selected cases remain sequential.
-The normal command cutover remains pending.
+Normal callers use the same installed public boundary by default.
 
 Selection validates the complete public result with Ajv and the bundled
 [`cli-result-v1.schema.json`](schemas/cli-result-v1.schema.json) contract snapshot.
@@ -607,8 +609,7 @@ remain unsupported. Dry preparation preserves enforced labels and stays
 unassessed. See
 [benchmark migration validation](benchmark-migration-validation.md).
 
-Without a Sevro route the caller retains its legacy backend until release
-pinning and default cutover.
+Without a runner override, the caller uses the frozen installed dependency.
 An invalid explicit route cannot fall back. See
 [caller validation](benchmark-caller-validation.md).
 
