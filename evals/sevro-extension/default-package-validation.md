@@ -57,8 +57,9 @@ tests / 32 assertions in 5.11 seconds. ESLint, typecheck, formatting, and the
 253-page documentation check passed for the changed scope.
 
 Generic runner files and the temporary source-copy comparison are now
-[retired](runner-retirement-validation.md). Automatic frozen installed CI and
-the required focused live check remain the next milestones.
+[retired](runner-retirement-validation.md). Automatic frozen installed CI is
+[configured](frozen-ci-validation.md). Final candidate verification includes the
+full installed gate and the required focused live check.
 Earlier live evidence retains its original archive and source identity. See
 [release validation](scoped-release-validation.md) and the
 [migration guide](migration.md).

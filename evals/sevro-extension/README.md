@@ -15,6 +15,8 @@ The [scoped release validation](scoped-release-validation.md) records the curren
 archive identity, checks, and targeted benchmark expectation repair.
 The [runner retirement record](runner-retirement-validation.md) records generic
 implementation removal and the retained public integration boundary.
+The [frozen CI matrix](frozen-ci-validation.md) records automatic installed-pin
+verification, host prerequisites, and local evidence limits.
 
 This migration slice resolves one selected skill-free experiment case or
 plugin-local skill case, with optional candidate skill overrides. It accepts generated Git commits or a pinned corpus

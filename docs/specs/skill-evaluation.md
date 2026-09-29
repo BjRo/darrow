@@ -1187,6 +1187,11 @@ not prove equivalence or savings.
   the verified archive and package identity with its logs even on failure, and
   exercise the public command without package Git metadata. This candidate gate
   does not replace automatic verification of the eventual frozen dependency pin.
+  Pull-request and push CI must install the frozen exact pin and exercise the
+  public CLI/protocol and Darrow domain gate with both runner overrides cleared.
+  Retain the installed package identity, lock digest, Darrow revision, and test
+  log even on failure. Any host sandbox or fixture-tool prerequisites belong to
+  the declared compatibility matrix; these checks make no live model claim.
   Darrow-owned oracle and repository-tooling tests belong outside the generic
   runner tree. They may execute their owning plugin's public oracle, but must
   not import runner implementation or private runner types. Their input types
