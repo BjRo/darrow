@@ -32,6 +32,11 @@ the combined set. Claude uses the required `.claude/skills/<name>` mirror and
 native `/skill` invocation. Explicit activation requires a complete command
 receipt; an ordinary Skill call cannot repair an unverified command. Supporting
 plugins keep their own package directories on Claude too.
+An explicit Claude repository prompt must begin with `{{skill_invocation}}` and
+its arguments. An inline mention is rejected before execution. Plugin invocations
+use their installed namespace: `$plugin:skill` on Codex and `/plugin:skill` on
+Claude. See [activation and prompt validation](activation-prompt-validation.md)
+for the legacy rendering migrations and public-interface tests.
 Pass `--claude-project-settings` for either explicit or implicit repository
 trials. Without it, preparation rejects the unavailable project-skill route.
 The guide's legacy Claude disclosure check now uses the complete retained final

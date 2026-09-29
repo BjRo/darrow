@@ -7,7 +7,7 @@ decisions, and focused native validation remain cutover gates.
 
 ## Ownership at this milestone
 
-After moving fourteen domain test files, `evals/runner/` contains 82 TypeScript
+After moving sixteen domain test files, `evals/runner/` contains 80 TypeScript
 files. The groups below account for every remaining file. They describe ownership
 and remaining work; they do not certify equivalent behavior or authorize restoring
 removed runtime machinery.
@@ -18,18 +18,19 @@ removed runtime machinery.
 | Public integration tests under `parity/`                     |     12 | Keep Darrow integration coverage. Remove the legacy launcher and its runner imports from `sevro.test.ts` after recording the final comparison. Other tests exercise the public package, Darrow protocol, or standalone historical readers.                  |
 | Legacy source-copy baseline under `compatibility/`           |      2 | Retire `baseline.test.ts` and `command.ts` after required command comparisons and deliberate migrations are recorded. They copy the generic runner and cannot remain the installed integration gate.                                                        |
 | Darrow fixture and oracle tests                              |      0 | All fourteen domain test files now live under `evals/domain/`. Fixture tests use public command or protocol requests and no legacy runner implementation or private types.                                                                                  |
-| Darrow policy, rendering, and proof helpers with their tests |     14 | Keep policy in the extension and bounded native observation mechanics in Sevro. Replace private helper tests with the appropriate owner’s coverage. Reconcile legacy report and private-contract assertions before deleting their implementation.           |
+| Darrow policy, rendering, and proof helpers with their tests |     12 | Activation and prompt tests now use public interfaces under evals/domain/. Keep their legacy implementations until cutover. Reconcile the remaining owner, report, metrics, and review-proof tests with current public contracts before removal.            |
 | Historical enforcement profile and tests                     |      3 | Resolve the explicit enforced-condition migration. Do not silently use passive execution or restore the removed preflight helper.                                                                                                                           |
 | Engine, host mechanics, and associated tests                 |     46 | Remove generic implementation and unit tests after cutover. Preserve any embedded Darrow discovery, mounting, or grading policy in the extension and its public-interface tests.                                                                            |
-| **Total remaining**                                          | **82** |                                                                                                                                                                                                                                                             |
+| **Total remaining**                                          | **80** |                                                                                                                                                                                                                                                             |
 
 No domain fixture test remains in the runner tree. The remaining policy and
 enforcement expectations still require comparison with current authoritative
 contracts before translating or retiring them.
 
-The fourteen policy files are the implementation/test pairs for `activation`,
-`prompt`, `owner-evidence`, `goal-report`, `orchestration-metrics`,
-`native-review-proof`, and `claude-review-proof`. The three enforcement files are
+The twelve remaining policy files are the legacy `activation` and `prompt`
+implementations and the implementation/test pairs for `owner-evidence`,
+`goal-report`, `orchestration-metrics`, `native-review-proof`, and
+`claude-review-proof`. The three enforcement files are
 `codex-spawn-guard.ts`, its test, and `owner-evaluation.test.ts`.
 These are not generic engine code merely because they currently share its tree.
 
@@ -142,6 +143,15 @@ through the installed command, including current-content invalidation and
 conflicting installed copies. See
 [goal review validation](goal-review-fixture-validation.md).
 
+`evals/domain/activation-policy.test.ts` preserves twelve validation, observed
+selection, owner-policy, and threshold examples through public requests and the
+standalone Darrow activation gate. `evals/domain/prompt-policy.test.ts` preserves
+five rendering examples through the installed command, including native Claude
+namespace and command-placement migrations. Their source-project helper writes
+only controlled fixture files and submits public requests; it contains no engine
+implementation. See
+[activation and prompt validation](activation-prompt-validation.md).
+
 At the first relocation milestone, `bun test evals/domain` passed all 25 tests with 51 assertions.
 The initial run failed four positive review tests because the fixture omitted the
 required review-state environment and used an older Codex default. The corrected
@@ -151,4 +161,4 @@ behavior evidence.
 
 Path and content-digest inventory snapshots are retained outside the repository
 under `/Users/bjro/.darrow/issue95-runner-ownership/`; the latest snapshot is
-`goal-review-inventory.json`.
+`activation-prompt-inventory.json`.

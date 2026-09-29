@@ -175,6 +175,21 @@ The twenty-five goal-review tests preserve activation requirements, canonical
 artifacts, and original-finding-bound repair proof through public protocol and
 command requests; see [goal review validation](goal-review-fixture-validation.md).
 
+### Activation and prompt policy
+
+The twelve activation policy tests and five prompt tests now live under
+`evals/domain/`. They exercise public resolve, prepare, and evaluate requests,
+Darrow's separate activation gate, and prompt output from the installed command.
+The legacy implementation files remain until the published-package cutover.
+See [activation and prompt validation](activation-prompt-validation.md).
+
+Claude plugin tokens now use `/plugin:skill`, binding the installed manifest's
+namespace. Explicit Claude repository prompts must begin with `/skill`; an inline
+mention is rejected before execution. Codex repository tokens remain `$skill`
+and may appear inline. The unused legacy `source_plugin` field is rejected;
+the actual packaged plugin manifest supplies its namespace. These deliberate
+migrations preserve native scope and make unsupported forms explicit.
+
 ## Remaining benchmark contracts
 
 Parent `case_routes` and native `effective_owner_routes` are separate inputs.

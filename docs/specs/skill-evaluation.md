@@ -355,10 +355,14 @@ digest-checked and stays local.
 
 Participant prompts that explicitly invoke the colocated skill use the shared
 `{{skill_invocation}}` placeholder. The runner resolves it only at trial time
-to the host-native public token: the unqualified skill name on Claude Code and
-the installed plugin-qualified skill name on Codex. The source case therefore
-stays host-portable while each harness receives an invocation it can actually
-resolve.
+to the host-native public token. Plugin cases use the installed plugin namespace:
+`$plugin:skill` on Codex and `/plugin:skill` on Claude Code. Repository cases use
+`$skill` on Codex and `/skill` on Claude Code. The source case therefore stays
+host-portable while each harness receives an invocation it can actually resolve.
+An explicit Claude repository case must start its prompt with the shared
+placeholder, followed by its arguments. An inline mention does not constitute a
+native project command and is rejected before execution. Codex repository cases
+may use the placeholder inline.
 
 Claude may expand an explicit plugin command before the first assistant turn,
 without emitting a Skill tool event. Accept that path only when the native
