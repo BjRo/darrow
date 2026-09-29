@@ -35,8 +35,9 @@ for this axis. Keep needed requirement or maintenance-note material in
 Pass the authoritative original comprehensive result, immediately prior
 verification, or complete supported external handoff as `--original`.
 The helper copies original-axis findings and carried regressions without
-rewriting them, verifies prior-target binding, and preserves legacy guidance
-absence. Never put the other axis's analysis in the context.
+rewriting them and verifies prior-target binding. Every original finding and
+carried regression requires nonempty repair guidance and resolution evidence.
+Never put the other axis's analysis in the context.
 Missing target history is derived from the validated prior verification;
 explicitly supplied history must match it, including order and unique targets.
 

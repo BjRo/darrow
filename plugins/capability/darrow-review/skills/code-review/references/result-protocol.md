@@ -114,10 +114,10 @@ the finding. Resolution evidence describes observable behavior or a regression
 test demonstrating the required outcome; it is a proposed verification method,
 not a claim that a test has run or a new requirement.
 
-The `repair_guidance` and `resolution_evidence` fields are optional as a pair:
-validators and renderers also accept findings with neither field. A partial
-pair, an empty field, or extra fields is invalid. New readers emit both; consumers preserve their
-presence or absence exactly. Human output labels repair guidance as advisory.
+Every finding and regression requires nonempty `repair_guidance` and
+`resolution_evidence` fields. Missing either field, an empty field, or extra
+fields is invalid. Readers emit both; consumers preserve their values exactly.
+Human output labels repair guidance as advisory.
 The originating requirement, not the suggestion, determines resolution.
 
 Derive verdict mechanically:
@@ -174,8 +174,8 @@ or deploy action inside review.
 Write fix verification to `verification.json` directly beneath the current
 scope artifact directory. Never overwrite or reinterpret an original
 `result.json`. The additive format is `darrow-review-verification-v3`; the
-initial `darrow-review-result-v3` records remain readable, including legacy
-findings without guidance.
+original `darrow-review-result-v3` records require complete findings with both
+guidance fields.
 
 The caller must supply the original comprehensive review target, its complete
 canonical finding order, the immediately prior repair target, the attempted
@@ -278,8 +278,8 @@ observation. On a later verification, the validator checks the prior artifact
 checksum and target link, preserves the original set, and requires every prior
 regression to retain its stable key and immutable cause, order, axis, severity,
 location, source, repair guidance, and resolution evidence. The two guidance
-fields follow the same paired-extension rule as comprehensive findings;
-preserve legacy absence. New regressions carry the fix reader's own reasoning,
+fields are required as in comprehensive findings. New regressions carry the
+fix reader's own reasoning,
 with the same advisory and uncertainty rules. Original guidance is immutable
 history, not an implementation acceptance condition.
 The first verification binds `prior_target` to
@@ -325,8 +325,8 @@ That command validates the record and prior-verification chain. The
 fix-verification workflow also requires `validate-original` whenever the original
 comprehensive result is retained. Normal fix finalization accepts `--original`
 with that result, a validated immediately prior verification, or a complete
-external handoff file. It reads immutable original records directly, preserves
-legacy field absence, and binds prior/current targets from the scope manifests.
+external handoff file. It reads complete immutable original records directly
+and binds prior/current targets from the scope manifests.
 It also copies captured checks and derives the outcome. A prior verification
 provides its checksum and history mechanically. Do not retype original
 evidence or assign a new finding order. An external handoff without that artifact still

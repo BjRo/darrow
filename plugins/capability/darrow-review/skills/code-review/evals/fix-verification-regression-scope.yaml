@@ -60,6 +60,8 @@ fixture:
             "location": "src/math.js:1",
             "source": "requirement: multiplier must be 2",
             "evidence": "multiplier was 1",
+            "repair_guidance": "Advisory: restore multiplier to 2 while preserving scale's signed multiplication",
+            "resolution_evidence": "multiplier equals 2 and scale(-2) returns -4",
         }],
         "attempted": [f"spec:1:{target}"],
     }, sys.stdout)

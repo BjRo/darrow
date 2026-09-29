@@ -43,6 +43,8 @@ fixture:
             "severity": "high", "disposition": "blocking",
             "location": "endpoint.txt:1", "source": f"{repo}/AGENTS.md",
             "evidence": "endpoint remained on v1",
+            "repair_guidance": "Advisory: restore the endpoint to v2 while preserving its representation",
+            "resolution_evidence": "endpoint.txt contains https://example.invalid/v2 and the external check succeeds",
         }],
         "attempted": [f"standards:1:{target}"],
     }, sys.stdout)

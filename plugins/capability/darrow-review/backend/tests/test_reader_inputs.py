@@ -99,14 +99,25 @@ def test_captured_checks_are_copied_without_reinterpretation(
     )
 
 
-def test_fix_input_preserves_axis_findings_and_prior_scope(repo: Path) -> None:
+@pytest.mark.parametrize(
+    "missing",
+    [
+        (),
+        ("repair_guidance",),
+        ("resolution_evidence",),
+        ("repair_guidance", "resolution_evidence"),
+    ],
+)
+def test_fix_input_preserves_complete_axis_findings_and_prior_scope(
+    repo: Path, missing: tuple[str, ...]
+) -> None:
     (repo / "file.txt").write_text("broken\n", encoding="utf-8")
     prior = prepare(repo)
     target = document(Path(prior).read_text(encoding="utf-8"))["target"]
     original = verification_record()["original_findings"]
     original[0]["key"] = f"spec:1:{target}"
-    original[0].pop("repair_guidance")
-    original[0].pop("resolution_evidence")
+    for field in missing:
+        del original[0][field]
     standards = {
         **original[0],
         "axis": "standards",
@@ -123,6 +134,11 @@ def test_fix_input_preserves_axis_findings_and_prior_scope(repo: Path) -> None:
     (repo / "file.txt").write_text("fixed\n", encoding="utf-8")
     manifest = prepare(repo, prior)
     source = context(Path(manifest).parent, attempted=[original[0]["key"]])
+    if missing:
+        with pytest.raises(ReviewError, match="missing"):
+            prepared(manifest, "spec", source, "--original", handoff)
+        assert not (Path(manifest).parent / "spec-input.json").exists()
+        return
     result = prepared(manifest, "spec", source, "--original", handoff)
     packet = read_packet(result["input"])
     assert packet["mode"] == "fix-verification"

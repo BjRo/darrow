@@ -51,6 +51,8 @@ fixture:
             "severity": "high", "disposition": "blocking",
             "location": "config.env:1", "source": f"{repo}/AGENTS.md",
             "evidence": "MODE was bad",
+            "repair_guidance": "Advisory: set MODE to good while retaining the other required configuration",
+            "resolution_evidence": "config.env contains MODE=good",
         }],
         "attempts": [{
             "key": original_key, "status": "resolved",
@@ -62,6 +64,8 @@ fixture:
             "status": "unresolved", "progress": "progressing",
             "location": "config.env:2", "source": f"{repo}/AGENTS.md",
             "evidence": "RESULT is missing after the repair",
+            "repair_guidance": "Advisory: restore RESULT=ok while retaining MODE=good",
+            "resolution_evidence": "both required configuration lines are present and bash check.sh succeeds",
         }],
         "checks": [{
             "command": "bash check.sh", "applicability": "applicable",

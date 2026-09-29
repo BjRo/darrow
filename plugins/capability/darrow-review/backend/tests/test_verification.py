@@ -220,6 +220,8 @@ def test_original_immutability_and_history_duplicates(tmp_path: Path) -> None:
             "location": "f:3",
             "source": "request",
             "evidence": "unrelated",
+            "repair_guidance": "remove the unrelated behavior",
+            "resolution_evidence": "the unrelated behavior no longer occurs",
         }
     )
     with pytest.raises(ReviewError, match="new original finding"):

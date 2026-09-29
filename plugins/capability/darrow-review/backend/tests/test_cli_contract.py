@@ -221,7 +221,7 @@ def test_finalization_reads_scope_and_captured_checks(repo: Path) -> None:
     assert (output.parent / "review.md").read_text(encoding="utf-8") == rendered.stdout
 
 
-def test_verification_finalization_preserves_external_legacy_findings(
+def test_verification_finalization_preserves_external_findings(
     repo: Path,
 ) -> None:
     prior_path = check_destination(repo).parent / "scope.json"
@@ -230,8 +230,6 @@ def test_verification_finalization_preserves_external_legacy_findings(
     original["original_target"] = prior.value("target")
     finding = original["original_findings"][0]
     finding["key"] = f"spec:1:{prior.value('target')}"
-    finding.pop("repair_guidance")
-    finding.pop("resolution_evidence")
     source = write(
         prior_path.parent / "handoff.json",
         {

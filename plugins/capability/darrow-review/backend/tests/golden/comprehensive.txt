@@ -11,11 +11,15 @@ Return &#96;findings&#96; to owner
 - **Location:** src/one.js:1
 - **Source:** /workspace/AGENTS.md
 - **Evidence:** Avoid &#96;debug&#96; output
+- **Repair guidance (advisory):** Remove debug output
+- **Resolution evidence:** No debug output remains
 
 ### 2. MEDIUM — ADVISORY (Spec)
 - **Location:** src/two_file.js:2
 - **Source:** objective &lt;v1&gt; &amp; details
 - **Evidence:** Keep &#91;evidence&#93; intact
+- **Repair guidance (advisory):** Preserve evidence formatting
+- **Resolution evidence:** Evidence text remains intact
 
 ## Checks
 - **PASS** (applicable) — bash check&#95;&#91;review&#93;.sh --label &#96;nightly&#96;: All tests passed

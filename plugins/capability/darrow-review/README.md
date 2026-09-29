@@ -54,6 +54,25 @@ handoff before delegation. This is not a full-plugin pass. See the
 [reader-input follow-up](../../../docs/research/gpt-6-luna-evals-issue-228.md#review-follow-up-generated-reader-inputs-2026-09-28)
 for all results, assessments, and evidence limits.
 
+A focused **0.9.0** follow-up removes legacy finding-format support and updates
+the prepared handoffs to include repair guidance and resolution evidence.
+Resolved fix verification passed **2/5**, with activation, both native reviewer
+launches, valid artifacts, and exact final copying each passing **5/5**.
+In two failed trials the coordinator discarded returned judgments because it
+reported changed task messages. The third reported an incorrect Standards
+helper path. The actual launch messages were absent from retained evidence.
+The changed contract and fixture prevent a matched comparison with 0.8.3.
+See the [current-format follow-up](../../../docs/research/gpt-6-luna-evals-issue-228.md#review-follow-up-current-finding-records-only-2026-09-28)
+for failures, the adjacent delivery check, and remaining limitations.
+
+The **0.9.1** cleanup also removes a missed sentence in the main skill that still
+allowed absent legacy guidance. A fresh comparison on the same modern fixture
+passed **4/5 on 0.8.3** and **5/5 on unchanged 0.9.0**; the corrected 0.9.1 then
+passed **5/5** under the same conditions. The earlier 2/5 result is retained;
+these small samples do not establish a causal improvement or reliable 5/5
+behavior. See the [matched comparison](../../../docs/research/gpt-6-luna-evals-issue-228.md#review-follow-up-matched-current-format-comparison-2026-09-28)
+for the correction, complete evidence, and final candidate verification.
+
 ## What it provides
 
 ### `code-review`
@@ -178,8 +197,10 @@ code judgment to the reviewers.
 `original-findings` copies the complete original finding entries with stable
 cross-axis keys; `validate-original` checks a follow-up against that retained
 comprehensive result, including advisory entries and exact source/evidence text,
-repair guidance, and resolution evidence. The guidance fields are a paired
-additive extension; legacy v1 records without them remain valid.
+repair guidance, and resolution evidence. Every finding and regression requires
+both nonempty guidance fields. Since **0.9.0**, older records without those
+fields are rejected. External handoffs remain supported when their records are
+complete; they do not require an original review artifact.
 
 `finalize --manifest <scope.json> --draft <draft.json> --output <result.json>`
 copies scope identity and captured checks from retained files, derives the
@@ -189,7 +210,7 @@ checks require retained receipts; inapplicability remains an explicit draft
 decision. For fix verification, use `verification.json` and add `--original`
 with the original comprehensive result, immediately prior verification, or
 complete external handoff. The helper preserves immutable original findings,
-legacy guidance absence, target bindings, and prior-verification history.
+required guidance fields, target bindings, and prior-verification history.
 It writes only inside the current private review run. Readers still own
 judgment; the coordinator still chooses sources, checks, and accepted findings.
 

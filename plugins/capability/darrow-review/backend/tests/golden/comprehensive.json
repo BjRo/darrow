@@ -17,7 +17,9 @@
       "disposition": "blocking",
       "location": "src/one.js:1",
       "source": "/workspace/AGENTS.md",
-      "evidence": "Avoid `debug` output"
+      "evidence": "Avoid `debug` output",
+      "repair_guidance": "Remove debug output",
+      "resolution_evidence": "No debug output remains"
     },
     {
       "axis": "spec",
@@ -25,7 +27,9 @@
       "disposition": "advisory",
       "location": "src/two_file.js:2",
       "source": "objective <v1> & details",
-      "evidence": "Keep [evidence] intact"
+      "evidence": "Keep [evidence] intact",
+      "repair_guidance": "Preserve evidence formatting",
+      "resolution_evidence": "Evidence text remains intact"
     }
   ],
   "checks": [

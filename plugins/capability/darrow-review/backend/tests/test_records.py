@@ -34,6 +34,8 @@ def axis_record(status: str = "pass", disposition: str = "advisory") -> dict[str
                 "location": "f:1",
                 "source": "request",
                 "evidence": "evidence",
+                "repair_guidance": "restore the required behavior",
+                "resolution_evidence": "exercise the originating requirement",
             }
         ],
     }
@@ -259,17 +261,15 @@ def test_fix_axis_closed_membership(tmp_path: Path) -> None:
         validate_fix_axis(serialize({"format": data["format"], "axis": "spec"}), "spec")
 
 
-def test_stdin_and_optional_guidance(
+def test_stdin_and_required_guidance(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     data = result_record()
-    del data["findings"][0]["repair_guidance"]
-    del data["findings"][0]["resolution_evidence"]
     monkeypatch.setattr("sys.stdin", io.StringIO(serialize(data)))
     assert "result-v3" in cli.result_command(["validate", "-"])
     original = validate_result(serialize(data))
-    assert len(result.original_findings(original)[0]) == 8
-    assert "Repair guidance" not in report.comprehensive(original)
+    assert len(result.original_findings(original)[0]) == 10
+    assert "Repair guidance" in report.comprehensive(original)
     axis = write(
         tmp_path / "axis.json",
         {
@@ -282,6 +282,60 @@ def test_stdin_and_optional_guidance(
     assert "(spec)" in cli.result_command(["validate-axis", "spec", axis])
     with pytest.raises(ReviewError):
         cli.result_command(["validate-axis", "other", axis])
+
+
+def guidance_record(kind: str) -> tuple[dict[str, Any], list[str], dict[str, Any]]:
+    data = result_record()
+    command = ["validate"]
+    finding = data["findings"][0]
+    if kind == "axis":
+        data = axis_record()
+        command = ["validate-axis", "spec"]
+        finding = data["findings"][0]
+    elif kind == "fix-axis":
+        data = fix_axis_record()
+        command = ["validate-fix-axis", "spec"]
+        finding = data["regressions"][0]
+    elif kind in ("original", "regression"):
+        data = verification_record()
+        command = ["validate-verification"]
+        finding = data["original_findings"][0]
+        if kind == "regression":
+            finding = {
+                **fix_axis_record()["regressions"][0],
+                "key": "regression:1:spec:1:original",
+                "caused_by": "spec:1:original",
+                "order": "1",
+                "axis": "spec",
+                "status": "unresolved",
+                "progress": "progressing",
+            }
+            data.update(regressions=[finding], outcome="continue")
+    return data, command, finding
+
+
+@pytest.mark.parametrize(
+    "kind", ["axis", "result", "fix-axis", "original", "regression"]
+)
+@pytest.mark.parametrize(
+    "missing",
+    [
+        ("repair_guidance",),
+        ("resolution_evidence",),
+        ("repair_guidance", "resolution_evidence"),
+    ],
+)
+def test_public_validation_requires_guidance(
+    tmp_path: Path, kind: str, missing: tuple[str, ...]
+) -> None:
+    data, command, finding = guidance_record(kind)
+    path = write(tmp_path / "record.json", data)
+    assert "valid:" in cli.result_command([*command, path])
+    for field in missing:
+        del finding[field]
+    write(Path(path), data)
+    with pytest.raises(ReviewError, match="missing"):
+        cli.result_command([*command, path])
 
 
 @settings(max_examples=80, derandomize=True)

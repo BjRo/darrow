@@ -11,8 +11,8 @@ Require all of these caller-owned inputs before reader calls:
 - the exact original comprehensive-review target fingerprint;
 - the validated original or immediately prior scope manifest for that target;
 - every original finding with its original axis, severity, disposition,
-  location, source, evidence, repair guidance and resolution evidence when
-  present, and one canonical cross-axis order;
+  location, source, evidence, nonempty repair guidance and resolution evidence,
+  and one canonical cross-axis order;
 - the immediately prior repair target plus every earlier repair target;
 - every finding attempted by the current repair;
 - the immediately prior validated verification artifact when an earlier fix
@@ -32,8 +32,8 @@ Copy those returned rows unchanged into the handoff and final verification.
 The order runs across both axes in the original result, not separately per
 axis. Preserve the complete original source and evidence text, including
 advisories and both guidance fields; a shorter paraphrase is a changed record.
-Preserve absent fields in legacy records without inventing prior advice.
-Their paired absence is supported input, not an evidence gap. Bind the
+Both guidance fields are required on every original finding and carried
+regression. Bind the
 authoritative file as `original_input`: the original comprehensive result for
 a first follow-up, the immediately prior verification for a later follow-up,
 or the caller's complete external handoff. Finalization copies its original
@@ -43,6 +43,10 @@ without that artifact, preserve the caller's complete immutable finding records
 and canonical order exactly as supplied. A validated prior verification also
 retains those original rows. Missing or incomplete original evidence blocks
 instead of permitting reconstruction from a rendered summary.
+An external handoff does not require the original `result.json`. Its `source`
+and `evidence` values are the immutable finding fields, not embedded full source
+documents. Read needed source documents separately. Never synthesize missing
+guidance to make an incomplete handoff valid.
 
 Derive each original key as
 `<axis>:<canonical-order>:<original-target>`. Reject duplicate orders or keys,
@@ -210,7 +214,7 @@ for every captured command. Only when none applies, omit those arguments and
 include an explicit `not_applicable` check in the draft. Omit original findings,
 original/prior/current targets, outcome, and copied checks from the draft.
 The helper reads the authoritative original input, binds targets from both
-manifests, preserves legacy field absence, copies check receipts, validates
+manifests, requires complete finding records, copies check receipts, validates
 history, and materializes the complete `verification.md`. A prior verification
 also supplies its checksum and target history mechanically. A complete external
 handoff supplies its previous-verification marker and history when applicable.

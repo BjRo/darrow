@@ -16,7 +16,9 @@
       "disposition": "blocking",
       "location": "src/value.txt:1",
       "source": "/workspace/AGENTS.md#Review",
-      "evidence": "Original standards evidence"
+      "evidence": "Original standards evidence",
+      "repair_guidance": "Remove the standards violation",
+      "resolution_evidence": "The standards violation is absent"
     },
     {
       "key": "spec:2:WORKTREE@base+original",
@@ -26,7 +28,9 @@
       "disposition": "advisory",
       "location": "src/value with spaces.txt:2",
       "source": "user objective <v1> & [details]",
-      "evidence": "Original advisory evidence"
+      "evidence": "Original advisory evidence",
+      "repair_guidance": "Address advisory when in scope",
+      "resolution_evidence": "The advisory is absent"
     }
   ],
   "attempts": [
@@ -54,7 +58,9 @@
       "progress": "resolved",
       "location": "src/C:\\(repair\\) value_[repair].txt:3",
       "source": "/workspace/AGENTS_<repair>.md",
-      "evidence": "The repair-caused regression is fixed"
+      "evidence": "The repair-caused regression is fixed",
+      "repair_guidance": "Restore the affected behavior",
+      "resolution_evidence": "The regression check passes"
     }
   ],
   "checks": [

@@ -963,6 +963,171 @@ quality logs preserve the frozen candidate and evidence limits. Raw results
 are gitignored; this section preserves the measured conclusions in the
 repository. This follow-up covers four selected cases, not the full plugin.
 
+#### Review follow-up: current finding records only (2026-09-28)
+
+The user chose to remove legacy finding-format support. The **0.9.0** candidate
+requires nonempty `repair_guidance` and `resolution_evidence` on every accepted
+axis finding, comprehensive finding, original finding, new regression, and
+carried regression. Validators no longer accept paired absence, and the
+renderer no longer skips missing guidance. Schema identifiers remain v3; the
+minor plugin version marks the narrowed input contract.
+
+External handoffs remain supported with complete current records. They do not
+require the original review's `result.json`, and their immutable `source` and
+`evidence` fields need not embed full source documents. Required source material
+is read separately. Missing guidance is rejected rather than reconstructed.
+
+All five prepared fix-verification fixtures now contain current guidance;
+the second-round fixture also preserves it on the carried regression. Prompts
+and behavioral assertions remain unchanged, including exact final copying,
+native reviewer route evidence, closed finding scope, and read-only checks.
+The previous resolved-case failure remains retained as a valid failure under
+the old contract. Its legacy input is no longer a desired success case, so the
+new fixture is not a matched comparison or a regrading of that old trial.
+
+New public-command regressions initially produced **five failures and ten
+passes**: all five record forms accepted paired guidance absence. The current
+validators reject either missing field or both missing fields. Reader-input
+preparation also rejects incomplete external records without writing a packet.
+The full review backend now passes **312 tests**, with **97.93% statement
+coverage** and **96.01% branch coverage**, plus Ruff, formatting, and strict
+typing. Eight exact report tests pass after updating both golden inputs and
+their manually maintained expected reports. All five changed eval fixtures
+prepared successfully in a dry run; that is fixture evidence, not live task or
+activation evidence. The runtime-only copied plugin passes all seven public
+entrypoints with a mocked provider transcript.
+
+The full Python gate passed across every registered package. A frozen
+**104-file** candidate then completed the updated resolved-verification case on
+Codex CLI **0.156.1**, **gpt-6-luna/medium**, **n:5**, three jobs, and a 100%
+threshold, with fresh native **gpt-6-sol/xhigh** reviewers:
+
+| Case                                    | Task | Activation | Routed axes | Valid artifact | Exact final copy |
+| --------------------------------------- | ---: | ---------: | ----------: | -------------: | ---------------: |
+| `code-review-fix-verification-resolved` |  2/5 |        5/5 |         5/5 |            5/5 |              5/5 |
+
+Both native axes launched in every trial. All five retained valid canonical
+artifacts and copied the final report exactly. Ten input packets were observed
+across the five prepared axis pairs; no correction record was observed.
+These metadata observations do not prove validated reader execution or native
+continuation delivery. None of the failed reports rejected missing legacy
+guidance; all retained the current finding fields.
+
+| Failed trials | Observed failure                                                                                                                                                            | Assessment                                                                                                                                                                                                                                                                                                | Recommended next step                                                                                                                                                                                                                                        |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1 and 5       | The coordinator reported that both native launch prompts differed from their complete generated messages, discarded the returned judgments, and blocked all three findings. | Skill workflow gap in handoff acceptance/recovery. The launch bodies are absent from bounded evidence, so the mismatch and its substantive effect are independently unverified. Activation, native routes, deterministic checks, canonical artifacts, read-only behavior, and exact final copying passed. | Discuss the shared message acceptance and correction boundary across both review modes. Distinguish wrong-input reads from formatting differences and unverified mismatch claims while preserving pinned inputs, native routes, and independent judgment.    |
+| 3             | The coordinator reported a Standards helper command missing `/config` from the installed cache path. It resolved both Spec findings and blocked Standards.                  | Skill workflow gap in handoff/recovery with a reported concrete path error. The actor introducing that path change and native read/correction delivery are unverified. All checks except the clear outcome passed.                                                                                        | Discuss extending the existing same-reader correction to a provably wrong initial helper command when the intended input and route still validate. Keep actual unavailable-input blocking and prohibit replacement readers or coordinator-authored judgment. |
+
+The valid current-format case and its `clear` expectation remain intact. No
+trial was replaced, omitted, or regraded. The changed input contract and fixture
+prevent a matched improvement claim against the prior **4/5** result.
+
+The single bounded audit found two pre-existing later-round mismatches:
+omitted external history is derived by reader preparation but not external
+finalization, and regression-only rounds lack an explicit transfer of prior
+resolved original states into the final aggregate. They are retained for
+separate discussion; this format change does not redesign that workflow. The
+audit ran 100 focused tests and isolated record checks, not native execution or
+a full scope/finalization CLI scenario.
+
+The adjacent `goal-verification-existing-review` composition check ran
+separately on the same Codex CLI and coordinator model, **n:1**, one job, a 100%
+threshold, and passive owner evaluation. Task outcome was **0/1**; activation
+of orchestration, verification, and review was **1/1**. The owner repaired the
+retry count and passed the current checks, but the final response reported a
+missing `references/fix-verification.md` and stopped before closed follow-up.
+The file is present in the frozen review plugin; verification's own follow-up
+reference is `references/follow-up.md`. The bounded evidence does not establish
+the attempted lookup path or a packaging defect. Retain this as a reported
+reference-resolution failure for the delivery discussion.
+
+Independently, this composition eval's artifact check still searches beneath
+`.git`, and its proof helper requires that location. The current provider stores
+review state outside `.git`. That stale eval assumption prevents this check
+from establishing current artifact validity even if follow-up succeeds; it
+does not explain the separately observed blocked response. The planned
+`goal-preflight-high-risk-routine` check was not run: it exercises initial
+review rather than the changed original-finding handoff and uses the same
+outdated artifact-location proof. Repair that eval before measuring its outcome
+during the later delivery investigation. No composition result is included in
+the focused five-trial denominator, and no adjacent fixture was changed.
+
+**Recommendation:** keep the user's current-format-only contract and discuss
+the handoff acceptance/correction failures next. Removing legacy support did
+not produce 5/5 execution. The previous report-copy issue and both later-round
+audit findings remain open. This is one selected live case, not a full-plugin
+pass; the other changed fixtures have dry preparation evidence only.
+
+The local [complete overview](../../evals/results/review-current-format-2026-09-28/overview.md)
+retains every live trial and failed-trial assessment, plus the protocol, frozen
+hashes, fixture preparation, audit, copied-install result, and quality log.
+Live Claude continuation and Windows execution remain unmeasured.
+
+#### Review follow-up: matched current-format comparison (2026-09-28)
+
+A fresh comparison passed **4/5 on 0.8.3** and **5/5 on unchanged 0.9.0**;
+it did not reproduce the earlier **4/5 to 2/5** drop. Both
+the old version and the unchanged frozen candidate ran the same updated
+resolved-verification fixture, prompts, and assertions on Codex CLI **0.156.1**,
+**gpt-6-luna/medium**, **n:5** per version, three jobs, and a 100% threshold.
+Native reviewers remained **gpt-6-sol/xhigh**. The old validator accepts modern
+findings, so no legacy fixture was needed. Case hashes and evaluation digests
+match. The runner rejected the concurrent control start before execution;
+the completed comparison arms ran sequentially, with that diagnostic retained.
+
+| Version                           | Task | Activation | Routed axes | Valid artifact | Exact final copy |
+| --------------------------------- | ---: | ---------: | ----------: | -------------: | ---------------: |
+| 0.8.3, modern fixture             |  4/5 |        5/5 |         4/5 |            5/5 |              5/5 |
+| 0.9.0, unchanged rerun            |  5/5 |        5/5 |         5/5 |            5/5 |              5/5 |
+| 0.9.1, corrected main instruction |  5/5 |        5/5 |         5/5 |            5/5 |              5/5 |
+
+The old version's trial 2 reported that the prepared external handoff, original
+findings, prior manifest, and targets were absent. It retained zero findings
+and attempts and stopped before either reviewer. Canonical validation and exact
+copying passed; the clear-outcome and native-route checks failed. The fixture
+prepares those inputs and passed in the other four old-version trials and all
+five new-version trials. The bounded evidence does not establish the exact
+lookup or helper diagnostic. This is a retained skill workflow failure; no
+fixture or expectation defect is established. Validate the exact caller-owned
+handoff mechanically before claiming it unavailable, preserving any actual
+diagnostic rather than inferring absence from a missing original `result.json`.
+
+The comparison did not reproduce a lower new-version pass rate. It does not
+establish improvement or exclude a regression: five trials per arm leave
+substantial uncertainty. The unchanged 0.9.0 candidate's earlier **2/5** and
+fresh **5/5** are both retained, giving **7/10** on the same modern fixture.
+The three earlier reviewer-handoff failures remain real observations; their
+launch bodies remain unavailable. No trial was replaced or regraded, and no
+runner, substantive expectation, or assertion was changed.
+
+One concrete cleanup omission was found: the main `SKILL.md` still said legacy
+records could lack guidance, despite the new validators, specification, and
+references. **0.9.1** removes that contradictory sentence and synchronizes both
+manifests, package metadata, and the regenerated frozen lock. Reviewer launch
+code, generated messages, routing rules, finalization, and continuation mechanics
+remain unchanged. A fresh bounded source audit found no material remaining
+finding-format contradiction. The full Python gate passes across all registered
+packages, including **312 review tests**, strict typing, Ruff, **97.93% statement
+coverage**, and **96.01% branch coverage**. The copied runtime-only 0.9.1 plugin
+passes all seven public entrypoints with a mocked provider transcript.
+
+The frozen **104-file 0.9.1** candidate then passed the same case **5/5**, with
+activation, both native reviewer launches, valid canonical artifacts, and exact
+final copying each **5/5**, under the same conditions. This confirms the scoped
+cleanup in that sample; it does not establish that correcting the sentence
+caused better execution. No reviewer transport policy was changed. All fifteen
+fresh comparison/verification trials completed, and the sole failed trial is
+retained and assessed. Other changed fixtures have dry-preparation evidence,
+not a new full-plugin live pass.
+
+The local [complete comparison overview](../../evals/results/review-handoff-diagnosis-2026-09-28/overview.md)
+retains frozen hashes, every measured trial and failure assessment, audit and
+quality evidence, and the original three failures and adjacent delivery result.
+The optional observer retains only input-equality and identity metadata; it
+cannot prove complete native command execution or delivery. Live Claude and
+Windows behavior remains unmeasured. This is one focused case, not a full-plugin
+pass.
+
 ### darrow-skill-authoring
 
 | Case                                                                                                                                            | What failed                                                                                                       | Assessment                                  | Recommended next step                                                                                                                                                                                                                                                                            |

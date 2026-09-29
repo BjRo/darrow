@@ -204,8 +204,8 @@ axis and report `not_available`. Do not invent requirements.
    product preferences are excluded.
 9. **CR-C9 — Structured findings.** Every finding identifies axis, severity,
    changed location or command, violated source, and concrete evidence.
-   Evidence explains the failure and its cause against that source. Each new
-   finding includes reviewer-authored repair guidance: a bounded suggested
+   Evidence explains the failure and its cause against that source. Every
+   accepted finding includes reviewer-authored repair guidance: a bounded suggested
    approach, its rationale and important constraints, plus observable behavior
    or a regression test demonstrating resolution. Suggested implementation is
    explicitly advisory and separate from the required outcome. When evidence
@@ -304,8 +304,10 @@ axis and report `not_available`. Do not invent requirements.
     checksum and path of the prior verification artifact, preserves each prior
     regression's stable key and immutable causal fields, and records the
     current state of every carried regression, preserving its original repair
-    guidance and resolution evidence. Legacy v1 records without the two added
-    fields remain valid; preserve that absence without inventing prior advice.
+    guidance and resolution evidence. Original findings and carried regressions
+    require nonempty `repair_guidance` and `resolution_evidence` fields, as do
+    current reader findings. Records missing either field are invalid; there is
+    no legacy finding-format compatibility or automatic guidance reconstruction.
     Regression order is an
     independent sequence beginning at one, not the causing original finding's
     order. The first verification has no target history and binds its prior

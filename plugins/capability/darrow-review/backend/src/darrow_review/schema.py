@@ -23,22 +23,15 @@ def string(pattern: str = "") -> dict[str, Any]:
 def object_schema(
     fields: tuple[str, ...],
     *,
-    required: tuple[str, ...] | None = None,
     patterns: dict[str, str] | None = None,
-    guidance: bool = False,
 ) -> dict[str, Any]:
     patterns = patterns or {}
     result: dict[str, Any] = {
         "type": "object",
         "properties": {name: string(patterns.get(name, "")) for name in fields},
-        "required": list(required if required is not None else fields),
+        "required": list(fields),
         "additionalProperties": False,
     }
-    if guidance:
-        result["dependentRequired"] = {
-            "repair_guidance": ["resolution_evidence"],
-            "resolution_evidence": ["repair_guidance"],
-        }
     return result
 
 
@@ -71,9 +64,7 @@ FINDING = object_schema(
         "repair_guidance",
         "resolution_evidence",
     ),
-    required=("axis", "severity", "disposition", "location", "source", "evidence"),
     patterns={"axis": AXIS, "severity": SEVERITY, "disposition": DISPOSITION},
-    guidance=True,
 )
 AXIS_FINDING = object_schema(
     (
@@ -85,9 +76,7 @@ AXIS_FINDING = object_schema(
         "repair_guidance",
         "resolution_evidence",
     ),
-    required=("severity", "disposition", "location", "source", "evidence"),
     patterns={"severity": SEVERITY, "disposition": DISPOSITION},
-    guidance=True,
 )
 ORIGINAL_FINDING = object_schema(
     (
@@ -102,23 +91,12 @@ ORIGINAL_FINDING = object_schema(
         "repair_guidance",
         "resolution_evidence",
     ),
-    required=(
-        "key",
-        "axis",
-        "order",
-        "severity",
-        "disposition",
-        "location",
-        "source",
-        "evidence",
-    ),
     patterns={
         "axis": AXIS,
         "order": "[1-9][0-9]*",
         "severity": SEVERITY,
         "disposition": DISPOSITION,
     },
-    guidance=True,
 )
 CHECK = object_schema(
     ("command", "applicability", "status", "evidence"),
@@ -140,20 +118,7 @@ VERIFICATION_REGRESSION = object_schema(
         "repair_guidance",
         "resolution_evidence",
     ),
-    required=(
-        "key",
-        "caused_by",
-        "order",
-        "axis",
-        "severity",
-        "status",
-        "progress",
-        "location",
-        "source",
-        "evidence",
-    ),
     patterns={"order": "[1-9][0-9]*", "axis": AXIS, "severity": SEVERITY},
-    guidance=True,
 )
 
 SCHEMAS = {
@@ -221,15 +186,7 @@ SCHEMAS = {
                         "repair_guidance",
                         "resolution_evidence",
                     ),
-                    required=(
-                        "caused_by",
-                        "severity",
-                        "location",
-                        "source",
-                        "evidence",
-                    ),
                     patterns={"severity": SEVERITY},
-                    guidance=True,
                 )
             ),
         },
@@ -299,7 +256,6 @@ def validate_object(value: object, schema: dict[str, Any], path: str) -> None:
         invalid(path, "must be an object")
     validate_required(value, schema["required"], path)
     validate_properties(value, schema["properties"], path)
-    validate_dependencies(value, schema.get("dependentRequired", {}), path)
 
 
 def validate_required(value: dict[str, object], required: list[str], path: str) -> None:
@@ -315,14 +271,6 @@ def validate_properties(
         if name not in properties:
             invalid(path, f"unknown field {name}")
         validate_node(item, properties[name], f"{path}.{name}")
-
-
-def validate_dependencies(
-    value: dict[str, object], dependencies: dict[str, list[str]], path: str
-) -> None:
-    for name, required in dependencies.items():
-        if name in value:
-            validate_required(value, required, path)
 
 
 def validate(value: dict[str, object], format_name: str) -> None:

@@ -57,9 +57,9 @@ fixture:
         "prior_manifest": manifest,
         "previous_verification": {"checksum": "none", "path": "none"},
         "original_findings": [
-            {"key": f"standards:1:{target}", "axis": "standards", "order": "1", "severity": "high", "disposition": "blocking", "location": "src/config.js:1", "source": f"{repo}/AGENTS.md", "evidence": "DEBUG remained enabled"},
-            {"key": f"spec:2:{target}", "axis": "spec", "order": "2", "severity": "high", "disposition": "blocking", "location": "src/config.js:2", "source": "requirement: TIMEOUT_MS must be 2500", "evidence": "TIMEOUT_MS was 1000"},
-            {"key": f"spec:3:{target}", "axis": "spec", "order": "3", "severity": "low", "disposition": "advisory", "location": "src/config.js:3", "source": f"{repo}/maintenance-note.md", "evidence": "LEGACY was retained"},
+            {"key": f"standards:1:{target}", "axis": "standards", "order": "1", "severity": "high", "disposition": "blocking", "location": "src/config.js:1", "source": f"{repo}/AGENTS.md", "evidence": "DEBUG remained enabled", "repair_guidance": "Advisory: set DEBUG to false so runtime debugging remains disabled", "resolution_evidence": "src/config.js exports DEBUG as false"},
+            {"key": f"spec:2:{target}", "axis": "spec", "order": "2", "severity": "high", "disposition": "blocking", "location": "src/config.js:2", "source": "requirement: TIMEOUT_MS must be 2500", "evidence": "TIMEOUT_MS was 1000", "repair_guidance": "Advisory: restore TIMEOUT_MS to 2500 to meet the required timeout", "resolution_evidence": "src/config.js exports TIMEOUT_MS as 2500"},
+            {"key": f"spec:3:{target}", "axis": "spec", "order": "3", "severity": "low", "disposition": "advisory", "location": "src/config.js:3", "source": f"{repo}/maintenance-note.md", "evidence": "LEGACY was retained", "repair_guidance": "Advisory: remove the obsolete LEGACY export while preserving the required configuration", "resolution_evidence": "LEGACY is absent and DEBUG and TIMEOUT_MS retain their required values"},
         ],
         "attempted": [
             f"standards:1:{target}", f"spec:2:{target}", f"spec:3:{target}",

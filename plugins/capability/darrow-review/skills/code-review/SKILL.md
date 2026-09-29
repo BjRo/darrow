@@ -260,7 +260,7 @@ Do not introduce a new finding or author repair guidance. Copy each retained
 reader finding's evidence, repair guidance, and resolution evidence unchanged.
 Different repair advice is not a reason to merge two findings and synthesize a
 third recommendation. For a duplicate, retain one complete reader-authored
-record. Legacy records may lack guidance; do not manufacture it.
+record. Both guidance fields are required; do not manufacture missing guidance.
 
 Write `draft.json` beneath the scope artifact directory with the selected
 reader findings, axis states and sources, risks, and authorized `next_action`.

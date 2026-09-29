@@ -71,8 +71,6 @@ def escape(value: str) -> str:
 
 
 def guidance(item: dict[str, str], prefix: str = "") -> str:
-    if "repair_guidance" not in item:
-        return ""
     return (
         f"\n{prefix}- **Repair guidance (advisory):** {escape(item['repair_guidance'])}"
         f"\n{prefix}- **Resolution evidence:** {escape(item['resolution_evidence'])}"
