@@ -39,6 +39,29 @@ and tests. `schema.ts`, `fixture.ts`, and host adapters mix domain policy with
 mechanics; deleting them requires checking the relevant extension behavior rather
 than moving those mixed modules into Sevro unchanged.
 
+## Legacy report and metrics policy
+
+The standalone historical reader now retains the precomputed private route
+application and per-trial orchestration counters through public report commands.
+Selected/effective routes and private labels remain archived claims, separate
+from native owner acceptance and measured outcomes. Missing fields stay unknown;
+malformed metadata retains diagnostics and valid peer inputs. It does not need
+the old report or metrics implementations to interpret these fields. See
+[archival claims validation](historical-claims-validation.md).
+
+The old `goal-report` implementation still supplies the legacy backend's private
+completion-format and readiness parsing. Current native ownership and transcript
+checks use the extension and public domain fixtures. Reconcile each remaining
+readiness or transcript expectation against that current contract before removing
+the legacy implementation at cutover.
+
+The old `orchestration-metrics` implementation combines private goal-format
+reconciliation with ticket-pipeline phase checks and usage accounting. Preserving
+its recorded metadata does not prove current native phase or usage policy.
+Those remaining policy expectations still require reconciliation before the
+mixed implementation and its tests can be retired. Neither file is copied into
+the standalone historical reader or into Sevro.
+
 The mixed `fixture.test.ts` file is now retired. Generic permission-locked
 cleanup and canonical workspace paths are covered by Sevro's public CLI
 regressions and independent installed-archive checks. Ticket scaffolding and
@@ -220,4 +243,4 @@ behavior evidence.
 
 Path and content-digest inventory snapshots are retained outside the repository
 under `/Users/bjro/.darrow/issue95-runner-ownership/`; the latest snapshot is
-`benchmark-migration-inventory.json`.
+`historical-claims-inventory.json`.

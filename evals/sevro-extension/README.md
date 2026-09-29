@@ -149,6 +149,15 @@ evaluator metadata stays unknown. It supplies no current Sevro identity or
 comparison eligibility. Raw responses and transcripts remain in the original
 input artifacts and are not copied into this view.
 
+Each historical trial also retains known `routeApplication` and
+`orchestrationMetrics` fields under `recorded`. These preserve the archived
+selected/effective routes, private profile and workflow/risk labels, application
+boundary, child usage, and orchestration counts as recorded claims. They do not
+supply native owner acceptance or change measured outcomes. Missing fields stay
+null; malformed provided metadata produces diagnostics. Unrelated private
+payload fields are omitted. See
+[archival claims validation](historical-claims-validation.md).
+
 Measured task quality excludes only the two historical bookkeeping checks;
 protocol rate retains the recorded trial verdict. Bookkeeping requires both
 named checks. All rates require complete executed evidence and their relevant

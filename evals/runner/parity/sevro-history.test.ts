@@ -256,6 +256,212 @@ test("historical report JSON retains explicit manifest provenance without rewrit
   expect(await readFile(manifest, "utf8")).toBe(originalManifest);
 });
 
+test("historical reports retain owner-route applications as archival claims", async () => {
+  const { result, manifest, sample } = await fixture();
+  const routeApplication = {
+    profile: "scaled",
+    workflow: "refactor",
+    risk: "elevated",
+    workflowFile: "/historical/workflows/refactor.md",
+    workflowSha256: "b".repeat(64),
+    dimensionStage: "workflow-risk",
+    verificationGate: "elevated",
+    selected: {
+      harness: "codex",
+      provider: "openai",
+      model: "archived-selected",
+      effort: "high",
+    },
+    effective: {
+      harness: "claude",
+      provider: "anthropic",
+      model: "archived-effective",
+      effort: "medium",
+    },
+    appliedBy: "nested-session",
+    launchBoundary: "nested_session",
+    childInvocationCount: 2,
+    childInputTokens: 19,
+    childOutputTokens: 3,
+  };
+  await writeFile(
+    result,
+    JSON.stringify([
+      {
+        ...sample,
+        passRate: 0,
+        trials: [
+          {
+            ...sample.trials[0],
+            passed: false,
+            checks: [{ name: "answer", passed: false }],
+            routeApplication: {
+              ...routeApplication,
+              internalContract: "private goal payload",
+            },
+          },
+        ],
+      },
+      { ...sample, caseId: "historical-missing-policy" },
+    ]),
+  );
+  const originalResult = await readFile(result, "utf8");
+  const originalManifest = await readFile(manifest, "utf8");
+  for (const command of [legacyCommand, standaloneCommand]) {
+    const run = await invoke(manifest, command);
+    expect(run.code, run.stderr).toBe(0);
+    const report = JSON.parse(run.stdout);
+    const row = report.rows[0];
+    expect(row.trials[0].recorded?.routeApplication).toEqual(routeApplication);
+    expect(row.trials[0].effectiveOwnerRoute).toBeNull();
+    expect(row.candidateRoute).toEqual({
+      harness: "codex",
+      model: "recorded-model",
+      effort: "medium",
+    });
+    expect(row.measured.qualityPassRate).toBe(0);
+    expect(row.evaluator.kind).toBe("legacy-darrow");
+    expect(report.rows[1].trials[0].recorded.routeApplication).toBeNull();
+    expect(report.comparison.status).toBe("not_assessed");
+    expect(run.stdout).not.toContain("private goal payload");
+  }
+  expect(await readFile(result, "utf8")).toBe(originalResult);
+  expect(await readFile(manifest, "utf8")).toBe(originalManifest);
+});
+
+test("historical reports retain orchestration counts and reject malformed archival claims", async () => {
+  const { root, result, manifest, sample } = await fixture();
+  const counts = {
+    childInvocationCount: 2,
+    humanInterruptions: 1,
+    escapedDefects: 0,
+    falsePositiveVerifierFindings: 0,
+  };
+  await writeFile(
+    result,
+    JSON.stringify([
+      {
+        ...sample,
+        trials: [
+          {
+            ...sample.trials[0],
+            orchestrationMetrics: { ...counts, raw: "private metric payload" },
+          },
+        ],
+      },
+      {
+        ...sample,
+        caseId: "historical-partial-metrics",
+        trials: [
+          {
+            ...sample.trials[0],
+            orchestrationMetrics: { childInvocationCount: 0 },
+          },
+        ],
+      },
+      { ...sample, caseId: "historical-missing-metrics" },
+    ]),
+  );
+  const originalResult = await readFile(result, "utf8");
+  const originalManifest = await readFile(manifest, "utf8");
+  for (const command of [legacyCommand, standaloneCommand]) {
+    const run = await invoke(manifest, command);
+    expect(run.code, run.stderr).toBe(0);
+    const report = JSON.parse(run.stdout);
+    expect(report.rows[0].trials[0].recorded?.orchestrationMetrics).toEqual(
+      counts,
+    );
+    expect(report.rows[0].measured.qualityPassRate).toBe(1);
+    expect(report.rows[0].trials[0].effectiveOwnerRoute).toBeNull();
+    expect(report.rows[1].trials[0].recorded.orchestrationMetrics).toEqual({
+      childInvocationCount: 0,
+      humanInterruptions: null,
+      escapedDefects: null,
+      falsePositiveVerifierFindings: null,
+    });
+    expect(report.rows[2].trials[0].recorded.orchestrationMetrics).toBeNull();
+    expect(report.comparison.status).toBe("not_assessed");
+    expect(run.stdout).not.toContain("private metric payload");
+  }
+
+  const definition = JSON.parse(originalManifest);
+  const malformed = [
+    {
+      policy: { orchestrationMetrics: "invalid" },
+      message: "recorded orchestration metrics must be an object",
+    },
+    {
+      policy: { orchestrationMetrics: { childInvocationCount: -1 } },
+      message: "Invalid legacy child invocation count",
+    },
+    {
+      policy: { orchestrationMetrics: { humanInterruptions: 0.5 } },
+      message: "Invalid legacy human interruption count",
+    },
+    {
+      policy: { orchestrationMetrics: { escapedDefects: "1" } },
+      message: "Invalid legacy escaped defect count",
+    },
+    {
+      policy: {
+        orchestrationMetrics: {
+          falsePositiveVerifierFindings: Number.MAX_SAFE_INTEGER + 1,
+        },
+      },
+      message: "Invalid legacy false-positive verifier finding count",
+    },
+    {
+      policy: { routeApplication: { selected: [] } },
+      message: "recorded goal route must be an object",
+    },
+  ];
+  const peers: { path: string; message: string; bytes: string }[] = [];
+  for (const [index, { policy, message }] of malformed.entries()) {
+    const path = join(root, `malformed-policy-${index}.json`);
+    const bytes = JSON.stringify([
+      {
+        ...sample,
+        caseId: `malformed-policy-${index}`,
+        trials: [{ ...sample.trials[0], ...policy }],
+      },
+    ]);
+    await writeFile(path, bytes);
+    peers.push({ path, message, bytes });
+    definition.cells.push({
+      harness: "codex",
+      mode: "malformed-policy",
+      result: path,
+      exitCode: 0,
+    });
+  }
+  await writeFile(manifest, JSON.stringify(definition));
+  const changedManifest = await readFile(manifest, "utf8");
+  for (const command of [legacyCommand, standaloneCommand]) {
+    const run = await invoke(manifest, command);
+    expect(run.code, run.stderr).toBe(1);
+    const report = JSON.parse(run.stdout);
+    expect(report.rows.map((row: { caseId: string }) => row.caseId)).toEqual([
+      "historical-sample",
+      "historical-partial-metrics",
+      "historical-missing-metrics",
+    ]);
+    for (const peer of peers) {
+      expect(report.errors).toContainEqual({
+        path: peer.path,
+        message: peer.message,
+      });
+      expect(report.inputs).toContainEqual({
+        path: peer.path,
+        kind: "results",
+        sha256: createHash("sha256").update(peer.bytes).digest("hex"),
+      });
+      expect(await readFile(peer.path, "utf8")).toBe(peer.bytes);
+    }
+  }
+  expect(await readFile(result, "utf8")).toBe(originalResult);
+  expect(await readFile(manifest, "utf8")).toBe(changedManifest);
+});
+
 test("default historical report writes the standalone archival view", async () => {
   const { root, result, manifest } = await fixture();
   const originals = await Promise.all([

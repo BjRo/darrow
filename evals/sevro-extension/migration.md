@@ -283,6 +283,15 @@ formats; this reader does not convert them into Sevro comparison inputs or
 replace every specialized comparison command. Those workflows still need an
 explicit migration or retirement before their implementation can be removed.
 
+Per-trial private route applications and orchestration metrics are now retained
+under trial `recorded` data, including exact selected/effective model and effort
+tuples. Known metadata fields are archival claims; they do not establish current
+native acceptance, populate `effectiveOwnerRoute`, or alter measured rates.
+Absent values stay null and malformed provided values produce diagnostics.
+The interpreter reads the already recorded metadata; it does not reparse a
+private goal contract or execute its former runtime. See
+[archival claims validation](historical-claims-validation.md).
+
 The legacy report command preserves adjacent `report.md` and explicit `--output`
 destinations. Its human format deliberately changes to the historical view,
 including input digests, completeness, diagnostics, and retained evidence.

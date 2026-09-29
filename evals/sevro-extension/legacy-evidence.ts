@@ -91,6 +91,77 @@ function route(value: unknown) {
   };
 }
 
+function recordedCount(value: unknown, label: string): number | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0)
+    return value;
+  throw new Error(`Invalid legacy ${label}`);
+}
+
+function recordedGoalRoute(value: unknown) {
+  if (value === undefined || value === null) return null;
+  const record = object(value, "recorded goal route");
+  return {
+    harness: text(record.harness),
+    provider: text(record.provider),
+    model: text(record.model),
+    effort: text(record.effort),
+  };
+}
+
+function recordedRouteApplication(value: unknown) {
+  if (value === undefined || value === null) return null;
+  const record = object(value, "recorded route application");
+  return {
+    profile: text(record.profile),
+    workflow: text(record.workflow),
+    risk: text(record.risk),
+    workflowFile: text(record.workflowFile),
+    workflowSha256: text(record.workflowSha256),
+    dimensionStage: text(record.dimensionStage),
+    verificationGate: text(record.verificationGate),
+    selected: recordedGoalRoute(record.selected),
+    effective: recordedGoalRoute(record.effective),
+    appliedBy: text(record.appliedBy),
+    launchBoundary: text(record.launchBoundary),
+    childInvocationCount: recordedCount(
+      record.childInvocationCount,
+      "child invocation count",
+    ),
+    childInputTokens: recordedCount(
+      record.childInputTokens,
+      "child input tokens",
+    ),
+    childOutputTokens: recordedCount(
+      record.childOutputTokens,
+      "child output tokens",
+    ),
+  };
+}
+
+function recordedOrchestrationMetrics(value: unknown) {
+  if (value === undefined || value === null) return null;
+  const record = object(value, "recorded orchestration metrics");
+  return {
+    childInvocationCount: recordedCount(
+      record.childInvocationCount,
+      "child invocation count",
+    ),
+    humanInterruptions: recordedCount(
+      record.humanInterruptions,
+      "human interruption count",
+    ),
+    escapedDefects: recordedCount(
+      record.escapedDefects,
+      "escaped defect count",
+    ),
+    falsePositiveVerifierFindings: recordedCount(
+      record.falsePositiveVerifierFindings,
+      "false-positive verifier finding count",
+    ),
+  };
+}
+
 function grading(value: unknown) {
   if (value === undefined || value === null) return null;
   const record = object(value, "grader");
@@ -138,6 +209,12 @@ function trialFacts(record: ObjectValue) {
   const harness = record.harness ? object(record.harness, "harness") : {};
   return {
     trial: plannedTrials(record.trial),
+    recorded: {
+      routeApplication: recordedRouteApplication(record.routeApplication),
+      orchestrationMetrics: recordedOrchestrationMetrics(
+        record.orchestrationMetrics,
+      ),
+    },
     executionMode: mode(record.executionMode),
     passed: boolean(record.passed),
     harnessOk: boolean(harness.ok),

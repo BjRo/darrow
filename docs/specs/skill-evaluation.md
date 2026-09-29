@@ -853,6 +853,20 @@ legacy facts; absent evaluator metadata stays unknown. The view never supplies
 a current Sevro package, protocol or evaluator identity and does not establish
 comparison eligibility.
 
+Historical trials retain their legacy `routeApplication` and
+`orchestrationMetrics` under trial `recorded` data. Route applications preserve
+the recorded selected and effective harness/provider/model/effort tuples,
+profile and workflow/risk labels, application boundary, and child usage counts.
+Only the known legacy metadata fields are exposed; unrelated private payloads
+are omitted. Missing metadata and counters remain null. Present counters must
+be nonnegative safe integers; malformed provided metadata produces an archive
+diagnostic while valid peer inputs remain visible.
+
+These fields are archival claims. They do not supply native owner acceptance,
+populate `effectiveOwnerRoute`, change execution or measured task outcomes, or
+repair evaluator comparison eligibility. The historical interpreter does not
+reconstruct private goal contracts or execute their removed runtime machinery.
+
 Execution comes only from consistent case/trial declarations and an explicitly
 linked suite manifest's `dry` boolean. Empty responses, zero timing and successful
 checks do not establish execution. Missing or conflicting declarations stay
