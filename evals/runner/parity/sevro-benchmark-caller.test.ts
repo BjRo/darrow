@@ -217,6 +217,48 @@ test("benchmark caller routes a filtered dry suite through Sevro", async () => {
   }
 }, 30_000);
 
+test("benchmark caller uses the frozen package without route overrides", async () => {
+  const { root, binary, credential, output } = await fixture();
+  const run = await invoke(
+    root,
+    [
+      "--suite",
+      "suite.yaml",
+      "--project-root",
+      root,
+      "--output",
+      output,
+      "--mode",
+      "baseline",
+      "--harness",
+      "codex",
+      "--case",
+      "alpha",
+      "--dry",
+      "--no-judge",
+      "--",
+      "--codex-bin",
+      binary,
+      "--codex-auth-file",
+      credential,
+    ],
+    { SEVRO_CHECKOUT: undefined, SEVRO_PACKAGE_BIN: undefined },
+  );
+  expect(run.code, run.stderr + run.stdout).toBe(0);
+  expect(JSON.parse(run.stdout)).toMatchObject({ cells: 1, failed: 0 });
+  const manifest = JSON.parse(
+    await readFile(join(output, "suite-run.json"), "utf8"),
+  );
+  expect(manifest.caseIds).toEqual(["caller-alpha"]);
+  expect(manifest.cells[0].provenance.runner).toMatchObject({
+    source: "package",
+    packageName: "@bjoernrochel/sevro",
+    version: "0.1.0-rc.1",
+  });
+  const result = JSON.parse(await readFile(manifest.cells[0].result, "utf8"));
+  expect(result.task.verdict).toBe("not_assessed");
+}, 30_000);
+
 test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
   "benchmark caller keeps grader routes separate and continues after task failure",
   async () => {

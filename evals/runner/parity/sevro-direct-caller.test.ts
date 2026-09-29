@@ -168,6 +168,30 @@ test("direct caller routes a filtered dry evaluation through Sevro", async () =>
   );
 }, 30_000);
 
+test("direct caller uses the frozen package without route overrides", async () => {
+  const { root, binary, credential, output } = await fixture();
+  const run = await invoke(
+    root,
+    reviewArguments(root, binary, credential, output),
+    { SEVRO_CHECKOUT: undefined, SEVRO_PACKAGE_BIN: undefined },
+  );
+  expect(run.code, run.stderr + run.stdout).toBe(0);
+  const manifest = JSON.parse(run.stdout);
+  expect(manifest).toMatchObject({
+    format: "darrow-sevro-selection-v1",
+    projectRoot: root,
+    caseIds: ["direct-alpha"],
+  });
+  const result = manifest.runs[0].result;
+  expect(result.task.verdict).toBe("not_assessed");
+  const evidence = JSON.parse(await readFile(result.evidencePath, "utf8"));
+  expect(evidence.runner).toMatchObject({
+    source: "package",
+    packageName: "@bjoernrochel/sevro",
+    version: "0.1.0-rc.1",
+  });
+}, 30_000);
+
 function reviewArguments(
   root: string,
   binary: string,

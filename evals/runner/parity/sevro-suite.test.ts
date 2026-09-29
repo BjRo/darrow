@@ -2694,16 +2694,6 @@ test("suite seeded execution preserves legacy block order and replay", async () 
 
 test("suite runs every selected mode and case through Sevro public commands", async () => {
   const { root, adapter, suite, results } = await fixture();
-  const route = process.env.SEVRO_CHECKOUT
-    ? {
-        SEVRO_CHECKOUT: process.env.SEVRO_CHECKOUT,
-        SEVRO_PACKAGE_BIN: undefined,
-      }
-    : {
-        SEVRO_CHECKOUT: undefined,
-        SEVRO_PACKAGE_BIN: process.env.SEVRO_PACKAGE_BIN,
-      };
-  expect(route.SEVRO_CHECKOUT || route.SEVRO_PACKAGE_BIN).toBeTruthy();
   const run = await invoke([
     "--suite",
     suite,

@@ -201,10 +201,10 @@ selected mount. Suite evidence must agree with the requested mount settings.
 
 ### Repository-guide caller migration
 
-The existing `evals/repository-guide.ts` command uses the public Sevro CLI when
-`SEVRO_PACKAGE_BIN` or `SEVRO_CHECKOUT` selects an explicit migration route.
-Until an exact published release is pinned, invocation without either route
-continues to use the legacy runner. Preserve repeatable `--only`, `--harness`,
+The existing `evals/repository-guide.ts` command uses the public Sevro CLI from
+Darrow's exact installed development dependency. `SEVRO_PACKAGE_BIN` or
+`SEVRO_CHECKOUT` selects an explicit candidate or development override.
+Preserve repeatable `--only`, `--harness`,
 `--dry`, and `--without-skill`. Selected inventory questions run in inventory
 order, with Codex then Claude by default, one trial and one job per invocation,
 and a threshold of one. Stop before another cell starts after any failed task,
@@ -538,10 +538,10 @@ for other harnesses supported by the complete suite. Every entry is validated,
 every selected harness needs a route, and unknown harnesses are rejected. The
 complete file digest remains in the manifest; only selected routes execute.
 
-The existing `bun eval` and `evals/runner/run.ts` caller selects Sevro when
-`SEVRO_PACKAGE_BIN` or `SEVRO_CHECKOUT` is explicitly set. With neither route,
-it retains the legacy backend until the published package pin permits default
-cutover. Invalid explicit routes cannot fall back. The caller preserves exact
+The existing `bun eval` and `evals/runner/run.ts` caller uses Darrow's exact
+installed Sevro dependency by default. `SEVRO_PACKAGE_BIN` or `SEVRO_CHECKOUT`
+selects an explicit override. Invalid explicit routes cannot fall back.
+The caller preserves exact
 skill/plugin ownership filters, repeatable case substrings, sorted case order,
 candidate and independent grader routes, trials, threshold, jobs, dry runs,
 skill overrides, unmounted controls, text conditions, evaluation-record checks,
@@ -599,9 +599,9 @@ evaluator identity, or become an automated duration, token, or cost measurement.
 Dry and unassessed runs remain unassessed when the annotation is supplied.
 
 The existing `bun run eval:orchestration` and `evals/runner/suite.ts` caller
-selects Sevro when `SEVRO_PACKAGE_BIN` or `SEVRO_CHECKOUT` is explicitly set.
-With neither route, it retains the legacy backend until the published package
-pin permits default cutover. An invalid explicit route cannot fall back.
+uses Darrow's exact installed Sevro dependency by default. `SEVRO_PACKAGE_BIN`
+or `SEVRO_CHECKOUT` selects an explicit override. An invalid explicit route
+cannot fall back.
 The caller preserves suite, harness, mode, case, trials, threshold, seed, dry,
 and candidate and grader route options. Relative suite and output paths resolve
 from the invocation directory; default output remains under the evaluated

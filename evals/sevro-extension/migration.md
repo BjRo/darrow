@@ -1,11 +1,10 @@
 # Sevro migration
 
-The migration entrypoints already run Darrow cases through Sevro's public CLI
-and extension protocol. Normal `bun eval`, `bun run eval:orchestration`, and
-`evals/repository-guide.ts` use the legacy runner by default and select Sevro
-when an explicit package or checkout route is set.
-The exact published
-release pin, normal command cutover, and generic runner removal remain pending.
+Normal `bun eval`, `bun run eval:orchestration`, and `evals/repository-guide.ts`
+run Darrow cases through Sevro's public CLI and extension protocol. Darrow pins
+published `@bjoernrochel/sevro@0.1.0-rc.1` as an exact development dependency.
+Run `bun install --frozen-lockfile` before using these commands. Generic runner
+removal remains the next milestone.
 The [runner cutover inventory](runner-cutover-inventory.md) records the remaining
 ownership groups, source dependencies, and domain tests already moved out.
 The ownership boundary is recorded in
@@ -15,7 +14,8 @@ and the extension contract in
 
 ## Local and coordinated development
 
-Select exactly one absolute runner location:
+Normal execution needs no runner environment variable. For coordinated
+development, select exactly one absolute runner override:
 
 | Environment variable    | Purpose                                                                                             |
 | ----------------------- | --------------------------------------------------------------------------------------------------- |
@@ -23,9 +23,12 @@ Select exactly one absolute runner location:
 | `SEVRO_PACKAGE_BIN`     | Run an installed package's executable and retain package version and build identity.                |
 | `SEVRO_PACKAGE_TARBALL` | Select a tarball for the package-install compatibility gate; this does not select a candidate host. |
 
-The migration commands require either the checkout or installed executable;
-there is no implicit checkout discovery or published dependency yet. Darrow's
-project revision and dirty state remain separate from runner identity.
+With neither override, commands resolve the frozen dependency from Darrow's
+tooling installation, independently of the candidate project or working
+directory. Its public manifest must match the exact declared version. Missing
+or mismatched installations fail explicitly. Empty, relative, or conflicting
+overrides fail without fallback. There is no implicit checkout discovery.
+Darrow's project revision and dirty state remain separate from runner identity.
 
 ```sh
 SEVRO_CHECKOUT=/absolute/path/to/sevro bun evals/sevro-extension/run.ts \
@@ -50,7 +53,7 @@ The package installation directory is not run storage.
 
 | Legacy workflow                            | Migration entrypoint or current gap                                                                                                                                                                                                          |
 | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Direct `bun eval`                          | Set an explicit Sevro route on the existing command. Select cases with its existing filters; use the migration entrypoint's `--case-id` for one exact ID. See [direct caller](README.md#direct-evaluation-caller).                           |
+| Direct `bun eval`                          | Uses the frozen Sevro dependency by default. Select cases with its existing filters; use the extension entrypoint's `--case-id` for one exact ID. See [direct caller](README.md#direct-evaluation-caller).                                   |
 | `--harness codex\|claude`                  | Forward `--host codex\|claude`, explicit host binary, model, effort, and credentials.                                                                                                                                                        |
 | Text-file `--condition`                    | Use Darrow `--benchmark-condition-file` and optional label before `--`. Forwarded Sevro `--condition` selects `passive` or `enforced`.                                                                                                       |
 | `--skill`, `--plugin`, repeatable `--case` | Use the same filters before `--` on the migration run entrypoint. Exact ownership filters intersect; repeatable ID substrings narrow that set. Filtered runs retain a selection manifest and each public result.                             |

@@ -281,10 +281,14 @@ and [migration validation](historical-review-proof-validation.md).
 
 ## Direct evaluation caller
 
-Set an explicit Sevro route on the existing direct command:
+The existing direct command uses Darrow's exact installed Sevro dependency.
+See [default package validation](default-package-validation.md) for all three
+caller switches and their public-command regressions.
+
+Example:
 
 ```sh
-SEVRO_CHECKOUT=/absolute/path/to/sevro bun eval \
+bun eval \
   --harness codex --owner-evaluation passive \
   --skill create-commit --case commit \
   --trials 1 --jobs 1 --threshold 1 \
@@ -293,8 +297,8 @@ SEVRO_CHECKOUT=/absolute/path/to/sevro bun eval \
   --codex-auth-file /absolute/path/to/auth.json
 ```
 
-With neither runner variable, the caller keeps its legacy backend. Invalid
-explicit routes fail without fallback. Skill and plugin ownership filters
+`SEVRO_CHECKOUT` and `SEVRO_PACKAGE_BIN` select explicit development or candidate
+overrides. Invalid explicit routes fail without fallback. Skill and plugin ownership filters
 intersect; repeatable case substrings match any supplied value. With no filters,
 all discovered cases are selected. Cases stay sorted and run sequentially;
 `--jobs` bounds trials within each case and defaults to three.
@@ -496,11 +500,10 @@ or the candidate starts. Suite condition selection is described below.
 
 ## Repository-guide caller
 
-The existing guide command selects Sevro when `SEVRO_CHECKOUT` or
-`SEVRO_PACKAGE_BIN` is set:
+The existing guide command uses Darrow's exact installed Sevro dependency:
 
 ```sh
-SEVRO_CHECKOUT=/absolute/path/to/sevro bun evals/repository-guide.ts \
+bun evals/repository-guide.ts \
   --only guide-negative --harness codex --dry
 ```
 
@@ -547,8 +550,8 @@ SEVRO_PACKAGE_BIN=/absolute/path/to/sevro bun evals/repository-guide.ts \
   --codex-auth-file /absolute/path/to/auth.json
 ```
 
-Without an explicit Sevro route, the command retains its legacy backend until
-the published release is pinned. See [guide validation](guide-validation.md)
+Explicit `SEVRO_CHECKOUT` and `SEVRO_PACKAGE_BIN` overrides remain available.
+See [guide validation](guide-validation.md)
 for the test-first evidence and synthetic-host limits.
 
 ## Benchmark suite caller
@@ -559,11 +562,11 @@ unsupported by bundled hosts. Select passive mode names explicitly; see the
 [commands and regression evidence](passive-benchmark-validation.md). The variants
 preserve task and route checks and add no active benchmark correction.
 
-The existing suite command selects Sevro when `SEVRO_CHECKOUT` or
-`SEVRO_PACKAGE_BIN` is set. For example, from the Darrow checkout:
+The existing suite command uses Darrow's exact installed Sevro dependency.
+For example, from the Darrow checkout:
 
 ```sh
-SEVRO_PACKAGE_BIN=/absolute/path/to/sevro bun run eval:orchestration \
+bun run eval:orchestration \
   --suite evals/experiments/orchestration/adaptation-fidelity-suite.yaml \
   --mode preflight-terra --case orchestration-routing-localized-mechanical \
   --trials 1 --threshold 1 --seed diagnosis-1 --no-judge --dry \
@@ -805,12 +808,12 @@ The extension creates `.git/fixture-state` before case setup or tools run.
 See [fixture-state validation](fixture-state-validation.md) for the public
 regression and migrated failed-check oracle examples.
 
-To run one supported case through the Darrow entrypoint, select an installed
-Sevro command with `SEVRO_PACKAGE_BIN` or a local development checkout with
-`SEVRO_CHECKOUT`. For example:
+To run one supported case through the Darrow entrypoint, use the frozen installed
+dependency. `SEVRO_PACKAGE_BIN` and `SEVRO_CHECKOUT` remain explicit overrides.
+For example:
 
 ```sh
-SEVRO_CHECKOUT=/absolute/path/to/sevro bun evals/sevro-extension/run.ts \
+bun evals/sevro-extension/run.ts \
   --case-id orchestration-routing-localized-mechanical \
   --results-root /absolute/path/to/results -- \
   --host codex --codex-bin /absolute/path/to/codex \

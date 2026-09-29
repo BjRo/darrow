@@ -272,12 +272,13 @@ The guide driver pins semantic grading to Codex `gpt-5.6-terra` / medium;
 the shared runner's default lightweight grader remains unchanged. The route
 was calibrated against retained correct and reversed-delegation diagrams.
 
-With `SEVRO_CHECKOUT` or `SEVRO_PACKAGE_BIN`, that same command uses Sevro's
-public CLI and retains separate task and activation outcomes. Its per-cell
+That same command uses Darrow's exact installed Sevro dependency and retains
+separate task and activation outcomes. `SEVRO_CHECKOUT` or `SEVRO_PACKAGE_BIN`
+selects an explicit development or candidate override. Its per-cell
 JSON uses the Sevro format. Optional absolute project and results roots and
 forwarded host options are documented in the
 [guide caller migration](../evals/sevro-extension/README.md#repository-guide-caller).
-The default backend remains legacy until the published release is pinned.
+Normal execution requires `bun install --frozen-lockfile`.
 
 ## Live-run controls
 
@@ -420,9 +421,9 @@ The [Sevro migration guide](../evals/sevro-extension/migration.md) records
 command and evidence changes, remaining benchmark and historical-result gaps,
 the compatibility matrix, and release update and rollback steps. The migration
 entrypoints are available for coordinated development. The existing direct, guide,
-and orchestration suite callers select Sevro when an explicit package or checkout
-route is set; their default backends remain legacy until publication, exact
-release pinning, and cutover. The suite caller retains selectors, route options,
+and orchestration suite callers use the exact installed Sevro dependency by
+default; an explicit package or checkout route overrides that dependency.
+The suite caller retains selectors, route options,
 seeded ordering, and cancellation while migrating output to a JSON summary and
 separate reports. See the
 [caller contract](../evals/sevro-extension/README.md#benchmark-suite-caller).

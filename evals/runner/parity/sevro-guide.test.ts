@@ -114,6 +114,62 @@ async function fixture() {
   return { root, binary, credential, results: join(root, "results") };
 }
 
+test("guide caller uses the frozen package without route overrides", async () => {
+  const { root, binary, credential, results } = await fixture();
+  const child = Bun.spawn(
+    [
+      process.execPath,
+      command,
+      "--project-root",
+      root,
+      "--results-root",
+      results,
+      "--only",
+      "guide-beta",
+      "--harness",
+      "codex",
+      "--dry",
+      "--",
+      "--codex-bin",
+      binary,
+      "--codex-auth-file",
+      credential,
+    ],
+    {
+      cwd: root,
+      env: {
+        ...process.env,
+        SEVRO_CHECKOUT: undefined,
+        SEVRO_PACKAGE_BIN: undefined,
+      },
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+  );
+  const [stdout, stderr, code] = await Promise.all([
+    new Response(child.stdout).text(),
+    new Response(child.stderr).text(),
+    child.exited,
+  ]);
+  expect(code, stderr + stdout).toBe(0);
+  const output = stdout.match(/^Guide evidence: (.+)$/m)?.[1];
+  expect(output, stderr + stdout).toBeDefined();
+  const result = JSON.parse(
+    await readFile(join(output!, "guide-beta-codex.json"), "utf8"),
+  );
+  expect(result).toMatchObject({
+    format: "sevro.cli-result.v1",
+    task: { verdict: "not_assessed" },
+    cases: [{ caseId: "guide-beta" }],
+  });
+  const evidence = JSON.parse(await readFile(result.evidencePath, "utf8"));
+  expect(evidence.runner).toMatchObject({
+    source: "package",
+    packageName: "@bjoernrochel/sevro",
+    version: "0.1.0-rc.1",
+  });
+}, 30_000);
+
 async function invoke(
   root: string,
   results: string,
