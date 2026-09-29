@@ -1,8 +1,15 @@
 import { mkdir, readFile } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import type { CaseResult } from "./runner/types";
 import { runSevroGuide } from "./sevro-extension/guide";
+
+// Only the archived fields consumed by this temporary legacy caller.
+type LegacyGuideResult = {
+  caseId: string;
+  executionMode?: "executed" | "dry" | "unknown";
+  passRate: number | null;
+  activationPassRate?: number | null;
+};
 
 // Sequential single-trial invocations make the documented first-failure stop real.
 const migration = Boolean(
@@ -113,7 +120,7 @@ for (const question of questions) {
     if (code !== 0) process.exit(code);
     const results = JSON.parse(
       await readFile(destination, "utf8"),
-    ) as CaseResult[];
+    ) as LegacyGuideResult[];
     if (results.length !== 1 || results[0]?.caseId !== question.id)
       throw new Error(`Case selection was not exact for ${question.id}`);
     if (

@@ -41,9 +41,10 @@ than moving those mixed modules into Sevro unchanged.
 
 ## Source dependencies outside the tree
 
-- `evals/repository-guide.ts` still imports the legacy `CaseResult` type and
-  selects the legacy command when no explicit Sevro route is configured. Remove
-  that branch and private type when its installed default is pinned.
+- `evals/repository-guide.ts` selects the legacy command when no explicit Sevro
+  route is configured. Its four consumed legacy artifact fields are now local
+  to the caller; it imports no private runner type. Remove the legacy branch
+  when its installed default is pinned.
 - `scripts/test-sevro-package-install.ts` runs parity and domain tests through an
   executable installed in a separate consumer. Keep this public package gate;
   its test-directory path may change when integration tests move.

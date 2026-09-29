@@ -70,3 +70,32 @@ These guards make no test-first red claim. The installed-package parity gate
 also runs this file with `SEVRO_CHECKOUT` cleared and the installed executable
 selected. Dry runs and synthetic hosts do not unlock repository-guide prose
 removal or prove native-host success on real questions.
+
+## Runner type dependency removal
+
+The guide caller now declares only its four consumed legacy artifact fields:
+case ID, execution mode, task pass rate, and activation pass rate. It no longer
+imports the generic runner's private `CaseResult` type. Legacy `unknown`, absent
+mode, and null rates retain their meanings; the runtime checks are unchanged.
+The legacy command remains the default until the exact published pin is ready.
+
+The installed guide gate passed all 12 tests and 105 assertions in 22.66 seconds:
+
+```sh
+env -u SEVRO_CHECKOUT SEVRO_PACKAGE_BIN=/Users/bjro/.darrow/issue95-corpus-sources/ed60be6/consumer/node_modules/.bin/sevro bun test evals/runner/parity/sevro-guide.test.ts
+```
+
+The selected package is the verified Sevro `0.1.0-dev.0` archive from `ed60be6`,
+SHA-256 `480a3db244cee40451f63ff3b4cf9481593e2cc6c5997ff8fb85b3016af9bb65`.
+A separate fallback invocation also passed:
+
+```sh
+env -u SEVRO_PACKAGE_BIN -u SEVRO_CHECKOUT bun evals/repository-guide.ts --only guide-negative --harness codex --dry
+```
+
+Its retained legacy array contains exactly `guide-negative`, mode `dry`, and
+null task and activation rates. Lint, typecheck, formatting, and documentation
+checks pass. Source search finds no remaining runner imports outside the runner
+tree. The log and dry result are retained under
+`/Users/bjro/.darrow/issue95-source-dependencies/`. This changes compile-time
+ownership only; it makes no fresh live behavior or TDD Red claim.
