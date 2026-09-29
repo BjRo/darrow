@@ -351,6 +351,10 @@ See the [command contract](README.md#historical-reviewer-routing-artifacts) and
 
 ## Release, update, and rollback
 
+The npm package is `@bjoernrochel/sevro`. Its installed executable remains
+`sevro`; package evidence retains the scoped name. Candidate tarballs use
+`bjoernrochel-sevro-<version>.tgz`.
+
 Sevro maintainers own its package version, public CLI and protocol compatibility,
 runtime dependencies, packaged assets, and standalone CI. Darrow maintainers own
 the extension, cases and policies, exact development dependency pin, integration

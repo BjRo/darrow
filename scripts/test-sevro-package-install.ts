@@ -34,7 +34,7 @@ try {
     JSON.stringify({ name: "darrow-sevro-install-test", private: true }),
   );
   await run([process.execPath, "add", archive], consumer);
-  const installed = join(consumer, "node_modules", "sevro");
+  const installed = join(consumer, "node_modules", "@bjoernrochel", "sevro");
   const command = join(
     consumer,
     "node_modules",
@@ -48,7 +48,7 @@ try {
   const manifest = JSON.parse(
     await readFile(join(installed, "package.json"), "utf8"),
   ) as { name: string; version: string };
-  if (manifest.name !== "sevro")
+  if (manifest.name !== "@bjoernrochel/sevro")
     throw new Error("installed package is not Sevro");
   const env: Record<string, string | undefined> = {
     ...process.env,

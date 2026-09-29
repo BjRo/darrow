@@ -4,6 +4,7 @@
 importing Sevro internals. Darrow owns case discovery and translation; Sevro
 owns fixture construction, host execution, built-in checks, isolation, and
 retained results.
+The npm package is `@bjoernrochel/sevro`; its installed command remains `sevro`.
 
 See [migration.md](migration.md) for local development, command and evidence
 changes, the compatibility matrix, and release update and rollback steps.

@@ -49,7 +49,7 @@ jobs:
             exit 1
           fi
           mkdir -p "$SEVRO_ARTIFACT_DIR"
-          npm pack "sevro@$SEVRO_VERSION" --ignore-scripts \
+          npm pack "@bjoernrochel/sevro@$SEVRO_VERSION" --ignore-scripts \
             --registry https://registry.npmjs.org/ --json \
             --pack-destination "$SEVRO_ARTIFACT_DIR" \
             > "$SEVRO_ARTIFACT_DIR/npm-pack.json"
@@ -62,7 +62,7 @@ jobs:
           if (!Array.isArray(records) || records.length !== 1)
             throw new Error('npm must return one package');
           const pkg = records[0];
-          if (pkg.name !== 'sevro' || pkg.version !== process.env.SEVRO_VERSION)
+          if (pkg.name !== '@bjoernrochel/sevro' || pkg.version !== process.env.SEVRO_VERSION)
             throw new Error('downloaded package does not match the exact requested version');
           if (typeof pkg.filename !== 'string' || basename(pkg.filename) !== pkg.filename)
             throw new Error('invalid package archive filename');

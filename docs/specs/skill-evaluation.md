@@ -1174,6 +1174,8 @@ not prove equivalence or savings.
   contract changes separately.
   A manually selected published candidate must bind an exact package version
   and SHA-256 before installation; ranges and distribution tags are invalid.
+  The published package is `@bjoernrochel/sevro`; its public command remains
+  `sevro`. Package provenance must retain the scoped name.
   The installed integration gate must clear source-checkout overrides, retain
   the verified archive and package identity with its logs even on failure, and
   exercise the public command without package Git metadata. This candidate gate

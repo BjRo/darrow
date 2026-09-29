@@ -68,7 +68,7 @@ async function installedSevro(): Promise<{
   );
   if (installed.code !== 0)
     throw new Error(`bun add failed: ${installed.stderr || installed.stdout}`);
-  const packageRoot = join(consumer, "node_modules", "sevro");
+  const packageRoot = join(consumer, "node_modules", "@bjoernrochel", "sevro");
   const bin = join(consumer, "node_modules", ".bin", "sevro");
   const binTarget = await realpath(bin);
   const canonicalPackageRoot = await realpath(packageRoot);
@@ -752,7 +752,7 @@ if (process.env.SEVRO_CHECKOUT) {
     });
     expect(compared.sevroRunner).toMatchObject({
       source: "package",
-      packageName: "sevro",
+      packageName: "@bjoernrochel/sevro",
       version: installed.version,
     });
     expect(compared.sevroRunner.buildDigest).toMatch(/^[a-f0-9]{64}$/);
