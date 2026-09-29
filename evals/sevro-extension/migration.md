@@ -269,6 +269,18 @@ grading metadata remains unknown. See the
 [comparison validation](legacy-compare-validation.md). Other specialized
 comparison formats retain their migration gates.
 
+The two historical reviewer-routing validators now live at
+`evals/sevro-extension/legacy-native-review-proof.ts` and
+`evals/sevro-extension/legacy-claude-review-proof.ts`. Their former
+`evals/runner/` paths are retired. Arguments, absolute-path requirements, proof
+formats, atomic output, and exit categories remain unchanged. All fourteen
+artifact examples now exercise these standalone commands under `evals/domain/`,
+without importing runner implementation or private types. The shared axis-name
+matcher is Darrow policy; the legacy Codex adapter imports it independently of
+the historical validator. No historical result is relabeled as Sevro evidence.
+See the [command contract](README.md#historical-reviewer-routing-artifacts) and
+[validation](historical-review-proof-validation.md).
+
 ## Release, update, and rollback
 
 Sevro maintainers own its package version, public CLI and protocol compatibility,

@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { buildNativeReviewProof } from "./native-review-proof";
+import { dirname, join } from "node:path";
+import { historicalReviewProofCommand } from "./historical-review-proof-command";
 
 const entry = (ordinal: number, payload: Record<string, unknown>) =>
   JSON.stringify({
@@ -79,7 +79,45 @@ async function fixture(root: string) {
   return paths;
 }
 
-describe("native review proof", () => {
+async function runHistoricalProof(
+  options: Awaited<ReturnType<typeof fixture>> & {
+    standardsCall: string;
+    specCall: string;
+  },
+) {
+  const json = await historicalReviewProofCommand(
+    new URL(
+      "../sevro-extension/legacy-native-review-proof.ts",
+      import.meta.url,
+    ),
+    [
+      "--session",
+      options.session,
+      "--scope",
+      options.scope,
+      "--route-record",
+      options.routeRecord,
+      "--standards-record",
+      options.standardsRecord,
+      "--standards-call",
+      options.standardsCall,
+      "--spec-record",
+      options.specRecord,
+      "--spec-call",
+      options.specCall,
+    ],
+    join(dirname(options.session), "proof.json"),
+  );
+  return JSON.parse(json) as {
+    format: string;
+    outcome: string;
+    source: { sessionPrefixThroughOrdinal: number };
+    launches: { childId: string }[];
+    checks: Record<string, boolean>;
+  };
+}
+
+describe("historical Codex review proof CLI", () => {
   test("joins route records to two accepted native starts before the first wait", async () => {
     const root = await mkdtemp(join(tmpdir(), "darrow-native-proof-"));
     try {
@@ -98,12 +136,14 @@ describe("native review proof", () => {
           }),
         ].join("\n"),
       );
-      const proof = await buildNativeReviewProof({
+      const proof = await runHistoricalProof({
         ...paths,
         standardsCall: "call-standards",
         specCall: "call-spec",
       });
+      expect(proof.format).toBe("darrow-code-review-native-live-v1");
       expect(proof.outcome).toBe("pass");
+      expect(proof.source.sessionPrefixThroughOrdinal).toBe(7);
       expect(proof.launches.map((launch) => launch.childId)).toEqual([
         "/root/proof_standards",
         "/root/proof_spec",
@@ -141,7 +181,7 @@ describe("native review proof", () => {
         ].join("\n"),
       );
       await expect(
-        buildNativeReviewProof({
+        runHistoricalProof({
           ...paths,
           standardsCall: "call-standards",
           specCall: "call-spec",
@@ -177,7 +217,7 @@ describe("native review proof", () => {
         ].join("\n"),
       );
       await expect(
-        buildNativeReviewProof({
+        runHistoricalProof({
           ...paths,
           standardsCall: "call-standards",
           specCall: "call-spec",
@@ -213,7 +253,7 @@ describe("native review proof", () => {
         ].join("\n"),
       );
       await expect(
-        buildNativeReviewProof({
+        runHistoricalProof({
           ...paths,
           standardsCall: "call-standards",
           specCall: "call-spec",
@@ -251,7 +291,7 @@ describe("native review proof", () => {
         ].join("\n"),
       );
       await expect(
-        buildNativeReviewProof({
+        runHistoricalProof({
           ...paths,
           standardsCall: "call-standards",
           specCall: "call-spec",
@@ -290,7 +330,7 @@ describe("native review proof", () => {
         ].join("\n"),
       );
       await expect(
-        buildNativeReviewProof({
+        runHistoricalProof({
           ...paths,
           standardsCall: "call-standards",
           specCall: "call-spec",
@@ -329,7 +369,7 @@ describe("native review proof", () => {
         ].join("\n"),
       );
       await expect(
-        buildNativeReviewProof({
+        runHistoricalProof({
           ...paths,
           standardsCall: "call-standards",
           specCall: "call-spec",

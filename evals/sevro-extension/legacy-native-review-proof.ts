@@ -1,6 +1,8 @@
+// Historical Darrow reviewer-routing artifact validator; not a Sevro host adapter.
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute } from "node:path";
+import { reviewAxesFromTaskName } from "./review-axis";
 
 type JsonObject = Record<string, unknown>;
 type SessionEntry = { ordinal: number; timestamp: string; value: JsonObject };
@@ -56,15 +58,6 @@ type ReviewInputs = {
   standardsText: string;
   specText: string;
 };
-
-export type ReviewAxis = "standards" | "spec";
-
-export function reviewAxesFromTaskName(value: unknown): ReviewAxis[] {
-  if (typeof value !== "string") return [];
-  return (["standards", "spec"] as const).filter((axis) =>
-    new RegExp(`(^|[-_])${axis}($|[-_])`).test(value),
-  );
-}
 
 type NativeReviewProof = {
   format: "darrow-code-review-native-live-v1";

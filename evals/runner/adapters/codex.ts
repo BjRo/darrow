@@ -34,7 +34,7 @@ import { retainedCodexGoalControls } from "./codex-goal-tools";
 import {
   reviewAxesFromTaskName,
   type ReviewAxis,
-} from "../native-review-proof";
+} from "../../sevro-extension/review-axis";
 
 type AcceptedCodexOwner = NonNullable<
   Awaited<ReturnType<typeof verifiedCodexAcceptedOwner>>

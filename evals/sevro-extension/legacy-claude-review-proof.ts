@@ -1,3 +1,4 @@
+// Historical Darrow reviewer-routing artifact validator; not a Sevro host adapter.
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join } from "node:path";

@@ -229,6 +229,38 @@ available, and the historical reader still interprets their archived results.
 The private runner formatter tests are replaced by tests of the public commands.
 See [ablation validation](legacy-ablation-validation.md).
 
+### Historical reviewer-routing artifacts
+
+The standalone Darrow validators preserve the reviewer-routing studies' original
+transcripts, TSV records, and proof formats. They require Bun and their local
+policy file, with no generic runner, Sevro installation, or model call:
+
+```sh
+bun evals/sevro-extension/legacy-native-review-proof.ts \
+  --session /absolute/path/to/session.jsonl \
+  --scope /absolute/path/to/scope.tsv \
+  --route-record /absolute/path/to/route.tsv \
+  --standards-record /absolute/path/to/standards.tsv \
+  --standards-call call-standards \
+  --spec-record /absolute/path/to/spec.tsv \
+  --spec-call call-spec \
+  --output /absolute/path/to/codex-proof.json
+bun evals/sevro-extension/legacy-claude-review-proof.ts \
+  --parent /absolute/path/to/parent.jsonl \
+  --artifact-dir /absolute/path/to/artifacts \
+  --output /absolute/path/to/claude-proof.json
+```
+
+Input and output paths must be absolute. Successful validation atomically writes
+the original `darrow-code-review-native-live-v1` or
+`darrow-code-review-claude-live-v1` JSON format, prints the output path, and exits
+`0`. Invalid invocation or evidence exits `1` with a diagnostic, without writing
+a new proof. These tools interpret retained historical evidence; their format
+names do not make synthetic fixtures live evidence or establish current Sevro
+evaluator equivalence. The Claude validator continues to reject the recorded
+undashed-marker study. See the [original study](../../docs/research/code-review-reviewer-routing-trials.md)
+and [migration validation](historical-review-proof-validation.md).
+
 ## Direct evaluation caller
 
 Set an explicit Sevro route on the existing direct command:

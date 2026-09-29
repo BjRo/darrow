@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { buildClaudeReviewProof } from "./claude-review-proof";
+import { dirname, join } from "node:path";
+import { historicalReviewProofCommand } from "./historical-review-proof-command";
 
 const route = "claude\tanthropic\tclaude-opus-5\txhigh";
 
@@ -122,18 +122,44 @@ async function fixture(root: string, overrides: FixtureOptions = {}) {
   return { parent: parentPath, artifactDir: artifacts };
 }
 
-describe("Claude review proof", () => {
+async function runHistoricalProof(
+  options: Awaited<ReturnType<typeof fixture>>,
+) {
+  const json = await historicalReviewProofCommand(
+    new URL(
+      "../sevro-extension/legacy-claude-review-proof.ts",
+      import.meta.url,
+    ),
+    ["--parent", options.parent, "--artifact-dir", options.artifactDir],
+    join(dirname(options.parent), "proof.json"),
+  );
+  return JSON.parse(json) as {
+    format: string;
+    outcome: string;
+    launches: { agentId: string }[];
+    checks: Record<string, boolean>;
+  };
+}
+
+describe("historical Claude review proof CLI", () => {
   test("joins parallel exact-tuple calls to host children and observed transcripts", async () => {
     const root = await mkdtemp(join(tmpdir(), "darrow-claude-proof-"));
     try {
-      const proof = await buildClaudeReviewProof(await fixture(root));
+      const proof = await runHistoricalProof(await fixture(root));
+      expect(proof.format).toBe("darrow-code-review-claude-live-v1");
       expect(proof.outcome).toBe("pass");
       expect(proof.launches.map((launch) => launch.agentId)).toEqual([
         "child0",
         "child1",
       ]);
-      expect(proof.checks.sameAssistantTurn).toBe(true);
-      expect(proof.checks.exactRetainedLaunchBatch).toBe(true);
+      expect(proof.checks).toEqual({
+        sameAssistantTurn: true,
+        exactRetainedLaunchBatch: true,
+        foregroundExactTuple: true,
+        distinctHostChildren: true,
+        parentResultsBoundToChildren: true,
+        everyChildAssistantTurnObserved: true,
+      });
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -143,7 +169,7 @@ describe("Claude review proof", () => {
     const root = await mkdtemp(join(tmpdir(), "darrow-claude-proof-"));
     try {
       await expect(
-        buildClaudeReviewProof(await fixture(root, { splitTurns: true })),
+        runHistoricalProof(await fixture(root, { splitTurns: true })),
       ).rejects.toThrow("Claude Agent calls were not in one assistant turn");
     } finally {
       await rm(root, { recursive: true, force: true });
@@ -154,7 +180,7 @@ describe("Claude review proof", () => {
     const root = await mkdtemp(join(tmpdir(), "darrow-claude-proof-"));
     try {
       await expect(
-        buildClaudeReviewProof(await fixture(root, { canonicalMarker: false })),
+        runHistoricalProof(await fixture(root, { canonicalMarker: false })),
       ).rejects.toThrow("expected one standards Agent call, found 0");
     } finally {
       await rm(root, { recursive: true, force: true });
@@ -165,7 +191,7 @@ describe("Claude review proof", () => {
     const root = await mkdtemp(join(tmpdir(), "darrow-claude-proof-"));
     try {
       await expect(
-        buildClaudeReviewProof(await fixture(root, { nonNativeResult: true })),
+        runHistoricalProof(await fixture(root, { nonNativeResult: true })),
       ).rejects.toThrow("expected one standards Agent result, found 0");
     } finally {
       await rm(root, { recursive: true, force: true });
@@ -176,7 +202,7 @@ describe("Claude review proof", () => {
     const root = await mkdtemp(join(tmpdir(), "darrow-claude-proof-"));
     try {
       await expect(
-        buildClaudeReviewProof(await fixture(root, { resultBeforeCall: true })),
+        runHistoricalProof(await fixture(root, { resultBeforeCall: true })),
       ).rejects.toThrow("standards Agent result precedes its call");
     } finally {
       await rm(root, { recursive: true, force: true });
@@ -187,9 +213,7 @@ describe("Claude review proof", () => {
     const root = await mkdtemp(join(tmpdir(), "darrow-claude-proof-"));
     try {
       await expect(
-        buildClaudeReviewProof(
-          await fixture(root, { interleavedResults: true }),
-        ),
+        runHistoricalProof(await fixture(root, { interleavedResults: true })),
       ).rejects.toThrow(
         "Claude Agent results began before all calls were issued",
       );
@@ -202,7 +226,7 @@ describe("Claude review proof", () => {
     const root = await mkdtemp(join(tmpdir(), "darrow-claude-proof-"));
     try {
       await expect(
-        buildClaudeReviewProof(await fixture(root, { extraAgentCall: true })),
+        runHistoricalProof(await fixture(root, { extraAgentCall: true })),
       ).rejects.toThrow(
         "Claude launch batch contains 3 Agent calls; expected exactly two bound readers",
       );
