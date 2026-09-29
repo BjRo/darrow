@@ -190,6 +190,13 @@ and may appear inline. The unused legacy `source_plugin` field is rejected;
 the actual packaged plugin manifest supplies its namespace. These deliberate
 migrations preserve native scope and make unsupported forms explicit.
 
+The two owner-evidence policy tests now live under `evals/domain/` and consolidate
+the existing public native-acceptance matrix. Model and effort mismatches, context
+inheritance, and complete observations without a unique accepted child fail;
+missing or malformed evidence remains unavailable. Native route evidence leaves
+private contract selection unverified. See
+[owner evidence validation](owner-evidence-validation.md).
+
 ## Remaining benchmark contracts
 
 Parent `case_routes` and native `effective_owner_routes` are separate inputs.
