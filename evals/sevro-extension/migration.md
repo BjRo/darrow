@@ -160,6 +160,9 @@ The real commit fixture's twelve examples retain the actual Git plugin helper,
 hook failure, guarded remediation, review evidence, and local publication
 through the public command; see
 [real commit fixture validation](real-commit-fixture-validation.md).
+The discovery loophole tests preserve the canonical subject question and
+semantic-check declarations; see
+[discovery oracle validation](discovery-oracle-validation.md).
 
 ## Remaining benchmark contracts
 

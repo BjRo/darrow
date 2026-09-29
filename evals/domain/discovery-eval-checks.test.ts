@@ -1,48 +1,36 @@
-import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
-import { parse as parseYaml } from "yaml";
-import { runChecks } from "./checks";
-import type { Check, EvalCase } from "./types";
+import { describe, expect, test } from "bun:test";
+import { parse } from "yaml";
+import {
+  readFixtureCase,
+  runFixtureChecks,
+  type OracleCheck,
+} from "./fixture-command";
 
-const roots: string[] = [];
+const questionSource = new URL(
+  "../../plugins/capability/darrow-discovery/skills/grilling/evals/incomplete-subject.yaml",
+  import.meta.url,
+);
+const planningRoot = new URL(
+  "../../plugins/capability/darrow-discovery/skills/plan-implementation/evals/",
+  import.meta.url,
+);
+const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
+type PlanningCase = {
+  checks: OracleCheck[];
+  semantic_output_checks?: { name: string; proposition: string }[];
+};
 
-afterEach(async () => {
-  await Promise.all(
-    roots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
-  );
-});
-
-async function loadCase(relativeCasePath: string): Promise<EvalCase> {
-  return parseYaml(
-    await readFile(
-      resolve(import.meta.dir, "..", "..", relativeCasePath),
-      "utf8",
-    ),
-  ) as EvalCase;
-}
-
-async function messageChecks(
-  relativeCasePath: string,
-  message: string,
-  names: string[],
-) {
-  const root = await mkdtemp(join(tmpdir(), "darrow-discovery-checks-"));
-  roots.push(root);
-  await mkdir(join(root, ".git"));
-  await writeFile(join(root, ".git", "last-message.md"), message);
-  const evalCase = await loadCase(relativeCasePath);
-  const checks = evalCase.checks.filter((check) => names.includes(check.name));
-  return runChecks(root, checks as Check[]);
+async function planningCase(name: string): Promise<PlanningCase> {
+  return parse(await Bun.file(new URL(`${name}.yaml`, planningRoot)).text());
 }
 
 describe("discovery eval loopholes", () => {
   test("subjectless grilling accepts only the canonical question", async () => {
-    const path =
-      "plugins/capability/darrow-discovery/skills/grilling/evals/incomplete-subject.yaml";
+    const canonical = await readFixtureCase(questionSource);
     const name = "response is exactly the canonical subject question";
-    for (const message of [
+    const check = canonical.checks.find((entry) => entry.name === name);
+    if (!check) throw new Error("canonical subject-question oracle is missing");
+    const messages = [
       "What subject would you like me to grill?\n\nHappy to help.",
       "What topic would you like grilled?\n\nQ3 — What scale?",
       "What plan should I grill?\n\n- Who uses it?\n- What scale is expected?",
@@ -57,24 +45,33 @@ describe("discovery eval loopholes", () => {
       "On what?",
       "Which subject?",
       "What should we grill?",
-    ]) {
-      const [check] = await messageChecks(path, message, [name]);
-      expect(check?.passed).toBe(false);
-    }
-
-    const [canonical] = await messageChecks(
-      path,
       "What subject would you like me to grill?",
-      [name],
-    );
-    expect(canonical?.passed).toBe(true);
-  }, 20_000);
+    ];
+    for (const [index, message] of messages.entries()) {
+      const passes = index === messages.length - 1;
+      const result = await runFixtureChecks({
+        source: questionSource,
+        checks: [
+          {
+            name: "write controlled response",
+            run: `printf '%s' ${quote(message)} >.git/last-message.md`,
+          },
+          check,
+        ],
+      });
+      expect(result.exitCode, result.diagnostic).toBe(passes ? 0 : 1);
+      expect(result.value.execution.status).toBe("completed");
+      expect(result.value.grading.status).toBe("completed");
+      expect(result.value.task.verdict).toBe(passes ? "passed" : "failed");
+      expect(result.checks.map((entry) => entry.status)).toEqual([
+        "passed",
+        passes ? "passed" : "failed",
+      ]);
+    }
+  }, 40_000);
 
   test("unresolved planning keeps prose judgment in semantic checks", async () => {
-    const evalCase = await loadCase(
-      "plugins/capability/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
-    );
-
+    const evalCase = await planningCase("direct-unknowns");
     expect(evalCase.checks.map((check) => check.name)).toEqual([
       "planning conversation is read-only",
     ]);
@@ -91,14 +88,11 @@ describe("discovery eval loopholes", () => {
   });
 
   test("planning transfer keeps missing-policy authority in semantic checks", async () => {
-    const evalCase = await loadCase(
-      "plugins/capability/darrow-discovery/skills/plan-implementation/evals/dependency-frontier-transfer.yaml",
-    );
+    const evalCase = await planningCase("dependency-frontier-transfer");
     const name = "repository absence is not promoted to greenfield authority";
     const semanticCheck = evalCase.semantic_output_checks?.find(
       (check) => check.name === name,
     );
-
     expect(evalCase.checks.some((check) => check.name === name)).toBe(false);
     expect(semanticCheck?.proposition).toContain(
       "sparse or missing implementation",
