@@ -186,7 +186,11 @@ function commandEnvironment() {
   );
 }
 
-async function resolvedCheckIds(root: string, id: string) {
+export async function fixtureExtensionRequest<T>(
+  method: string,
+  params: Record<string, unknown>,
+): Promise<T> {
+  const requestId = `oracle-${method}`;
   const command = Bun.spawn(
     [process.execPath, resolve(import.meta.dir, "../sevro-extension/index.ts")],
     {
@@ -199,13 +203,9 @@ async function resolvedCheckIds(root: string, id: string) {
   await command.stdin.write(
     JSON.stringify({
       protocol: "sevro.extension.v1",
-      id: "oracle-resolve",
-      method: "resolve",
-      params: {
-        projectRoot: pathToFileURL(root).href,
-        selectors: { caseIds: [id] },
-        configuration: {},
-      },
+      id: requestId,
+      method,
+      params,
     }),
   );
   await command.stdin.end();
@@ -216,11 +216,24 @@ async function resolvedCheckIds(root: string, id: string) {
   ]);
   const reply = JSON.parse(stdout) as {
     id: string;
-    result?: { cases: { id: string; checks: { id: string }[] }[] };
+    result?: T;
   };
-  const selected = reply.result?.cases[0];
-  if (exitCode !== 0 || reply.id !== "oracle-resolve" || selected?.id !== id)
-    throw new Error(`fixture resolution failed: ${stderr || stdout}`);
+  if (exitCode !== 0 || reply.id !== requestId || reply.result === undefined)
+    throw new Error(`fixture extension ${method} failed: ${stderr || stdout}`);
+  return reply.result;
+}
+
+async function resolvedCheckIds(root: string, id: string) {
+  const reply = await fixtureExtensionRequest<{
+    cases: { id: string; checks: { id: string }[] }[];
+  }>("resolve", {
+    projectRoot: pathToFileURL(root).href,
+    selectors: { caseIds: [id] },
+    configuration: {},
+  });
+  const selected = reply.cases[0];
+  if (selected?.id !== id)
+    throw new Error("resolved fixture does not match the requested case");
   return selected.checks.map((check) => check.id);
 }
 

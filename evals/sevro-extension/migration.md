@@ -171,6 +171,9 @@ explicit repair limits, and newline policy; see
 The sixty review-outcome tests preserve package setup, captured check evidence,
 finding states, and complete report presentation under both shell paths; see
 [review outcome validation](review-outcome-validation.md).
+The twenty-five goal-review tests preserve activation requirements, canonical
+artifacts, and original-finding-bound repair proof through public protocol and
+command requests; see [goal review validation](goal-review-fixture-validation.md).
 
 ## Remaining benchmark contracts
 
