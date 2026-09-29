@@ -163,6 +163,8 @@ through the public command; see
 The discovery loophole tests preserve the canonical subject question and
 semantic-check declarations; see
 [discovery oracle validation](discovery-oracle-validation.md).
+The feedback fixture's six tests retain scoped delivery, rejected approval, and
+bounded diagnostics; see [feedback fixture validation](feedback-fixture-validation.md).
 
 ## Remaining benchmark contracts
 
