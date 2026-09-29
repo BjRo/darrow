@@ -50,10 +50,13 @@ the old report or metrics implementations to interpret these fields. See
 [archival claims validation](historical-claims-validation.md).
 
 The old `goal-report` implementation still supplies the legacy backend's private
-completion-format and readiness parsing. Current native ownership and transcript
-checks use the extension and public domain fixtures. Reconcile each remaining
-readiness or transcript expectation against that current contract before removing
-the legacy implementation at cutover.
+completion-format and readiness parsing. Its fixed formatter expectations are
+now reconciled with the current completion contract. Public ownership and
+readiness fixtures retain their observable checks; the internal TSV marker and
+Markdown-wrapper examples use public extension grading. See
+[completion-policy reconciliation](completion-policy-validation.md). Remove the
+legacy implementation and tests at the published-package cutover, without
+restoring the private formatter.
 
 The old `orchestration-metrics` implementation combines private goal-format
 reconciliation with ticket-pipeline phase checks and usage accounting. Preserving
@@ -220,9 +223,16 @@ tests prepare nineteen Codex cells and check independent owner model/effort
 expectations, separate parent routes, enforced labels, and unassessed dry states.
 Private profile, workflow, risk, and selected-versus-effective assertions are
 deliberately retired. Historical snapshots retain their original interpretation.
-This is a new domain file, bringing that directory to 23 test files; the
+At that milestone this new domain file brought the directory to 23 test files; the
 whole-file relocation count remains nineteen. See
 [benchmark migration validation](benchmark-migration-validation.md).
+
+`evals/domain/internal-record-policy.test.ts` preserves the twelve legacy TSV
+marker examples and both Markdown wrappers through public extension grading.
+It also checks an ordinary final answer and five unavailable-evidence inputs.
+This brings the domain directory to 24 test files; the whole-file relocation
+count remains nineteen. It changes no product or protocol behavior. See
+[completion-policy reconciliation](completion-policy-validation.md).
 
 `evals/domain/historical-native-review-proof.test.ts` and
 `evals/domain/historical-claude-review-proof.test.ts` preserve all fourteen

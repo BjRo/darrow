@@ -710,7 +710,10 @@ Sevro extension. For Codex cases, a complete native-call observation is required
 extension checks that no replacement owner launched, that later parent calls
 only waited or addressed the accepted child, and that the final answer omitted
 internal goal records. Missing or partial host evidence leaves those checks
-unavailable. Full goal-route reports and most transcript checks remain
+unavailable. The [completion-policy reconciliation](completion-policy-validation.md)
+preserves the legacy internal TSV and Markdown-wrapper examples through public
+grading and identifies the retired fixed completion-report grammar.
+Full goal-route reports and most transcript checks remain
 unsupported. The exact no-agent assertion uses the complete Codex native-call
 observation. A spawn attempt fails; missing or incomplete evidence stays
 unavailable. Supported retired-ledger assertions check both the complete
