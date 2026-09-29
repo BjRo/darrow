@@ -1,5 +1,14 @@
 import { afterEach } from "bun:test";
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  realpath,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import {
   basename,
@@ -61,7 +70,34 @@ type OracleOptions = {
   setupPrefix?: string;
   fixture?: Fixture;
   fixtureAssets?: URL;
+  fixtureAssetFiles?: string[];
+  reviewState?: boolean;
 };
+
+async function copyFixtureAssetFiles(
+  source: string,
+  target: string,
+  names: string[],
+) {
+  const owner = await realpath(source);
+  for (const name of names) {
+    const canonical = await realpath(resolve(source, name));
+    const within = relative(owner, canonical);
+    if (
+      isAbsolute(name) ||
+      within === ".." ||
+      within.startsWith(`..${sep}`) ||
+      !(await stat(canonical)).isFile()
+    )
+      throw new Error("explicit fixture asset must be a file inside its owner");
+    const destination = resolve(target, name);
+    const location = relative(target, destination);
+    if (location === ".." || location.startsWith(`..${sep}`))
+      throw new Error("explicit fixture asset must stay inside copied assets");
+    await mkdir(dirname(destination), { recursive: true });
+    await writeFile(destination, await readFile(canonical));
+  }
+}
 
 async function prepareFixtureAssets(
   root: string,
@@ -96,6 +132,7 @@ async function prepareFixtureAssets(
     recursive: true,
     filter: (path) => !excluded.has(basename(path)),
   });
+  await copyFixtureAssetFiles(source, target, options.fixtureAssetFiles ?? []);
   const directory = `'${join(target, caseDirectory).replaceAll("'", "'\\''")}'`;
   fixture.setup = `DARROW_ORACLE_CASE_ASSETS=${directory}\n${(fixture.setup ?? "").replaceAll("{{case_dir}}", "$DARROW_ORACLE_CASE_ASSETS")}`;
 }
@@ -107,6 +144,14 @@ async function prepareOracle(root: string, options: OracleOptions) {
   const id = `oracle-${canonical.id}`;
   const fixture = { ...(options.fixture ?? canonical.fixture) };
   await prepareFixtureAssets(root, options, fixture);
+  if (options.reviewState) {
+    const directory = await mkdtemp(
+      join(tmpdir(), "darrow-fixture-review-state-"),
+    );
+    roots.push(directory);
+    const quoted = `'${directory.replaceAll("'", "'\\''")}'`;
+    fixture.setup = `export DARROW_REVIEW_STATE_DIR=${quoted}\n${fixture.setup ?? ""}\nprintf '%s\\n' "$DARROW_REVIEW_STATE_DIR" >.git/oracle-review-state`;
+  }
   if (options.setupPrefix !== undefined)
     fixture.setup = [options.setupPrefix, fixture.setup ?? ""].join("\n");
   await writeFile(

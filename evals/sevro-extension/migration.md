@@ -168,6 +168,9 @@ bounded diagnostics; see [feedback fixture validation](feedback-fixture-validati
 The four composition fixture tests retain actual publication observations,
 explicit repair limits, and newline policy; see
 [composition fixture validation](composition-fixture-validation.md).
+The sixty review-outcome tests preserve package setup, captured check evidence,
+finding states, and complete report presentation under both shell paths; see
+[review outcome validation](review-outcome-validation.md).
 
 ## Remaining benchmark contracts
 
