@@ -250,6 +250,16 @@ modes also selects the original enforced variants. This installs no active
 benchmark correction and leaves ordinary fixture isolation in place. See the
 [passive commands and regression evidence](passive-benchmark-validation.md).
 
+The deprecated `darrow-ticket-pipeline` baseline gains no special handling.
+Its task checks and explicitly requested self-reported evaluation counts use the
+same public grading as other benchmark modes. Legacy phase, iteration, stable
+child ID, and required-skill reconciliation are retired; native acceptance does
+not prove those bindings. This follows the user's choice to retain outcomes and
+counts without building new phase evidence or active benchmark correction.
+The baseline remains a historical reference, with no native phase-equivalence
+claim. Existing enforced variants remain explicitly unsupported by bundled hosts.
+See [orchestration-policy reconciliation](orchestration-policy-migration.md).
+
 Custom suites using `goal_expectations` or `apply_expected_goal_routes`,
 and the legacy `--expected-goal-routes`, `--assert-goal-routes`, and
 `--assert-goal-dimensions` options still fail explicitly on the Sevro route.

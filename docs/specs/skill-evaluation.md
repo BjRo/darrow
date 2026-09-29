@@ -372,10 +372,12 @@ assistant turn. Missing, partial, duplicate, or foreign-plugin expansion does
 not establish activation. Retain only the bounded receipt, not the command or
 skill text.
 
-Codex orchestration evidence may repeat the owning installed plugin
+Legacy ticket-pipeline Codex evidence may repeat the owning installed plugin
 qualification in child skill tokens. Reconciliation treats that exact
 qualification as host transport syntax and compares the declared phase
 capability by its leaf skill name; another plugin namespace is not equivalent.
+This describes the historical phase checker, which retires with the legacy
+runner. Current native observations do not establish those phase bindings.
 
 Retained Codex collaboration evidence distinguishes a current host task label
 from the stable child-agent reference returned by the launch. A valid bounded
@@ -743,6 +745,22 @@ its enforced condition, and unsupported enforced execution still fails explicitl
 Callers select the passive mode names when requesting native observational
 comparisons; selecting all modes also selects the original enforced variants.
 This adds no policy enforcement, launch rewriting, or benchmark correction.
+
+### Deprecated ticket-pipeline baseline
+
+The deprecated ticket-pipeline baseline keeps task outcomes and explicitly
+requested self-reported evaluation counts through shared benchmark checks.
+It gains no dedicated grader, phase instrumentation, or active benchmark
+correction. The legacy phase, iteration, stable child ID, and phase-to-skill
+assertions are deliberately retired. Native agent acceptance alone cannot
+establish those facts. Recorded historical results keep their original
+interpretation and cannot become current phase-check passes.
+
+The existing record checks validate declared counts rather than independently
+observed child totals. Generic host usage retains its own completeness and
+provenance; retired route rows cannot establish child token totals or repair
+incomplete usage. Named task-check metrics remain independent from these counts.
+No legacy goal-loop machinery or private completion format is restored.
 
 ### Benchmark conditions
 
@@ -1221,9 +1239,10 @@ not prove equivalence or savings.
 8. Prompt-rendering tests cover Claude Code and Codex invocation tokens,
    unchanged prompts without the placeholder, and invalid placeholder use by a
    case without a colocated owning skill.
-9. Codex orchestration reconciliation fixtures include installed
-   owning-plugin-qualified child skill tokens, reject a foreign namespace, and
-   retain their phase-to-skill checks.
+9. Public benchmark fixtures preserve explicitly requested self-reported counts
+   and their malformed, duplicate, missing, and unavailable evidence cases.
+   Deprecated ticket-pipeline phase-to-skill assertions retire with the legacy
+   runner; no special native phase contract is required.
 10. Semantic output-check fixtures cover a valid paraphrase, negation,
     contradiction, malformed output, missing and duplicate verdicts,
     unexpected names, and an unavailable grader route.

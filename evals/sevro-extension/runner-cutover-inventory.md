@@ -59,11 +59,15 @@ legacy implementation and tests at the published-package cutover, without
 restoring the private formatter.
 
 The old `orchestration-metrics` implementation combines private goal-format
-reconciliation with ticket-pipeline phase checks and usage accounting. Preserving
-its recorded metadata does not prove current native phase or usage policy.
-Those remaining policy expectations still require reconciliation before the
-mixed implementation and its tests can be retired. Neither file is copied into
-the standalone historical reader or into Sevro.
+reconciliation with ticket-pipeline phase checks and usage accounting. Those
+expectations are now reconciled with public task metrics, native owner evidence,
+shared self-reported benchmark counts, and archived claims. The user requested
+no special handling for the deprecated ticket-pipeline; its legacy phase checks
+retire without new instrumentation. Child usage cannot be reconstructed from
+retired private route rows. See
+[orchestration-policy reconciliation](orchestration-policy-migration.md). Remove
+the mixed implementation and tests at cutover. Neither file is copied into the
+standalone historical reader or into Sevro.
 
 The mixed `fixture.test.ts` file is now retired. Generic permission-locked
 cleanup and canonical workspace paths are covered by Sevro's public CLI
