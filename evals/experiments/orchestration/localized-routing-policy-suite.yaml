@@ -1,22 +1,9 @@
 version: 1
 experiment: orchestration-localized-routing-policy
+harnesses: [codex]
 case_filter:
   - orchestration-routing-localized-mechanical
   - orchestration-routing-localized-quality-feature
-goal_expectations:
-  current:
-    orchestration-routing-localized-mechanical:
-      model: gpt-5.6-luna
-      effort: medium
-      profile: routine
-      workflow: mechanical
-      risk: routine
-    orchestration-routing-localized-quality-feature:
-      model: gpt-5.6-luna
-      effort: high
-      profile: routine-plus
-      workflow: implement-feature
-      risk: routine
 modes:
   adaptive-policy:
     condition_by_harness:
@@ -24,5 +11,9 @@ modes:
     skill_dir: ../../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery
     mount_plugin_skills: true
     require_evaluation_records: true
-    goal_expectations: current
+    effective_owner_routes:
+      orchestration-routing-localized-mechanical:
+        { model: gpt-5.6-luna, effort: medium }
+      orchestration-routing-localized-quality-feature:
+        { model: gpt-5.6-luna, effort: high }
     effort: low

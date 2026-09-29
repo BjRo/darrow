@@ -223,15 +223,31 @@ The mixed fixture test file is removed; its canonical workspace assertion is
 preserved by a new Sevro public CLI regression and engine fix. See
 [mounting fixture validation](mounting-fixture-validation.md).
 
-## Remaining benchmark contracts
+## Benchmark assertion migration
 
-Parent `case_routes` and native `effective_owner_routes` are separate inputs.
-An accepted native child route does not establish private goal-contract
-selection, profile, workflow, or risk dimensions. Legacy `goal_expectations`,
-`apply_expected_goal_routes`, `--expected-goal-routes`, `--assert-goal-routes`,
-and `--assert-goal-dimensions` do not have migration equivalents. They must keep
-an explicit unsupported result until a deliberate replacement or retirement is
-documented for the affected workflow.
+The user selected task outcomes and independently observed native owner
+model/effort comparisons for the three canonical suites.
+`profile-impact-suite.yaml` replaces its two `apply_expected_goal_routes`
+declarations with exact `effective_owner_routes` maps.
+`localized-routing-policy-suite.yaml` and `promoted-routing-suite.yaml`
+replace their named `goal_expectations` sets with the same model/effort tuples
+under their comparison modes. The files now declare Codex scope explicitly,
+matching their conditions, parent route maps, and the supported native receipt.
+
+Parent `case_routes` and native `effective_owner_routes` remain separate.
+All case filters, condition files, experiment and mode identifiers, skill
+overrides, record requirements, and enforced condition defaults are preserved.
+The suites no longer assert private goal profiles, workflow/risk selection, or
+selected-versus-effective goal contract application. Historical mode names and
+condition instructions remain labels and task inputs; they do not establish
+private dimensions. Original snapshots retain their original interpretation.
+See [benchmark migration validation](benchmark-migration-validation.md).
+
+Custom suites using `goal_expectations` or `apply_expected_goal_routes`,
+and the legacy `--expected-goal-routes`, `--assert-goal-routes`, and
+`--assert-goal-dimensions` options still fail explicitly on the Sevro route.
+The replacement requires an explicit native owner expectation; it does not
+accept or infer a private contract from parent route or final-response text.
 
 Bundled Sevro hosts support passive execution and refuse enforced conditions or
 unsupported instrumentation. Generic adapters can negotiate instrumentation;
@@ -316,7 +332,7 @@ matrix, and marketplace boundaries. No marketplace plugin gains this runtime.
 
 ### Compatibility matrix
 
-The current local candidate uses Sevro `0.1.0-dev.0`, extension protocol
+The current unpublished local candidate uses Sevro `0.1.0-rc.1`, extension protocol
 `sevro.extension.v1`, and Bun `1.3.13`. Each release must retain the exact package
 digest, Darrow revision and patch identity, negotiated capabilities, host route,
 and result paths for the applicable rows below.

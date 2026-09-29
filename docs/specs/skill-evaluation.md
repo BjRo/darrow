@@ -716,6 +716,24 @@ for Claude fails preflight explicitly; standalone preparation rejects that
 unsupported host route. Dry preparation remains unassessed. Suite retained
 configuration must agree with the selected case's requested expectation.
 
+The canonical `profile-impact-suite.yaml`, `localized-routing-policy-suite.yaml`,
+and `promoted-routing-suite.yaml` compare task outcomes and independently
+observed native owner model/effort routes. They declare Codex scope explicitly,
+preserve their case selections and benchmark conditions, and bind each owner
+expectation through mode `effective_owner_routes`. Parent `case_routes` remain
+separate. Dry results stay unassessed.
+
+These suites retire the legacy `goal_expectations` and
+`apply_expected_goal_routes` fields and private goal profile, workflow, risk,
+and selected-versus-effective contract assertions. Existing experiment and
+mode names and condition instructions remain historical labels and task
+inputs; they do not establish those private dimensions. Historical snapshots
+retain their original interpretation and cannot be relabeled as matched native
+route comparisons. The suites preserve their enforced condition default.
+An unsupported bundled-host enforced request must still fail explicitly;
+this migration neither converts it to passive execution nor restores removed
+preflight machinery.
+
 ### Benchmark conditions
 
 The Darrow Sevro run entrypoint accepts an absolute benchmark condition file

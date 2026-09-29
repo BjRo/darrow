@@ -579,9 +579,15 @@ Separate quality, activation, and ablation reports retain their existing gates.
 Cancellation forwards to the active suite and retains its cancelled prefix.
 
 Neither caller changes enforced modes to passive or substitutes unavailable
-private goal policies. The adaptation study's enforced cell and suites using
-retired private goal fields still fail explicitly. Without a Sevro route the
-caller retains its legacy backend until release pinning and default cutover.
+private goal policies. The adaptation study's enforced cell and bundled-host
+enforced execution still fail explicitly. The three revised canonical suites
+now use explicit native owner-route maps; custom suites retaining private fields
+remain unsupported. Dry preparation preserves enforced labels and stays
+unassessed. See
+[benchmark migration validation](benchmark-migration-validation.md).
+
+Without a Sevro route the caller retains its legacy backend until release
+pinning and default cutover.
 An invalid explicit route cannot fall back. See
 [caller validation](benchmark-caller-validation.md).
 

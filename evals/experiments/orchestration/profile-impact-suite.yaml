@@ -1,5 +1,6 @@
 version: 1
 experiment: orchestration-workflow-risk-impact
+harnesses: [codex]
 case_filter: orchestration-oss-
 case_routes:
   codex:
@@ -36,7 +37,15 @@ modes:
     skill_dir: ../../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery
     mount_plugin_skills: true
     require_evaluation_records: true
-    apply_expected_goal_routes: true
+    effective_owner_routes:
+      orchestration-oss-ajv-instance-path: { model: gpt-5.6-sol, effort: high }
+      orchestration-oss-click-streams: { model: gpt-5.6-sol, effort: high }
+      orchestration-oss-express-links: { model: gpt-5.6-luna, effort: medium }
+      orchestration-oss-go-git-insteadof: { model: gpt-5.6-sol, effort: high }
+      orchestration-oss-requests-proxy: { model: gpt-5.6-sol, effort: high }
+      orchestration-oss-commander-env: { model: gpt-5.6-terra, effort: medium }
+      orchestration-oss-cobra-lifecycle:
+        { model: gpt-5.6-terra, effort: medium }
     effort: low
   darrow-workflow-risk:
     condition_by_harness:
@@ -44,5 +53,13 @@ modes:
     skill_dir: ../../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery
     mount_plugin_skills: true
     require_evaluation_records: true
-    apply_expected_goal_routes: true
+    effective_owner_routes:
+      orchestration-oss-ajv-instance-path: { model: gpt-5.6-sol, effort: high }
+      orchestration-oss-click-streams: { model: gpt-5.6-sol, effort: high }
+      orchestration-oss-express-links: { model: gpt-5.6-luna, effort: medium }
+      orchestration-oss-go-git-insteadof: { model: gpt-5.6-sol, effort: high }
+      orchestration-oss-requests-proxy: { model: gpt-5.6-sol, effort: high }
+      orchestration-oss-commander-env: { model: gpt-5.6-terra, effort: medium }
+      orchestration-oss-cobra-lifecycle:
+        { model: gpt-5.6-terra, effort: medium }
     effort: low
