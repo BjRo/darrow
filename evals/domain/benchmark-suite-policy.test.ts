@@ -169,7 +169,7 @@ async function expectOwnerComparisons(
     const evidence = JSON.parse(await readFile(cell.evidencePath, "utf8"));
     expect(evidence.runner).toMatchObject({
       source: "package",
-      packageName: "sevro",
+      packageName: "@bjoernrochel/sevro",
     });
     expect(evidence.routes).toContainEqual({
       role: "candidate",

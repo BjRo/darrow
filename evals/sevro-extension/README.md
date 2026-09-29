@@ -11,6 +11,8 @@ changes, the compatibility matrix, and release update and rollback steps.
 Normal Darrow callers use the legacy runner by default. The direct, benchmark,
 and guide callers select Sevro with an explicit package or checkout route;
 publication, the exact release pin, and default cutover remain pending.
+The [scoped release validation](scoped-release-validation.md) records the current
+archive identity, checks, and targeted benchmark expectation repair.
 
 This migration slice resolves one selected skill-free experiment case or
 plugin-local skill case, with optional candidate skill overrides. It accepts generated Git commits or a pinned corpus
