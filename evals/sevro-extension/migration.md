@@ -203,6 +203,12 @@ ten mounting and ticket examples in its mixed fixture test file while their
 remaining policy is reconciled. See
 [fixture cleanup validation](fixture-cleanup-validation.md).
 
+The exact local ticket round-trip example now lives under `evals/domain/` and
+uses the installed public command. It retains committed scaffolding, case-asset
+setup, exact ticket body bytes, the log alias, and ordered events. The mixed
+legacy fixture test retains nine mounting examples. See
+[ticket fixture validation](ticket-fixture-validation.md).
+
 ## Remaining benchmark contracts
 
 Parent `case_routes` and native `effective_owner_routes` are separate inputs.

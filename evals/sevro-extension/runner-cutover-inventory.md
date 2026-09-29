@@ -41,10 +41,11 @@ than moving those mixed modules into Sevro unchanged.
 
 The generic permission-locked cleanup example in `fixture.test.ts` is retired
 after Sevro's public CLI regressions and independent installed-archive checks
-proved workspace removal and unchanged external link targets. Its ten mounting
-and ticket scaffolding examples remain. Backend resource filtering and exact
-ticket round trips still need reconciliation through public interfaces; the
-mixed fixture file is not yet retired. See
+proved workspace removal and unchanged external link targets. The ticket
+scaffolding example now uses the public command under `evals/domain/`; nine
+mounting examples remain. Backend resource filtering and remaining mounting
+policy still need reconciliation through public interfaces; the mixed fixture
+file is not yet retired. See
 [fixture cleanup validation](fixture-cleanup-validation.md).
 
 ## Source dependencies outside the tree
@@ -79,6 +80,12 @@ both route profiles. The oracle and plugin are unchanged.
 
 `evals/domain/bun-discovery.test.ts` verifies that repository test discovery skips
 external corpus caches. It has no runner dependency.
+
+`evals/domain/fixture-ticket.test.ts` preserves committed scaffolding, case-asset
+setup, exact ticket body bytes, the compatibility log link, and the ordered
+get/describe/get events through the installed public command. It extracts one
+example from the mixed fixture test rather than moving that whole file. See
+[ticket fixture validation](ticket-fixture-validation.md).
 
 `evals/domain/goal-failed-check-fixture.test.ts` preserves its thirteen protocol
 usage and prohibited-effect examples through the installed public CLI. The
@@ -192,4 +199,4 @@ behavior evidence.
 
 Path and content-digest inventory snapshots are retained outside the repository
 under `/Users/bjro/.darrow/issue95-runner-ownership/`; the latest snapshot is
-`fixture-cleanup-inventory.json`.
+`ticket-round-trip-inventory.json`.
