@@ -52,6 +52,12 @@ than moving those mixed modules into Sevro unchanged.
   comparison evidence, not an acceptable final integration boundary.
 - Historical-reader tests copy Darrow's standalone interpretation files into a
   separate consumer to prove independence. They do not copy generic runner code.
+- The temporary legacy selection and compatibility fixtures also copy exactly
+  `fixture-ticket.ts`, `sevro-extension/model-defaults.ts`, and
+  `sevro-extension/review-axis.ts`, because the legacy runner imports those
+  Darrow files. These copies remain part of the legacy comparison only; retire
+  them with that baseline. See the
+  [fixture repair](historical-review-proof-validation.md#legacy-comparison-fixture-follow-up).
 
 ## Domain tests moved out
 

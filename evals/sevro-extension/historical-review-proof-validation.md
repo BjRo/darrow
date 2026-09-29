@@ -61,3 +61,23 @@ Milestone records and the gate log are retained under
 `1149244d043b7f2ae20239ef914505253dbfc44ce9123d7e6d425a893ae06f81`.
 The current ownership snapshot is
 `/Users/bjro/.darrow/issue95-runner-ownership/historical-review-proof-inventory.json`.
+
+## Legacy comparison fixture follow-up
+
+Inspecting source dependencies found that both temporary legacy runner copies
+omitted Darrow files already imported by the runner. The selection test and the
+separate-tooling compatibility test both failed before execution with a missing
+`sevro-extension/model-defaults` module. Their fixture builders now copy the
+three exact Darrow dependencies: `fixture-ticket.ts`,
+`sevro-extension/model-defaults.ts`, and `sevro-extension/review-axis.ts`.
+This keeps the temporary legacy comparison executable until cutover; it does
+not add source copying to the installed Sevro integration gate.
+
+```sh
+env -u SEVRO_PACKAGE_BIN -u SEVRO_CHECKOUT -u DARROW_EVAL_RUNNER_COMMAND bun test evals/runner/run-selection.test.ts evals/runner/compatibility/baseline.test.ts
+```
+
+All 45 tests and 196 assertions passed in 16.97 seconds, including exact
+selection, separate project/configuration/storage isolation, partial failure
+persistence, and cancellation. Lint, typecheck, formatting, and documentation
+checks pass. This is fixture repair, with no product behavior or TDD Red claim.

@@ -151,6 +151,14 @@ async function runnerFixture(separateTooling = false): Promise<RunnerFixture> {
     filter: (path) =>
       !path.endsWith(".test.ts") && !path.includes("/compatibility"),
   });
+  for (const path of [
+    "fixture-ticket.ts",
+    "sevro-extension/model-defaults.ts",
+    "sevro-extension/review-axis.ts",
+  ]) {
+    await mkdir(dirname(join(root, "evals", path)), { recursive: true });
+    await cp(resolve(runnerSource, "..", path), join(root, "evals", path));
+  }
   await mkdir(join(root, "evals/corpus/orchestration"), { recursive: true });
   await cp(
     resolve(runnerSource, "../corpus/orchestration/source.ts"),

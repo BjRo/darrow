@@ -10,7 +10,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import type { CaseResult } from "./types";
 
 const roots: string[] = [];
@@ -46,6 +46,14 @@ async function selectionFixture() {
     recursive: true,
     filter: (path) => !path.endsWith(".test.ts"),
   });
+  for (const path of [
+    "fixture-ticket.ts",
+    "sevro-extension/model-defaults.ts",
+    "sevro-extension/review-axis.ts",
+  ]) {
+    await mkdir(dirname(join(root, "evals", path)), { recursive: true });
+    await cp(resolve(import.meta.dir, "..", path), join(root, "evals", path));
+  }
   await mkdir(join(root, "evals/corpus/orchestration"), { recursive: true });
   await cp(
     resolve(import.meta.dir, "../corpus/orchestration/source.ts"),
