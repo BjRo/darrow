@@ -1176,6 +1176,13 @@ not prove equivalence or savings.
   and SHA-256 before installation; ranges and distribution tags are invalid.
   The published package is `@bjoernrochel/sevro`; its public command remains
   `sevro`. Package provenance must retain the scoped name.
+  Normal Darrow execution must resolve the exact development dependency from
+  the Darrow tooling installation, independently of the evaluated project and
+  invocation directory. Its installed public manifest must match the declared
+  exact version. Missing or mismatched installations fail explicitly. An
+  explicit `SEVRO_PACKAGE_BIN` or `SEVRO_CHECKOUT` remains a candidate or
+  development override; empty, relative, or conflicting overrides fail without
+  fallback. A checkout retains its distinct revision and patch identity.
   The installed integration gate must clear source-checkout overrides, retain
   the verified archive and package identity with its logs even on failure, and
   exercise the public command without package Git metadata. This candidate gate

@@ -8,7 +8,7 @@ This changes distribution metadata, release mechanics, and matching test
 expectations; the generic engine, host, and grading source is unchanged.
 
 - Sevro source: `c24b919`.
-- Version: `0.1.0-rc.1`; intended public distribution tag: `next`.
+- Version: `0.1.0-rc.1`; public distribution tag: `next`.
 - License: owner-selected `BUSL-1.1`; 71 packaged files.
 - Archive: `/Users/bjro/.darrow/issue95-scoped-release/c24b919/release/bjoernrochel-sevro-0.1.0-rc.1.tgz`.
 - SHA-256: `5f0d9447e792f7454b4eb8ab069e43fef338919ab50753b9cfdd3569c90bc6b1`.
@@ -28,8 +28,10 @@ files in 125.77 seconds with `bun test --timeout 15000`.
 The initial default five-second source gate passed 244 tests and timed out
 one existing multi-fixture repository-invocation test. Its unchanged isolated
 retry passed in 4.98 seconds. The full 15-second rerun passed that case in 5.35
-seconds. No assertion was changed to resolve this timeout. CI's source-test
-deadline remains a follow-up.
+seconds. No assertion was changed to resolve this timeout. Sevro commit
+`17d3806` sets that tested deadline in its verify and release workflows. Those
+CI files are excluded from the archive; all 71 packaged files remain byte
+identical to the reviewed `c24b919` archive.
 
 Preparation and installation of the exact archive passed. The installed
 command, assessed and prompt-only outcomes, deterministic native fixtures,
@@ -94,8 +96,16 @@ full-gate run is not TDD red evidence.
 
 ## Remaining extraction work
 
-Publication, the exact Darrow dependency and lockfile pin, default caller
-cutover, generic runner and source-copy baseline removal, automatic frozen
+The authorized exact archive was published on 2026-09-29. npm's publication
+command exited zero, and its `next` tag resolves to `0.1.0-rc.1`. Downloading
+the published version's registry archive reproduced the SHA-256 and integrity
+above. The registry's ordinary package metadata initially returned `404` while
+the version endpoint, archive, and distribution tags were available. After
+propagation, `bun add --dev --exact '@bjoernrochel/sevro@0.1.0-rc.1'` succeeded.
+Darrow's development dependency and frozen lockfile retain that exact version
+and the reviewed integrity hash. `bun install --frozen-lockfile` passed.
+
+Default caller cutover, generic runner and source-copy baseline removal, automatic frozen
 installed CI, and a focused live check after the switch remain outstanding.
 
 Earlier unscoped full and live evidence keeps its original source and archive
