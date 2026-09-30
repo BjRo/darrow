@@ -381,6 +381,24 @@ Classify reasoning demand independently:
 - `judgment`: an unresolved cause across plausible layers or work requiring
   architecture, planning, or review judgment.
 
+The profile describes the owner's engineering work. Consequence risk determines
+required checks and assurance; selected verification and review providers perform
+their own assessment work. Neither high consequences nor delegation to those
+providers alone raises the owner's profile.
+
+Select `routine-plus` only with a concrete basis: materially competing
+implementations, or an explicit user or repository instruction prioritizing
+first-pass boundary correctness. A security boundary, high cost of a mistake,
+or required independent review establishes no such priority by itself. Clear,
+localized, fully specified work without that additional basis is `routine`,
+including when its risk is high. Preserve the brief profile basis in the owner
+contract without requiring a fixed serialization.
+
+For example, an exact security-policy change is high risk and `routine`, with
+required independent review. Localized validation work with an explicit
+first-pass correctness priority is `routine-plus`. An unresolved diagnosis
+across plausible layers is `judgment` even when its consequence risk is routine.
+
 Use the bundled route policy unless the user explicitly supplied a concrete
 host-supported, owner-capable model and effort. Such a user override need not
 appear in the policy catalog; the host launch remains its final availability

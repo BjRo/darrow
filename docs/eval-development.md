@@ -294,6 +294,15 @@ with `No cases matched.` The separate `--skill-dir <path>` option overrides
 the mounted skill after selection; `--without-skill` disables mounting while
 preserving the selected cases.
 
+For a frozen plugin copy passed through `--skill-dir`, preserve the owning
+plugin directory name: `<snapshot>/<plugin-name>/skills/<skill-name>`. The
+current prompt renderer derives the Codex invocation namespace from the source
+plugin path or that directory name, while installation uses the manifest name.
+Verify that the rendered `$<plugin-name>:<skill-name>` token matches the
+installed manifest before a live run. A copy renamed `candidate` or `plugin`
+can produce a mismatched invocation; retain such runs separately from valid
+explicit-invocation evidence.
+
 Codex runs use independent defaults for each eval role:
 
 - candidate: `gpt-6-luna` at `medium` effort;

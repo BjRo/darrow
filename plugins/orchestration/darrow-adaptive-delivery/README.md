@@ -112,8 +112,14 @@ The goal uses one workflow:
 - `mechanical`
 
 Risk is `routine`, `elevated`, or `high` based on consequences. Readiness and
-independent review are selected separately. High-risk work selects independent
-review by default; routine work does not.
+independent review are selected separately. High-risk work requires independent
+review; routine work omits it unless the user or repository requires it.
+
+The owner's reasoning profile follows the engineering work. A fully specified,
+localized security change uses `routine` while retaining high-risk assurance.
+`routine-plus` needs a concrete implementation tradeoff or an explicit priority
+for first-pass boundary correctness. Requiring verification or review alone
+does not increase owner effort; those providers perform their own assessments.
 
 Selected assurance binds compatible verification and required independent review
 before launch. The owner supplies the candidate, originating criteria, constraints

@@ -1,5 +1,39 @@
 # Darrow Review stabilization on Luna/medium
 
+## Evidence correction: snapshot invocation namespace
+
+A later Adaptive Delivery investigation found that the frozen-copy runner used
+`<run>/plugin/skills/code-review`. The shared prompt renderer derives the Codex
+namespace from the directory name, while installation uses the manifest name.
+Seven selected cases therefore received `$plugin:code-review` instead of
+`$darrow-review:code-review`: presentation-default, repair-guidance,
+guidance-alternative, guidance-uncertain, guidance-unresolved,
+reviewer-route-override, and reviewer-route-unavailable.
+
+The [snapshot and invocation audit](../../evals/results/adaptive-routing-option1-corrected-2026-09-29/review-invocation-audit.json)
+confirms **35 affected trials**. Their recorded task passes remain observations
+under that mismatched prompt. They do not establish the intended explicit
+invocation, and the runner's explicit activation scores must not be used as
+proof of it. The all-31-case green claim below is therefore historical and
+superseded by the corrected measurements below. The other 24 selected
+cases, 120 trials, did not use the placeholder and are unaffected by this
+specific namespace mismatch.
+
+The raw results are preserved. All seven cases were rerun using snapshot
+directories named `darrow-review`. No review implementation defect follows from
+the setup mistake itself. The two recorded worktree failures remain open.
+
+**2026-09-30 follow-up:** all seven corrected cases completed with **31/35 task**
+and **35/35 explicit activation**. Presentation, alternative repair, route
+override, and unavailable route passed 5/5; repair-guidance and unresolved repair
+passed 4/5; uncertain-guidance passed 3/5. Combined with the 24 unaffected cases,
+current selected coverage is **151/155 task**, **145/145 positive activation**,
+and **10/10 negative avoidance**; **28/31 cases** reach 5/5. The user authorized
+finishing coverage with the failures open. The
+[corrected rerun report](darrow-review-explicit-rerun-2026-09-30.md) records the
+handoff failure, unconfirmed capacity block, and two suspected eval/grader
+failures. No failed score was regraded or replaced by a passing repeat.
+
 ## Scope and accepted decisions
 
 This follow-up starts from darrow-review **0.9.1** at checkpoint
@@ -91,10 +125,11 @@ branch** coverage. The fresh copied review plugin passed all seven public
 entrypoints using runtime-only dependencies; its provider transcript was mocked.
 Documentation validation and `git diff --check` also passed.
 
-## Final sweep and composition checks
+## Historical selected sweep and composition checks
 
-All **31 cases now have a fresh 5/5 task and activation/avoidance batch** on the
-unchanged 0.10.6 runtime and skill. The selected coverage batches total
+Before the namespace correction, all **31 cases had a selected 5/5 task and
+activation/avoidance batch** on the unchanged 0.10.6 runtime and skill. Those
+historical coverage batches recorded
 **155/155 task passes**, **145/145 positive activation passes**, and **10/10
 negative avoidance passes**. They were assembled from sequential runs and
 focused retests, not one uninterrupted clean sweep. Corrected assertions and

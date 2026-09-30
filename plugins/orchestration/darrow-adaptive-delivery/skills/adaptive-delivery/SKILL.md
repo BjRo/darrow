@@ -179,6 +179,14 @@ sequence; change over bug when the approved contract changes; feature only when
 equivalent behavior is absent; observable changes are not mechanical;
 mechanical requires a complete oracle; refactor preserves behavior.
 
+Keep these three decisions separate:
+
+| Decision | Basis | Controls |
+| --- | --- | --- |
+| Consequence risk | Impact of an incorrect change | Required final checks and assurance |
+| Reasoning profile | The owner's engineering uncertainty, scope, and explicit correctness priority | Owner model and effort |
+| Assurance | Risk policy and user or repository requirements | Verification and independent-review bindings |
+
 Select consequence risk:
 
 - `routine`: localized, reversible, limited blast radius;
@@ -186,6 +194,32 @@ Select consequence risk:
   operational impact;
 - `high`: security or authorization, destructive or irreversible state,
   privacy, safety, or broad blast radius.
+
+Classify the reasoning demand of the owner's engineering work:
+
+- `routine`: clear localized or exact mechanical work;
+- `routine-plus`: localized work with materially competing implementations or
+  an explicit first-pass boundary-correctness priority;
+- `scaled`: straightforward multi-component work;
+- `repo-wide`: straightforward repository-wide work;
+- `judgment`: unresolved cause across plausible layers or architecture,
+  planning, or review judgment.
+
+For `routine-plus`, identify the concrete implementation tradeoff or the user
+or repository instruction that explicitly prioritizes first-pass boundary
+correctness. A security boundary or high cost of a mistake determines risk;
+it does not supply that priority. Fully specified localized work without an
+additional basis stays `routine`. Preserve a brief basis for the selected
+profile in the owner contract.
+
+Selected verification and review providers perform their own assessment work.
+Their presence alone does not raise the owner's reasoning profile.
+
+| Request | Risk | Profile | Independent review |
+| --- | --- | --- | --- |
+| Exact, fully specified security-policy change | high | routine | required |
+| Localized validation with explicit first-pass correctness priority | routine when consequences are limited | routine-plus | selected by assurance policy |
+| Unresolved diagnosis across plausible layers in a reversible internal utility | routine | judgment | selected by assurance policy |
 
 Select assurance separately, preserving the independent-review policy:
 
@@ -231,16 +265,6 @@ owner to discover the absence, bypass verification with direct review, or
 substitute self-review or a generic-agent review. Additional assessments are
 selected only by the goal; installation alone adds no requirement. A selected
 unsupported QA or evidence operation is a gap, not permission to drop it.
-
-Classify reasoning demand independently:
-
-- `routine`: clear localized or exact mechanical work;
-- `routine-plus`: localized work with materially competing implementations or
-  an explicit first-pass boundary-correctness priority;
-- `scaled`: straightforward multi-component work;
-- `repo-wide`: straightforward repository-wide work;
-- `judgment`: unresolved cause across plausible layers or architecture,
-  planning, or review judgment.
 
 An explicit user model and effort wins only when the model is eligible for
 adaptive-delivery ownership. Codex `gpt-6-luna` can own routine and routine-plus
@@ -315,8 +339,8 @@ Write a concise, self-contained contract containing:
 
 - outcome and observable acceptance criteria;
 - scope, non-goals, preserved work, permissions, and publication limits;
-- the exact workflow identifier, its selected sequence, risk, profile, selected
-  route, and any explicit budget;
+- the exact workflow identifier, its selected sequence, risk, profile with its
+  brief basis, selected route, and any explicit budget;
 - focused feedback checks and final-tree checks;
 - readiness evidence or the reason it was omitted;
 - verification selection, bound verification/review skills and selected assessments;

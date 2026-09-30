@@ -1296,14 +1296,32 @@ failures. The user explicitly authorized finishing coverage while keeping both
 original worktree failures open. The second diagnostic supplies current
 Standards-only coverage without establishing a repair.
 
-All **31 review cases now have a passing n:5 batch** on the unchanged 0.10.6
-runtime and skill: **155/155 task**, **145/145 positive activation**, and
+Before the namespace correction, all **31 review cases had a selected passing
+n:5 batch** on the unchanged 0.10.6 runtime and skill: **155/155 task**,
+**145/145 positive activation**, and
 **10/10 negative avoidance** in the selected coverage runs. These comprise
 sequential runs and focused retests, not one uninterrupted clean sweep. The
 native audit found 191 accepted gpt-6-sol/xhigh readers and ten accepted
 gpt-5.6-sol/xhigh override readers, all with fresh context; no extra or
 unclassified launch remained. Three full skill reads naturally exercised the
 completed-call observer recovery.
+
+**Subsequent evidence correction:** seven of those selected cases (35 trials)
+used frozen directories named `plugin`, causing the prompt renderer to supply
+`$plugin:code-review` while the installed plugin was `darrow-review`. The task
+scores above remain raw recorded results, but those trials do not establish
+correct explicit invocation. The other 24 selected cases (120 trials) did not
+use the placeholder and are unaffected by this specific mismatch. All seven
+corrected cases completed on 2026-09-30: **31/35 task and 35/35 explicit
+activation**. Replacing those seven rows gives **151/155 task**, **145/145
+positive activation**, and **10/10 negative avoidance** across the 31 selected
+cases; **28/31 cases** reach 5/5. The four new raw failures are a reader-handoff
+coordination failure, an unconfirmed reported capacity block, a suspected overly
+strict presentation assertion, and a suspected semantic-grader false negative.
+All remain open; the user authorized finishing coverage, and no score was
+regraded or replaced by a passing repeat. See the
+[corrected rerun report](darrow-review-explicit-rerun-2026-09-30.md) and the
+[review report correction](darrow-review-luna-medium-stabilization-2026-09-29.md#evidence-correction-snapshot-invocation-namespace).
 
 The two adjacent composition checks completed in passive mode, n:1 each:
 **1/2 task and 2/2 activation**. Existing-review repair passed after the same
@@ -1314,11 +1332,44 @@ expects `routine` and Luna/medium. This is an Adaptive Delivery profile-selectio
 defect for that plugin's planned later pass. Its review component passed, but
 the full adjacent gate remains failed.
 
-| Open case                                              | What failed                                                                                                       | Assessment                                                                                                  | Recommendation                                                                                                                        |
-| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `code-review-pull-request`                             | One trial left an unidentified dirty worktree; the old check discarded changed paths.                             | Ownership unresolved. Two unchanged n:5 repeats passed; 14/15 task overall does not establish a fix.        | Keep the failure open and retain status diffs and bounded write evidence if it recurs. Preserve the read-only contract.               |
-| `code-review-standards-only`                           | One trial added worktree status content despite claiming no files were modified; changed paths were not retained. | Ownership unresolved. Two unchanged n:5 repeats passed; no shared cause with the PR failure is established. | Keep the failure open under the same expanded capture. Do not replace diagnosis with a stronger skill instruction without evidence.   |
-| `goal-preflight-high-risk-routine` (Adaptive Delivery) | Preflight selected `routine-plus` and launched Luna/high for clear, localized work; review and completion passed. | Orchestration profile-selection defect; the current Luna/medium expectation is valid.                       | Investigate risk versus reasoning-demand classification during the planned Adaptive Delivery pass; retain the failed adjacent result. |
+| Open case                                              | What failed                                                                                                              | Assessment                                                                                                                            | Recommendation                                                                                                                        |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `code-review-pull-request`                             | One trial left an unidentified dirty worktree; the old check discarded changed paths.                                    | Ownership unresolved. Two unchanged n:5 repeats passed; 14/15 task overall does not establish a fix.                                  | Keep the failure open and retain status diffs and bounded write evidence if it recurs. Preserve the read-only contract.               |
+| `code-review-standards-only`                           | One trial added worktree status content despite claiming no files were modified; changed paths were not retained.        | Ownership unresolved. Two unchanged n:5 repeats passed; no shared cause with the PR failure is established.                           | Keep the failure open under the same expanded capture. Do not replace diagnosis with a stronger skill instruction without evidence.   |
+| `code-review-repair-guidance` (corrected trial 3)      | The coordinator discarded Spec judgment after reporting an incomplete handoff; the NaN-versus-null defect was absent.    | Product coordination failure. Both readers were accepted; the encrypted launch prevents verification of the claimed message omission. | Investigate prepared-message handoff and same-reader recovery; retain the 4/5 score.                                                  |
+| `code-review-guidance-uncertain` (corrected trial 2)   | Spec remained blocked with no findings after a reported reviewer-capacity failure.                                       | Ownership unresolved. Correct-route spawn accepted, zero observed child commands; no independent capacity error retained.             | Preserve the failure and capture bounded native error/completion evidence in a diagnostic before changing policy.                     |
+| `code-review-guidance-uncertain` (corrected trial 5)   | Grader demanded a resolution test although the response described tenant-specific signing and preventing unsigned sends. | Suspected invalid presentation expectation; all deterministic checks passed.                                                          | Calibrate the assertion against CR-C9/CR-C16 before strengthening the skill.                                                          |
+| `code-review-guidance-unresolved` (corrected trial 4)  | Grader rejected the causal explanation naming `value.length === 0` and its whitespace-only failure.                      | Suspected semantic-grader false negative; canonical verification and read-only checks passed.                                         | Calibrate with this retained response and a counterexample that truly omits the cause. Keep the raw 4/5 score.                        |
+| `goal-preflight-high-risk-routine` (Adaptive Delivery) | Preflight selected `routine-plus` and launched Luna/high for clear, localized work; review and completion passed.        | Orchestration profile-selection defect; the current Luna/medium expectation is valid.                                                 | Investigate risk versus reasoning-demand classification during the planned Adaptive Delivery pass; retain the failed adjacent result. |
+
+### Adaptive Delivery routing clarification (2026-09-29)
+
+The user selected a clarification of risk, owner reasoning demand, and assurance
+in `darrow-adaptive-delivery` **0.23.9**. Three unchanged routing cases completed
+fresh n:5 runs on Codex `gpt-6-luna`/medium, passive owner evaluation, jobs 3,
+and threshold 100%. The corrected explicit invocation matches the installed
+plugin namespace.
+
+| Case                                                 | Task passes | Accepted required owner route | Remaining failure                                                              |
+| ---------------------------------------------------- | ----------- | ----------------------------- | ------------------------------------------------------------------------------ |
+| `goal-preflight-high-risk-routine`                   | 2/5         | 4/5 Luna/medium               | One Python prerequisite refusal and two verification/review execution blockers |
+| `goal-preflight-quality-sensitive-localized`         | 4/5         | 4/5 Luna/high                 | One Python prerequisite refusal                                                |
+| `goal-preflight-routing-difficult-routine-diagnosis` | 4/5         | 4/5 Astra/high                | One Python prerequisite refusal                                                |
+
+All **12 launched owners selected the intended route**. Three trials stopped
+before launch after reporting ambient Python 3.9.6. Total task coverage is
+**10/15**, so the three cases remain below threshold. The clarification has no
+observed wrong profile choice in these samples, but prerequisite handling and
+capability handoffs still block reliable completion. The
+[focused report](darrow-adaptive-delivery-routing-luna-medium-2026-09-29.md)
+records every remaining failure, its ownership limits, and recommended next steps.
+
+An initial 15-trial batch used a snapshot directory named `candidate`, causing
+`$candidate:adaptive-delivery` to be rendered for an installed plugin named
+`darrow-adaptive-delivery`. Those raw trials are preserved as setup diagnostics
+and excluded from corrected explicit-invocation coverage. The frozen plugin
+bytes were unchanged for the corrected runs. This setup audit also identified
+the seven review cases described in the evidence correction above.
 
 ### darrow-skill-authoring
 
