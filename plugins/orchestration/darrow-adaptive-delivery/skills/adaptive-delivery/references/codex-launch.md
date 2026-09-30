@@ -34,6 +34,12 @@ Require the host-visible subagent control. Spawn exactly one subagent with:
   `- phase: adaptive-delivery-owner`, followed by an explicit sole-owner instruction; and
 - no surrounding explanation or second objective.
 
+Include each bound skill's installed absolute `SKILL.md` path in that task.
+Tell the fresh owner to load selected verification and required review before
+mutation, then execute those skills when due. Preserve these references in
+assessment delegations. A skill is an instruction file to read and follow with
+host tools; absence of a same-named callable tool does not make it unavailable.
+
 The accepted spawn result proves application of the selected model and effort.
 Retain its exact host-returned canonical reference for every wait or
 continuation. A caller-selected task name is optional and is not ownership

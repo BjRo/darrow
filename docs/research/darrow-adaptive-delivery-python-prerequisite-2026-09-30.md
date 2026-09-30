@@ -1,5 +1,9 @@
 # Adaptive Delivery: UV prerequisite clarification on Luna/medium
 
+Follow-up: the [0.23.11 capability-handoff candidate](darrow-adaptive-delivery-capability-handoff-2026-09-30.md)
+passed the high-risk case at 5/5 task and activation. Codex CLI changed between
+batches; the historical results and unresolved causes below remain retained.
+
 ## Result
 
 All three requested cases completed at n:5 on **0.23.10**. The corrected

@@ -1405,6 +1405,32 @@ contains every failed trial, ownership assessment, comparison, and evidence link
 All previous campaign failures remain retained; these samples do not establish
 full-plugin or cross-host reliability.
 
+### Adaptive Delivery capability handoff (2026-09-30)
+
+After checkpoint `09bf0fdb`, bounded evidence confirmed that the failed high-risk
+owner read `verify-change` but never loaded `code-review` or launched assessment.
+All four owners that completed review read both. The encrypted launch message
+still prevents identifying the exact original handoff error.
+
+Candidate **0.23.11** carries the installed public skill references through fresh
+handoffs and explains Codex's read-and-follow invocation. Selected verification
+and review load before owner mutation; assessment still runs when due. Provider
+selection, ownership, mandatory review, and model routing are unchanged.
+
+The high-risk case passed **5/5 task, 5/5 activation, and 5/5 accepted fresh
+Luna/medium owners** with passive evaluation. All five owners read both skills
+completely; all five exact-final canonical review checks and completion checks
+passed. No prohibited parent operation was recorded. Earlier raw failures remain
+retained, and the separate parent waiting issue remains open.
+
+Codex CLI changed from **0.156.1 to 0.159.2**, so the historical 3/5 → 5/5 task
+comparison does not isolate the wording's effect. The other routing cases were
+not rerun for this candidate. The
+[focused report](darrow-adaptive-delivery-capability-handoff-2026-09-30.md)
+records the candidate, owner-read evidence, audit, results, and limits. Next,
+clarify the supported parent wait/status path without weakening its authority
+boundary.
+
 ### darrow-skill-authoring
 
 | Case                                                                                                                                            | What failed                                                                                                       | Assessment                                  | Recommended next step                                                                                                                                                                                                                                                                            |

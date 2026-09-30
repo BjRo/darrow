@@ -275,8 +275,12 @@ protocol for out-of-band objective persistence.
 
 Before launch, enumerate the exact operations in the authorized contract. For
 each operation whose intent matches a host-advertised skill, bind that operation
-to the exact advertised skill name. Include those bindings in the owner
-contract. Typical bindings include ticket reads and updates, TDD, commits, pull
+to the exact advertised skill name and its host-supplied public instruction
+reference. For file-backed Codex skills, preserve the installed absolute
+`SKILL.md` path in the inline owner contract. Carry that same reference through
+any bounded capability delegation; a fresh context must not depend on the
+parent's skill reads or reconstruct an installation path from a name.
+Typical bindings include ticket reads and updates, TDD, commits, pull
 requests, and verification. When verification is selected, preflight also binds
 its compatible required independent code-review capability. Assessment runs
 through verification; adaptive delivery does not own review's assessment protocol.
@@ -289,6 +293,15 @@ The owner must follow the bound
 skill before performing that operation; a direct shell, Git, forge, tracker,
 or generic subagent call is not a substitute. A refusal or unavailable bound
 skill stops that operation without expanding authority.
+
+On Codex, invoking a file-backed skill means reading its public instructions
+and executing them with the available host tools. It does not require a tool
+named after the skill. Before mutation, the fresh owner loads the already-bound
+verification and required review instructions when selected. This preserves the
+parent's provider selection; it does not perform assessment early. Before
+reporting a bound provider unavailable, attempt its supplied public instruction
+reference and identify the concrete access, prerequisite, or execution failure.
+Missing dedicated skill tooling alone is not evidence of an unavailable provider.
 
 Intent matching is candidate discovery, not complete behavioral compatibility.
 Check required prerequisites, effects, evidence and stop conditions against the

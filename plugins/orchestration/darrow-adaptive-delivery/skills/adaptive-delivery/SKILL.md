@@ -280,8 +280,10 @@ policy stops launch; do not fall back silently.
 ## 5. Bind intent-matched skills
 
 Enumerate the exact authorized operations in the goal. For each operation whose
-intent matches a host-advertised skill, record the exact advertised skill name
-as a required capability binding. Common examples include ticket reads and
+intent matches a host-advertised skill, record its exact advertised name and
+host-supplied public instruction reference as a required capability binding.
+For a file-backed Codex skill, include its installed absolute `SKILL.md` path.
+Common examples include ticket reads and
 updates, TDD, commits, pull requests, and verification with its required review.
 
 Readiness and necessary read-only input gathering are invoked by the parent
@@ -292,6 +294,17 @@ verification with the same authority and response boundary. A direct shell, Git,
 tracker, or generic-subagent call is not a substitute for a bound skill. If the
 skill refuses or becomes unavailable, stop that operation without expanding
 authority.
+
+Carry those public references through every bounded capability handoff. The
+fresh owner cannot rely on the parent's earlier reads. On Codex, instruct it to
+read and follow each bound skill using the available tools; no dedicated tool
+named after the skill is needed. Before mutation, it loads the already-selected
+verification and required review instructions. It keeps those bindings and
+performs assessment only when current checks and other prerequisites are met.
+Before declaring a bound provider unavailable, it attempts the supplied public
+instruction reference and reports the concrete failure. It must not infer
+unavailability from missing skill-specific tooling or reconstruct a plugin path
+from its name.
 
 Before an operation becomes due, check the bound skill's public prerequisites,
 effects, returned evidence and stop conditions against the goal. Advertised
@@ -342,7 +355,8 @@ Write a concise, self-contained contract containing:
 - the concrete shared repair maximum (2 unless explicitly overridden), its
   authority source, consumed attempts (0 unless already performed), remaining
   limits and closed history; finishing early never lowers the authorized maximum;
-- every required capability binding and its prerequisite result evidence;
+- every required capability binding, its public instruction reference, how the
+  owner loads it, and its prerequisite result evidence;
 - the human-feedback and blocker rules below; and
 - the completion evidence the owner must return.
 
@@ -368,7 +382,7 @@ Role: You are the already-launched sole engineering owner. Perform this contract
 Outcome: <bounded result>
 Acceptance criteria: <observable outcomes and required implementation properties>
 Scope and authority: included=<files and operations>; authorized=<local and external effects>; forbidden=<non-goals and excluded effects>; preserve=<user-owned state>
-Execution: workflow=<exact workflow identifier>; sequence=<remaining workflow steps from the caller-authorized entry point, preserving explicit ordering and receipt of complete clear selected verification before any dependent commit/publication>; risk=<routine, elevated, or high>; profile=<selected profile>; route=<host|provider|model|effort>; capabilities=<operation -> exact advertised skill and prerequisite result evidence; or none>
+Execution: workflow=<exact workflow identifier>; sequence=<remaining workflow steps from the caller-authorized entry point, preserving explicit ordering and receipt of complete clear selected verification before any dependent commit/publication>; risk=<routine, elevated, or high>; profile=<selected profile>; route=<host|provider|model|effort>; capabilities=<operation -> exact advertised skill, public instruction reference, load-and-follow instruction and prerequisite result evidence; or none>
 Verification and gates: readiness=<evidence or omitted reason>; adaptation=<same owner reassesses material scope, acceptance, constraint, or authoritative-input changes; invalidated readiness assumptions require invoking readiness again and obtaining ready before affected implementation, even when feature scope stays the same; strengthen affected checks within authority>; verification=<bound verification skill, required review binding, selected assessments, or permitted omission>; repair=<maximum=2; source=default; consumed=0; substitute only an explicit finite override and its source or already-observed consumed attempts; apply strictest remaining invocation/time/token/authority limits; collect all selected results before combined repair; fresh closed follow-up after each attempt; clear ends repair; further attempts require material progress and budget; no reset>; focused=<feedback checks>; final=<final-tree checks>; feedback=<same owner receives complete user messages; required acknowledgement uses the complete answer and must succeed before mutation resumes; apply and verify every new constraint; when feedback requires using an existing component, call that component from the implementation; copying or inlining its algorithm does not reuse the component>; blockers=<semantic blocker and observe-before-retry rule>
 Completion evidence: state whether complete, awaiting feedback, or blocked; include=<changed files, focused and final checks, readiness, combined verification conclusion and complete selected results, every material criterion's current evidence or gap, finding/target/repair history, consumed repair attempts and authorized maximum, publication effects, and remaining risks or blockers>
 ```
