@@ -1431,6 +1431,71 @@ records the candidate, owner-read evidence, audit, results, and limits. Next,
 clarify the supported parent wait/status path without weakening its authority
 boundary.
 
+### Adaptive Delivery parent waiting and launch names (2026-09-30)
+
+The capability handoff was checkpointed in **`9a5393ca`**. An unchanged 0.23.11
+quality-sensitive rerun passed **5/5 task and 5/5 Luna/high owner routes**, with
+no prohibited parent calls. Together with the preceding high-risk 5/5, the two
+recently affected parent-wait cases did not reproduce their earlier failures.
+No waiting-specific fix was made.
+
+The diagnosis case then passed **3/5**: one trial reported a missing bundled
+`uv.lock` without retaining the exact lookup; another used a hyphenated task name
+that the host rejected. The first failure remains unresolved. The second has a
+concrete launch-call defect: Codex requires lowercase letters, digits, and
+underscores in `task_name`.
+
+Candidate **0.23.12** clarifies that field in the spec and Codex launch guide,
+aligns both manifests, and leaves prerequisites and retry policy unchanged.
+The same diagnosis case passed **5/5 task and 5/5 fresh Astra/high owners**,
+using valid names throughout. Both diagnosis batches used Codex CLI 0.159.2,
+Luna/medium parents, passive evaluation, n:5, jobs:3, and threshold 100%.
+Activation scoring is not configured for the quality-sensitive or diagnosis
+case; explicit invocation tokens were independently checked.
+
+The missing-lock refusal did not recur, but its cause remains open. The user
+authorized broader coverage on 2026-09-30 while preserving that failure and
+retaining the expanded passive prerequisite capture.
+The [focused report](darrow-adaptive-delivery-parent-wait-launch-2026-09-30.md)
+contains version-specific results, the audit finding and repair, provenance,
+failure assessments, and the recommendation. This is not a full-plugin pass.
+
+The subsequent frozen **0.23.12** coverage sweep completed **60/60 Codex cases**
+at **n:5** on **gpt-6-luna/medium**, with passive owner evaluation, jobs:3 and a
+100% threshold. It contains **295 fresh trials and 5 reused diagnosis trials**
+from the byte-identical candidate. Raw task grades passed **227/300 (75.7%)**;
+configured positive activation passed **65/70 (92.9%)**, and negative avoidance
+passed **10/10**. **26/60 cases** met every configured 5/5 threshold. The two
+native Claude cases are excluded. Activation is not scored in every case.
+
+The [coverage and failure report](darrow-adaptive-delivery-coverage-2026-09-30.md)
+lists all cases, assesses every failed trial, and preserves the raw grades.
+It separates substantive skill errors from confirmed eval defects and unresolved
+evidence gaps. The final provenance audit passed: all **617 source-input hashes**
+and **131 frozen candidate-file hashes** were unchanged, with no pending cases
+or unclassified failures.
+
+The main product problems are inconsistent repair-budget and progress decisions,
+missed advertised capabilities, confusion between callable shell commands and
+native tools, and lost evidence or references across review and verification
+handoffs. Parent status inspection also violates the current waiting contract:
+25 `list_agents` calls occurred across 17 trials. One other trial made a parent
+`exec` call whose purpose was not retained; this does not establish a repository
+edit. Confirmed measurement problems include doctor host/source mismatches,
+invalid token checks, an outdated PR mock, incomplete follow-up finding evidence,
+a fingerprint assertion that modifies its own target, and wording-sensitive
+semantic grades. These categories overlap, so no adjusted pass rate is claimed.
+
+The earlier missing-lock refusal remains open. At the 34/60 checkpoint, the
+refactoring case added an unresolved helper-availability refusal (4/5 task);
+the user authorized completing the remaining 26 cases while retaining this and
+any further unresolved failures for discussion afterward. All prior failures
+remain preserved. Next, correct the confirmed eval defects and address shared
+owner decisions and evidence handoffs together. Discuss whether parent metadata
+inspection is permitted and whether review `next_action` is a fixed machine
+value or semantic guidance before changing those contracts. Coverage is complete;
+the plugin has not achieved a full pass.
+
 ### darrow-skill-authoring
 
 | Case                                                                                                                                            | What failed                                                                                                       | Assessment                                  | Recommended next step                                                                                                                                                                                                                                                                            |

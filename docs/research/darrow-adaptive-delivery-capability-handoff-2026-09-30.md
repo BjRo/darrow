@@ -1,5 +1,10 @@
 # Adaptive Delivery: capability handoff on Luna/medium
 
+Follow-up: [parent waiting and launch names](darrow-adaptive-delivery-parent-wait-launch-2026-09-30.md)
+records the unchanged quality-sensitive 5/5 recheck, two new diagnosis blockers,
+and the 0.23.12 task-name clarification with its own 5/5 focused result. Historical
+results and evidence limits below remain unchanged.
+
 ## Result
 
 Candidate **0.23.11 passed 5/5 task and 5/5 activation** in

@@ -600,6 +600,11 @@ owner launch are not copied into its engineering outcome. The owner does not
 repeat preflight, invoke `adaptive-delivery`, create another adaptive owner, or
 create a second nested goal for the same contract.
 
+On Codex, supply a host-valid `task_name` containing only lowercase letters,
+digits, and underscores, for example `adaptive_delivery_owner`. Hyphens are
+invalid. This caller-supplied name does not prove acceptance or replace the
+canonical owner reference returned by the host.
+
 After launch acceptance, the parent performs no repository or external work.
 It may only wait, relay user feedback or request status from the same owner, or stop that
 owner after explicit abandonment or supersession.
@@ -691,8 +696,9 @@ new authority.
 
 Use one first-class host-visible subagent with `fork_turns: none`, the selected
 concrete model and reasoning effort, and the complete ownership-marked contract.
-The canonical reference returned by the accepted launch identifies the owner
-for waiting, feedback, and cleanup; a caller-selected task name is optional.
+Supply a host-valid task name as specified above. The canonical reference
+returned by the accepted launch identifies the owner for waiting, feedback,
+and cleanup; the caller-selected name does not replace it.
 Do not call `create_goal` inside that subagent for the same contract. Do not
 spawn a replacement after acceptance.
 

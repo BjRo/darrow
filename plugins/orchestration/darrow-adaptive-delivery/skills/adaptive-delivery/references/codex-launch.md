@@ -27,6 +27,8 @@ preflight, readiness, routing, launch, or the feedback content on this path.
 
 Require the host-visible subagent control. Spawn exactly one subagent with:
 
+- `task_name` containing only lowercase letters, digits, and underscores,
+  such as `adaptive_delivery_owner`; do not use hyphens;
 - `fork_turns` set to `none`;
 - `model` set to the selected concrete Codex model;
 - `reasoning_effort` set to the selected effort;
@@ -42,7 +44,7 @@ host tools; absence of a same-named callable tool does not make it unavailable.
 
 The accepted spawn result proves application of the selected model and effort.
 Retain its exact host-returned canonical reference for every wait or
-continuation. A caller-selected task name is optional and is not ownership
+continuation. The caller-selected task name is not ownership
 evidence. Do not
 create a nested goal, spawn another adaptive owner, or start a nested Codex
 process.
