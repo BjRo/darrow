@@ -48,16 +48,11 @@ Resolve the repository, then bind the bundled helper without searching:
   `<plugin-root>/skills/adaptive-delivery/SKILL.md`, use `<plugin-root>/backend`.
   Starting at the directory containing `SKILL.md`, this is `../../backend`.
 
-Require readable `pyproject.toml` and `uv.lock` in that exact backend, plus UV,
-Python 3.10–3.13, and Git. Use the frozen runtime-only entrypoints below on
-Linux, macOS, or native Windows. Do not
-scan the repository, plugin caches, home directory, `PATH`, or machine for an
-alternative. If the host does not expose the active plugin path or the exact
-helper is unavailable, return `Status: launch_required` and make no mutation.
-Describe the unavailable launch boundary clearly, for example with
-`Status: launch_required`.
-
-Then run:
+Require UV, Git, and readable `pyproject.toml` and `uv.lock` in that backend.
+The frozen commands below let UV select compatible Python; system Python is
+not a separate prerequisite. If the active plugin path or bundled helper is
+unavailable, return `Status: launch_required` with the specific failure. Do not
+search for another installation or mutate the repository.
 
 The examples use Bash line continuations. On native Windows, enter each UV
 command on one PowerShell line, omitting the trailing backslashes and passing

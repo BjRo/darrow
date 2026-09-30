@@ -1371,6 +1371,40 @@ and excluded from corrected explicit-invocation coverage. The frozen plugin
 bytes were unchanged for the corrected runs. This setup audit also identified
 the seven review cases described in the evidence correction above.
 
+### Adaptive Delivery UV prerequisite clarification (2026-09-30)
+
+After checkpoint `214af00b`, the user clarified the skill/spec prerequisites:
+UV selects compatible Python from the package requirements; system Python is
+not a separate prerequisite. Both plugin manifests are **0.23.10**. No Python
+runtime code changed.
+
+All three routing cases completed five new Codex `gpt-6-luna`/medium trials,
+with passive owner evaluation, three jobs, threshold 100%, and verified
+`$darrow-adaptive-delivery:adaptive-delivery` invocation. Snapshot, fixture,
+supporting-plugin, and runner inputs were preserved during the campaign.
+
+| Case                                                 | Task before → after | Accepted required owner route | Current failure                                               |
+| ---------------------------------------------------- | ------------------: | ----------------------------: | ------------------------------------------------------------- |
+| `goal-preflight-high-risk-routine`                   |           2/5 → 3/5 |               5/5 Luna/medium | One unavailable-provider report; one parent-control violation |
+| `goal-preflight-quality-sensitive-localized`         |           4/5 → 4/5 |                 5/5 Luna/high | One parent-control violation                                  |
+| `goal-preflight-routing-difficult-routine-diagnosis` |           4/5 → 5/5 |                5/5 Astra/high | None observed                                                 |
+
+Total: **12/15 task**, **15/15 accepted required routes**, and **zero premature
+Python refusals**. High-risk composed activation passed **5/5**; the other two
+cases do not configure activation grading. The provider-handoff failure remains
+unresolved at its exact cause despite complete parent skill reads. The two
+parent-control failures were six observed `list_agents` calls after owner
+acceptance; all their implementation and completion checks passed. These calls
+are metadata inspection, and no repository mutation is inferred from them.
+
+Keep the prerequisite wording and investigate owner capability execution and
+parent waiting behavior next. Preserve the raw failures and the current
+authority boundary pending discussion. The
+[focused report](darrow-adaptive-delivery-python-prerequisite-2026-09-30.md)
+contains every failed trial, ownership assessment, comparison, and evidence link.
+All previous campaign failures remain retained; these samples do not establish
+full-plugin or cross-host reliability.
+
 ### darrow-skill-authoring
 
 | Case                                                                                                                                            | What failed                                                                                                       | Assessment                                  | Recommended next step                                                                                                                                                                                                                                                                            |

@@ -98,6 +98,11 @@ plugin root;
 `${CLAUDE_PLUGIN_ROOT}/backend`. Check the package and lock at that exact location;
 unavailability does not authorize searching for a different installation.
 
+UV and Git are host prerequisites. UV selects Python from the package's
+requirements; a separate system Python installation is not required. Preflight
+uses the bundled UV command and reports its actual failure instead of rejecting
+the host based on an ambient Python version.
+
 The package supports Python 3.10–3.13, UV, and Git on Linux, macOS, and native
 Windows, with no Bash entrypoint adapters. Python 3.10 uses the locked `tomli`
 backport for host-configuration diagnosis; newer interpreters use `tomllib` from

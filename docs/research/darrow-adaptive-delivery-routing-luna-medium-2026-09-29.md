@@ -1,5 +1,11 @@
 # Adaptive Delivery routing clarification on Luna/medium
 
+**Follow-up:** the [0.23.10 prerequisite rerun](darrow-adaptive-delivery-python-prerequisite-2026-09-30.md)
+completed all three cases at n:5: **12/15 task**, **15/15 required owner routes**,
+and no premature Python refusals. One capability-handoff failure and two parent
+agent-list violations remain. The 0.23.9 results and failures below are retained
+as historical evidence.
+
 ## Change and scope
 
 The user selected a clarification of the existing routing decision. Adaptive
