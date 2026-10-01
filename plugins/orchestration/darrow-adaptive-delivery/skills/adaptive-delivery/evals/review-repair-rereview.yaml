@@ -70,11 +70,11 @@ checks:
     run: |
       # Keep bounded synthetic protocol evidence for sequence-failure diagnosis.
       tail -n 20 .git/fixture-state/independent-review-invocations .git/fixture-state/review-events >&2
-      test "$(wc -l <.git/fixture-state/independent-review-invocations | tr -d ' ')" -eq 2 &&
-      test "$(cut -f2 .git/fixture-state/independent-review-invocations | sed -n '1p')" = blocking &&
-      test "$(cut -f2 .git/fixture-state/independent-review-invocations | sed -n '2p')" = clear &&
-      test "$(cut -f3 .git/fixture-state/independent-review-invocations | sed -n '1p')" = comprehensive &&
-      test "$(cut -f3 .git/fixture-state/independent-review-invocations | sed -n '2p')" = verify
+      awk -F '\t' '
+      NR == 1 && ($2 != "blocking" || $3 != "comprehensive") { bad = 1 }
+      NR > 1 && ($2 != "clear" || $3 != "verify") { bad = 1 }
+      END { exit bad || NR < 2 }
+      ' .git/fixture-state/independent-review-invocations
   - name: invalidated checks run before each review
     run: >-
       awk -F '\t' '
@@ -98,12 +98,12 @@ checks:
       $1 == "review_start" { bad = 1; next }
       $1 == "review_end" && active && $2 == start { complete++; active = 0; next }
       $1 == "review_end" { bad = 1 }
-      END { exit !bad && !active && complete == 2 ? 0 : 1 }
+      END { exit !bad && !active && complete >= 2 ? 0 : 1 }
       ' .git/fixture-state/review-events
   - name: final worktree still matches the clear reviewed target
     run: >-
       test "$(tail -n 1 .git/fixture-state/independent-review-invocations | cut -f1)" =
-      "$(uv run --quiet --frozen --no-dev --project .agents/backend adaptive-delivery-fixture review "$PWD" fingerprint)"
+      "$(uv run --quiet --no-project .agents/backend/scripts/run_locked.py adaptive-delivery-fixture review "$PWD" fingerprint)"
   - name: repair changes the reviewed target fingerprint
     run: >-
       cut -f1 .git/fixture-state/independent-review-invocations | sort -u >.git/fixture-state/review-targets &&

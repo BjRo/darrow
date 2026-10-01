@@ -833,6 +833,19 @@ host-visible intent and are never accessed through sibling plugin paths.
 
 ## Evaluation requirements
 
+Fixture inputs must describe the host actually being diagnosed or explicitly
+represent a different host with its configuration, version, and effective
+environment. A diagnosis refusal cannot pass as a completed capacity check.
+Semantic assertions accept equivalent decisions without requiring redundant
+numeric or publication disclaimers; contradictory permission still fails.
+
+Synthetic review providers preserve stable finding identity, severity,
+disposition, evidence, original target, and subsequent target history. Repeating
+a clear assessment is not failed convergence; repeated unresolved findings are.
+Installed fixture helpers are excluded from the product candidate and fingerprint
+checks use the same immutable runtime launcher as the provider. Forge mocks
+accept the current public command contract, including file-backed PR bodies.
+
 ### Adaptation and evaluation fidelity (#102)
 
 The following invariants govern adaptation and evidence provenance:

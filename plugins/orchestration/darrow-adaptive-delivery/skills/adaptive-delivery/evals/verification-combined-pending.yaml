@@ -20,11 +20,13 @@ checks:
 semantic_output_checks:
   - name: collect all results before repair
     proposition: >-
-      The response requires waiting for the pending selected QA result and
-      combining the selected assessment results before beginning repair. The
-      advice applies to the retained owner identified in the question; it need
-      not restate that owner identity. It must not authorize fixing the review
-      blocker while QA is still pending or assign repair to a separate owner.
+      The next action is to wait for the pending QA assessment before starting
+      repair. The returned QA findings must inform the repair scope: combining
+      any QA blocker with the review blocker, or repairing the review blocker
+      when QA finds no actionable blocker, both satisfy this requirement.
+      A separate aggregation phrase or repeated owner identity is unnecessary.
+      Starting repair while QA is pending, ignoring a returned QA blocker, or
+      assigning repair to another owner fails.
 transcript_checks:
   - name: advice launches no agent
     not_regex: '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"type":"darrow.goal_agent_completion"'

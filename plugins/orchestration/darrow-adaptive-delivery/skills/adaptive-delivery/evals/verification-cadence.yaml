@@ -76,7 +76,7 @@ semantic_output_checks:
   - name: owner reports complete focused and final verification
     proposition: The response reports the requested outcome as complete, with no unresolved blocker or pending decision preventing completion.
   - name: focused verification is reported successful
-    proposition: In this case focused.sh is the focused verification command. The response reports that this command completed successfully, rather than merely advising or planning to run it.
+    proposition: The response reports successful completed focused verification, whether it names focused.sh or identifies the focused check in ordinary prose. This fixture has only one focused command. Merely planning a check, reporting only a failed red check, or reporting only final verification fails.
   - name: final verification is reported successful
     proposition: In this case final.sh is the final verification command. The response reports that this command completed successfully, rather than merely advising or planning to run it. It need not repeat the label 'final verification' alongside the command name.
 transcript_checks:

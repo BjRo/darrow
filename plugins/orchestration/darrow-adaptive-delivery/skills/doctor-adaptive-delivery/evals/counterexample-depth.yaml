@@ -2,22 +2,25 @@ id: doctor-adaptive-delivery-counterexample-depth
 invariant: ADL-D1
 activation: positive
 prompt: >-
-  {{skill_invocation}} Codex V2 has agents.max_depth = 20 but only
-  agents.max_concurrent_threads_per_session = 3. Is the full Adaptive Delivery
-  verification path supported? Diagnose only; do not edit anything.
+  {{skill_invocation}} Diagnose the represented Codex V2 host, not this eval
+  runner's configuration. Its user configuration is ./user-config.toml; the
+  current fixture checkout is its explicitly trusted project root. Is the full
+  Adaptive Delivery verification path supported? Diagnose only; do not edit anything.
 fixture:
   commits:
     - message: "chore: init"
       files:
-        .codex/config.toml: |
+        user-config.toml: |
           [agents]
           enabled = true
           max_concurrent_threads_per_session = 3
           max_depth = 20
-checks: []
+checks:
+  - name: diagnosis is read-only
+    run: test -z "$(git status --porcelain)"
 semantic_output_checks:
   - name: depth does not compensate for concurrency
-    proposition: The response concludes that the full path is unsupported because three spawned-agent slots are below the required five, and explicitly says the large max_depth value is V1-only and ignored by Codex V2.
+    proposition: The response reports a completed diagnosis of the represented user-config.toml, concludes that three spawned-agent slots cannot support the five-slot full path, and explains that max_depth is ignored by Codex V2. A prerequisite refusal or answer based only on supplied values without completed diagnosis does not pass.
 transcript_checks:
   - name: orchestration does not activate
     not_regex: '"skill":"adaptive-delivery"|adaptive-delivery-preflight|"tool":"spawn_agent"'

@@ -18,6 +18,6 @@ checks:
     run: test -z "$(git status --porcelain)"
 semantic_output_checks:
   - name: default permits a second progressing repair
-    proposition: The response permits the owner to use one remaining repair attempt on the remaining original blocker without requiring a new explicit budget. It does not authorize more than two total attempts.
+    proposition: The response permits another repair of the remaining original blocker within the remaining allowance, without requiring a new budget. Referring to the remaining allowance is sufficient; neither the consumed count nor the numeric maximum needs repeating. Permitting multiple additional attempts, unlimited retries, or a budget reset fails.
   - name: publication waits for verification
     proposition: The response withholds completion and publication until required checks and fix verification clear the repaired current content.

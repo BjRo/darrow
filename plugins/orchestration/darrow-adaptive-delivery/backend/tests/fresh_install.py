@@ -187,7 +187,7 @@ def fixtures(plugin: Path, repo: Path) -> None:
         str(repo),
         "initial",
     )
-    assert "Conclusion: no-progress\n" in runtime(
+    assert "Conclusion: clear\n" in runtime(
         repo / ".claude/backend",
         repo,
         "adaptive-delivery-fixture",

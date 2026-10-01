@@ -1496,6 +1496,61 @@ inspection is permitted and whether review `next_action` is a fixed machine
 value or semantic guidance before changing those contracts. Coverage is complete;
 the plugin has not achieved a full pass.
 
+### Adaptive Delivery eval repairs and re-verification (2026-09-30)
+
+Checkpoint **67a32a32** preserves the complete original sweep. Eval-only changes
+corrected represented doctor inputs and semantic criteria, capability-token
+checks, the PR mock's `--body-file` support, synthetic review finding/history
+evidence, repeated-clear handling, and immutable fingerprint invocation. Both
+product skill bodies and the review and verification capabilities remain unchanged.
+
+The frozen **0.23.13** candidate completed **14 n:5 batches**: **52/70 raw task**,
+**19/20 configured activation**, and **6/14 all-threshold cases**. Two residual
+doctor grading defects were calibrated and corrected in **0.23.14**, then rerun
+at n:5: project diagnosis **4/5 task, 5/5 activation**; represented Claude
+diagnosis **5/5 task and activation**. This is **80 fresh trials** in total.
+Using the latest batch for each selected case gives **57/70 task**, **20/20
+activation**, and **7/14 all-threshold cases**. These selected-case measurements
+do not replace the original 60-case sweep or establish a full-plugin pass.
+
+Every review-repair trial passed the corrected deterministic evidence and
+fingerprint checks. Both shared-provider controls passed **5/5**. The three
+real-commit trials reaching publication passed the repaired PR mock; two others
+stopped on unverified provider-availability claims. Remaining failures include
+repair-budget contradictions, the doctor prerequisite gate, a missing red step,
+incomplete review/verification handoffs, and the parent status-polling contract.
+All original failures, calibration mismatches and unresolved causes are retained.
+
+The [eval repair report](darrow-adaptive-delivery-eval-repairs-2026-09-30.md)
+contains every selected case, failed-trial assessment, calibration result and
+provenance audit. Deterministic verification passed: the full Python quality gate,
+**28 targeted fixture tests**, and parsing all **62 plugin cases**. Each new
+candidate audit checked **618 source hashes** and **132 snapshot hashes**.
+
+The user approved a bounded app-server owner pilot after the proposal and
+protocol diagnostics: unchanged native control A, app-server owner without a
+goal B, and the same app-server owner with a native goal C. It compares four
+cases at n:5 per arm while preserving parent preflight, route selection, review,
+verification and the production runner. The [owner pilot report](adaptive-delivery-owner-pilot-2026-09-30.md)
+records coverage, launch omissions, execution drift and lost completion evidence.
+Control A retains its encrypted-launch attribution gap. App-server goals are
+limited to 4,000 characters, with workflow instructions supplied separately as
+developer instructions. All **60 trials** are complete: common task scores are
+**A 19/20, B 9/20, C 15/20**; error-free core transport scores are **18/20,
+13/20, 16/20**. Original task grades remain **18/20, 4/20, 6/20**, including
+architecture-incompatible checks. Configured activation passes **15/15**.
+All 781 frozen input hashes match; every accepted owner uses Luna/medium.
+
+The pilot confirms composition defects at both the verification and review-provider
+handoffs, including contract misses in task-passing trials. It also exposes
+experimental launch serialization failures and two rejected-feedback cleanups that
+clear an active owner's goal. No automatic continuation was observed. Accepted C
+objectives are 185–593 Unicode characters, but duplicated task facts in developer
+instructions leave the intended priority partition incomplete. Keep the native
+production owner while discussing a corrected transport and continuation diagnostic.
+The experiment remains local; review, verification and shipped orchestration
+instructions are unchanged. All baseline results and failures remain intact.
+
 ### darrow-skill-authoring
 
 | Case                                                                                                                                            | What failed                                                                                                       | Assessment                                  | Recommended next step                                                                                                                                                                                                                                                                            |

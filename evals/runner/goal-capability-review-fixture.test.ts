@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { rm } from "node:fs/promises";
 import { parse } from "yaml";
 import { runChecks } from "./checks";
 import { buildFixture, destroyFixture } from "./fixture";
@@ -10,6 +11,54 @@ const source = new URL(
 );
 const correctNotes =
   "# Notes\nCapability routing survives file-backed goals.\n";
+
+for (const shell of ["bash", "/bin/bash"]) {
+  for (const scenario of [
+    "valid",
+    "leaked-token",
+    "missing-bin",
+    "missing-skill",
+  ]) {
+    test(`protected capability tokens: ${shell} ${scenario}`, async () => {
+      const entry = parse(await Bun.file(source).text()) as EvalCase;
+      const repo = await buildFixture({
+        fixture: entry.fixture,
+        skillDir: "",
+        skillMounts: [],
+      });
+      try {
+        if (scenario === "leaked-token")
+          await Bun.write(
+            `${repo}/.git/fixture-bin/leak`,
+            "skill-contract-v1\n",
+          );
+        if (scenario === "missing-bin")
+          await rm(`${repo}/.git/fixture-bin`, { recursive: true });
+        if (scenario === "missing-skill")
+          await rm(`${repo}/.agents/skills/read-ticket/SKILL.md`);
+        const check = entry.checks.find(
+          (c) =>
+            c.name ===
+            "protected capability tokens exist only in skill instructions",
+        )!;
+        await Bun.write(`${repo}/.git/token-check.sh`, check.run!);
+        const result = Bun.spawn([shell, `${repo}/.git/token-check.sh`], {
+          cwd: repo,
+          stdout: "pipe",
+          stderr: "pipe",
+        });
+        const [code] = await Promise.all([
+          result.exited,
+          new Response(result.stdout).text(),
+          new Response(result.stderr).text(),
+        ]);
+        expect(code === 0).toBe(scenario === "valid");
+      } finally {
+        await destroyFixture(repo);
+      }
+    });
+  }
+}
 
 for (const scenario of [
   "correct",

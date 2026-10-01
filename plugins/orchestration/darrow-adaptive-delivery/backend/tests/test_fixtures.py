@@ -108,7 +108,7 @@ def test_review_fingerprint_tracks_all_candidate_content(repo: Path) -> None:
     assert "no blocking findings" in report
     with pytest.raises(RefusalError, match="already established"):
         review.assess(repo, "comprehensive", CONTRACT)
-    assert "Fix verification: no_progress." in review.assess(repo, "verify", CONTRACT)
+    assert "Fix verification: clear." in review.assess(repo, "verify", CONTRACT)
 
 
 def test_review_requires_contract_and_original(repo: Path) -> None:

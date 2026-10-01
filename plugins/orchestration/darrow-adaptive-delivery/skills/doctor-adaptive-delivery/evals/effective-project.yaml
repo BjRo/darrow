@@ -19,8 +19,8 @@ checks:
 semantic_output_checks:
   - name: trusted project layer contributes
     proposition: The response reports both the absolute user and project configuration paths as checked and contributing sources, says checkout configuration was used, and concludes that the baseline and full required-assessment paths are supported.
-  - name: project precedence is effective
-    proposition: The response treats the trusted checkout .codex/config.toml concurrency value of five as an effective project override rather than diagnosing only the user file.
+  - name: effective concurrency is five
+    proposition: The response reports that the completed diagnosis found effective concurrency of five spawned-agent slots. A supplied configuration value, hypothetical capacity, or failed diagnosis is insufficient.
 transcript_checks:
   - name: orchestration does not activate
     not_regex: 'adaptive-delivery-preflight|"tool":"spawn_agent"|"name":"Agent"'
