@@ -607,11 +607,14 @@ class AppServerSession {
       type: "turn.completed",
       ...(this.usage ? { usage: this.usage } : {}),
     });
-    if (status === "active" || !(await this.saveFinal(turnId))) return false;
     if (this.followUp !== undefined) {
+      // User input does not require a terminal goal. Preserve the completed
+      // response and actual boundary before delivering the declared follow-up.
+      if (!(await this.saveFinal(turnId, true))) return false;
       const boundary = protocolMessage(
         await this.options.followUpBoundary(this.threadId),
       );
+      if (!this.responseBoundaryReady(turnId)) return false;
       this.emit({
         ...boundary,
         native_goal_observed: this.evidence.goals.length > 0,
@@ -622,10 +625,13 @@ class AppServerSession {
       await this.startUserTurn(prompt);
       return false;
     }
-    return true;
+    return status !== "active" && (await this.saveFinal(turnId));
   }
 
-  private async saveFinal(turnId: string): Promise<boolean> {
+  private async saveFinal(
+    turnId: string,
+    forFeedback = false,
+  ): Promise<boolean> {
     const snapshot = await this.rpc.call("thread/read", {
       threadId: this.threadId,
       includeTurns: true,
@@ -649,8 +655,29 @@ class AppServerSession {
       final,
     );
     this.evidence.finalTurnId = turnId;
+    if (forFeedback) return this.responseBoundaryReady(turnId);
     this.assertSettled();
     return true;
+  }
+
+  /** Continuation may race feedback capture; errors still stop delivery. */
+  private responseBoundaryReady(turnId: string): boolean {
+    this.rpc.assertHealthy();
+    let ready = true;
+    for (const event of this.rpc.queue) {
+      const { method, params } = event;
+      if (params.threadId !== this.threadId) continue;
+      if (method === "error" || method === "thread/goal/cleared")
+        this.checkPendingSettlement(event);
+      if (method === "thread/goal/updated")
+        appServerGoalStatus(params.goal, this.threadId);
+      if (
+        ["turn/started", "turn/completed"].includes(method) &&
+        record(params.turn).id !== turnId
+      )
+        ready = false;
+    }
+    return ready;
   }
 
   /** Readback and file I/O can race with a terminal protocol event. */

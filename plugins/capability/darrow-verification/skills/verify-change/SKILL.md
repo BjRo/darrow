@@ -140,6 +140,18 @@ required, report that unsupported selection as blocked rather than executing
 it, dropping it or inventing its evidence. Existing review/check/repair evidence
 is still required and is not an optional presentation package.
 
+For a provider that retains reports, bind the renderer before launch. This
+plugin's package is at `<plugin-root>/backend`; the plugin root is two
+directories above this skill directory. On Codex, derive the skill directory
+from this loaded skill's absolute catalog path. On Claude, use
+`CLAUDE_SKILL_DIR`. Resolve `../../backend` once to an absolute path and check
+that `scripts/run_locked.py`, `pyproject.toml` and `uv.lock` are readable there.
+Keep that exact backend path for step 5. UV selects compatible Python; a
+separate system Python check is unnecessary. If a file is unavailable, report
+its authoritative absolute path and the observed diagnostic. Do not infer a
+missing package from a lookup relative to the repository or a guessed cache
+version, and do not substitute another installation.
+
 **Complete when:** a compatible provider is bound for the selected mode, with
 all selected requirements accounted for, or a concrete compatibility gap is
 returned to the owner.
@@ -210,6 +222,14 @@ the completed previous result and complete finding/target history; obtain fresh
 judgment at the same candidate and explain why the new result supersedes the
 earlier conclusion. Follow the correction rules in `references/follow-up.md`.
 This neither authorizes implementation nor spends or resets a repair attempt.
+
+Before accepting a provider's diagnosis of an unavailable helper or broken
+command, compare its attempted command, arguments and paths with the loaded
+public instructions and inspect the actual diagnostic. A misspelled command
+or altered argument is an invocation error. Request a bounded correction
+through that same provider and preserve the prior result; do not repair its
+artifacts, invent another command, or retry an unchanged refusal. If the cause
+cannot be established, report the observed failure and unverified cause.
 
 **Complete when:** each selected supported assessment has one complete result
 for the current candidate, or its explicit unavailable/incomplete status.
@@ -309,7 +329,7 @@ or a lifecycle ledger.
 ## 5. Render a retained-report handoff
 
 When the selected provider returned a retained local report, use the packaged
-[assessment renderer](backend/src/darrow_verification/assessment.py) for the final handoff. It owns
+[assessment renderer](../../backend/src/darrow_verification/assessment.py) for the final handoff. It owns
 absolute-reference validation and rendering; do not reproduce its output by
 hand. It does not interpret the provider's format or decide findings.
 
@@ -318,7 +338,7 @@ file outside the product scope with the host's native temporary-file facility
 (`mktemp` in a POSIX shell or `[System.IO.Path]::GetTempFileName()` in
 PowerShell), then write that assessment using the host's file-writing tool.
 This temporary draft is assessment output, not an implementation edit or a
-required evidence package. Resolve the renderer backend from the loaded skill:
+required evidence package. Reuse the absolute backend path bound in step 2.
 
 Take the report's absolute filesystem path from the provider's public result.
 For a Markdown link, remove its `(<` and `>)` delimiters and decode any escaped
@@ -327,11 +347,6 @@ or reconstruct the path from the review state directory. Confirm that the
 resulting path names a readable, nonempty regular file
 before rendering. If it does not, return blocked with that handoff gap; do not
 substitute a different report path.
-
-- Claude Code: resolve `backend` from the absolute skill directory supplied in
-  `CLAUDE_SKILL_DIR`; use the host shell's environment-variable and path syntax.
-- Codex: take the absolute `SKILL.md` path supplied in the selected skill's
-  catalog entry and resolve `backend` relative to that file's directory.
 
 Then run:
 
@@ -365,7 +380,10 @@ return the assessment prefix and final link together as the renderer emitted
 them. A response containing only the link, only a conclusion, or a summary of
 the draft is an incomplete handoff.
 
-A renderer refusal is a blocked handoff. Return the precise missing/unreadable
+A failed lookup at another path is not a renderer refusal. Compare the attempted
+path with the path bound in step 2 and correct a demonstrated invocation error
+before diagnosing the installation. Preserve the failed attempt and diagnostic.
+A refusal from the correctly invoked renderer is a blocked handoff. Return the precise missing/unreadable
 evidence gap rather than a partial rendering or a passing summary. Do not
 repair the provider's report or run an assessment retry loop. If the provider
 returned only inline evidence, retain that complete result and its references

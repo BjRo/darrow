@@ -446,6 +446,11 @@ On Claude, use the same ownership design with native session goals. Bounded
 implementation uses the policy's scoped agents. Verification uses an explicit
 `claude-opus-5/high` scoped agent; review coordination uses
 `claude-sonnet-5/medium`, preserving the review capability's own reader route.
+The main thread resolves its verification assignment through Adaptive Delivery's
+bundled scoped-agent resolver and supplies the bound verification skill. It
+passes the review binding and route into that assignment; verification owns
+launching the review coordinator. A review-coordinator agent does not replace
+the main thread's required Opus/high verification assignment.
 These are host-specific role choices, not a claim of measured equivalence.
 Claude receives lighter smoke validation than Codex.
 
@@ -596,6 +601,13 @@ require bounded clarification or corrected evidence, not a completion claim.
 
 ### Human feedback and blockers
 
+An explicit wait for user authorization applies even when no product question
+is pending. Retain the restricted actions and the user message needed to release
+them, and carry both into affected assignments. Automatic continuation, elapsed
+time and a command that changes local readiness do not grant permission. Until
+the actual user message arrives, keep affected work read-only and report the
+waiting condition; never satisfy a user-owned gate by opening it yourself.
+
 When a material decision is missing, stop affected mutation and ask the smallest
 complete question. Interrupt or steer affected active children as necessary,
 reporting any unconfirmed stop honestly. Preserve the same native goal, accepted
@@ -631,6 +643,15 @@ completed blocked report is retained, never recast as aborted or replaced by a
 history-free assessment. A correction consumes no implementation repair attempt
 and grants no additional attempts. Repeated unresolved or unsupported conclusions
 remain blocked or no-progress; correction is not a convergence waiver.
+
+Before accepting a child's diagnosis of a missing helper or broken provider,
+the main thread MUST require the attempted command/path, observed diagnostic
+and comparison with the loaded capability's public instructions. A lookup at
+an invented path cannot establish a missing installation. A demonstrated
+invocation error goes back to the same capability for bounded correction,
+preserving the earlier result. The main thread does not execute assessment
+internals or substitute another checkout's helper. An unverified cause remains
+an evidence gap, not a confirmed installation or fixture defect.
 
 ### Completion
 

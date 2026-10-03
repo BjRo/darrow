@@ -1710,6 +1710,58 @@ that comparison. No further skill, model or architectural change was mixed into
 this completed cohort. The next recommendation is to address helper-path
 resolution, discuss user-wait semantics, and improve observable handoff evidence.
 
+Checkpoint `c9b2d6f4` preserves that completed cohort and implementation. The
+[renderer and diagnostic recovery follow-up](adaptive-delivery-renderer-recovery-2026-10-03.md)
+moves verification's backend to the plugin root and checks failed invocations
+against the public instructions. Deterministic gates pass. The separate frozen
+three-case retest finishes **15/15 task passes**, versus **12/15** for those same
+baseline cases, with unchanged models, fixtures, checks and passive app-server
+observation. All 25 verification handoffs render correctly; all 90 child
+launches explicitly match their pinned routes. Contract compliance is **10 pass /
+3 fail / 2 unknown**: the focused fixture provider omits native result fields in
+three trials and has encrypted delivery gaps in two others. Verification reads
+the complete retained reports, so evidence preservation is **15/15**. Correctness
+is **14/15**, retaining one recovered coordinator/reader route confusion.
+Whole-tree usage is 38,716,586 tokens including cached input; candidate wall time
+is 7,875.287 seconds. Dollar cost is unknown for the Codex cohort. The Claude
+smoke's original revoked-authentication failure is retained. After authentication
+was refreshed, the unchanged candidate passed **1/1 task trials**, but main
+selected Sonnet/medium review coordinators without the required separate
+Opus/high verification assignment. This is a route-selection contract defect;
+the reduced smoke evidence does not independently establish effective child
+models, exact renderer output or complete handoffs. These results replace no
+baseline failure. User-wait semantics, provider delivery and the Claude
+verification assignment remain separate follow-ups; the new repair is
+uncommitted.
+
+The [waiting and feedback comparison](adaptive-delivery-user-wait-2026-10-03.md)
+corrects the app-server client so a declared user follow-up arrives at a
+completed response while the goal can remain active. A matched unchanged-skill
+control and explicit-wait candidate each pass **5/5** on steering and
+product-question feedback: **20/20 task and waiting checks** overall. Every
+feedback boundary has an unchanged source tree, all routes match, and completion
+remains in the original thread. The largest goal is 794 characters. All frozen
+inputs remain unchanged. The added wording has no measured success-rate
+advantage; it clarifies the contract. These trials do not clear the historical
+violations during longer waits or prove arbitrary-delay reliability. Control
+uses 4,793,604 whole-tree tokens and 1,120.693 seconds; candidate uses 4,764,718
+tokens and 1,123.934 seconds. Dollar cost is unknown.
+
+The subsequent Claude guide clarification at Adaptive Delivery **0.24.3** passes
+one high-risk smoke with observed Sonnet/low implementation, Opus/high
+verification and Sonnet/medium review coordination. All 14 task checks pass;
+the completed child links, full provider result and exact verification renderer
+response are retained. Evidence correctness remains failed: main inaccurately
+claims no Git operations despite read-only inspection, and verification claims
+a provider-created reader absent from the deterministic fixture's native graph.
+The experiment's capture filter also missed Claude's short invocation token;
+a process-bound supplemental snapshot recovered every completed child link and
+the exact final response before cleanup. Preserve that capture defect and its
+provenance. The smoke took 355.606 seconds, with harness-reported 547,459 tokens
+and $1.364, not independently reconciled whole-tree accounting. This does not
+clear historical failures or establish Claude reliability. Current follow-up
+changes remain uncommitted.
+
 ### darrow-skill-authoring
 
 | Case                                                                                                                                            | What failed                                                                                                       | Assessment                                  | Recommended next step                                                                                                                                                                                                                                                                            |

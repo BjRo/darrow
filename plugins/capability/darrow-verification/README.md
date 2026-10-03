@@ -104,6 +104,12 @@ compatible provider, preserving prior evidence for follow-up. Do not replace
 the blocked result with self-review, another checkout's renderer, or a new
 repair loop.
 
+The renderer package is at `<plugin-root>/backend`, resolved as `../../backend`
+from the loaded `verify-change` skill directory. Verification checks and binds
+this absolute location before review, then reuses it for the handoff. Compare a
+failed invocation with the public instructions before diagnosing a missing
+installation; report the actual path and diagnostic when a file is unavailable.
+
 ## License
 
 Business Source License 1.1 — see [LICENSE](LICENSE). Converts to MPL-2.0

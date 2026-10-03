@@ -571,7 +571,13 @@ not prove equivalence or savings.
   shutdown. Failed/interrupted turns, protocol failures and time bounds remain
   failures with retained evidence. No-goal runs may return at completed-turn
   boundaries. Only an explicitly supplied follow-up user prompt starts another
-  client-requested turn. Results identify the entrypoint and preserve bounded
+  client-requested turn. Deliver that prompt after a completed response in the
+  original thread, regardless of whether its goal remains active. Retain the
+  response and actual pre-feedback worktree boundary before delivery. Do not
+  require the participant to complete or block its goal to receive user input.
+  A later in-flight native turn defers delivery to a settled response boundary;
+  it does not authorize interrupting the goal or inventing continuation input.
+  Results identify the entrypoint and preserve bounded
   root-thread, turn and goal-state evidence without private reasoning. Existing
   exec results and defaults remain distinct and unchanged.
 

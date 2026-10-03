@@ -24,6 +24,7 @@ const send=value=>process.stdout.write(JSON.stringify(value)+'\\n');
 const notify=(method,params)=>send({method,params});
 const goal=status=>({threadId:'root',objective:'Read both markers',status});
 const turns=[]; let starts=0;let continued=false;
+const feedbackScenario=['active-feedback','feedback-read-race','feedback-boundary-race','feedback-boundary-error'].includes(scenario);
 const finish=(id,text)=>{
   const turn=turns.find(t=>t.id===id); turn.status='completed';
   turn.items=[{type:'agentMessage',id:'final-'+id,phase:scenario==='missing-final'?'commentary':'final_answer',text}];
@@ -55,6 +56,7 @@ createInterface({input:process.stdin}).on('line',line=>{
      for(let n=0;n<40;n++)notify('error',{threadId:'root',turnId:id,willRetry:true,error:{message:'x'.repeat(3000),codexErrorInfo:'other'}});
      notify('error',{threadId:'root',turnId:id,willRetry:false,error:{message:'Authorization: Bearer sk-test-secret-value',codexErrorInfo:'unauthorized'}});return;
    }
+   if(feedbackScenario)notify('thread/goal/updated',{threadId:'root',turnId:id,goal:goal(starts===1?'active':'complete')});
    if(scenario==='continuation'||scenario==='failure')notify('thread/goal/updated',{threadId:'root',turnId:id,goal:goal('active')});
    finish(id,scenario==='continuation'||scenario==='failure'?'FIRST_CHECKPOINT':'FINAL-'+starts);
  }
@@ -70,10 +72,18 @@ createInterface({input:process.stdin}).on('line',line=>{
        // Goal completion deliberately precedes the final response and turn completion.
        setTimeout(()=>finish('native-2','BOTH_MARKERS_COMPLETE'),40);
      },10);
-   }else reply({goal:scenario==='continuation'?goal('complete'):null});
+   }else reply({goal:feedbackScenario?goal(starts===1?'active':'complete'):scenario==='continuation'?goal('complete'):null});
  }
  else if(m.method==='thread/read'){
    reply({thread:{id:'root',turns}});
+   if(starts===1&&!continued&&scenario.startsWith('feedback-')){
+     continued=true;
+     const advance=()=>{
+       if(scenario==='feedback-boundary-error'){notify('error',{threadId:'root',turnId:'turn-1',willRetry:false,error:{message:'Boundary failure'}});return;}
+       begin('native-wait');setTimeout(()=>finish('native-wait','STILL_WAITING'),20);
+     };
+     if(scenario==='feedback-read-race')advance();else setTimeout(advance,10);
+   }
    if(scenario==='trailing-malformed')process.stdout.write('NOT_JSON\\n');
    if(scenario==='trailing-error')notify('error',{threadId:'root',turnId:turns.at(-1).id,willRetry:false,error:{message:'Late failure',codexErrorInfo:'internalServerError'}});
  }
@@ -110,7 +120,10 @@ async function run(scenario: string, followUp = false) {
     driver,
     `import {writeFile} from 'node:fs/promises';
 import {runCodexAppServer} from ${JSON.stringify(join(import.meta.dir, "codex-app-server.ts"))};
-const result=await runCodexAppServer({...${JSON.stringify(options)}, followUpBoundary:async()=>JSON.stringify({type:'darrow.eval.follow_up_turn'})});
+const result=await runCodexAppServer({...${JSON.stringify(options)}, followUpBoundary:async()=>{
+ if(${JSON.stringify(scenario)}.startsWith('feedback-boundary-'))await new Promise(resolve=>setTimeout(resolve,80));
+ return JSON.stringify({type:'darrow.eval.follow_up_turn', priorResponse:await Bun.file(${JSON.stringify(join(root, ".git/last-message.md"))}).text()});
+}});
 await writeFile(${JSON.stringify(resultPath)},JSON.stringify(result));`,
   );
   const child = Bun.spawn([process.execPath, driver], {
@@ -245,6 +258,62 @@ describe("Codex app-server entrypoint", () => {
         .filter((r) => r.method === "turn/start")
         .map((r) => r.params.input[0].text),
     ).toEqual(["Read both markers", "User correction"]);
+  });
+  test("delivers declared feedback while the retained goal is active", async () => {
+    const { result, requests, final } = await run("active-feedback", true);
+    expect(result.code).toBe(0);
+    expect(final).toBe("FINAL-2");
+    expect(result.evidence.goalStatus).toBe("complete");
+    expect(result.evidence.clientTurns).toBe(2);
+    const boundary = result.out
+      .split("\n")
+      .map((line) => JSON.parse(line))
+      .find((event) => event.type === "darrow.eval.follow_up_turn");
+    expect(boundary.native_goal_status).toBe("active");
+    expect(
+      requests
+        .filter((r) => r.method === "turn/start")
+        .map((r) => r.params.input[0].text),
+    ).toEqual(["Read both markers", "User correction"]);
+    expect(
+      requests.some((r) =>
+        ["thread/goal/set", "thread/goal/clear", "turn/interrupt"].includes(
+          r.method,
+        ),
+      ),
+    ).toBe(false);
+  }, 10000);
+  for (const scenario of ["feedback-read-race", "feedback-boundary-race"]) {
+    test(`${scenario} defers feedback to the next settled response`, async () => {
+      const { result, requests, final } = await run(scenario, true);
+      expect(result.code).toBe(0);
+      expect(final).toBe("FINAL-2");
+      expect(result.evidence.turns.some((t) => t.id === "native-wait")).toBe(
+        true,
+      );
+      expect(requests.filter((r) => r.method === "turn/start")).toHaveLength(2);
+      expect(
+        result.out
+          .split("\n")
+          .filter((line) =>
+            line.includes('"type":"darrow.eval.follow_up_turn"'),
+          ),
+      ).toHaveLength(1);
+      expect(
+        result.out
+          .split("\n")
+          .map((line) => JSON.parse(line))
+          .find((event) => event.type === "darrow.eval.follow_up_turn")
+          .priorResponse,
+      ).toBe("STILL_WAITING");
+    });
+  }
+  test("fatal error during feedback capture prevents feedback delivery", async () => {
+    const { result, requests } = await run("feedback-boundary-error", true);
+    expect(result.code).toBe(1);
+    expect(requests.filter((r) => r.method === "turn/start")).toHaveLength(1);
+    expect(result.out).not.toContain('"type":"darrow.eval.follow_up_turn"');
+    expect(result.evidence.errors?.at(-1)?.message).toBe("Boundary failure");
   });
   for (const scenario of [
     "failure",

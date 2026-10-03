@@ -58,7 +58,10 @@ answer when a repository acknowledgement requires it, and require successful
 acknowledgement before mutation. Report unconfirmed delivery or stopping honestly.
 
 Native `paused` status requires the user's explicit pause request. A pending
-question may stop affected work without inventing a pause transition. Respect
+question or instruction to wait stops affected work without inventing a pause
+transition. Native continuation does not release a user-owned restriction; keep
+affected work read-only until the user's actual answer or authorization arrives.
+Respect
 native blocked-state recurrence conditions. On an answer, continue the same goal
 and preserve consumed attempts; do not create another goal. Status questions do
 not cancel work. Cancellation stops work and reports already performed effects.

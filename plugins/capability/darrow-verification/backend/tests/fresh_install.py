@@ -125,7 +125,7 @@ def make_writable(root: Path) -> None:
 
 
 def main() -> None:
-    plugin = Path(__file__).resolve().parents[4]
+    plugin = Path(__file__).resolve().parents[2]
     with tempfile.TemporaryDirectory(prefix="darrow verify-change ") as temporary:
         fixture = Path(temporary).resolve()
         copy = fixture / "plugin copy"
@@ -143,7 +143,7 @@ def main() -> None:
                 "coverage.json",
             ),
         )
-        backend = copy / "skills" / "verify-change" / "backend"
+        backend = copy / "backend"
         os.environ["DARROW_CACHE_DIR"] = str(fixture / "darrow-cache")
         make_read_only(copy)
         installed_runtime(backend, fixture)

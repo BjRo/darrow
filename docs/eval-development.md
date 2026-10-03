@@ -357,6 +357,14 @@ the completing response. It does not create or mutate goals, launch an execution
 owner, or supply continuation prompts. A declared follow-up prompt is the only
 additional client-requested user turn.
 
+Deliver a declared follow-up at a completed response boundary even when the
+native goal remains active. Preserve the prior response and capture the actual
+pre-feedback worktree state before sending it. If native continuation races
+readback, wait for a settled response boundary. Do not require an inactive goal
+or manufacture a pause, blockage or completion to deliver the user's message.
+Comparisons of waiting behavior use identical feedback timing in both arms;
+historical trials with different timing remain separate evidence.
+
 The default wall-clock bound is one hour per invocation; a diagnostic may set
 `appServerTimeoutMs` explicitly. Time bounds, unanswered server requests, failed
 turns and malformed protocol remain failures. Results retain `codexEntrypoint`

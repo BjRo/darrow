@@ -420,6 +420,15 @@ and checks. Explain what error or gap the evidence corrects. Never relabel a
 completed blocked assessment as aborted or omit it to obtain clearance.
 Assessment correction neither consumes nor resets implementation repair attempts.
 
+Before accepting a child's missing-helper or broken-provider diagnosis, require
+its attempted command/path, observed diagnostic and comparison with the loaded
+capability's public instructions. A failed lookup at a guessed path does not
+prove an installation defect. Send a demonstrated invocation error back to the
+same capability for bounded correction, preserving its prior result. Do not
+execute assessment internals here or substitute another checkout's helper.
+If the cause remains unverified, report that evidence gap without inventing a
+fixture or installation diagnosis.
+
 User feedback belongs to this main thread. Preserve every restriction, product
 decision and implementation property; update affected acceptance and reassess
 readiness when its assumptions change. Send relevant full feedback to any active
@@ -429,6 +438,13 @@ repository acknowledgement is required, pass the complete answer and require
 success before mutation. Using an existing component means calling it, not
 copying its algorithm. Status requests do not stop work; cancellation stops
 further work and reports effects already performed.
+
+An explicit instruction to wait for the user applies even when no product
+question is pending. Retain which actions are withheld and what user message
+releases them; include that restriction in affected assignments. Automatic
+continuation, elapsed time and commands that change local readiness do not grant
+authorization. Until the actual user message arrives, keep affected work
+read-only and report that you are waiting. Never open a user-owned gate yourself.
 
 Ask the smallest concrete question for a missing material decision. Stop affected
 mutation, steering or interrupting active children as needed, and preserve this

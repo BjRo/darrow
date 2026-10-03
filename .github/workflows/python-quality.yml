@@ -143,7 +143,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-      - run: scripts/check-python --package plugins/capability/darrow-verification/skills/verify-change/backend
+      - run: scripts/check-python --package plugins/capability/darrow-verification/backend
 
   git-windows:
     name: Git Python ${{ matrix.python-version }} on windows-latest
@@ -560,7 +560,7 @@ jobs:
         with:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v6
-      - run: uv run --quiet --frozen --no-dev --project plugins/capability/darrow-verification/skills/verify-change/backend python plugins/capability/darrow-verification/skills/verify-change/backend/tests/fresh_install.py
+      - run: uv run --quiet --frozen --no-dev --project plugins/capability/darrow-verification/backend python plugins/capability/darrow-verification/backend/tests/fresh_install.py
 
   performance:
     name: Python performance invariants

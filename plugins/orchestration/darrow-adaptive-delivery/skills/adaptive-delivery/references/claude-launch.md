@@ -26,7 +26,8 @@ through Skill, start a nested Claude process or create a custom stop hook.
 
 ## Resolve bounded agent routes
 
-For each role, resolve its explicit route with the bundled helper:
+For each bounded assignment launched by the main thread, resolve its explicit
+route with the bundled helper:
 
 ```sh
 uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" claude-agent-route \
@@ -44,6 +45,16 @@ coordination uses `claude-opus-5/high`. Pass `claude-sonnet-5/medium` explicitly
 for review coordination through verification, preserving review's own independent
 reader route. A capability provides its own compatible review-agent boundary;
 do not assume a sibling plugin's agent is installed.
+
+For the verification assignment, call this resolver with
+`--provider anthropic --model claude-opus-5 --effort high`. Launch the returned
+Adaptive Delivery scoped `subagent_type` and give it the bound verification
+skill's exact public reference and the acceptance-verification assignment.
+Supply the review binding and Sonnet/medium coordinator route to this Opus/high
+agent. Verification then selects and launches its review coordinator through
+its own contract. An advertised Sonnet review-coordinator agent owns that
+internal review job; selecting it directly from main does not satisfy the
+required verification assignment, even if its prompt asks for verification.
 
 Invoke the returned exact `subagent_type` with `run_in_background: false`,
 no per-call model override and no unrequested worktree isolation. Its prompt

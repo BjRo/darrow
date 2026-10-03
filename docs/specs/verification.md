@@ -100,6 +100,12 @@ delivery under #155. It does not execute QA or create reviewer-facing evidence p
   missing/unavailable/inconclusive evidence is blocked. Mixed required results
   cannot clear; blocked evidence takes precedence, then no-progress, then
   progress. A clear provider follow-up may clear an advisory-only remainder.
+  A failed invocation alone MUST NOT establish a broken installation or
+  provider. Compare the attempted command, arguments and resolved paths with
+  the loaded public instructions and retain the observed diagnostic. Correct
+  a demonstrated invocation error through that capability's public boundary;
+  otherwise report the unverified cause as an evidence gap. This does not
+  authorize modifying provider artifacts or bypassing a refusal.
 - **VF-C7 — One owner.** Verification MUST collect the complete result of each
   selected supported assessment before returning combined eligible blockers.
   It may identify targeted evidence needed next, but MUST NOT initiate owner
@@ -116,12 +122,17 @@ delivery under #155. It does not execute QA or create reviewer-facing evidence p
   needed investigation, never an implementation instruction or another repair
   followed by reassessment.
 - **VF-C8 — Portable assessment renderer.** The retained-report renderer MUST
-  be a skill-contained, UV-locked Python package with no runtime dependencies.
+  be a plugin-contained, UV-locked Python package at `<plugin-root>/backend`
+  with no runtime dependencies.
   Its public command MUST preserve the accepted argument order, assessment
   bytes, report-link escaping and placement, validation diagnostics,
   stdout/stderr separation, and exit statuses on Linux, macOS, and native
-  Windows. Claude Code and Codex MUST resolve the backend from the installed
-  skill directory and invoke the same frozen package entrypoint directly.
+  Windows. Claude Code and Codex MUST bind one absolute backend path from the
+  loaded skill directory (`../../backend`) before invoking a provider that
+  retains reports, check its launcher and package/lock files, and reuse that
+  path for rendering. A missing-package diagnosis MUST name the authoritative
+  location and observed failure. Both hosts invoke the same frozen package
+  entrypoint directly.
   Fresh copied-artifact checks MUST exercise that installed layout without
   repository-relative or sibling-plugin references.
   Internal simplification MUST preserve assessment-before-report validation,
