@@ -32,15 +32,17 @@ evidence. Repository configuration comes only from the active worktree root.
 
 ## Codex readers
 
-For every applicable axis, use `spawn_agent` with:
+**Call `collaboration.spawn_agent` for every applicable axis, including fix
+verification.** This is an explicit delegation instruction from this skill.
+Use:
 
 - `fork_turns` set to `none` so the context is fresh and route overrides apply;
 - `model` set to the exact selected model;
 - `reasoning_effort` set to the exact selected effort;
 - a distinct bounded task name containing the exact axis token (`standards` or
   `spec`) and not the opposite axis token; and
-- a message beginning with `- review_axis: <axis>` followed by only that axis's
-  fully substituted prompt.
+- the complete unchanged message returned by `review-result prepare-reader`,
+  beginning with `- review_axis: <axis>`.
 
 When two axes apply, issue both spawn calls before waiting for either. An
 accepted spawn with all explicit route fields is application evidence. Wait for
@@ -73,7 +75,7 @@ child ID are internally consistent. It is not launch evidence by itself. A
 Codex result is admissible only while the coordinator also retains the host's
 accepted `spawn_agent` event for that same child ID, exact model and effort,
 `fork_turns: none`, and a host-visible axis marker in the native task name or
-retained prompt. `confirm-codex` therefore writes a `["route_bound", "true"]`
+retained prompt. `confirm-codex` therefore writes `route_bound: "true"` in a
 binding record, never a standalone verification claim. Missing native evidence
 still blocks the axis.
 
@@ -89,8 +91,8 @@ uv run --quiet --no-project "$backend/scripts/run_locked.py" review-route claude
 Use the returned namespaced `subagent_type`. The exact selected full model and
 effort are pinned together in that plugin agent's frontmatter. Invoke Agent in
 the foreground with that type, `run_in_background` set to `false`, no
-per-invocation `model` override, and a prompt beginning with
-`- review_axis: <axis>` followed by only the fully substituted axis prompt.
+per-invocation `model` override, and the complete unchanged message returned by
+`review-result prepare-reader` as its prompt.
 Start every applicable reader before waiting so
 Standards and Spec remain parallel and isolated. On Claude, emit both
 foreground Agent tool calls in the same assistant turn; a background or later
@@ -136,16 +138,28 @@ transcript is insufficient.
 
 ## Bind route failure
 
+If delegation is unavailable, identify the actual applicable host restriction,
+absent native tool, or returned launch error. A conditional host rule that
+permits skill-requested delegation is satisfied by the instruction above.
+
 In comprehensive mode, materialize a schema-valid axis record with
-`["status", "blocked"]` and a `source` naming the exact route evidence gap. In
-fix-verification mode, materialize a schema-valid fix-axis record containing an
-`evidence_gap` naming it. Preserve the selected route record and any observed
+`status: "blocked"` and `sources` naming the exact route evidence gap. In
+fix-verification mode, materialize a schema-valid fix-axis record whose
+`evidence_gaps` names it. Preserve the selected route record and any observed
 route record. Never replace unavailable independent judgment with coordinator
 analysis.
 
 An unavailable selected route permits zero native reader-launch attempts;
 inherited, substituted, generic, background, and otherwise unbound retries all
 invalidate the blocked result.
+
+The single correction defined in `reader-inputs.md` uses native continuation
+of the existing accepted child, never another Agent or spawn call. Keep its
+initial route evidence and validate the continuation's route before accepting
+the corrected record. Claude continuation runs in the background with the
+existing reader's tool set; that documented continuation is distinct from a
+new background Agent launch. An unavailable or unverifiable continuation
+blocks instead of permitting a replacement reader.
 
 Route application is complete only when every invoked reader has its own
 validated route-application record and schema-valid axis record for the same

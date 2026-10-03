@@ -1,14 +1,33 @@
-# Claude Agent owner
+# Claude native goal and bounded assignments
 
-Use this guide after preflight, readiness, capability binding, route selection,
-and contract compilation are complete.
+Use the same main-thread ownership design as Codex. Claude's native controls
+activate and continue the goal; bounded Agent calls never own that goal.
 
-## Resolve the routed agent
+## Activate the native goal
 
-Run the bundled resolver once with the selected route:
+Retain a matching active session goal when present. Otherwise use an available
+native `ProposeGoal` tool with a condition of at most 4,000 Unicode characters.
+State the outcome, material acceptance, authority and completion criteria. Keep
+coordination instructions in the skill. Use `ask_user: false` only when the
+user's stated outcome authorizes the tool's direct-setting mode; honor host
+confirmation requirements.
 
-On native Windows, enter this command on one PowerShell line without the Bash
-continuation backslashes.
+A proposal queues native activation at the end of the current turn. It is not
+yet an active goal. Finish read-only preparation and yield for the native kickoff
+before implementation or assessment. Do not claim activation from the proposal
+alone or overwrite an unrelated active goal.
+
+Availability is host-dependent. In headless sessions, model-side `ProposeGoal`
+may be unavailable; a client can enter with the native `/goal <condition>`
+command. When no matching goal or usable activation control exists, return
+`Status: launch_required`, identify the missing boundary and provide the compact
+native command for this session. Do not pretend to invoke a built-in command
+through Skill, start a nested Claude process or create a custom stop hook.
+
+## Resolve bounded agent routes
+
+For each bounded assignment launched by the main thread, resolve its explicit
+route with the bundled helper:
 
 ```sh
 uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" claude-agent-route \
@@ -16,101 +35,55 @@ uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" cl
   --effort <low|medium|high>
 ```
 
-Use its exact `subagent_type`. The resolver verifies that the route-specific
-agent exists, its frontmatter pins the selected model and effort, and no
-conflicting host environment override is active. A nonzero result is
-`Status: launch_required`; do not invoke Agent anyway or select another route.
+On native Windows use one PowerShell line without continuation backslashes.
+The helper verifies the scoped agent's model and effort and refuses conflicting
+higher-priority environment overrides. A refusal stops the affected assignment;
+do not launch anyway or silently select another route.
 
-## Launch
+Implementation and repair use the preflight-selected route. Verification
+coordination uses `claude-opus-5/high`. Pass `claude-sonnet-5/medium` explicitly
+for review coordination through verification, preserving review's own independent
+reader route. A capability provides its own compatible review-agent boundary;
+do not assume a sibling plugin's agent is installed.
 
-Invoke the resolved Agent exactly once with:
+For the verification assignment, call this resolver with
+`--provider anthropic --model claude-opus-5 --effort high`. Launch the returned
+Adaptive Delivery scoped `subagent_type` and give it the bound verification
+skill's exact public reference and the acceptance-verification assignment.
+Supply the review binding and Sonnet/medium coordinator route to this Opus/high
+agent. Verification then selects and launches its review coordinator through
+its own contract. An advertised Sonnet review-coordinator agent owns that
+internal review job; selecting it directly from main does not satisfy the
+required verification assignment, even if its prompt asks for verification.
 
-- an explicit `run_in_background: false` field, even when the host defaults to foreground execution;
-- no per-call model override;
-- no worktree isolation or resume option on the initial call; and
-- the complete task whose first line is exactly
-  `- phase: adaptive-delivery-owner`.
+Invoke the returned exact `subagent_type` with `run_in_background: false`,
+no per-call model override and no unrequested worktree isolation. Its prompt
+contains the bounded assignment, repository/scope, acceptance, authority,
+preserved work, checks, exact skill references and expected evidence. State that
+the child owns its assignment, not the native goal. The scoped frontmatter pins
+the route; no overall owner marker or nested goal is needed.
 
-Use this input shape, replacing both placeholders with the resolved value and
-complete compiled contract:
+Retain the host-returned agent id and result. Settle conflicting work before
+another assignment. Verification and review keep their own internal delegation
+and response contracts. The main thread consumes those results and owns repair
+accounting and overall completion.
 
-```json
-{
-  "subagent_type": "<exact resolver subagent_type>",
-  "run_in_background": false,
-  "prompt": "- phase: adaptive-delivery-owner\n<complete owner contract>"
-}
-```
+## Feedback and completion
 
-The resolver has rejected higher-priority environment overrides, and the Agent
-call supplies no per-call model override. The accepted call therefore uses the
-scoped agent's model and effort frontmatter and establishes the sole owner.
-Retain the host-reported agent id. Do not invoke Agent again for this goal or
-start a nested Claude process.
+Ask material questions in the main thread and stop affected mutation. Use native
+goal question/continuation behavior and supported user controls. Preserve the
+same goal, acceptance, decisions and repair history when the answer arrives;
+do not clear and recreate it. Send affected children complete relevant feedback
+through the available host control, targeting the retained id. Required
+acknowledgements must succeed before mutation.
 
-If Agent is rejected or unavailable, return `Status: launch_required` with the
-selected route and preserve the product tree. Do not retry on another route.
+Status questions do not cancel work. For cancellation, use available stop
+controls and report observed results and effects already performed. If a
+foreground Agent prevents immediate delivery or stopping, report that limitation;
+do not claim that an in-flight effect was prevented.
 
-## Parent boundary
-
-Once Agent is accepted, the parent performs no repository command, work
-inspection, edit, verification, capability invocation, route-observation shell
-call, or external effect. It relies on the owner result.
-
-The owner invokes selected verification with the compiled review binding,
-criteria, current checks and closed finding/repair history. Bounded assessment
-contexts return their complete results to verification and then to this owner;
-they inherit scope and authority without owning repairs, budgets or completion.
-The owner waits for the combined conclusion and applies one shared repair budget.
-
-The owner may invoke capability-internal agents when a bound skill requires
-them; those are not replacement adaptive owners. It must not invoke
-`adaptive-delivery` or launch another task beginning with the adaptive-owner marker.
-
-## Feedback and continuation
-
-When the owner returns a material-decision question as its paused result,
-surface the complete question and retain the exact agent id. The question needs
-no lifecycle marker. Do not treat the pause as completion or launch another
-Agent.
-
-On the user's later unambiguous answer in this thread, use Claude's
-`SendMessage` control once for that retained id. Use any concise continuation
-summary the tool requires and send the exact user answer as the message, with no
-wrapper or lifecycle marker. A successful call delivers the answer and
-auto-resumes the stopped owner; never send a second continuation message for
-that answer.
-
-Yield for the task notification from that same id and relay its result. Do not
-call Agent again, repeat preflight, readiness, route resolution, or use a
-scheduler. The same transport may resume a semantically blocked owner when the
-answer clearly resolves its stated blocker.
-
-If the host cannot retain or resume the owner, report that limitation. Do not
-claim that a replacement is the same goal.
-
-Corrections, added constraints, cancellation, and status requests also target
-the retained id through `SendMessage`; no pending question is required. Deliver
-the user's exact feedback once. A status request does not cancel work. For
-explicit cancellation use a host stop control when available and report its
-observed result and already performed effects. If the foreground Agent call
-prevents live message delivery, report that host limitation and deliver at the
-next available boundary. Do not claim immediate stopping without evidence or
-launch a replacement to apply steering.
-
-The owner applies restrictions before its next affected action and reassesses
-invalidated assumptions and gates itself, using necessary readiness and
-stronger checks within existing authority. Product decisions or expanded
-effects return to the user. The parent never repeats capability preflight.
-
-## Result
-
-Apply the main skill's section 8 completion-evidence check before relaying the
-result. Request missing or contradictory accounting through `SendMessage` to
-the retained owner id and wait for its amended status. This correction
-authorizes no engineering work or assessment. If continuation is unavailable,
-report the evidence gap.
-
-Relay the validated complete result or the owner's paused or blocked result
-without repository inspection or parent-side engineering verification. Do not
-run a final `git status`, read the changed file, or confirm the owner's checks.
+The main thread can inspect state and run checks while coordinating. It does not
+absorb review or verification internals. Apply section 8 of the skill before
+claiming completion, give the user substantive results here, and allow native
+goal evaluation to consume that evidence. A child return alone cannot complete
+delivery. Do not claim a native lifecycle transition the host has not confirmed.

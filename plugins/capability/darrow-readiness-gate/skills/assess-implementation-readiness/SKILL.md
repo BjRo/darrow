@@ -1,6 +1,6 @@
 ---
 name: assess-implementation-readiness
-description: Assess whether a ticket, specification, plan, or other authoritative request is ready for implementation and return a human-readable gate result or explicitly requested v1 JSON. Use when the user asks whether work is ready to implement, asks for an implementation-readiness check, or an explicit goal contract requires a readiness gate before mutation. Do not use merely because the user asks to implement, plan, discover, or review work without readiness-assessment intent.
+description: Assess whether a request has enough authoritative intent and evidence for engineering to safely begin implementation. Use for direct or indirect readiness questions, including whether work can start without inventing important details, or when an explicit goal contract requires a readiness gate before mutation. Return a human-readable gate result or explicitly requested v1 JSON. Do not use for ordinary implementation, planning, discovery, or review without readiness-assessment intent.
 ---
 
 # Assess implementation readiness
@@ -118,6 +118,13 @@ Do not fix a gap while assessing it. Missing facts go to discovery, material
 alternatives go to an authorized decision, and unavailable prerequisites block
 the gate.
 
+Treat a separately required pre-implementation discovery result as an input,
+not something this assessment can produce. Inspect an existing record if it is
+available. A runnable benchmark, check, or other evidence-gathering command
+only establishes that discovery is feasible; output gathered during this gate
+does not satisfy a requirement to record the result in a separate discovery
+before implementation begins.
+
 ## 3. Establish the quality bar
 
 For every acceptance dimension needed to call the input ready, record:
@@ -154,6 +161,15 @@ If several gaps exist, choose the verdict for the action that must happen
 first. For example, investigate an unknown legal constraint before requesting
 a product decision that depends on it. Keep later gaps in `findings` and name
 only the smallest next action that advances readiness.
+
+Before returning a non-ready result, check whether permitted discovery or an
+authorized decision can resolve the first prerequisite **now**. If
+reconciliation depends on a future governance review, permission, or other
+unavailable authority, return `blocked` with an `unblock` action; do not label
+the eventual decision as the current next action. If the evidence already
+exposes an available material choice, return `needs-decision` and say that an
+authorized party must make it. Do not assume the requester has that authority
+unless the evidence establishes it.
 
 Use `needs-discovery` when the missing fact can be established through a
 bounded investigation of available evidence without choosing product intent;

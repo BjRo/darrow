@@ -1,5 +1,18 @@
 # Capability: Verification
 
+## Coordinator routes
+
+When an enclosing owner delegates verification, it selects the verification
+coordinator independently of implementation. Adaptive Delivery uses at least
+Codex Sol/medium, or the explicit Claude Opus 5/high route. Verification's
+review-provider coordinator uses an explicit route: Codex Luna/medium or the
+plugin's Claude Sonnet 5/medium scoped agent, unless a compatible explicit caller
+route was supplied. Parent-model inheritance must not change those roles.
+Review retains its own independent-reader model selection and internal delegation.
+Claude route binding must refuse conflicting model or effort environment
+overrides; a missing supported agent boundary is an evidence gap, not permission
+to perform review in the verification coordinator.
+
 Verification coordinates one bounded assessment of an implementation candidate.
 It is directly intent-matched and independently installable. This is the
 semantic boundary introduced by issue #154 under #153, consumed by adaptive
@@ -35,7 +48,10 @@ delivery under #155. It does not execute QA or create reviewer-facing evidence p
   and scope of content identities: different checksum or
   scope-fingerprint schemes are not by themselves a mismatch. Relate them through
   observed common content; an unavailable relationship is a gap, not an invented
-  mismatch. Findings, checks and repair evidence MUST
+  mismatch. A successful current check supports a criterion only to the extent
+  that its exact command and, for script-backed checks, the current script
+  contents assert that criterion; a shape-only check cannot prove a required
+  value. Findings, checks and repair evidence MUST
   remain accessible in their complete provider result, with absolute local
   references when available; evidence packaging is not required.
   When a provider retains a local report artifact, a narrow handoff renderer MUST
@@ -43,7 +59,10 @@ delivery under #155. It does not execute QA or create reviewer-facing evidence p
   absolute report reference. It MUST refuse missing, unreadable or empty inputs
   without interpreting provider formats, deciding findings or writing product
   files. This mechanical report handoff is not a reviewer-facing evidence package
-  or a storage/retention policy.
+  or a storage/retention policy. A provider that retains a report MUST expose
+  its path through its public result. If that reference is absent, verification
+  MUST return a blocked handoff rather than infer the provider's storage layout
+  or treat a known retained report as inline-only evidence.
 - **VF-C4 — Optional is selected explicitly.** QA and reviewer-facing evidence
   are independently adoptable future extensions. Installation alone MUST NOT
   select them; absent unselected capabilities MUST permit review-only operation.
@@ -59,6 +78,14 @@ delivery under #155. It does not execute QA or create reviewer-facing evidence p
   assessment is limited to that closed set, attempted repairs and direct
   repair-caused regressions. Missing history blocks instead of starting a new
   comprehensive review. Advisories remain visible and nonblocking.
+  A bounded correction of an earlier assessment MUST preserve that completed
+  result and all its history. The caller identifies the concrete assessment
+  error or missing evidence; verification requests fresh provider judgment at
+  the same candidate and returns why the new assessment supersedes the earlier
+  conclusion. New conclusive evidence may clear unchanged code. Dropping a
+  previous result, repeating an unchanged assertion, or restarting from the
+  original review cannot establish a correction. An assessment correction
+  consumes no implementation repair attempt and never resets that allowance.
 - **VF-C6 — Honest conclusion.** Return clear, progress, no-progress or blocked
   with the provider's original outcome and its meaning preserved. Put the
   conclusion and smallest next action before detailed evidence in the
@@ -73,6 +100,12 @@ delivery under #155. It does not execute QA or create reviewer-facing evidence p
   missing/unavailable/inconclusive evidence is blocked. Mixed required results
   cannot clear; blocked evidence takes precedence, then no-progress, then
   progress. A clear provider follow-up may clear an advisory-only remainder.
+  A failed invocation alone MUST NOT establish a broken installation or
+  provider. Compare the attempted command, arguments and resolved paths with
+  the loaded public instructions and retain the observed diagnostic. Correct
+  a demonstrated invocation error through that capability's public boundary;
+  otherwise report the unverified cause as an evidence gap. This does not
+  authorize modifying provider artifacts or bypassing a refusal.
 - **VF-C7 — One owner.** Verification MUST collect the complete result of each
   selected supported assessment before returning combined eligible blockers.
   It may identify targeted evidence needed next, but MUST NOT initiate owner
@@ -89,12 +122,17 @@ delivery under #155. It does not execute QA or create reviewer-facing evidence p
   needed investigation, never an implementation instruction or another repair
   followed by reassessment.
 - **VF-C8 — Portable assessment renderer.** The retained-report renderer MUST
-  be a skill-contained, UV-locked Python package with no runtime dependencies.
+  be a plugin-contained, UV-locked Python package at `<plugin-root>/backend`
+  with no runtime dependencies.
   Its public command MUST preserve the accepted argument order, assessment
   bytes, report-link escaping and placement, validation diagnostics,
   stdout/stderr separation, and exit statuses on Linux, macOS, and native
-  Windows. Claude Code and Codex MUST resolve the backend from the installed
-  skill directory and invoke the same frozen package entrypoint directly.
+  Windows. Claude Code and Codex MUST bind one absolute backend path from the
+  loaded skill directory (`../../backend`) before invoking a provider that
+  retains reports, check its launcher and package/lock files, and reuse that
+  path for rendering. A missing-package diagnosis MUST name the authoritative
+  location and observed failure. Both hosts invoke the same frozen package
+  entrypoint directly.
   Fresh copied-artifact checks MUST exercise that installed layout without
   repository-relative or sibling-plugin references.
   Internal simplification MUST preserve assessment-before-report validation,

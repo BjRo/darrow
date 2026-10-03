@@ -7,7 +7,7 @@ the change is ready.
 
 The recipe owns only that bounded authority envelope and one adaptive-delivery
 delegation. `adaptive-delivery` owns readiness, capability binding, route selection,
-the separate engineering owner, verification, review, publication, blockage,
+the main-thread goal, bounded implementation, verification, review, publication, blockage,
 and same-owner human feedback through the main thread. Ticket-to-PR performs no
 ticket read, repository preflight, Git or forge work, lifecycle bookkeeping, or
 post-goal inspection of its own.

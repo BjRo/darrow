@@ -11,12 +11,16 @@ return control to enclosing goal
 - **Location:** src/value.txt:1
 - **Source:** /workspace/AGENTS.md&#35;Review
 - **Original evidence:** Original standards evidence
+- **Repair guidance (advisory):** Remove the standards violation
+- **Resolution evidence:** The standards violation is absent
 - **Current evidence:** The violation is absent from the repair
 
 ### 2. spec:2:WORKTREE@base+original — UNRESOLVED / UNCHANGED (LOW, advisory)
 - **Location:** src/value with spaces.txt:2
 - **Source:** user objective &lt;v1&gt; &amp; &#91;details&#93;
 - **Original evidence:** Original advisory evidence
+- **Repair guidance (advisory):** Address advisory when in scope
+- **Resolution evidence:** The advisory is absent
 - **Current evidence:** The advisory remains
 
 ## Repair-caused regressions
@@ -27,6 +31,8 @@ return control to enclosing goal
 - **Location:** src/C:&#92;(repair&#92;) value&#95;&#91;repair&#93;.txt:3
 - **Source:** /workspace/AGENTS&#95;&lt;repair&gt;.md
 - **Evidence:** The repair-caused regression is fixed
+- **Repair guidance (advisory):** Restore the affected behavior
+- **Resolution evidence:** The regression check passes
 
 ## Checks
 - **PASS** (applicable) — bash verify&#95;&#91;repair&#93;.sh --label &#96;fast&#96;: All tests passed
@@ -45,4 +51,8 @@ No evidence gaps.
 
 ## Closed original finding set
 - standards:1:WORKTREE@base+original — standards #1, high/blocking; src/value.txt:1; source /workspace/AGENTS.md&#35;Review; Original standards evidence
+  - **Repair guidance (advisory):** Remove the standards violation
+  - **Resolution evidence:** The standards violation is absent
 - spec:2:WORKTREE@base+original — spec #2, low/advisory; src/value with spaces.txt:2; source user objective &lt;v1&gt; &amp; &#91;details&#93;; Original advisory evidence
+  - **Repair guidance (advisory):** Address advisory when in scope
+  - **Resolution evidence:** The advisory is absent

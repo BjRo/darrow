@@ -12,6 +12,7 @@ def evidence(root: Path, host: str, axes: list[str]) -> list[dict[str, Any]]:
     directory = root / "darrow-review.fixture"
     directory.mkdir()
     (directory / "reviewer-route.json").write_text("fixture\n")
+    (directory / "result.json").write_text('{"format":"darrow-review-result-v3"}\n')
     model, provider = (
         ("gpt-6-sol", "openai") if host == "codex" else ("claude-opus-5", "anthropic")
     )
@@ -128,3 +129,46 @@ def test_review_evidence_can_be_outside_git_dir(tmp_path: Path) -> None:
     review_state.mkdir()
     retain(git_dir, evidence(review_state, "codex", ["standards"]))
     verify(git_dir, "codex", "default", ["standards"], review_state)
+
+
+def test_abandoned_preparation_cannot_replace_finalized_scope(tmp_path: Path) -> None:
+    retain(tmp_path, evidence(tmp_path, "codex", ["standards", "spec"]))
+    abandoned = tmp_path / "darrow-review.zzz-abandoned"
+    abandoned.mkdir()
+    (abandoned / "reviewer-route.json").write_text("fixture\n")
+    verify(tmp_path, "codex", "default", ["standards", "spec"])
+
+
+@pytest.mark.parametrize("mutation", ["missing", "ambiguous"])
+def test_route_evidence_requires_one_finalized_scope(
+    tmp_path: Path, mutation: str
+) -> None:
+    retain(tmp_path, evidence(tmp_path, "codex", ["standards"]))
+    if mutation == "missing":
+        (tmp_path / "darrow-review.fixture" / "result.json").unlink()
+    else:
+        other = tmp_path / "darrow-review.another"
+        other.mkdir()
+        (other / "verification.json").write_text("{}\n")
+    with pytest.raises(AssertionError, match="exactly one finalized scope"):
+        verify(tmp_path, "codex", "default", ["standards"])
+
+
+def test_later_bound_readers_do_not_hide_an_earlier_inherited_launch(
+    tmp_path: Path,
+) -> None:
+    events = evidence(tmp_path, "codex", ["standards", "spec"])
+    events.insert(
+        0,
+        {
+            "type": "darrow.codex_native_spawn",
+            "status": "unaccepted",
+            "requested_ordinal": 1,
+            "review_axis": "standards",
+            "fork_turns": "all",
+            "reasons": ["model", "reasoning_effort"],
+        },
+    )
+    retain(tmp_path, events)
+    with pytest.raises(AssertionError, match="unexpected native spawn count"):
+        verify(tmp_path, "codex", "default", ["standards", "spec"])

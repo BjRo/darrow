@@ -1,0 +1,20 @@
+id: code-review-no-trigger-implementation
+activation: negative
+invariant: CR-E1
+prompt: >-
+  Change DEFAULT_TIMEOUT_MS from 1000 to 2500 and summarize the change.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        src/config.js: "export const DEFAULT_TIMEOUT_MS = 1000;\n"
+checks:
+  - name: ordinary implementation intent is fulfilled
+    run: grep -F 'DEFAULT_TIMEOUT_MS = 2500' src/config.js
+  - name: no coordinated review artifact is created
+    run: >-
+      records=$(find "$DARROW_REVIEW_STATE_DIR" -type f \( -name result.json -o -name verification.json \));
+      test -z "$records"
+output_checks:
+  - name: response does not claim a coordinated review
+    not_regex: "darrow-review-result-v3|^standards\\t|^spec\\t|^# Code review"

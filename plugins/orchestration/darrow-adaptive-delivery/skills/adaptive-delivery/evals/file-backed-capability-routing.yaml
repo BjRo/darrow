@@ -6,16 +6,15 @@ additional_plugins:
   - plugins/capability/darrow-verification
 expect_head_change: true
 prompt: >-
-  {{skill_invocation}} Read exact ticket 64 from the fixture tracker and
-  implement its requested change on the current feature branch. This preserved
-  conversation already contains a ready assessment for this exact unchanged
-  ticket and scope, so do not run readiness again. Select the policy route and
-  launch one separate owner. Require independent review of the exact final
-  change after checks and before publication. Create one Conventional Commit,
-  push the current branch, and open exactly one pull request. Bind and invoke
-  every advertised intent-matched skill for the ticket read, independent
-  review, commit, and pull request; direct tracker, Git, or forge commands are
-  not substitutes. Do not merge, release, deploy, mutate the ticket,
+  {{skill_invocation}} Read exact ticket 64 from the fixture tracker and implement its
+  requested change on the current feature branch. This preserved conversation already
+  contains a ready assessment for this exact unchanged ticket and scope, so do not run
+  readiness again. Select the implementation policy route and keep the native goal in
+  the main thread. Require independent review of the exact final change after checks and
+  before publication. Create one Conventional Commit, push the current branch, and open
+  exactly one pull request. Bind and invoke every advertised intent-matched skill for
+  the ticket read, independent review, commit, and pull request; direct tracker, Git, or
+  forge commands are not substitutes. Do not merge, release, deploy, mutate the ticket,
   force-push, or edit unrelated files.
 fixture:
   commits:
@@ -250,9 +249,9 @@ fixture:
 checks:
   - name: ticket capability is invoked exactly once
     run: >-
-      test "$(wc -l <.git/fixture-state/read-ticket-capability.log | tr -d ' ')" -eq 1 &&
-      test "$(cat .git/fixture-state/read-ticket-capability.log)" = 64 &&
-      test ! -s .git/fixture-state/ticketctl.log
+      test "$(wc -l <.git/fixture-state/read-ticket-capability.log | tr -d ' ')" -eq 1
+      && test "$(cat .git/fixture-state/read-ticket-capability.log)" = 64 && test ! -s
+      .git/fixture-state/ticketctl.log
   - name: requested behavior is implemented
     run: bash check.sh
   - name: selected independent review remains composed before publication
@@ -274,20 +273,21 @@ checks:
       test "$review_target" = "$expected"
   - name: commit capability creates the one intended commit
     run: >-
-      test "$(wc -l <.git/fixture-state/create-commit-capability.log | tr -d ' ')" -eq 1 &&
-      test "$(git rev-list --count HEAD)" -eq 2 &&
-      git log -1 --format=%s | grep -E '^(feat|fix|docs|refactor|test|build|ci|chore)(\([^)]+\))?!?: .+' >/dev/null &&
+      test "$(wc -l <.git/fixture-state/create-commit-capability.log | tr -d ' ')" -eq 1
+      && test "$(git rev-list --count HEAD)" -eq 2 && git log -1 --format=%s | grep -E
+      '^(feat|fix|docs|refactor|test|build|ci|chore)(\([^)]+\))?!?: .+' >/dev/null &&
       test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = NOTES.md
   - name: pull-request capability publishes the exact current branch
     run: >-
       test "$(wc -l <.git/fixture-state/create-pr-capability.log | tr -d ' ')" -eq 1 &&
-      branch=$(git branch --show-current) &&
-      test "$(cat .git/fixture-state/create-pr-capability.log)" = "$branch" &&
-      test "$(git --git-dir=.git/fixture-remote.git for-each-ref --format='%(refname)' refs/heads)" = "refs/heads/$branch" &&
-      test "$(git --git-dir=.git/fixture-remote.git rev-parse "refs/heads/$branch")" = "$(git rev-parse HEAD)" &&
-      test "$(wc -l <.git/fixture-state/pull-requests | tr -d ' ')" -eq 1 &&
-      test "$(cut -f1 .git/fixture-state/pull-requests)" = "$branch" &&
-      test "$(cut -f2 .git/fixture-state/pull-requests)" = 'https://example.invalid/pull/64'
+      branch=$(git branch --show-current) && test "$(cat
+      .git/fixture-state/create-pr-capability.log)" = "$branch" && test "$(git
+      --git-dir=.git/fixture-remote.git for-each-ref --format='%(refname)' refs/heads)"
+      = "refs/heads/$branch" && test "$(git --git-dir=.git/fixture-remote.git rev-parse
+      "refs/heads/$branch")" = "$(git rev-parse HEAD)" && test "$(wc -l
+      <.git/fixture-state/pull-requests | tr -d ' ')" -eq 1 && test "$(cut -f1
+      .git/fixture-state/pull-requests)" = "$branch" && test "$(cut -f2
+      .git/fixture-state/pull-requests)" = 'https://example.invalid/pull/64'
   - name: capabilities precede every protected operation
     run: >-
       awk '
@@ -312,21 +312,29 @@ checks:
       ' .git/fixture-state/capability-events
   - name: no direct command bypasses the capabilities
     run: >-
-      test ! -e .git/fixture-state/raw-tracker.log &&
-      test ! -e .git/fixture-state/raw-git.log &&
-      test ! -e .git/fixture-state/raw-gh.log
+      test ! -e .git/fixture-state/raw-tracker.log && test ! -e
+      .git/fixture-state/raw-git.log && test ! -e .git/fixture-state/raw-gh.log
   - name: protected capability tokens exist only in skill instructions
-    run: >-
-      test "$(rg -l 'skill-contract-v1' .agents/skills/*/SKILL.md | wc -l | tr -d ' ')" -eq 4 &&
-      ! rg -q 'skill-contract-v1' .agents/bin
+    run: |
+      set -eu
+      test -d .git/fixture-bin
+      matches=$(grep -l -F 'skill-contract-v1' .agents/skills/*/SKILL.md)
+      test "$(printf '%s\n' "$matches" | wc -l | tr -d ' ')" -eq 4
+      if grep -R -F 'skill-contract-v1' .git/fixture-bin; then
+        exit 1
+      else
+        status=$?
+        test "$status" -eq 1
+      fi
   - name: published tree is clean
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
 transcript_checks:
-  - name: one separate native owner is accepted
-    expect_regex: '"type":"darrow.codex_native_single_agent_accepted"'
-  - name: no lifecycle ledger or nested goal is used
-    not_regex: 'adaptive-delivery-preflight step|Protocol ledger|"tool":"create_goal"'
+  - name: no lifecycle ledger is used
+    not_regex: adaptive-delivery-preflight step|Protocol ledger
 semantic_output_checks:
   - name: owner reports completion
-    proposition: The response reports the requested outcome as complete, with no unresolved blocker or pending decision preventing completion.
+    proposition:
+      The response reports the requested outcome as complete, with no unresolved
+      blocker or pending decision preventing completion.
+native_goal: required

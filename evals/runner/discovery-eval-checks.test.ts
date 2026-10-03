@@ -40,7 +40,7 @@ async function messageChecks(
 describe("discovery eval loopholes", () => {
   test("subjectless grilling accepts only the canonical question", async () => {
     const path =
-      "plugins/capability/darrow-discovery/skills/grilling/evals/incomplete-subject.yaml";
+      "plugins/capability/darrow-discovery/skills/work-through-decisions/evals/grilling-incomplete-subject.yaml";
     const name = "response is exactly the canonical subject question";
     for (const message of [
       "What subject would you like me to grill?\n\nHappy to help.",
@@ -72,7 +72,7 @@ describe("discovery eval loopholes", () => {
 
   test("unresolved planning keeps prose judgment in semantic checks", async () => {
     const evalCase = await loadCase(
-      "plugins/capability/darrow-discovery/skills/plan-implementation/evals/direct-unknowns.yaml",
+      "plugins/capability/darrow-discovery/skills/work-through-decisions/evals/plan-implementation-direct-unknowns.yaml",
     );
 
     expect(evalCase.checks.map((check) => check.name)).toEqual([
@@ -92,7 +92,7 @@ describe("discovery eval loopholes", () => {
 
   test("planning transfer keeps missing-policy authority in semantic checks", async () => {
     const evalCase = await loadCase(
-      "plugins/capability/darrow-discovery/skills/plan-implementation/evals/dependency-frontier-transfer.yaml",
+      "plugins/capability/darrow-discovery/skills/work-through-decisions/evals/plan-implementation-dependency-frontier-transfer.yaml",
     );
     const name = "repository absence is not promoted to greenfield authority";
     const semanticCheck = evalCase.semantic_output_checks?.find(

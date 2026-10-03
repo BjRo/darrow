@@ -18,7 +18,7 @@ const cases = [
     file: "reviewer-route-override",
     check: "both isolated axes retain exact route application evidence",
     claude: ["claude-sonnet-5", "high"],
-    codex: ["gpt-5.5", "xhigh"],
+    codex: ["gpt-5.6-sol", "xhigh"],
   },
   {
     file: "fix-verification-resolved",
@@ -104,6 +104,8 @@ async function runGate(
   roots.push(root);
   const artifacts = join(root, ".git", "darrow-review.fixture");
   await mkdir(artifacts, { recursive: true });
+  // This oracle consumes route evidence only from a finalized scope.
+  await writeFile(join(artifacts, "result.json"), "{}\n");
   await copyOracle(root);
   const [model, effort] = entry[host];
   const route = {

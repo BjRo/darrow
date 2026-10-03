@@ -71,6 +71,13 @@ An ordinary request can select the appropriate capability:
 To select it explicitly, choose `tdd` from Codex's `$` skill menu,
 or use `/darrow-tdd:tdd` in Claude Code, followed by your request.
 
+Codex receives a short, static TDD discovery reminder from this plugin's
+`SessionStart` hook after you trust the hook. The reminder does not inspect your
+request or start a TDD cycle. In local `gpt-6-luna`/medium evals, the hook
+variant selected TDD in 39/40 positive trials, compared with 29/40 without the
+hook; it avoided TDD in all 20 negative trials. One positive trial still missed
+activation. Invoke the skill explicitly when this workflow is required.
+
 ## Expected result
 
 Observed red and green from the same focused command, then relevant final checks. Product and test files change; publication is separate.

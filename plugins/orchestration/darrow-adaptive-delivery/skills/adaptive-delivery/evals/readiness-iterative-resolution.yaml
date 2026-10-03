@@ -3,15 +3,15 @@ invariant: ADL-P2,ADL-L2,ADL-L1,ADL-X1
 goal_report: forbidden
 goal_route_checks: false
 prompt: >-
-  {{skill_invocation}} Implement the authoritative REQUEST.md. It has not been
-  assessed for implementation readiness, and its required safe-or-fast choice
-  is unresolved. Stop before mutation and owner launch if readiness is not
-  ready, then continue this same goal only after I resolve the finding.
+  {{skill_invocation}} Implement the authoritative REQUEST.md. It has not been assessed
+  for implementation readiness, and its required safe-or-fast choice is unresolved. Stop
+  before mutation and native goal activation if readiness is not ready, then continue
+  this same request only after I resolve the finding.
 follow_up_prompt: >-
-  Choose safe mode. That is my resolution of the readiness finding for this
-  same unchanged request; assess the now-resolved scope again and, if ready,
-  continue the same explicitly invoked adaptive delivery. Acceptance is that bash
-  check.sh passes. Keep the result local.
+  Choose safe mode. That is my resolution of the readiness finding for this same
+  unchanged request; assess the now-resolved scope again and, if ready, continue the
+  same explicitly invoked adaptive delivery. Acceptance is that bash check.sh passes.
+  Keep the result local.
 fixture:
   commits:
     - message: "chore: init"
@@ -29,22 +29,25 @@ fixture:
           set -eu
           grep -Fx 'mode = safe' policy.txt >/dev/null
   setup: >-
-    uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend" adaptive-delivery-fixture install readiness "$PWD"
-    "{{case_dir}}/fixtures" codex
+    uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend"
+    adaptive-delivery-fixture install readiness "$PWD" "{{case_dir}}/fixtures" codex
 checks:
   - name: resolved request is implemented
     run: bash check.sh
   - name: readiness runs once before and once after resolution
-    run: test "$(wc -l <.git/fixture-state/implementation-readiness-invocations | tr -d ' ')" -eq 2
+    run:
+      test "$(wc -l <.git/fixture-state/implementation-readiness-invocations | tr -d '
+      ')" -eq 2
 semantic_output_checks:
   - name: resolved same goal completes
-    proposition: The response reports the requested outcome as complete, with no unresolved blocker or pending decision preventing completion.
+    proposition:
+      The response reports the requested outcome as complete, with no unresolved
+      blocker or pending decision preventing completion.
 transcript_checks:
-  - name: readiness starts before resolution and owner launch follows it
-    expect_regex: '"type":"darrow.eval.follow_up_turn"[\s\S]*"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"'
-  - name: no owner launches before the user resolves the finding
-    not_regex: '"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"[\s\S]*"type":"darrow.eval.follow_up_turn"'
+  - name: native goal is not activated before readiness resolution
+    expect_regex: '"type":"darrow.eval.follow_up_turn"[^\n]*"native_goal_observed":false[^\n]*"native_goal_status":null'
+  - name: no implementation child launches before the user resolves the finding
+    not_regex: '"type":"darrow.codex_native_spawn"[^\n]*"status":"accepted"[\s\S]*"type":"darrow.eval.follow_up_turn"'
   - name: no lifecycle ledger is used
-    not_regex: "adaptive-delivery-preflight step|Protocol ledger"
-  - name: no observed native goal-control attempts or call references
-    not_regex: '"type":"darrow\.codex_native_goal_control"[^\n]*"tool":"(?:create_goal|update_goal)"'
+    not_regex: adaptive-delivery-preflight step|Protocol ledger
+native_goal: required

@@ -5,12 +5,11 @@ goal_route_checks: false
 additional_plugins:
   - plugins/capability/darrow-readiness-gate
 prompt: >-
-  {{skill_invocation}} Implement the authoritative specification in REQUEST.md.
-  The specification has not previously
-  been assessed for implementation readiness. Acceptance would be that `bash
-  check.sh` passes, but implementation and owner launch must stop on any
-  non-ready verdict. Select the policy route only after readiness is ready.
-  Keep the result local; publication is not authorized.
+  {{skill_invocation}} Implement the authoritative specification in REQUEST.md. The
+  specification has not previously been assessed for implementation readiness.
+  Acceptance would be that `bash check.sh` passes, but implementation and owner launch
+  must stop on any non-ready verdict. Select the policy route only after readiness is
+  ready. Keep the result local; publication is not authorized.
 fixture:
   commits:
     - message: "chore: init"
@@ -33,7 +32,8 @@ checks:
     expect_exact: ""
 output_checks:
   - name: complete readiness result is returned
-    expect_regex: "^## Implementation readiness[\\s\\S]*\\*\\*Verdict:\\*\\* `needs-decision`[\\s\\S]*### Required next action"
+    expect_regex: "^## Implementation readiness[\\s\\S]*\\*\\*Verdict:\\*\\*
+      `needs-decision`[\\s\\S]*### Required next action"
 semantic_output_checks:
   - name: non-ready result does not claim implementation
     proposition: The response does not claim that implementation occurred or completed.
@@ -45,4 +45,5 @@ transcript_checks:
   - name: no work owner launches before ready
     not_regex: '"tool":"spawn_agent"|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"|"name":"Agent"'
   - name: no lifecycle ledger is used
-    not_regex: "adaptive-delivery-preflight step|darrow-native-goal-report"
+    not_regex: adaptive-delivery-preflight step|darrow-native-goal-report
+native_goal: forbidden

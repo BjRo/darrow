@@ -1,0 +1,29 @@
+id: unified-discovery-plan
+invariant: DU-X1
+prompt: >-
+  We have settled the product behavior: callers may configure a request timeout,
+  and a timed-out request returns an explicit timeout result. Let's plan how to
+  implement this. One implementation choice remains open: should timeout
+  configuration be service-wide or per request? We have not chosen. Do not
+  change files.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: |
+          # Service
+
+          Requests currently use one fixed timeout.
+        src/config.js: |
+          export const DEFAULT_TIMEOUT_MS = 1000;
+checks:
+  - name: conversation remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+semantic_output_checks:
+  - name: chooses implementation planning behavior
+    proposition: >-
+      The response treats this as implementation planning, asks the user to
+      choose service-wide or per-request timeout configuration with a concrete
+      advisory recommendation and rationale, and stops without choosing the
+      scope or drafting implementation slices before that choice is settled.

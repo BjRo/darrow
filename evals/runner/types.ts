@@ -84,6 +84,13 @@ export interface SemanticOutputCheck {
   proposition: string;
 }
 
+/** A hidden semantic assertion over one final repository artifact. */
+export interface SemanticArtifactConfig {
+  /** Repository-relative path; a basename `*` may match one generated filename. */
+  path: string;
+  checks: SemanticOutputCheck[];
+}
+
 /** Assertions over harness protocol evidence, kept outside the model workspace. */
 export interface TranscriptCheck extends OutputCheck {
   /** Inspect only the suffix after the final matching protocol boundary. */
@@ -165,6 +172,8 @@ export interface EvalCase {
   output_checks?: OutputCheck[];
   /** Gating propositions over the final message, evaluated by a hidden grader. */
   semantic_output_checks?: SemanticOutputCheck[];
+  /** Grade the saved artifact itself, independently of the final response. */
+  semantic_artifact?: SemanticArtifactConfig;
   /** Assertions over the raw harness transcript, kept outside the model workspace. */
   transcript_checks?: TranscriptCheck[];
   /** Optional primary skill-selection expectation, graded apart from outcomes. */
@@ -179,9 +188,13 @@ export interface EvalCase {
   goal_report?: "required" | "optional" | "forbidden";
   /** Grade the full native route in addition to focused case checks. */
   goal_route_checks?: boolean;
+  /** Adopted main-thread architecture: require or forbid actual native activation. */
+  native_goal?: "required" | "forbidden";
 }
 
 export interface HarnessResult {
+  /** Explicit transport provenance; absent historical values remain unknown. */
+  codexEntrypoint?: "exec" | "app-server";
   /** Configured Codex subagent limit; null uses the host default. */
   codexAgentConcurrencyLimit?: number | null;
   /** Actual policy assistance; absent historical evidence remains unknown. */
@@ -263,6 +276,10 @@ export interface HarnessRunRequest {
   model: string;
   effort: string;
   control?: {
+    /** Opt-in pilot transport; the default remains codex exec. */
+    codexEntrypoint?: "exec" | "app-server";
+    /** Wall-clock safety bound, never a synthesized continuation policy. */
+    appServerTimeoutMs?: number;
     ownerEvaluationMode?: "passive" | "enforced";
     expectedGoalRoute?: GoalRoute;
     followUpPrompt?: string;
@@ -301,6 +318,7 @@ export interface TrialResult {
   };
   /** Fail-closed semantic public-contract evidence, separate from quality. */
   semanticOutput?: SemanticOutputResult;
+  semanticArtifact?: SemanticOutputResult & { path: string };
   judge?: JudgeResult;
 }
 
@@ -349,6 +367,8 @@ export interface SemanticOutputResult {
 }
 
 export interface CaseResult {
+  /** Requested Codex transport; actual transport is retained on the harness. */
+  codexEntrypoint?: "exec" | "app-server";
   /** Configured Codex subagent limit; historical absence remains unknown. */
   codexAgentConcurrencyLimit?: number | null;
   /** Requested policy-assistance condition, distinct from actual harness evidence. */

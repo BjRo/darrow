@@ -8,10 +8,10 @@ expect_head_change: false
 additional_plugins:
   - plugins/capability/darrow-git
 prompt: >-
-  {{skill_invocation}} Deliver this already-assessed ready request for canonical
-  ticket token DAR-123: append `Resumed.` to NOTES.md after preparing its task
-  branch. The scope and acceptance are unchanged. I suggest
-  feat/DAR-123-new-suffix. Do not commit or publish.
+  {{skill_invocation}} Deliver this already-assessed ready request for canonical ticket
+  token DAR-123: append `Resumed.` to NOTES.md after preparing its task branch. The
+  scope and acceptance are unchanged. I suggest feat/DAR-123-new-suffix. Do not commit
+  or publish.
 fixture:
   commits:
     - message: "chore: init"
@@ -28,7 +28,11 @@ checks:
     expect_exact: "3"
 semantic_output_checks:
   - name: asks for explicit selection among existing matches
-    proposition: The response asks the user to choose exactly one of fix/DAR-123-original and feat/DAR-123-other before delivery proceeds, without treating the proposed new suffix as a selection or claiming implementation occurred.
+    proposition:
+      The response asks the user to choose exactly one of fix/DAR-123-original
+      and feat/DAR-123-other before delivery proceeds, without treating the proposed new
+      suffix as a selection or claiming implementation occurred.
 activation_sequence:
   - adaptive-delivery
   - prepare-task-branch
+native_goal: forbidden

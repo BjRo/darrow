@@ -11,25 +11,19 @@ canonical mechanical artifact. JSON string escaping preserves tabs and newlines
 in fields. Do not select an arbitrary JSON: `scope.json` and axis records are
 not aggregate results.
 
-Default standalone and composed responses are a Markdown rendering of that
-validated artifact. Materialize it as `review.md` beside `result.json`, confirm
-that file is readable and nonempty, then use one dedicated final
-`uv run --quiet --no-project "$backend/scripts/run_locked.py" review-report render "$result_record"` invocation and return its complete
-stdout. The renderer preserves all fields, escapes hostile content, and does
-not include raw JSON. Only an explicit request for raw JSON, v3, or machine
-format returns the JSON bytes. The object has `"format": "darrow-review-result-v3"` and a required `next_action`. This applies
-to `pass`, `fail`, `blocked`, invalid-base, ambiguous-base, and empty-diff
-outcomes.
+Materialize `review.md` beside `result.json` using the bundled renderer and
+confirm that it is readable and nonempty. This artifact preserves every field
+and escapes hostile content. The default session response is a self-contained
+inline review grounded in those validated artifacts. Follow the main skill's
+presentation gate: preserve findings, outcome, advisory constraints, and
+important gaps while allowing concise paraphrases and ordinary Markdown.
+An artifact link does not replace the explanation, and no link is required.
+Only an explicit raw JSON, v3, or machine request returns the complete validated
+JSON, without prose. This applies to passing, failing, and blocked outcomes.
 
-The human rendering presents the verdict or outcome and next action first,
-then retains findings, checks, risks, scope, sources, and binding evidence in
-later sections. This order changes no canonical JSON field or meaning.
-
-For an explicit review clause inside a larger goal, return the selected normal
-presentation rather than the enclosing goal's response envelope. The goal owner
-interprets its findings and outcome, applies the enclosing continuation contract,
-and may summarize the review in its own final response. Consumers do not need
-to parse or reproduce the JSON serialization.
+In composed use, return the findings and outcome to the goal owner. When you
+also own that goal, retain the report and resume its authorized continuation
+before answering the user. Consumers need not reproduce the serialization.
 
 Use `next_action=return control to enclosing goal` for a composed pass,
 `next_action=return findings to enclosing goal` for a composed fail, and
@@ -51,7 +45,10 @@ review-state run and terminal manifest when scope preparation stopped early.
 
 ## Completed result schema
 
-Create one valid JSON object with these named fields. Replace placeholders and repeat array entries as needed:
+The completed object has these fields. Normal drafts supply only contextual
+axis judgments, sources, selected findings, risks, and the next action;
+finalization supplies the scope, captured checks, and verdict. The full schema
+also remains available for external records and terminal blocked results:
 
 ```json
 {
@@ -89,9 +86,10 @@ Create one valid JSON object with these named fields. Replace placeholders and r
 }
 ```
 
-For a resolved scope, obtain the complete `base`, `target`, and `changed_files`
-fields with `uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result scope-records "$manifest"`. Copy them into the aggregate; do not retype hashes or reconstruct the file list.
-This command validates the pinned diff and refuses incomplete scope records.
+For a resolved scope, `review-result finalize` reads `base`, `target`, and the
+complete changed-file set directly from the manifest. Do not retype them in
+the draft. `scope-records` remains a read-only inspection command and
+`validate-scope` can independently check an externally assembled record.
 
 Every applicable `checks` entry preserves the exact field values from a retained
 `darrow-review-check-v3` artifact produced beneath this scope. Coordinator prose
@@ -110,10 +108,10 @@ the finding. Resolution evidence describes observable behavior or a regression
 test demonstrating the required outcome; it is a proposed verification method,
 not a claim that a test has run or a new requirement.
 
-The `repair_guidance` and `resolution_evidence` fields are optional as a pair:
-validators and renderers also accept findings with neither field. A partial
-pair, an empty field, or extra fields is invalid. New readers emit both; consumers preserve their
-presence or absence exactly. Human output labels repair guidance as advisory.
+Every finding and regression requires nonempty `repair_guidance` and
+`resolution_evidence` fields. Missing either field, an empty field, or extra
+fields is invalid. Readers emit both; consumers preserve their values exactly.
+Human output labels repair guidance as advisory.
 The originating requirement, not the suggestion, determines resolution.
 
 Derive verdict mechanically:
@@ -128,20 +126,28 @@ records. If validation reveals missing evidence, change the affected state to
 
 ## Validate and return
 
-Write the draft only beneath the scope artifact directory and run:
+Write the draft beneath the scope artifact directory and finalize it:
 
 ```sh
-uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result validate-scope "$manifest" "$result_record"
+uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result finalize \
+  --manifest "$manifest" --draft "$draft_record" --output "$result_record" \
+  [--check "$check_record" ...]
 ```
 
-This validates both the schema and the exact base, target, and complete
-changed-file set against the pinned manifest. A mismatch is an assembly error;
-recopy the authoritative scope records without changing reader judgment. For
-a terminal scope failure with no resolved manifest, retain the blocked schema
-and use `validate "$result_record"` instead. Standalone `validate` remains a
-serialization check for external records, not proof of scope binding.
+Pass every retained check file with a separate `--check`. Without captured
+commands, supply only the explicit `not_applicable` check in the draft. The
+helper validates scope, copies check records unchanged, derives the verdict,
+validates the JSON, and materializes its report. Output must belong to the
+current private review run. Applicable claims without captured files are
+refused. It preserves selected reader reasoning rather than authoring it.
 
-Correct serialization errors only. In default mode, first run:
+For a terminal scope failure or capture failure without a receipt, retain the
+honest blocked schema and use ordinary validation. A capture failure records
+the failed capture command and actual error, not invented output for the check
+that never ran. Standalone `validate` checks serialization; it does not prove
+scope binding. Use `validate-scope` when that blocked record has a resolved
+nonempty scope. For these exceptional blocked records only, materialize the
+report before the final invocation:
 
 ```sh
 review_report="$(dirname "$result_record")/review.md"
@@ -149,21 +155,18 @@ uv run --quiet --no-project "$backend/scripts/run_locked.py" review-report rende
 test -r "$review_report" && test -s "$review_report"
 ```
 
-If that succeeds, make a standalone
-`uv run --quiet --no-project "$backend/scripts/run_locked.py" review-report render "$result_record"` the final tool call and copy its
-complete stdout as the entire response. Do not handwrite, shorten, or reconstruct
-it. In explicit machine mode, copy the validated file bytes verbatim. In
-composed mode, return the selected review report to the goal owner and exit the
-capability. Add no remediation, commit, publication, approval, merge, release,
-or deploy action inside review.
+If that succeeds, explain the blocked outcome, exact evidence gap, and next
+action inline. In machine mode, return only the complete validated JSON.
+In composed mode return the gap to the goal owner and exit the capability.
+Repair, completion, and publication remain outside review.
 
 ## Fix-verification artifact
 
 Write fix verification to `verification.json` directly beneath the current
 scope artifact directory. Never overwrite or reinterpret an original
 `result.json`. The additive format is `darrow-review-verification-v3`; the
-initial `darrow-review-result-v3` records remain readable, including legacy
-findings without guidance.
+original `darrow-review-result-v3` records require complete findings with both
+guidance fields.
 
 The caller must supply the original comprehensive review target, its complete
 canonical finding order, the immediately prior repair target, the attempted
@@ -266,8 +269,8 @@ observation. On a later verification, the validator checks the prior artifact
 checksum and target link, preserves the original set, and requires every prior
 regression to retain its stable key and immutable cause, order, axis, severity,
 location, source, repair guidance, and resolution evidence. The two guidance
-fields follow the same paired-extension rule as comprehensive findings;
-preserve legacy absence. New regressions carry the fix reader's own reasoning,
+fields are required as in comprehensive findings. New regressions carry the
+fix reader's own reasoning,
 with the same advisory and uncertainty rules. Original guidance is immutable
 history, not an implementation acceptance condition.
 The first verification binds `prior_target` to
@@ -292,14 +295,19 @@ Derive the outcome mechanically in this order:
 
 1. `blocked` for an evidence gap, blocked applicable check, blocked original
    blocker, or blocked regression;
-2. `no_progress` when the current target equals the original, prior, or any
+2. `clear` for an explicit assessment correction when every original blocker and
+   carried regression has fresh resolved evidence and current checks succeed.
+   The optional `assessment_correction` string explains the assessment error or
+   gap and new evidence. It requires a checksum-bound previous verification at
+   the same candidate. Preserve the entire history; never reset to `none`;
+3. `no_progress` when the current target equals the original, prior, or any
    earlier target, or when any unresolved blocker or regression has unchanged
    evidence;
-3. `continue` while any unresolved blocker or regression is materially
+4. `continue` while any unresolved blocker or regression is materially
    progressing. A newly detected direct regression is progressing for its first
    verification; if its evidence remains after a repair attempt it is
    unchanged; and
-4. `clear` when all original blockers and regressions are resolved. Unresolved
+5. `clear` when all original blockers and regressions are resolved. Unresolved
    advisories do not prevent `clear`.
 
 A failed deterministic check must be represented by an unresolved or blocked
@@ -311,24 +319,25 @@ uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result valid
 
 That command validates the record and prior-verification chain. The
 fix-verification workflow also requires `validate-original` whenever the original
-comprehensive result is retained. Obtain
-the immutable objects with `original-findings`; do not retype their evidence or
-assign a new finding order. An external handoff without that artifact still
+comprehensive result is retained. Normal fix finalization accepts `--original`
+with that result, a validated immediately prior verification, or a complete
+external handoff file. It reads complete immutable original records directly
+and binds prior/current targets from the scope manifests.
+It also copies captured checks and derives the outcome. A prior verification
+provides its checksum and history mechanically. Do not retype original
+evidence or assign a new finding order. An external handoff without that artifact still
 requires complete immutable original records, preserved exactly as supplied;
 missing original evidence requires a blocked gap.
 
 In default mode render with:
 
 ```sh
-verification_report="$(dirname "$verification_record")/verification.md"
-uv run --quiet --no-project "$backend/scripts/run_locked.py" review-report render-verification "$verification_record" >"$verification_report"
 uv run --quiet --no-project "$backend/scripts/run_locked.py" review-report render-verification "$verification_record"
 ```
 
-After confirming `verification.md` is readable and nonempty, make the second
-renderer invocation the last tool command and copy its stdout verbatim as the
-entire response. A handwritten summary is incomplete. When the requester
-explicitly asks for verification JSON or machine format, return only the
-validated JSON bytes. A composed caller interprets `clear`, `continue`,
-`no_progress`, or `blocked` semantically and retains all repair, stop,
-goal-status, and publication authority outside this read-only capability.
+After confirming `verification.md` is readable and nonempty, inspect it and
+return an inline verification under the main skill's presentation gate. Preserve
+the outcome, remaining issues, resolutions, checks, and evidence gaps without
+requiring exact wording or an artifact link. For an explicit machine request,
+return only the complete validated JSON. The enclosing goal retains all repair,
+stop, goal-status, completion, and publication authority.

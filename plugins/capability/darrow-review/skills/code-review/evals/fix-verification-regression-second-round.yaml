@@ -51,6 +51,8 @@ fixture:
             "severity": "high", "disposition": "blocking",
             "location": "config.env:1", "source": f"{repo}/AGENTS.md",
             "evidence": "MODE was bad",
+            "repair_guidance": "Advisory: set MODE to good while retaining the other required configuration",
+            "resolution_evidence": "config.env contains MODE=good",
         }],
         "attempts": [{
             "key": original_key, "status": "resolved",
@@ -62,6 +64,8 @@ fixture:
             "status": "unresolved", "progress": "progressing",
             "location": "config.env:2", "source": f"{repo}/AGENTS.md",
             "evidence": "RESULT is missing after the repair",
+            "repair_guidance": "Advisory: restore RESULT=ok while retaining MODE=good",
+            "resolution_evidence": "both required configuration lines are present and bash check.sh succeeds",
         }],
         "checks": [{
             "command": "bash check.sh", "applicability": "applicable",
@@ -91,6 +95,8 @@ fixture:
     printf '%s\n' "$backend" >.git/review-backend
     mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
+  - name: human response excludes machine JSON
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
   - name: second verification remains read only
     run: >-
       git hash-object config.env >.git/config-after &&
@@ -115,7 +121,7 @@ checks:
       previous_relative=${previous_path#"$PWD"/} &&
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' ! -path "$previous_relative" -name verification.json -type f -print) &&
       python3 -c 'import json,sys; expected=json.load(open(sys.argv[1]))["previous_verification"]; actual=json.load(open(sys.argv[2]))["previous_verification"]; assert expected==actual' .git/verification-input "$record"
-  - name: final response is the complete rendered verification report
+  - name: retained verification report preserves the complete canonical evidence
     run: >-
       previous_path=$(python3 -c 'import json; print(json.load(open(".git/verification-input"))["previous_verification"]["path"])') &&
       previous_relative=${previous_path#"$PWD"/} &&
@@ -128,6 +134,10 @@ checks:
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render-verification "$record" >.git/expected-verification.md &&
       awk 'NF' .git/expected-verification.md >.git/expected-verification-normalized.md &&
       awk 'NF' "$report" >.git/retained-verification-normalized.md &&
-      awk 'NF' .git/last-message.md >.git/actual-verification-normalized.md &&
-      cmp .git/expected-verification-normalized.md .git/retained-verification-normalized.md &&
-      cmp .git/expected-verification-normalized.md .git/actual-verification-normalized.md
+      cmp .git/expected-verification-normalized.md .git/retained-verification-normalized.md
+semantic_output_checks:
+  - name: review outcome and issues are understandable inline
+    proposition: >-
+      The response reports clear fix verification: the carried RESULT regression
+      is resolved because RESULT is ok while MODE remains good, and current checks
+      pass. It explains this inline without requiring the user to open a report.

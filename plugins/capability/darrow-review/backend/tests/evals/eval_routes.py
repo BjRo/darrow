@@ -37,7 +37,7 @@ def route(host: str, profile: str) -> list[str]:
     routes = {
         ("codex", "default"): ["codex", "openai", "gpt-6-sol", "xhigh"],
         ("claude", "default"): ["claude", "anthropic", "claude-opus-5", "xhigh"],
-        ("codex", "override"): ["codex", "openai", "gpt-5.5", "xhigh"],
+        ("codex", "override"): ["codex", "openai", "gpt-5.6-sol", "xhigh"],
         ("claude", "override"): ["claude", "anthropic", "claude-sonnet-5", "high"],
     }
     return routes[host, profile]
@@ -172,9 +172,14 @@ def verify(
     review_state: Path | None = None,
 ) -> None:
     review_root = review_state if review_state is not None else git_dir
-    selections = sorted(review_root.glob("**/darrow-review.*/reviewer-route.json"))
-    assert selections, "missing reviewer route"
-    directory = selections[-1].parent
+    finalized = {
+        path.parent
+        for name in ("result.json", "verification.json")
+        for path in review_root.glob(f"**/darrow-review.*/{name}")
+    }
+    assert len(finalized) == 1, "route evidence requires exactly one finalized scope"
+    directory = finalized.pop()
+    assert (directory / "reviewer-route.json").is_file(), "missing reviewer route"
     expected = route(host, profile)
     agents = identities(directory, axes, expected)
     events = [

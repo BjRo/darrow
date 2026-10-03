@@ -5,15 +5,14 @@ goal_route_checks: false
 additional_plugins:
   - plugins/capability/darrow-verification
 prompt: >-
-  {{skill_invocation}} Add the exact line `Publication waits for green checks.`
-  beneath the heading in NOTES.md and make no other content change. This
-  preserved conversation already contains a ready assessment for this exact
-  unchanged request and scope, so do not run readiness again. Acceptance
-  requires `bash check.sh` to pass. Require independent review after final
-  checks, then create one Conventional Commit, push the current branch, and
-  open exactly one pull request. Bind every advertised intent-matched skill.
-  Do not merge, release, deploy, mutate a ticket, force-push, or edit unrelated
-  files.
+  {{skill_invocation}} Add the exact line `Publication waits for green checks.` beneath
+  the heading in NOTES.md and make no other content change. This preserved conversation
+  already contains a ready assessment for this exact unchanged request and scope, so do
+  not run readiness again. Acceptance requires `bash check.sh` to pass. Require
+  independent review after final checks, then create one Conventional Commit, push the
+  current branch, and open exactly one pull request. Bind every advertised
+  intent-matched skill. Do not merge, release, deploy, mutate a ticket, force-push, or
+  edit unrelated files.
 fixture:
   commits:
     - message: "chore: init"
@@ -110,32 +109,34 @@ checks:
     run: grep -Fq 'check attempted' .git/fixture-state/gate-events
   - name: requested local edit is preserved for diagnosis
     run: >-
-      printf '%s\n' '# Notes' 'Publication waits for green checks.' >.git/expected-local-notes &&
-      cmp -s .git/expected-local-notes NOTES.md
+      printf '%s\n' '# Notes' 'Publication waits for green checks.'
+      >.git/expected-local-notes && cmp -s .git/expected-local-notes NOTES.md
   - name: failed check prevents review
-    run: test ! -e .git/fixture-state/gate-events || ! grep -Fq 'review invoked' .git/fixture-state/gate-events
+    run: test ! -e .git/fixture-state/gate-events || ! grep -Fq 'review invoked'
+      .git/fixture-state/gate-events
   - name: failed check prevents commit
     run: >-
-      test "$(git rev-list --count HEAD)" -eq 1 &&
-      { test ! -e .git/fixture-state/gate-events || ! grep -Fq 'commit invoked' .git/fixture-state/gate-events; }
+      test "$(git rev-list --count HEAD)" -eq 1 && { test ! -e
+      .git/fixture-state/gate-events || ! grep -Fq 'commit invoked'
+      .git/fixture-state/gate-events; }
   - name: failed check prevents publication
     run: >-
-      { test ! -e .git/fixture-state/gate-events || ! grep -Fq 'publication invoked' .git/fixture-state/gate-events; } &&
-      test ! -e .git/fixture-state/pull-requests &&
-      test -z "$(git --git-dir=.git/fixture-remote.git for-each-ref --format='%(refname)' refs/heads)"
+      { test ! -e .git/fixture-state/gate-events || ! grep -Fq 'publication invoked'
+      .git/fixture-state/gate-events; } && test ! -e .git/fixture-state/pull-requests &&
+      test -z "$(git --git-dir=.git/fixture-remote.git for-each-ref
+      --format='%(refname)' refs/heads)"
 semantic_output_checks:
   - name: owner reports the failed required check as the blocker
     proposition: >-
-      The response reports that the required final check failed and therefore
-      dependent review, commit, and pull-request publication cannot proceed.
-      Saying verification was blocked or not attempted includes its independent
-      review step; the response need not separately repeat the word review.
-      A response that says review, commit, or publication proceeded despite the
-      failed check does not satisfy this requirement.
+      The response reports that the required final check failed and therefore dependent
+      review, commit, and pull-request publication cannot proceed. Saying verification
+      was blocked or not attempted includes its independent review step; the response
+      need not separately repeat the word review. A response that says review, commit,
+      or publication proceeded despite the failed check does not satisfy this
+      requirement.
   - name: owner does not claim completion
     proposition: The response does not claim that the requested outcome completed successfully.
 transcript_checks:
-  - name: one separate native owner is accepted
-    expect_regex: '"type":"darrow.codex_native_single_agent_accepted"'
-  - name: no lifecycle ledger or nested goal is used
-    not_regex: 'adaptive-delivery-preflight step|Protocol ledger|"tool":"create_goal"'
+  - name: no lifecycle ledger is used
+    not_regex: adaptive-delivery-preflight step|Protocol ledger
+native_goal: required

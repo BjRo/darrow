@@ -53,7 +53,7 @@ Resolve the exact missing input or authority through the responsible workflow.
 Invoke `doctor-adaptive-delivery` from the installed
 `darrow-adaptive-delivery` plugin. It performs a read-only check of the current
 host's effective configuration, reports the exact source, and distinguishes
-the one-slot owner-only path from the five-slot, four-layer full verification
+the one-slot implementation path from the four-slot, three-layer full verification
 and review topology.
 
 For Codex, the effective diagnosis applies trusted project `.codex/config.toml`

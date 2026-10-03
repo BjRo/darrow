@@ -4,9 +4,7 @@ invariant: CR-C15,CR-C16,CR-E12,CR-E16
 prompt: >-
   Use {{skill_invocation}} to review my uncommitted changes against this
   originating requirement: token values must be positive integers. Report
-  only; do not request machine format. Follow the capability's complete
-  validated-artifact and renderer workflow rather than substituting a free-form
-  review.
+  only; do not request machine format.
 fixture:
   commits:
     - message: "chore: init"
@@ -25,7 +23,12 @@ fixture:
         console.log("<token> & `debug`", value);
         return Number(value);
       }
+  setup: |
+    mkdir -p .git/eval-checks/review/tests/evals
+    cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
+  - name: human response excludes machine JSON
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
   - name: raw JSON stays beneath the review artifact
     run: test "$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name '*.json' | wc -l | tr -d ' ')" -ge 1
   - name: canonical JSON is valid
@@ -35,16 +38,7 @@ checks:
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
       test -n "$tool" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record"
     expect_regex: "^valid: darrow-review-result-v3$"
-  - name: human response does not duplicate raw JSON
-    run: "! grep -F 'format	darrow-review-result-v3' .git/last-message.md"
-  - name: human response renders values as ordinary Markdown text
-    run: >-
-      ! grep -F '<code>' .git/last-message.md &&
-      ! grep -F '</code>' .git/last-message.md &&
-      ! grep -F '`' .git/last-message.md &&
-      ! grep -E '\[[^][]+\]\([^)]*\)' .git/last-message.md &&
-      esc=$(printf '\033]8;') && ! grep -F "$esc" .git/last-message.md
-  - name: final response preserves every canonical rendered line
+  - name: retained Markdown preserves every canonical rendered line
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
@@ -53,13 +47,21 @@ checks:
       expected=.git/expected-review.md;
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render "$record" >"$expected" &&
       awk 'NF' "$expected" >.git/expected-review-normalized.md &&
-      awk 'NF' .git/last-message.md >.git/actual-review-normalized.md &&
+      awk 'NF' "$(dirname "$record")/review.md" >.git/actual-review-normalized.md &&
       cmp .git/expected-review-normalized.md .git/actual-review-normalized.md
 semantic_output_checks:
-  - name: review is result first concise and complete
+  - name: both token defects are actionable inline
     proposition: >-
-      The Markdown response puts the verdict and next action before detailed
-      findings, checks, risks, scope, and sources. It uses direct and familiar
-      language without repeating the conclusion or narrating the review
-      process, while retaining every finding, check, risk, scope field, source,
-      and safety boundary from the validated review result.
+      The response explains inline that console.log violates the repository's
+      token-code rule and that Number(value) accepts values outside the required
+      positive-integer domain. It gives bounded repair guidance for both issues:
+      remove the prohibited logging and accept only positive integers. Expected
+      correct behavior may be expressed in that guidance; a separate resolution
+      checklist or test instruction is not required. Neither finding requires
+      opening a report file to understand it.
+  - name: review leads with the decision and remains concise
+    proposition: >-
+      The response leads with the failed review outcome and indicates that repair
+      is needed. It uses concise Markdown, with no substantial repetition or
+      narration of the review procedure. Findings remain understandable inline;
+      fixed headings, verbatim wording, metadata, and report links are optional.

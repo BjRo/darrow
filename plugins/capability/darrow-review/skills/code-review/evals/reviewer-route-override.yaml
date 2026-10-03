@@ -15,7 +15,7 @@ fixture:
               {"host":"codex","profile":"routine","harness":"codex","provider":"openai","model":"gpt-5.6-terra","effort":"medium","fallbackModel":"none","fallbackEffort":"none"}
             ],
             "reviewers": [
-              {"host":"codex","harness":"codex","provider":"openai","model":"gpt-5.5","effort":"xhigh"},
+              {"host":"codex","harness":"codex","provider":"openai","model":"gpt-5.6-sol","effort":"xhigh"},
               {"host":"claude","harness":"claude","provider":"anthropic","model":"claude-sonnet-5","effort":"high"}
             ]
           }
@@ -31,6 +31,8 @@ fixture:
     cp "{{case_dir}}/../../../backend/tests/evals/eval_routes.py" .git/eval-checks/review/tests/evals/
     mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
+  - name: human response excludes machine JSON
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
   - name: repository reviewer policy is retained with the pinned scope
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name reviewer-route.json -type f | sort | tail -n '1');
@@ -39,7 +41,7 @@ checks:
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name reviewer-route.json -type f | sort | tail -n '1');
       test -n "$record" && case "$DARROW_EVAL_HARNESS" in
-      codex) python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has selected_route codex openai gpt-5.5 xhigh ;;
+      codex) python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has selected_route codex openai gpt-5.6-sol xhigh ;;
       claude) python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has selected_route claude anthropic claude-sonnet-5 high ;;
       *) exit 2 ;; esac
   - name: both isolated axes retain exact route application evidence
@@ -56,9 +58,7 @@ checks:
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
       test -n "$tool" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record"
     expect_regex: "^valid: darrow-review-result-v3$"
-  - name: default response does not duplicate canonical JSON
-    run: "! grep -F 'format	darrow-review-result-v3' .git/last-message.md"
-  - name: final response preserves every canonical rendered line
+  - name: retained Markdown preserves every canonical rendered line
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
@@ -67,5 +67,16 @@ checks:
       expected=.git/expected-review.md;
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render "$record" >"$expected" &&
       awk 'NF' "$expected" >.git/expected-review-normalized.md &&
-      awk 'NF' .git/last-message.md >.git/actual-review-normalized.md &&
+      awk 'NF' "$(dirname "$record")/review.md" >.git/actual-review-normalized.md &&
       cmp .git/expected-review-normalized.md .git/actual-review-normalized.md
+semantic_output_checks:
+  - name: review outcome and issues are understandable inline
+    proposition: >-
+      The response identifies the blocking requirement violation in src/config.js:
+      exported mode is unsafe although the request requires safe. It explains
+      that issue inline and makes the required safe value clear. For this direct
+      wrong-value defect, saying that mode is unsafe but must equal safe conveys
+      both the correction and its resolution condition; a separate recommendation
+      or test sentence is not required. Reject an unspecified mismatch, a wrong
+      required value, a nonblocking characterization, or advice that contradicts
+      the safe requirement.

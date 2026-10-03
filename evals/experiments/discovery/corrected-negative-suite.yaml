@@ -1,13 +1,14 @@
 version: 1
-experiment: discovery-corrected-negatives
+experiment: discovery-outcome-boundaries
 case_filter:
   - plan-implementation-direct-unknowns
-  - plan-implementation-no-trigger-discovery
+  - work-through-decisions-feature-only
+  - work-through-decisions-ordinary-advice
 modes:
   without-skill:
     without_skill: true
   darrow-discovery: {}
 ablations:
-  - name: discovery-corrected-negatives
+  - name: discovery-outcome-boundaries
     baseline: without-skill
     candidate: darrow-discovery

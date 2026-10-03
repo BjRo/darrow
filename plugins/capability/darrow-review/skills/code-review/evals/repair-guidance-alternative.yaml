@@ -84,7 +84,11 @@ fixture:
     }, sys.stdout)
     PY
     git hash-object src/name.js >.git/before
+    mkdir -p .git/eval-checks/review/tests/evals
+    cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
+  - name: human response excludes machine JSON
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
   - name: alternative implementation resolves the original finding
     run: |
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
@@ -100,5 +104,10 @@ semantic_output_checks:
       The report resolves the original empty-name fallback finding using the
       current implementation's behavior. It does not demand trim() or a
       particular local variable or boolean fallback merely because the original
-      advisory suggested them. It retains the original advice as advisory
-      history and distinguishes that from current evidence of resolution.
+      advisory suggested them. Saying the repair trims whitespace describes
+      behavior and does not imply a trim() call. Repeating the original advice
+      or explicitly contrasting it with the current repair is not required;
+      the saved artifact is checked separately for preservation of that history.
+      The response must not falsely claim the repair uses trim() or the suggested
+      boolean fallback, and it must preserve the required Anonymous result for
+      empty or whitespace-only input.

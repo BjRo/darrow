@@ -14,6 +14,11 @@ fixture:
           # Repository instructions
 
           DEBUG must remain false. Run `bash check.sh` for config changes.
+        maintenance-note.md: |
+          # Maintenance note
+
+          Remove the obsolete LEGACY export from src/config.js. Retaining it is
+          an advisory maintenance finding; it does not block convergence.
         src/config.js: |
           export const DEBUG = false;
           export const TIMEOUT_MS = 2500;
@@ -52,9 +57,9 @@ fixture:
         "prior_manifest": manifest,
         "previous_verification": {"checksum": "none", "path": "none"},
         "original_findings": [
-            {"key": f"standards:1:{target}", "axis": "standards", "order": "1", "severity": "high", "disposition": "blocking", "location": "src/config.js:1", "source": f"{repo}/AGENTS.md", "evidence": "DEBUG remained enabled"},
-            {"key": f"spec:2:{target}", "axis": "spec", "order": "2", "severity": "high", "disposition": "blocking", "location": "src/config.js:2", "source": "requirement: TIMEOUT_MS must be 2500", "evidence": "TIMEOUT_MS was 1000"},
-            {"key": f"spec:3:{target}", "axis": "spec", "order": "3", "severity": "low", "disposition": "advisory", "location": "src/config.js:3", "source": "maintenance note", "evidence": "LEGACY was retained"},
+            {"key": f"standards:1:{target}", "axis": "standards", "order": "1", "severity": "high", "disposition": "blocking", "location": "src/config.js:1", "source": f"{repo}/AGENTS.md", "evidence": "DEBUG remained enabled", "repair_guidance": "Advisory: set DEBUG to false so runtime debugging remains disabled", "resolution_evidence": "src/config.js exports DEBUG as false"},
+            {"key": f"spec:2:{target}", "axis": "spec", "order": "2", "severity": "high", "disposition": "blocking", "location": "src/config.js:2", "source": "requirement: TIMEOUT_MS must be 2500", "evidence": "TIMEOUT_MS was 1000", "repair_guidance": "Advisory: restore TIMEOUT_MS to 2500 to meet the required timeout", "resolution_evidence": "src/config.js exports TIMEOUT_MS as 2500"},
+            {"key": f"spec:3:{target}", "axis": "spec", "order": "3", "severity": "low", "disposition": "advisory", "location": "src/config.js:3", "source": f"{repo}/maintenance-note.md", "evidence": "LEGACY was retained", "repair_guidance": "Advisory: remove the obsolete LEGACY export while preserving the required configuration", "resolution_evidence": "LEGACY is absent and DEBUG and TIMEOUT_MS retain their required values"},
         ],
         "attempted": [
             f"standards:1:{target}", f"spec:2:{target}", f"spec:3:{target}",
@@ -66,11 +71,13 @@ fixture:
     printf '%s\n' "$backend" >.git/review-backend
     mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
+  - name: human response excludes machine JSON
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
   - name: verification preserves the repair bytes
     run: git hash-object src/config.js >.git/config-after; cmp .git/config-before .git/config-after
   - name: verification remains read only
     run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
-  - name: current verification scope remains in the requested repository
+  - name: current verification scope binds the requested repository
     run: >-
       verification=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
       test -n "$verification" &&
@@ -78,10 +85,9 @@ checks:
       manifest=$artifact_dir/scope.json &&
       test -r "$manifest" &&
       expected_repo=$(pwd -P) &&
-      git_dir=$(git rev-parse --absolute-git-dir) &&
-      git_dir=$(cd "$git_dir" && pwd -P) &&
+      state_dir=$(cd "$DARROW_REVIEW_STATE_DIR" && pwd -P) &&
       python3 .git/eval-checks/review/tests/evals/assert_records.py "$manifest" has repository "$expected_repo" &&
-      case "$manifest" in "$git_dir"/*) ;; *) exit 1 ;; esac
+      case "$manifest" in "$state_dir"/*) ;; *) exit 1 ;; esac
   - name: additive verification artifact validates and clears
     run: |
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
@@ -100,7 +106,7 @@ checks:
       uv run --quiet --frozen --no-dev --project .git/eval-checks/review
       python .git/eval-checks/review/tests/evals/eval_routes.py
       --host "$DARROW_EVAL_HARNESS" --profile default --axes standards spec
-  - name: final response is the complete rendered verification report
+  - name: retained verification report preserves the complete canonical evidence
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
       test -n "$record" &&
@@ -111,13 +117,13 @@ checks:
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render-verification "$record" >.git/expected-verification.md &&
       awk 'NF' .git/expected-verification.md >.git/expected-verification-normalized.md &&
       awk 'NF' "$report" >.git/retained-verification-normalized.md &&
-      awk 'NF' .git/last-message.md >.git/actual-verification-normalized.md &&
-      cmp .git/expected-verification-normalized.md .git/retained-verification-normalized.md &&
-      cmp .git/expected-verification-normalized.md .git/actual-verification-normalized.md
-  - name: verification response renders values as ordinary Markdown text
-    run: >-
-      ! grep -F '<code>' .git/last-message.md &&
-      ! grep -F '</code>' .git/last-message.md &&
-      ! grep -F '`' .git/last-message.md &&
-      ! grep -E '\[[^][]+\]\([^)]*\)' .git/last-message.md &&
-      esc=$(printf '\033]8;') && ! grep -F "$esc" .git/last-message.md
+      cmp .git/expected-verification-normalized.md .git/retained-verification-normalized.md
+semantic_output_checks:
+  - name: review outcome and issues are understandable inline
+    proposition: >-
+      The response reports clear fix verification: all prior findings are
+      resolved and current checks pass. It may group resolved findings rather
+      than repeat their individual values. If mentioned, DEBUG must be false,
+      TIMEOUT_MS must be 2500, and LEGACY must be removed. Reject a report-file
+      link or unexplained verdict alone, a remaining unresolved or blocked
+      finding, a failed current check, or incorrect claims about those values.

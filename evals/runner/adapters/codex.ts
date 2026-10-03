@@ -32,6 +32,15 @@ import {
 import { CODEX_EVAL_ROLE_DEFAULTS } from "../model-defaults";
 import { retainedCodexGoalControls } from "./codex-goal-tools";
 import {
+  codexAppServerArgv,
+  runCodexAppServer,
+  type AppServerEvidence,
+} from "./codex-app-server";
+import {
+  nativeCommandOutputs,
+  type RecoveredCommandOutput,
+} from "./codex-command-output";
+import {
   reviewAxesFromTaskName,
   type ReviewAxis,
 } from "../native-review-proof";
@@ -736,28 +745,97 @@ function codexTrackedSkillRoots(
   const installedSkillsRoots = Array.isArray(installedSkillsRoot)
     ? installedSkillsRoot
     : [installedSkillsRoot];
-  const repoRelativeInstalledRoots = installedSkillsRoots.flatMap(
-    (skillsRoot) => {
-      if (!isAbsolute(skillsRoot)) return [];
-      const repoRelativeRoot = relative(repoDir, skillsRoot);
-      if (
-        !repoRelativeRoot ||
-        repoRelativeRoot === ".." ||
-        repoRelativeRoot.startsWith(`..${sep}`) ||
-        isAbsolute(repoRelativeRoot)
-      )
-        return [];
-      return [repoRelativeRoot];
-    },
+  const stagedSkillsRoots = codexStagedSkillRoots(
+    repoDir,
+    mountedSkillBodies(repoDir, installedSkillsRoots),
   );
+  const trackedRoots = [...installedSkillsRoots, ...stagedSkillsRoots];
+  const repoRelativeInstalledRoots = trackedRoots.flatMap((skillsRoot) => {
+    if (!isAbsolute(skillsRoot)) return [];
+    const repoRelativeRoot = relative(repoDir, skillsRoot);
+    if (
+      !repoRelativeRoot ||
+      repoRelativeRoot === ".." ||
+      repoRelativeRoot.startsWith(`..${sep}`) ||
+      isAbsolute(repoRelativeRoot)
+    )
+      return [];
+    return [repoRelativeRoot];
+  });
   return [
     ...new Set([
-      ...installedSkillsRoots,
+      ...trackedRoots,
       ...repoRelativeInstalledRoots,
       join(repoDir, ".agents", "skills"),
       join(".agents", "skills"),
     ]),
   ];
+}
+
+function codexStagedSkillRoots(
+  repoDir: string,
+  installed: MountedSkillBody[],
+): string[] {
+  const marketplace = join(repoDir, ".git", "eval-marketplace");
+  let catalog: unknown;
+  try {
+    catalog = JSON.parse(
+      readFileSync(
+        join(marketplace, ".claude-plugin", "marketplace.json"),
+        "utf8",
+      ),
+    );
+  } catch {
+    return [];
+  }
+  if (!isRecord(catalog) || !Array.isArray(catalog.plugins)) return [];
+  return catalog.plugins.flatMap((entry) => {
+    const root = stagedRootForCatalogEntry(entry, marketplace);
+    return root && stagedRootMatchesInstalled(root, installed) ? [root] : [];
+  });
+}
+
+function stagedRootForCatalogEntry(
+  entry: unknown,
+  marketplace: string,
+): string | undefined {
+  if (!isRecord(entry) || typeof entry.source !== "string") return undefined;
+  if (!entry.source.startsWith("./")) return undefined;
+  const root = resolve(marketplace, entry.source, "skills");
+  const within = relative(marketplace, root);
+  if (
+    !within ||
+    within === ".." ||
+    within.startsWith(`..${sep}`) ||
+    isAbsolute(within) ||
+    !existsSync(root)
+  )
+    return undefined;
+  return root;
+}
+
+function stagedRootMatchesInstalled(
+  root: string,
+  installed: MountedSkillBody[],
+): boolean {
+  let entries: Dirent[];
+  try {
+    entries = readdirSync(root, { withFileTypes: true });
+  } catch {
+    return false;
+  }
+  const staged = entries.flatMap((item) => {
+    const skill = mountedSkillBody(root, item);
+    return skill ? [skill] : [];
+  });
+  return (
+    staged.length > 0 &&
+    staged.every((source) =>
+      installed.some(
+        (target) => target.name === source.name && target.body === source.body,
+      ),
+    )
+  );
 }
 
 function codexActivationStreamComplete(
@@ -2322,26 +2400,38 @@ function nativeCommandText(value: unknown): string | undefined {
 }
 
 function nativeSkillReadEvents(session: string): CodexEvent[] {
-  return codexNativeSessionEntries(session).entries.flatMap((entry) => {
-    const { payload } = entry;
-    const item = isRecord(payload.item) ? payload.item : undefined;
-    if (payload.type !== "item_completed" || item?.type !== "CommandExecution")
-      return [];
-    const command = nativeCommandText(item.command);
-    if (!command) return [];
-    return [
-      {
-        type: "item.completed",
-        item: {
-          type: "command_execution",
-          command,
-          aggregated_output: item.aggregated_output,
-          exit_code: item.exit_code,
-          status: item.status,
-        },
-      },
-    ];
+  const { entries } = codexNativeSessionEntries(session);
+  const yielded = nativeCommandOutputs(entries);
+  return entries.flatMap((entry) => {
+    const event = nativeSkillReadEvent(entry, yielded.get(entry.ordinal));
+    return event ? [event] : [];
   });
+}
+
+function nativeSkillReadEvent(
+  entry: CodexNativeSessionEntry,
+  yielded?: RecoveredCommandOutput,
+): CodexEvent | undefined {
+  const { payload } = entry;
+  const item = isRecord(payload.item) ? payload.item : undefined;
+  if (payload.type !== "item_completed" || item?.type !== "CommandExecution")
+    return undefined;
+  const command = nativeCommandText(item.command);
+  if (!command) return undefined;
+  const output =
+    typeof item.aggregated_output === "string" ? item.aggregated_output : "";
+  return {
+    type: "item.completed",
+    item: {
+      type: "command_execution",
+      command,
+      aggregated_output: yielded
+        ? yielded.output + output
+        : item.aggregated_output,
+      exit_code: item.exit_code,
+      status: item.status,
+    },
+  };
 }
 
 function acceptedNativeChildThreadIds(session: string): string[] {
@@ -2391,13 +2481,17 @@ export function nativeParentReadDiagnostics(
   const { entries, malformed } = codexNativeSessionEntries(session);
   if (malformed) return [];
   const spawn = entries.find((entry) => isNativeSpawnCall(entry.payload));
-  if (spawn && !retainedSingleNativeAgent(entries, false).length) return [];
   const roots = codexTrackedSkillRoots(repoDir, installedSkillsRoot);
   const mounted = mountedSkillBodies(repoDir, installedSkillsRoot);
+  const yielded = nativeCommandOutputs(entries);
   const diagnostics = entries
     .filter((entry) => !spawn || entry.ordinal < spawn.ordinal)
     .flatMap((entry) =>
-      nativeReadDiagnosticsAtEntry(entry, repoDir, roots, mounted),
+      nativeReadDiagnosticsAtEntry(
+        entry,
+        { repoDir, roots, mounted },
+        yielded.get(entry.ordinal),
+      ),
     );
   return diagnostics.slice(-24).map((record) => ({
     ...record,
@@ -2405,20 +2499,42 @@ export function nativeParentReadDiagnostics(
   }));
 }
 
+function nativeReadRecoveryFacts(
+  recovery: RecoveredCommandOutput | undefined,
+  output: string,
+  body: string,
+): Record<string, unknown> {
+  if (!recovery) return {};
+  const complete = (recovery.output + output).includes(body);
+  return recovery.completedCall || recovery.literalCommandCall
+    ? {
+        ...(recovery.completedCall
+          ? { completed_call_output_recovered: true }
+          : {}),
+        ...(recovery.literalCommandCall
+          ? { literal_command_output_recovered: true }
+          : {}),
+        earlier_output_chunks: recovery.chunks,
+        complete_body_after_call_recovery: complete,
+      }
+    : {
+        yielded_output_chunks: recovery.chunks,
+        complete_body_after_yield_recovery: complete,
+      };
+}
+
 function nativeReadDiagnosticsAtEntry(
   entry: CodexNativeSessionEntry,
-  repoDir: string,
-  roots: string[],
-  mounted: MountedSkillBody[],
+  context: { repoDir: string; roots: string[]; mounted: MountedSkillBody[] },
+  yielded?: RecoveredCommandOutput,
 ): Record<string, unknown>[] {
-  const event = nativeSkillReadEvents(JSON.stringify(entry))[0];
+  const { repoDir, roots, mounted } = context;
+  const event = nativeSkillReadEvent(entry, yielded);
   if (!event) return [];
-  const output =
-    typeof event.item?.aggregated_output === "string"
-      ? event.item.aggregated_output
-      : "";
-  const recognized = eventSkillReads(event, roots, mounted);
   const item = entry.payload.item as Record<string, unknown>;
+  const output =
+    typeof item.aggregated_output === "string" ? item.aggregated_output : "";
+  const recognized = eventSkillReads(event, roots, mounted);
   return mounted
     .filter(
       (skill, index) =>
@@ -2436,6 +2552,7 @@ function nativeReadDiagnosticsAtEntry(
       recognized_read: recognized.includes(skill.name),
       complete_body_in_output: output.includes(skill.body),
       frontmatter_in_output: output.includes(skill.frontmatter),
+      ...nativeReadRecoveryFacts(yielded, output, skill.body),
       finished_command: finishedCommandForSkillRead(event) !== undefined,
       native_read_path_binds: nativeReadPathBinds(
         item,
@@ -2517,9 +2634,14 @@ function nativeChildReadDiagnostics(
     const parsed =
       session === undefined ? undefined : codexNativeSessionEntries(session);
     const available = parsed !== undefined && !parsed.malformed;
+    const yielded = nativeCommandOutputs(parsed?.entries ?? []);
     const diagnostics = available
       ? parsed.entries.flatMap((entry) =>
-          nativeReadDiagnosticsAtEntry(entry, repoDir, roots, mounted),
+          nativeReadDiagnosticsAtEntry(
+            entry,
+            { repoDir, roots, mounted },
+            yielded.get(entry.ordinal),
+          ),
         )
       : [];
     const identity = { actor: "accepted_child", child_thread_id: threadId };
@@ -3870,6 +3992,7 @@ export async function codexInitialResponseEvidence(repoDir: string): Promise<{
 }
 
 interface CodexExecution {
+  appServerEvidence?: AppServerEvidence;
   canonicalRepoDir: string;
   configRoot: string;
   installedSkillsRoots: string[];
@@ -4225,6 +4348,49 @@ export async function codexNativeSessionForThread(
   }
 }
 
+async function executeCodexAppServer(
+  request: HarnessRunRequest,
+  context: CodexProcessContext,
+  start: number,
+): Promise<CodexExecution> {
+  const { repoDir } = request;
+  const { env, spawnGuard } = context;
+  if (spawnGuard)
+    throw new Error("App-server pilot requires passive owner evaluation");
+  const initialRepositoryFingerprint = await repositoryFingerprint(repoDir);
+  const result = await runCodexAppServer({
+    request,
+    argv: await codexSandboxedCommand(context, repoDir)(codexAppServerArgv()),
+    env: {
+      ...env,
+      PATH: `${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`,
+    },
+    followUpBoundary: async (threadId) =>
+      JSON.stringify({
+        type: "darrow.eval.follow_up_turn",
+        thread_id: threadId,
+        native_after_ordinal: await nativeSessionLastOrdinal(
+          env.CODEX_HOME!,
+          threadId,
+        ),
+        pre_feedback_worktree_unchanged:
+          initialRepositoryFingerprint ===
+          (await repositoryFingerprint(repoDir)),
+        ...(await codexInitialResponseEvidence(repoDir)),
+      }),
+  });
+  return {
+    canonicalRepoDir: context.canonicalRepoDir,
+    configRoot: env.CODEX_HOME!,
+    installedSkillsRoots: context.installedSkillsRoots,
+    out: result.out,
+    err: result.err,
+    code: result.code,
+    durationMs: performance.now() - start,
+    appServerEvidence: result.evidence,
+  };
+}
+
 async function executeCodex(
   request: HarnessRunRequest,
 ): Promise<CodexExecution> {
@@ -4234,6 +4400,9 @@ async function executeCodex(
   const { env, spawnGuard } = context;
   const sandboxed = codexSandboxedCommand(context, repoDir);
   try {
+    if (request.control?.codexEntrypoint === "app-server") {
+      return await executeCodexAppServer(request, context, start);
+    }
     const initialRepositoryFingerprint = await repositoryFingerprint(repoDir);
     const initial = await runCodexProcess(
       await sandboxed(codexArgv(request)),
@@ -4357,6 +4526,7 @@ async function codexHarnessResult(
     execution,
   );
   return {
+    codexEntrypoint: request.control?.codexEntrypoint ?? "exec",
     evaluationEnforcement: spawnGuardSecret ? "enforced" : "passive",
     ...codexAgentConcurrencyEvidence("codex"),
     ok,
@@ -4366,7 +4536,9 @@ async function codexHarnessResult(
     outputTokens: usage.outputTokens,
     costUsd: null,
     resultText,
-    raw,
+    raw: execution.appServerEvidence
+      ? `${raw.trimEnd()}\n${JSON.stringify(execution.appServerEvidence)}`
+      : raw,
     skillActivation: { ...activation, complete: ok && activation.complete },
   };
 }

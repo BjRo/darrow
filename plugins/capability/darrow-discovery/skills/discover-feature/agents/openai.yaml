@@ -1,4 +1,0 @@
-interface:
-  display_name: "Discover Feature"
-  short_description: "Shape feature behavior before planning"
-  default_prompt: "Help me discover what this feature should do."

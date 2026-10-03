@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Agent Skill"
+  short_description: "Build a new cross-runtime agent skill"
+  default_prompt: "Use $create-agent-skill to create a new agent skill."

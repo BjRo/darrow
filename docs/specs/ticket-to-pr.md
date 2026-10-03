@@ -130,14 +130,15 @@ ambiguous.
 
 ## Main-thread feedback and completion
 
-Ticket-to-PR remains in the main host thread as the caller of adaptive-delivery. It
-does not spawn an engineering agent itself. Once delegation begins,
-adaptive-delivery owns its one separate owner and every later continuation.
+Ticket-to-PR invokes Adaptive Delivery in the main host thread with its complete
+authority envelope. It does not spawn an engineering owner. Adaptive Delivery
+then performs preflight, activates the main-thread native goal and coordinates
+bounded implementation and capabilities. Recipe instructions do not prohibit
+that same thread from doing Adaptive Delivery's authorized coordination.
 
-When that owner needs a human decision, adaptive-delivery returns the question to
-the main thread. The main thread shows it to the user and relays the user's
-answer to the same retained owner. The ticket-to-PR recipe is not invoked again,
-does not answer or rewrite the question, and does not replace the owner.
+Questions and answers remain with that same main-thread goal. The recipe is not
+invoked again and does not add a question relay, replacement owner or separate
+completion controller.
 
 The recipe relays the adaptive-delivery result without repository or forge
 reinspection. Success requires the owner-sourced URL and evidence for exactly
@@ -164,7 +165,7 @@ despite that unresolved prerequisite.
    verification, intended commits, non-force push, exactly one verified pull
    request, explicit user options (including repair/review limits), and all publication exclusions.
 4. **TPR-C4 — Adaptive ownership.** `adaptive-delivery` alone owns preflight,
-   readiness, capability bindings, route and owner selection, implementation,
+   readiness, capability bindings, role routes, bounded implementation,
    review, publication execution, blockage, and completion.
 5. **TPR-C5 — Main-thread human loop.** Questions reach the user through the
    main thread and answers return to the same adaptive owner without recipe

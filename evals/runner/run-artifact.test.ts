@@ -29,7 +29,7 @@ codexAdapter.run = async ({ repoDir }) => {
     get skillActivation() {
       process.emit("SIGTERM");
       return { source: "explicit_invocation", complete: true,
-        primarySkill: "grilling", observedSkills: ["grilling"] };
+        primarySkill: "work-through-decisions", observedSkills: ["work-through-decisions"] };
     } };
 };
 `,
@@ -80,7 +80,10 @@ codexAdapter.run = async ({ repoDir }) => {
           trial: 1,
           passed: true,
           harness: { raw: "completed before interruption", inputTokens: 23 },
-          activation: { passed: true, observedSkills: ["grilling"] },
+          activation: {
+            passed: true,
+            observedSkills: ["work-through-decisions"],
+          },
         },
       ],
     });
@@ -207,7 +210,7 @@ codexAdapter.run = async ({ repoDir }) => {
   return { ok: true, durationMs: 17, inputTokens: 23, outputTokens: 11,
     costUsd: 0.02, resultText, raw: "retained transcript marker",
     skillActivation: { source: "explicit_invocation", complete: true,
-      primarySkill: "grilling", observedSkills: ["grilling"] } };
+      primarySkill: "work-through-decisions", observedSkills: ["work-through-decisions"] } };
 };
 `,
       );
@@ -275,7 +278,10 @@ codexAdapter.run = async ({ repoDir }) => {
               raw: "retained transcript marker",
               inputTokens: 23,
             },
-            activation: { passed: true, observedSkills: ["grilling"] },
+            activation: {
+              passed: true,
+              observedSkills: ["work-through-decisions"],
+            },
           },
         ],
       });

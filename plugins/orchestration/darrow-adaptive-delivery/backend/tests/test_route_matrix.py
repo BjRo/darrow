@@ -40,7 +40,6 @@ def commands(repo: Path, host: str, route: str) -> list[list[str]]:
         ("codex", "codex|openai|unsafe model|medium"),
         ("codex", "codex|openai|.unsafe|medium"),
         ("codex", "codex|openai||medium"),
-        ("codex", "codex|openai|gpt-5.6-luna|medium"),
     ],
 )
 def test_policy_and_explicit_refuse_without_evidence(
@@ -80,14 +79,27 @@ def test_off_catalog_policy_and_explicit_routes(
     assert "policy_route_source" not in explicit
 
 
+def test_bounded_leaf_route_needs_no_goal_ownership(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    route = "codex|openai|gpt-5.6-luna|medium"
+    write_policy(repo, "codex", route)
+    for args in commands(repo, "codex", route):
+        monkeypatch.setattr(sys, "argv", ["adaptive-delivery-preflight", *args])
+        assert cli.preflight() == 0
+        captured = capsys.readouterr()
+        assert captured.err == ""
+        assert "codex\topenai\tgpt-5.6-luna\tmedium\n" in captured.out
+
+
 def test_override_preserves_other_bundled_profiles(repo: Path) -> None:
-    write_policy(repo, "codex", "codex|openai|gpt-5.6-sol|high", "scaled")
+    write_policy(repo, "codex", "codex|openai|gpt-6-sol|high", "scaled")
     out = preflight.run(["prepare", "--repo", str(repo), "--host", "codex"])
     for profile, model, effort in (
         ("routine", "gpt-6-luna", "medium"),
         ("routine-plus", "gpt-6-luna", "high"),
-        ("scaled", "gpt-5.6-sol", "high"),
-        ("repo-wide", "gpt-5.6-sol", "high"),
+        ("scaled", "gpt-6-sol", "high"),
+        ("repo-wide", "gpt-6-sol", "high"),
         ("judgment", "gpt-6-astra", "high"),
     ):
         assert f"route\t{profile}\tcodex\topenai\t{model}\t{effort}\n" in out

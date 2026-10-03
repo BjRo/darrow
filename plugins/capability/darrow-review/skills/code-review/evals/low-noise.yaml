@@ -38,6 +38,8 @@ fixture:
     git status --porcelain --untracked-files=all >.git/status-before
     mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
+  - name: human response excludes machine JSON
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
   - name: review remains read-only despite failed check
     run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
   - name: canonical JSON is retained beneath the review scope artifact
@@ -56,9 +58,7 @@ checks:
       python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has verdict fail &&
       python3 -c 'import json,sys; record=json.load(open(sys.argv[1])); assert any(check["command"]=="bash format-check.sh" and check["applicability"]=="applicable" and check["status"]=="fail" for check in record["checks"])' "$record" &&
       python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks-key findings
-  - name: default response does not duplicate canonical JSON
-    run: "! grep -F 'format	darrow-review-result-v3' .git/last-message.md"
-  - name: final response preserves every canonical rendered line
+  - name: retained Markdown preserves every canonical rendered line
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
@@ -67,5 +67,18 @@ checks:
       expected=.git/expected-review.md;
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render "$record" >"$expected" &&
       awk 'NF' "$expected" >.git/expected-review-normalized.md &&
-      awk 'NF' .git/last-message.md >.git/actual-review-normalized.md &&
+      awk 'NF' "$(dirname "$record")/review.md" >.git/actual-review-normalized.md &&
       cmp .git/expected-review-normalized.md .git/actual-review-normalized.md
+semantic_output_checks:
+  - name: review outcome and issues are understandable inline
+    proposition: >-
+      The response reports a failed review gate because the formatting check
+      failed, while the independent readers found no code defects. Passing
+      Standards and Spec axes are consistent with an overall failed verdict:
+      deterministic check results separately control that verdict. A failed
+      verdict, failed format check, and no reader findings stated together
+      establish this distinction without an additional causal sentence.
+      The response must not demand centralizing the deliberately duplicated
+      auth guard; silence about that guard satisfies this exclusion. Reject an
+      overall pass, omission of the failed check, a separate model finding
+      duplicating the formatting failure, or an auth-guard refactoring demand.

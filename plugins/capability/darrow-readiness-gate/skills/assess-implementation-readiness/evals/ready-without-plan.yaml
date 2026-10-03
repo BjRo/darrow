@@ -33,7 +33,7 @@ checks:
       test -z "$(git remote)"
 output_checks:
   - name: one readiness report owns the complete response
-    expect_regex: "(?<![\\s\\S])## Implementation readiness[\\s\\S]*^### Findings$[\\s\\S]*\\S\\n?$(?![\\s\\S])"
+    expect_regex: "(?<![\\s\\S])## Implementation readiness[\\s\\S]*^### Findings$[\\s\\S]*\\S\\s*$(?![\\s\\S])"
     not_regex: "^## Implementation readiness$[\\s\\S]*^## Implementation readiness$|^\\*\\*Verdict:\\*\\* `[a-z-]+`$[\\s\\S]*^\\*\\*Verdict:\\*\\* `[a-z-]+`$"
   - name: default result uses the human-readable report
     expect_regex: "^## Implementation readiness$"

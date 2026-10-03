@@ -46,7 +46,7 @@ def test_codex_v2_reports_adequate_capacity_and_ignores_depth(tmp_path: Path) ->
         tmp_path / "codex home/config.toml",
         """[agents]
 enabled = true
-max_concurrent_threads_per_session = 5
+max_concurrent_threads_per_session = 4
 max_depth = 1
 """,
     )
@@ -55,12 +55,12 @@ max_depth = 1
 
     assert f"configuration_source: {config.resolve()}" in output
     assert "configuration_context: effective" in output
-    assert "concurrency: adequate (5; full path requires 5)" in output
+    assert "concurrency: adequate (4; full path requires 4)" in output
     assert (
         "nesting: not-applicable (agents.max_depth=1 is V1-only and ignored by V2)"
         in output
     )
-    assert "baseline_owner_only: supported" in output
+    assert "baseline_implementation: supported" in output
     assert "full_required_assessment: supported" in output
 
 
@@ -69,10 +69,10 @@ max_depth = 1
     [
         (
             "[agents]\nenabled = false\nmax_concurrent_threads_per_session = 99\n",
-            "baseline_owner_only: unsupported",
+            "baseline_implementation: unsupported",
         ),
         (
-            "[agents]\nenabled = true\nmax_concurrent_threads_per_session = 4\n",
+            "[agents]\nenabled = true\nmax_concurrent_threads_per_session = 3\n",
             "full_required_assessment: unsupported",
         ),
     ],
@@ -91,14 +91,14 @@ def test_codex_disabled_guidance_includes_other_known_inadequate_controls(
         tmp_path / "config.toml",
         """[agents]
 enabled = false
-max_concurrent_threads_per_session = 4
-max_depth = 3
+max_concurrent_threads_per_session = 3
+max_depth = 2
 """,
     )
     output = diagnose_codex(config, backend="v1")
     assert "guidance: set agents.enabled = true" in output
-    assert "agents.max_concurrent_threads_per_session = 5 or greater" in output
-    assert "agents.max_depth = 4 or greater" in output
+    assert "agents.max_concurrent_threads_per_session = 4 or greater" in output
+    assert "agents.max_depth = 3 or greater" in output
 
 
 @pytest.mark.parametrize(
@@ -168,8 +168,8 @@ def test_codex_effective_context_uses_project_override_and_reports_source(
 
     assert f"configuration_sources_used: {project_config.resolve()}" in output
     assert "checkout_config_used: yes" in output
-    assert "concurrency: adequate (5; full path requires 5)" in output
-    assert "baseline_owner_only: supported" in output
+    assert "concurrency: adequate (5; full path requires 4)" in output
+    assert "baseline_implementation: supported" in output
     assert "full_required_assessment: supported" in output
 
 
@@ -182,7 +182,7 @@ def test_codex_effective_project_layers_override_user_and_report_all_contributor
     )
     root_config = write_config(
         tmp_path / "checkout/.codex/config.toml",
-        "[agents]\nmax_concurrent_threads_per_session = 4\n",
+        "[agents]\nmax_concurrent_threads_per_session = 3\n",
     )
     nested_config = write_config(
         tmp_path / "checkout/nested/.codex/config.toml",
@@ -207,14 +207,14 @@ def test_codex_effective_project_layers_override_user_and_report_all_contributor
     )
     assert "checkout_config_used: yes" in output
     assert "delegation: disabled" in output
-    assert "concurrency: adequate (5; full path requires 5)" in output
-    assert "baseline_owner_only: unsupported" in output
+    assert "concurrency: adequate (5; full path requires 4)" in output
+    assert "baseline_implementation: unsupported" in output
 
 
 def test_codex_isolated_context_never_uses_project_config(tmp_path: Path) -> None:
     user_config = write_config(
         tmp_path / "isolated-home/config.toml",
-        "[agents]\nmax_concurrent_threads_per_session = 4\n",
+        "[agents]\nmax_concurrent_threads_per_session = 3\n",
     )
     project_config = write_config(
         tmp_path / "checkout/.codex/config.toml",
@@ -232,7 +232,7 @@ def test_codex_isolated_context_never_uses_project_config(tmp_path: Path) -> Non
     assert "checkout_config_used: no" in output
     assert str(project_config.resolve()) not in output
     assert (
-        "concurrency: inadequate (4; baseline requires 1, full path requires 5)"
+        "concurrency: inadequate (3; baseline requires 1, full path requires 4)"
         in output
     )
     assert "concurrency: adequate (99" not in output
@@ -367,7 +367,7 @@ def test_codex_uses_codex_home_instead_of_checkout(tmp_path: Path) -> None:
     )
     home_config = write_config(
         tmp_path / "home/config.toml",
-        "[agents]\nmax_concurrent_threads_per_session = 4\n",
+        "[agents]\nmax_concurrent_threads_per_session = 3\n",
     )
     assert checkout_config.exists()
 
@@ -379,7 +379,7 @@ def test_codex_uses_codex_home_instead_of_checkout(tmp_path: Path) -> None:
 
     assert f"configuration_source: {home_config.resolve()}" in output
     assert (
-        "concurrency: inadequate (4; baseline requires 1, full path requires 5)"
+        "concurrency: inadequate (3; baseline requires 1, full path requires 4)"
         in output
     )
     assert "concurrency: adequate (99" not in output
@@ -436,10 +436,10 @@ def test_codex_rejects_non_file_and_read_failure(
 @pytest.mark.parametrize(
     ("backend", "depth", "expected"),
     [
-        ("v1", None, "baseline_owner_only: unknown"),
-        ("v1", 0, "baseline_owner_only: unsupported"),
-        ("v1", 3, "full_required_assessment: unsupported"),
-        ("v1", 4, "full_required_assessment: supported"),
+        ("v1", None, "baseline_implementation: unknown"),
+        ("v1", 0, "baseline_implementation: unsupported"),
+        ("v1", 2, "full_required_assessment: unsupported"),
+        ("v1", 3, "full_required_assessment: supported"),
         ("unknown", 4, "full_required_assessment: unknown"),
     ],
 )
@@ -469,14 +469,14 @@ def test_claude_supported_controls_report_full_capacity() -> None:
     output = diagnose_claude(
         "2.1.219",
         {
-            "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS": "5",
-            "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "4",
+            "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS": "4",
+            "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "3",
         },
     )
     assert "concurrency_control_applicability: supported" in output
     assert "nesting_control_applicability: supported" in output
-    assert "concurrency: adequate (5; full path requires 5)" in output
-    assert "nesting: adequate (4; full path requires 4)" in output
+    assert "concurrency: adequate (4; full path requires 4)" in output
+    assert "nesting: adequate (3; full path requires 3)" in output
     assert "full_required_assessment: supported" in output
 
 
@@ -484,8 +484,8 @@ def test_claude_inadequate_and_default_capacity() -> None:
     inadequate = diagnose_claude(
         "2.1.219",
         {
-            "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS": "4",
-            "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "3",
+            "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS": "3",
+            "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "2",
         },
     )
     defaults = diagnose_claude(
@@ -496,17 +496,16 @@ def test_claude_inadequate_and_default_capacity() -> None:
         },
     )
     assert (
-        "concurrency: inadequate (4; baseline requires 1, full path requires 5)"
+        "concurrency: inadequate (3; baseline requires 1, full path requires 4)"
         in inadequate
     )
     assert (
-        "nesting: inadequate (3; baseline requires 1, full path requires 4)"
+        "nesting: inadequate (2; baseline requires 1, full path requires 3)"
         in inadequate
     )
-    assert "concurrency: adequate (20; full path requires 5)" in defaults
-    assert (
-        "nesting: inadequate (3; baseline requires 1, full path requires 4)" in defaults
-    )
+    assert "concurrency: adequate (20; full path requires 4)" in defaults
+    assert "nesting: adequate (3; full path requires 3)" in defaults
+    assert "full_required_assessment: supported" in defaults
 
 
 @pytest.mark.parametrize(
@@ -524,7 +523,7 @@ def test_claude_inadequate_and_default_capacity() -> None:
         ),
         (
             "2.1.218",
-            "nesting: inadequate (1; baseline requires 1, full path requires 4)",
+            "nesting: inadequate (1; baseline requires 1, full path requires 3)",
             "full_required_assessment: unsupported",
         ),
     ],
@@ -540,7 +539,7 @@ def test_claude_discovers_or_reports_unknown_version() -> None:
     unknown = diagnose_claude(None, probe=lambda: "unparseable")
     assert "host_version: 2.1.219" in discovered
     assert "status: version-unknown" in unknown
-    assert "baseline_owner_only: unknown" in unknown
+    assert "baseline_implementation: unknown" in unknown
 
 
 @pytest.mark.parametrize(

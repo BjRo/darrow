@@ -18,6 +18,7 @@ import type {
 } from "../types";
 import { sandboxedAgentCommand } from "../sandbox";
 import { isolatedHarnessEnvironment } from "../environment";
+import { observeClaudeNativeGoal } from "./claude-native-goal";
 import { parseGoalReport, validGoalReportValues } from "../goal-report";
 import {
   observeClaudeProjectInvocation,
@@ -4268,7 +4269,8 @@ async function nestedClaudeActivation(options: {
 }) {
   const { repo, configRoot, stream, retained } = options;
   let { skillActivation } = options;
-  if (!soleRetainedClaudeOwner(retained)) return { skillActivation, retained };
+  if (!claudeStream(stream).events.some(hasAgentToolUse))
+    return { skillActivation, retained };
   const nested = await observeClaudeNestedSkills({
     repo,
     configRoot,
@@ -4285,6 +4287,17 @@ async function nestedClaudeActivation(options: {
     skillActivation,
     retained: retained + "\n" + JSON.stringify(nested),
   };
+}
+
+function hasAgentToolUse(event: ClaudeResultEnvelope): boolean {
+  return (
+    isRecord(event.message) &&
+    Array.isArray(event.message.content) &&
+    event.message.content.some(
+      (block) =>
+        isRecord(block) && block.type === "tool_use" && block.name === "Agent",
+    )
+  );
 }
 
 function acceptedProjectPrimary(receipt?: {
@@ -4333,6 +4346,7 @@ async function claudeHarnessResult(options: {
     explicitPrimary: acceptedProjectPrimary(projectInvocation),
   }));
   if (projectInvocation) retained += "\n" + JSON.stringify(projectInvocation);
+  retained += "\n" + (await observeClaudeNativeGoal(configRoot, turn.out));
   return {
     ...outcome,
     durationMs: performance.now() - start,

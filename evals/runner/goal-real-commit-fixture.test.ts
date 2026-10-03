@@ -42,7 +42,7 @@ async function publish(repo: string) {
   const publication = await runChecks(repo, [
     {
       name: "publish and inspect fixture PR",
-      run: "git push -u origin HEAD && gh pr create --title 'Add note' --body 'Add requested note' --base main --head fix/real-create-commit-composition && gh repo view fixture/repository && gh pr list --repo fixture/repository",
+      run: "git push -u origin HEAD && printf '%s\\n' 'Add requested note' >.git/pr-body.md && gh pr create --title 'Add note' --body-file .git/pr-body.md --base main --head fix/real-create-commit-composition && gh repo view fixture/repository && gh pr list --repo fixture/repository",
     },
   ]);
   expect(publication[0]?.passed).toBe(true);

@@ -8,12 +8,11 @@ expect_head_change: false
 additional_plugins:
   - plugins/capability/darrow-git
 prompt: >-
-  {{skill_invocation}} Deliver this already-assessed ready request for canonical
-  ticket token 77: append the exact line `Resumed.` to NOTES.md. The scope and
-  acceptance are unchanged from that assessment. Prepare the ticket task branch
-  first; I suggest feat/77-different-suffix. Keep existing branch tips intact,
-  do not commit, publish, or create a worktree. The only required check is
-  `grep -Fx 'Resumed.' NOTES.md`.
+  {{skill_invocation}} Deliver this already-assessed ready request for canonical ticket
+  token 77: append the exact line `Resumed.` to NOTES.md. The scope and acceptance are
+  unchanged from that assessment. Prepare the ticket task branch first; I suggest
+  feat/77-different-suffix. Keep existing branch tips intact, do not commit, publish, or
+  create a worktree. The only required check is `grep -Fx 'Resumed.' NOTES.md`.
 fixture:
   commits:
     - message: "chore: init"
@@ -32,7 +31,9 @@ checks:
     run: git for-each-ref refs/heads --format='%(refname)' | wc -l | tr -d ' '
     expect_exact: "68"
   - name: existing branch tip is unchanged
-    run: test "$(git rev-parse refs/heads/fix/77-original-suffix)" = "$(git rev-parse refs/heads/main)"
+    run:
+      test "$(git rev-parse refs/heads/fix/77-original-suffix)" = "$(git rev-parse
+      refs/heads/main)"
   - name: requested work is implemented
     run: grep -Fx 'Resumed.' NOTES.md
   - name: no worktree is allocated
@@ -41,6 +42,4 @@ checks:
 activation_sequence:
   - adaptive-delivery
   - prepare-task-branch
-transcript_checks:
-  - name: native owner is accepted
-    expect_regex: '"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"'
+native_goal: required

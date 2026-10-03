@@ -1,0 +1,36 @@
+id: audit-agent-skill-ab-run-existing-suite
+invariant: SA-C2
+activation: negative
+mount_plugin_skills: true
+activation_excludes:
+  - audit-agent-skill
+  - create-agent-skill
+prompt: >-
+  Run the existing skill evaluation smoke suite with `bash scripts/check.sh`
+  and tell me whether it passes. Do not change the suite or any skill.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Repository instructions
+
+          Run requested checks without editing the repository.
+        scripts/check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          touch .git/skill-eval-smoke-ran
+          printf 'skill eval smoke: 2 passed\n'
+checks:
+  - name: requested suite actually ran
+    run: test -f .git/skill-eval-smoke-ran
+  - name: suite execution leaves repository unchanged
+    run: git diff --exit-code HEAD && test -z "$(git ls-files --others --exclude-standard)"
+  - name: suite execution creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"
+semantic_output_checks:
+  - name: reports observed smoke suite outcome
+    proposition: >-
+      The response reports that it ran the requested smoke suite and observed
+      two passing checks. It does not claim to have authored or revised a skill.

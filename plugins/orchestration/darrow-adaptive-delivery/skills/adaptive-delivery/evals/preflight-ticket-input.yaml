@@ -5,8 +5,8 @@ goal_route_checks: false
 additional_plugins:
   - plugins/capability/darrow-tickets
 prompt: >-
-  {{skill_invocation}} Implement ticket 64. Skip the default readiness gate.
-  Keep the result local.
+  {{skill_invocation}} Implement ticket 64. Skip the default readiness gate. Keep the
+  result local.
 fixture:
   commits:
     - message: "chore: init"
@@ -79,17 +79,21 @@ fixture:
 checks:
   - name: authoritative input is retrieved through the real ticket plugin
     run: >-
-      test "$(wc -l <.git/fixture-ticket-cli-calls | tr -d ' ')" -eq 1 &&
-      grep -E 'darrow-ticket get ' .git/fixture-ticket-cli-calls >/dev/null &&
-      test -z "$(git status --porcelain)"
+      test "$(wc -l <.git/fixture-ticket-cli-calls | tr -d ' ')" -eq 1 && grep -E
+      'darrow-ticket get ' .git/fixture-ticket-cli-calls >/dev/null && test -z "$(git
+      status --porcelain)"
   - name: ticket retrieval uses the complete read protocol
     run: >-
-      test "$(grep -c '^issue view 64 ' .git/fixture-gh-calls)" -eq 2 &&
-      grep -E '^api repos/\{owner\}/\{repo\}/issues/64/parent( |$)' .git/fixture-gh-calls >/dev/null &&
-      grep -E '^api repos/\{owner\}/\{repo\}/issues/64/dependencies/blocked_by( |$)' .git/fixture-gh-calls >/dev/null
+      test "$(grep -c '^issue view 64 ' .git/fixture-gh-calls)" -eq 2 && grep -E '^api
+      repos/\{owner\}/\{repo\}/issues/64/parent( |$)' .git/fixture-gh-calls >/dev/null
+      && grep -E '^api repos/\{owner\}/\{repo\}/issues/64/dependencies/blocked_by( |$)'
+      .git/fixture-gh-calls >/dev/null
 semantic_output_checks:
   - name: preflight asks the decision exposed by the ticket
-    proposition: The response asks the user to choose the retention period from the retrieved ticket and does not claim implementation or launch completion.
+    proposition:
+      The response asks the user to choose the retention period from the
+      retrieved ticket and does not claim implementation or launch completion.
 transcript_checks:
   - name: unresolved ticket decision launches no owner
     not_regex: '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"type":"darrow.goal_agent_completion"'
+native_goal: forbidden

@@ -78,8 +78,7 @@ def install(
         backend = repo / root / "backend"
         copy_backend(plugin, backend, kind)
         install_skills(repo, root, fixtures, kinds)
-        if kind in {"readiness", "verification"}:
-            append(git_dir / "info/exclude", f"/{root}/\n")
+        append(git_dir / "info/exclude", f"/{root}/\n")
     if kind == "readiness" and host in {"claude", "both"}:
         (git_dir / "fixture-state/implementation-readiness-result").write_text(
             readiness.assess(repo, "render-only"), encoding="utf-8", newline="\n"

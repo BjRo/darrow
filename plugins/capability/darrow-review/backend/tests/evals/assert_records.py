@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -64,8 +65,35 @@ def value(record: dict[str, object], fields: list[str]) -> str:
     return str(record[fields[0]])
 
 
+def is_review_record(value: object) -> bool:
+    return isinstance(value, dict) and value.get("format") in (
+        "darrow-review-result-v3",
+        "darrow-review-verification-v3",
+    )
+
+
+def human_response(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    decoder = json.JSONDecoder()
+    for opening in re.finditer(r"\{", text):
+        try:
+            value, _ = decoder.raw_decode(text, opening.start())
+        except json.JSONDecodeError:
+            continue
+        if is_review_record(value):
+            raise ValueError("human response includes a machine record")
+
+
 def check(path: Path, operation: str, fields: list[str]) -> str | None:
-    record = load(path)
+    if operation == "human-response":
+        human_response(path)
+        return None
+    return check_record(load(path), operation, fields)
+
+
+def check_record(
+    record: dict[str, object], operation: str, fields: list[str]
+) -> str | None:
     if operation in ("has", "lacks"):
         exact(record, operation, fields)
     elif operation == "lacks-key":
