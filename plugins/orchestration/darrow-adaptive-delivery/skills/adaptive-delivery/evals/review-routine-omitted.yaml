@@ -5,11 +5,10 @@ goal_route_checks: false
 additional_plugins:
   - plugins/capability/darrow-verification
 prompt: >-
-  {{skill_invocation}} Add the exact line "Retries are bounded." beneath the heading
-  in NOTES.md. This is a localized,
-  reversible documentation edit with a complete oracle and limited blast
-  radius. Acceptance is that `bash check.sh` passes. Select and apply the policy
-  route. Keep the result local; commits, pushes, pull requests, and other
+  {{skill_invocation}} Add the exact line "Retries are bounded." beneath the heading in
+  NOTES.md. This is a localized, reversible documentation edit with a complete oracle
+  and limited blast radius. Acceptance is that `bash check.sh` passes. Select and apply
+  the policy route. Keep the result local; commits, pushes, pull requests, and other
   publication are not authorized.
 fixture:
   commits:
@@ -23,8 +22,8 @@ fixture:
           printf '%s\n' '# Notes' 'Retries are bounded.' >.git/expected-notes
           cmp -s .git/expected-notes NOTES.md
   setup: >-
-    uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend" adaptive-delivery-fixture install review "$PWD"
-    "{{case_dir}}/fixtures" codex
+    uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend"
+    adaptive-delivery-fixture install review "$PWD" "{{case_dir}}/fixtures" codex
 checks:
   - name: routine change reaches its exact outcome
     run: bash check.sh
@@ -34,11 +33,12 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
 semantic_output_checks:
   - name: routine owner reports completion
-    proposition: The response reports the requested outcome as complete, with no unresolved blocker or pending decision preventing completion.
+    proposition:
+      The response reports the requested outcome as complete, with no unresolved
+      blocker or pending decision preventing completion.
   - name: completion does not claim a performed review
     proposition: The response does not claim that an independent review was performed or cleared.
 transcript_checks:
-  - name: launch preserves routine risk
-    expect_regex: '"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"'
-  - name: no lifecycle ledger or nested goal is used
-    not_regex: 'adaptive-delivery-preflight step|Protocol ledger|"tool":"create_goal"'
+  - name: no lifecycle ledger is used
+    not_regex: adaptive-delivery-preflight step|Protocol ledger
+native_goal: required

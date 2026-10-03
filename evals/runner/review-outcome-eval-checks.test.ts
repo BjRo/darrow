@@ -139,6 +139,9 @@ function verification(
       location: `src/config.js:${order}`,
       source: "requirement",
       evidence: "Original evidence",
+      repair_guidance:
+        "Advisory: correct the reported behavior while preserving the public API",
+      resolution_evidence: "The original reported counterexample succeeds",
     });
   }
   for (const [index, axis] of ["standards", "spec", "spec"].entries()) {
@@ -313,7 +316,7 @@ for (const shell of ["bash", "/bin/bash"]) {
             await gate(
               setup.root,
               file,
-              "final response is the complete rendered verification report",
+              "retained verification report preserves the complete canonical evidence",
               shell,
             ),
           ).toBe(variant === "canonical" ? 0 : 1);

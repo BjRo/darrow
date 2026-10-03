@@ -1,5 +1,18 @@
 # Capability: Verification
 
+## Coordinator routes
+
+When an enclosing owner delegates verification, it selects the verification
+coordinator independently of implementation. Adaptive Delivery uses at least
+Codex Sol/medium, or the explicit Claude Opus 5/high route. Verification's
+review-provider coordinator uses an explicit route: Codex Luna/medium or the
+plugin's Claude Sonnet 5/medium scoped agent, unless a compatible explicit caller
+route was supplied. Parent-model inheritance must not change those roles.
+Review retains its own independent-reader model selection and internal delegation.
+Claude route binding must refuse conflicting model or effort environment
+overrides; a missing supported agent boundary is an evidence gap, not permission
+to perform review in the verification coordinator.
+
 Verification coordinates one bounded assessment of an implementation candidate.
 It is directly intent-matched and independently installable. This is the
 semantic boundary introduced by issue #154 under #153, consumed by adaptive
@@ -65,6 +78,14 @@ delivery under #155. It does not execute QA or create reviewer-facing evidence p
   assessment is limited to that closed set, attempted repairs and direct
   repair-caused regressions. Missing history blocks instead of starting a new
   comprehensive review. Advisories remain visible and nonblocking.
+  A bounded correction of an earlier assessment MUST preserve that completed
+  result and all its history. The caller identifies the concrete assessment
+  error or missing evidence; verification requests fresh provider judgment at
+  the same candidate and returns why the new assessment supersedes the earlier
+  conclusion. New conclusive evidence may clear unchanged code. Dropping a
+  previous result, repeating an unchanged assertion, or restarting from the
+  original review cannot establish a correction. An assessment correction
+  consumes no implementation repair attempt and never resets that allowance.
 - **VF-C6 — Honest conclusion.** Return clear, progress, no-progress or blocked
   with the provider's original outcome and its meaning preserved. Put the
   conclusion and smallest next action before detailed evidence in the

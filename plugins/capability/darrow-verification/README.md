@@ -46,6 +46,19 @@ checks, and support closed follow-up judgments when that mode is requested.
 Its name, internal layout and serialization are immaterial. Missing or
 incompatible required review blocks instead of falling back to self-review.
 
+## Coordinator routes and assessment correction
+
+Verification and implementation are separate assignments. Adaptive Delivery
+uses Codex Sol/medium or stronger for verification coordination. Review
+coordination is explicitly Luna/medium; review keeps its own independent-reader
+routes. Claude uses the plugin's Sonnet 5/medium review coordinator with pinned
+frontmatter. Parent-model inheritance must not change these roles.
+
+A concrete assessment error or new evidence can justify a bounded correction
+at unchanged code through the provider's public contract. Preserve the earlier
+result and complete history, obtain fresh judgment, and explain the correction.
+This neither consumes nor resets the caller's implementation repair allowance.
+
 ## Safety boundaries
 
 Independent review remains separately usable. Ordinary implementation, running

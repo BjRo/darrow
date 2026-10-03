@@ -379,6 +379,18 @@ axis and report `not_available`. Do not invent requirements.
     A failed applicable check requires a scoped
     unresolved or blocked repair-caused regression rather than an original
     blocker alone.
+    An explicitly requested assessment correction may reassess the immediately
+    prior candidate without a code change. Its `assessment_correction` explains
+    the earlier assessment error or evidence gap and the fresh evidence used to
+    correct it. The result MUST retain the checksum-bound previous verification,
+    original findings, target history and carried regressions. It supersedes the
+    earlier conclusion without deleting or rewriting that artifact. A correction
+    can be `clear` at the same target only with fresh judgment for every original
+    blocker and carried regression, successful current required checks, no
+    evidence gaps and no unresolved blockers or regressions. The marker alone
+    cannot turn unchanged failure into progress, permit oscillation, or bypass
+    a failed check. Corrections require a real previous assessment at the same
+    current target; they are not first follow-ups or implementation repairs.
 21. **CR-C21 — Explicit reviewer route.** This capability explicitly requests
     independent readers through a direct delegation instruction before the
     workflow and at its native launch boundary, including fix verification.

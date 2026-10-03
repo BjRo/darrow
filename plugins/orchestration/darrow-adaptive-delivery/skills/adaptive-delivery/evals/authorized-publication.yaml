@@ -4,12 +4,12 @@ goal_report: forbidden
 goal_route_checks: false
 expect_head_change: true
 prompt: >-
-  {{skill_invocation}} Add the exact line "Native publication authority is
-  explicit." beneath the heading in NOTES.md. Acceptance is that `bash check.sh` passes. Select and
-  apply the policy route. Explicitly authorized effects are: create one task
-  branch, create one Conventional Commit for this change, push that branch to
-  the existing origin, and open exactly one draft pull request. Not authorized:
-  merge, release, deploy, ticket mutation, force-push, or unrelated edits.
+  {{skill_invocation}} Add the exact line "Native publication authority is explicit."
+  beneath the heading in NOTES.md. Acceptance is that `bash check.sh` passes. Select and
+  apply the policy route. Explicitly authorized effects are: create one task branch,
+  create one Conventional Commit for this change, push that branch to the existing
+  origin, and open exactly one draft pull request. Not authorized: merge, release,
+  deploy, ticket mutation, force-push, or unrelated edits.
 fixture:
   commits:
     - message: "chore: init"
@@ -136,28 +136,28 @@ checks:
     run: bash check.sh
   - name: one intended commit exists
     run: >-
-      test "$(git rev-list --count HEAD)" -eq 2 &&
-      git log -1 --format=%s | grep -E '^(feat|fix|docs|refactor|test|build|ci|chore)(\([^)]+\))?!?: .+' >/dev/null &&
+      test "$(git rev-list --count HEAD)" -eq 2 && git log -1 --format=%s | grep -E
+      '^(feat|fix|docs|refactor|test|build|ci|chore)(\([^)]+\))?!?: .+' >/dev/null &&
       test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = NOTES.md
   - name: task branch matches the one remote ref
     run: >-
-      branch_name=$(git branch --show-current) &&
-      test "$branch_name" != main &&
-      test "$(git --git-dir=.git/fixture-remote.git for-each-ref --format='%(refname)' refs/heads)" = "refs/heads/$branch_name"
+      branch_name=$(git branch --show-current) && test "$branch_name" != main && test
+      "$(git --git-dir=.git/fixture-remote.git for-each-ref --format='%(refname)'
+      refs/heads)" = "refs/heads/$branch_name"
   - name: remote branch contains the requested commit and tree
     run: >-
-      local_oid=$(git rev-parse HEAD) &&
-      remote_oid=$(git --git-dir=.git/fixture-remote.git for-each-ref --format='%(objectname)' refs/heads) &&
-      test "$remote_oid" = "$local_oid" &&
-      git --git-dir=.git/fixture-remote.git show "$remote_oid:NOTES.md" |
-      cmp -s - .git/expected-notes
+      local_oid=$(git rev-parse HEAD) && remote_oid=$(git
+      --git-dir=.git/fixture-remote.git for-each-ref --format='%(objectname)'
+      refs/heads) && test "$remote_oid" = "$local_oid" && git
+      --git-dir=.git/fixture-remote.git show "$remote_oid:NOTES.md" | cmp -s -
+      .git/expected-notes
   - name: exactly one draft pull request was opened
     run: >-
       test "$(wc -l <.git/fixture-state/gh-pr-calls | tr -d ' ')" -eq 1 &&
-      branch_name=$(git branch --show-current) &&
-      test "$(cut -f1 .git/fixture-state/gh-pr-calls)" = "$branch_name" &&
-      cut -f2- .git/fixture-state/gh-pr-calls | grep -E '^pr create( |$)' >/dev/null &&
-      test "$(sed -n '3p' .git/fixture-state/gh-pr-record)" = true
+      branch_name=$(git branch --show-current) && test "$(cut -f1
+      .git/fixture-state/gh-pr-calls)" = "$branch_name" && cut -f2-
+      .git/fixture-state/gh-pr-calls | grep -E '^pr create( |$)' >/dev/null && test
+      "$(sed -n '3p' .git/fixture-state/gh-pr-record)" = true
   - name: published tree is clean
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
@@ -166,15 +166,27 @@ output_checks:
     not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
 semantic_output_checks:
   - name: owner reports completion
-    proposition: The response reports the requested outcome as complete, with no unresolved blocker or pending decision preventing completion.
+    proposition:
+      The response reports the requested outcome as complete, with no unresolved
+      blocker or pending decision preventing completion.
   - name: owner truthfully reports branch creation
-    proposition: The response treats the requested task branch as successfully existing, for example by saying it was created or pushed, and does not say branch creation failed.
+    proposition:
+      The response treats the requested task branch as successfully existing, for
+      example by saying it was created or pushed, and does not say branch creation
+      failed.
   - name: owner truthfully reports commit creation
-    proposition: The response says the requested commit was successfully created and does not say commit creation failed.
+    proposition:
+      The response says the requested commit was successfully created and does
+      not say commit creation failed.
   - name: owner truthfully reports the push
-    proposition: The response says the requested branch was successfully pushed and does not say the push failed.
+    proposition:
+      The response says the requested branch was successfully pushed and does not
+      say the push failed.
   - name: owner truthfully reports the draft pull request
-    proposition: The response says the requested draft pull request was successfully opened and does not say pull-request creation failed.
+    proposition:
+      The response says the requested draft pull request was successfully opened
+      and does not say pull-request creation failed.
 transcript_checks:
-  - name: no lifecycle ledger or nested goal is used
-    not_regex: 'adaptive-delivery-preflight step|Protocol ledger|"tool":"create_goal"'
+  - name: no lifecycle ledger is used
+    not_regex: adaptive-delivery-preflight step|Protocol ledger
+native_goal: required

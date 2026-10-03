@@ -152,7 +152,6 @@ def test_help(
         ("codex|openai|none|low", "concrete safe model"),
         ("codex|openai|.unsafe|low", "concrete safe model"),
         ("codex|openai|model|impossible", "unsupported effort"),
-        ("codex|openai|gpt-5.6-luna|medium", "not eligible"),
     ],
 )
 def test_explicit_route_refusals(repo: Path, route: str, error: str) -> None:
@@ -186,7 +185,6 @@ def test_profile_refusal(repo: Path, profile: str, error: str) -> None:
     "changes,error",
     [
         ({"profile": "unknown"}, "not in bundled"),
-        ({"model": "gpt-5.6-luna"}, "not eligible"),
         ({"provider": "anthropic"}, "provider does not match"),
     ],
 )

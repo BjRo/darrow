@@ -3,9 +3,9 @@ invariant: ADL-C1,ADL-R1,ADL-L1,ADL-L5
 goal_report: forbidden
 goal_route_checks: false
 prompt: >-
-  {{skill_invocation}} Alphabetize the three entries in NOTES.md. Acceptance is exact alphabetical order under the existing
-  heading, covered completely by bash check.sh. Select and apply the policy
-  route. Keep the result local.
+  {{skill_invocation}} Alphabetize the three entries in NOTES.md. Acceptance is exact
+  alphabetical order under the existing heading, covered completely by bash check.sh.
+  Select and apply the policy route. Keep the result local.
 fixture:
   commits:
     - message: "chore: init"
@@ -36,10 +36,11 @@ output_checks:
   - name: no lifecycle protocol is reported
     not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
 transcript_checks:
-  - name: one native mechanical owner is accepted
-    expect_regex: '"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"'
-  - name: no lifecycle ledger or nested goal is used
-    not_regex: 'adaptive-delivery-preflight step|Protocol ledger|"tool":"create_goal"'
+  - name: no lifecycle ledger is used
+    not_regex: adaptive-delivery-preflight step|Protocol ledger
 semantic_output_checks:
   - name: mechanical owner reports completion
-    proposition: The response reports the requested outcome as complete, with no unresolved blocker or pending decision preventing completion.
+    proposition:
+      The response reports the requested outcome as complete, with no unresolved
+      blocker or pending decision preventing completion.
+native_goal: required

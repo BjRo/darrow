@@ -295,14 +295,19 @@ Derive the outcome mechanically in this order:
 
 1. `blocked` for an evidence gap, blocked applicable check, blocked original
    blocker, or blocked regression;
-2. `no_progress` when the current target equals the original, prior, or any
+2. `clear` for an explicit assessment correction when every original blocker and
+   carried regression has fresh resolved evidence and current checks succeed.
+   The optional `assessment_correction` string explains the assessment error or
+   gap and new evidence. It requires a checksum-bound previous verification at
+   the same candidate. Preserve the entire history; never reset to `none`;
+3. `no_progress` when the current target equals the original, prior, or any
    earlier target, or when any unresolved blocker or regression has unchanged
    evidence;
-3. `continue` while any unresolved blocker or regression is materially
+4. `continue` while any unresolved blocker or regression is materially
    progressing. A newly detected direct regression is progressing for its first
    verification; if its evidence remains after a repair attempt it is
    unchanged; and
-4. `clear` when all original blockers and regressions are resolved. Unresolved
+5. `clear` when all original blockers and regressions are resolved. Unresolved
    advisories do not prevent `clear`.
 
 A failed deterministic check must be represented by an unresolved or blocked

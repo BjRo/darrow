@@ -1,16 +1,23 @@
 ---
 name: adaptive-delivery
-description: Start only for explicit adaptive-delivery orchestration, preserved delegation from an invoked orchestration, or an unambiguous same-thread continuation of that orchestration. Then compile one bounded engineering request after any required readiness discussion and launch exactly one route-selected subagent owner with intent-matched capability bindings. Never select for ordinary engineering intent, regardless of complexity or duration.
+description: Start only for explicit adaptive-delivery orchestration, preserved delegation from an invoked orchestration, or an unambiguous same-thread continuation of that orchestration. Then retain one bounded native goal in the main thread after required readiness discussion, delegate route-selected implementation assignments, and coordinate intent-matched capabilities. Never select for ordinary engineering intent, regardless of complexity or duration.
 ---
 
 # Adaptive Delivery
 
-Prepare the goal, bind matching skills, launch one separate owner, and let that
-owner do the work. Darrow maintains no lifecycle ledger.
+Keep the persistent native goal in this main thread on Codex and Claude. You own the request, decisions, acceptance and completion. Delegate
+implementation as bounded assignments on the selected route. Invoke verification
+and other selected capabilities through bounded capability assignments; each
+capability retains its own internals and routing. There is no separate delivery
+owner, workflow runtime or lifecycle ledger.
 
-The accepted subagent task is the goal boundary. Neither parent nor owner calls
-`create_goal` or `update_goal` to mirror this contract into a second goal
-lifecycle. Completion is the owner result relayed to the user.
+Read the active host guide before goal activation or delegation:
+[Codex](references/codex-launch.md) or [Claude](references/claude-launch.md).
+Native goal support is required. The main thread's current model stays unchanged.
+On Codex, recommend Sol/medium for coordination. If the current model is known
+to be weaker, give one brief nonblocking reliability hint and continue within
+its supported controls; do not silently switch models. Stronger routes are
+permitted, but have not all been validated.
 
 ## 1. Confirm authority and requested outcome
 
@@ -19,7 +26,7 @@ Proceed only when:
 - the user explicitly invoked adaptive-delivery;
 - an explicitly invoked orchestration entrypoint delegated one bounded request
   while preserving its scope and permissions; or
-- unambiguous same-thread feedback targets the retained preflight or owner,
+- unambiguous same-thread feedback targets the retained preflight or goal,
   including an answer, correction, added constraint, cancellation, or status request.
 
 Complexity and duration do not authorize orchestration. A fresh conversation,
@@ -28,7 +35,7 @@ authority. Delegation adds no permission, publication, or destructive authority.
 
 Explicit invocation may request advice rather than engineering work. When the
 user asks only for an explanation, comparison, or next-lifecycle-action answer,
-answer directly without preflight helpers or an owner.
+answer directly without preflight helpers or a goal.
 
 Without authority, make no helper call or mutation and return exactly:
 
@@ -67,9 +74,9 @@ Use the returned repository, working-tree state, instruction, workflow, and
 route records. Read applicable repository instructions and only the additional files
 needed to understand scope, checks, authority, or a material decision.
 
-Until the owner is accepted, do not edit product or test files and do not run a
-test, build, typecheck, lint, review, or implementation command. Compile those
-commands for the owner. Preserve all existing work as user-owned.
+During preflight do not edit product or test files or run a test, build, typecheck,
+lint, review or implementation command. Retain those obligations for execution
+after preflight. Preserve all existing work as user-owned.
 
 Turn the request into observable acceptance criteria without choosing missing
 product behavior. If a required product, security, destructive-scope,
@@ -80,8 +87,8 @@ When authoritative input is missing, invoke the necessary host-advertised
 read-only capability before selecting readiness, acceptance, risk, workflow,
 or route. For example, retrieve a referenced ticket through its matching read
 skill. Check that the operation is read-only, preserve its complete evidence,
-and stop dependent preflight if it refuses. Do not ask the owner to discover
-the request after launch. Input gathering grants no mutation authority.
+and stop dependent preflight if it refuses. Resolve the authoritative request
+before launch. Input gathering grants no mutation authority.
 
 ## 3. Resolve readiness before launch
 
@@ -105,11 +112,11 @@ Adaptive delivery owns the choice:
 A proposed new name is not a choice among existing matches. Missing ticket
 identity asks the smallest question. Do not normalize tokens or infer provider
 semantics from names. Compile the token, complete evidence, exact selection,
-and this decision rule into the owner contract. Bind discovery refresh and
-exact preparation to the compatible Git capability. The owner refreshes
+and this decision rule into the delivery context. Bind discovery refresh and
+exact preparation to the compatible Git capability. The main thread refreshes
 discovery immediately before preparation and reapplies this rule if candidates
-changed; it asks through the same-owner feedback path when selection is needed.
-Preparation remains owner work and worktrees require explicit caller authority.
+changed; it asks through the same-goal feedback path when selection is needed.
+Preparation remains goal-coordinated work and worktrees require explicit caller authority.
 The delegating task recipe owns neither branch selection nor Git mechanics.
 Fresh explicit delivery can reuse local state without automatic continuation
 across conversations.
@@ -139,7 +146,7 @@ complete human-readable result.
 
 - `ready`: continue preflight and compile the settled result into the contract.
 - `needs-discovery`, `needs-decision`, or `blocked`: return the complete result,
-  surface its smallest unresolved questions, and launch no owner.
+  surface its smallest unresolved questions, and start no implementation.
 
 For a non-ready result, put the complete capability result at the start of the
 response unchanged. Do not add a preamble, summarize it, or paraphrase any
@@ -179,7 +186,7 @@ Keep these three decisions separate:
 | Decision | Basis | Controls |
 | --- | --- | --- |
 | Consequence risk | Impact of an incorrect change | Required final checks and assurance |
-| Reasoning profile | The owner's engineering uncertainty, scope, and explicit correctness priority | Owner model and effort |
+| Reasoning profile | Implementation uncertainty, scope, and explicit correctness priority | Implementation model and effort |
 | Assurance | Risk policy and user or repository requirements | Verification and independent-review bindings |
 
 Select consequence risk:
@@ -190,7 +197,7 @@ Select consequence risk:
 - `high`: security or authorization, destructive or irreversible state,
   privacy, safety, or broad blast radius.
 
-Classify the reasoning demand of the owner's engineering work:
+Classify the reasoning demand of the implementor's engineering work:
 
 - `routine`: clear localized or exact mechanical work;
 - `routine-plus`: localized work with materially competing implementations or
@@ -205,10 +212,10 @@ or repository instruction that explicitly prioritizes first-pass boundary
 correctness. A security boundary or high cost of a mistake determines risk;
 it does not supply that priority. Fully specified localized work without an
 additional basis stays `routine`. Preserve a brief basis for the selected
-profile in the owner contract.
+profile in the delivery context.
 
 Selected verification and review providers perform their own assessment work.
-Their presence alone does not raise the owner's reasoning profile.
+Their presence alone does not raise the implementor's reasoning profile.
 
 | Request | Risk | Profile | Independent review |
 | --- | --- | --- | --- |
@@ -226,21 +233,21 @@ Select assurance separately, preserving the independent-review policy:
 
 An independent-review request selects verification with review as its required
 assessment, including when review is the only selected assessment. Compile two
-distinct bindings: owner -> verification, verification -> independent review.
-Never translate “review only” into a direct owner -> review invocation.
+distinct bindings: main thread -> verification, verification -> independent review.
+Never translate “review only” into a direct main thread -> review invocation.
 
 When selected, bind the exact host-advertised verification skill that coordinates
 acceptance assurance and its compatible required independent code-review skill.
 Read both public contracts during preflight. Verify prerequisites, authorized
 effects, result evidence and stop conditions for initial and closed follow-up
 assessment. Use compatible replacements by intent, never provider identity or
-sibling files. The owner invokes verification with the review binding; verification
+sibling files. The main thread invokes verification with the review binding; verification
 owns assessment coordination and review owns its independent judgments.
 
 Read [`references/verification-lifecycle.md`](references/verification-lifecycle.md)
-completely and compile its shared repair rules into the inline owner contract.
-The owner supplies current successful required checks before assessment. All
-selected results return before one owner repair attempt addresses their combined
+completely and compile its shared repair rules into the retained delivery context.
+The main thread supplies current successful required checks before assessment. All
+selected results return before one bounded repair assignment addresses their combined
 eligible blockers. Default to two attempts total across verification, each
 followed by fresh closed-set verification. Finite explicit overrides and the
 strictest invocation, time, token and authority limits apply across providers.
@@ -252,21 +259,18 @@ Never omit review for a high-risk change merely because its implementation is
 clear or localized. A stronger user or repository rule may stop implementation
 before launch, but it does not turn the required review into an omission.
 
-Treat required-provider availability as a parent preflight gate. Missing or
+Treat required-provider availability as a main-thread preflight gate. Missing or
 incompatible verification or required review returns `Status: launch_required`
-with each concrete capability gap before any owner launch or mutation. Identify
-missing independent review even if verification is also absent. Never launch an
-owner to discover the absence, bypass verification with direct review, or
+with each concrete capability gap before goal activation or mutation. Identify
+missing independent review even if verification is also absent. Never delegate work to discover a known absence, bypass verification with direct review, or
 substitute self-review or a generic-agent review. Additional assessments are
 selected only by the goal; installation alone adds no requirement. A selected
 unsupported QA or evidence operation is a gap, not permission to drop it.
 
-An explicit user model and effort wins only when the model is eligible for
-adaptive-delivery ownership. Codex `gpt-6-luna` can own routine and routine-plus
-work and invoke bound capabilities through native subagents. A Codex
-`gpt-5.6-luna` route is not owner-capable and must be rejected; that model
-remains available for
-explicit leaf work outside this orchestration. Otherwise resolve the policy route:
+An explicit user model and effort overrides the implementation route when the
+host supports that concrete tuple. Implementation agents need only their bounded
+assignment's capabilities; they do not need to own overall delivery. Otherwise
+resolve the implementation policy route:
 
 ```sh
 uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" adaptive-delivery-preflight route \
@@ -286,36 +290,36 @@ For a file-backed Codex skill, include its installed absolute `SKILL.md` path.
 Common examples include ticket reads and
 updates, TDD, commits, pull requests, and verification with its required review.
 
-Readiness and necessary read-only input gathering are invoked by the parent
+Readiness and necessary read-only input gathering are invoked by the main thread
 before launch. Preserve completed input evidence in the contract and bind any
-needed refresh. Implementation, verification, and publication bindings are
-invoked by the owner when due; assessment-provider bindings travel through
+needed refresh. The main thread coordinates implementation, verification and
+publication assignments; each assignee invokes its relevant bindings when due.
+Assessment-provider bindings travel through
 verification with the same authority and response boundary. A direct shell, Git, forge,
 tracker, or generic-subagent call is not a substitute for a bound skill. If the
 skill refuses or becomes unavailable, stop that operation without expanding
 authority.
 
-Carry those public references through every bounded capability handoff. The
-fresh owner cannot rely on the parent's earlier reads. On Codex, instruct it to
-read and follow each bound skill using the available tools; no dedicated tool
-named after the skill is needed. Before mutation, it loads the already-selected
-verification and required review instructions. It keeps those bindings and
-performs assessment only when current checks and other prerequisites are met.
-Before declaring a bound provider unavailable, it attempts the supplied public
-instruction reference and reports the concrete failure. It must not infer
-unavailability from missing skill-specific tooling or reconstruct a plugin path
-from its name.
+Carry public references and relevant task facts through every bounded handoff.
+A fresh assignment cannot rely on this thread's earlier reads. Instruct the
+assignee to read and follow each relevant bound skill using available tools;
+no dedicated tool named after the skill is needed. Read selected verification
+and review instructions before mutation and retain those bindings. Invoke them
+only when current checks and other prerequisites are met. Before declaring a
+provider unavailable, attempt its supplied public instruction reference and
+report the concrete failure. Missing skill-specific tooling is not absence;
+do not reconstruct an installed path from a skill name.
 
 Before an operation becomes due, check the bound skill's public prerequisites,
 effects, returned evidence and stop conditions against the goal. Advertised
 intent alone does not prove behavioral compatibility. Accept differently named
 compatible skills; resolve a known mismatch before mutation. Return a refusal
-to the owner for an authorized next action, never bypass it through raw tools.
+to the coordinating thread for an authorized next action, never bypass it through raw tools.
 
 Invoking a bound skill or receiving a zero exit status proves neither that its
 substantive contract was satisfied nor that a dependent operation is due.
 Before invoking each dependent capability, validate its prerequisite results
-against both the bound skill and the goal contract. In particular, the owner
+against both the bound skill and the goal contract. In particular, the main thread
 must receive verification's complete current-content clear assessment, including
 selected provider evidence and criterion coverage, before invoking a dependent
 commit or publisher. A review-only result leaves this prerequisite unsatisfied,
@@ -329,230 +333,130 @@ alone cannot prove unpublished local commits were delivered. Explicit reuse
 and non-force push authority permits content publication, not metadata updates.
 
 Do not invent bindings or assume sibling plugins exist. An operation without a
-matching advertised skill remains ordinary owner work unless the request,
+matching advertised skill remains ordinary bounded work unless the request,
 repository, or selected gate requires that capability. Bind publication
 operations only when each effect was explicitly authorized; completion never
 adds commit, push, pull-request, merge, release, or deployment authority.
 
-## 6. Compile one inline contract
+## 6. Retain the goal and delivery context
 
-For an existing candidate with assessment-before-change intent, begin the
-execution sequence with current checks and bound verification of that unchanged
-candidate. Classifier inspection cannot supply its independent finding set or
-authorize skipping that first assessment. Preserve this order even when the
-needed edit is obvious; repairs following selected findings consume the shared
-allowance and cannot be relabeled as free implementation.
+After read-only preflight, activate one native goal in this main thread or
+continue its matching active goal using the host guide. Never replace an unrelated
+goal. A queued proposal is not activation; wait for the native kickoff before
+implementation or assessment.
+Its objective is at most 4,000 Unicode characters: the bounded outcome, material
+acceptance criteria, selected assurance, authority limits and completion criteria.
+Set a token budget only when the user explicitly supplied one. Keep workflow,
+coordination, routing and repair instructions here in the skill and retained
+conversation; do not pack the full workflow into the goal or write a goal ledger.
+Do not create a second goal or put the delivery goal in an implementation agent.
 
-Write a concise, self-contained contract containing:
+Retain acceptance, constraints and decisions; preserved work and authorized
+effects; workflow and risk; implementor route and its basis; readiness evidence;
+focused and final checks; capability bindings; and the shared repair allowance.
+Default maximum is two combined repair attempts, consumed zero unless there is
+existing history. Only an explicit finite override changes that maximum.
 
-- outcome and observable acceptance criteria;
-- scope, non-goals, preserved work, permissions, and publication limits;
-- the exact workflow identifier, its selected sequence, risk, profile with its
-  brief basis, selected route, and any explicit budget;
-- focused feedback checks and final-tree checks;
-- readiness evidence or the reason it was omitted;
-- verification selection, bound verification/review skills and selected assessments;
-- the concrete shared repair maximum (2 unless explicitly overridden), its
-  authority source, consumed attempts (0 unless already performed), remaining
-  limits and closed history; finishing early never lowers the authorized maximum;
-- every required capability binding, its public instruction reference, how the
-  owner loads it, and its prerequisite result evidence;
-- the human-feedback and blocker rules below; and
-- the completion evidence the owner must return.
+For an existing candidate with assessment-before-change intent, obtain current
+successful checks and the selected assessment of that unchanged candidate before
+authorizing repair. Obvious edits do not waive that assessment or its accounting.
+After implementation or repair, require successful focused and final-tree checks
+for current content. Routine risk needs scoped repository checks; elevated risk
+also needs affected-caller evidence and a counterexample; high risk adds an
+adversarial boundary check and independent review. Repository cadence wins.
 
-Separate engineering intent from orchestration mechanics. Any request clause
-that invokes adaptive-delivery, asks the parent to select a route, or asks it to
-launch a separate owner is consumed by this preflight and launch. Do not copy
-that clause into the engineering outcome, acceptance criteria, or workflow
-sequence; the launched subagent must understand that it is already the owner.
+## 7. Delegate bounded work and coordinate its results
 
-Compile the remaining work from the caller-authorized entry point, preserving
-explicit prerequisites and step ordering. Do not restart completed phases or
-replace the caller's order with the selected workflow's default sequence.
+Use native host continuation and delegation. Choose the next assignment from
+the request, current evidence and remaining obligations; there is no fixed phase
+pipeline. You remain responsible for completion throughout.
 
-Use these seven fields as a completeness template. Equivalent clear prose,
-role wording, punctuation, and line wrapping are valid; this is not a shipped
-host validator. Set `workflow` to exactly one
-selected identifier: `fix-bug`, `implement-feature`, `change-feature`,
-`refactor`, `migration`, or `mechanical`. Put the compact workflow steps in
-`sequence`; keep the identifier distinct from the steps:
+For implementation or repair, launch a fresh bounded implementor using the
+selected model and effort and the host guide's native delegation controls. Give it the exact assignment, repository and
+allowed files/effects, acceptance, relevant public skill paths, required checks,
+preserved work and return evidence. It owns that assignment, not the delivery
+goal. It must not invoke Adaptive Delivery, create an overall goal, coordinate
+independent assessment, or publish beyond the assignment's explicit authority.
+Ask for changed files, actual check results and unresolved blockers. Wait for
+the result before assigning conflicting work. A rejected route is a concrete
+launch failure, not permission to silently choose another model.
 
-```text
-Role: You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-delivery or seek another owner.
-Outcome: <bounded result>
-Acceptance criteria: <observable outcomes and required implementation properties>
-Scope and authority: included=<files and operations>; authorized=<local and external effects>; forbidden=<non-goals and excluded effects>; preserve=<user-owned state>
-Execution: workflow=<exact workflow identifier>; sequence=<remaining workflow steps from the caller-authorized entry point, preserving explicit ordering and receipt of complete clear selected verification before any dependent commit/publication>; risk=<routine, elevated, or high>; profile=<selected profile>; route=<host|provider|model|effort>; capabilities=<operation -> exact advertised skill, public instruction reference, load-and-follow instruction and prerequisite result evidence; or none>
-Verification and gates: readiness=<evidence or omitted reason>; adaptation=<same owner reassesses material scope, acceptance, constraint, or authoritative-input changes; invalidated readiness assumptions require invoking readiness again and obtaining ready before affected implementation, even when feature scope stays the same; strengthen affected checks within authority>; verification=<bound verification skill, required review binding, selected assessments, or permitted omission>; repair=<maximum=2; source=default; consumed=0; substitute only an explicit finite override and its source or already-observed consumed attempts; apply strictest remaining invocation/time/token/authority limits; collect all selected results before combined repair; fresh closed follow-up after each attempt; clear ends repair; further attempts require material progress and budget; no reset>; focused=<feedback checks>; final=<final-tree checks>; feedback=<same owner receives complete user messages; required acknowledgement uses the complete answer and must succeed before mutation resumes; apply and verify every new constraint; when feedback requires using an existing component, call that component from the implementation; copying or inlining its algorithm does not reuse the component>; blockers=<semantic blocker and observe-before-retry rule>
-Completion evidence: state whether complete, awaiting feedback, or blocked; include=<changed files, focused and final checks, readiness, combined verification conclusion and complete selected results, every material criterion's current evidence or gap, finding/target/repair history, consumed repair attempts and authorized maximum, publication effects, and remaining risks or blockers>
-```
+Launch verification as a separate bounded capability assignment with the intent
+to coordinate acceptance verification. Pin this coordinator to Codex
+`gpt-6-sol/medium` or a stronger authorized route; on Claude use the scoped
+`claude-opus-5/high` agent. Preserve review coordination separately: explicitly
+pass Codex `gpt-6-luna/medium` or Claude `claude-sonnet-5/medium` as the review
+coordinator route. This never overrides review's independent-reader route
+(Codex `gpt-6-sol/xhigh`). Do not allow parent-model inheritance to change roles.
+Supply the verification skill's exact installed instruction
+path, compatible review binding, selected providers, originating acceptance,
+scope/base/current candidate, successful checks, constraints and existing evidence.
+Require its complete combined result and provider evidence. The capability owns
+provider selection, its required internal delegation and reader model/effort.
+Do not inherit the implementation route as a restriction on those readers, invoke
+review directly in place of verification, or absorb assessment internals here.
+Other selected capabilities similarly own their bounded operations and mechanics.
 
-Feedback checks exercise the changed seam after coherent slices. Final-tree
-checks are the applicable repository gate plus:
+Evaluate returned evidence against acceptance and capability prerequisites.
+An accepted assignment, zero exit code or review-only pass does not establish a
+complete combined verification. Preserve complete reports and usable absolute
+artifact references when supplied; do not invent mandatory saved artifacts for
+a compatible capability whose complete public result is inline.
 
-| Risk | Required final evidence |
-| --- | --- |
-| routine | focused evidence and scoped repository gate |
-| elevated | routine evidence plus affected-caller or compatibility checks and one counterexample |
-| high | elevated evidence plus an adversarial boundary or state-transition check and independent review |
+Await every selected result before one combined repair assignment. Consume one
+shared attempt for that repair, refresh invalidated checks and arrange fresh
+closed-set reassessment through verification. Carry unchanged original/prior
+provider artifacts, original finding identities and provenance, prior/current
+targets, repair history and direct-regression lineage. A summary cannot replace
+authoritative records. Apply the shared lifecycle in references/verification-lifecycle.md:
+clear ends repair; further attempts require material progress and remaining
+budget; incomplete or unchanged evidence, exhausted limits or missing authority
+blocks dependent work. An assessment restart cannot reset the allowance.
 
-Every required focused and final check must succeed against the applicable
-current content before selected assessment and before any dependent commit or publication
-effect. If one fails, repair within existing scope and authority and rerun the
-invalidated checks. Otherwise stop before those dependent operations. Do not
-consume a one-commit allowance with content whose required checks are failing.
+A concrete assessment error or newly available evidence may justify correcting
+an assessment without changing code. Use the provider's public correction
+contract, retain the previous report and full history, and obtain fresh judgments
+and checks. Explain what error or gap the evidence corrects. Never relabel a
+completed blocked assessment as aborted or omit it to obtain clearance.
+Assessment correction neither consumes nor resets implementation repair attempts.
 
-Compile the verification handoff, not merely a link to its lifecycle reference:
-candidate/repository/scope/base, originating criteria, constraints, successful
-current checks and existing evidence; selected providers and complete results;
-original findings with identities, provenance, severity and blocking/advisory
-disposition, original/prior/current targets, attempted repairs, prior follow-ups
-and carried direct regressions with their causing finding identities. The owner
-waits for every selected result before repair and preserves this history in each
-fresh follow-up, passing unchanged complete original and prior provider artifacts
-by usable absolute reference instead of replacing them with summaries.
-A provider pass cannot cover unassessed criteria. Stale, missing,
-unchanged, oscillating, inconclusive or unavailable required evidence, exhausted
-limits or missing authority stops completion and remaining publication. Advisories
-remain visible and nonblocking. A new comprehensive assessment cannot reset the
-budget or reopen the closed finding set beyond direct repair-caused regressions.
+User feedback belongs to this main thread. Preserve every restriction, product
+decision and implementation property; update affected acceptance and reassess
+readiness when its assumptions change. Send relevant full feedback to any active
+assignment before its next affected action. Retain a still-applicable assignment
+for same-thread follow-up instead of launching a competing implementor. Where a
+repository acknowledgement is required, pass the complete answer and require
+success before mutation. Using an existing component means calling it, not
+copying its algorithm. Status requests do not stop work; cancellation stops
+further work and reports effects already performed.
 
-When a stable seam and independent oracle exist, behavior-changing workflows
-add or update focused evidence before the production change and confirm the
-expected failure. Repository-mandated cadence wins.
+Ask the smallest concrete question for a missing material decision. Stop affected
+mutation, steering or interrupting active children as needed, and preserve this
+same goal and its decisions, evidence and consumed attempts. Resume when the
+required answer arrives. Use host controls truthfully: Codex literal pause
+requires explicit user pause, complete requires achieved outcome, and blocked
+requires the native tool's recurrence condition. Claude uses its supported goal
+question and continuation controls. Never clear and recreate the goal to obtain
+feedback or reset history.
+Do not invent a custom retry or continuation loop. Report concrete host failures
+and evidence gaps; never claim a replacement thread is the same goal.
 
-Compile this human-feedback rule: a material decision first discovered after
-launch pauses repository and external mutation. The owner returns the smallest
-complete question as its paused result; no lifecycle marker is required. The
-parent relays the explicit answer verbatim to the same owner, with no lifecycle
-marker or fixed display summary. The answer grants only explicitly supplied
-authority. Preserve repository-specific acknowledgement prerequisites in the
-owner contract. The owner must pass the complete received answer to that
-acknowledgement without shortening it to a selected value, and require success
-before any production edit, commit, or publication. A nonzero exit or rejection
-keeps the gate closed: correct the invocation within authority or return the
-blocker. Knowing the chosen behavior does not authorize bypassing the gate.
-Never choose a default or launch a replacement owner.
+Before repeating an ambiguous external effect, observe its current state and
+never duplicate an effect that already completed. Include this rule in affected
+capability assignments. Do not retry an unchanged deterministic failure without
+changed evidence or conditions; return the concrete blocker and next action.
 
-Compile this blocker rule: when work cannot proceed without an external state
-change, return `Status: blocked` with the specific blocker, current evidence,
-and smallest next action. Before repeating an ambiguous external effect,
-observe current state and never duplicate an effect that already completed. Do
-not retry an unchanged deterministic failure without changed evidence or
-conditions. There is no Darrow retry or waiver state machine.
+## 8. Complete from evidence
 
-Compile this adaptation rule: after a material scope, acceptance, constraint,
-or authoritative-input change, the same owner pauses affected implementation
-and reassesses affected assumptions and gates. It invokes bound readiness or
-selects the necessary advertised readiness capability under the selection
-rules above, even if initially omitted. Obtain required ready evidence before
-resuming. Strengthen verification within existing authority; ask for missing
-product decisions or expanded effects. A non-ready result returns to the same
-owner, which may investigate within authority. The parent never repeats preflight.
+Mark the main-thread goal complete only when the requested outcome and every
+required current-content check and selected assessment are supported, blockers
+are resolved, and all authorized required effects are established. Incomplete
+verification blocks completion and dependent commit/publication even if review
+is clear. Goal completion creates no additional publication authority.
 
-Compile this steering rule: forward unambiguous corrections, constraints,
-cancellation, and status requests to the retained owner even without a pending
-question. Apply restrictions before the next affected action.
-Add each correction or constraint to the remaining acceptance checks and verify
-it before completion. An implementation constraint requires the specified
-implementation property; equivalent output alone does not satisfy it.
-When feedback requires using an existing component, call that component from
-the implementation. Keep one source of behavior: copying or inlining its
-algorithm does not reuse the component.
-Cancellation stops further work and reports effects already performed; status alone does
-not cancel. Report unavailable live delivery or stopping controls honestly.
-Do not reinterpret a status request or restriction as new scope or publication
-authority, and never launch a replacement owner to deliver feedback.
-
-The owner result must clearly state whether the outcome is complete, awaiting
-feedback, or blocked; `Status: complete` and `Status: blocked` are examples. It must
-state changed files, focused and final checks, readiness and the combined
-verification conclusion when selected, complete assessment evidence and criterion
-coverage, consumed repair attempts and their authorized maximum, performed
-publication effects, and remaining risks. The maximum must match the authorized
-contract: one successful repair
-under the default is 1 of 2, not a one-attempt allowance or an exhausted 1/1 budget.
-Workflow, risk, profile, and route are already established at launch and need
-not be echoed. No other canonical serialization is required.
-
-The complete launch task begins with the exact owner marker, followed by an
-explicit sole-owner role instruction. For example:
-
-```text
-- phase: adaptive-delivery-owner
-Role: You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-delivery or seek another owner.
-```
-
-Put the complete contract inline after that marker. Do not use an objective
-file, hash, lifecycle ledger, or nested goal. If the complete contract cannot
-fit the host task input without dropping a requirement, return
-`Status: launch_required` and explain that boundary.
-
-## 7. Launch exactly one separate owner
-
-Read exactly one host guide completely:
-
-- Codex: [`references/codex-launch.md`](references/codex-launch.md)
-- Claude: [`references/claude-launch.md`](references/claude-launch.md)
-
-On a continuation turn, apply that guide's feedback fast path before any other
-action.
-
-The separate route-selected subagent is the sole Darrow work owner. The
-accepted Codex launch carries its concrete route. On Claude, the resolver
-validates the scoped agent's model and effort frontmatter and rejects
-higher-priority environment overrides; launch without a per-call model
-override and explicitly include `run_in_background: false` in the Agent input,
-even when foreground execution is the host default. Do not launch in the current thread, create another goal inside the
-owner, inspect child work, start a nested host process, retry with another
-route, or replace an accepted owner.
-
-After acceptance, the parent performs no repository or external work. It may
-only wait, relay user feedback or request status from the same owner, or stop that owner after
-explicit abandonment or supersession.
-
-When the foreground owner returns, apply section 8 before responding. Final
-inspection and verification belong to the owner; even a read-only repository
-confirmation of its report crosses this boundary. Obtain missing or
-contradictory status evidence from the same owner through the host's continuation
-control. If that control is unavailable, report the evidence gap without claiming
-completion.
-
-For every message-based relay after acceptance, preserve every instruction and
-constraint from the current user message. Do not summarize or paraphrase in a
-way that drops, weakens, broadens, or converts an implementation property into
-equivalent output behavior. Keep the retained-owner target and transport
-metadata separate from the feedback content.
-
-If launch is unavailable or rejected, preserve the product tree and return:
-
-```text
-Status: launch_required
-Reason: <specific unavailable boundary>
-Selected route: <provider/model/effort>
-```
-
-## 8. Relay the owner result
-
-Return the owner's result without reconstructing repository facts or running
-checks in the parent. Preserve complete readiness and combined verification
-results, selected assessment evidence, consumed repair attempts and their
-authorized maximum, and every
-authorized publication effect. A blocked or feedback-pending owner remains the
-same owner for a later same-thread answer when the host supports continuation.
-
-Before claiming completion, compare the returned repair maximum with the
-maximum and authority source retained at launch, and require the consumed count.
-For example, a default allowance remains two when the owner used one; a report
-of a sole repair allowance or 1/1 contradicts that contract. Request corrected
-accounting from the same owner and wait for its amended status before relaying
-completion. This is a status correction using existing evidence: it authorizes
-no further repair, assessment, check, or publication and never resets the budget.
-
-Do not shorten away selected gate outcomes, repair accounting, or performed
-effects. If the owner omits other required completion evidence, request that
-missing status evidence from the same owner before claiming completion; do not
-inspect the tree yourself or invent the missing outcome. This request adds no
-work or publication authority.
-
-Completion adds no authority. No fixed closing disclaimer is required.
+The self-contained user-facing result includes completion or blockage, changed files, checks,
+readiness, combined verification and complete selected results, material criterion
+evidence or gaps, original findings and repair history, consumed attempts and the
+authorized maximum, performed publication effects and remaining risks. A default
+maximum remains two when one attempt succeeds. Preserve substantive provider
+evidence; do not replace missing facts with implementation-agent assertions.

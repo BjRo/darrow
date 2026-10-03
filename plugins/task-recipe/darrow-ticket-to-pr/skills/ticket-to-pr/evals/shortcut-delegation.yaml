@@ -24,7 +24,7 @@ fixture:
       # Fixture adaptive delivery
 
       Accept the delegation only when it preserves the exact ticket URL and asks
-      one owner to read and implement that ticket in the current repository on a
+      the main delivery coordinator to read and arrange implementation of that ticket in the current repository on a
       new ticket branch, verify the result, create intended commits, push without
       force, and create or reuse exactly one pull request. It must forbid merge,
       deployment, release, ticket mutation, destructive Git operations, and

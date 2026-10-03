@@ -115,7 +115,7 @@ def original_binding(path: str) -> dict[str, object]:
 
 def retained_attempts(draft: Records, previous: Records | None) -> list[Record]:
     current = draft.items("attempts")
-    if previous is None:
+    if previous is None or draft.value("assessment_correction"):
         return current
     supplied = {row["key"] for row in current}
     carried = [

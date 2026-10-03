@@ -163,6 +163,24 @@ repair, choose assurance, continue the goal or control a budget. It must let the
 provider create its own independent readers and apply its own public routing.
 Do not replace the provider with a generic review prompt in that context.
 
+Pin the provider coordinator's route separately from this verification thread
+and implementation. On Codex, explicitly use `model: "gpt-6-luna"` and
+`reasoning_effort: "medium"`, unless the caller supplied another compatible
+explicit coordinator route. This does not override the review capability's
+independent-reader model or effort.
+
+On Claude, use this plugin's
+`darrow-verification:review-coordinator-sonnet-5-medium` scoped Agent, with
+`run_in_background: false` and no per-call model override. Its frontmatter pins
+`claude-sonnet-5/medium`. Before launch, inspect only
+`CLAUDE_CODE_SUBAGENT_MODEL` and `CLAUDE_CODE_EFFORT_LEVEL`; unset values are fine,
+but a conflicting nonempty override blocks that route. If a caller requests
+another route, require an available scoped Agent that explicitly pins it and
+check those same overrides. Never silently inherit a different route or rely
+on another plugin's private agent file. If the required native Agent is
+unavailable, return that invocation gap. The provider still creates and routes
+its own independent readers.
+
 Do not load the provider as an inline role switch in this coordinator: its final
 response would end the current turn before reconciliation. If the host cannot
 return a bounded provider response, return blocked with that invocation gap.
@@ -185,6 +203,13 @@ never report early clearance or repair while another required result is pending.
 If evidence is unavailable, return the refusal and next needed evidence to the
 same owner. Do not retry in a loop or ask a new comprehensive review to reset
 history. A blocked suboperation does not replace or terminate the active owner.
+
+When a concrete assessment error or new available evidence justifies correction,
+request one bounded correction through the provider's public contract. Preserve
+the completed previous result and complete finding/target history; obtain fresh
+judgment at the same candidate and explain why the new result supersedes the
+earlier conclusion. Follow the correction rules in `references/follow-up.md`.
+This neither authorizes implementation nor spends or resets a repair attempt.
 
 **Complete when:** each selected supported assessment has one complete result
 for the current candidate, or its explicit unavailable/incomplete status.

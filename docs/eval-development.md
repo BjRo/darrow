@@ -252,6 +252,14 @@ the shared runner's default lightweight grader remains unchanged.
 
 ## Live-run controls
 
+Use `--codex-entrypoint app-server` for Codex native main-thread goal trials.
+This hosts the original participant thread through native continuation; it does
+not drive synthetic turns or launch a separate execution owner. The selected
+entrypoint is retained in case provenance and the run digest; the harness records
+the actual transport. Use `--owner-evaluation passive` with the adopted ownership
+design. Historical separate-owner guards are not valid architecture assertions
+for a main-thread coordinator. Preserve historical results and attribution gaps.
+
 Use `--owner-evaluation passive` for native trials of the shipped adaptive-delivery
 skill. It omits the Codex spawn/parent guard (including its `fork_turns` rewrite)
 and Claude's adaptive-delivery-specific scheduler exclusion. The default
@@ -338,6 +346,23 @@ unreadable configuration, invalid TOML, or a nonpositive/noninteger limit fails
 explicitly.
 
 ## Runner compatibility baseline
+
+The main-thread ownership pilot can explicitly set
+`HarnessRunRequest.control.codexEntrypoint` to `app-server` when calling the Codex
+adapter. This is a programmatic opt-in; the normal CLI entrypoint remains `exec`.
+Use passive owner evaluation. Both comparison arms must use the same entrypoint.
+The client sends the initial user prompt once, observes the participant's native
+goal, and waits through automatic turns until it has a terminal goal state and
+the completing response. It does not create or mutate goals, launch an execution
+owner, or supply continuation prompts. A declared follow-up prompt is the only
+additional client-requested user turn.
+
+The default wall-clock bound is one hour per invocation; a diagnostic may set
+`appServerTimeoutMs` explicitly. Time bounds, unanswered server requests, failed
+turns and malformed protocol remain failures. Results retain `codexEntrypoint`
+and bounded `darrow.eval.app_server` lifecycle evidence separately from task and
+activation grades. Native child token usage remains incomplete in the standard
+harness summary; pilot observations must reconcile actor usage separately.
 
 Run the command-level compatibility baseline without live harness calls or
 credentials:

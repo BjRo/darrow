@@ -8,6 +8,40 @@ Surface: `evals/runner/`. Runtime: repository development infrastructure on
 TypeScript and Bun; this is not a plugin-shipped dependency or user-invoked
 orchestration capability.
 
+## Native goal entrypoint
+
+Codex evals may select `--codex-entrypoint app-server` to host the original
+participant thread through native goal continuation. The adapter observes native
+goal state and automatic turns; it does not create goals, synthesize continuation
+messages or launch a separate execution owner. Record the requested entrypoint
+in case provenance and the actual transport in each harness result, and include
+the selection in the evaluation digest. Dry runs establish setup only. Historical
+exec trials and their attribution gaps remain unchanged.
+
+Retain bounded public diagnostics for original-thread app-server errors: source,
+thread/turn identity, retry intent, public message, error classification and HTTP
+status when supplied. A failed turn may carry this evidence without a separate
+error notification. Preserve errors received during final-response settlement
+too. Bound record count and message length, marking truncation; omit private
+additional details, continuation instructions, request bodies and credentials.
+Diagnostics do not authorize retries, synthesized user input, model fallback or
+accepting an earlier checkpoint as completion. Unrecoverable host failures stay
+failed, with incomplete evidence labeled unknown.
+
+Current main-thread cases declare `native_goal: required|forbidden`. Grade actual
+native activation separately from child acceptance and task outcomes. A valid
+Codex app-server readback binds the original thread, goal lifecycle and a goal of
+at most 4,000 characters. Missing, malformed or failed observation cannot pass.
+Bounded multiple children and main-thread checks are valid in this architecture;
+the former single-child and parent-inactivity assertions do not apply. Other
+hosts need equivalent observed native evidence. Claude uses original-session
+native `goal_status` attachments, bound to a successful result and the observed
+session ID. A sentinel clear is not assessed completion. Headless Claude cases
+requiring activation enter through the user-visible native `/goal` command;
+the runner never inserts it on the participant's behalf. Absent observation is
+a gap, not evidence of activation or nonactivation. Keep capability consumption
+and candidate correctness as separate checks.
+
 ## Why
 
 A skill can have plausible instructions and passing candidate-only cases while
@@ -501,6 +535,7 @@ not prove equivalence or savings.
   independently of case-ID naming and mounted-skill overrides. Case filters
   narrow that set, skill-less cases are excluded, and an empty selection
   fails explicitly.
+
 - **SE-C26 — Select cases by owning plugin.** The direct runner's `--plugin`
   filter selects every discovered case colocated under all skills of the exact
   named plugin, across plugin kinds and independently of case IDs or mounting
@@ -525,6 +560,20 @@ not prove equivalence or savings.
   A rejected or unavailable receipt keeps explicit activation unknown, even
   when later ordinary skill events name the same owner. Preserve those observed
   events without treating them as accepted native-command dispatch.
+
+- **SE-C28 — Native goal evaluation entrypoint.** An explicitly selected Codex
+  app-server entrypoint hosts the original main thread with the same isolated
+  environment, installed plugins and passive observation as the exec adapter.
+  It submits the requested user input once and observes native continuation;
+  it never creates, replaces, completes or resumes a goal on the participant's
+  behalf. An active goal keeps the session open after a completed turn. A terminal
+  goal state requires the associated completed turn and its final response before
+  shutdown. Failed/interrupted turns, protocol failures and time bounds remain
+  failures with retained evidence. No-goal runs may return at completed-turn
+  boundaries. Only an explicitly supplied follow-up user prompt starts another
+  client-requested turn. Results identify the entrypoint and preserve bounded
+  root-thread, turn and goal-state evidence without private reasoning. Existing
+  exec results and defaults remain distinct and unchanged.
 
 ## Evaluation requirements
 

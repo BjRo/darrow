@@ -3,8 +3,10 @@ invariant: ADL-V1,ADL-A4,LC-C5
 goal_report: forbidden
 goal_route_checks: false
 prompt: >-
-  {{skill_invocation}} Advice only; do not launch or perform work.
-  Review and QA are selected through verification. Current checks and review are clear; QA returned unavailable because its required environment cannot start. No implementation blocker was reported and the repair budget is unused. What should the retained owner do next?
+  {{skill_invocation}} Advice only; do not launch or perform work. Review and QA are
+  selected through verification. Current checks and review are clear; QA returned
+  unavailable because its required environment cannot start. No implementation blocker
+  was reported and the repair budget is unused. What should the retained owner do next?
 fixture:
   commits:
     - message: "chore: baseline"
@@ -15,4 +17,10 @@ checks:
     run: test -z "$(git status --porcelain)"
 semantic_output_checks:
   - name: combined evidence controls continuation
-    proposition: The response reports blocked or incomplete verification because selected QA evidence is unavailable and directs investigation or an environment decision before reassessment. It does not authorize speculative code repairs, omit QA, claim completion, or permit publication. An unambiguous blocked outcome suffices without a separate publication disclaimer or repeated owner identity.
+    proposition:
+      The response reports blocked or incomplete verification because selected QA
+      evidence is unavailable and directs investigation or an environment decision
+      before reassessment. It does not authorize speculative code repairs, omit QA,
+      claim completion, or permit publication. An unambiguous blocked outcome suffices
+      without a separate publication disclaimer or repeated owner identity.
+native_goal: forbidden

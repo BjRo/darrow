@@ -32,6 +32,11 @@ import {
 import { CODEX_EVAL_ROLE_DEFAULTS } from "../model-defaults";
 import { retainedCodexGoalControls } from "./codex-goal-tools";
 import {
+  codexAppServerArgv,
+  runCodexAppServer,
+  type AppServerEvidence,
+} from "./codex-app-server";
+import {
   nativeCommandOutputs,
   type RecoveredCommandOutput,
 } from "./codex-command-output";
@@ -3987,6 +3992,7 @@ export async function codexInitialResponseEvidence(repoDir: string): Promise<{
 }
 
 interface CodexExecution {
+  appServerEvidence?: AppServerEvidence;
   canonicalRepoDir: string;
   configRoot: string;
   installedSkillsRoots: string[];
@@ -4342,6 +4348,49 @@ export async function codexNativeSessionForThread(
   }
 }
 
+async function executeCodexAppServer(
+  request: HarnessRunRequest,
+  context: CodexProcessContext,
+  start: number,
+): Promise<CodexExecution> {
+  const { repoDir } = request;
+  const { env, spawnGuard } = context;
+  if (spawnGuard)
+    throw new Error("App-server pilot requires passive owner evaluation");
+  const initialRepositoryFingerprint = await repositoryFingerprint(repoDir);
+  const result = await runCodexAppServer({
+    request,
+    argv: await codexSandboxedCommand(context, repoDir)(codexAppServerArgv()),
+    env: {
+      ...env,
+      PATH: `${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`,
+    },
+    followUpBoundary: async (threadId) =>
+      JSON.stringify({
+        type: "darrow.eval.follow_up_turn",
+        thread_id: threadId,
+        native_after_ordinal: await nativeSessionLastOrdinal(
+          env.CODEX_HOME!,
+          threadId,
+        ),
+        pre_feedback_worktree_unchanged:
+          initialRepositoryFingerprint ===
+          (await repositoryFingerprint(repoDir)),
+        ...(await codexInitialResponseEvidence(repoDir)),
+      }),
+  });
+  return {
+    canonicalRepoDir: context.canonicalRepoDir,
+    configRoot: env.CODEX_HOME!,
+    installedSkillsRoots: context.installedSkillsRoots,
+    out: result.out,
+    err: result.err,
+    code: result.code,
+    durationMs: performance.now() - start,
+    appServerEvidence: result.evidence,
+  };
+}
+
 async function executeCodex(
   request: HarnessRunRequest,
 ): Promise<CodexExecution> {
@@ -4351,6 +4400,9 @@ async function executeCodex(
   const { env, spawnGuard } = context;
   const sandboxed = codexSandboxedCommand(context, repoDir);
   try {
+    if (request.control?.codexEntrypoint === "app-server") {
+      return await executeCodexAppServer(request, context, start);
+    }
     const initialRepositoryFingerprint = await repositoryFingerprint(repoDir);
     const initial = await runCodexProcess(
       await sandboxed(codexArgv(request)),
@@ -4474,6 +4526,7 @@ async function codexHarnessResult(
     execution,
   );
   return {
+    codexEntrypoint: request.control?.codexEntrypoint ?? "exec",
     evaluationEnforcement: spawnGuardSecret ? "enforced" : "passive",
     ...codexAgentConcurrencyEvidence("codex"),
     ok,
@@ -4483,7 +4536,9 @@ async function codexHarnessResult(
     outputTokens: usage.outputTokens,
     costUsd: null,
     resultText,
-    raw,
+    raw: execution.appServerEvidence
+      ? `${raw.trimEnd()}\n${JSON.stringify(execution.appServerEvidence)}`
+      : raw,
     skillActivation: { ...activation, complete: ok && activation.complete },
   };
 }

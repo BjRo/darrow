@@ -4,12 +4,12 @@ goal_report: forbidden
 goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Diagnose and fix summarizeSegments intermittently double-counting
-  the final segment when input ends with a delimiter. This is a hard diagnosis: the cause is unknown across
-  multiple plausible layers and state transitions in tokenization, iteration,
-  and aggregation; establish it before changing behavior. This is an internal
-  developer-only reporting utility with a localized, reversible,
-  limited-blast-radius fix. Preserve non-trailing and empty-input behavior, add
-  focused regression evidence, and run bash test.sh. Keep the result local.
+  the final segment when input ends with a delimiter. This is a hard diagnosis: the
+  cause is unknown across multiple plausible layers and state transitions in
+  tokenization, iteration, and aggregation; establish it before changing behavior. This
+  is an internal developer-only reporting utility with a localized, reversible,
+  limited-blast-radius fix. Preserve non-trailing and empty-input behavior, add focused
+  regression evidence, and run bash test.sh. Keep the result local.
 fixture:
   commits:
     - message: "chore: init"
@@ -51,11 +51,9 @@ fixture:
 checks:
   - name: trailing delimiter regression is fixed
     run: >-
-      node --input-type=module -e
-      "import('./report.js').then(({summarizeSegments}) => {
-      if (summarizeSegments('alpha|beta|') !== 2 ||
-      summarizeSegments('alpha|beta') !== 2 ||
-      summarizeSegments('') !== 0) process.exit(1) })"
+      node --input-type=module -e "import('./report.js').then(({summarizeSegments}) => {
+      if (summarizeSegments('alpha|beta|') !== 2 || summarizeSegments('alpha|beta') !==
+      2 || summarizeSegments('') !== 0) process.exit(1) })"
   - name: focused tests pass
     run: bash test.sh
 output_checks:
@@ -65,10 +63,13 @@ output_checks:
   - name: no lifecycle protocol is reported
     not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
 transcript_checks:
-  - name: judgment policy route is applied to the owner
-    expect_regex: '(?:"type":"darrow\.codex_native_single_agent_accepted"[^\n]*"model":"gpt-6-astra","reasoning_effort":"high"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-adaptive-delivery:adaptive-delivery-opus-5-high")'
-  - name: no lifecycle ledger or nested goal is used
-    not_regex: 'adaptive-delivery-preflight step|Protocol ledger|"tool":"create_goal"'
+  - name: selected implementation policy route has accepted bounded-child evidence
+    expect_regex: (?:"type":"darrow\.codex_native_spawn","status":"accepted"[^\n]*"model":"gpt-6-astra","reasoning_effort":"high"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-adaptive-delivery:adaptive-delivery-opus-5-high")
+  - name: no lifecycle ledger is used
+    not_regex: adaptive-delivery-preflight step|Protocol ledger
 semantic_output_checks:
   - name: difficult diagnosis retains routine consequence risk
-    proposition: The response reports the requested outcome as complete, with no unresolved blocker or pending decision preventing completion.
+    proposition:
+      The response reports the requested outcome as complete, with no unresolved
+      blocker or pending decision preventing completion.
+native_goal: required

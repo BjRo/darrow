@@ -199,6 +199,7 @@ SCHEMAS = {
             "prior_target": string(),
             "current_target": string(),
             "history_targets": array(string()),
+            "assessment_correction": string(),
             "previous_verification": object_schema(("checksum", "path")),
             "original_findings": array(ORIGINAL_FINDING),
             "attempts": array(ATTEMPT),

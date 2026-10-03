@@ -14,5 +14,5 @@ uv run --quiet --no-project "$skill_dir/../../backend/scripts/run_locked.py" ada
 Treat its human-readable response as this capability's complete result. Return
 the result to adaptive-delivery preflight without implementing or performing the
 request's next action inside this capability. A `ready` result may be compiled
-into the separate owner's inline contract. Any other verdict stops before owner
-launch and mutation.
+into the main thread's delivery contract. Any other verdict stops before native
+goal activation and implementation.

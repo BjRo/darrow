@@ -301,6 +301,17 @@ The skill bundles axis prompts, a design-smell reference, and the result
 protocol used by fresh reviewers. These files make the two review questions
 explicit without relying on another installed plugin.
 
+## Assessment correction
+
+When concrete new evidence corrects an erroneous or incomplete assessment at
+unchanged code, the follow-up draft can include `assessment_correction` with
+the reason and new evidence. Bind the latest completed result, preserve its
+checksum and full finding/target history, and supply fresh judgments and checks.
+Only fully resolved current evidence can clear. The previous artifact remains
+unchanged; repeated unresolved conclusions remain blocked or no-progress.
+This correction neither consumes nor resets an enclosing implementation repair
+allowance.
+
 ## Design boundaries
 
 - Reviewers report defects; they never edit, repair, commit, push, approve,

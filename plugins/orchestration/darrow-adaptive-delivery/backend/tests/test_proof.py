@@ -261,13 +261,46 @@ def test_verification_requires_clear_and_original(
         original.parent.parent / "darrow-review.duplicate/result.json",
         original.read_text(),
     )
-    with pytest.raises(proof.InvalidProofError, match=r"original.*ambiguous"):
-        proof.validate(repo, "complete", str(record))
+    assert proof.validate(repo, "complete", str(record)).startswith(
+        "valid clear review"
+    )
     record.write_text(
         record.read_text().replace('"outcome": "clear"', '"outcome": "continue"')
     )
     with pytest.raises(proof.InvalidProofError, match="verification is not clear"):
         proof.validate(repo, "complete", str(record))
+
+
+@pytest.mark.parametrize("matching", [False, True])
+def test_verification_binds_findings_among_reports_for_one_target(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, matching: bool
+) -> None:
+    provider(repo)
+    decoy = comprehensive(repo)
+    original = write(
+        decoy.parent.parent / "darrow-review.bound/result.json", decoy.read_text()
+    )
+    repaired = verification(repo)
+
+    def invoke(_backend: Path, _repo: Path, *args: str) -> str:
+        if args[1] == "validate-original" and (
+            not matching or args[2] != str(original)
+        ):
+            raise proof.InvalidProofError("complete ordered finding set differs")
+        return json.dumps({"target": "WORKTREE@current"})
+
+    monkeypatch.setattr(proof, "invoke", invoke)
+    if matching:
+        assert proof.validate(repo, "complete", str(repaired)).startswith(
+            "valid clear review"
+        )
+        assert (repo / ".git/goal-complete").is_file()
+    else:
+        with pytest.raises(
+            proof.InvalidProofError, match=r"original.*missing|original.*match"
+        ):
+            proof.validate(repo, "complete", str(repaired))
+        assert not (repo / ".git/goal-complete").exists()
 
 
 @pytest.mark.parametrize(

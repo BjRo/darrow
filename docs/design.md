@@ -182,16 +182,29 @@ wall-time and child-invocation overhead.
 Adaptive Delivery keeps the useful part and removes the duplicate runtime:
 
 ```text
-request + repository -> read-only preflight/readiness -> goal contract -> one routed subagent owner
+request + repository -> read-only preflight/readiness -> native goal in the main thread
+                                                        -> bounded implementation
+                                                        -> selected capabilities
 ```
 
 Preflight discovers applicable repository instructions and checks, turns the
 request into observable acceptance criteria and scope, reuses or obtains a
 same-scope readiness result when required, binds matching advertised skills,
 selects a task workflow and risk gate, and chooses proportionate model and
-effort. It then activates exactly one route-selected host-visible subagent. That
-owner invokes the bound skills and owns implementation, adaptation, recovery,
-verification, feedback, and completion from that point onward.
+effort for bounded implementation. The main thread retains the native goal,
+acceptance criteria, user decisions and completion responsibility. It delegates
+implementation and selected verification as separate assignments, consumes their
+evidence, requests authorized repairs and arranges reassessment. Capabilities
+retain their own delegation and model selection; the implementor's route never
+overrides a reviewer route.
+
+The goal stays within 4,000 characters and states the outcome and completion
+criteria. Coordination instructions stay in the skill. Native continuation and
+delegation keep the work moving on both Codex and Claude; Darrow adds no fixed
+phase pipeline or custom goal runtime. Codex coordination is recommended on
+Sol/medium, and verification coordination is explicitly routed to at least
+Sol/medium. These choices follow bounded experiments, not a claim that every
+task or stronger model configuration has been proven reliable.
 
 The helper therefore improves the initial conditions for an adaptive run; it is
 not a second adaptive loop, multi-agent controller, lifecycle ledger, daemon,

@@ -106,6 +106,74 @@ def test_prior_verification_history_is_carried_without_transcription(
     assert result.value("outcome") == "clear"
 
 
+def test_assessment_correction_clears_same_candidate_and_retains_prior_result(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (repo / "file.txt").write_text("original\n", encoding="utf-8")
+    original_scope = prepare(repo)
+    original = finalize(
+        original_scope,
+        write(Path(original_scope).parent / "draft.json", result_record()),
+        capture(repo, original_scope, monkeypatch),
+    )
+    original_target = Records(Path(original).read_text(encoding="utf-8")).value(
+        "target"
+    )
+    (repo / "file.txt").write_text("repaired\n", encoding="utf-8")
+    prior_scope = prepare(repo, original_scope)
+    blocked = {
+        "format": "darrow-review-verification-v3",
+        "attempts": [],
+        "evidence_gaps": ["The independent reader did not return its assessment."],
+        "next_action": "Obtain the missing reader assessment.",
+    }
+    previous = finalize(
+        prior_scope,
+        write(Path(prior_scope).parent / "draft.json", blocked),
+        capture(repo, prior_scope, monkeypatch),
+        original,
+    )
+    prior_bytes = Path(previous).read_bytes()
+    manifest = prepare(repo, prior_scope)
+    reason = (
+        "The reader now independently confirms the repaired value; no code changed."
+    )
+    correction = {
+        "format": "darrow-review-verification-v3",
+        "assessment_correction": reason,
+        "attempts": [
+            {
+                "key": f"spec:1:{original_target}",
+                "status": "resolved",
+                "progress": "resolved",
+                "evidence": "Fresh reader observed the required repaired value.",
+            }
+        ],
+        "next_action": "Return the corrected assessment to the same owner.",
+    }
+    output = finalize(
+        manifest,
+        write(Path(manifest).parent / "draft.json", correction),
+        capture(repo, manifest, monkeypatch),
+        previous,
+    )
+    final = Records(Path(output).read_text(encoding="utf-8"))
+    assert final.value("outcome") == "clear"
+    assert final.value("current_target") == final.value("prior_target")
+    assert final.object("previous_verification") == {
+        "path": previous,
+        "checksum": blob_hash(prior_bytes),
+    }
+    assert final.strings("history_targets") == [original_target]
+    assert final.items("original_findings") == Records(
+        prior_bytes.decode("utf-8")
+    ).items("original_findings")
+    assert Path(previous).read_bytes() == prior_bytes
+    rendered = str(cli.report_command(["render-verification", output]))
+    assert reason in rendered
+    assert previous in rendered
+
+
 def prior_with_regression(repo: Path) -> tuple[str, str]:
     (repo / "file.txt").write_text("broken\n", encoding="utf-8")
     original_scope = prepare(repo)
@@ -168,6 +236,37 @@ def test_external_history_finalization(
     assert final.strings("history_targets") == [old.value("original_target")]
     assert final.items("original_findings") == old.items("original_findings")
     assert final.value("outcome") == "continue"
+
+
+def test_assessment_correction_requires_fresh_original_judgment(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    prior_scope, previous = prior_with_regression(repo)
+    prior = Records(Path(previous).read_text(encoding="utf-8"))
+    manifest = prepare(repo, prior_scope)
+    draft = {
+        "format": "darrow-review-verification-v3",
+        "assessment_correction": "The previous regression assessment was incorrect.",
+        "attempts": [],
+        "regressions": [
+            {
+                **row,
+                "status": "resolved",
+                "progress": "resolved",
+                "evidence": "verified",
+            }
+            for row in prior.items("regressions")
+        ],
+        "next_action": "Return the correction.",
+    }
+    with pytest.raises(ReviewError, match="every blocking original finding"):
+        finalize(
+            manifest,
+            write(Path(manifest).parent / "draft.json", draft),
+            capture(repo, manifest, monkeypatch),
+            previous,
+        )
+    assert not (Path(manifest).parent / "verification.json").exists()
 
 
 @pytest.mark.parametrize("reopened", [False, True])

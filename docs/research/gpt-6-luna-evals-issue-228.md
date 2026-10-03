@@ -1551,6 +1551,165 @@ production owner while discussing a corrected transport and continuation diagnos
 The experiment remains local; review, verification and shipped orchestration
 instructions are unchanged. All baseline results and failures remain intact.
 
+Checkpoint **31eb00d0** preserves those repairs and the completed pilot. The
+user approved a [bounded transport follow-up](adaptive-delivery-owner-transport-2026-10-01.md)
+with raw instruction files, one controlling writer, retained completed responses,
+and unchanged review/verification capabilities. Live diagnostics have now shown
+actual goal continuation and an in-flight user correction. The user then requested
+an investigation of main-thread native-goal ownership. The 20-trial B/C comparison
+stopped scheduling at 16 completed trials; the already-active trial then finished
+normally, leaving **17 completed trials and three unrun slots**. All results, failures, attribution gaps and
+unfinished work remain preserved. These diagnostics do not establish delivery
+reliability or approve replacing the native production owner. The alternative
+was subsequently approved as an isolated comparison, not a production change.
+
+The [main-thread ownership pilot](adaptive-delivery-main-thread-owner-2026-10-01.md)
+is gated on native host continuation. Its first Codex 0.159.2 Luna/medium
+diagnostic created a 422-character main-thread goal, returned the intended
+unfinished checkpoint, and started an automatic second turn. That turn was
+interrupted after 7 ms as the headless `codex exec` invocation ended. No bounded
+reader ran. At the user's request, a cause investigation traced the tagged
+0.159.2 CLI source: completing the initial turn unconditionally requests shutdown,
+unsubscribes the thread and shuts down the embedded app server, without checking
+the active goal. The retained timeline matches that lifecycle; this is not a
+measured failure of the proposed skill. The user then approved an opt-in app-server
+entrypoint. Two fresh Luna/medium marker probes completed native main-thread
+continuation and one bounded reader, preserving the completing response; the
+second includes the terminal-race repair found by the fresh-context eval audit.
+At that diagnostic checkpoint, all **50 delivery trials remained unstarted**. The runner includes that opt-in
+entrypoint; production skills and earlier frozen experiments remain unchanged.
+
+### Adaptive Delivery main-thread model comparison (2026-10-01)
+
+The ownership pilot subsequently stopped at 22 valid A/D trials plus one retained
+invalid-oracle attempt. The user redirected the comparison to the same main-thread
+architecture with only the main model changed: D Luna/medium versus E Sol/medium.
+Bounded implementors and verification/review coordinators remained Luna/medium;
+real independent review readers remained Sol/xhigh. The setup pins and both native
+continuation probes passed before delivery trials.
+
+The [completed 50-slot comparison](adaptive-delivery-main-thread-model-2026-10-01.md)
+reuses all 11 valid D trials, including failures, and runs the remaining 39 slots
+without changing instructions, fixtures, capabilities or checks. Task results are
+**D 18/25 and E 24/25**. Real review and combined repair both pass 5/5 in both arms;
+focused repair is 3/5 versus 5/5, steering 4/5 versus 5/5, and incomplete assessment
+1/5 versus 4/5. E's one task failure remains counted: an extra review triggers a
+frozen ordering assertion despite an earlier valid assessment sequence.
+
+Task success does not establish capability compliance. Across 20 applicable slots,
+D has 3 confirmed passes, 14 failures and 3 unknowns; E has 10 passes, 5 failures
+and 5 unknowns. Sol recovers more incomplete handoffs, but provider-boundary and
+report-return failures remain. All 50 observed actor routes match. Every earlier
+failure, encrypted-message attribution gap, capture truncation and interrupted
+actor remains retained. The separate-owner A result stays 6/11 as additional
+context, with no new A trials.
+
+E uses 16.3% more recorded tokens across the 23 pairs with complete whole-tree usage
+and 17.7% more candidate wall time across all 25 slots. Dollar cost is unknown.
+Prefer Sol as the main-thread candidate for the next discussion; production
+adoption and further changes remain separate decisions. No production skill,
+review or verification capability changed for this comparison.
+
+The authorized [E/F verification-coordinator comparison](adaptive-delivery-verification-model-2026-10-02.md)
+is complete: two cases at n:5, reusing all ten E controls and retaining all ten
+new F slots. Main ownership stays Sol/medium; F raises only verification
+coordination from Luna/medium to Sol/medium. Implementation and review
+coordination remain Luna/medium, and real independent readers remain Sol/xhigh.
+All observed routes match and all 884 frozen input hashes pass the final audit.
+
+E versus F: task **10/10 versus 7/10**; capability compliance **5 pass / 5 fail**
+versus **5 pass / 3 fail / 2 unknown**; evidence correctness **8/10 versus 5 pass /
+3 fail / 2 unknown**; evidence preservation **9/10 versus 7 pass / 1 fail /
+2 unknown**. F preserves separate provider assignments in all five real-review
+trials, improving that observed boundary behavior. It still has an original-blob
+typo, an incorrect stale-check annotation, a harmless paraphrase that violates
+verification's exact-output contract, and a material reset of completed
+follow-up history. Two focused trials end with independently retained native
+`server_overloaded` errors; their missing results and whole-tree usage stay
+unknown. No slots were replaced.
+
+F real-review 5 also exposes an eval defect: sorting random artifact directory
+names selects an older blocked report instead of the final cited report. Its
+frozen task grade remains failed, and correcting that selector would not remove
+the independent history-reset defect. Review and verification remain unchanged.
+Across eight pairs with complete usage, F uses 8.5% fewer recorded whole-tree
+tokens; across all scheduled slots it takes 30.6% more candidate wall time.
+Dollar cost is unknown. Keep Sol verification experimental and discuss preserved
+history during assessment correction before further changes or adoption. All
+earlier failures, attribution gaps and unfinished work remain recorded.
+
+### Adaptive Delivery production adoption (2026-10-02)
+
+The user subsequently approved main-thread ownership, Sol/medium verification
+coordination, preserved implementation routing and two shared repair attempts.
+The [adoption record](adaptive-delivery-main-thread-adoption-2026-10-02.md)
+tracks the implementation and live validation. Claude uses the same ownership
+design with smaller smoke coverage; Artificer transport migration remains a
+separate follow-up. Assessment correction now preserves prior report/history
+at unchanged code and requires fresh judgments.
+
+Deterministic gates pass, including 684 runner tests before the diagnostic
+correction, 26 focused adapter/native-goal tests after it, both affected Python
+package quality gates and one bounded fresh-context audit. The selected live
+cohort is complete at eight cases with five trials each. Two initial setup
+failures are retained: wrapper execution
+was denied before a candidate turn, then an omitted concurrency configuration
+blocked the Spec reader in the first behavioral trial. The latter is a failed
+task with an honest blocked result, preserved separately from the corrected
+five-agent-capacity cohort. No historical failure or attribution gap is removed.
+
+The completed cohort has **34/40 task passes**. Five task failures are confirmed
+participant behavior: a mistyped fixture review command and false diagnosis
+carried through coordination, two unrecovered verification-renderer path errors,
+and source mutation before the user's
+implementation-window feedback in two trials. Another trial ends in a fatal
+app-server error whose underlying detail was not retained. It stays unresolved;
+the user requested debugging and repair before continuation. The diagnosed
+adapter defect discarded public error diagnostics; that is now repaired and
+covered by focused tests. The affected case passed its next scheduled slot with
+unchanged skill inputs and separately recorded diagnostic provenance. Three
+further routing trials pass; the original failed slot remains. A passing task also
+misreports whether its initial assessment had started. Contract and preservation
+gaps from encrypted handoffs remain unknown. Both light Claude smoke tests pass.
+
+Final contract compliance is **13 pass, 3 fail, 9 unknown, 15 not applicable**.
+Evidence correctness is **31 pass, 8 fail, 1 unknown**; preservation is
+**31 pass, 4 fail, 5 unknown**. All **130 accepted child launches** explicitly
+pin the intended model/effort and match observed routes. The largest native
+goal is **945 characters**. Complete counters total **57,740,263 tokens across
+39 trials**, including cached input; all 40 candidate durations total
+**13,296.086 seconds**. The interrupted trial's partial counter is excluded
+from the token total. Dollar cost is unknown.
+
+Task results by case: existing real review **5/5**, combined review/QA repair
+**5/5**, focused repair **4/5**, user steering **3/5**, incomplete verification
+**4/5**, high-risk routine **3/5**, localized quality **5/5**, difficult diagnosis
+**5/5**. The [adoption record](adaptive-delivery-main-thread-adoption-2026-10-02.md)
+contains the complete dimension table, failure classification, recovery evidence
+and recommended next discussion. The broader live suite remains unrun on this
+production candidate; these results do not establish model-only causality against
+the earlier experimental arms.
+
+Real-review trial 3 also passes after main repairs a wrong-path verification
+handoff; inaccurate intermediate assessment claims remain a separate
+evidence-correctness failure. Its renderer mismatch was a passive-audit false
+alarm caused by a preceding `ls` diagnostic, established from retained output.
+The repeated feedback failure occurs despite the wait condition being present
+in the native goal. Main opens the mechanical window during automatic
+continuation and completes before the actual user message. Goal persistence
+alone therefore does not establish enforcement of the user's waiting condition.
+High-risk routing trials 3 and 5 keep the goal blocked after verification and main both
+look for the renderer under the wrong directory. Product checks and independent
+review pass, but the combined handoff is incomplete. Its installation diagnosis
+is unsupported; no false overall completion or publication occurs. Trial 5 first
+recovers confusion between the review coordinator and independent-reader routes,
+preserving its blocked and corrected passing review artifacts on identical code.
+Real-review trial 5 also passes while retaining an inaccurate implementor
+description of the repair as a HEAD diff; main's independent inspection corrects
+that comparison. No further skill, model or architectural change was mixed into
+this completed cohort. The next recommendation is to address helper-path
+resolution, discuss user-wait semantics, and improve observable handoff evidence.
+
 ### darrow-skill-authoring
 
 | Case                                                                                                                                            | What failed                                                                                                       | Assessment                                  | Recommended next step                                                                                                                                                                                                                                                                            |

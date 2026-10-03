@@ -183,7 +183,7 @@ def target_binding(result: Records) -> str:
         if history
         else ""
     )
-    return templates.TARGET_BINDING.substitute(
+    binding = templates.TARGET_BINDING.substitute(
         original=escape(result.value("original_target")),
         prior=escape(result.value("prior_target")),
         current=escape(result.value("current_target")),
@@ -191,6 +191,13 @@ def target_binding(result: Records) -> str:
         artifact=escape(result.object("previous_verification")["path"]),
         earlier_targets=earlier_targets,
     )
+    correction = result.value("assessment_correction")
+    if correction:
+        binding += (
+            "\n- **Assessment correction (supersedes the retained previous result):** "
+            + escape(correction)
+        )
+    return binding
 
 
 def closed_findings(result: Records) -> str:

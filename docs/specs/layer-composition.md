@@ -39,8 +39,9 @@ model, branch name, review policy or verification command and does no preflight.
    return evidence. The enclosing owner chooses authorized investigation, a human
    question, an evidence-backed retry, or termination. It cannot waive a required
    gate, invent a decision, retry unchanged deterministic failure, or treat a
-   successful suboperation as new authority. The parent handles preflight until
-   launch; after launch, the same engineering owner retains continuation. Capability
+   successful suboperation as new authority. The main thread handles preflight
+   and retains the native goal while delegating bounded implementation and capability
+   assignments. Capability
    results do not themselves terminate or replace that owner.
 
 3. **LC-C3 — One policy owner.** Recipes define outcomes and permissions;
@@ -79,8 +80,10 @@ engineering goals select assurance or add a second lifecycle controller.
    evidence ends repair; further attempts require material progress and remaining
    budget. Missing, stale, inconclusive, unchanged or oscillating required evidence
    cannot clear completion or remaining publication. A new comprehensive
-   assessment cannot reopen findings or reset this budget. The parent only
-   preflights, launches and relays; no second owner or ledger is introduced.
+   assessment cannot reopen findings or reset this budget. An evidence-supported
+   correction at unchanged code retains prior assessment history and neither
+   spends nor resets implementation repair attempts. The main thread retains
+   coordination and completion; no second owner or ledger is introduced.
 
 | Boundary                      | Prerequisites and effects                                                                                                                                                                        | Result evidence and refusal                                                                                                                                                                                 | Continuation owner                                                                                                            |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |

@@ -103,17 +103,34 @@ def machine_record(backend: Path, repo: Path, path: Path) -> Path:
     return record
 
 
-def original_record(state: Path, target: str) -> Path:
-    matches = [
-        path
-        for path in state.rglob("result.json")
-        if path.parent.name.startswith("darrow-review.")
-        and field(path, "target") == target
-    ]
-    if len(matches) != 1:
-        reason = "ambiguous" if matches else "missing"
-        raise InvalidProofError(f"original comprehensive result is {reason}")
-    return matches[0]
+def original_matches(
+    backend: Path, repo: Path, original: Path, verification: Path
+) -> bool:
+    try:
+        invoke(
+            backend,
+            repo,
+            "review-result",
+            "validate-original",
+            str(original),
+            str(verification),
+        )
+    except InvalidProofError:
+        return False
+    return True
+
+
+def original_record(backend: Path, repo: Path, state: Path, verification: Path) -> Path:
+    target = field(verification, "original_target")
+    for path in state.rglob("result.json"):
+        if (
+            not path.parent.name.startswith("darrow-review.")
+            or field(path, "target") != target
+        ):
+            continue
+        if original_matches(backend, repo, path, verification):
+            return path
+    raise InvalidProofError("matching original comprehensive result is missing")
 
 
 def reviewed_target(backend: Path, repo: Path, state: Path, path: Path) -> str:
@@ -142,10 +159,7 @@ def verification_target(backend: Path, repo: Path, state: Path, path: Path) -> s
     invoke(backend, repo, "review-result", "validate-verification", str(path))
     if field(path, "outcome") != "clear":
         raise InvalidProofError("verification is not clear")
-    original = original_record(state, field(path, "original_target"))
-    invoke(
-        backend, repo, "review-result", "validate-original", str(original), str(path)
-    )
+    original_record(backend, repo, state, path)
     return field(path, "current_target")
 
 

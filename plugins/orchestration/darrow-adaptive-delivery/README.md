@@ -1,266 +1,233 @@
 # Darrow Adaptive Delivery
 
-This plugin provides two separate entrypoints: a read-only host-configuration
-doctor, and explicit Adaptive Delivery orchestration that compiles one bounded
-engineering request and launches exactly one route-selected, host-visible
-subagent as its work owner.
+Adaptive Delivery keeps one bounded native goal in the main thread. That thread
+owns preflight, acceptance, user decisions and completion. It delegates
+implementation and selected verification as separate assignments.
 
 ```text
-request + repository -> read-only preflight -> readiness -> contract -> one owner
+request + repository -> read-only preflight/readiness -> main-thread native goal
+                                                         -> implementation
+                                                         -> selected verification
 ```
 
-The parent owns preflight, readiness discussion, capability binding, route
-selection, and launch. The subagent owns implementation, verification, human
-feedback, independent review, authorized publication, and completion.
+The plugin also provides `doctor-adaptive-delivery`, a read-only host-capacity
+check. Doctor intent never starts orchestration. Adaptive Delivery itself starts
+only through explicit invocation or preserved delegation from an invoked recipe.
 
-`adaptive-delivery` starts only through explicit user invocation or delegation from
-an explicitly invoked orchestration entrypoint. Ordinary engineering intent
-never starts it.
+Version 0.24.0 changes the ownership boundary. Artificer's current unattended
+continuation transport still requires a separate owner child and is incompatible
+with this version. Its migration is a separate follow-up; use Adaptive Delivery
+directly or through the updated Ticket-to-PR recipe in a native host session.
 
-`doctor-adaptive-delivery` is an ordinary intent-matched capability. Asking it
-to check host configuration never starts orchestration or launches an owner.
-
-[![Adaptive Delivery: preflight launches one execution owner, which invokes verification and handles bounded repairs.](https://raw.githubusercontent.com/BjRo/darrow/main/docs/assets/adaptive-delivery-capabilities.svg)](https://github.com/BjRo/darrow/blob/main/docs/assets/adaptive-delivery-capabilities.svg)
-
-Preflight prepares the contract and selects compatible capabilities.
-One execution owner implements the change, obtains selected verification,
-and handles repairs within the shared budget. Questions and feedback
-return to that same owner.
+[![Adaptive Delivery: the main thread retains the native goal and coordinates bounded implementation and verification.](https://raw.githubusercontent.com/BjRo/darrow/main/docs/assets/adaptive-delivery-capabilities.svg)](https://github.com/BjRo/darrow/blob/main/docs/assets/adaptive-delivery-capabilities.svg)
 
 ## `adaptive-delivery`
 
 The skill:
 
-- discovers repository instructions and existing local work without mutation;
-- turns the request into observable acceptance, scope, checks, and authority;
-- invokes implementation readiness before launch when the exact scope has not
-  already been assessed;
-- reuses a ready same-scope assessment preserved in the conversation;
-- selects one workflow, consequence risk, semantic profile, model, and effort;
-- binds every authorized operation to an exact matching host-advertised skill;
-- launches one separate Codex subagent or one foreground Claude Agent; and
-- relays feedback and the final owner result without parent-side implementation
-  or verification.
+- discovers repository instructions and preserves existing local work;
+- makes scope, acceptance, checks and authority explicit;
+- resolves selected readiness before implementation, reusing ready same-scope evidence;
+- selects implementation difficulty separately from consequence risk;
+- binds authorized operations to compatible advertised capabilities;
+- keeps the native goal within 4,000 characters and coordination instructions in the skill;
+- delegates bounded implementation and verification with explicit role routes;
+- coordinates repairs, user feedback, reassessment and evidence-supported completion.
 
-Readiness is conversational and pre-owner. A non-ready result leaves the tree
-unchanged while the user resolves its findings. Once the same scope is ready,
-adaptive-delivery compiles that settled evidence into the owner contract rather than
-running readiness again for unchanged scope. If assumptions materially change,
-the same owner reassesses affected gates and strengthens verification within
-authority. Necessary read-only ticket or specification retrieval may precede
-readiness and routing.
+Readiness findings stop implementation until resolved. Material changes to scope,
+acceptance, constraints or authoritative input invalidate affected evidence and
+may require readiness again. The main thread retains these decisions throughout.
 
-Capability bindings make intent-based skills part of the contract. If an
-authorized commit, pull request, ticket operation, TDD procedure, or verification
-matches an advertised skill, the exact skill is bound before launch and
-must be invoked when that operation becomes due. Direct Git, forge, tracker,
-shell, or generic-agent calls are not substitutes for a binding.
-Selected assessment-provider bindings travel through verification to the same owner.
+Each matching advertised skill is mandatory for its bound operation. Direct Git,
+forge, tracker or generic-agent calls cannot replace it. Selected verification
+owns its provider coordination; review owns its independent readers. Their
+internals stay inside those capabilities.
 
-Ticket delivery discovers all local branches correlated with the provider's
-exact opaque token through a compatible Git capability. One match is reused
-even when a new attempt proposes a different suffix; several matches require
-an explicit choice; no matches permits a conventional new name. Adaptive
-delivery owns that decision and the Git capability owns inspection and
-preparation. Task recipes continue to delegate their authority envelope.
+Ticket delivery discovers local branches using the provider's exact opaque
+token through a compatible Git capability. One match is reused, several require
+an explicit choice, and no matches permits one conventional new name. The recipe
+supplies authority; Adaptive Delivery chooses and the Git capability prepares.
 
-The owner task begins with:
+## Workflows, risk and model routes
 
-```text
-- phase: adaptive-delivery-owner
-```
+Choose one workflow: `fix-bug`, `implement-feature`, `change-feature`,
+`refactor`, `migration` or `mechanical`. Missing decisions stop affected work.
 
-The complete goal contract follows inline. Host acceptance of the explicitly
-routed subagent launch proves the model and effort. The owner does not create a
-second nested goal or replacement adaptive owner.
+Consequence risk controls assurance. Routine work omits independent review by
+default; elevated risk selects it when independent judgment is needed; high risk
+requires it. User or repository requirements can strengthen those gates.
 
-## `doctor-adaptive-delivery`
+Implementation difficulty controls the bounded implementor:
 
-The doctor checks the effective Codex or Claude Code delegation controls
-without modifying them. It reports the exact configuration source, host or
-backend applicability, and separate conclusions for:
+| Profile      | Codex model | Effort |
+| ------------ | ----------- | ------ |
+| routine      | gpt-6-luna  | medium |
+| routine-plus | gpt-6-luna  | high   |
+| scaled       | gpt-6-sol   | medium |
+| repo-wide    | gpt-6-sol   | high   |
+| judgment     | gpt-6-astra | high   |
 
-- the baseline owner-only path: one spawned-agent slot and one nested layer;
-- the full required-assessment path: five spawned-agent slots and four nested
-  layers across owner, verification, review, and two parallel readers.
+A fully specified localized security change can remain routine implementation
+while requiring high-risk assurance. `routine-plus` needs an actual implementation
+tradeoff or an explicit first-pass correctness priority.
 
-For Codex it checks `agents.enabled` and
-`agents.max_concurrent_threads_per_session` across the user configuration and
-applicable trusted project layers, reports the contributing sources, and keeps
-isolated evaluation bound to its isolated `CODEX_HOME`. It reports
-`agents.max_depth` as a V1-only nesting control that V2 ignores. For Claude
-Code it checks the effective process values of
-`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` and
-`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` only where the installed version supports
-them. Absent, unreadable, malformed, disabled, inadequate, and unknown states
-remain distinct, and the output never includes unrelated settings or secrets.
+**Use Codex Sol/medium for main-thread coordination.** Weaker compatible models
+are permitted with a brief reliability hint. Trials showed substantial remaining
+coordination and evidence failures on Luna; Sol improved some outcomes but was
+not uniformly reliable. Stronger configurations are allowed, not all proven.
 
-Example: _“Check whether this Codex configuration supports Adaptive Delivery's
-full verification path.”_
+Verification coordination is explicitly Sol/medium or stronger. Review
+coordination stays Luna/medium, while review's independent readers stay Sol/xhigh.
+Parent-model inheritance and the implementation route must not change these roles.
 
-Example: _“Use adaptive-delivery to diagnose and fix the intermittent cache test.”_
+Claude uses the same architecture. Its implementation policy selects scoped
+Sonnet 5/low, Sonnet 5/medium or Opus 5/high agents. Verification coordination uses
+Opus 5/high; review coordination uses Sonnet 5/medium and preserves review's own
+reader routes. Claude has lighter validation than Codex; these routes are not
+claimed to be measured equivalents.
 
-## Workflows and risk
+## Verification and repairs
 
-The goal uses one workflow:
+Selected verification receives the exact candidate, originating acceptance,
+constraints, successful current checks and selected review binding. The main
+thread waits for every selected result, checks criterion coverage, and preserves
+the complete evidence before authorizing a combined repair.
 
-- `fix-bug`
-- `implement-feature`
-- `change-feature`
-- `refactor`
-- `migration`
-- `mechanical`
+The default maximum is **two implementation repair attempts total**, shared
+across providers and findings. Each attempt refreshes checks and obtains fresh
+closed-set verification. Preserve finding identities, prior reports, candidate
+history and direct repair-caused regressions. Fresh children and comprehensive
+reassessment never reset the allowance. Clear evidence ends repair immediately;
+further attempts require progress and remaining budget. Explicit finite overrides
+and stricter authority, invocation, time or token limits still apply.
 
-Risk is `routine`, `elevated`, or `high` based on consequences. Readiness and
-independent review are selected separately. High-risk work requires independent
-review; routine work omits it unless the user or repository requires it.
+A concrete assessment error or new evidence can justify a correction at unchanged
+code. Use the provider's public correction contract and retain the earlier report
+and full history. Fresh evidence must support the new conclusion. Correction
+neither spends nor resets implementation repair attempts.
 
-The owner's reasoning profile follows the engineering work. A fully specified,
-localized security change uses `routine` while retaining high-risk assurance.
-`routine-plus` needs a concrete implementation tradeoff or an explicit priority
-for first-pass boundary correctness. Requiring verification or review alone
-does not increase owner effort; those providers perform their own assessments.
+Missing, stale, contradictory or inconclusive required evidence blocks completion
+and dependent publication. A passing review alone cannot cover unassessed criteria.
 
-Selected assurance binds compatible verification and required independent review
-before launch. The owner supplies the candidate, originating criteria, constraints
-and successful current checks to verification. Verification returns all selected
-assessment results and criterion-level evidence before the owner repairs their
-combined eligible blockers. The initial production path uses review only;
-optional QA and evidence packaging remain separate capabilities.
+## Safety boundaries
 
-One owner has at most two repair attempts total across verification by default,
-each followed by refreshed checks and fresh closed-set verification. Extra
-providers do not add budgets. Preserve finding and target history and direct
-repair-caused regressions; a new comprehensive assessment cannot reset the limit.
-Clear current evidence ends repair immediately. Further attempts require material
-progress and remaining budget. Missing, stale, unchanged or inconclusive required
-evidence prevents completion and remaining publication. Explicit finite overrides
-and stricter invocation, time, token and authority limits remain in force.
+Preflight is read-only. Native goal activation and required readiness precede
+implementation. Children receive bounded authority; missing decisions and failed
+gates stop affected work. Completion grants no publication or tracker authority.
+No nested host, replacement goal owner or custom workflow runtime is introduced.
 
 ## Human feedback and blockage
 
-A material question discovered during implementation pauses mutation and is
-relayed to the same retained owner. The answer grants only explicitly supplied authority and
-the owner performs any required acknowledgement before continuing.
+The main thread asks material questions and stops affected mutation. It preserves
+the same goal, decisions, evidence and consumed repair attempts while waiting.
+The answer supplies only its actual authority; required acknowledgements must
+succeed before work resumes. A status question does not cancel work.
 
-Corrections, constraints, cancellation, and status requests also target the
-same owner without requiring a pending question. Status alone does not stop
-execution. Restrictions apply before the next affected action; unavailable
-host delivery or stopping controls are reported honestly.
+Use the host's actual goal controls. On Codex, literal pause requires an explicit
+user pause request; a pending question can stop affected work without inventing
+a pause transition. On Claude, use native goal question and continuation behavior.
+Do not clear and recreate the goal to obtain an answer or reset history.
 
-The seven contract fields are a completeness template, not a runtime validator.
-Only interface syntax such as host tool keys and the owner marker is rigid.
-Eval results distinguish active enforcement from passive native observation;
-the eval guard is additional assistance, not shipped-skill behavior.
+A blocker names the condition, evidence and smallest next action. Observe current
+external state before retrying an ambiguous effect, and never duplicate a completed
+effect. Report unavailable delivery or stopping controls honestly.
 
-A genuine blocker is reported semantically with its condition, evidence, and
-smallest next action. Darrow does not maintain a retry, waiver, evidence-digest,
-or lifecycle-ledger state machine. The owner still observes current external
-state before repeating an ambiguous effect and never duplicates an effect that
-already completed.
+## `doctor-adaptive-delivery`
+
+The doctor reads effective host delegation controls and distinguishes:
+
+- bounded implementation: one child slot and one nesting layer;
+- required verification and review: four active child slots and three nesting
+  layers, with implementation settled before assessment.
+
+Native limits that count retained inactive threads may require releasing completed
+assignments. Configuration diagnosis does not prove current free capacity or
+native goal availability.
+
+Codex checks delegation, concurrent-thread capacity and V1 nesting separately,
+including trusted project configuration layers. Isolated evals use their isolated
+`CODEX_HOME`. Claude checks version-applicable concurrency and nesting environment
+controls. Unknown defaults, unreadable input and inadequate capacity remain distinct.
+The doctor changes nothing and prints no unrelated settings or secrets.
 
 ## Python helpers
 
-The contained `backend` package exposes read-only preflight, route, and host
-diagnosis operations.
-Prefix each command with
+Require UV, Git and the readable packaged project and lock. UV selects compatible
+Python; system Python is not a separate prerequisite. The helpers support Python
+3.10–3.13 on Linux, macOS and Windows without Bash.
+
+Prefix commands with
 `uv run --quiet --no-project "<absolute-plugin-root>/backend/scripts/run_locked.py"`:
 
 ```text
 adaptive-delivery-preflight prepare --repo <path> --host <codex|claude>
 adaptive-delivery-preflight route --repo <path> --host <codex|claude> --profile <profile> [--route <tuple>]
+claude-agent-route --provider anthropic --model <model> --effort <effort>
 host-config-doctor codex --config <path> [--project-root <path>] --backend <v1|v2|unknown> --context <effective|isolated-eval>
 host-config-doctor claude [--version <installed-version>]
 ```
 
-`prepare` reports the repository root, revision, working-tree state,
-instructions, workflow documents, and active route catalog. `route` resolves a
-policy or exact user-supplied route. Repository overrides live in
-`.darrow/config.json`; malformed, unsafe, unknown, duplicate, or host-inconsistent
-route configuration fails closed. `host-config-doctor` reads only the effective
-host controls named by the doctor skill, discovers layers beneath an explicitly
-trusted project root only in effective context, and reports baseline and
-full-path capacity without changing configuration.
+Repository implementation-route overrides live in `.darrow/config.json`.
+Malformed or unreadable policy refuses resolution. Claude's resolver checks
+scoped-agent frontmatter and conflicting environment overrides; invoke its exact
+Agent type without a per-call model override.
 
-The helper does not launch models, persist objectives, record lifecycle state,
-render completion reports, supervise work, or provide nested host sessions.
-
-## Claude route agents
-
-`claude-agent-route` (through the same frozen UV command) maps an exact supported Claude model and effort to one
-plugin-shipped route agent and rejects conflicting environment overrides. The
-current bundled routes are:
-
-- Claude Sonnet 5, low effort;
-- Claude Sonnet 5, medium effort; and
-- Claude Opus 5, high effort.
-
-The resolver verifies the scoped agent's model and effort frontmatter and
-rejects higher-priority environment overrides. The foreground Agent call omits
-a per-call model override, so native host precedence applies that route while
-the returned agent id establishes the sole owner. Eval infrastructure may audit
-the resulting child transcript without adding a live parent workflow step.
-
-## Design boundaries
-
-- Preflight is read-only.
-- Readiness completes before owner launch when selected.
-- Exactly one separate route-selected subagent owns the run.
-- The parent does no repository or external work after launch acceptance.
-- Intent-matched advertised skills are mandatory at their bound operations.
-- Darrow adds no lifecycle ledger, planner/executor/verifier controller, daemon,
-  queue, scheduler, nested host process, or canonical telemetry report.
-- Goal completion grants no commit, push, pull-request, merge, release,
-  deployment, ticket mutation, or other authority.
+Helpers do not launch models, persist objectives, supervise work or implement
+goal continuation.
 
 ## When to use
 
-Use this for an explicitly invoked bounded engineering outcome. Ordinary complex work does not select it. Use a focused capability when one operation suffices.
+Use for an explicitly invoked bounded engineering outcome. Ordinary complex work
+does not select it. Use a focused capability when one operation suffices.
 
 ## Hosts and prerequisites
 
-Codex with native subagent support or Claude Code with the bundled foreground
-route agents; [UV and Python](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md#uv-and-python-for-plugin-helpers),
-Git, available routes, and the capabilities matching authorized operations.
-The helpers support Python 3.10–3.13 on Linux, macOS, and native Windows without
-Bash. Python 3.10 installs the locked `tomli` backport for host-configuration
-diagnosis; newer interpreters use the standard-library TOML parser. Regression
-tests run through the repository's Python quality gate on all three platforms.
+Require native goal continuation and delegation, available selected model routes,
+UV, Git and capabilities matching authorized operations.
+
+Codex activates the goal in the main thread using native goal controls. Claude
+uses native `/goal`; an available `ProposeGoal` may queue activation for the end
+of the turn. A queued proposal is not an active goal. Headless Claude may require
+the client or user to enter through `/goal <condition>`. If native activation
+is unavailable, the skill reports the required boundary rather than launching
+another owner or a nested host process.
+
+The Codex app-server used in evals hosts this original main thread. It is not a
+production execution-owner transport or custom workflow runtime.
 
 ## Installation
 
 Install `darrow-adaptive-delivery@darrow` using the
-[host installation and update instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
-Review the local authority and prerequisite boundaries first.
+[host installation instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
 
 ## Usage
-
-This orchestration entrypoint is explicit-only; an implicit request does not
-start it. For example:
 
 > Use adaptive-delivery to fix the intermittent cache test and verify the repair.
 
 Select `adaptive-delivery` from Codex's `$` menu, or invoke
-`/darrow-adaptive-delivery:adaptive-delivery` in Claude Code and provide the bounded request.
+`/darrow-adaptive-delivery:adaptive-delivery` in Claude and provide the request.
 
-For read-only diagnosis, select `doctor-adaptive-delivery` from Codex's `$`
-menu or invoke `/darrow-adaptive-delivery:doctor-adaptive-delivery` in Claude
-Code.
+For diagnosis, select `doctor-adaptive-delivery` or invoke
+`/darrow-adaptive-delivery:doctor-adaptive-delivery`.
 
 ## Expected result
 
-Read-only preflight and readiness, then one routed execution owner. Effects depend on the explicit contract; completion alone grants no publication or tracker authority.
+A self-contained session response with the outcome, changed files, current
+checks, selected verification, repair use and maximum, performed effects and
+remaining risks or blockers. A child return or a report link alone cannot prove
+completion. Completion grants no commit, push, PR, merge, deployment or ticket
+authority.
 
 ## Troubleshooting
 
-If readiness is not ready, resolve its findings before launch. Malformed route configuration or an unavailable exact capability binding must be reported. Keep feedback with the same accepted owner.
-If an owner, verification coordinator, review coordinator, or parallel reader
-cannot launch, run `doctor-adaptive-delivery` in the affected host session. Use
-the exact source it reports; in isolated Codex evals, that is the eval
-`CODEX_HOME/config.toml`, not the checkout's `.codex/config.toml`.
-For host discovery problems, use the
+Resolve non-ready findings before implementation. Report unavailable native goal,
+route or capability boundaries concretely. Run the doctor for delegation-capacity
+problems and use its reported configuration source. Keep feedback with the same
+main-thread goal.
+
+For discovery problems, use the
 [installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md).
-Report the exact host/plugin versions and refusal without credentials.
+Report host and plugin versions and the refusal without credentials.
 
 ## License
 

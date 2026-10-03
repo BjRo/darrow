@@ -3,12 +3,11 @@ invariant: ADL-A4,ADL-V1,LC-C5
 goal_report: forbidden
 goal_route_checks: false
 prompt: >-
-  {{skill_invocation}} Advice only; do not launch or perform work. The retained
-  owner selected independent review and a compatible QA assessment through
-  verification. Current required checks passed. Review returned an actionable
-  timeout blocker; the QA assessment is still running and may identify a
-  separate blocker. Repair is authorized and no attempt has been used. What is
-  the next owner action?
+  {{skill_invocation}} Advice only; do not launch or perform work. The retained owner
+  selected independent review and a compatible QA assessment through verification.
+  Current required checks passed. Review returned an actionable timeout blocker; the QA
+  assessment is still running and may identify a separate blocker. Repair is authorized
+  and no attempt has been used. What is the next owner action?
 fixture:
   commits:
     - message: "chore: init"
@@ -20,13 +19,13 @@ checks:
 semantic_output_checks:
   - name: collect all results before repair
     proposition: >-
-      The next action is to wait for the pending QA assessment before starting
-      repair. The returned QA findings must inform the repair scope: combining
-      any QA blocker with the review blocker, or repairing the review blocker
-      when QA finds no actionable blocker, both satisfy this requirement.
-      A separate aggregation phrase or repeated owner identity is unnecessary.
-      Starting repair while QA is pending, ignoring a returned QA blocker, or
-      assigning repair to another owner fails.
+      The next action is to wait for the pending QA assessment before starting repair.
+      The returned QA findings must inform the repair scope: combining any QA blocker
+      with the review blocker, or repairing the review blocker when QA finds no
+      actionable blocker, both satisfy this requirement. A separate aggregation phrase
+      or repeated owner identity is unnecessary. Starting repair while QA is pending,
+      ignoring a returned QA blocker, or assigning repair to another owner fails.
 transcript_checks:
   - name: advice launches no agent
     not_regex: '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"type":"darrow.goal_agent_completion"'
+native_goal: forbidden

@@ -1,8 +1,8 @@
 # Selected verification lifecycle
 
-Read when assurance is selected. The parent binds compatible verification and
-its required independent review before launch, then compiles these rules inline.
-The same active owner implements, repairs, continues and decides completion;
+Read when assurance is selected. The main thread binds compatible verification
+and its required independent review during preflight and retains these rules.
+The main thread delegates implementation and repairs and decides completion;
 verification returns one bounded combined assessment, with no second controller
 or lifecycle ledger. Review-only is the initial production path. Additional
 providers require a compatible selected operation; installation alone selects none.
@@ -47,7 +47,7 @@ no unused attempt needs to be consumed. Advisories remain visible and nonblockin
 
 ## Repair the combined finding set under one budget
 
-One owner repair attempt addresses the combined eligible blockers from all
+One bounded implementation repair attempt addresses the combined eligible blockers from all
 selected results together, followed by refreshed checks and fresh verification.
 The shared default maximum is two such attempts in total, not two per provider,
 finding, or assessment invocation. Include consumed attempts and any explicit
@@ -99,3 +99,16 @@ in the owner result. Seek a concrete decision or investigate only within existin
 authority; neither is
 permission for another unsupported repair. Later content edits invalidate clear
 evidence and never replenish the budget. Completion grants no publication rights.
+
+## Correct an assessment without resetting history
+
+A concrete assessment error or newly available evidence can justify a bounded
+correction at unchanged code. Ask verification to use the provider's public
+correction contract with the latest completed report, full finding and target
+history, fresh judgments and current checks. Retain the previous artifact and
+explain which error or gap the new evidence corrects.
+
+Never call a completed blocked report aborted or discard it to start clean.
+Missing or unresolved evidence still blocks; correction is not permission to
+repeat a failing assessment until one passes. An evidence correction neither
+consumes an implementation repair attempt nor resets the shared allowance.

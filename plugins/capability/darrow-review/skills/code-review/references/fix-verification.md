@@ -4,6 +4,28 @@ Use this workflow only after the main skill selects fix verification. The main
 skill's presentation and read-only gates, plus the reader-routing acceptance
 rules, remain in force throughout this branch.
 
+## Correct an assessment at unchanged code
+
+A caller may identify a concrete assessment error or missing evidence and ask
+for a bounded correction. Keep the immediately previous completed verification
+as `original_input`, including when its outcome is blocked or no-progress. Pin
+the same current candidate against that report's scope with `--allow-empty`.
+Preserve its original findings, target history and carried regressions.
+
+Obtain fresh independent judgments for every original blocker and carried
+regression, using the normal reviewer route and current checks. Put a nonempty
+`assessment_correction` in the finalization draft explaining the earlier error
+or gap and the new evidence that corrects it. Include every fresh original
+judgment: corrections do not inherit previously resolved states mechanically.
+
+The finalizer can return clear at the unchanged candidate only when all blockers
+and regressions are resolved, current checks succeed and no evidence gap remains.
+Unchanged unresolved evidence remains no-progress. Return the correction reason
+and retained prior-result reference visibly. Never discard a completed result,
+label it a first follow-up, rewrite its outcome or delete its artifact to obtain
+clearance. This corrects an assessment; it does not spend or reset the owner's
+implementation repair allowance.
+
 ## 1. Bind the closed finding set
 
 Read each supplied evidence file before deciding whether inputs are missing:
@@ -237,6 +259,8 @@ finalizer also carries previously resolved original states when the current
 reader supplied no replacement, so a regression-only repair does not require
 retyping prior resolutions. Unresolved or blocked originals still require
 current reader evidence.
+For an assessment correction, every original blocker requires a fresh supplied
+judgment even if the previous result marked it resolved.
 Never substitute authored unavailable-check evidence for a retained receipt.
 
 After finalization, when the original comprehensive artifact is retained, run:

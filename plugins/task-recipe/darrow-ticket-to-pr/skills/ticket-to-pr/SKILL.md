@@ -51,7 +51,7 @@ capability is available, return `Status: launch_required`, name the missing or
 ambiguous adaptive-delivery boundary, and make no mutation.
 
 Native goal controls such as `create_goal` only record or start a current-thread
-goal; they do not supply adaptive-delivery's preflight and separate-owner
+goal; they do not supply adaptive-delivery's preflight and capability
 orchestration. Do not call them as a substitute. If only such controls are
 available, treat the adaptive-delivery capability as unavailable. A differently
 named capability is valid when it advertises the matching orchestration
@@ -104,16 +104,20 @@ single delegation.
 received the complete authority envelope, or a missing boundary is reported
 without mutation.
 
-## 3. Stay at the main-thread boundary
+## 3. Continue under Adaptive Delivery
 
 Relay the adaptive-delivery response without repository or forge reinspection. A
 ready result, non-ready result, owner question, blocker, or completion remains
 its result; do not add a recipe retry, waiver, recovery, or status protocol.
 
-When its separate owner asks a material question, surface that question from
-this main thread. A later user answer continues the same adaptive-delivery owner in
-this thread. Do not invoke Ticket-to-PR again, answer or rewrite the question,
-launch a replacement owner, or perform the owner's work in the main thread.
+Adaptive Delivery keeps the native goal in this main thread and coordinates
+bounded implementation and capabilities. Its main-thread checks, questions,
+repairs and evidence validation follow its own public contract; the recipe's
+intake restrictions do not prohibit that coordination after delegation.
+
+A later user answer continues the same Adaptive Delivery goal. Do not invoke
+Ticket-to-PR again, invent an answer, launch an overall owner child or introduce
+a separate recipe controller.
 
 Completion is the owner-sourced URL and intended/published commit evidence for
 exactly one verified pull request. Preserve that complete URL and commit

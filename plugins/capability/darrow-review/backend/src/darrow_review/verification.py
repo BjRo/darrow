@@ -95,12 +95,39 @@ def outcome(
         result.value("current_target") in history
         or ("unresolved", "unchanged") in states
     )
-    return derive_outcome(blocked, stagnant, any(s == "unresolved" for s, _ in states))
+    return derive_outcome(
+        blocked,
+        stagnant,
+        any(s == "unresolved" for s, _ in states),
+        corrected_assessment(result),
+    )
 
 
-def derive_outcome(blocked: bool, stagnant: bool, active: bool) -> str:
+def corrected_assessment(result: Records) -> bool:
+    if not result.value("assessment_correction"):
+        return False
+    result.check(
+        bool(result.value("assessment_correction").strip()),
+        "assessment correction requires a visible reason and new evidence",
+    )
+    result.check(
+        result.object("previous_verification")["path"] != "none",
+        "assessment correction requires a previous verification",
+    )
+    result.check(
+        result.value("current_target") == result.value("prior_target"),
+        "assessment correction requires the same candidate as the previous verification",
+    )
+    return True
+
+
+def derive_outcome(
+    blocked: bool, stagnant: bool, active: bool, correction: bool = False
+) -> str:
     if blocked:
         return "blocked"
+    if correction and not active:
+        return "clear"
     if stagnant:
         return "no_progress"
     return "continue" if active else "clear"

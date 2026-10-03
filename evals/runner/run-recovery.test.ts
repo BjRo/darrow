@@ -38,7 +38,7 @@ codexAdapter.run = async ({ repoDir }) => {
   await writeFile(join(repoDir, ".git/last-message.md"), resultText);
   return { ok: true, durationMs: 1, inputTokens: 1, outputTokens: 1, costUsd: null,
     resultText, raw: "completed synthetic turn", skillActivation: {
-      source: "explicit_invocation", complete: true, primarySkill: "grilling", observedSkills: ["grilling"] } };
+      source: "explicit_invocation", complete: true, primarySkill: "work-through-decisions", observedSkills: ["work-through-decisions"] } };
 };
 `,
   );

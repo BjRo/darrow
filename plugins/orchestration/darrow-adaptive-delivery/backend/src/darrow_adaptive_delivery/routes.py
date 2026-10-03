@@ -125,13 +125,6 @@ def validate_tuple(label: str, host: str, route: tuple[str, str, str, str]) -> N
         raise RefusalError(f"{label} has unsupported effort: {effort}")
 
 
-def validate_owner(host: str, model: str) -> None:
-    if (host, model) == ("codex", "gpt-5.6-luna"):
-        raise RefusalError(
-            f"model is not eligible for adaptive-delivery ownership: {model}"
-        )
-
-
 def repository_routes(repo: Path) -> list[Route]:
     path = repo / ".darrow/config.json"
     if not path.exists() and not path.is_symlink():

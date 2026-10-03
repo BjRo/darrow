@@ -1,17 +1,5 @@
 import { expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { parse } from "yaml";
 import { retainedCodexEvidence } from "./codex";
-
-const casePath = resolve(
-  "plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/cross-turn-feedback-answer.yaml",
-);
-const evalCase = parse(readFileSync(casePath, "utf8"));
-const ownerCheck = evalCase.transcript_checks.find((check: { name: string }) =>
-  check.name.startsWith("one accepted owner"),
-);
-const ownerPattern = new RegExp(ownerCheck.expect_regex);
 
 function proof(accepted: number, boundaries: unknown[]) {
   const payloads = [
@@ -90,18 +78,6 @@ for (const [name, accepted, boundaries, expected] of [
       );
     expect(owner).toBeDefined();
     expect(owner.accepted_before_follow_up).toBe(expected);
-    expect(ownerPattern.test(retained)).toBe(expected === true);
     expect(retained).not.toContain("private-contract-not-retained");
   });
 }
-
-test("existing stream-based pre-feedback acceptance remains supported", () => {
-  const complete = JSON.stringify({
-    type: "darrow.goal_agent_completion",
-    status: "completed",
-    agent_id: "owner-1",
-  });
-  const boundary = JSON.stringify({ type: "darrow.eval.follow_up_turn" });
-  expect(ownerPattern.test(`${complete}\n${boundary}`)).toBeTrue();
-  expect(ownerPattern.test(`${boundary}\n${complete}`)).toBeFalse();
-});

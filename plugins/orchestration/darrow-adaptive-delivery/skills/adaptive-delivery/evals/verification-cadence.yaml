@@ -3,11 +3,10 @@ invariant: ADL-P4,ADL-L5,ADL-S3
 goal_report: forbidden
 goal_route_checks: false
 prompt: >-
-  {{skill_invocation}} Add an exported isEven(value) function to src/math.js.
-  Acceptance is that it returns true
-  exactly for even integer inputs, focused evidence covers zero, a negative
-  even integer, and an odd integer, and bash final.sh passes. Select and apply
-  the policy route rather than pinning it. Keep the result local.
+  {{skill_invocation}} Add an exported isEven(value) function to src/math.js. Acceptance
+  is that it returns true exactly for even integer inputs, focused evidence covers zero,
+  a negative even integer, and an odd integer, and bash final.sh passes. Select and
+  apply the policy route rather than pinning it. Keep the result local.
 fixture:
   commits:
     - message: "chore: init"
@@ -43,14 +42,12 @@ fixture:
 checks:
   - name: behavior is implemented
     run: >-
-      node --input-type=module -e
-      "import('./src/math.js').then(({isEven}) => {
-      if (!isEven(0) || !isEven(-4) || isEven(3)) process.exit(1) })"
+      node --input-type=module -e "import('./src/math.js').then(({isEven}) => { if
+      (!isEven(0) || !isEven(-4) || isEven(3)) process.exit(1) })"
   - name: focused evidence is durable
     run: >-
-      grep -F 'isEven(0)' test/math.test.js >/dev/null &&
-      grep -F 'isEven(-' test/math.test.js >/dev/null &&
-      grep -F 'isEven(3)' test/math.test.js >/dev/null
+      grep -F 'isEven(0)' test/math.test.js >/dev/null && grep -F 'isEven(-'
+      test/math.test.js >/dev/null && grep -F 'isEven(3)' test/math.test.js >/dev/null
   - name: feedback precedes final-tree verification
     run: |
       if ! awk '
@@ -74,11 +71,22 @@ output_checks:
     not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
 semantic_output_checks:
   - name: owner reports complete focused and final verification
-    proposition: The response reports the requested outcome as complete, with no unresolved blocker or pending decision preventing completion.
+    proposition:
+      The response reports the requested outcome as complete, with no unresolved
+      blocker or pending decision preventing completion.
   - name: focused verification is reported successful
-    proposition: The response reports successful completed focused verification, whether it names focused.sh or identifies the focused check in ordinary prose. This fixture has only one focused command. Merely planning a check, reporting only a failed red check, or reporting only final verification fails.
+    proposition:
+      The response reports successful completed focused verification, whether it
+      names focused.sh or identifies the focused check in ordinary prose. This fixture
+      has only one focused command. Merely planning a check, reporting only a failed red
+      check, or reporting only final verification fails.
   - name: final verification is reported successful
-    proposition: In this case final.sh is the final verification command. The response reports that this command completed successfully, rather than merely advising or planning to run it. It need not repeat the label 'final verification' alongside the command name.
+    proposition:
+      In this case final.sh is the final verification command. The response
+      reports that this command completed successfully, rather than merely advising or
+      planning to run it. It need not repeat the label 'final verification' alongside
+      the command name.
 transcript_checks:
-  - name: no lifecycle ledger or nested goal is used
-    not_regex: 'adaptive-delivery-preflight step|Protocol ledger|"tool":"create_goal"'
+  - name: no lifecycle ledger is used
+    not_regex: adaptive-delivery-preflight step|Protocol ledger
+native_goal: required
