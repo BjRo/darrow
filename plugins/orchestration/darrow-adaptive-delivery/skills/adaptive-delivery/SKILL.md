@@ -357,6 +357,19 @@ focused and final checks; capability bindings; and the shared repair allowance.
 Default maximum is two combined repair attempts, consumed zero unless there is
 existing history. Only an explicit finite override changes that maximum.
 
+You own workflow selection and ordering, assessment history, repair accounting
+and completion. Before another assignment, after native continuation and before
+a terminal response, reconcile issued work, returned evidence, outstanding
+obligations and consumed attempts. Clarify missing task facts with the relevant
+child; do not ask an implementor to reconstruct delivery bookkeeping.
+
+Translate the selected workflow into concrete work and evidence requirements.
+When it requires a failing regression or acceptance check before an edit, obtain
+that evidence yourself or explicitly assign the check before mutation. Require
+failure for the intended missing or broken behavior. A passing check after the
+edit does not establish the earlier failure. The implementor needs the concrete
+requirements, not a workflow identifier or responsibility for sequencing delivery.
+
 For an existing candidate with assessment-before-change intent, obtain current
 successful checks and the selected assessment of that unchanged candidate before
 authorizing repair. Obvious edits do not waive that assessment or its accounting.
@@ -371,13 +384,22 @@ Use native host continuation and delegation. Choose the next assignment from
 the request, current evidence and remaining obligations; there is no fixed phase
 pipeline. You remain responsible for completion throughout.
 
-For implementation or repair, launch a fresh bounded implementor using the
-selected model and effort and the host guide's native delegation controls. Give it the exact assignment, repository and
+Launch the initial bounded implementor using the selected model and effort and
+the host guide's native delegation controls. Retain its identity and reuse it
+for further work on that assignment, including repairs. Supply the concrete
+changes, findings, changed constraints and checks; it need not track whether this
+is the first implementation or a repair attempt. Start a replacement only when
+the retained agent is unavailable or no longer fits the required route or scope.
+State that reason and supply the replacement's necessary context and prior work.
+Replacement never resets your repair allowance.
+
+Give the implementor the exact assignment, repository and
 allowed files/effects, acceptance, relevant public skill paths, required checks,
 preserved work and return evidence. It owns that assignment, not the delivery
 goal. It must not invoke Adaptive Delivery, create an overall goal, coordinate
 independent assessment, or publish beyond the assignment's explicit authority.
-Ask for changed files, actual check results and unresolved blockers. Wait for
+Ask for changed files, actual check results, relevant evidence and unresolved
+blockers. Keep workflow state, attempt counts and delivery decisions here. Wait for
 the result before assigning conflicting work. A rejected route is a concrete
 launch failure, not permission to silently choose another model.
 
@@ -461,6 +483,8 @@ Before repeating an ambiguous external effect, observe its current state and
 never duplicate an effect that already completed. Include this rule in affected
 capability assignments. Do not retry an unchanged deterministic failure without
 changed evidence or conditions; return the concrete blocker and next action.
+Native blocked-state recurrence can use the retained blocker; it does not require
+rerunning the unchanged failing command.
 
 ## 8. Complete from evidence
 
@@ -476,3 +500,5 @@ evidence or gaps, original findings and repair history, consumed attempts and th
 authorized maximum, performed publication effects and remaining risks. A default
 maximum remains two when one attempt succeeds. Preserve substantive provider
 evidence; do not replace missing facts with implementation-agent assertions.
+Include consumed attempts and the maximum in every terminal response, including
+blocked responses and later native continuations of that same blocker.

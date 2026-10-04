@@ -18,7 +18,7 @@ main thread working.
 
 ## Bounded delegation
 
-Use `spawn_agent` with:
+For a new bounded agent, use `spawn_agent` with:
 
 - `fork_turns: none`;
 - a `task_name` containing only lowercase letters, digits and underscores;
@@ -42,6 +42,13 @@ Retain accepted child identities and results. Wait for conflicting work to settl
 before assigning more work. Children do not invoke Adaptive Delivery, create
 overall goals, expand authority or decide overall completion. A rejected route
 does not authorize silently switching models.
+
+Reuse the accepted implementor for subsequent implementation and repairs. Use
+`followup_task` for an idle child or steer active work through `send_message`,
+targeting its retained identity. Supply concrete changes, findings, constraints
+and checks; keep workflow ordering and repair accounting in the main thread.
+Replace the implementor only for a concrete availability, route or scope mismatch,
+with the necessary context and prior work. Replacement grants no extra attempts.
 
 ## Coordination and feedback
 

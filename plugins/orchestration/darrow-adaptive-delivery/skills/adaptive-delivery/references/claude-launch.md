@@ -68,6 +68,13 @@ another assignment. Verification and review keep their own internal delegation
 and response contracts. The main thread consumes those results and owns repair
 accounting and overall completion.
 
+Reuse the retained implementor for subsequent implementation and repairs through
+the host's available agent-resume control. Supply concrete changes, findings,
+constraints and checks; keep workflow ordering and repair accounting in the main
+thread. If that agent cannot be resumed or no longer fits the required route or
+scope, state the concrete reason and launch a replacement with the necessary
+context and prior work. Replacement grants no extra attempts.
+
 ## Feedback and completion
 
 Ask material questions in the main thread and stop affected mutation. Use native

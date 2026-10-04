@@ -247,6 +247,16 @@ State that it owns its assignment, not the goal, and must return evidence or a
 concrete blocker. Do not copy parent orchestration or goal-creation instructions
 into child tasks. A child return alone never proves overall completion.
 
+Workflow selection, ordering, assessment history, repair accounting and completion
+belong to the main thread. Translate applicable workflow requirements into concrete
+work and evidence requirements for the implementor; it need not track the workflow
+identifier, delivery status or repair allowance. When the selected workflow requires
+a failing regression or acceptance check before an edit, the main thread must
+obtain that evidence or explicitly include it before mutation in the bounded
+assignment. A passing check after the edit cannot establish the earlier failure.
+The implementor returns changes, actual check results, relevant evidence and
+unresolved blockers; the main thread decides what those facts mean for delivery.
+
 New user constraints become acceptance criteria before affected work resumes.
 Reusing an existing component means calling it; copying its algorithm does not
 satisfy that requirement. Material scope, acceptance, constraint or authoritative
@@ -559,10 +569,12 @@ integer user or repository repair budget may change that limit. Apply the
 same authorized maximum in the launch contract and owner report; consumed
 attempts are a separate count. Finishing after one repair does not change the
 default maximum to one or create an implicit override. Resolve the maximum,
-its authority source and the consumed count before launch. Before
-completion, compare accumulated child results with that bound allowance. Missing
-or contradictory accounting requires corrected evidence from the relevant
-assignment; obtaining it authorizes no additional repair or assessment.
+its authority source and the consumed count before launch. Before each subsequent
+assignment, after native continuation and before a terminal response, the main
+thread reconciles its issued assignments, returned evidence, outstanding obligations
+and consumed allowance. Missing or contradictory facts require bounded clarification
+from the relevant assignment; the implementor does not calculate the delivery's
+repair count. Obtaining clarification authorizes no additional repair or assessment.
 Apply the
 strictest applicable invocation, time, token, and authority limit. Additional
 attempts require the preceding verification to show resolved original blockers
@@ -593,6 +605,13 @@ verification as a separate capability assignment, after successful current
 checks. Pass the complete relevant acceptance, candidate, evidence, provider
 bindings and explicit review-coordinator route. Verification owns its provider
 selection, internal delegation and result contract; review owns its readers.
+
+Reuse the retained implementor for subsequent work on its assignment, including
+repairs. Supply the concrete changes, findings, changed constraints and required
+checks, without transferring orchestration bookkeeping. Start a replacement only
+when the retained agent is unavailable or no longer fits the required route or
+scope, and state the reason. Supply a replacement with the necessary task context
+and prior work; replacement never resets the main thread's repair allowance.
 
 The main thread may inspect state, run required checks, consume results and
 coordinate authorized operations. It does not take over implementation from a
@@ -625,7 +644,9 @@ Corrections and constraints apply before the next affected action. A status
 question does not cancel execution. Cancellation stops work and reports effects
 already performed. A blocker names its condition, current evidence and smallest
 next action. Unchanged deterministic failures are not retried without changed
-conditions or evidence. Observe current external state before repeating an
+conditions or evidence. Native blocked-state recurrence can be established from
+the retained blocker; it does not require rerunning the unchanged failing command.
+Observe current external state before repeating an
 ambiguous effect. No Darrow retry state machine is added.
 
 ### Repair and assessment correction
@@ -667,6 +688,8 @@ Before completing the native goal, the main thread verifies:
 Return a self-contained summary with changed files, checks, selected assessment
 outcomes, repair use/maximum, performed effects and residual risks. Evidence
 files supplement the response; they do not replace its substantive conclusions.
+Every terminal response includes repair use and the authorized maximum, including
+blocked responses and later native continuations of the same unresolved blocker.
 A child success statement, initial goal text or provider pass alone cannot
 establish completion. Goal completion grants no publication authority.
 
@@ -677,8 +700,9 @@ establish completion. Goal completion grants no publication authority.
 Use native `create_goal` in the main thread, or continue its matching active
 goal. Keep the objective within 4,000 characters and supply no invented budget.
 Use native `spawn_agent` with `fork_turns: none`, an explicit model and effort,
-and a valid lowercase/digit/underscore task name for each bounded assignment.
-Retain the host-returned identity for continuation. Children do not create goals.
+and a valid lowercase/digit/underscore task name for a new bounded agent.
+Retain its host-returned identity; use native follow-up for continued implementation
+or repair when that implementor remains applicable. Children do not create goals.
 
 Use native goal continuation; an eval client must keep the main session alive
 through it. App-server is an evaluation entrypoint, not a separate production
@@ -859,6 +883,9 @@ a clear assessment is not failed convergence; repeated unresolved findings are.
 Installed fixture helpers are excluded from the product candidate and fingerprint
 checks use the same immutable runtime launcher as the provider. Forge mocks
 accept the current public command contract, including file-backed PR bodies.
+Publication counts record accepted creation invocations independently of free-form
+argument text. A multiline PR body must not count as additional creations;
+two actual creation invocations must still fail an exactly-one requirement.
 
 ### Adaptation and evaluation fidelity (#102)
 
@@ -949,6 +976,20 @@ ordered finding set, using the review provider's public validator. Another
 report for that target must not invalidate an otherwise matching original;
 identical copies of the same validated finding set are equivalent evidence.
 Missing or changed original findings still fail the completion proof.
+
+Synthetic review providers used in composition evals may return a faithful
+inline explanation with an absolute reference to their complete retained
+report. The explanation preserves the outcome, assessed scope, actionable
+findings and their disposition, follow-up states and material limitations.
+Repeated target history and mechanical metadata may stay in the report. Require
+observed consumption of the supplied, readable current report before the caller
+uses it for repair or clearance; file existence alone is insufficient. Missing,
+stale, contradictory or incomplete evidence still fails. Do not add a verbatim
+copy requirement or require every historical field in every agent message.
+Honor a real provider's own public result contract. Preserve historical grades
+under their original expectations, and label revised assessments separately.
+Encrypted message content remains unknown even when a separate public result
+and observed report read establish a sufficient handoff.
 
 Verification-cadence evals preserve required focused-before-final ordering and
 successful final evidence without inventing an exact invocation count. Repeated

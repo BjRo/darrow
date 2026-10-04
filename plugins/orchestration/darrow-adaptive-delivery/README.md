@@ -52,6 +52,10 @@ supplies authority; Adaptive Delivery chooses and the Git capability prepares.
 
 Choose one workflow: `fix-bug`, `implement-feature`, `change-feature`,
 `refactor`, `migration` or `mechanical`. Missing decisions stop affected work.
+The main thread translates its workflow into concrete assignments and arranges
+required evidence, including a failing check before an edit when applicable.
+The implementor returns changes, check results and blockers; workflow sequencing
+and delivery bookkeeping remain with the main thread.
 
 Consequence risk controls assurance. Routine work omits independent review by
 default; elevated risk selects it when independent judgment is needed; high risk
@@ -96,7 +100,10 @@ the complete evidence before authorizing a combined repair.
 The default maximum is **two implementation repair attempts total**, shared
 across providers and findings. Each attempt refreshes checks and obtains fresh
 closed-set verification. Preserve finding identities, prior reports, candidate
-history and direct repair-caused regressions. Fresh children and comprehensive
+history and direct repair-caused regressions. Reuse the same implementor for
+repairs when it remains available and fits the route and scope. Send concrete
+repair instructions without handing over workflow state or attempt accounting.
+Replacement children and comprehensive
 reassessment never reset the allowance. Clear evidence ends repair immediately;
 further attempts require progress and remaining budget. Explicit finite overrides
 and stricter authority, invocation, time or token limits still apply.
@@ -131,6 +138,9 @@ Do not clear and recreate the goal to obtain an answer or reset history.
 A blocker names the condition, evidence and smallest next action. Observe current
 external state before retrying an ambiguous effect, and never duplicate a completed
 effect. Report unavailable delivery or stopping controls honestly.
+Every terminal response, including a blocked response after native continuation,
+reports repair use and the authorized maximum. Retained evidence of an unchanged
+deterministic blocker does not require another execution of the failing command.
 
 ## `doctor-adaptive-delivery`
 

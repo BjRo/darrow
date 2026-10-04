@@ -6,62 +6,79 @@ import { parse } from "yaml";
 import { buildFixture, destroyFixture } from "./fixture";
 import type { EvalCase } from "./types";
 
-for (const scenario of [
-  { name: "long draft flag", args: ["--draft"], creations: 1, passes: true },
-  { name: "short draft flag", args: ["-d"], creations: 1, passes: true },
-  {
-    name: "assigned draft flag",
-    args: ["--draft=true"],
-    creations: 1,
-    passes: true,
-  },
-  { name: "no draft flag", args: [], creations: 1, passes: false },
-  {
-    name: "draft mention in body text",
-    args: ["--body", "Do not use --draft for this PR"],
-    creations: 1,
-    passes: false,
-  },
-  {
-    name: "duplicate draft creation",
-    args: ["--draft"],
-    creations: 2,
-    passes: false,
-  },
-]) {
-  test(`publication draft oracle: ${scenario.name}`, async () => {
-    const source = new URL(
-      "../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/authorized-publication.yaml",
-      import.meta.url,
-    );
-    const evalCase = parse(await Bun.file(source).text()) as EvalCase;
-    const check = evalCase.checks.find(
-      (entry) => entry.name === "exactly one draft pull request was opened",
-    );
-    expect(check).toBeDefined();
-    const repo = await buildFixture({
-      fixture: evalCase.fixture,
-      skillDir: "",
-      skillMounts: [],
-    });
-    try {
-      const gh = join(repo, ".git/fixture-bin/gh");
-      for (let creation = 0; creation < scenario.creations; creation++) {
-        expect(
-          Bun.spawnSync(["/bin/bash", gh, "pr", "create", ...scenario.args], {
-            cwd: repo,
-          }).exitCode,
-        ).toBe(0);
-      }
-      const grade = Bun.spawnSync(["/bin/bash", "-c", check!.run], {
-        cwd: repo,
+for (const shell of ["bash", "/bin/bash"])
+  for (const scenario of [
+    { name: "long draft flag", args: ["--draft"], creations: 1, passes: true },
+    { name: "short draft flag", args: ["-d"], creations: 1, passes: true },
+    {
+      name: "assigned draft flag",
+      args: ["--draft=true"],
+      creations: 1,
+      passes: true,
+    },
+    { name: "no draft flag", args: [], creations: 1, passes: false },
+    {
+      name: "multiline body with record-shaped text",
+      args: [
+        "--draft",
+        "--body",
+        "First paragraph.\n\nmain\tpr create --draft\nFinal paragraph.",
+      ],
+      creations: 1,
+      passes: true,
+    },
+    {
+      name: "duplicate creation with multiline body",
+      args: ["--draft", "--body", "First paragraph.\n\nSecond paragraph."],
+      creations: 2,
+      passes: false,
+    },
+    {
+      name: "draft mention in body text",
+      args: ["--body", "Do not use --draft for this PR"],
+      creations: 1,
+      passes: false,
+    },
+    {
+      name: "duplicate draft creation",
+      args: ["--draft"],
+      creations: 2,
+      passes: false,
+    },
+  ]) {
+    test(`publication draft oracle (${shell}): ${scenario.name}`, async () => {
+      const source = new URL(
+        "../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/authorized-publication.yaml",
+        import.meta.url,
+      );
+      const evalCase = parse(await Bun.file(source).text()) as EvalCase;
+      const check = evalCase.checks.find(
+        (entry) => entry.name === "exactly one draft pull request was opened",
+      );
+      expect(check).toBeDefined();
+      const repo = await buildFixture({
+        fixture: evalCase.fixture,
+        skillDir: "",
+        skillMounts: [],
       });
-      expect(grade.exitCode === 0).toBe(scenario.passes);
-    } finally {
-      await destroyFixture(repo);
-    }
-  });
-}
+      try {
+        const gh = join(repo, ".git/fixture-bin/gh");
+        for (let creation = 0; creation < scenario.creations; creation++) {
+          expect(
+            Bun.spawnSync([shell, gh, "pr", "create", ...scenario.args], {
+              cwd: repo,
+            }).exitCode,
+          ).toBe(0);
+        }
+        const grade = Bun.spawnSync([shell, "-c", check!.run], {
+          cwd: repo,
+        });
+        expect(grade.exitCode === 0).toBe(scenario.passes);
+      } finally {
+        await destroyFixture(repo);
+      }
+    });
+  }
 
 async function publicationState(repo: string) {
   const git = (args: string[]) => {

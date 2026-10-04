@@ -74,6 +74,7 @@ fixture:
         [ "${expect_head_value-}" != true ]
         [ "$expect_base_value" != true ]
         [ -z "$head_branch" ] || [ "$head_branch" = "$current_branch" ]
+        printf '%s\tpr create\n' "$current_branch" >>.git/fixture-state/gh-pr-creations
         printf '%s\t%s\n' "$current_branch" "$*" >>.git/fixture-state/gh-pr-calls
         printf '%s\n' "$current_branch" "$base_branch" "$draft" >.git/fixture-state/gh-pr-record
         printf '%s\n' 'https://example.invalid/pull/1'
@@ -153,10 +154,10 @@ checks:
       .git/expected-notes
   - name: exactly one draft pull request was opened
     run: >-
-      test "$(wc -l <.git/fixture-state/gh-pr-calls | tr -d ' ')" -eq 1 &&
+      test "$(wc -l <.git/fixture-state/gh-pr-creations | tr -d ' ')" -eq 1 &&
       branch_name=$(git branch --show-current) && test "$(cut -f1
-      .git/fixture-state/gh-pr-calls)" = "$branch_name" && cut -f2-
-      .git/fixture-state/gh-pr-calls | grep -E '^pr create( |$)' >/dev/null && test
+      .git/fixture-state/gh-pr-creations)" = "$branch_name" && test "$(cut -f2
+      .git/fixture-state/gh-pr-creations)" = 'pr create' && test
       "$(sed -n '3p' .git/fixture-state/gh-pr-record)" = true
   - name: published tree is clean
     run: git status --porcelain --untracked-files=all
