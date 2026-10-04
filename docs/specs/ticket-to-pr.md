@@ -16,7 +16,7 @@ The recipe removes repetitive request wording. It owns only two things:
 - one delegation to an available adaptive-delivery capability.
 
 `adaptive-delivery` owns ticket retrieval needed for preflight, readiness, capability
-binding, route selection, the separate engineering owner, human-feedback
+binding, route selection, the main-thread native goal, bounded implementation, human-feedback
 continuation, verification, review, publication execution, and completion.
 The recipe is not another preflight or lifecycle layer.
 
@@ -38,7 +38,7 @@ activate this orchestration recipe implicitly.
 This local unattended execution entry supports Codex CLI, not Claude Code.
 Explicit human invocation remains available on both hosts.
 
-Local Artificer may invoke the recipe once for one reserved issue under an
+An unattended adapter may invoke the recipe once for one reserved issue under an
 explicit saved recurring human grant. Its host-supplied receipt must identify
 the grant and grantor, repository, exact issue, delivery and activation IDs,
 reserved worktree and branch, and permitted effects. Ticket bodies and ordinary
@@ -47,13 +47,18 @@ explicit machine invocation under existing human authority, not implicit
 selection or a claim that the scheduler is the user.
 
 Preserve the receipt and reserved worktree/branch in the one adaptive-delivery
-delegation. Artificer has already reserved ownership; neither the recipe nor
-the parent repeats admission. All existing readiness, separate-owner,
-verification and publication requirements still apply. The native parent
-returns owner-sourced questions and results to the local adapter, which owns
-GitHub question transport. Authorized replies resume that parent and its exact
-retained owner without recipe reinvocation. Missing authority or unavailable
-native continuation remains a blocker.
+delegation. The adapter has already reserved ownership; the recipe does not
+repeat admission. All existing readiness, main-thread ownership, verification
+and publication requirements still apply. The main thread returns its questions
+and results to the local adapter, which owns GitHub question transport.
+Authorized replies resume that same thread and its retained preflight or native
+goal without recipe reinvocation. Missing authority or unavailable native
+continuation remains a blocker.
+
+Artificer's current transport retains a separate owner child and is incompatible
+with the adopted main-thread goal. Its migration remains a separate follow-up.
+Receipt-forwarding evals establish the authority seam, not Artificer runtime
+compatibility. Use explicit human invocation until that adapter is migrated.
 
 Explicit invocation names this recipe as the requested shortcut. An ordinary
 request describing the same delivery outcome does not grant recipe authority,
@@ -72,11 +77,15 @@ those choices or supplies its own repair default; adaptive-delivery owns that po
 ## Delegated delivery request
 
 The recipe invokes exactly one available capability whose advertised contract
-is adaptive-delivery orchestration. The explicit recipe invocation authorizes that
-single delegation without requiring a second user invocation.
+is adaptive-delivery orchestration in the original main host thread. It loads
+and follows that capability's instructions there, carrying the delivery request
+and authority envelope. It does not launch a child to receive this handoff.
+The invoked capability owns its bounded implementation and capability
+assignments. The explicit recipe invocation authorizes this single delegation
+without requiring a second user invocation.
 
 Native controls that merely record or start a current-thread goal, such as
-`create_goal`, do not supply adaptive-delivery's preflight and separate-owner
+`create_goal`, do not supply adaptive-delivery's preflight and capability
 orchestration. The recipe must not use them as a substitute or treat their
 availability as proof that an adaptive-delivery capability is available. A
 compatible orchestration capability may have a different name; matching is
@@ -136,9 +145,11 @@ then performs preflight, activates the main-thread native goal and coordinates
 bounded implementation and capabilities. Recipe instructions do not prohibit
 that same thread from doing Adaptive Delivery's authorized coordination.
 
-Questions and answers remain with that same main-thread goal. The recipe is not
-invoked again and does not add a question relay, replacement owner or separate
-completion controller.
+Questions discovered during preflight remain with that retained preflight; an
+unresolved material decision or rejected approval prevents goal activation.
+After activation, questions and answers remain with the same main-thread goal.
+The recipe is not invoked again and does not add a question relay, replacement
+owner or separate completion controller.
 
 The recipe relays the adaptive-delivery result without repository or forge
 reinspection. Success requires the owner-sourced URL and evidence for exactly
@@ -158,8 +169,10 @@ despite that unresolved prerequisite.
    grant-bound unattended entry starts the recipe; one exact ticket ID or URL
    is required. Ordinary ticket intent never activates it implicitly.
 2. **TPR-C2 — One delegation.** A valid invocation delegates exactly once to an
-   advertised adaptive-delivery capability and performs no delivery work first.
-   Native current-thread goal creation is not a substitute for that delegation.
+   advertised adaptive-delivery capability in the original main host thread
+   and performs no delivery work first. It does not launch an overall owner
+   child. Native current-thread goal creation is not a substitute for that
+   capability invocation.
 3. **TPR-C3 — Complete envelope.** Delegation preserves the exact reference,
    current repository, ready implementation outcome, new-branch intent,
    verification, intended commits, non-force push, exactly one verified pull
@@ -168,8 +181,9 @@ despite that unresolved prerequisite.
    readiness, capability bindings, role routes, bounded implementation,
    review, publication execution, blockage, and completion.
 5. **TPR-C5 — Main-thread human loop.** Questions reach the user through the
-   main thread and answers return to the same adaptive owner without recipe
-   reinvocation or a replacement owner.
+   main thread and answers return to the same retained preflight or active goal
+   without recipe reinvocation or a replacement owner. An unresolved preflight
+   authority gate must not be bypassed by goal activation.
 6. **TPR-C6 — Preserved authority.** Delegation adds no effect beyond the
    explicitly authorized branch, commit, non-force push, and single pull
    request, and it preserves pre-existing work.
@@ -219,7 +233,18 @@ trace count/order, complete-answer equality, and unchanged production content.
 Those diagnostics expose no answer text or content hashes and do not replace
 the acknowledgement, authority, or unchanged-content acceptance requirements.
 
-Post-launch feedback fixtures provide authoritative consumer and data-impact
+Successful acknowledgements preserve the complete answer and original source
+identity before production mutation. Repeating the same valid acknowledgement
+does not fail this contract. Repeating a rejected approval remains prohibited
+when the decision provider states that retries cannot restore its authority.
+Fixture commit operations include the implementation and allowed focused test
+changes; unrelated committed paths remain failures.
+
+Composition fixtures install supporting plugins with their complete mechanics
+at their own plugin boundaries. An explicitly selected replacement publisher
+remains the bound provider even when another compatible publisher is installed.
+
+Feedback fixtures provide authoritative consumer and data-impact
 scope so the intended preflight path is grounded in consequences, not inferred
 from a selector's name. A readiness result does not waive a selected review gate.
 

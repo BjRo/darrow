@@ -10,10 +10,7 @@ activation_sequence:
 additional_plugins:
   - plugins/orchestration/darrow-adaptive-delivery
   - plugins/capability/darrow-readiness-gate
-additional_skills:
-  - plugins/capability/darrow-git/skills/prepare-task-branch
-  - plugins/capability/darrow-git/skills/create-commit
-  - plugins/capability/darrow-git/skills/create-pr
+  - plugins/capability/darrow-git
 prompt: "{{skill_invocation}} https://example.invalid/tickets/42"
 fixture:
   commits:

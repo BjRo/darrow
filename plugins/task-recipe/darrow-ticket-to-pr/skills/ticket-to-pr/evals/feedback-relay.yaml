@@ -192,7 +192,7 @@ fixture:
       #!/usr/bin/env bash
       set -eu
       bash test.sh
-      git add -- src/migration.js
+      git add -- src/migration.js test/ test.sh
       git commit -m 'feat(migration): select strict policy'
       printf '%s\n' "$(git rev-parse HEAD)" >>.git/commit-invocations
     fixture-create-pr: |
@@ -223,14 +223,21 @@ checks:
   - name: user answer is acknowledged before production mutation
     run: |
       awk -F '\t' '
-        NR == 1 && $1 == "discover" && $2 == "migration-policy" {
-          before = $3; next
+        NR == 1 {
+          discovery_first = (NF == 3 && $1 == "discover" && $2 == "migration-policy" && $3 != "")
+          before = $3
+          next
         }
-        NR == 2 && $1 == "acknowledge" && $2 == "migration-policy" &&
-          $3 == "Use the strict migration policy. Approval reference: cobalt-7391." && $4 == before {
-          ok = 1
+        {
+          if (NF != 4 || $1 != "acknowledge" || $2 != "migration-policy" ||
+              $3 != "Use the strict migration policy. Approval reference: cobalt-7391." || $4 != before)
+            invalid = 1
         }
-        END { exit ok && NR == 2 ? 0 : 1 }
+        END {
+          if (discovery_first && NR >= 2 && !invalid) exit 0
+          printf "acknowledgement trace: rows=%d discovery_first=%d invalid=%d\n", NR, discovery_first, invalid
+          exit 1
+        }
       ' .git/ticket-feedback-trace
   - name: delivery prepares the exact ticket branch once
     run: |

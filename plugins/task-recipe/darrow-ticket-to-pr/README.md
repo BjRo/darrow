@@ -40,6 +40,11 @@ authorizes the same one delegation. Ordinary scheduler calls are not authority.
 This unattended execution entry supports Codex CLI only; the ordinary explicit
 human recipe remains available on both hosts.
 
+Artificer's current separate-owner transport is incompatible with Adaptive
+Delivery's main-thread goal. Its migration is a separate follow-up. The receipt
+contract above does not establish runtime compatibility; use explicit human
+invocation until that adapter is migrated.
+
 ## Hosts and prerequisites
 
 Codex or Claude Code with a compatible host-visible adaptive-delivery capability.

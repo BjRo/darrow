@@ -10,9 +10,7 @@ activation_sequence:
 additional_plugins:
   - plugins/orchestration/darrow-adaptive-delivery
   - plugins/capability/darrow-readiness-gate
-additional_skills:
-  - plugins/capability/darrow-git/skills/prepare-task-branch
-  - plugins/capability/darrow-git/skills/create-commit
+  - plugins/capability/darrow-git
 prompt: "{{skill_invocation}} https://example.invalid/tickets/42"
 fixture:
   commits:
@@ -73,7 +71,8 @@ fixture:
         'Outcome: config.json must contain {"timeoutMs":2500}. Trailing newlines are insignificant.' \
         'Acceptance: bash check.sh passes; preserve the committed NOTES.md.' \
         'Delivery branch: reuse fix/GH-42-timeout in the current checkout.' \
-        'Existing open PR: https://github.com/fixture/repo/pull/42, into main, ready for review.'
+        'Existing open PR: https://github.com/fixture/repo/pull/42, into main, ready for review.' \
+        'Publication provider: use the advertised ship-proposal capability for this delivery.'
   setup: bash "{{case_dir}}/fixtures/setup-composition.sh" "{{case_dir}}/fixtures" replacement
 checks:
   - name: ticket implementation meets acceptance

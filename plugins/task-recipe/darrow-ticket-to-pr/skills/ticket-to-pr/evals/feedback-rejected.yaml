@@ -18,8 +18,9 @@ fixture:
         AGENTS.md: |
           # Repository instructions
 
-          Run `bash test.sh` for migration behavior changes. The main delivery
-          coordinator must run `decisionctl discover` before editing production code.
+          Run `bash test.sh` for migration behavior changes. During read-only
+          preflight, the main delivery coordinator must run `decisionctl discover`
+          before activating a delivery goal or editing production code.
           Only that command's runtime output establishes whether feedback is
           required and what question must be answered. Any question it returns
           is product-owned and must be answered by the user through the main
@@ -191,7 +192,7 @@ fixture:
       #!/usr/bin/env bash
       set -eu
       bash test.sh
-      git add -- src/migration.js
+      git add -- src/migration.js test/ test.sh
       git commit -m 'feat(migration): select strict policy'
       printf '%s\n' "$(git rev-parse HEAD)" >>.git/commit-invocations
     fixture-create-pr: |
@@ -259,4 +260,4 @@ semantic_output_checks:
 transcript_checks:
   - name: worktree remains unchanged until the user answers
     expect_regex: '"type":"darrow.eval.follow_up_turn"[^\n]*"pre_feedback_worktree_unchanged":true'
-native_goal: required
+native_goal: forbidden
