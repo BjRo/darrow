@@ -5,6 +5,14 @@ workflow failures and one recovered intermediate evidence error remain recorded.
 The two conditional controls were not released because workflow defects recurred.
 No further candidate, capability, architecture or runner changes were made.
 
+Follow-up: the user accepted
+[outcome-led grading](adaptive-delivery-outcome-grading-2026-10-04.md). That
+separate assessment preserves this report and its original grades, distinguishes
+accepted outcomes from open workflow defects, and calibrates the existing
+semantic checks against valid variations and counterexamples.
+The subsequent [bounded Codex finish](adaptive-delivery-bounded-codex-finish-2026-10-04.md)
+records both controls passing 5/5 and the complete 25-trial round.
+
 ## Result and recommendation
 
 Keep achieved outcomes as passes, with workflow compliance assessed separately.
@@ -142,9 +150,10 @@ candidate wall time is about 75.4 minutes, excluding manual assessment and gradi
 overhead. Dollar cost is unavailable. Native goal-reported usage is a different
 metric and does not replace whole-tree usage.
 
-The conditional `goal-steering-without-question` and
-`goal-review-routine-omitted` cases remain unrun for this candidate. This completes
-the diagnostic stage, not a full new regression sweep.
+At this diagnostic checkpoint, the conditional `goal-steering-without-question`
+and `goal-review-routine-omitted` cases were unrun. Their later results are in
+the bounded finish report linked above. These 15 trials complete the diagnostic
+stage, not a full new regression sweep.
 
 ## Evidence and validation
 

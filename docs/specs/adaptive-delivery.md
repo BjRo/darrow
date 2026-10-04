@@ -963,6 +963,23 @@ The following invariants govern adaptation and evidence provenance:
   Compare direct execution and preflight on the same fixtures and model/effort
   routes separately from comparisons changing routes; report sample sizes,
   outcomes, timing, token-accounting completeness, and limitations.
+- **ADL-E3 — Outcome-led evaluation.** Report achieved task outcomes separately
+  from workflow compliance, capability contracts, evidence correctness and
+  preservation, recovery, and cost. Establish outcomes and required safeguards
+  from observable current state and effects; a successful narrative alone is
+  insufficient. Accept faithful summaries and equivalent presentation when the
+  provider's public contract permits them. Minor final omissions may leave the
+  achieved outcome accepted when the retained evidence establishes the result
+  and required gates; preserve any explicit reporting-contract violation.
+  Missing required work, unauthorized effects, stale clearance and unsupported
+  completion claims remain failures in their affected dimensions. A harmless
+  redundant check may be an efficiency defect alongside a correct outcome;
+  a recovered intermediate error remains recorded alongside correct final
+  evidence. Neither is erased by recovery. A required pre-edit check remains
+  required unless its workflow contract is explicitly changed. Unknown evidence,
+  including encrypted handoffs, remains unknown. Preserve original grades and
+  label any later acceptance assessment with its rubric and source trials;
+  regrading is not new execution evidence or an unqualified compliance pass.
 
 Real review-composition fixtures accept the canonical human report as well as
 the comprehensive and additive fix-verification machine artifacts. The fixture
