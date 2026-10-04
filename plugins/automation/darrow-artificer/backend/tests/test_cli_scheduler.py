@@ -6,10 +6,12 @@ import sys
 from pathlib import Path
 
 import pytest
+from cryptography.fernet import Fernet
 
 from darrow_artificer import cli, operations, scheduler, setup
 from darrow_artificer.installation import Installation
 from test_admission import existing
+from test_native import rollout
 
 
 def test_schedule_defaults_and_absolute_entrypoint(installation: Installation) -> None:
@@ -37,6 +39,33 @@ def test_schedule_defaults_and_absolute_entrypoint(installation: Installation) -
         )["StartInterval"]
         == 1800
     )
+
+
+def test_recover_main_thread_without_owner(installation: Installation) -> None:
+    claim = existing(installation, 1)
+    home = installation.delivery_dir(claim.id) / "native"
+    rollout(home, "original")
+    (installation.root / "archive.key").write_bytes(Fernet.generate_key())
+    args = cli.parser().parse_args(
+        [
+            "--state",
+            str(installation.root),
+            "recover",
+            claim.id,
+            "--thread",
+            "original",
+        ]
+    )
+    cli.dispatch(installation, args)
+    saved = installation.claim(claim.id)
+    assert saved.native is not None
+    assert saved.native.model_dump() == {
+        "thread": "original",
+        "model": "gpt-5.6-terra",
+        "effort": "medium",
+    }
+    assert saved.status == "needs-attention"
+    assert (home.parent / "session.enc").is_file()
 
 
 def test_scheduler_install_remove(
@@ -135,7 +164,7 @@ def test_other_dispatches(
         ["tick"],
         ["revoke"],
         ["cancel", claim.id],
-        ["recover", claim.id, "--parent", "p", "--owner", "o"],
+        ["recover", claim.id, "--thread", "p"],
         ["schedule"],
         ["unschedule"],
     ]

@@ -20,6 +20,11 @@ does not reach into sibling plugin files or install missing capabilities.
 Optional `--issue NUMBER` arguments restrict admission; no issue arguments
 means all authorized ready nominations in this exact repository.
 
+New grants default to `--model gpt-6-sol --effort medium` for the original
+main-thread coordinator. Adaptive Delivery retains its implementation and
+assurance routing. Codex app-server owns native goal continuation; Artificer
+does not supply repeat-work prompts or invoke engineering phases.
+
 Normal `codex login` must have populated `auth.json` in the credential home.
 Authentication is stored separately from encrypted session archives; Codex
 refreshes it. The archive key is a private `archive.key` in the state directory.
@@ -63,8 +68,12 @@ Inspect the saved delivery, native process identity, worktree, branch, commits,
 remote branch and PR. Do not repeat an uncertain publication. Missing or expired
 archives, corrupt state and missing owner identity keep the claim occupied.
 
-`recover DELIVERY_UUID --parent NATIVE_PARENT_UUID --owner /root/EXACT_OWNER`
+`recover DELIVERY_UUID --thread NATIVE_THREAD_UUID`
 binds inspected native records only after execution ends. It does not launch
 anything, change the owner, release a claim, or grant new effects. An explicit
 human resume comment is still required. If the original owner is unavailable,
 report human recovery required; a fresh summary-driven agent is not restoration.
+
+Earlier separate-parent/owner records cannot be resumed by this version.
+Preserve them and reconcile through their original installation. Do not relabel
+the old child as a main thread, alter its route or remove its claim.

@@ -40,13 +40,9 @@ def waiting(site: Installation) -> Claim:
     claim.question = "question-1"
     claim.question_comment = 2
     claim.native = Native(
-        parent="parent",
-        owner="/root/owner",
-        owner_thread="child",
+        thread="parent",
         model="m",
         effort="medium",
-        owner_model="m",
-        owner_effort="high",
     )
     claim.saved_at = time.time()
     (site.delivery_dir(claim.id) / "session.enc").write_bytes(b"opaque")

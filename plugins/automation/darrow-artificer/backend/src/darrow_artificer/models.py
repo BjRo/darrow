@@ -40,13 +40,9 @@ class Process(Record):
 
 
 class Native(Record):
-    parent: str
-    owner: str
-    owner_thread: str
+    thread: str
     model: str
     effort: str
-    owner_model: str
-    owner_effort: str
 
 
 class Claim(Record):
@@ -68,6 +64,7 @@ class Claim(Record):
     detail: str = ""
     process: Process | None = None
     native: Native | None = None
+    goal_objective: str | None = None
     question: str | None = None
     question_text: str | None = None
     question_comment: int | None = None
@@ -89,4 +86,3 @@ class Outcome(Record):
     detail: str
     question: str | None
     pr: int | None
-    owner: str | None

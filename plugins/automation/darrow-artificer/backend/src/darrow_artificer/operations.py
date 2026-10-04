@@ -66,7 +66,7 @@ def revoke(site: Installation) -> None:
         site.save_grant(grant)
 
 
-def recover(site: Installation, delivery: str, parent: str, owner: str) -> Claim:
+def recover(site: Installation, delivery: str, thread: str) -> Claim:
     with locked(site.lock):
         site.verify_binding()
         claim = site.claim(delivery)
@@ -74,7 +74,7 @@ def recover(site: Installation, delivery: str, parent: str, owner: str) -> Claim
             raise ValueError("Cannot recover a running or released delivery")
         home = site.delivery_dir(delivery) / "native"
         restore_missing_home(site, claim, home)
-        observed = native.correlate(home, parent, owner, site.grant)
+        observed = native.correlate(home, thread, site.grant)
         if claim.native is not None and observed != claim.native:
             raise ValueError(
                 "Recovery must preserve the original native owner and route"

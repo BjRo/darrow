@@ -21,7 +21,7 @@ def parser() -> argparse.ArgumentParser:
     init.add_argument("--checkout", type=Path, required=True)
     init.add_argument("--plugin", action="append", required=True)
     init.add_argument("--credential-home", type=Path, default=Path.home() / ".codex")
-    init.add_argument("--model", default="gpt-5.6-terra")
+    init.add_argument("--model", default="gpt-6-sol")
     init.add_argument("--effort", default="medium")
     init.add_argument("--issue", type=int, action="append", default=[])
     init.add_argument(
@@ -35,8 +35,7 @@ def parser() -> argparse.ArgumentParser:
     commands.add_parser("cancel").add_argument("delivery")
     recover = commands.add_parser("recover")
     recover.add_argument("delivery")
-    recover.add_argument("--parent", required=True)
-    recover.add_argument("--owner", required=True)
+    recover.add_argument("--thread", required=True)
     configure = commands.add_parser("configure")
     for name in (
         "WORK_IN_PROGRESS_LIMIT",
@@ -92,7 +91,7 @@ def dispatch(site: Installation, args: argparse.Namespace) -> object:
         "cancel": lambda: operations.cancel(site, args.delivery).model_dump(),
         "revoke": lambda: operations.revoke(site),
         "recover": lambda: operations.recover(
-            site, args.delivery, args.parent, args.owner
+            site, args.delivery, args.thread
         ).model_dump(),
         "schedule": lambda: str(
             scheduler.install(site, Path(__file__).resolve().parents[2])

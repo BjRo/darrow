@@ -2,6 +2,7 @@
 
 import io
 import os
+import subprocess
 import zipfile
 from pathlib import Path
 
@@ -92,3 +93,37 @@ def test_restore_refuses_unsafe_members(tmp_path: Path, member: str) -> None:
 def test_missing_home_is_not_an_empty_archive(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="unavailable"):
         save(tmp_path / "missing", tmp_path / "archive", Fernet.generate_key())
+
+
+def test_native_temporary_launchers_do_not_break_restoration(tmp_path: Path) -> None:
+    home = tmp_path / "native"
+    (home / "tmp/arg0/launcher").mkdir(parents=True)
+    (home / "tmp/arg0/launcher/applypatch").symlink_to("/bin/false")
+    (home / "sessions").mkdir()
+    (home / "sessions/original.jsonl").write_text("retained history")
+    key = Fernet.generate_key()
+    path = tmp_path / "session.enc"
+    save(home, path, key)
+    restored = tmp_path / "restored"
+    restore(path, restored, key)
+    assert (restored / "sessions/original.jsonl").read_text() == "retained history"
+    assert not (restored / "tmp").exists()
+
+
+def test_restored_plugin_helper_is_executable(tmp_path: Path) -> None:
+    home = tmp_path / "native"
+    helper = home / "skills/example/helper"
+    helper.parent.mkdir(parents=True)
+    helper.write_text("#!/bin/sh\nprintf 'restored-helper'\n")
+    helper.chmod(0o7755)
+    key = Fernet.generate_key()
+    bundle = tmp_path / "session.enc"
+    save(home, bundle, key)
+    restored = tmp_path / "restored"
+    restore(bundle, restored, key)
+    executable = restored / "skills/example/helper"
+    result = subprocess.run(
+        [str(executable)], check=True, capture_output=True, text=True
+    )
+    assert result.stdout == "restored-helper"
+    assert executable.stat().st_mode & 0o7777 == 0o711

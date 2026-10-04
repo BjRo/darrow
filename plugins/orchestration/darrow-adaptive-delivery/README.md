@@ -14,10 +14,11 @@ The plugin also provides `doctor-adaptive-delivery`, a read-only host-capacity
 check. Doctor intent never starts orchestration. Adaptive Delivery itself starts
 only through explicit invocation or preserved delegation from an invoked recipe.
 
-Version 0.24.0 changes the ownership boundary. Artificer's current unattended
-continuation transport still requires a separate owner child and is incompatible
-with this version. Its migration is a separate follow-up; use Adaptive Delivery
-directly or through the updated Ticket-to-PR recipe in a native host session.
+Version 0.24.0 changes the ownership boundary. Artificer 0.2.0 adds the matching
+main-thread continuation transport; earlier separate-owner releases are
+incompatible. Artificer's host and authentication requirements apply separately.
+Existing separate-owner deliveries require reconciliation in their original
+installation rather than automatic migration.
 
 [![Adaptive Delivery: the main thread retains the native goal and coordinates bounded implementation and verification.](https://raw.githubusercontent.com/BjRo/darrow/main/docs/assets/adaptive-delivery-capabilities.svg)](https://github.com/BjRo/darrow/blob/main/docs/assets/adaptive-delivery-capabilities.svg)
 
