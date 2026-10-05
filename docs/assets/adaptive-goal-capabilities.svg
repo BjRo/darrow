@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="960" viewBox="0 0 1400 960" role="img" aria-labelledby="title description">
+  <title id="title">Adaptive Goal: main-thread goal and bounded assignments</title>
+  <desc id="description">The main thread retains preflight, the native goal, acceptance, user decisions, repair accounting and completion. It delegates bounded implementation on a difficulty-selected route and verification on a separate explicit route. Verification delegates independent review, which retains its own readers. Results return through their capability boundaries. Two implementation repair attempts are shared across findings; assessment corrections preserve history without resetting that allowance.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 9 5 1 9Z" fill="#525b67"/></marker>
+  </defs>
+  <rect width="1400" height="960" fill="#fafafa"/>
+  <path d="M0 0H1400V8H0Z" fill="#d90028"/>
+  <text x="60" y="75" font-family="Arial, sans-serif" fill="#252930" font-size="36" font-weight="700">Adaptive Goal</text>
+  <text x="60" y="112" font-family="Arial, sans-serif" fill="#252930" font-size="21">One native goal in the main thread. Bounded implementation and capabilities.</text>
+
+  <rect x="60" y="160" width="1280" height="210" rx="18" fill="#f0f3f7" stroke="#bdc7d3"/>
+  <text x="90" y="202" font-family="Arial, sans-serif" fill="#252930" font-size="26" font-weight="700">Main thread · native goal owner</text>
+  <text x="90" y="244" font-family="Arial, sans-serif" fill="#252930" font-size="21">Read-only preflight · readiness · acceptance · user decisions · completion</text>
+  <text x="90" y="283" font-family="Arial, sans-serif" fill="#252930" font-size="21">Implementation difficulty selects its route. Consequence risk selects assurance.</text>
+  <text x="90" y="324" font-family="Arial, sans-serif" fill="#52606b" font-size="18">Goal ≤4,000 characters · coordination in the skill · native continuation on Codex and Claude</text>
+
+  <path d="M330 370V465" fill="none" stroke="#525b67" stroke-width="2.5" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+  <rect x="60" y="397" width="570" height="35" fill="#fafafa"/>
+  <text x="80" y="422" font-family="Arial, sans-serif" fill="#52606b" font-size="18">Assignment / checks and results</text>
+  <path d="M1020 370V465" fill="none" stroke="#525b67" stroke-width="2.5" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+  <rect x="720" y="397" width="620" height="35" fill="#fafafa"/>
+  <text x="775" y="422" font-family="Arial, sans-serif" fill="#52606b" font-size="18">Candidate and checks / combined evidence</text>
+
+  <rect x="60" y="465" width="570" height="190" rx="18" fill="white" stroke="#c4ccd5" stroke-width="1.5"/>
+  <text x="90" y="507" font-family="Arial, sans-serif" fill="#252930" font-size="26" font-weight="700">Bounded implementation agent</text>
+  <text x="90" y="549" font-family="Arial, sans-serif" fill="#252930" font-size="21">Implement or repair within the assignment.</text>
+  <text x="90" y="586" font-family="Arial, sans-serif" fill="#252930" font-size="21">Return changed files, checks and blockers.</text>
+  <text x="90" y="625" font-family="Arial, sans-serif" fill="#52606b" font-size="18">Difficulty-selected model and effort · no goal ownership</text>
+
+  <rect x="720" y="465" width="620" height="190" rx="18" fill="#e7f4f1" stroke="#8bb9b1"/>
+  <text x="750" y="507" font-family="Arial, sans-serif" fill="#252930" font-size="26" font-weight="700">Verification coordinator · when selected</text>
+  <text x="750" y="549" font-family="Arial, sans-serif" fill="#252930" font-size="21">Bind acceptance and candidate evidence.</text>
+  <text x="750" y="586" font-family="Arial, sans-serif" fill="#252930" font-size="21">Invoke review and reconcile the complete result.</text>
+  <text x="750" y="625" font-family="Arial, sans-serif" fill="#52606b" font-size="18">Explicit coordinator route · capability internals retained</text>
+  <path d="M1030 655V700" fill="none" stroke="#525b67" stroke-width="2.5" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+
+  <rect x="720" y="700" width="620" height="125" rx="16" fill="white" stroke="#c4ccd5" stroke-width="1.5"/>
+  <text x="750" y="741" font-family="Arial, sans-serif" fill="#252930" font-size="26" font-weight="700">Review coordinator → independent readers</text>
+  <text x="750" y="781" font-family="Arial, sans-serif" fill="#252930" font-size="21">Review retains its own delegation and reader routes.</text>
+
+  <text x="60" y="716" font-family="Arial, sans-serif" fill="#252930" font-size="26" font-weight="700">The main thread keeps the evidence</text>
+  <text x="60" y="757" font-family="Arial, sans-serif" fill="#252930" font-size="21">Two implementation repair attempts by default.</text>
+  <text x="60" y="794" font-family="Arial, sans-serif" fill="#252930" font-size="21">Corrections retain prior assessment history.</text>
+  <text x="60" y="831" font-family="Arial, sans-serif" fill="#252930" font-size="21">Feedback continues the same goal and allowance.</text>
+
+  <path d="M60 869H1340" stroke="#d4d9df"/>
+  <text x="60" y="909" font-family="Arial, sans-serif" fill="#52606b" font-size="18">Completion requires current checks, acceptance coverage and selected clear verification. It grants no new authority.</text>
+  <text x="60" y="942" font-family="Arial, sans-serif" fill="#52606b" font-size="18">Darrow · current contract · 2026-10-02</text>
+</svg>

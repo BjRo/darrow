@@ -20,13 +20,13 @@ acceptance. This specification defines the local implementation boundary.
   Activation provenance identifies the grant and each reservation. Revocation
   prevents subsequent admissions and continuations; it does not undo effects.
 - **ART-C3 — Ownership.** Automation owns admission and process/storage mechanics.
-  The recipe owns its permission envelope. Adaptive delivery owns readiness and
+  The recipe owns its permission envelope. Adaptive goal owns readiness and
   the original main thread's native goal. That thread retains readiness,
   acceptance, decisions, bounded delegation and completion. A scheduler supplies a deliberate grant-bound
   unattended entry, never an impersonated human invocation. Failed readiness
   permits no implementation. The same main thread retains all continuation.
   The initial route is `gpt-6-sol`/`medium`; implementation and assurance routes
-  remain selected by Adaptive Delivery and its bound capabilities.
+  remain selected by Adaptive Goal and its bound capabilities.
 
 ## Admission and reconciliation
 

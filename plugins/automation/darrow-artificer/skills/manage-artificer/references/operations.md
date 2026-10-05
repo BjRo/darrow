@@ -18,7 +18,7 @@ Artificer never purchases credits, changes billing settings or switches to an
 API key. This is not a zero-additional-cost guarantee.
 
 Use one `--plugin` for each complete independently installed delivery plugin.
-The selected set must advertise the ticket-to-PR recipe, adaptive delivery,
+The selected set must advertise the ticket-to-PR recipe, adaptive goal,
 readiness, and its required Git, ticket and assurance capabilities. Artificer
 copies complete runtime plugin contents into each dedicated native home; it
 does not reach into sibling plugin files or install missing capabilities.
@@ -26,7 +26,7 @@ Optional `--issue NUMBER` arguments restrict admission; no issue arguments
 means all authorized ready nominations in this exact repository.
 
 New grants default to `--model gpt-6-sol --effort medium` for the original
-main-thread coordinator. Adaptive Delivery retains its implementation and
+main-thread coordinator. Adaptive Goal retains its implementation and
 assurance routing. Codex app-server owns native goal continuation; Artificer
 does not supply repeat-work prompts or invoke engineering phases.
 

@@ -11,7 +11,7 @@ import {
 } from "./codex-spawn-guard";
 
 const contract = [
-  "Role: You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-delivery or seek another owner.",
+  "Role: You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-goal or seek another owner.",
   "Outcome: Implement the requested fixture behavior.",
   "Acceptance criteria: The requested behavior and checks pass.",
   "Scope and authority: included=fixture implementation and focused tests; authorized=local edits and checks only; forbidden=publication; preserve=unrelated repository state",
@@ -29,8 +29,8 @@ function ownerHook(cwd: string, message = contract) {
     cwd,
     tool_name: "spawn_agent",
     tool_input: {
-      task_name: "adaptive_delivery_fixture",
-      message: `- phase: adaptive-delivery-owner\n${message}`,
+      task_name: "adaptive_goal_fixture",
+      message: `- phase: adaptive-goal-owner\n${message}`,
       model: "gpt-5.6-luna",
       reasoning_effort: "low",
       fork_turns: "none",
@@ -54,13 +54,13 @@ async function fixture() {
       fixtureStateSha256: await fixtureStateFingerprint(repo),
       requestSha256: "4".repeat(64),
       objectiveRoot,
-      adaptiveDeliveryPreflightPath: "/plugin/bin/adaptive-delivery-preflight",
+      adaptiveGoalPreflightPath: "/plugin/bin/adaptive-goal-preflight",
       statePath: join(repo, ".git", "guard-state"),
     },
   };
 }
 
-describe("Codex adaptive-delivery spawn guard", () => {
+describe("Codex adaptive-goal spawn guard", () => {
   test("accepts verification with one shared repair policy", async () => {
     const { repo, objectiveRoot, policy } = await fixture();
     try {
@@ -96,7 +96,7 @@ describe("Codex adaptive-delivery spawn guard", () => {
         }
       ).updatedInput;
       expect(updated?.message).toBe(
-        `- phase: adaptive-delivery-owner\n${contract}`,
+        `- phase: adaptive-goal-owner\n${contract}`,
       );
       expect(
         verifiedCodexSpawnAttestation(updated!.message!, "secret"),
@@ -192,7 +192,7 @@ describe("Codex adaptive-delivery spawn guard", () => {
         input.tool_input.fork_turns = "all";
       },
       (input: ReturnType<typeof ownerHook>) => {
-        input.tool_input.message = "- phase: adaptive-delivery-owner\nshort";
+        input.tool_input.message = "- phase: adaptive-goal-owner\nshort";
       },
       (input: ReturnType<typeof ownerHook>) => {
         input.tool_input.message = input.tool_input.message.replace(
@@ -279,7 +279,7 @@ describe("Codex adaptive-delivery spawn guard", () => {
             ...shell,
             turn_id: "owner-operation-turn",
             agent_id: ownerId,
-            agent_type: "adaptive_delivery_fixture",
+            agent_type: "adaptive_goal_fixture",
           },
           policy,
         ),
@@ -307,7 +307,7 @@ describe("Codex adaptive-delivery spawn guard", () => {
             ...unmarkedSpawn,
             turn_id: "owner-delegation-turn",
             agent_id: ownerId,
-            agent_type: "adaptive_delivery_fixture",
+            agent_type: "adaptive_goal_fixture",
           },
           policy,
         ),
@@ -394,7 +394,7 @@ describe("Codex adaptive-delivery spawn guard", () => {
       );
       const result = await guardCodexSpawn(ownerHook(repo), policy);
       expect(JSON.stringify(result)).toContain(
-        "parent fixture state changed before adaptive delivery owner activation",
+        "parent fixture state changed before adaptive goal owner activation",
       );
     } finally {
       await rm(repo, { recursive: true, force: true });

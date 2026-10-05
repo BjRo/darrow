@@ -1,4 +1,8 @@
-# Adaptive Delivery renderer and diagnostic recovery
+# Adaptive Goal renderer and diagnostic recovery
+
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
 
 Status: implementation, deterministic validation and all 15 selected Codex
 trials are complete. Task success is **15/15**, with remaining contract failures
@@ -28,7 +32,7 @@ that unsupported diagnosis.
 This candidate:
 
 - moves verification's unchanged renderer and runtime launcher to
-  `<plugin-root>/backend`, matching review and Adaptive Delivery;
+  `<plugin-root>/backend`, matching review and Adaptive Goal;
 - binds one absolute backend path from the loaded skill before invoking a
   provider that retains reports, checks its launcher/package/lock, and reuses it;
 - requires verification and main to compare failed commands and paths with the
@@ -38,7 +42,7 @@ This candidate:
 - updates both plugin manifests, Python inventory, CI selection and the copied
   installation check.
 
-Versions: Adaptive Delivery **0.24.1**, Verification **0.3.1**. Review, renderer
+Versions: Adaptive Goal **0.24.1**, Verification **0.3.1**. Review, renderer
 output semantics, model routes, user-wait rules, fixtures, eval checks, app-server
 entrypoint and passive observation remain unchanged.
 
@@ -94,7 +98,7 @@ The remaining failures concern separate boundaries:
 | Focused repair, 1 and 5 | A provider sends an encrypted message and a short public final.                                                                                                                                                                     | Complete provider delivery remains unknown. Observed downstream report consumption establishes preservation, not the encrypted message's content.                                                                         |
 
 These fixture-provider omissions do not establish defects in production
-`darrow-review` internals. They test Adaptive Delivery and verification's
+`darrow-review` internals. They test Adaptive Goal and verification's
 composition with an advertised provider contract. Keep their contract scores
 separate from successful repairs and preserved downstream evidence. The
 real-review case passes every assessed dimension in all five trials.
@@ -135,7 +139,7 @@ retained under `claude-smoke/`.
 After the user refreshed authentication, the same frozen candidate passed
 **1/1 task trials**, including all 14 checks, on Claude Code 2.1.284. The retry
 changed only the output destination to `claude-smoke-auth-retry/`; all 1,060
-frozen input hashes remain unchanged. Adaptive Delivery, verification and the
+frozen input hashes remain unchanged. Adaptive Goal, verification and the
 independent review skill were activated. The main-thread native goal moved from
 active to complete with a 601-character objective. Behavior, focused checks,
 independent review and no-publication checks passed.
@@ -144,7 +148,7 @@ The retained main-thread Agent calls nevertheless expose a **route-selection
 contract defect**. Main selects the scoped Sonnet/low implementor, then two
 `darrow-verification:review-coordinator-sonnet-5-medium` agents. It does not
 select the separate scoped Opus/high verification assignment required by the
-frozen Adaptive Delivery skill. That contract distinguishes verification from
+frozen Adaptive Goal skill. That contract distinguishes verification from
 Sonnet/medium review coordination. Keep this defect separate from task success;
 the passing task checks do not validate the full capability contract.
 

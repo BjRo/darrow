@@ -1,0 +1,55 @@
+[project]
+name = "darrow-adaptive-goal"
+version = "0.25.0"
+description = "Contained preflight, host diagnosis, route resolution, and eval mechanics for Darrow"
+requires-python = ">=3.10,<3.14"
+dependencies = ["tomli>=2,<3; python_version < '3.11'"]
+
+[project.scripts]
+adaptive-goal-preflight = "darrow_adaptive_goal.cli:preflight"
+claude-agent-route = "darrow_adaptive_goal.cli:claude_route"
+adaptive-goal-fixture = "darrow_adaptive_goal.fixtures.cli:main"
+host-config-doctor = "darrow_adaptive_goal.cli:host_doctor"
+
+[dependency-groups]
+dev = ["coverage[toml]>=7.10,<8", "editables>=0.3,<1", "hatchling==1.32.3", "hypothesis>=6.138,<7", "mypy>=1.18,<2", "pytest>=8.4,<9", "ruff>=0.12,<1", "tomli>=2,<3"]
+
+[build-system]
+requires = ["hatchling==1.32.3"]
+build-backend = "darrow_adaptive_goal._build_backend"
+backend-path = ["src"]
+
+[tool.uv]
+default-groups = []
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/darrow_adaptive_goal"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["B", "C4", "C90", "E4", "E7", "E9", "F", "I", "N", "RUF", "SIM", "UP"]
+mccabe.max-complexity = 5
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["src", "tests"]
+
+[tool.pytest.ini_options]
+addopts = ["--strict-config", "--strict-markers"]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["darrow_adaptive_goal"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false

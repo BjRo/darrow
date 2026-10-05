@@ -1,5 +1,9 @@
 # Artificer account usage policy
 
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
+
 Status: implementation, deterministic validation and focused management smoke
 checks complete. The production installation and completed old delivery remain
 untouched.

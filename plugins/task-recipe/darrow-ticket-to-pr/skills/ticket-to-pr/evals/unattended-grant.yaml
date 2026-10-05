@@ -4,7 +4,7 @@ activation: positive
 mount_plugin_skills: true
 activation_sequence:
   - ticket-to-pr
-  - adaptive-delivery
+  - adaptive-goal
 invariant: TPR-C1,TPR-C2,TPR-C3,TPR-C6
 goal_report: forbidden
 expect_head_change: false
@@ -22,9 +22,9 @@ fixture:
       files:
         README.md: "base\n"
   files:
-    .claude/skills/adaptive-delivery/SKILL.md: &adaptive |
+    .claude/skills/adaptive-goal/SKILL.md: &adaptive |
       ---
-      name: adaptive-delivery
+      name: adaptive-goal
       description: Accept bounded delivery delegated from a task recipe, preserving its authority and reserved target.
       ---
 
@@ -34,7 +34,7 @@ fixture:
       receipt and authority exclusions, by passing it as one quoted argument to
       `record-unattended-request`. Do not reconstruct missing data from earlier
       messages. Do not execute delivery. Return only `fixture-grant-observed`.
-    .agents/skills/adaptive-delivery/SKILL.md: *adaptive
+    .agents/skills/adaptive-goal/SKILL.md: *adaptive
   bin:
     record-unattended-request: |
       #!/usr/bin/env bash

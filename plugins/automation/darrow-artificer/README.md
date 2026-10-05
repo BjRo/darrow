@@ -2,7 +2,7 @@
 
 Explicitly authorize nominated GitHub issues for local ticket-to-PR delivery.
 Artificer owns admission and local execution/storage mechanics. The independently
-installed ticket recipe and adaptive delivery retain engineering ownership.
+installed ticket recipe and adaptive goal retain engineering ownership.
 
 ## When to use
 
@@ -28,7 +28,7 @@ independently installed delivery capabilities. The default launchd interval is
 
 The app-server adapter keeps the original main thread and its native goal alive
 through automatic continuation. New grants default to `gpt-6-sol`/`medium`.
-Adaptive Delivery selects bounded implementation and assurance assignments;
+Adaptive Goal selects bounded implementation and assurance assignments;
 Artificer does not override their routes or run engineering phases.
 Healthy native execution has no overall time limit. Individual protocol requests
 and process shutdown remain bounded; failures retain the claim and native state

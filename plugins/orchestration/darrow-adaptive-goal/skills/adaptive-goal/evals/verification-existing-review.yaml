@@ -1,0 +1,67 @@
+id: goal-verification-existing-review
+invariant: ADL-V1,ADL-A4,ADL-C2,ADL-L1,ADL-L2,ADL-L5,LC-C5,CR-C19
+activation: positive
+mount_plugin_skills: true
+activation_includes: [verify-change, code-review]
+additional_plugins:
+  - plugins/capability/darrow-verification
+  - plugins/capability/darrow-review
+goal_report: forbidden
+goal_route_checks: false
+prompt: >-
+  Use {{skill_invocation}} to continue the existing src/config.js candidate. Run bash
+  check.sh, then independently assess the candidate before any change. Use verification
+  with the installed darrow-review:code-review provider. Independent review is the only
+  selected assessment. Originating criteria: TIMEOUT_MS must equal 2500 and RETRY_COUNT
+  must remain 3. Repair only src/config.js within those criteria, refresh invalidated
+  checks and obtain closed follow-up assurance. Complete locally only when current
+  verification clears. No commits, publication, new product behavior or replacement
+  owner is authorized. Report the initial finding and final verification outcome.
+fixture:
+  commits:
+    - message: "chore: baseline"
+      files:
+        AGENTS.md: |
+          Run bash check.sh for JavaScript changes. Keep this check unchanged.
+        src/config.js: |
+          export const TIMEOUT_MS = 1000;
+          export const RETRY_COUNT = 3;
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          grep -Fx 'export const TIMEOUT_MS = 2500;' src/config.js >/dev/null
+          git_dir=$(git rev-parse --git-dir)
+          mkdir -p "$git_dir/fixture-state"
+          cksum <src/config.js >>"$git_dir/fixture-state/current-checks"
+  files:
+    src/config.js: |
+      export const TIMEOUT_MS = 2500;
+      export const RETRY_COUNT = 0;
+  setup: |
+    mkdir -p .git/fixture-backend
+    cp "{{case_dir}}/../../../backend/pyproject.toml" "{{case_dir}}/../../../backend/uv.lock" .git/fixture-backend/
+    cp -R "{{case_dir}}/../../../backend/src" .git/fixture-backend/
+    mkdir -p .git/eval-checks
+    cp "{{case_dir}}/../../../backend/tests/evals/clear_repair.py" .git/eval-checks/
+checks:
+  - name: current candidate satisfies both originating criteria
+    run: |
+      printf '%s\n' 'export const TIMEOUT_MS = 2500;' 'export const RETRY_COUNT = 3;' >.git/expected-config
+      cmp .git/expected-config src/config.js
+      test "$(git rev-list --count HEAD)" -eq 1
+  - name: real provider retains a unique closed clear assessment of current content
+    run: |
+      uv run --quiet --frozen --no-dev --project .git/fixture-backend python .git/eval-checks/clear_repair.py
+      uv run --quiet --frozen --no-dev --project .git/fixture-backend adaptive-goal-fixture proof current
+semantic_output_checks:
+  - name: same owner completes after actual provider repair verification
+    proposition: >-
+      The response conveys that the retry-count blocker was repaired, current checks
+      succeeded, and fresh closed verification cleared the candidate. Those completed
+      outcomes suffice; it need not use the word "complete" or identify the owner by
+      name. It must not claim publication, replacement of the owner, or an unresolved
+      condition that prevents completion.
+transcript_checks:
+  - name: no lifecycle ledger
+    not_regex: adaptive-goal-preflight step
+native_goal: required

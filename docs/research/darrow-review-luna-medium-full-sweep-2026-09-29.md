@@ -1,5 +1,9 @@
 # Darrow review: full Luna evaluation sweep
 
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
+
 **All 155 trials completed. 137/155 passed task checks; 153/155 passed activation or avoidance checks. 22/31 cases reached 5/5 on both.**
 
 Date: 2026-09-29. Frozen plugin: **darrow-review 0.9.1**, commit `5de063cf1e6f78ea2c2204ce4f97d83f2243a9df`. Codex CLI 0.156.1, candidate `gpt-6-luna/medium`, n:5 per case, jobs:3, threshold:100%. Default native reviewers remain `gpt-6-sol/xhigh`; the explicit override fixture retains `gpt-5.5/xhigh`. Source and grading stayed unchanged throughout the measurement, and failed trials were retained.

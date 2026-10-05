@@ -2,12 +2,12 @@
 
 > **Deprecated reference.** This plugin remains installable and its explicitly
 > invoked `deliver-ticket` workflow remains available for reproducible
-> comparison. Use Adaptive Delivery for new orchestration work. This is
+> comparison. Use Adaptive Goal for new orchestration work. This is
 > informational only: deliberately invoking
 > `deliver-ticket` does not add a warning or confirmation gate.
 
 This plugin delivers one existing engineering ticket through a deliberately
-static sequence of fresh phase agents. Unlike Adaptive Delivery, the route
+static sequence of fresh phase agents. Unlike Adaptive Goal, the route
 is known in advance: refine and challenge the plan, implement it, review and
 rework when needed, verify acceptance in QA, then identify any durable learning.
 
@@ -88,7 +88,7 @@ defines them, and every new verdict comes from a fresh read-only phase agent.
 
 ## When to use
 
-Use this deprecated reference for deliberate static-workflow comparisons. Use Adaptive Delivery for new orchestration work. Ordinary ticket requests do not activate it.
+Use this deprecated reference for deliberate static-workflow comparisons. Use Adaptive Goal for new orchestration work. Ordinary ticket requests do not activate it.
 
 ## Hosts and prerequisites
 

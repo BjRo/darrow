@@ -1,19 +1,19 @@
 # Darrow Ticket to PR
 
 `ticket-to-pr` is an explicitly invoked shortcut for the request users would
-otherwise give adaptive-delivery: read and implement one exact ticket in the
+otherwise give adaptive-goal: read and implement one exact ticket in the
 current repository on a new branch, then open one verified pull request when
 the change is ready.
 
-The recipe owns only that bounded authority envelope and one adaptive-delivery
-delegation. `adaptive-delivery` owns readiness, capability binding, route selection,
+The recipe owns only that bounded authority envelope and one adaptive-goal
+delegation. `adaptive-goal` owns readiness, capability binding, route selection,
 the main-thread goal, bounded implementation, verification, review, publication, blockage,
 and same-owner human feedback through the main thread. Ticket-to-PR performs no
 ticket read, repository preflight, Git or forge work, lifecycle bookkeeping, or
 post-goal inspection of its own.
 
 Explicit caller repair and review limits pass through unchanged. Without an
-override, adaptive-delivery supplies its default repair budget; the recipe
+override, adaptive-goal supplies its default repair budget; the recipe
 does not define a separate retry policy.
 
 Completion includes the owner's evidence that the remote branch and open PR
@@ -40,14 +40,14 @@ authorizes the same one delegation. Ordinary scheduler calls are not authority.
 This unattended execution entry supports Codex CLI only; the ordinary explicit
 human recipe remains available on both hosts.
 
-Artificer 0.2.0 adds the transport for Adaptive Delivery's main-thread goal.
+Artificer 0.2.0 adds the transport for Adaptive Goal's main-thread goal.
 Earlier separate-owner releases are incompatible. The receipt contract above
 does not establish compatibility with other host versions or account setups;
 Artificer's own requirements and validation limits still apply.
 
 ## Hosts and prerequisites
 
-Codex or Claude Code with a compatible host-visible adaptive-delivery capability.
+Codex or Claude Code with a compatible host-visible adaptive-goal capability.
 The delegated owner needs the tracker, Git, forge access, and target repository
 tools required by the requested work. Missing capabilities remain missing;
 the recipe does not install them or read sibling plugin files.

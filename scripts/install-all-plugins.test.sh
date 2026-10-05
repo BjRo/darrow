@@ -127,7 +127,7 @@ make_fixture
 OUT="$FIXTURE/current-marketplace.out"
 run_default_installer "$OUT" --host codex
 check "default manifest drives every Codex call" "$(marketplace_calls)" "$(cat "$CALLS")"
-contains "adaptive delivery remains included" "codex plugin add darrow-adaptive-delivery@darrow" "$CALLS"
+contains "adaptive goal remains included" "codex plugin add darrow-adaptive-goal@darrow" "$CALLS"
 not_contains "ticket pipeline is excluded" "darrow-ticket-pipeline@darrow" "$CALLS"
 not_contains "Langfuse is excluded" "darrow-observability-langfuse@darrow" "$CALLS"
 
@@ -170,14 +170,14 @@ cat >"$MANIFEST" <<'EOF'
 {
   "plugins": [
     { "name": "darrow-ticket-pipeline", "source": "./plugins/orchestration/darrow-ticket-pipeline" },
-    { "name": "darrow-adaptive-delivery", "source": "./plugins/orchestration/darrow-adaptive-delivery" },
+    { "name": "darrow-adaptive-goal", "source": "./plugins/orchestration/darrow-adaptive-goal" },
     { "name": "darrow-observability-langfuse", "source": "./plugins/capability/darrow-observability-langfuse" }
   ]
 }
 EOF
 OUT="$FIXTURE/remote.out"
 run_remote_installer "$OUT" --host codex
-check "remote manifest keeps only adaptive delivery" "codex plugin add darrow-adaptive-delivery@darrow" "$(cat "$CALLS")"
+check "remote manifest keeps only adaptive goal" "codex plugin add darrow-adaptive-goal@darrow" "$(cat "$CALLS")"
 contains "remote shortcut downloads the marketplace manifest" ".claude-plugin/marketplace.json" "$CURL_CALLS"
 
 make_fixture
@@ -194,14 +194,14 @@ cat >"$MANIFEST" <<'EOF'
 {
   "plugins": [
     { "name": "darrow-ticket-pipeline", "source": "./plugins/orchestration/darrow-ticket-pipeline" },
-    { "name": "darrow-adaptive-delivery", "source": "./plugins/orchestration/darrow-adaptive-delivery" },
+    { "name": "darrow-adaptive-goal", "source": "./plugins/orchestration/darrow-adaptive-goal" },
     { "name": "darrow-observability-langfuse", "source": "./plugins/capability/darrow-observability-langfuse" }
   ]
 }
 EOF
 OUT="$FIXTURE/exceptions.out"
 run_installer "$OUT" --host claude
-check "only adaptive delivery is installed from exceptional fixture" "claude plugin install darrow-adaptive-delivery@darrow --scope user" "$(cat "$CALLS")"
+check "only adaptive goal is installed from exceptional fixture" "claude plugin install darrow-adaptive-goal@darrow --scope user" "$(cat "$CALLS")"
 
 echo "# failures are named and unsuccessful"
 make_fixture

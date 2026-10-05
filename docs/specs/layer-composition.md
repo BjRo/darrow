@@ -66,7 +66,7 @@ owner alone owns implementation, combined repairs, the shared budget,
 continuation and overall completion. This boundary does not change which
 engineering goals select assurance or add a second lifecycle controller.
 
-5. **LC-C5 — Combined verification, shared repair.** Adaptive delivery binds
+5. **LC-C5 — Combined verification, shared repair.** Adaptive goal binds
    verification and its compatible required review before owner launch when
    assurance is selected. The owner supplies successful current required checks,
    the candidate, originating criteria, constraints and existing evidence.
@@ -114,7 +114,7 @@ engineering goals select assurance or add a second lifecycle controller.
    authorized reuse path and content verification, preserving that default and
    avoiding implicit updates under a creation-only request.
 3. **Adopt one owner per policy decision.** Keep the thin recipe in the current
-   `ticket-to-pr` specification and one owner in `adaptive-delivery`; their existing
+   `ticket-to-pr` specification and one owner in `adaptive-goal`; their existing
    delegation and feedback evals establish these boundaries. Align handoffs
    rather than moving preflight or repair into the recipe. The broader adaptive
    fidelity work in #102 remains separate; this change covers composition and

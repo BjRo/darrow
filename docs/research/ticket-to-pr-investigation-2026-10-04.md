@@ -1,5 +1,9 @@
 # Ticket-to-PR: current-candidate investigation
 
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
+
 Follow-up: the approved fixture repairs and four-case n:5 re-verification are
 complete in the [repair report](ticket-to-pr-fixture-repair-2026-10-04.md).
 The diagnostic results below remain the unchanged 0.5.1 baseline.
@@ -15,13 +19,13 @@ These are diagnostic observations, not an n:5 reliability result.
 
 Recommendation: repair the fixtures and align stale ownership documentation,
 then run the four affected cases with n:5. Keep the recipe as the authority
-envelope and Adaptive Delivery as the main-thread coordinator. No skill,
+envelope and Adaptive Goal as the main-thread coordinator. No skill,
 fixture, contract or runner changes were made during this investigation.
 
 ## Results
 
 All trials use Codex 0.159.2 at medium effort, the app-server entrypoint and passive
-owner observation. The mock handoff probes use Luna; real Adaptive Delivery
+owner observation. The mock handoff probes use Luna; real Adaptive Goal
 composition uses the adopted Sol main-thread route. These are different case
 roles, not a matched model comparison.
 
@@ -124,7 +128,7 @@ The shipped recipe's continuation section correctly assigns the native goal and
 bounded delegation to the main thread. Its specification still mentions a
 separate engineering owner in introductory and unattended-entry passages. The
 skill and README also describe Artificer continuation without the compatibility
-qualification documented for the adopted Adaptive Delivery design.
+qualification documented for the adopted Adaptive Goal design.
 
 Align those descriptions with main-thread ownership and explicitly retain the
 separate Artificer migration limitation. The successful receipt-forwarding probe
@@ -179,7 +183,7 @@ count diagnostic or regraded trials toward the changed fixture's n:5 result.
 ## Setup, validation and cost
 
 Frozen source: `0b2fad6cd62e51434c7a624d76a6a69c050d63ff`, Ticket-to-PR
-0.5.1, Adaptive Delivery 0.24.6. Exact invocation tokens, all six dry setups and
+0.5.1, Adaptive Goal 0.24.6. Exact invocation tokens, all six dry setups and
 the five-thread concurrency limit were verified. All 1,299 frozen input hashes
 still match. Trials ran sequentially, with each failure classified before the
 next launch. Original results are unchanged.
@@ -207,6 +211,6 @@ Evidence is under `evals/results/ticket-to-pr-investigation-2026-10-04/`:
 - `finish-integrity.json`: frozen-input check and hashes of 30 result artifacts.
 - `static-tests.json` and logs: scoped deterministic validation.
 
-The observer is the unchanged passive observer from the Adaptive Delivery work.
+The observer is the unchanged passive observer from the Adaptive Goal work.
 The local launch and summary helpers only schedule trials and inspect evidence;
 they do not inject developer instructions or change participant requests.

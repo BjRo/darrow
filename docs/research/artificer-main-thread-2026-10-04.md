@@ -1,5 +1,9 @@
 # Artificer main-thread migration
 
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
+
 Status: implementation and approved bounded checks complete. No production
 installation, recurring grant, claim, schedule or GitHub object was changed.
 
@@ -205,7 +209,7 @@ Recovery here means restoring the original native home and continuing its
 thread/history/goal with the authorized answer. These probes do not exercise
 implementation repair, real verification/review capabilities or publication.
 Their established routes and two-attempt repair policy remain in the unchanged
-Adaptive Delivery/capability skills.
+Adaptive Goal/capability skills.
 
 The ten restored histories retained their original bytes as prefixes of the
 resumed history files. All five mid-goal trials also retained one observed goal
@@ -231,7 +235,7 @@ Sol/medium native transport trials and their n:5 coverage.
 
 The executable source, tests, skill and references match candidate 2's retained
 hashes. Only Codex manifest whitespace changed afterward; its parsed content is
-identical. Artificer is version 0.2.0. Adaptive Delivery 0.24.7 and Ticket-to-PR
+identical. Artificer is version 0.2.0. Adaptive Goal 0.24.7 and Ticket-to-PR
 0.5.4 contain only compatibility-note/version updates; their skills and routes
 remain unchanged. Fresh immutable installation and documentation validation pass.
 

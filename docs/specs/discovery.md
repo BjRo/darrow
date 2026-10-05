@@ -417,5 +417,5 @@ subject would you like me to grill?`, and it stops.
 - Creating, updating, relating, or publishing tickets.
 - Assessing implementation readiness.
 - Diagnosing a reproducible bug or implementing a repair.
-- Starting adaptive-delivery or another orchestration helper.
+- Starting adaptive-goal or another orchestration helper.
 - Selecting every installed capability through a workflow router.

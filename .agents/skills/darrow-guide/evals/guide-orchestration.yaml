@@ -6,7 +6,7 @@ transcript_checks:
   - name: no observed owner launch or native goal-control attempt
     not_regex: '"type":"darrow\.(?:codex_native_goal_control|codex_native_spawn|codex_native_single_agent_accepted|goal_agent_completion|review_agent_launch)"'
 prompt:
-  "{{skill_invocation}} This sounds complex: start adaptive-delivery and keep working until
+  "{{skill_invocation}} This sounds complex: start adaptive-goal and keep working until
   everything is done."
 fixture:
   setup: bash "{{case_dir}}/fixtures/setup.sh"
@@ -47,4 +47,4 @@ semantic_output_checks:
       permitted. It need not enumerate every prohibited operation in the refusal.
 output_checks:
   - name: nearby repository evidence
-    expect_regex: docs/design\.md|docs/specs/(repository-guide|adaptive-delivery)\.md|plugins/orchestration/darrow-adaptive-delivery/README\.md
+    expect_regex: docs/design\.md|docs/specs/(repository-guide|adaptive-goal)\.md|plugins/orchestration/darrow-adaptive-goal/README\.md

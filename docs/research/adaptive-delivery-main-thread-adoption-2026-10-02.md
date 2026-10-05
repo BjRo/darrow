@@ -1,4 +1,8 @@
-# Adaptive Delivery main-thread adoption
+# Adaptive Goal main-thread adoption
+
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
 
 Status: implementation, deterministic gates and the selected live cohort are
 complete; behavior failures and attribution gaps remain open. The user approved
@@ -146,7 +150,7 @@ children across three nesting levels, with implementation settled first. Its
 43 tests pass. This is topology/configuration evidence, not a claim that native
 goal controls or live capacity were observed by the doctor.
 
-Both manifests are aligned at Adaptive Delivery 0.24.0, review 0.11.0,
+Both manifests are aligned at Adaptive Goal 0.24.0, review 0.11.0,
 verification 0.3.0 and Ticket-to-PR 0.5.1. Documentation, capability correction
 references and the architecture diagram have been updated. At this checkpoint
 no live production candidate eval had run. Later sections record eval migration,
@@ -157,7 +161,7 @@ deterministic gates, the bounded fresh-context audit and live results.
 Artificer's native continuation code requires a separate parent and owner child
 (`native.owner_thread`, `native.correlate`, worker restoration). It cannot yet
 resume the adopted main-thread goal correctly. The user approved a separate
-transport migration. Adaptive Delivery 0.24.0 is therefore incompatible with
+transport migration. Adaptive Goal 0.24.0 is therefore incompatible with
 Artificer's current unattended continuation path. No Artificer runtime or
 specification has been migrated by this work; its adoption requires that follow-up.
 
@@ -186,7 +190,7 @@ historical artifact or grade is overwritten.
 - `bun run check:python --package plugins/capability/darrow-review/backend`
   passed formatting, lint, strict typing, tests and coverage (97.98% statements,
   96.15% branches; 346 collected tests, one host-specific skip).
-- The Adaptive Delivery Python gate initially stopped on a duplicate Mypy module
+- The Adaptive Goal Python gate initially stopped on a duplicate Mypy module
   name for the new hidden oracle. Added its package marker; rerun pending.
 - Documentation validation initially found the rewritten README missing the
   required safety heading. Added that section; rerun pending.
@@ -245,7 +249,7 @@ live eval gates remain outstanding.
 
 ## Validation checkpoint after eval migration
 
-- Adaptive Delivery's complete Python gate passes: 224 tests, 97.92% statement
+- Adaptive Goal's complete Python gate passes: 224 tests, 97.92% statement
   and 96.34% branch coverage, formatting, lint and strict typing.
 - TypeScript typechecking, scoped lint and documentation validation pass.
   The complete runner suite is running separately with durable logs; the first
@@ -267,7 +271,7 @@ feedback fixtures now expose discovery and exact preparation separately and
 return publication evidence tied to the actual local/remote commit. Their
 acknowledgement and authority checks remain. The audit found no concrete
 production defect in the sampled ownership, routes or assessment-correction
-paths. Static package inspection passed for Adaptive Delivery, verification and
+paths. Static package inspection passed for Adaptive Goal, verification and
 Ticket-to-PR; 30 focused observer/transport tests passed in that audit. This does
 not establish live task or capability success.
 
@@ -282,7 +286,7 @@ failed probe; it is an environment failure, not Claude skill success.
 The refreshed-authentication probe subsequently succeeded on Claude Code
 2.1.284 / Sonnet 5 / medium: native activation, the requested `confirmed`
 response, and a non-sentinel assessed completion are retained. This validates
-the host boundary only, not Adaptive Delivery composition.
+the host boundary only, not Adaptive Goal composition.
 
 ## Frozen production-candidate validation
 
@@ -416,7 +420,7 @@ High-risk routine delivery changes the intended value, refreshes evidence,
 invokes the review fixture through verification and completes its 601-character
 native main-thread goal (370.677 seconds). Public native observations confirm
 Sonnet/low implementation, Opus/high verification and Sonnet/medium review
-coordination. Nested skill capture confirms Adaptive Delivery, verify-change
+coordination. Nested skill capture confirms Adaptive Goal, verify-change
 and the advertised independent-review fixture. No publication occurred.
 
 This completes the approved light Claude smoke coverage. It does not establish

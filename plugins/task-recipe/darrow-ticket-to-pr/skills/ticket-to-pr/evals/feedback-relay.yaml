@@ -1,14 +1,14 @@
 id: ticket-to-pr-feedback-relay
 invariant: TPR-C2,TPR-C3,TPR-C4,TPR-C5,TPR-C6,TPR-C7,TPR-P2
 expect_head_change: true
-adaptive_delivery_composition: true
+adaptive_goal_composition: true
 activation: positive
 mount_plugin_skills: true
 activation_sequence:
   - ticket-to-pr
-  - adaptive-delivery
+  - adaptive-goal
 additional_plugins:
-  - plugins/orchestration/darrow-adaptive-delivery
+  - plugins/orchestration/darrow-adaptive-goal
 prompt: "{{skill_invocation}} https://example.invalid/tickets/42"
 follow_up_prompt: "Use the strict migration policy. Approval reference: cobalt-7391."
 fixture:

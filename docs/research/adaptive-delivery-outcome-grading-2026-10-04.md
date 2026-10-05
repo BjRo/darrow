@@ -1,4 +1,8 @@
-# Adaptive Delivery: outcome-led grading
+# Adaptive Goal: outcome-led grading
+
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
 
 The user accepted outcome-led evaluation after checkpoint `035259bc`. Assess
 whether the requested result and required safeguards were achieved, accept
@@ -9,7 +13,7 @@ that the remaining workflow defects were fixed.
 ## Acceptance policy
 
 The policy is recorded as **ADL-E3** in the
-[Adaptive Delivery specification](../specs/adaptive-delivery.md).
+[Adaptive Goal specification](../specs/adaptive-goal.md).
 
 | Dimension                    | Evidence and interpretation                                                                                                                                                                                                                             |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

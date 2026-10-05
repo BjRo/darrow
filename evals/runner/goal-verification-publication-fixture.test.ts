@@ -7,7 +7,7 @@ import { buildFixture, destroyFixture } from "./fixture";
 import type { EvalCase } from "./types";
 
 const src = new URL(
-  "../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/verification-incomplete-blocks-publication.yaml",
+  "../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/evals/verification-incomplete-blocks-publication.yaml",
   import.meta.url,
 );
 

@@ -1,4 +1,8 @@
-# Adaptive Delivery owner pilot
+# Adaptive Goal owner pilot
+
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
 
 ## Result and recommendation
 
@@ -465,7 +469,7 @@ remains unknown wherever the relevant message is encrypted.
 ## Interpretation limits
 
 - Five trials per case and arm are a bounded sample, not a reliability guarantee.
-  These four cases do not replace the full Adaptive Delivery baseline.
+  These four cases do not replace the full Adaptive Goal baseline.
 - A versus B changes both transport and instruction context. B versus C adds the
   native goal, but any difference may come from its initial reminder rather than
   automatic continuation. Failed launches remain in the denominator.
@@ -502,7 +506,7 @@ Coverage is complete; discuss these choices before changing the architecture.
    pre-creation input error while continuing to prohibit duplicate or replacement
    owners after an accepted or ambiguous launch; the frozen pilot forbids those
    input retries and preserves their failed outcomes.
-2. **Make the verification handoff explicit in Adaptive Delivery.** Supply the
+2. **Make the verification handoff explicit in Adaptive Goal.** Supply the
    installed verification skill, acceptance-verification intent, candidate,
    criteria, selected review binding and prior finding history as one bounded
    invocation. Require its complete public assessment to return to the same

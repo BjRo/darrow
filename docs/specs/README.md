@@ -19,7 +19,7 @@ These files define current invariants. Start with the
 - [Langfuse observability](observability-langfuse.md): Codex telemetry and privacy.
 - [Repository Python quality](python-quality.md): package inventory, checks, tests, and release evidence.
 - [Marketplace installation](marketplace-installation.md): inventory-driven host installation shortcuts.
-- [Adaptive Delivery](adaptive-delivery.md): one explicit execution owner.
+- [Adaptive Goal](adaptive-goal.md): one explicit execution owner.
 - [Ticket to PR](ticket-to-pr.md): the delivery recipe.
 - [Local Artificer](artificer.md): explicit recurring admission and original native continuation.
 - [Ticket pipeline](ticket-pipeline.md): the static reference.

@@ -1,5 +1,9 @@
 # Ticket-to-PR: main-thread handoff clarification
 
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
+
 Status: the bounded comparison is complete. **Both cases pass 5/5** for task
 success, original automated checks, activation and main-thread ownership.
 All ten final outcomes have correct retained publication evidence. One
@@ -42,13 +46,13 @@ publication was repeated to recover missing wording or evidence.
 ## Candidate and comparison
 
 Ticket-to-PR 0.5.3 makes the original-thread requirement explicit at the point
-where the recipe invokes Adaptive Delivery:
+where the recipe invokes Adaptive Goal:
 
-- Step 2 is now “Invoke Adaptive Delivery once in this thread.”
+- Step 2 is now “Invoke Adaptive Goal once in this thread.”
 - The recipe loads and follows the capability's instructions in the current
   main thread, carrying the delivery request and authority envelope.
 - It explicitly prohibits launching a child to receive that handoff.
-- Adaptive Delivery continues to select and delegate bounded implementation
+- Adaptive Goal continues to select and delegate bounded implementation
   and capability assignments under its own contract.
 
 The corresponding specification and TPR-C2 were clarified before the skill
@@ -145,7 +149,7 @@ instruction in that message.
 
 The host is Codex 0.159.2 with app-server entrypoint, passive owner observation
 and a five-thread concurrency limit. The main candidate is gpt-6-sol/medium;
-bounded child assignments use gpt-6-luna/medium. Adaptive Delivery stays at
+bounded child assignments use gpt-6-luna/medium. Adaptive Goal stays at
 0.24.6. Goal size remains limited to 4,000 characters, with coordination in the
 skill.
 

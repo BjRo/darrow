@@ -49,7 +49,7 @@ describe("orchestration outcome metrics", () => {
   });
 
   test("accepts one activated child whose native goal persistence is unavailable", () => {
-    const agentRef = "/root/adaptive_delivery_runner";
+    const agentRef = "/root/adaptive_goal_runner";
     const attestation = {
       model: "gpt-5.6-terra",
       effort: "low",
@@ -81,7 +81,7 @@ describe("orchestration outcome metrics", () => {
           tool: "spawn_agent",
           status: "in_progress",
           sender_thread_id: "parent-thread",
-          prompt: "- phase: adaptive-delivery-runner\nexact goal contract",
+          prompt: "- phase: adaptive-goal-runner\nexact goal contract",
           goal_spawn_attestation: attestation,
         },
       }),
@@ -529,10 +529,10 @@ describe("orchestration outcome metrics", () => {
     ).toBe(false);
   });
 
-  test("records one guard-accepted adaptive delivery owner without a ledger report", () => {
+  test("records one guard-accepted adaptive goal owner without a ledger report", () => {
     const event = {
       type: "darrow.goal_owner_accepted",
-      agent_ref: "/root/adaptive_delivery_fixture",
+      agent_ref: "/root/adaptive_goal_fixture",
       workflow: "implement-feature",
       risk: "routine",
       profile: "routine",
@@ -641,7 +641,7 @@ describe("orchestration outcome metrics", () => {
           status: "in_progress",
           sender_thread_id: "parent-thread",
           receiver_thread_ids: [],
-          prompt: "- phase: adaptive-delivery-runner\nexact goal contract",
+          prompt: "- phase: adaptive-goal-runner\nexact goal contract",
           goal_spawn_attestation: goalSpawnAttestation,
         },
       }),
@@ -652,7 +652,7 @@ describe("orchestration outcome metrics", () => {
           tool: "spawn_agent",
           status: "completed",
           sender_thread_id: "parent-thread",
-          receiver_thread_ids: ["adaptive-delivery-runner-thread"],
+          receiver_thread_ids: ["adaptive-goal-runner-thread"],
           goal_spawn_attestation: goalSpawnAttestation,
         },
       }),
@@ -663,7 +663,7 @@ describe("orchestration outcome metrics", () => {
         type: "collab_tool_call",
         tool: "close_agent",
         status: "completed",
-        receiver_thread_ids: ["adaptive-delivery-runner-thread"],
+        receiver_thread_ids: ["adaptive-goal-runner-thread"],
       },
     });
 
@@ -699,7 +699,7 @@ describe("orchestration outcome metrics", () => {
       reconcileGoalRoute(
         result,
         spawn.replace(
-          "- phase: adaptive-delivery-runner\\nexact goal contract",
+          "- phase: adaptive-goal-runner\\nexact goal contract",
           "unrelated helper",
         ),
       ).passed,
@@ -708,8 +708,8 @@ describe("orchestration outcome metrics", () => {
       reconcileGoalRoute(
         result,
         spawn.replace(
-          "- phase: adaptive-delivery-runner\\nexact goal contract",
-          "unrelated helper\\n- phase: adaptive-delivery-runner",
+          "- phase: adaptive-goal-runner\\nexact goal contract",
+          "unrelated helper\\n- phase: adaptive-goal-runner",
         ),
       ).passed,
     ).toBe(false);
@@ -731,16 +731,13 @@ describe("orchestration outcome metrics", () => {
 
     const descendantSpawn = spawn
       .replace(
-        "- phase: adaptive-delivery-runner\\nexact goal contract",
+        "- phase: adaptive-goal-runner\\nexact goal contract",
         "bounded native task",
       )
-      .replaceAll("parent-thread", "adaptive-delivery-runner-thread")
-      .replace(
-        'adaptive-delivery-runner-thread"],',
-        'native-descendant-thread"],',
-      );
+      .replaceAll("parent-thread", "adaptive-goal-runner-thread")
+      .replace('adaptive-goal-runner-thread"],', 'native-descendant-thread"],');
     const descendantClose = close.replace(
-      "adaptive-delivery-runner-thread",
+      "adaptive-goal-runner-thread",
       "native-descendant-thread",
     );
     expect(
@@ -759,7 +756,7 @@ describe("orchestration outcome metrics", () => {
         [
           spawn,
           descendantSpawn.replaceAll(
-            '"sender_thread_id":"adaptive-delivery-runner-thread"',
+            '"sender_thread_id":"adaptive-goal-runner-thread"',
             '"sender_thread_id":"parent-thread"',
           ),
           close,

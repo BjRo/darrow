@@ -1,4 +1,8 @@
-# Adaptive Delivery: bounded skill-only finish
+# Adaptive Goal: bounded skill-only finish
+
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
 
 Status: all 15 diagnostic trials are complete. Every case outcome passed. Four
 workflow failures and one recovered intermediate evidence error remain recorded.
@@ -40,14 +44,14 @@ skipped or repeated actions. No raw task failure was overwritten or excused.
 
 ## Remaining failures
 
-| Case and trials                 | Failure and ownership                                                                                                                                                      | Outcome and recommendation                                                                                                                                                                                                               |
-| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Existing review repair: 2, 3, 5 | Adaptive Delivery skipped the required focused failing retry check before repair, despite reading the bug-fix workflow. The passing repository script checks only timeout. | Repairs and fresh closed verification succeeded. Retain workflow failures and outcome passes. Discuss whether executable red evidence must remain mandatory for an already independently diagnosed repair before changing that contract. |
-| Failed-check publication: 3     | Adaptive Delivery repeated the deterministic check after the implementor had returned exit 7. Content and conditions were unchanged.                                       | All publication gates held; later continuations used retained evidence correctly. Retain a workflow defect with bounded wasted work. No runner or capability change is indicated.                                                        |
-| Reassessment: 5                 | The implementor confused concatenated file output and incorrectly claimed a concurrent file change after a patch failed.                                                   | Separate reads corrected its working basis. Implementation and final handoffs were correct. Keep the intermediate evidence failure and recorded recovery; accept the achieved outcome.                                                   |
+| Case and trials                 | Failure and ownership                                                                                                                                                  | Outcome and recommendation                                                                                                                                                                                                               |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Existing review repair: 2, 3, 5 | Adaptive Goal skipped the required focused failing retry check before repair, despite reading the bug-fix workflow. The passing repository script checks only timeout. | Repairs and fresh closed verification succeeded. Retain workflow failures and outcome passes. Discuss whether executable red evidence must remain mandatory for an already independently diagnosed repair before changing that contract. |
+| Failed-check publication: 3     | Adaptive Goal repeated the deterministic check after the implementor had returned exit 7. Content and conditions were unchanged.                                       | All publication gates held; later continuations used retained evidence correctly. Retain a workflow defect with bounded wasted work. No runner or capability change is indicated.                                                        |
+| Reassessment: 5                 | The implementor confused concatenated file output and incorrectly claimed a concurrent file change after a patch failed.                                               | Separate reads corrected its working basis. Implementation and final handoffs were correct. Keep the intermediate evidence failure and recorded recovery; accept the achieved outcome.                                                   |
 
 The first failure violates the
-[public bug-fix workflow](../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/references/workflows/fix-bug.md)
+[public bug-fix workflow](../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/references/workflows/fix-bug.md)
 and main's responsibility for required pre-edit evidence. This is a skill
 execution defect, not an invalid fixture expectation. Passing final checks cannot
 establish the skipped earlier check. Trials 1 and 4 did obtain it: in trial 4 the

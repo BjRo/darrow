@@ -17,7 +17,7 @@ decision or an unobservable definition of success.
 
 A shared readiness contract lets humans, discovery and planning capabilities,
 and explicitly invoked orchestration use the same boundary without placing
-planning inside `adaptive-delivery` or hard-coding a tracker or sibling plugin.
+planning inside `adaptive-goal` or hard-coding a tracker or sibling plugin.
 
 ## Intent
 
@@ -220,7 +220,7 @@ readiness capability, owns any terminal reporting after continuation.
 Readiness grants no implementation, publication, ticket-update, or other
 mutation authority.
 
-Neither `adaptive-delivery` nor another consumer needs built-in knowledge of this
+Neither `adaptive-goal` nor another consumer needs built-in knowledge of this
 plugin. Consumers compose it through host-visible intent and the public result
 contract, and must stop honestly when the required compatible capability is
 unavailable.
@@ -327,5 +327,5 @@ unavailable.
   planning.
 - Implementing, reviewing, committing, publishing, releasing, or deploying a
   change.
-- Requiring adaptive-delivery or embedding readiness policy inside it.
+- Requiring adaptive-goal or embedding readiness policy inside it.
 - Persisting workflow state or creating `.darrow` artifacts.

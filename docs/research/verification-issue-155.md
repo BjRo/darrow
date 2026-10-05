@@ -1,4 +1,8 @@
-# Adaptive delivery verification boundary evidence
+# Adaptive goal verification boundary evidence
+
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
 
 This records bounded observations for issue #155 on 2026-09-14. The source
 request and parent #153 were read with all four children: #154, #155, #156 and
@@ -6,7 +10,7 @@ request and parent #153 were read with all four children: #154, #155, #156 and
 
 ## Scope and method
 
-Adaptive delivery now binds verification and its compatible independent-review
+Adaptive goal now binds verification and its compatible independent-review
 provider. The same engineering owner consumes the combined assessment and owns
 one shared repair allowance, defaulting to two attempts. Production verification
 remains review-only. A differently named, independently mounted fixture supplies
@@ -61,7 +65,7 @@ each failed case to identify its owner before proceeding.
   comprehensive record. Two narrow provider-owned commands now copy and compare
   that original set; the workflow requires them. The regression test failed
   before implementation and passes on Bash 3.2 and 5, along with the existing
-  review suite. Adaptive delivery passes the provider's unchanged artifact
+  review suite. Adaptive goal passes the provider's unchanged artifact
   references without importing or interpreting its serialization.
 - The next real-provider Claude trial preserved the original set but the parent
   inspected the repository after owner completion. The parent handoff now
@@ -86,7 +90,7 @@ each failed case to identify its owner before proceeding.
   parent contract and owner guides now preserve assessment-before-change order
   explicitly. The fixture request names its intended provider and uses an
   explicit native entrypoint. Its execution records establish provider behavior;
-  activation separately requires adaptive delivery and verification. A retained
+  activation separately requires adaptive goal and verification. A retained
   valid observation passed that calibration, while a verification-bypass
   counterexample failed. The fresh Claude trial passed task and activation at
   `2026-09-14T07-27-28-834Z-claude-claude-sonnet-5-medium.json`.
@@ -98,7 +102,7 @@ each failed case to identify its owner before proceeding.
   initial assessment and claimed zero repairs. The explicit-entrypoint request
   form was applied to this fixture as well. The fresh observation at
   `2026-09-14T07-37-58-512Z-claude-claude-sonnet-5-medium.json` passed the candidate,
-  ordering, combined repair and completion checks and observed adaptive delivery
+  ordering, combined repair and completion checks and observed adaptive goal
   followed by the alternate verification provider. Its aggregate result remains
   failed: the strict owner-contract observer rejected the acceptance/scope fields
   and therefore emitted no accepted-owner completion receipt. The retained
@@ -409,7 +413,7 @@ verification result. The encrypted handoff's internal failure remains unknown.
 An unchanged-source diagnostic completed the correct chain and did not reproduce
 that omission.
 
-Adaptive delivery now explicitly compiles complete current verification evidence
+Adaptive goal now explicitly compiles complete current verification evidence
 as a prerequisite for dependent commit/publication, and checks that prerequisite
 before invoking those capabilities. Review alone, a successful process exit, or
 an assessment agent's name cannot discharge it. The verification invocation must

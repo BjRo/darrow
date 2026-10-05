@@ -1,4 +1,8 @@
-# Adaptive Delivery: UV prerequisite clarification on Luna/medium
+# Adaptive Goal: UV prerequisite clarification on Luna/medium
+
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
 
 Follow-up: the [0.23.11 capability-handoff candidate](darrow-adaptive-delivery-capability-handoff-2026-09-30.md)
 passed the high-risk case at 5/5 task and activation. Codex CLI changed between

@@ -1,4 +1,8 @@
-# Adaptive Delivery routing clarification on Luna/medium
+# Adaptive Goal routing clarification on Luna/medium
+
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
 
 **Follow-up:** the [0.23.10 prerequisite rerun](darrow-adaptive-delivery-python-prerequisite-2026-09-30.md)
 completed all three cases at n:5: **12/15 task**, **15/15 required owner routes**,
@@ -49,7 +53,7 @@ The [2026-09-30 review rerun](darrow-review-explicit-rerun-2026-09-30.md) has
 completed all seven corrected cases: **31/35 task and 35/35 activation**. The
 four raw failures remain open: a handoff coordination failure, an unconfirmed
 capacity block, and two suspected eval/grader failures. They remain separate
-from these Adaptive Delivery results.
+from these Adaptive Goal results.
 
 ## Corrected results
 

@@ -71,19 +71,19 @@
       "description": "Export Codex rollout turns to Langfuse with work-item attribution"
     },
     {
-      "name": "darrow-adaptive-delivery",
-      "source": "./plugins/orchestration/darrow-adaptive-delivery",
+      "name": "darrow-adaptive-goal",
+      "source": "./plugins/orchestration/darrow-adaptive-goal",
       "description": "Diagnose host capacity or compile bounded engineering work into one host-native owner"
     },
     {
       "name": "darrow-ticket-pipeline",
       "source": "./plugins/orchestration/darrow-ticket-pipeline",
-      "description": "Deprecated reference static ticket pipeline; use darrow-adaptive-delivery for new work"
+      "description": "Deprecated reference static ticket pipeline; use darrow-adaptive-goal for new work"
     },
     {
       "name": "darrow-ticket-to-pr",
       "source": "./plugins/task-recipe/darrow-ticket-to-pr",
-      "description": "Delegate one explicit ticket as a one-PR adaptive delivery with required same-PR reviewer evidence"
+      "description": "Delegate one explicit ticket as a one-PR adaptive goal with required same-PR reviewer evidence"
     }
   ]
 }

@@ -1,4 +1,8 @@
-# Adaptive Delivery: Claude 5 versus 5.5 checkpoint
+# Adaptive Goal: Claude 5 versus 5.5 checkpoint
+
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
 
 ## Status and recommendation
 
@@ -22,7 +26,7 @@ release the helper correction.
 
 ## Frozen comparison
 
-Baseline: `465a9e98`, Adaptive Delivery 0.24.3, Verification 0.3.1 and Review
+Baseline: `465a9e98`, Adaptive Goal 0.24.3, Verification 0.3.1 and Review
 0.11.0. Both conditions use Claude Code 2.1.284, passive owner evaluation, the
 native goal entrypoint and the same fixture, checks and observation.
 
@@ -96,7 +100,7 @@ recovery success. No failed trial was replaced or silently regraded as passing.
 
 The original control passed common task checks and repaired the product, but
 main performed review coordination and implementation itself. No observed
-Adaptive Delivery or Verification body read/dispatch, preflight, separate
+Adaptive Goal or Verification body read/dispatch, preflight, separate
 verification assignment or bounded implementor appears in the retained trace.
 Three independent readers ran on Opus 5/xhigh. Main nevertheless omitted the
 mandatory `review-claude-verify` attestation before admitting their judgments.
@@ -173,7 +177,7 @@ adapter or passive observer was changed to obtain a better result.
 | Harness-reported dollars            | $0.9253                           | $1.2515                           |
 
 Control edited before the initial provider assessment, then ran a comprehensive
-review. It again skipped Adaptive Delivery and Verification coordination and
+review. It again skipped Adaptive Goal and Verification coordination and
 reviewer-route attestation. Correct final values did not create the missing
 closed repair assessment. The native host nevertheless marked its goal complete.
 

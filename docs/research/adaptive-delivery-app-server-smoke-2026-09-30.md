@@ -1,4 +1,8 @@
-# Adaptive Delivery: app-server owner smoke test
+# Adaptive Goal: app-server owner smoke test
+
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
 
 ## Result
 
@@ -184,7 +188,7 @@ behavioral step. It must not be silently added to the unchanged control.
    omissions versus drift only when its available evidence supports that
    distinction. Use B/C to isolate the effect of goal persistence.
 
-No claim that native goals improve Adaptive Delivery can be made from these
+No claim that native goals improve Adaptive Goal can be made from these
 protocol probes. The matched delivery experiment remains necessary.
 
 ## Retained evidence

@@ -363,10 +363,10 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - run: uv run --quiet --frozen --no-dev --project plugins/foundation/darrow-information-architecture/backend python plugins/foundation/darrow-information-architecture/backend/tests/fresh_install.py
 
-  adaptive-delivery-windows:
-    name: Adaptive delivery Python ${{ matrix.python-version }} on windows-latest
+  adaptive-goal-windows:
+    name: Adaptive goal Python ${{ matrix.python-version }} on windows-latest
     needs: changes
-    if: contains(needs.changes.outputs.packages, 'plugins/orchestration/darrow-adaptive-delivery/backend')
+    if: contains(needs.changes.outputs.packages, 'plugins/orchestration/darrow-adaptive-goal/backend')
     strategy:
       fail-fast: false
       matrix:
@@ -385,12 +385,12 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-      - run: scripts/check-python --package plugins/orchestration/darrow-adaptive-delivery/backend
+      - run: scripts/check-python --package plugins/orchestration/darrow-adaptive-goal/backend
 
-  adaptive-delivery-fresh-install:
-    name: Fresh install adaptive delivery on ${{ matrix.os }}
+  adaptive-goal-fresh-install:
+    name: Fresh install adaptive goal on ${{ matrix.os }}
     needs: changes
-    if: contains(needs.changes.outputs.packages, 'plugins/orchestration/darrow-adaptive-delivery/backend')
+    if: contains(needs.changes.outputs.packages, 'plugins/orchestration/darrow-adaptive-goal/backend')
     strategy:
       fail-fast: false
       matrix:
@@ -402,7 +402,7 @@ jobs:
         with:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v6
-      - run: uv run --quiet --frozen --no-dev --project plugins/orchestration/darrow-adaptive-delivery/backend python plugins/orchestration/darrow-adaptive-delivery/backend/tests/fresh_install.py
+      - run: uv run --quiet --frozen --no-dev --project plugins/orchestration/darrow-adaptive-goal/backend python plugins/orchestration/darrow-adaptive-goal/backend/tests/fresh_install.py
 
   ticket-pipeline-windows:
     name: Ticket pipeline Python ${{ matrix.python-version }} on windows-latest
@@ -594,8 +594,8 @@ jobs:
       - decisions-fresh-install
       - information-architecture-windows
       - information-architecture-fresh-install
-      - adaptive-delivery-windows
-      - adaptive-delivery-fresh-install
+      - adaptive-goal-windows
+      - adaptive-goal-fresh-install
       - ticket-pipeline-windows
       - ticket-pipeline-fresh-install
       - artificer-fresh-install
@@ -643,9 +643,9 @@ jobs:
           IA_SELECTED: ${{ contains(needs.changes.outputs.packages, 'plugins/foundation/darrow-information-architecture/backend') }}
           IA_WINDOWS_RESULT: ${{ needs.information-architecture-windows.result }}
           IA_INSTALL_RESULT: ${{ needs.information-architecture-fresh-install.result }}
-          ADAPTIVE_SELECTED: ${{ contains(needs.changes.outputs.packages, 'plugins/orchestration/darrow-adaptive-delivery/backend') }}
-          ADAPTIVE_WINDOWS_RESULT: ${{ needs.adaptive-delivery-windows.result }}
-          ADAPTIVE_INSTALL_RESULT: ${{ needs.adaptive-delivery-fresh-install.result }}
+          ADAPTIVE_SELECTED: ${{ contains(needs.changes.outputs.packages, 'plugins/orchestration/darrow-adaptive-goal/backend') }}
+          ADAPTIVE_WINDOWS_RESULT: ${{ needs.adaptive-goal-windows.result }}
+          ADAPTIVE_INSTALL_RESULT: ${{ needs.adaptive-goal-fresh-install.result }}
           PIPELINE_SELECTED: ${{ contains(needs.changes.outputs.packages, 'plugins/orchestration/darrow-ticket-pipeline/backend') }}
           PIPELINE_WINDOWS_RESULT: ${{ needs.ticket-pipeline-windows.result }}
           PIPELINE_INSTALL_RESULT: ${{ needs.ticket-pipeline-fresh-install.result }}

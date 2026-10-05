@@ -1,4 +1,8 @@
-# Adaptive Delivery waiting and feedback comparison
+# Adaptive Goal waiting and feedback comparison
+
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
 
 Status: all 20 matched trials are complete, with 5/5 on each case in both arms.
 Previous failures and
@@ -87,7 +91,7 @@ measured success-rate advantage claimed. Keep the host's pause rules unchanged.
 ## Separate Claude routing follow-up
 
 After the matched comparison completed, version **0.24.3** clarified the Claude
-guide: main resolves Adaptive Delivery's own scoped Opus/high agent for the
+guide: main resolves Adaptive Goal's own scoped Opus/high agent for the
 verification assignment and passes the review binding into it. Verification
 then owns the Sonnet/medium review job. The agent definitions and verification
 and review internals remain unchanged. A fresh-context audit found no material

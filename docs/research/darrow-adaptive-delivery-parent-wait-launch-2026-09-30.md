@@ -1,4 +1,8 @@
-# Adaptive Delivery: parent waiting and Codex launch names
+# Adaptive Goal: parent waiting and Codex launch names
+
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
 
 ## Result
 

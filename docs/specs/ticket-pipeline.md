@@ -2,7 +2,7 @@
 
 Darrow retains a deprecated but installable static, explicitly invoked ticket
 pipeline reference whose orchestration state and phase artifacts live in one
-existing tracker ticket. New orchestration work should use `darrow-adaptive-delivery`.
+existing tracker ticket. New orchestration work should use `darrow-adaptive-goal`.
 The top-level controller continues to delegate each predefined phase to a fresh
 child agent that explicitly runs the phase's skill, then uses bounded
 refine/challenge, review/rework, and QA/fix branches to converge or escalate.
@@ -14,7 +14,7 @@ Skills: `deliver-ticket`, `refine-ticket`, `challenge-ticket`,
 
 ## Why
 
-`darrow-adaptive-delivery` deliberately minimizes orchestration and keeps its state
+`darrow-adaptive-goal` deliberately minimizes orchestration and keeps its state
 transient. This capability preserves a materially different design for later
 comparison: more phase specialization, a durable ticket handoff, and explicit
 bounded convergence loops. It follows the useful part of Mynab's delivery
@@ -39,7 +39,7 @@ This is a native, skill-driven orchestrator, not a daemon or workflow runtime.
 
 - **TP-D1 — Deprecated reference availability.** The pipeline remains listed
   and installable as a deprecated reference implementation, directs new
-  orchestration work to `darrow-adaptive-delivery`, and preserves deliberate explicit
+  orchestration work to `darrow-adaptive-goal`, and preserves deliberate explicit
   `deliver-ticket` invocation without a deprecation warning or confirmation
   gate. Codex-facing defaults use the installed plugin-qualified invocation
   token; shared skill prose names the capability without prescribing one
@@ -281,7 +281,7 @@ Initial capability acceptance MUST include one judgment eval for every phase,
 one normal controller composition, one missing-ticket preflight, and portable
 mechanics tests for dependency ordering, ticket reconciliation, and all loop
 limits. Paired comparison test cases are intentionally a separate follow-up so
-the ticket pipeline can be frozen before it is compared with `darrow-adaptive-delivery`.
+the ticket pipeline can be frozen before it is compared with `darrow-adaptive-goal`.
 
 That later comparison suite MUST cover at least:
 
@@ -296,7 +296,7 @@ That later comparison suite MUST cover at least:
    separate authority;
 7. resumption from ticket evidence without repeating a completed writer.
 
-Comparisons with `darrow-adaptive-delivery` should use the same fixture, model, effort,
+Comparisons with `darrow-adaptive-goal` should use the same fixture, model, effort,
 acceptance checks, trials, and harness version, and compare pass rate, escaped
 defects, false positives, child invocations, human interruptions, tokens,
 cost, and wall time.

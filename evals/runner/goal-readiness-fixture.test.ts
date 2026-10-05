@@ -8,7 +8,7 @@ import { buildFixture, destroyFixture } from "./fixture";
 import type { EvalCase } from "./types";
 
 const source = new URL(
-  "../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/readiness-artifact-selected.yaml",
+  "../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/evals/readiness-artifact-selected.yaml",
   import.meta.url,
 );
 for (const [name, trace, passes] of [
@@ -88,7 +88,7 @@ test("caller inspection explicitly assigns the new behavior to the normalization
     const [initial] = await runChecks(repo, [
       {
         name: "initial readiness",
-        run: 'uv run --quiet --frozen --no-dev --project .agents/backend adaptive-delivery-fixture readiness "$PWD"',
+        run: 'uv run --quiet --frozen --no-dev --project .agents/backend adaptive-goal-fixture readiness "$PWD"',
       },
     ]);
     expect(initial?.passed).toBe(true);
@@ -109,7 +109,7 @@ for (const mode of ["before-edit", "omitted", "after-edit"] as const) {
   test(`post-launch readiness gate: reassessment ${mode}`, async () => {
     const { repo, evalCase } = await postLaunchFixture();
     const assess =
-      'uv run --quiet --frozen --no-dev --project .agents/backend adaptive-delivery-fixture readiness "$PWD"';
+      'uv run --quiet --frozen --no-dev --project .agents/backend adaptive-goal-fixture readiness "$PWD"';
     try {
       const [initial] = await runChecks(repo, [
         {

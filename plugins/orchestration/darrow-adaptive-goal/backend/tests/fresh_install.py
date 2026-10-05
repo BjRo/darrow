@@ -1,0 +1,286 @@
+"""Exercise the copied plugin using only frozen runtime dependencies on each OS."""
+
+from __future__ import annotations
+
+import os
+import shutil
+import subprocess
+import tempfile
+from pathlib import Path
+
+
+def command(cwd: Path, *args: str, expected: int = 0) -> str:
+    result = subprocess.run(
+        args, cwd=cwd, capture_output=True, text=True, encoding="utf-8", check=False
+    )
+    if result.returncode != expected:
+        raise RuntimeError(
+            f"{args[0]} exited {result.returncode}: {result.stdout}{result.stderr}"
+        )
+    return result.stdout
+
+
+def runtime(backend: Path, cwd: Path, *args: str, expected: int = 0) -> str:
+    return command(
+        cwd,
+        "uv",
+        "run",
+        "--quiet",
+        "--no-project",
+        str((backend / "scripts/run_locked.py").resolve()),
+        *args,
+        expected=expected,
+    )
+
+
+def repository(path: Path) -> None:
+    path.mkdir()
+    command(path, "git", "init", "-qb", "main")
+    command(path, "git", "config", "user.name", "Fresh fixture")
+    command(path, "git", "config", "user.email", "fixture@example.invalid")
+    command(path, "git", "config", "core.autocrlf", "false")
+    (path / "value.txt").write_bytes(b"before\n")
+    command(path, "git", "add", ".")
+    command(path, "git", "commit", "-qm", "fixture")
+
+
+def routes(backend: Path, repo: Path) -> None:
+    before = command(repo, "git", "status", "--porcelain=v1")
+    for host in ("codex", "claude"):
+        prepared = runtime(
+            backend,
+            repo,
+            "adaptive-goal-preflight",
+            "prepare",
+            "--repo",
+            str(repo),
+            "--host",
+            host,
+        )
+        assert f"repo\t{repo.resolve()}\n" in prepared
+        assert "working_tree\tclean\n" in prepared
+        for profile in ("routine", "routine-plus", "scaled", "repo-wide", "judgment"):
+            route = runtime(
+                backend,
+                repo,
+                "adaptive-goal-preflight",
+                "route",
+                "--repo",
+                str(repo),
+                "--host",
+                host,
+                "--profile",
+                profile,
+            )
+            assert f"selected_route\t{host}\t" in route
+            assert "policy_route_source\tbundled\n" in route
+    for model, effort in (
+        ("claude-sonnet-5", "low"),
+        ("claude-sonnet-5", "medium"),
+        ("claude-opus-5", "high"),
+    ):
+        assert "subagent_type\tdarrow-adaptive-goal:" in runtime(
+            backend,
+            repo,
+            "claude-agent-route",
+            "--provider",
+            "anthropic",
+            "--model",
+            model,
+            "--effort",
+            effort,
+        )
+    runtime(
+        backend,
+        repo,
+        "claude-agent-route",
+        "--provider",
+        "anthropic",
+        "--model",
+        "claude-opus-5",
+        "--effort",
+        "low",
+        expected=2,
+    )
+    assert command(repo, "git", "status", "--porcelain=v1") == before
+
+
+def diagnoses(backend: Path, repo: Path) -> None:
+    config = repo / "codex home/config.toml"
+    config.parent.mkdir()
+    config.write_text(
+        "[agents]\nenabled = true\nmax_concurrent_threads_per_session = 5\n",
+        encoding="utf-8",
+    )
+    codex = runtime(
+        backend,
+        repo,
+        "host-config-doctor",
+        "codex",
+        "--config",
+        str(config),
+        "--backend",
+        "v2",
+        "--context",
+        "effective",
+    )
+    assert f"configuration_source: {config.resolve()}\n" in codex
+    assert "full_required_assessment: supported\n" in codex
+    claude = runtime(
+        backend, repo, "host-config-doctor", "claude", "--version", "2.1.219"
+    )
+    assert "configuration_source: process-environment\n" in claude
+    assert "full_required_assessment: supported\n" in claude
+
+
+def fixtures(plugin: Path, repo: Path) -> None:
+    backend = plugin / "backend"
+    fixture_dir = plugin / "skills/adaptive-goal/evals/fixtures"
+    (repo / ".readiness-verdict").write_text(
+        "needs-decision-then-ready\n", encoding="utf-8"
+    )
+    runtime(
+        backend,
+        repo,
+        "adaptive-goal-fixture",
+        "install",
+        "readiness",
+        str(repo),
+        str(fixture_dir),
+        "both",
+    )
+    installed = repo / ".agents/backend"
+    for expected in ("needs-decision", "ready"):
+        assert f"**Verdict:** `{expected}`" in runtime(
+            installed, repo, "adaptive-goal-fixture", "readiness", str(repo)
+        )
+    runtime(
+        backend,
+        repo,
+        "adaptive-goal-fixture",
+        "install",
+        "verification",
+        str(repo),
+        str(fixture_dir),
+        "both",
+    )
+    candidate = repo / "src/config.js"
+    candidate.parent.mkdir()
+    candidate.write_bytes(
+        b"export const TIMEOUT_MS = 2500;\nexport const RETRY_COUNT = 3;\nexport const CACHE_SIZE = 5;\n"
+    )
+    checksum = runtime(
+        installed,
+        repo,
+        "python",
+        "-c",
+        "from pathlib import Path; from darrow_adaptive_goal.fixtures.state import checksum; print(checksum(Path('src/config.js').read_bytes()))",
+    )
+    (repo / ".git/fixture-state/check-target").write_text(
+        checksum, encoding="utf-8", newline="\n"
+    )
+    assert "Conclusion: clear\n" in runtime(
+        installed,
+        repo,
+        "adaptive-goal-fixture",
+        "verification",
+        str(repo),
+        "initial",
+    )
+    assert "Conclusion: clear\n" in runtime(
+        repo / ".claude/backend",
+        repo,
+        "adaptive-goal-fixture",
+        "verification",
+        str(repo),
+        "follow-up",
+    )
+    assert "WORKTREE@" in runtime(
+        installed, repo, "adaptive-goal-fixture", "review", str(repo), "fingerprint"
+    )
+    runtime(installed, repo, "adaptive-goal-fixture", "proof", "current", expected=1)
+    for root in (repo / ".agents", repo / ".claude"):
+        assert not list(root.rglob(".venv"))
+        assert not list(root.rglob("__pycache__"))
+
+
+def validate(plugin: Path, temporary: Path) -> None:
+    backend = plugin / "backend"
+    assert not (plugin / "bin").exists()
+    assert not (plugin / "skills/doctor-adaptive-goal/scripts").exists()
+    packages = runtime(
+        backend,
+        temporary,
+        "python",
+        "-c",
+        "import importlib.metadata as m; print('\\n'.join(d.metadata['Name'] or '' for d in m.distributions()))",
+    )
+    assert not any(
+        name in packages
+        for name in ("pytest", "ruff", "mypy", "coverage", "hypothesis")
+    )
+    repo = temporary / "repository ' with spaces-é"
+    repository(repo)
+    routes(backend, repo)
+    diagnoses(backend, repo)
+    linked = temporary / "linked worktree-é"
+    command(repo, "git", "worktree", "add", "-qb", "linked", str(linked))
+    nested = linked / "nested"
+    nested.mkdir()
+    output = runtime(
+        backend,
+        temporary,
+        "adaptive-goal-preflight",
+        "prepare",
+        "--repo",
+        str(nested),
+        "--host",
+        "codex",
+    )
+    assert f"repo\t{linked.resolve()}\n" in output
+    fixtures(plugin, repo)
+
+
+def make_read_only(root: Path) -> None:
+    for path in reversed([root, *root.rglob("*")]):
+        path.chmod(path.stat().st_mode & ~0o222)
+
+
+def make_writable(root: Path) -> None:
+    for path in [root, *root.rglob("*")]:
+        path.chmod(path.stat().st_mode | 0o200)
+
+
+def main() -> None:
+    for key in tuple(os.environ):
+        if key.startswith(("GIT_", "CLAUDE_CODE_")) or key == "ANTHROPIC_BASE_URL":
+            del os.environ[key]
+    os.environ["GIT_CONFIG_NOSYSTEM"] = "1"
+    plugin = Path(__file__).resolve().parents[2]
+    ignored = shutil.ignore_patterns(
+        ".venv",
+        "__pycache__",
+        ".hypothesis",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        ".coverage*",
+        "coverage.json",
+    )
+    with tempfile.TemporaryDirectory(prefix="darrow adaptive fresh ") as directory:
+        temporary = Path(directory).resolve()
+        copied = temporary / "plugin ' copy-é"
+        shutil.copytree(plugin, copied, ignore=ignored)
+        os.environ["DARROW_CACHE_DIR"] = str(temporary / "darrow-cache")
+        make_read_only(copied)
+        validate(copied, temporary)
+        assert not list(copied.rglob(".venv"))
+        assert not list(copied.rglob("__pycache__"))
+        make_writable(copied)
+    print(
+        "fresh copied adaptive-goal: host doctor, both routes, linked worktree, readiness, review, verification, and proof refusal passed; native owner launch remains host-owned"
+    )
+
+
+if __name__ == "__main__":
+    main()
