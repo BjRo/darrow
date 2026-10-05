@@ -30,7 +30,7 @@ def initial(site: Installation, claim: Claim) -> str:
         "This thread retains the native goal and coordinates bounded implementation and capabilities. "
         "Adaptive Delivery owns their routing and workflow. Do not launch an overall owner child. "
         "The grant permits intended commits, non-force push and one verified PR, and excludes "
-        "merge, auto-merge, deploy, release, unrelated changes, credit purchases and API fallback. "
+        "merge, auto-merge, deploy, release, unrelated changes, credit purchases, billing changes and API fallback. "
         "Do not post issue comments yourself: the local adapter publishes the question you return. "
         "If a material answer is needed, return status question with the complete question, "
         "detail, and null pr. Preserve the current goal while awaiting the actual answer. "

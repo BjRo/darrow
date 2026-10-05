@@ -22,7 +22,7 @@ fixture:
         checkout=str(root), common_git=str(root / '.git'), grantor='maintainer',
         codex='/bin/false', gh='/bin/false', git='/usr/bin/git', model='gpt-5.6-terra',
         effort='medium', credential_home='/fixture/credentials',
-        subscription_only_confirmed=True,
+        account_usage_accepted=True,
         effects='claims,questions,worktrees,recipe,commits,push,pr,archives')
     (state / 'grant.json').write_text(json.dumps(grant))
     binding = root / '.git/artificer'

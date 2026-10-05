@@ -51,8 +51,10 @@ def check_login(grant: Grant, home: Path) -> None:
     ).stdout.strip()
     if version != VERSION:
         raise ValueError(f"Native restoration requires {VERSION}; found {version}")
-    if not grant.subscription_only_confirmed:
-        raise ValueError("Subscription-only account setup has not been confirmed")
+    if not grant.account_usage_accepted:
+        raise ValueError(
+            "ChatGPT account usage, including available credits, has not been accepted"
+        )
     result = subprocess.run(
         [grant.codex, "login", "status", *options(grant)],
         env=environment(home),

@@ -27,10 +27,14 @@ verified PR per delivery. Never infer this grant from a request to implement
 one ticket, inspect status, or explain automation.
 
 The initial host is macOS with Codex CLI 0.159.2, UV, Git and GitHub CLI.
-ChatGPT login must be persistent. Require confirmation that the account has no
-paid credit balance or automatic credit reload; never purchase credits, switch
-to an API key, or infer that subscription login alone proves zero extra cost.
-If necessary authority or account evidence is missing, ask for it and stop.
+ChatGPT login must be persistent. The recurring grant must accept normal account
+usage, including available credits after included allowance is exhausted. Codex
+enforces availability under the account's billing settings; a credit balance or
+automatic reload setting does not block Artificer. Never purchase credits, change
+billing settings or switch to an API key. If the user requires zero paid usage,
+explain that this policy cannot guarantee it and resolve that requirement before
+enabling. A point-in-time allowance check is insufficient. If necessary authority
+is missing, ask for it and stop.
 
 **Complete when:** the exact operation, installation and its required authority
 are known. Read-only status requires no new recurring grant.

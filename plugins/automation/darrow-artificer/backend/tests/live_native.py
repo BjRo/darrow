@@ -9,7 +9,7 @@ from pathlib import Path
 from types import FrameType
 from uuid import uuid4
 
-from darrow_artificer import account, archive, native, setup, worker
+from darrow_artificer import archive, native, setup, worker
 from darrow_artificer.github import object_value, text_value
 from darrow_artificer.installation import Installation
 from darrow_artificer.models import Claim, Grant, Outcome
@@ -77,7 +77,7 @@ def installation(root: Path, scenario: str) -> tuple[Installation, Claim, str]:
         effort="medium",
         credential_home=str(Path.home() / ".codex"),
         plugins=[str(fixture(root, scenario))],
-        subscription_only_confirmed=True,
+        account_usage_accepted=True,
         effects="claims,questions,worktrees,recipe,commits,push,pr,archives",
     )
     result = Installation(root / "state")
@@ -94,21 +94,6 @@ def installation(root: Path, scenario: str) -> tuple[Installation, Claim, str]:
     )
     result.save(claim)
     return result, claim, marker
-
-
-def check_account(grant: Grant, home: Path, allow_credits: bool) -> None:
-    native.check_login(grant, home)
-    observation = account.snapshot(grant, home)
-    if not allow_credits:
-        account.require_included_usage(observation)
-        return
-    # Explicit test-only authorization; the production worker keeps its full gate.
-    if observation.get("ordinaryUsageAllowed") is not True:
-        raise ValueError("Included usage unavailable; the probe will not use fallback")
-    limits = observation.get("rateLimits")
-    if not isinstance(limits, dict):
-        raise ValueError("Missing subscription limits")
-    account.check_windows(limits)
 
 
 def restore(result: Installation, claim: Claim, home: Path) -> None:
@@ -180,11 +165,11 @@ def observations(home: Path, thread: str) -> dict[str, object]:
     }
 
 
-def trial(root: Path, scenario: str, allow_credits: bool) -> dict[str, object]:
+def trial(root: Path, scenario: str) -> dict[str, object]:
     result, claim, marker = installation(root, scenario)
     home = result.delivery_dir(claim.id) / "native"
     native.prepare_home(home, result.grant)
-    check_account(result.grant, home, allow_credits)
+    native.check_login(result.grant, home)
     started = time.monotonic()
     events, output = worker.execute(result, claim, home)
     first = Outcome.model_validate_json(output.read_bytes())
@@ -229,7 +214,8 @@ def trial(root: Path, scenario: str, allow_credits: bool) -> dict[str, object]:
         "wall_seconds": time.monotonic() - started,
         "real_github_effects": False,
         "real_engineering_recipe": False,
-        "test_only_credit_exception": allow_credits,
+        "account_usage_accepted": result.grant.account_usage_accepted,
+        "test_only_credit_exception": False,
         **observations(home, original.native.thread),
     }
 
@@ -246,7 +232,6 @@ def main() -> None:
     parser.add_argument(
         "--case", choices=["completion", "preflight", "goal-feedback"], required=True
     )
-    parser.add_argument("--allow-existing-credits", action="store_true")
     parser.add_argument("--timeout-seconds", type=float, default=3600)
     args = parser.parse_args()
     if args.timeout_seconds <= 0:
@@ -256,7 +241,7 @@ def main() -> None:
     signal.signal(signal.SIGALRM, experiment_timeout)
     signal.setitimer(signal.ITIMER_REAL, args.timeout_seconds)
     try:
-        evidence = trial(args.out.resolve(), args.case, args.allow_existing_credits)
+        evidence = trial(args.out.resolve(), args.case)
     except Exception as error:
         write_object(
             args.out / "result.json",

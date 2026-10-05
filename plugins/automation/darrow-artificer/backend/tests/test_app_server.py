@@ -581,7 +581,14 @@ def test_individual_protocol_request_still_has_a_timeout(
 ) -> None:
     claim, home = prepare_host(installation)
     (home / "overrides.json").write_text(json.dumps({"no_reply": ["thread/goal/get"]}))
-    monkeypatch.setattr(rpc, "REQUEST_TIMEOUT_SECONDS", 0.05)
+    original_send = Rpc.send
+
+    def limit_goal_request(self: Rpc, message: dict[str, object]) -> None:
+        if message.get("method") == "thread/goal/get":
+            monkeypatch.setattr(rpc, "REQUEST_TIMEOUT_SECONDS", 0.05)
+        original_send(self, message)
+
+    monkeypatch.setattr(Rpc, "send", limit_goal_request)
     with pytest.raises(TimeoutError, match="observation timed out"):
         worker.execute(installation, claim, home)
     assert installation.claim(claim.id).native is not None

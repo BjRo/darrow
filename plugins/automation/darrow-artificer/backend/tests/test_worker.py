@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from cryptography.fernet import Fernet
 
-from darrow_artificer import account, native, prompts, worker
+from darrow_artificer import native, prompts, worker
 from darrow_artificer.github import GitHub
 from darrow_artificer.installation import Installation
 from darrow_artificer.models import Claim, Outcome
@@ -216,7 +216,6 @@ def test_worker_lifecycle(
             raise ValueError("Login needs attention")
 
     monkeypatch.setattr(native, "check_login", login)
-    monkeypatch.setattr(account, "check", lambda *args: None)
     monkeypatch.setattr(worker, "worktree", lambda *args: None)
     monkeypatch.setattr(worker, "execute", lambda *args: (events, output))
     monkeypatch.setattr(GitHub, "comment", lambda *args: 44)

@@ -86,11 +86,17 @@ acceptance. This specification defines the local implementation boundary.
   Individual protocol requests and process shutdown remain bounded. Experiment
   duration limits belong only to test/eval entrypoints; they never become an
   implicit delivery budget or automatic retry policy.
-- **ART-C10 — Subscription.** Use persistent normal ChatGPT login and Codex token
+- **ART-C10 — Account usage.** Use persistent normal ChatGPT login and Codex token
   refresh. Force ChatGPT authentication and the OpenAI provider; exclude API-key,
-  custom-provider, and API-base overrides. Do not buy credits or introduce paid
-  fallback. An access/allowance failure retains native state and the claim,
-  reports needs-attention, and cannot be restarted by a tick without an explicit
+  custom-provider, and API-base overrides. The recurring grant explicitly accepts
+  account usage, including available credits after included allowance is exhausted.
+  Credit balances and automatic reload settings do not block execution. Codex
+  enforces account availability; Artificer does not impose a subscription-only
+  allowance gate or promise zero additional cost. Never purchase credits, change
+  billing settings or introduce API-key fallback. A stricter user requirement
+  such as zero paid usage must be resolved before enabling; it is not satisfied
+  by a point-in-time allowance check. An access/allowance failure retains native
+  state and the claim, reports needs-attention, and cannot be restarted by a tick without an explicit
   authorized human resume. Polling itself invokes no model.
 - **ART-C11 — Scheduler and cancellation.** The initial local host is macOS with
   launchd, absolute executables, no terminal dependency, and a configurable

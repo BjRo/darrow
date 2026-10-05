@@ -76,7 +76,7 @@ def main() -> None:
         model="gpt-5.6-terra",
         effort="medium",
         credential_home=str(root / "unused"),
-        subscription_only_confirmed=True,
+        account_usage_accepted=True,
         WORK_IN_PROGRESS_LIMIT=0,
         effects="claims,questions,worktrees,recipe,commits,push,pr,archives",
     )

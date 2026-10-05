@@ -167,7 +167,7 @@ def test_login_gate(
     installation: Installation, monkeypatch: pytest.MonkeyPatch, variant: str
 ) -> None:
     grant = installation.grant
-    grant.subscription_only_confirmed = variant != "unconfirmed"
+    grant.account_usage_accepted = variant != "unconfirmed"
 
     def run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
         if "--version" in command:

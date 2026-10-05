@@ -28,7 +28,10 @@ def parser() -> argparse.ArgumentParser:
         "--authorize-recurring-delivery", action="store_true", required=True
     )
     init.add_argument(
-        "--confirm-no-paid-credits-or-auto-reload", action="store_true", required=True
+        "--accept-chatgpt-account-usage",
+        action="store_true",
+        required=True,
+        help="Allow subscription usage and available credits under the account's billing settings",
     )
     for name in ("tick", "status", "revoke", "schedule", "unschedule"):
         commands.add_parser(name)

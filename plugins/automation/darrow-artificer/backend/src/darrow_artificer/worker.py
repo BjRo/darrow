@@ -8,7 +8,7 @@ from pathlib import Path
 from types import FrameType
 from uuid import uuid4
 
-from . import account, archive, native, prompts
+from . import archive, native, prompts
 from .github import GitHub
 from .installation import Installation
 from .models import Claim, Native, Outcome
@@ -220,7 +220,6 @@ def run(site: Installation, delivery: str) -> None:
                 return
             home = home_for(site, claim)
             native.check_login(site.grant, home)
-            account.check(site.grant, home)
             worktree(site, claim)
         result = execute(site, claim, home)
     except Exception as failure:

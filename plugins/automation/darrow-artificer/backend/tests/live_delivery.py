@@ -94,7 +94,7 @@ def installation(root: Path) -> Installation:
         effort="medium",
         credential_home=str(Path.home() / ".codex"),
         plugins=[str(fixture_plugin(root))],
-        subscription_only_confirmed=True,
+        account_usage_accepted=True,
         effects="claims,questions,worktrees,recipe,commits,push,pr,archives",
     )
     setup.bind(site, grant)

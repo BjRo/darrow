@@ -190,7 +190,7 @@ def test_init_dispatch(
             "--plugin",
             "/plugin",
             "--authorize-recurring-delivery",
-            "--confirm-no-paid-credits-or-auto-reload",
+            "--accept-chatgpt-account-usage",
         ]
     )
     assert cli.dispatch(installation, args) == installation.grant.model_dump()

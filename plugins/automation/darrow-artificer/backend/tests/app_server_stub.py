@@ -192,15 +192,25 @@ class Host:
             sys.stdout.flush()
 
 
-def main() -> None:
-    if sys.argv[1] != "app-server":
-        raise SystemExit("Expected app-server transport")
+def serve() -> None:
     host = Host(Path(os.environ["CODEX_HOME"]))
     if host.overrides.get("ignore_termination"):
         signal.signal(signal.SIGTERM, signal.SIG_IGN)
         signal.alarm(2)
     for line in sys.stdin:
         host.handle(json.loads(line))
+
+
+def main() -> None:
+    if sys.argv[1] == "--version":
+        print("codex-cli 0.159.2")
+        return
+    if sys.argv[1:3] == ["login", "status"]:
+        print("Logged in using ChatGPT")
+        return
+    if sys.argv[1] != "app-server":
+        raise SystemExit("Expected app-server transport")
+    serve()
 
 
 if __name__ == "__main__":

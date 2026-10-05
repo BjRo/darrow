@@ -10,7 +10,12 @@ claimed supported.
 
 `init --repository OWNER/REPO --checkout PATH --plugin PLUGIN_ROOT ...
 --credential-home PATH --authorize-recurring-delivery
---confirm-no-paid-credits-or-auto-reload`
+--accept-chatgpt-account-usage`
+
+Account usage acceptance includes subscription allowance and available credits
+under the existing account billing settings. Codex enforces availability.
+Artificer never purchases credits, changes billing settings or switches to an
+API key. This is not a zero-additional-cost guarantee.
 
 Use one `--plugin` for each complete independently installed delivery plugin.
 The selected set must advertise the ticket-to-PR recipe, adaptive delivery,
@@ -60,7 +65,7 @@ The complete answer, preserved including whitespace and newlines.
 Ordinary discussion is inert. Multiple competing authorized replies need human
 resolution; do not pick one. After access is restored, a stopped delivery needs
 an explicit issue comment `/artificer resume DELIVERY_UUID` before continuation.
-No scheduled retry happens merely because login or subscription allowance returns.
+No scheduled retry happens merely because account access or allowance returns.
 
 ## Recovery
 

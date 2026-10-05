@@ -63,11 +63,13 @@ owner. Session archives use authenticated encryption with a separate private
 key and exclude authentication credentials. Default retention is five days
 from the last successful save.
 
-Account setup must exclude paid credits and automatic reload. The adapter
-forces ChatGPT authentication and the OpenAI provider and removes model API
-credentials from the child environment. Subscription login alone does not
-prove account-level credit configuration. Access failures require explicit
-human recovery; the scheduler never purchases credits or chooses a fallback.
+The recurring grant accepts normal ChatGPT account usage, including available
+credits after included allowance is exhausted. Codex enforces availability under
+the existing account billing settings. The adapter forces ChatGPT authentication
+and the OpenAI provider and removes model API credentials from the child
+environment. Artificer never purchases credits, changes billing settings or
+switches to API-key billing. Access failures require explicit human recovery.
+This policy does not guarantee zero additional cost.
 
 ## Troubleshooting
 
@@ -82,9 +84,9 @@ Earlier separate-owner records require reconciliation with their original
 installation; they are not automatically converted, retried or released. Keep
 their state, worktrees, claims and published effects until reconciled.
 
-The production account gate also refuses accounts with an available credit
-balance, even when included subscription allowance remains. This is stricter
-than checking subscription availability alone.
+Version 0.3.0 replaces subscription-only confirmation with explicit account usage
+acceptance (`--accept-chatgpt-account-usage`, saved as `account_usage_accepted`).
+Existing grants are not silently expanded to authorize credit usage.
 
 ## License
 

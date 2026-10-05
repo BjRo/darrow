@@ -26,7 +26,7 @@ class Grant(Record):
     effort: str
     credential_home: str
     plugins: list[str] = Field(default_factory=list)
-    subscription_only_confirmed: bool
+    account_usage_accepted: bool
     effects: Literal["claims,questions,worktrees,recipe,commits,push,pr,archives"]
     WORK_IN_PROGRESS_LIMIT: int = Field(default=1, ge=0)
     MAX_STARTS_PER_ACTIVATION: int = Field(default=1, ge=1)
