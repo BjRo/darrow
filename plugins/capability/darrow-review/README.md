@@ -12,45 +12,14 @@ code.
 
 ### Session reminder
 
-A plugin-local SessionStart hook adds a short, conditional reminder to load
-`code-review` for review and repair-verification requests, gives its resolved
-absolute skill path, and asks the coordinator to launch its configured
-independent readers and complete its canonical report. Delegated axis readers
-stay within their assigned role. The reminder does not initiate review or grant
-authority for implementation or publication.
+This plugin includes a `SessionStart` hook that improves automatic selection for
+matching review and repair-verification requests and reminds the coordinator to
+launch its independent reviewers. Trust the hook to enable its session reminder.
+The reminder does not start work or grant additional authority. If automatic
+selection is missed, invoke `code-review` explicitly.
 
 Codex uses Bash on Unix and PowerShell on Windows. Claude has its own Bash hook
-registration. Native hook trust must be enabled in the host. The coordinator
-still launches reviewers through native tools; this static reminder cannot
-override host restrictions. When the host permits subagents requested by a
-skill, the review skill's explicit reader requirement satisfies that condition.
-An unconditional prohibition still blocks review.
-
-In a 70-trial Codex comparison of version **0.8.1** at `gpt-6-luna/medium`, positive activation was
-**25/25 with the reminder versus 22/25 without it**. Across the four cases with
-available review evidence, all configured native reviewer axes launched in
-**20/20 versus 16/20** trials. Both arms avoided review on **10/10** ordinary
-implementation controls. Task passes were **21/25 versus 17/25**; the four
-remaining reminder-enabled failures changed escaping when copying the canonical
-report. This is a measured improvement, not a guarantee of 5/5 across the plugin.
-Live Claude and Windows hook execution remain unverified. See the
-[evaluation findings](../../../docs/research/gpt-6-luna-evals-issue-228.md#review-follow-up-conditional-session-reminder-2026-09-28)
-for the case breakdown, blocked-check results, and retained failures.
-
-The [stabilization report](../../../docs/research/darrow-review-luna-medium-stabilization-2026-09-29.md)
-tracks the current Luna/medium follow-up, including workflow repairs, eval
-corrections, activation-observer fixes, and their evidence limits. Earlier
-renderer, reader-input, and current-format measurements remain in the
-[evaluation history](../../../docs/research/gpt-6-luna-evals-issue-228.md).
-
-For **0.10.6**, all 31 Codex Luna/medium cases have a passing n:5 batch: 155/155
-task and activation/avoidance passes in the selected coverage runs. These are
-sequential runs and focused retests, not one uninterrupted clean sweep. Two
-earlier read-only failures remain open: PR and Standards-only review each left
-an unidentified worktree change once, then passed two unchanged n:5 repeats.
-Each is 14/15 task across those three batches. The stabilization report preserves
-those failures and the improved changed-path diagnostics; clean repeats do not
-establish a fix.
+registration. Live Claude and Windows hook execution remain unverified.
 
 ## What it provides
 
@@ -380,6 +349,16 @@ and omit repeated history. Complete validated evidence artifacts remain saved,
 and product files stay unchanged.
 
 ## Troubleshooting
+
+Check the returned assessment for blocked or incomplete review axes. The
+coordinator launches reviewers through native tools; the session reminder cannot
+override host restrictions. When the host permits subagents requested by a skill,
+the review skill's explicit reader requirement satisfies that condition. An
+unconditional prohibition still blocks review.
+
+Unintended worktree changes remain an unresolved issue in Codex review sessions.
+Inspect the working tree after review. Historical evidence is retained in the
+[stabilization report](../../../docs/research/darrow-review-luna-medium-stabilization-2026-09-29.md).
 
 A missing route, unverifiable child identity, invalid scope, or malformed result blocks review. Preserve the evidence and correct the exact input; selection alone does not prove a route ran.
 For a discovery or host problem, use the

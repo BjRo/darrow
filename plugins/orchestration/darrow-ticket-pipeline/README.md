@@ -124,11 +124,8 @@ accepted; and `needs_revision` continues to select refinement after a new
 refinement until an explicit matching challenge is recorded. They are reference
 behavior, not new recommendations for orchestration.
 
-[Matched command evidence](backend/tests/README.md) covers the Bash reference
-and Python candidate. The package gate runs on Python 3.10–3.13 across macOS,
-Linux, and native Windows, and copied-artifact validation uses only locked
-runtime dependencies. The meaningful shell regression scenarios are ported to native Python
-integration tests; the shell test and runtime facade are removed. No Python quality exception is needed.
+For development checks and migration evidence, see the
+[backend test documentation](backend/tests/README.md).
 
 ## Installation
 

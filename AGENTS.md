@@ -35,6 +35,17 @@ between capabilities and orchestration, read [`docs/design.md`](docs/design.md).
 - `docs/decisions/` — accepted decisions for the surviving plugin/eval surface.
 - `evals/runner/` — shared skill-evaluation runner. Results are gitignored.
 
+## Plugin README content
+
+Keep plugin entry READMEs focused on current behavior, installation, usage,
+prerequisites, developer test commands, and actionable limitations. Record
+historical eval results, trial counts, pass rates, experiment comparisons, and
+investigation narratives in `docs/research/` or colocated eval/test documentation.
+Keep eval-runner internals in development documentation. Preserve historical
+evidence when cleaning a README; a short link may point to it without repeating
+the results. State current compatibility and reliability limits as practical
+guidance without recounting the trials that established them.
+
 ## Skill development
 
 For new skill creation, follow

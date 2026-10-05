@@ -67,13 +67,9 @@ or type `$darrow-explanation:explain-visually`; in Claude Code, use
 
 ### Implicit activation in Codex
 
-Implicit selection is inconsistent in the tested Codex `gpt-6-luna`/medium
-configuration. In September 2026, two five-trial runs of a direct request to
-explain a code path visually loaded this skill 0/5 and 3/5 times, although the
-answers met the task checks in all ten trials. A useful diagram therefore does
-not establish that the skill's grounding and view-selection instructions ran.
-When those instructions matter, invoke `explain-visually` explicitly. This
-observation does not establish the activation rate for other models or hosts.
+Implicit selection can be inconsistent on Codex `gpt-6-luna`/medium. Invoke
+`explain-visually` explicitly when its grounding and view-selection instructions
+matter. A useful diagram alone does not establish that those instructions ran.
 
 ## Expected result
 

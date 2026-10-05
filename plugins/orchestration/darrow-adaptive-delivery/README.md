@@ -77,9 +77,9 @@ while requiring high-risk assurance. `routine-plus` needs an actual implementati
 tradeoff or an explicit first-pass correctness priority.
 
 **Use Codex Sol/medium for main-thread coordination.** Weaker compatible models
-are permitted with a brief reliability hint. Trials showed substantial remaining
-coordination and evidence failures on Luna; Sol improved some outcomes but was
-not uniformly reliable. Stronger configurations are allowed, not all proven.
+are permitted with a brief hint about coordination and evidence-handling risks.
+Stronger compatible configurations are allowed. Model selection alone does not
+guarantee reliable coordination or complete evidence.
 
 Verification coordination is explicitly Sol/medium or stronger. Review
 coordination stays Luna/medium, while review's independent readers stay Sol/xhigh.
@@ -202,9 +202,6 @@ of the turn. A queued proposal is not an active goal. Headless Claude may requir
 the client or user to enter through `/goal <condition>`. If native activation
 is unavailable, the skill reports the required boundary rather than launching
 another owner or a nested host process.
-
-The Codex app-server used in evals hosts this original main thread. It is not a
-production execution-owner transport or custom workflow runtime.
 
 ## Installation
 
