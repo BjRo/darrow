@@ -174,7 +174,7 @@ def verify_routes(backend: Path, repo: Path) -> None:
         "--record",
         str(route),
     )
-    assert "claude-opus-5" in runtime(
+    assert "claude-opus-5-5" in runtime(
         backend, repo, "review-route", "claude-agent", "--route-record", str(route)
     )
     assert json.loads(runtime(backend, repo, "claude-provider", "observe-direct"))[
@@ -194,7 +194,7 @@ def verify_routes(backend: Path, repo: Path) -> None:
                 "type": "assistant",
                 "agentId": "fresh",
                 "effort": "xhigh",
-                "message": {"role": "assistant", "model": "claude-opus-5"},
+                "message": {"role": "assistant", "model": "claude-opus-5-5"},
             }
         )
         + "\n",

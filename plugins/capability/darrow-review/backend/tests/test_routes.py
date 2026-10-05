@@ -66,7 +66,7 @@ def test_bundled_override_and_application(repo: Path, tmp_path: Path) -> None:
         "model": "gpt-5.5",
         "effort": "high",
     }
-    assert "claude-opus-5" in routing.resolve(str(repo), "claude").body()
+    assert "claude-opus-5-5" in routing.resolve(str(repo), "claude").body()
     config(repo, {})
     assert routing.resolve(str(repo), "codex").source == "bundled"
     with pytest.raises(ReviewError, match="already exists"):
@@ -158,16 +158,16 @@ def test_claude_native_agent(
 ) -> None:
     route = tmp_path / "claude.json"
     routing.select(str(repo), "claude", str(route))
-    assert "darrow-review:review-reader-claude-opus-5-xhigh" in cli.route_command(
+    assert "darrow-review:review-reader-claude-opus-5-5-xhigh" in cli.route_command(
         ["claude-agent", "--route-record", str(route)]
     )
-    assert "claude-sonnet-5" in cli.route_command(
+    assert "claude-sonnet-5-5" in cli.route_command(
         [
             "claude-agent",
             "--provider",
             "anthropic",
             "--model",
-            "claude-sonnet-5",
+            "claude-sonnet-5-5",
             "--effort",
             "high",
         ]
@@ -178,10 +178,10 @@ def test_claude_native_agent(
             cli.route_command(["claude-agent", "--route-record", str(route)])
         monkeypatch.delenv(variable)
     for args in (
-        ["--route-record", str(route), "--model", "claude-opus-5"],
+        ["--route-record", str(route), "--model", "claude-opus-5-5"],
         [],
-        ["--provider", "other", "--model", "claude-opus-5", "--effort", "xhigh"],
-        ["--provider", "anthropic", "--model", "claude-opus-5", "--effort", "low"],
+        ["--provider", "other", "--model", "claude-opus-5-5", "--effort", "xhigh"],
+        ["--provider", "anthropic", "--model", "claude-opus-5-5", "--effort", "low"],
     ):
         with pytest.raises(ReviewError):
             cli.route_command(["claude-agent", *args])
@@ -204,7 +204,7 @@ def transcript(repo: Path, tmp_path: Path, agent: str = "abc1") -> tuple[Path, P
                 "effort": "xhigh",
                 "message": {
                     "role": "assistant",
-                    "model": "claude-opus-5",
+                    "model": "claude-opus-5-5",
                     "content": [{"text": "nested fake effort and model"}],
                 },
             }
@@ -231,7 +231,7 @@ def test_transcript_native_application(
     assert Records(cli.verify_command(arguments)).object("observed_route") == {
         "host": "claude",
         "provider": "anthropic",
-        "model": "claude-opus-5",
+        "model": "claude-opus-5-5",
         "effort": "xhigh",
     }
     cli.verify_command([*arguments, "--record", str(record)])
@@ -255,7 +255,9 @@ def test_transcript_native_application(
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(projects.parent))
     assert Records(provider.verify(str(repo), "abc1")).value("transcript") == str(path)
     route.write_text(
-        route.read_text(encoding="utf-8").replace("claude-opus-5", "claude-sonnet-5"),
+        route.read_text(encoding="utf-8").replace(
+            "claude-opus-5-5", "claude-sonnet-5-5"
+        ),
         encoding="utf-8",
     )
     with pytest.raises(ReviewError, match="does not match"):
@@ -292,7 +294,7 @@ def test_transcript_refuses_missing_or_forged_evidence(
 def test_transcript_cardinality_and_route_changes(repo: Path, tmp_path: Path) -> None:
     projects, path = transcript(repo, tmp_path)
     original = path.read_text(encoding="utf-8")
-    for before, after in (("claude-opus-5", "claude-sonnet-5"), ("xhigh", "high")):
+    for before, after in (("claude-opus-5-5", "claude-sonnet-5-5"), ("xhigh", "high")):
         path.write_text(original + original.replace(before, after), encoding="utf-8")
         with pytest.raises(ReviewError, match="exactly one"):
             provider.verify(str(repo), "abc1", str(projects))

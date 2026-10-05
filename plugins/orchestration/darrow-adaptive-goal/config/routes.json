@@ -55,7 +55,7 @@
       "profile": "routine",
       "harness": "claude",
       "provider": "anthropic",
-      "model": "claude-sonnet-5",
+      "model": "claude-sonnet-5-5",
       "effort": "low",
       "fallbackModel": "none",
       "fallbackEffort": "none"
@@ -65,7 +65,7 @@
       "profile": "routine-plus",
       "harness": "claude",
       "provider": "anthropic",
-      "model": "claude-sonnet-5",
+      "model": "claude-sonnet-5-5",
       "effort": "medium",
       "fallbackModel": "none",
       "fallbackEffort": "none"
@@ -75,7 +75,7 @@
       "profile": "scaled",
       "harness": "claude",
       "provider": "anthropic",
-      "model": "claude-sonnet-5",
+      "model": "claude-sonnet-5-5",
       "effort": "medium",
       "fallbackModel": "none",
       "fallbackEffort": "none"
@@ -85,7 +85,7 @@
       "profile": "repo-wide",
       "harness": "claude",
       "provider": "anthropic",
-      "model": "claude-opus-5",
+      "model": "claude-opus-5-5",
       "effort": "high",
       "fallbackModel": "none",
       "fallbackEffort": "none"
@@ -95,7 +95,7 @@
       "profile": "judgment",
       "harness": "claude",
       "provider": "anthropic",
-      "model": "claude-opus-5",
+      "model": "claude-opus-5-5",
       "effort": "high",
       "fallbackModel": "none",
       "fallbackEffort": "none"

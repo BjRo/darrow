@@ -64,7 +64,7 @@ output_checks:
     not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
 transcript_checks:
   - name: selected implementation policy route has accepted bounded-child evidence
-    expect_regex: (?:"type":"darrow\.codex_native_spawn","status":"accepted"[^\n]*"model":"gpt-6-astra","reasoning_effort":"high"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-adaptive-goal:adaptive-goal-opus-5-high")
+    expect_regex: (?:"type":"darrow\.codex_native_spawn","status":"accepted"[^\n]*"model":"gpt-6-astra","reasoning_effort":"high"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-adaptive-goal:adaptive-goal-opus-5-5-high")
   - name: no lifecycle ledger is used
     not_regex: adaptive-goal-preflight step|Protocol ledger
 semantic_output_checks:

@@ -466,8 +466,8 @@ Neither main-model nor implementation-model inheritance may change those roles.
 
 On Claude, use the same ownership design with native session goals. Bounded
 implementation uses the policy's scoped agents. Verification uses an explicit
-`claude-opus-5/high` scoped agent; review coordination uses
-`claude-sonnet-5/medium`, preserving the review capability's own reader route.
+`claude-opus-5-5/high` scoped agent; review coordination uses
+`claude-sonnet-5-5/medium`, preserving the review capability's own reader route.
 The main thread resolves its verification assignment through Adaptive Goal's
 bundled scoped-agent resolver and supplies the bound verification skill. It
 passes the review binding and route into that assignment; verification owns

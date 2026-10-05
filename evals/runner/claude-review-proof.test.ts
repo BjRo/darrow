@@ -7,7 +7,7 @@ import { buildClaudeReviewProof } from "./claude-review-proof";
 const routeObject = {
   host: "claude",
   provider: "anthropic",
-  model: "claude-opus-5",
+  model: "claude-opus-5-5",
   effort: "xhigh",
 };
 
@@ -57,7 +57,7 @@ async function fixture(root: string, overrides: FixtureOptions = {}) {
     const transcript = join(root, `agent-${id}.jsonl`);
     await writeFile(
       transcript,
-      `${JSON.stringify({ type: "assistant", agentId: id, effort: "xhigh", message: { model: "claude-opus-5", role: "assistant" } })}\n`,
+      `${JSON.stringify({ type: "assistant", agentId: id, effort: "xhigh", message: { model: "claude-opus-5-5", role: "assistant" } })}\n`,
     );
     await writeFile(
       join(artifacts, `${axis}-observed-route.json`),
@@ -89,7 +89,8 @@ async function fixture(root: string, overrides: FixtureOptions = {}) {
             id: tool,
             name: "Agent",
             input: {
-              subagent_type: "darrow-review:review-reader-claude-opus-5-xhigh",
+              subagent_type:
+                "darrow-review:review-reader-claude-opus-5-5-xhigh",
               run_in_background: false,
               prompt: `${options.canonicalMarker ? "- " : ""}review_axis: ${axis}\ncheck`,
             },
@@ -110,8 +111,8 @@ async function fixture(root: string, overrides: FixtureOptions = {}) {
       toolUseResult: {
         status: "completed",
         agentId: id,
-        agentType: "darrow-review:review-reader-claude-opus-5-xhigh",
-        resolvedModel: "claude-opus-5",
+        agentType: "darrow-review:review-reader-claude-opus-5-5-xhigh",
+        resolvedModel: "claude-opus-5-5",
       },
     };
     calls.push(call);

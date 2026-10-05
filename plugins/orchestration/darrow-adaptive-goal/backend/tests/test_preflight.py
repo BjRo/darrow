@@ -90,7 +90,7 @@ def test_prepared_records_and_unchanged_repository(repo: Path) -> None:
         f"working_tree\tdirty\ninstruction\t{repo / 'AGENTS.md'}\ninstruction\t{repo / 'CLAUDE.md'}\n"
         in output
     )
-    assert "route\troutine\tclaude\tanthropic\tclaude-sonnet-5\tlow\n" in output
+    assert "route\troutine\tclaude\tanthropic\tclaude-sonnet-5-5\tlow\n" in output
 
 
 def test_policy_provenance_and_explicit_precedence(repo: Path) -> None:
@@ -286,7 +286,7 @@ def test_missing_resources(repo: Path, tmp_path: Path) -> None:
                             "routine",
                             "claude",
                             "anthropic",
-                            "claude-sonnet-5",
+                            "claude-sonnet-5-5",
                             "low",
                             "none",
                             "none",
@@ -305,9 +305,9 @@ def test_missing_resources(repo: Path, tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     "model,effort",
     [
-        ("claude-sonnet-5", "low"),
-        ("claude-sonnet-5", "medium"),
-        ("claude-opus-5", "high"),
+        ("claude-sonnet-5-5", "low"),
+        ("claude-sonnet-5-5", "medium"),
+        ("claude-opus-5-5", "high"),
     ],
 )
 def test_claude_route(
@@ -353,7 +353,14 @@ def test_claude_overrides(key: str, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(key, "other")
     with pytest.raises(RefusalError):
         claude.run(
-            ["--provider", "anthropic", "--model", "claude-sonnet-5", "--effort", "low"]
+            [
+                "--provider",
+                "anthropic",
+                "--model",
+                "claude-sonnet-5-5",
+                "--effort",
+                "low",
+            ]
         )
 
 
@@ -364,7 +371,7 @@ def test_claude_overrides(key: str, monkeypatch: pytest.MonkeyPatch) -> None:
         (["--other"], "unknown option"),
         (["--model"], "missing value"),
         (
-            ["--provider", "other", "--model", "claude-sonnet-5", "--effort", "low"],
+            ["--provider", "other", "--model", "claude-sonnet-5-5", "--effort", "low"],
             "unsupported provider",
         ),
     ],
@@ -381,8 +388,8 @@ def test_claude_arguments(args: list[str], error: str) -> None:
         ("sonnet", "low", "concrete Claude"),
         ("claude-", "low", "unsafe model"),
         ("claude-../bad", "low", "unsafe model"),
-        ("claude-sonnet-5", "ultra", "unsupported effort"),
-        ("claude-opus-5", "low", "no bundled runner"),
+        ("claude-sonnet-5-5", "ultra", "unsupported effort"),
+        ("claude-opus-5-5", "low", "no bundled runner"),
     ],
 )
 def test_claude_unsupported_routes(model: str, effort: str, error: str) -> None:
@@ -392,7 +399,7 @@ def test_claude_unsupported_routes(model: str, effort: str, error: str) -> None:
 
 @pytest.mark.parametrize("field", ["name", "model", "effort"])
 def test_claude_runner_mismatch(tmp_path: Path, field: str) -> None:
-    path = tmp_path / "agents/adaptive-goal-sonnet-5-low.md"
+    path = tmp_path / "agents/adaptive-goal-sonnet-5-5-low.md"
     path.parent.mkdir()
     original = (PLUGIN / "agents" / path.name).read_text()
     path.write_text(
@@ -401,7 +408,7 @@ def test_claude_runner_mismatch(tmp_path: Path, field: str) -> None:
         )
     )
     with pytest.raises(RefusalError, match=f"runner {field} does not match"):
-        claude.resolve("claude-sonnet-5", "low", tmp_path, {})
+        claude.resolve("claude-sonnet-5-5", "low", tmp_path, {})
 
 
 def test_console_executable(repo: Path) -> None:

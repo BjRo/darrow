@@ -1,7 +1,7 @@
 ---
-name: adaptive-goal-opus-5-high
-description: Execute one bounded Adaptive Goal implementation or capability assignment on claude-opus-5 at high effort. The main thread retains goal ownership.
-model: claude-opus-5
+name: adaptive-goal-opus-5-5-high
+description: Execute one bounded Adaptive Goal implementation or capability assignment on claude-opus-5-5 at high effort. The main thread retains goal ownership.
+model: claude-opus-5-5
 effort: high
 background: false
 ---

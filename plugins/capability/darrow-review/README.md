@@ -198,7 +198,7 @@ complete report or its artifact link.
 
 Every fresh standards, specification, and fix-verification reader runs on one
 explicit strong route. Bundled defaults are `gpt-6.1-sol` / `xhigh` on Codex
-and `claude-opus-5` / `xhigh` on Claude. A repository can replace either host's
+and `claude-opus-5-5` / `xhigh` on Claude. A repository can replace either host's
 route in the independent `reviewers` section of the same shared
 `.darrow/config.json` used by adaptive goal routing:
 
@@ -216,7 +216,7 @@ route in the independent `reviewers` section of the same shared
       "host": "claude",
       "harness": "claude",
       "provider": "anthropic",
-      "model": "claude-opus-5",
+      "model": "claude-opus-5-5",
       "effort": "xhigh"
     }
   ]
@@ -232,7 +232,7 @@ than inheriting or silently substituting a model.
 Repository overrides remain inside a shipped strong-route catalog so config
 cannot downgrade review. Codex currently supports `gpt-6.1-sol` and
 `gpt-5.6-sol` at `high`/`xhigh`/`max`, and `gpt-5.5` at `high`/`xhigh`. Claude supports
-`claude-opus-5`/`xhigh` and `claude-sonnet-5`/`high`. Add a catalog entry and,
+`claude-opus-5-5`/`xhigh` and `claude-sonnet-5-5`/`high`. Add a catalog entry and,
 for Claude, its exact-tuple plugin agent before selecting another route.
 
 Codex supplies the exact model and effort to each native subagent boundary.
@@ -241,8 +241,8 @@ event must bind the same child ID to the exact model, effort, fresh-context
 setting, and review axis. Missing native evidence blocks the reader.
 Claude follows the current Claude Code strategy: an exact-tuple foreground
 plugin agent pins the full model and effort together, and Agent receives no
-per-call model alias. The bundled Claude catalog supports `claude-opus-5` /
-`xhigh` and the supported override `claude-sonnet-5` / `high`; another tuple is
+per-call model alias. The bundled Claude catalog supports `claude-opus-5-5` /
+`xhigh` and the supported override `claude-sonnet-5-5` / `high`; another tuple is
 unavailable until a matching plugin agent ships. The resulting
 `agent-<id>.jsonl` transcript must prove the same model/effort tuple on every
 assistant turn. Retained parent telemetry joins the current Agent tool-use ID

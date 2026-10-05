@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   realpathSync,
   rmSync,
   symlinkSync,
@@ -45,65 +46,101 @@ const fileBackedDigest = new Bun.CryptoHasher("sha256")
   .digest("hex");
 const goalLedger = "/tmp/darrow-goal-run.fixture";
 
-test("audits the native Claude owner route outside the product stream", async () => {
-  const root = mkdtempSync(join(tmpdir(), "darrow-claude-route-audit-"));
-  try {
-    const repo = join(root, "repo.with_under_score");
-    const configRoot = join(root, "config");
-    const projectKey = repo.replace(/[^A-Za-z0-9]/g, "-");
-    const transcriptDir = join(
-      configRoot,
-      "projects",
-      projectKey,
-      "session",
-      "subagents",
+test.each([
+  ["claude-sonnet-5-5", "low"],
+  ["claude-sonnet-5-5", "medium"],
+  ["claude-opus-5-5", "high"],
+])(
+  "audits the scoped Claude route %s/%s outside the product stream",
+  async (model, effort) => {
+    const agentName = `adaptive-goal-${model.slice("claude-".length)}-${effort}`;
+    const agentFile = readFileSync(
+      join(
+        import.meta.dir,
+        "../../../plugins/orchestration/darrow-adaptive-goal/agents",
+        `${agentName}.md`,
+      ),
+      "utf8",
     );
-    mkdirSync(transcriptDir, { recursive: true });
-    const transcriptPath = join(transcriptDir, "agent-ownerone.jsonl");
-    writeFileSync(
-      transcriptPath,
-      `${JSON.stringify({
-        type: "assistant",
-        agentId: "ownerone",
-        effort: "low",
-        message: { role: "assistant", model: "claude-sonnet-5" },
-      })}\n`,
-    );
-    const raw = JSON.stringify({
-      type: "darrow.goal_agent_completion",
-      tool_use_id: "toolu_goal",
-      subagent_type: "darrow-adaptive-goal:adaptive-goal-sonnet-5-low",
-      status: "completed",
-      agent_id: "ownerone",
-    });
+    expect(agentFile).toContain(`name: ${agentName}\n`);
+    expect(agentFile).toContain(`model: ${model}\n`);
+    expect(agentFile).toContain(`effort: ${effort}\n`);
+    const root = mkdtempSync(join(tmpdir(), "darrow-claude-route-audit-"));
+    try {
+      const repo = join(root, "repo.with_under_score");
+      const configRoot = join(root, "config");
+      const projectKey = repo.replace(/[^A-Za-z0-9]/g, "-");
+      const transcriptDir = join(
+        configRoot,
+        "projects",
+        projectKey,
+        "session",
+        "subagents",
+      );
+      mkdirSync(transcriptDir, { recursive: true });
+      const transcriptPath = join(transcriptDir, "agent-ownerone.jsonl");
+      writeFileSync(
+        transcriptPath,
+        `${JSON.stringify({
+          type: "assistant",
+          agentId: "ownerone",
+          effort,
+          message: { role: "assistant", model },
+        })}\n`,
+      );
+      const raw = JSON.stringify({
+        type: "darrow.goal_agent_completion",
+        tool_use_id: "toolu_goal",
+        subagent_type: `darrow-adaptive-goal:${agentName}`,
+        status: "completed",
+        agent_id: "ownerone",
+      });
 
-    const audited = await evaluatorObservedClaudeRoute(raw, repo, configRoot);
-    expect(audited).toContain(
-      '"type":"darrow.claude_route_observation","tool_use_id":"darrow-eval-route-ownerone"',
-    );
-    expect(audited).toContain(
-      '"type":"darrow.claude_route_confirmation","tool_use_id":"darrow-eval-route-ownerone"',
-    );
-    expect(audited).toContain('"status":"confirmed"');
+      const audited = await evaluatorObservedClaudeRoute(raw, repo, configRoot);
+      expect(audited).toContain(
+        '"type":"darrow.claude_route_observation","tool_use_id":"darrow-eval-route-ownerone"',
+      );
+      expect(audited).toContain(
+        '"type":"darrow.claude_route_confirmation","tool_use_id":"darrow-eval-route-ownerone"',
+      );
+      expect(audited).toContain('"status":"confirmed"');
 
-    writeFileSync(
-      transcriptPath,
-      `${JSON.stringify({
-        type: "assistant",
-        agentId: "ownerone",
-        effort: "medium",
-        message: { role: "assistant", model: "claude-opus-5" },
-      })}\n`,
-    );
-    const substituted = await evaluatorObservedClaudeRoute(
-      raw,
-      repo,
-      configRoot,
-    );
-    expect(substituted).toContain('"status":"rejected"');
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
+      writeFileSync(
+        transcriptPath,
+        `${JSON.stringify({
+          type: "assistant",
+          agentId: "ownerone",
+          effort: "medium",
+          message: { role: "assistant", model: "claude-opus-5-5" },
+        })}\n`,
+      );
+      const substituted = await evaluatorObservedClaudeRoute(
+        raw,
+        repo,
+        configRoot,
+      );
+      expect(substituted).toContain('"status":"rejected"');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  },
+);
+
+test("a shipped scoped agent name alone does not establish goal ownership", () => {
+  const stream = [
+    JSON.stringify(
+      reviewCall("spec", "Implement this bounded assignment.", {
+        subagent_type: "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-medium",
+      }),
+    ),
+    JSON.stringify(reviewResult("spec")),
+  ].join("\n");
+  const retained = retainedClaudeEvidence(stream);
+  expect(retained).toContain(
+    "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-medium",
+  );
+  expect(retained).not.toContain('"type":"darrow.goal_agent_completion"');
+  expect(hasClaudeGoalAgentEvidence(retained)).toBe(false);
 });
 
 function validClaudePreflightEvents(context = routeEvidenceContext) {
@@ -152,7 +189,7 @@ function validClaudePreflightEvents(context = routeEvidenceContext) {
         `repo\t${context.repoDir}`,
         "base_revision\tfixture",
         "working_tree\tclean",
-        "route\troutine\tclaude\tanthropic\tclaude-sonnet-5\tlow",
+        "route\troutine\tclaude\tanthropic\tclaude-sonnet-5-5\tlow",
         "route_policy_source\troutine\tbundled",
         `workflow\tchange-feature\t${context.pluginDir}/skills/adaptive-goal/references/workflows/change-feature.md`,
       ].join("\n"),
@@ -172,13 +209,13 @@ function validClaudePreflightEvents(context = routeEvidenceContext) {
         "verification_gate\troutine",
         "readiness_selection\tomitted",
         "review_selection\tomitted",
-        "selected_route\tclaude|anthropic|claude-sonnet-5|low",
+        "selected_route\tclaude|anthropic|claude-sonnet-5-5|low",
         "route_source\tpolicy",
       ].join("\n"),
     ),
     ...exchange(
       "toolu_agent_route",
-      `/bin/bash ${context.pluginDir}/bin/adaptive-goal-preflight step runner --ledger ${ledger} --provider anthropic --model claude-sonnet-5 --effort low`,
+      `/bin/bash ${context.pluginDir}/bin/adaptive-goal-preflight step runner --ledger ${ledger} --provider anthropic --model claude-sonnet-5-5 --effort low`,
       [
         "format\tdarrow-goal-step-v1",
         "run_id\tfixture",
@@ -186,9 +223,9 @@ function validClaudePreflightEvents(context = routeEvidenceContext) {
         "step\trunner",
         "status\trecorded",
         "format\tdarrow-claude-agent-route-v1",
-        "selected_route\tclaude\tanthropic\tclaude-sonnet-5\tlow",
-        "subagent_type\tdarrow-adaptive-goal:adaptive-goal-sonnet-5-low",
-        `agent_file\t${context.pluginDir}/agents/adaptive-goal-sonnet-5-low.md`,
+        "selected_route\tclaude\tanthropic\tclaude-sonnet-5-5\tlow",
+        "subagent_type\tdarrow-adaptive-goal:adaptive-goal-sonnet-5-5-low",
+        `agent_file\t${context.pluginDir}/agents/adaptive-goal-sonnet-5-5-low.md`,
       ].join("\n"),
     ),
   ];
@@ -212,7 +249,7 @@ function inlineOwnerPrompt() {
     "Outcome: Implement the requested fixture behavior.",
     "Acceptance criteria: The focused behavior and repository checks pass.",
     "Scope and authority: included=fixture implementation and focused tests; authorized=local edits and checks; forbidden=publication and unrelated work; preserve=all pre-existing work",
-    "Execution: workflow=implement-feature; sequence=inspect fixture, implement behavior, run checks; risk=routine; profile=routine; route=claude|anthropic|claude-sonnet-5|low; capabilities=none",
+    "Execution: workflow=implement-feature; sequence=inspect fixture, implement behavior, run checks; risk=routine; profile=routine; route=claude|anthropic|claude-sonnet-5-5|low; capabilities=none",
     "Verification and gates: readiness=omitted for complete fixture scope; review=omitted for routine work; focused=run the focused test; final=run the repository gate; feedback=pause and relay to this owner; blockers=report evidence and the smallest next action",
     "Completion evidence: report status, files, checks, and remaining risks.",
   ].join("\n");
@@ -222,7 +259,7 @@ function provisionalActivationEvents() {
   const command =
     `/bin/bash /plugin/darrow-adaptive-goal/bin/adaptive-goal-preflight step activate --ledger ${goalLedger} ` +
     "--applied-by native-subagent --boundary native_subagent --agent-id pending " +
-    "--effective-route 'claude|anthropic|claude-sonnet-5|low' --route-verified false";
+    "--effective-route 'claude|anthropic|claude-sonnet-5-5|low' --route-verified false";
   const content = [
     "format\tdarrow-goal-step-v1",
     "run_id\tfixture",
@@ -230,7 +267,7 @@ function provisionalActivationEvents() {
     "step\tactivate",
     "status\trecorded",
     "agent_id\tpending",
-    "effective_route\tclaude|anthropic|claude-sonnet-5|low",
+    "effective_route\tclaude|anthropic|claude-sonnet-5-5|low",
     "route_verified\tfalse",
     "enforcement\thelper",
   ].join("\n");
@@ -433,7 +470,7 @@ function goalReportEvents(
               "risk: routine",
               "profile: routine",
               "harness: claude",
-              "model: anthropic > claude-sonnet-5",
+              "model: anthropic > claude-sonnet-5-5",
               "effort: low",
               "route_applied_by: native-subagent",
               "route_verified: true",
@@ -498,7 +535,7 @@ function reviewCall(
           name: "Agent",
           id: `toolu_${axis}`,
           input: {
-            subagent_type: "darrow-review:review-reader-claude-opus-5-xhigh",
+            subagent_type: "darrow-review:review-reader-claude-opus-5-5-xhigh",
             run_in_background: false,
             prompt,
             ...inputOverrides,
@@ -896,7 +933,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_standards",
               input: {
                 subagent_type:
-                  "darrow-review:review-reader-claude-opus-5-xhigh",
+                  "darrow-review:review-reader-claude-opus-5-5-xhigh",
                 run_in_background: false,
                 prompt: "- review_axis: standards\nsensitive standards task",
               },
@@ -915,7 +952,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_spec",
               input: {
                 subagent_type:
-                  "darrow-review:review-reader-claude-opus-5-xhigh",
+                  "darrow-review:review-reader-claude-opus-5-5-xhigh",
                 run_in_background: false,
                 prompt: "- review_axis: spec\nsensitive spec task",
               },
@@ -965,7 +1002,7 @@ describe("Claude skill activation observation", () => {
       .split("\n")
       .find((line) => line.includes('"name":"Agent"'));
     expect(agentEvent).toContain(
-      '"subagent_type":"darrow-review:review-reader-claude-opus-5-xhigh"',
+      '"subagent_type":"darrow-review:review-reader-claude-opus-5-5-xhigh"',
     );
     expect(agentEvent).not.toContain('"model"');
     expect(agentEvent).toContain("- review_axis: standards");
@@ -1040,7 +1077,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal",
               input: {
                 subagent_type:
-                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-low",
+                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -1058,10 +1095,10 @@ describe("Claude skill activation observation", () => {
       routeEvidenceContext,
     );
     expect(retained).toContain(
-      '"subagent_type":"darrow-adaptive-goal:adaptive-goal-sonnet-5-low","run_in_background":false,"prompt":"- phase: adaptive-goal-runner"',
+      '"subagent_type":"darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low","run_in_background":false,"prompt":"- phase: adaptive-goal-runner"',
     );
     expect(retained).toContain(
-      '"type":"darrow.goal_agent_completion","tool_use_id":"toolu_goal","subagent_type":"darrow-adaptive-goal:adaptive-goal-sonnet-5-low","status":"completed"',
+      '"type":"darrow.goal_agent_completion","tool_use_id":"toolu_goal","subagent_type":"darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low","status":"completed"',
     );
     expect(retained).toContain('"agent_id":"agentgoal"');
     expect(retained).not.toContain("private objective");
@@ -1083,7 +1120,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_inline_goal",
               input: {
                 subagent_type:
-                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-low",
+                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low",
                 run_in_background: false,
                 prompt: inlineOwnerPrompt(),
               },
@@ -1104,7 +1141,7 @@ describe("Claude skill activation observation", () => {
                 command: [
                   "/bin/bash /plugin/darrow-adaptive-goal/bin/claude-owner-route \\",
                   "  --repo /fixture --agent-id agentgoal \\",
-                  "  --selected-model claude-sonnet-5 --selected-effort low",
+                  "  --selected-model claude-sonnet-5-5 --selected-effort low",
                 ].join("\n"),
               },
             },
@@ -1122,8 +1159,8 @@ describe("Claude skill activation observation", () => {
                 "format\tdarrow-claude-owner-route-v1",
                 "agent_id\tagentgoal",
                 "transcript\t/private/agent-agentgoal.jsonl",
-                "observed_route\tclaude\tanthropic\tclaude-sonnet-5\tlow",
-                "selected_route\tclaude\tanthropic\tclaude-sonnet-5\tlow",
+                "observed_route\tclaude\tanthropic\tclaude-sonnet-5-5\tlow",
+                "selected_route\tclaude\tanthropic\tclaude-sonnet-5-5\tlow",
                 "confirmation\tconfirmed",
               ].join("\n"),
             },
@@ -1139,7 +1176,7 @@ describe("Claude skill activation observation", () => {
       routeEvidenceContext,
     );
     expect(retained).toContain(
-      '"subagent_type":"darrow-adaptive-goal:adaptive-goal-sonnet-5-low","run_in_background":false,"prompt":"- phase: adaptive-goal-owner"',
+      '"subagent_type":"darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low","run_in_background":false,"prompt":"- phase: adaptive-goal-owner"',
     );
     expect(retained).toContain(
       '"type":"darrow.goal_agent_completion","tool_use_id":"toolu_inline_goal"',
@@ -1193,13 +1230,13 @@ describe("Claude skill activation observation", () => {
         "",
       ),
       inlineOwnerPrompt().replace(
-        "claude|anthropic|claude-sonnet-5|low",
-        "claude|anthropic|claude-opus-5|high",
+        "claude|anthropic|claude-sonnet-5-5|low",
+        "claude|anthropic|claude-opus-5-5|high",
       ),
       `${inlineOwnerPrompt()}\nExecution: duplicate`,
       inlineOwnerPrompt().replace(
-        "route=claude|anthropic|claude-sonnet-5|low;",
-        "route=claude|anthropic|claude-sonnet-5|low / claude|anthropic|claude-opus-5|high;",
+        "route=claude|anthropic|claude-sonnet-5-5|low;",
+        "route=claude|anthropic|claude-sonnet-5-5|low / claude|anthropic|claude-opus-5-5|high;",
       ),
     ]) {
       const stream = [
@@ -1213,7 +1250,7 @@ describe("Claude skill activation observation", () => {
                 id: "toolu_incomplete_goal",
                 input: {
                   subagent_type:
-                    "darrow-adaptive-goal:adaptive-goal-sonnet-5-low",
+                    "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low",
                   run_in_background: false,
                   prompt,
                 },
@@ -1247,7 +1284,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal",
               input: {
                 subagent_type:
-                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-low",
+                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -1284,7 +1321,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal",
               input: {
                 subagent_type:
-                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-low",
+                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -1349,7 +1386,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal",
               input: {
                 subagent_type:
-                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-low",
+                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -1566,7 +1603,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal",
               input: {
                 subagent_type:
-                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-low",
+                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low",
                 run_in_background: false,
                 prompt: inlineOwnerPrompt(),
               },
@@ -1854,7 +1891,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal",
               input: {
                 subagent_type:
-                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-low",
+                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low",
                 run_in_background: false,
                 prompt: inlineOwnerPrompt(),
               },
@@ -1904,7 +1941,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal",
               input: {
                 subagent_type:
-                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-low",
+                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -1972,7 +2009,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal",
               input: {
                 subagent_type:
-                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-low",
+                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -2013,7 +2050,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal",
               input: {
                 subagent_type:
-                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-low",
+                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low",
                 run_in_background: false,
                 prompt: "private objective",
               },
@@ -2043,7 +2080,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal",
               input: {
                 subagent_type:
-                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-low",
+                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low",
                 run_in_background: false,
                 prompt,
               },
@@ -2280,7 +2317,7 @@ describe("Claude skill activation observation", () => {
         id: "toolu_agent_route",
         input: {
           command:
-            "/bin/bash /plugin/darrow-adaptive-goal/bin/claude-agent-route --provider anthropic --model claude-sonnet-5 --effort low",
+            "/bin/bash /plugin/darrow-adaptive-goal/bin/claude-agent-route --provider anthropic --model claude-sonnet-5-5 --effort low",
         },
       },
     ];
@@ -2478,7 +2515,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal",
               input: {
                 subagent_type:
-                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-low",
+                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -2817,7 +2854,7 @@ describe("Claude skill activation observation", () => {
               command:
                 `/bin/bash /plugin/darrow-adaptive-goal/bin/adaptive-goal-preflight step activate --ledger ${goalLedger} ` +
                 "--applied-by native-subagent --boundary native_subagent --agent-id pending " +
-                "--effective-route 'claude|anthropic|claude-sonnet-5|low' --route-verified false",
+                "--effective-route 'claude|anthropic|claude-sonnet-5-5|low' --route-verified false",
             },
           },
         ],
@@ -2837,7 +2874,7 @@ describe("Claude skill activation observation", () => {
               "step\tactivate",
               "status\trecorded",
               "agent_id\tpending",
-              "effective_route\tclaude|anthropic|claude-sonnet-5|low",
+              "effective_route\tclaude|anthropic|claude-sonnet-5-5|low",
               "route_verified\tfalse",
               "enforcement\thelper",
             ].join("\n"),
@@ -2874,7 +2911,8 @@ describe("Claude skill activation observation", () => {
             name: "Agent",
             id: "toolu_goal",
             input: {
-              subagent_type: "darrow-adaptive-goal:adaptive-goal-sonnet-5-low",
+              subagent_type:
+                "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low",
               run_in_background: false,
               prompt: boundGoalPrompt(),
             },
@@ -3091,7 +3129,7 @@ describe("Claude skill activation observation", () => {
       ),
       ...provisionalActivationEvents(),
       assistantTool("toolu_goal", "Agent", {
-        subagent_type: "darrow-adaptive-goal:adaptive-goal-sonnet-5-low",
+        subagent_type: "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low",
         run_in_background: false,
         prompt: boundGoalPrompt(
           "/private/darrow-goal-contract.fixture/goal-objective.txt",
@@ -3100,11 +3138,11 @@ describe("Claude skill activation observation", () => {
       }),
       JSON.stringify(goalResult("toolu_goal", "agentgoal")),
       assistantTool("toolu_gate", "Bash", {
-        command: `/bin/bash /plugin/darrow-adaptive-goal/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
+        command: `/bin/bash /plugin/darrow-adaptive-goal/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5-5|low' --ledger ${goalLedger}`,
       }),
       toolResult(
         "toolu_gate",
-        "format\tdarrow-claude-route-gate-v1\nagent_id\tagentgoal\nobserved_route\tclaude\tanthropic\tclaude-sonnet-5\tlow\nconfirmation\tconfirmed",
+        "format\tdarrow-claude-route-gate-v1\nagent_id\tagentgoal\nobserved_route\tclaude\tanthropic\tclaude-sonnet-5-5\tlow\nconfirmation\tconfirmed",
       ),
       assistantTool("toolu_release", "Bash", {
         command: `/bin/bash /plugin/darrow-adaptive-goal/bin/adaptive-goal-preflight step release-objective --ledger ${goalLedger} --attachment-dir /private/darrow-goal-contract.fixture --expected-sha256 ${fileBackedDigest}`,
@@ -3148,10 +3186,10 @@ describe("Claude skill activation observation", () => {
       routeEvidenceContext,
     );
     expect(retained).toContain(
-      '"type":"darrow.claude_route_observation","tool_use_id":"toolu_gate","goal_tool_use_id":"toolu_goal","agent_id":"agentgoal","status":"observed","harness":"claude","provider":"anthropic","model":"claude-sonnet-5","effort":"low"',
+      '"type":"darrow.claude_route_observation","tool_use_id":"toolu_gate","goal_tool_use_id":"toolu_goal","agent_id":"agentgoal","status":"observed","harness":"claude","provider":"anthropic","model":"claude-sonnet-5-5","effort":"low"',
     );
     expect(retained).toContain(
-      '"type":"darrow.claude_route_confirmation","tool_use_id":"toolu_gate","goal_tool_use_id":"toolu_goal","agent_id":"agentgoal","status":"confirmed","selectedModel":"claude-sonnet-5","selectedEffort":"low","effectiveModel":"claude-sonnet-5","effectiveEffort":"low"',
+      '"type":"darrow.claude_route_confirmation","tool_use_id":"toolu_gate","goal_tool_use_id":"toolu_goal","agent_id":"agentgoal","status":"confirmed","selectedModel":"claude-sonnet-5-5","selectedEffort":"low","effectiveModel":"claude-sonnet-5-5","effectiveEffort":"low"',
     );
     expect(claudeParentLifecycleOperations(retained)).toContain(
       "after:route-gate-unbound",
@@ -3181,19 +3219,19 @@ describe("Claude skill activation observation", () => {
     expect(claudeGoalRouteEvidence(retained)).toEqual({
       goalToolUseId: "toolu_goal",
       agentId: "agentgoal",
-      subagentType: "darrow-adaptive-goal:adaptive-goal-sonnet-5-low",
+      subagentType: "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low",
       observation: {
         status: "observed",
         harness: "claude",
         provider: "anthropic",
-        model: "claude-sonnet-5",
+        model: "claude-sonnet-5-5",
         effort: "low",
       },
       confirmation: {
         status: "confirmed",
-        selectedModel: "claude-sonnet-5",
+        selectedModel: "claude-sonnet-5-5",
         selectedEffort: "low",
-        effectiveModel: "claude-sonnet-5",
+        effectiveModel: "claude-sonnet-5-5",
         effectiveEffort: "low",
       },
     });
@@ -3246,7 +3284,7 @@ describe("Claude skill activation observation", () => {
     const routeEvidence = claudeGoalRouteEvidence(retained)!;
     expect(
       claudeGoalRouteMatchesSelection(routeEvidence, {
-        model: "claude-sonnet-5",
+        model: "claude-sonnet-5-5",
         effort: "low",
       }),
     ).toBe(true);
@@ -3254,7 +3292,7 @@ describe("Claude skill activation observation", () => {
       claudeGoalRouteReportMatches(
         {
           harness: "claude",
-          model: "anthropic > claude-sonnet-5",
+          model: "anthropic > claude-sonnet-5-5",
           effort: "low",
           route_applied_by: "native-subagent",
           route_verified: "true",
@@ -3262,7 +3300,7 @@ describe("Claude skill activation observation", () => {
           evaluation_child_invocations: "1",
         },
         routeEvidence,
-        { model: "claude-sonnet-5", effort: "low" },
+        { model: "claude-sonnet-5-5", effort: "low" },
       ),
     ).toBe(true);
   });
@@ -3403,7 +3441,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal",
               input: {
                 subagent_type:
-                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-low",
+                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -3421,7 +3459,7 @@ describe("Claude skill activation observation", () => {
               name: "Bash",
               id: "toolu_gate",
               input: {
-                command: `/bin/bash /plugin/darrow-adaptive-goal/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
+                command: `/bin/bash /plugin/darrow-adaptive-goal/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5-5|low' --ledger ${goalLedger}`,
               },
             },
           ],
@@ -3477,7 +3515,7 @@ describe("Claude skill activation observation", () => {
           evaluation_child_invocations: "1",
         },
         routeEvidence,
-        { model: "claude-sonnet-5", effort: "low" },
+        { model: "claude-sonnet-5-5", effort: "low" },
       ),
     ).toBe(true);
     expect(
@@ -3492,14 +3530,14 @@ describe("Claude skill activation observation", () => {
           evaluation_child_invocations: "1",
         },
         { ...routeEvidence, confirmation: { status: "rejected" } },
-        { model: "claude-sonnet-5", effort: "low" },
+        { model: "claude-sonnet-5-5", effort: "low" },
       ),
     ).toBe(false);
     expect(
       claudeGoalRouteReportMatches(
         {
           harness: "claude",
-          model: "anthropic > claude-sonnet-5",
+          model: "anthropic > claude-sonnet-5-5",
           effort: "low",
           route_applied_by: "native-subagent",
           route_verified: "false",
@@ -3507,7 +3545,7 @@ describe("Claude skill activation observation", () => {
           evaluation_child_invocations: "1",
         },
         routeEvidence,
-        { model: "claude-sonnet-5", effort: "low" },
+        { model: "claude-sonnet-5-5", effort: "low" },
       ),
     ).toBe(false);
   });
@@ -3564,7 +3602,7 @@ describe("Claude skill activation observation", () => {
       ),
       ...provisionalActivationEvents().map((line) => JSON.parse(line)),
       toolCall("toolu_goal", "Agent", {
-        subagent_type: "darrow-adaptive-goal:adaptive-goal-sonnet-5-low",
+        subagent_type: "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low",
         run_in_background: false,
         prompt: boundGoalPrompt(
           "/private/darrow-goal-contract.fixture/goal-objective.txt",
@@ -3624,7 +3662,7 @@ describe("Claude skill activation observation", () => {
               id: "toolu_goal",
               input: {
                 subagent_type:
-                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-low",
+                  "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low",
                 run_in_background: false,
                 prompt: boundGoalPrompt(),
               },
@@ -3635,7 +3673,7 @@ describe("Claude skill activation observation", () => {
       goalResult("toolu_goal", "agentgoal"),
       bashCall(
         "toolu_wrong_agent",
-        `/bin/bash /plugin/darrow-adaptive-goal/bin/claude-route-gate --repo /fixture --agent-id otheragent --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
+        `/bin/bash /plugin/darrow-adaptive-goal/bin/claude-route-gate --repo /fixture --agent-id otheragent --selected 'claude|anthropic|claude-sonnet-5-5|low' --ledger ${goalLedger}`,
       ),
       result(
         "toolu_wrong_agent",
@@ -3643,7 +3681,7 @@ describe("Claude skill activation observation", () => {
       ),
       bashCall(
         "toolu_wrong_route",
-        `/bin/bash /plugin/darrow-adaptive-goal/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-opus-5|high' --ledger ${goalLedger}`,
+        `/bin/bash /plugin/darrow-adaptive-goal/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-opus-5-5|high' --ledger ${goalLedger}`,
       ),
       result(
         "toolu_wrong_route",
@@ -3651,7 +3689,7 @@ describe("Claude skill activation observation", () => {
       ),
       bashCall(
         "toolu_wrong_output",
-        `/bin/bash /plugin/darrow-adaptive-goal/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
+        `/bin/bash /plugin/darrow-adaptive-goal/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5-5|low' --ledger ${goalLedger}`,
       ),
       result(
         "toolu_wrong_output",
@@ -3669,27 +3707,27 @@ describe("Claude skill activation observation", () => {
       result("toolu_compound_release", "private compound result"),
       bashCall(
         "toolu_fake_path",
-        `/bin/bash /tmp/darrow-adaptive-goal/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
+        `/bin/bash /tmp/darrow-adaptive-goal/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5-5|low' --ledger ${goalLedger}`,
       ),
       result(
         "toolu_fake_path",
-        "format\tdarrow-claude-route-gate-v1\nagent_id\tagentgoal\nobserved_route\tclaude\tanthropic\tclaude-sonnet-5\tlow\nconfirmation\tconfirmed",
+        "format\tdarrow-claude-route-gate-v1\nagent_id\tagentgoal\nobserved_route\tclaude\tanthropic\tclaude-sonnet-5-5\tlow\nconfirmation\tconfirmed",
       ),
       bashCall(
         "toolu_wrong_repo",
-        `/bin/bash /plugin/darrow-adaptive-goal/bin/claude-route-gate --repo /other --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
+        `/bin/bash /plugin/darrow-adaptive-goal/bin/claude-route-gate --repo /other --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5-5|low' --ledger ${goalLedger}`,
       ),
       result(
         "toolu_wrong_repo",
-        "format\tdarrow-claude-route-gate-v1\nagent_id\tagentgoal\nobserved_route\tclaude\tanthropic\tclaude-sonnet-5\tlow\nconfirmation\tconfirmed",
+        "format\tdarrow-claude-route-gate-v1\nagent_id\tagentgoal\nobserved_route\tclaude\tanthropic\tclaude-sonnet-5-5\tlow\nconfirmation\tconfirmed",
       ),
       bashCall(
         "toolu_retry",
-        `/bin/bash /plugin/darrow-adaptive-goal/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5|low' --ledger ${goalLedger}`,
+        `/bin/bash /plugin/darrow-adaptive-goal/bin/claude-route-gate --repo /fixture --agent-id agentgoal --selected 'claude|anthropic|claude-sonnet-5-5|low' --ledger ${goalLedger}`,
       ),
       result(
         "toolu_retry",
-        "format\tdarrow-claude-route-gate-v1\nagent_id\tagentgoal\nobserved_route\tclaude\tanthropic\tclaude-sonnet-5\tlow\nconfirmation\tconfirmed",
+        "format\tdarrow-claude-route-gate-v1\nagent_id\tagentgoal\nobserved_route\tclaude\tanthropic\tclaude-sonnet-5-5\tlow\nconfirmation\tconfirmed",
       ),
     ]
       .map(event)
@@ -3719,7 +3757,7 @@ describe("Claude skill activation observation", () => {
       JSON.stringify({
         type: "darrow.goal_agent_completion",
         tool_use_id: "toolu_goal",
-        subagent_type: "darrow-adaptive-goal:adaptive-goal-sonnet-5-low",
+        subagent_type: "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low",
         status: "completed",
         agent_id: "agentgoal",
       }),
@@ -3731,7 +3769,7 @@ describe("Claude skill activation observation", () => {
         status: "observed",
         harness: "claude",
         provider: "anthropic",
-        model: "claude-opus-5",
+        model: "claude-opus-5-5",
         effort: "high",
       }),
     ].join("\n");
@@ -3742,19 +3780,19 @@ describe("Claude skill activation observation", () => {
     const evidence = {
       goalToolUseId: "toolu_goal",
       agentId: "agentgoal",
-      subagentType: "darrow-adaptive-goal:adaptive-goal-sonnet-5-low",
+      subagentType: "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low",
       observation: {
         status: "observed" as const,
         harness: "claude",
         provider: "anthropic",
-        model: "claude-opus-5",
+        model: "claude-opus-5-5",
         effort: "high",
       },
       confirmation: {
         status: "rejected" as const,
-        selectedModel: "claude-sonnet-5",
+        selectedModel: "claude-sonnet-5-5",
         selectedEffort: "low",
-        effectiveModel: "claude-opus-5",
+        effectiveModel: "claude-opus-5-5",
         effectiveEffort: "high",
       },
     };
@@ -3767,7 +3805,7 @@ describe("Claude skill activation observation", () => {
     };
     expect(
       claudeGoalRouteMatchesSelection(evidence, {
-        model: "claude-sonnet-5",
+        model: "claude-sonnet-5-5",
         effort: "low",
       }),
     ).toBe(false);
@@ -3775,22 +3813,22 @@ describe("Claude skill activation observation", () => {
       claudeGoalRouteReportMatches(
         {
           ...base,
-          model: "anthropic > claude-opus-5",
+          model: "anthropic > claude-opus-5-5",
           effort: "high",
         },
         evidence,
-        { model: "claude-sonnet-5", effort: "low" },
+        { model: "claude-sonnet-5-5", effort: "low" },
       ),
     ).toBe(true);
     expect(
       claudeGoalRouteReportMatches(
         {
           ...base,
-          model: "anthropic > claude-sonnet-5",
+          model: "anthropic > claude-sonnet-5-5",
           effort: "low",
         },
         evidence,
-        { model: "claude-sonnet-5", effort: "low" },
+        { model: "claude-sonnet-5-5", effort: "low" },
       ),
     ).toBe(false);
   });
