@@ -1,6 +1,6 @@
 {
   "name": "darrow-adaptive-goal",
-  "version": "0.25.0",
+  "version": "0.25.1",
   "description": "Adaptive Goal: diagnose host capacity or coordinate bounded engineering with a main-thread native goal",
   "author": {
     "name": "Björn Rochel",

@@ -99,7 +99,7 @@ def test_override_preserves_other_bundled_profiles(repo: Path) -> None:
         ("routine", "gpt-6-luna", "medium"),
         ("routine-plus", "gpt-6-luna", "high"),
         ("scaled", "gpt-6-sol", "high"),
-        ("repo-wide", "gpt-6-sol", "high"),
+        ("repo-wide", "gpt-6.1-sol", "high"),
         ("judgment", "gpt-6-astra", "high"),
     ):
         assert f"route\t{profile}\tcodex\topenai\t{model}\t{effort}\n" in out

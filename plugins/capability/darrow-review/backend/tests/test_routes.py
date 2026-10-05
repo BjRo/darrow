@@ -32,7 +32,7 @@ def config(repo: Path, value: object) -> Path:
 
 def test_bundled_override_and_application(repo: Path, tmp_path: Path) -> None:
     default = cli.route_command(["resolve", "--repo", str(repo), "--host", "codex"])
-    assert Records(default).object("selected_route")["model"] == "gpt-6-sol"
+    assert Records(default).object("selected_route")["model"] == "gpt-6.1-sol"
     assert Records(default).object("selected_route")["effort"] == "xhigh"
     config(
         repo,
@@ -98,10 +98,10 @@ def test_invalid_configuration(repo: Path, value: object) -> None:
 
 
 @pytest.mark.parametrize("effort", ["high", "xhigh", "max"])
-def test_gpt_6_sol_is_a_supported_review_override(repo: Path, effort: str) -> None:
-    config(repo, {"reviewers": [reviewer(model="gpt-6-sol", effort=effort)]})
+def test_gpt_6_1_sol_is_a_supported_review_override(repo: Path, effort: str) -> None:
+    config(repo, {"reviewers": [reviewer(model="gpt-6.1-sol", effort=effort)]})
     selected = routing.resolve(str(repo), "codex")
-    assert selected.fields() == ["codex", "openai", "gpt-6-sol", effort]
+    assert selected.fields() == ["codex", "openai", "gpt-6.1-sol", effort]
     assert selected.source == "repository"
 
 
@@ -364,7 +364,7 @@ def test_empty_or_unrelated_policy_uses_bundled_route(repo: Path, text: str) -> 
     path.write_text(text, encoding="utf-8")
     selected = routing.resolve(str(repo), "codex")
     assert selected.source == "bundled"
-    assert Records(selected.body()).object("selected_route")["model"] == "gpt-6-sol"
+    assert Records(selected.body()).object("selected_route")["model"] == "gpt-6.1-sol"
     assert Records(selected.body()).object("selected_route")["effort"] == "xhigh"
 
 

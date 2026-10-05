@@ -4,7 +4,7 @@
       "host": "codex",
       "harness": "codex",
       "provider": "openai",
-      "model": "gpt-6-sol",
+      "model": "gpt-6.1-sol",
       "effort": "xhigh"
     },
     {

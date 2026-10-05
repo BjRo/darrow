@@ -28,9 +28,9 @@ For a new bounded agent, use `spawn_agent` with:
 - a clear statement that the child owns its assignment, not the delivery goal.
 
 Implementation and repair use the preflight-selected implementation route.
-Verification coordination uses `gpt-6-sol/medium` or a stronger authorized route.
+Verification coordination uses `gpt-6.1-sol/medium` or a stronger authorized route.
 Pass `gpt-6-luna/medium` explicitly for review coordination through verification;
-review's independent readers retain their own `gpt-6-sol/xhigh` route. Do not
+review's independent readers retain their own `gpt-6.1-sol/xhigh` route. Do not
 replace capability internals with generic children or inherit the implementor's
 route into assessment roles.
 
