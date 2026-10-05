@@ -24,7 +24,7 @@ def installation(tmp_path: Path) -> Installation:
             model="gpt-5.6-terra",
             effort="medium",
             credential_home=str(tmp_path / "credentials"),
-            subscription_only_confirmed=True,
+            account_usage_accepted=True,
             effects="claims,questions,worktrees,recipe,commits,push,pr,archives",
         )
     )

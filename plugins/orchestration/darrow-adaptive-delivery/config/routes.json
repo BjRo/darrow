@@ -25,7 +25,7 @@
       "profile": "scaled",
       "harness": "codex",
       "provider": "openai",
-      "model": "gpt-5.6-sol",
+      "model": "gpt-6-sol",
       "effort": "medium",
       "fallbackModel": "none",
       "fallbackEffort": "none"
@@ -35,7 +35,7 @@
       "profile": "repo-wide",
       "harness": "codex",
       "provider": "openai",
-      "model": "gpt-5.6-sol",
+      "model": "gpt-6-sol",
       "effort": "high",
       "fallbackModel": "none",
       "fallbackEffort": "none"

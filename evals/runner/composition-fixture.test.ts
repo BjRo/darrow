@@ -1,10 +1,69 @@
 import { expect, test } from "bun:test";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { parse } from "yaml";
 import { runChecks } from "./checks";
 import { buildFixture, destroyFixture } from "./fixture";
 import type { EvalCase } from "./types";
+
+for (const variant of ["existing-pr", "replacement"]) {
+  test(`composition ${variant} mounts complete Git mechanics independently`, async () => {
+    const projectRoot = resolve(import.meta.dir, "../..");
+    const path = resolve(
+      projectRoot,
+      `plugins/task-recipe/darrow-ticket-to-pr/skills/ticket-to-pr/evals/composition-${variant}.yaml`,
+    );
+    const entry = parse(await readFile(path, "utf8")) as EvalCase;
+    const repo = await buildFixture({
+      fixture: entry.fixture,
+      caseDir: dirname(path),
+      skillDir: resolve(dirname(path), ".."),
+      skillMounts: [],
+      mountPluginSkills: entry.mount_plugin_skills,
+      additionalSkillDirs: (entry.additional_skills ?? []).map((item) =>
+        resolve(projectRoot, item),
+      ),
+      additionalPluginRoots: (entry.additional_plugins ?? []).map((item) =>
+        resolve(projectRoot, item),
+      ),
+      sourceCodexPlugin: true,
+      sourceClaudePlugin: true,
+    });
+    try {
+      for (const plugins of [
+        ".git/eval-marketplace/plugins",
+        ".git/eval-plugins",
+      ]) {
+        const mounted = (await readdir(resolve(repo, plugins))).filter((name) =>
+          name.endsWith("-darrow-git"),
+        );
+        expect(mounted).toHaveLength(1);
+        const backend = `${plugins}/${mounted[0]}/backend`;
+        const results = await runChecks(repo, [
+          {
+            name: "installed branch capability discovers exact ticket branch",
+            run: `uv run --quiet --no-project ${backend}/scripts/run_locked.py darrow-prepare-task-branch discover --ticket-token GH-42`,
+            expect_regex: "fix/GH-42-timeout",
+          },
+        ]);
+        expect(results.filter((result) => !result.passed)).toEqual([]);
+      }
+      if (variant === "replacement") {
+        const [binding] = await runChecks(repo, [
+          {
+            name: "ticket binds replacement among installed publishers",
+            run: "fetch-work-item https://example.invalid/tickets/42",
+            expect_regex:
+              "Publication provider: use the advertised ship-proposal capability",
+          },
+        ]);
+        expect(binding?.passed).toBe(true);
+      }
+    } finally {
+      await destroyFixture(repo);
+    }
+  }, 30000);
+}
 
 test("composition records only successful UV publication", async () => {
   const path = resolve(

@@ -1,6 +1,7 @@
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { atomicWriteJson } from "./artifacts";
 import { codexAgentConcurrencyEvidence } from "./codex-config";
+import { nativeGoalCheck } from "./native-goal";
 import {
   checkpointActiveRun,
   finalizeActiveRun,
@@ -34,6 +35,10 @@ import {
   applySemanticOutputGate,
   validateSemanticOutputChecks,
 } from "./semantic-output";
+import {
+  runSemanticArtifactChecks,
+  validateSemanticArtifact,
+} from "./semantic-artifact";
 import { renderParticipantPrompt } from "./prompt";
 import {
   runChecks,
@@ -115,6 +120,7 @@ interface SemanticOutputConfig {
 }
 
 interface RunCaseOptions {
+  codexEntrypoint?: "exec" | "app-server";
   assertedEffectiveOwnerRoute?: { model: string; effort: string };
   ownerEvaluationMode: "passive" | "enforced";
   evalCase: EvalCase;
@@ -300,6 +306,13 @@ function validateCompositionPaths(evalCase: EvalCase): void {
 }
 
 function validateCaseConfiguration(evalCase: EvalCase): void {
+  if (
+    evalCase.native_goal !== undefined &&
+    !["required", "forbidden"].includes(evalCase.native_goal)
+  )
+    throw new Error(
+      `${evalCase.id}: native_goal must be required or forbidden`,
+    );
   validateOptionalBoolean(evalCase, "goal_route_checks");
   validateOptionalBoolean(evalCase, "expect_head_change");
   validateOptionalBoolean(evalCase, "adaptive_delivery_composition");
@@ -322,7 +335,11 @@ function validateCaseConfiguration(evalCase: EvalCase): void {
     evalCase.semantic_output_checks ?? [],
     `${evalCase.id} semantic_output_checks`,
   );
-  const errors = [...regexErrors, ...semanticErrors];
+  const artifactErrors = validateSemanticArtifact(
+    evalCase.semantic_artifact,
+    `${evalCase.id} semantic_artifact`,
+  );
+  const errors = [...regexErrors, ...semanticErrors, ...artifactErrors];
   if (errors.length) throw new Error(errors.join("; "));
 }
 
@@ -492,14 +509,14 @@ function evaluationDigest(options: RunCaseOptions): string {
     goal_route_checks: goalRouteChecks = true,
     expect_head_change: expectHeadChange = null,
   } = evalCase;
-  const participantPrompt = renderParticipantPrompt(
-    condition?.text.trim()
-      ? `${condition.text.trim()}\n\n${evalCase.prompt}`
-      : evalCase.prompt,
-    adapter.name,
+  const participantPrompt = digestParticipantPrompt(
     evalCase,
+    adapter.name,
+    condition?.text,
   );
   const evidence = stableEvidence({
+    codexEntrypoint: options.codexEntrypoint,
+    nativeGoal: evalCase.native_goal,
     ownerEvaluationMode: options.ownerEvaluationMode,
     ...codexAgentConcurrencyEvidence(adapter.name),
     participantPrompt,
@@ -527,6 +544,20 @@ function evaluationDigest(options: RunCaseOptions): string {
     judge: judgeEvidence(judge),
   });
   return new Bun.CryptoHasher("sha256").update(evidence).digest("hex");
+}
+
+function digestParticipantPrompt(
+  evalCase: EvalCase,
+  adapterName: string,
+  condition?: string,
+): string {
+  return renderParticipantPrompt(
+    condition?.trim()
+      ? `${condition.trim()}\n\n${evalCase.prompt}`
+      : evalCase.prompt,
+    adapterName,
+    evalCase,
+  );
 }
 
 function goalRouteControl(
@@ -728,6 +759,8 @@ function adaptiveDeliveryReportChecks(
   harness: HarnessResult,
   adapterName: string,
 ): CheckResult[] {
+  if (evalCase.native_goal !== undefined)
+    return mainThreadReportChecks(evalCase.native_goal, harness);
   const ownsAdaptiveDelivery = evalCase.skillDir.endsWith("/adaptive-delivery");
   const ownershipChecks = adaptiveDeliveryOwnershipChecks(harness.raw);
   const nativeClaudeRouteChecks = nativeClaudeRouteChecksFor(
@@ -767,6 +800,17 @@ function adaptiveDeliveryReportChecks(
     ...ownershipChecks,
     ...nativeClaudeRouteChecks,
     removedCanonicalGoalReportCheck(hasReport),
+  ];
+}
+
+function mainThreadReportChecks(
+  expected: "required" | "forbidden",
+  harness: HarnessResult,
+): CheckResult[] {
+  return [
+    nativeGoalCheck(harness.raw, expected),
+    internalGoalRecordCheck(harness.resultText),
+    removedCanonicalGoalReportCheck(hasCanonicalGoalReport(harness.resultText)),
   ];
 }
 
@@ -987,6 +1031,31 @@ async function evaluateQuality(
   });
 }
 
+async function evaluateSemanticArtifact(
+  options: RunCaseOptions,
+  repoDir: string,
+) {
+  const config = options.evalCase.semantic_artifact;
+  if (!config) return undefined;
+  return runSemanticArtifactChecks({
+    adapter: options.semanticOutput.adapter,
+    repoDir,
+    config,
+    model: options.semanticOutput.model,
+    effort: options.semanticOutput.effort,
+  });
+}
+
+async function retainHarnessTrace(repoDir: string, harness: HarnessResult) {
+  await writeFile(
+    join(repoDir, ".git", "retained-harness.jsonl"),
+    harness.raw,
+    {
+      mode: 0o600,
+    },
+  );
+}
+
 async function evaluateTrial(
   options: RunCaseOptions,
   context: TrialContext,
@@ -1001,20 +1070,17 @@ async function evaluateTrial(
     /^format\tdarrow-ticket-pipeline-result-v1$/m.test(harness.resultText)
       ? observeCodexTicketPipelineRoutes(harness.raw)
       : undefined;
-  await writeFile(
-    join(repoDir, ".git", "retained-harness.jsonl"),
-    harness.raw,
-    { mode: 0o600 },
-  );
+  await retainHarnessTrace(repoDir, harness);
   const baseChecks = await trialChecks(
     options,
     context,
     observedGoalRouteApplication,
   );
+  const artifactGate = await evaluateSemanticArtifact(options, repoDir);
   const gate = await evaluateSemanticOutput(
     options,
     harness.resultText,
-    baseChecks,
+    [...baseChecks, ...(artifactGate?.checks ?? [])],
     harness.ok,
   );
   const judged = await evaluateQuality(options, repoDir, gate.checks);
@@ -1034,6 +1100,7 @@ async function evaluateTrial(
         observedTicketPipelineRoutes?.length,
     ),
     semanticOutput: gate.semanticOutput,
+    semanticArtifact: artifactGate?.result,
     judge: judged,
   };
 }
@@ -1103,6 +1170,7 @@ async function evaluateLiveTrial(
           : undefined,
       ),
       ownerEvaluationMode: options.ownerEvaluationMode,
+      codexEntrypoint: options.codexEntrypoint,
     },
   });
   throwIfInterrupted();
@@ -1334,6 +1402,7 @@ function summarizeCase(
   const durations = trialResults.map((t) => t.harness.durationMs);
   return {
     caseId: evalCase.id,
+    codexEntrypoint: options.codexEntrypoint,
     ...codexAgentConcurrencyEvidence(adapter.name),
     ownerEvaluationMode: options.ownerEvaluationMode,
     expectedEffectiveOwnerRoute: options.assertedEffectiveOwnerRoute,
@@ -1497,6 +1566,7 @@ const { values } = parseArgs({
     threshold: { type: "string", default: "0.8" },
     dry: { type: "boolean", default: false },
     "owner-evaluation": { type: "string", default: "enforced" },
+    "codex-entrypoint": { type: "string" },
     condition: { type: "string" },
     "without-skill": { type: "boolean", default: false },
     "human-review-minutes": { type: "string" },
@@ -1530,6 +1600,17 @@ const { values } = parseArgs({
 });
 
 const trials = Number(values.trials);
+const codexEntrypoint = values["codex-entrypoint"];
+if (
+  codexEntrypoint !== undefined &&
+  (values.harness !== "codex" ||
+    !["exec", "app-server"].includes(codexEntrypoint))
+) {
+  console.error(
+    "--codex-entrypoint requires --harness codex and exec or app-server",
+  );
+  process.exit(1);
+}
 const ownerEvaluationMode = values["owner-evaluation"];
 if (ownerEvaluationMode !== "passive" && ownerEvaluationMode !== "enforced") {
   console.error("--owner-evaluation must be passive or enforced");
@@ -1751,6 +1832,15 @@ if (values["skill-dir"]) {
   }
 }
 for (const evalCase of cases) {
+  if (
+    evalCase.native_goal !== undefined &&
+    values.harness === "codex" &&
+    (codexEntrypoint !== "app-server" || ownerEvaluationMode !== "passive")
+  ) {
+    throw new Error(
+      `${evalCase.id}: native_goal requires --codex-entrypoint app-server --owner-evaluation passive`,
+    );
+  }
   const activationErrors = [
     ...validateActivationCase(evalCase),
     ...(await validateMountedActivationTarget(evalCase)),
@@ -1812,6 +1902,7 @@ const runIdentity = new Bun.CryptoHasher("sha256")
     stableEvidence({
       cases: cases.map((evalCase) =>
         evaluationDigest({
+          codexEntrypoint: codexEntrypoint as "exec" | "app-server" | undefined,
           ownerEvaluationMode,
           evalCase,
           adapter,
@@ -1854,6 +1945,7 @@ try {
     const caseModel = caseRoute?.model ?? model;
     const caseEffort = caseRoute?.effort ?? effort;
     const caseOptions: RunCaseOptions = {
+      codexEntrypoint: codexEntrypoint as "exec" | "app-server" | undefined,
       ownerEvaluationMode,
       evalCase,
       adapter,

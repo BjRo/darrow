@@ -3,11 +3,11 @@ invariant: ADL-V1,ADL-C2,ADL-L1,ADL-L2
 goal_report: forbidden
 goal_route_checks: false
 prompt: >-
-  {{skill_invocation}} Change requireMfa from false to true in auth-policy.js.
-  This authorization boundary is high risk, but localized and fully specified.
-  Keep it local. Acceptance is bash check.sh. The advertised independent review
-  is available; no compatible verification coordinator is installed. Do not
-  install capabilities or substitute a direct review route.
+  {{skill_invocation}} Change requireMfa from false to true in auth-policy.js. This
+  authorization boundary is high risk, but localized and fully specified. Keep it local.
+  Acceptance is bash check.sh. The advertised independent review is available; no
+  compatible verification coordinator is installed. Do not install capabilities or
+  substitute a direct review route.
 fixture:
   commits:
     - message: "chore: baseline"
@@ -25,11 +25,12 @@ checks:
 semantic_output_checks:
   - name: verification availability gates launch
     proposition: >-
-      The response identifies unavailable required verification as preventing
-      this launch and does not substitute the available independent review.
-      "Status: launch_required" with that missing-capability explanation is a
-      valid stop response, not a claim that launch proceeded. It must not claim
-      implementation occurred, waive verification, or say an owner was launched.
+      The response identifies unavailable required verification as preventing this
+      launch and does not substitute the available independent review. "Status:
+      launch_required" with that missing-capability explanation is a valid stop
+      response, not a claim that launch proceeded. It must not claim implementation
+      occurred, waive verification, or say an owner was launched.
 transcript_checks:
   - name: no owner is launched to discover the missing dependency
     not_regex: '"tool":"spawn_agent"|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"'
+native_goal: forbidden

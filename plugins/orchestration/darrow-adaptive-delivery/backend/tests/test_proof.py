@@ -9,6 +9,13 @@ import pytest
 from darrow_adaptive_delivery.fixtures import proof
 
 
+@pytest.fixture(autouse=True)
+def review_state(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    state = repo.parent / "external-review-state"
+    state.mkdir()
+    monkeypatch.setenv("DARROW_REVIEW_STATE_DIR", str(state))
+
+
 def write(path: Path, text: str = "provider fixture\n") -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8", newline="\n")
@@ -38,7 +45,8 @@ def calls(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, ...]]:
 
 def comprehensive(repo: Path) -> Path:
     return write(
-        repo / ".git/darrow-review.original/result.json",
+        repo.parent
+        / "external-review-state/repository/darrow-review.original/result.json",
         json.dumps(
             {
                 "format": "darrow-review-result-v3",
@@ -52,7 +60,8 @@ def comprehensive(repo: Path) -> Path:
 
 def verification(repo: Path) -> Path:
     return write(
-        repo / ".git/darrow-review.repair/verification.json",
+        repo.parent
+        / "external-review-state/repository/darrow-review.repair/verification.json",
         json.dumps(
             {
                 "format": "darrow-review-verification-v3",
@@ -62,6 +71,32 @@ def verification(repo: Path) -> Path:
             }
         ),
     )
+
+
+def test_completion_accepts_current_external_review_state(
+    repo: Path, calls: list[tuple[str, ...]], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    provider(repo)
+    old = comprehensive(repo)
+    state = repo.parent / "selected-review-state"
+    record = write(
+        state / "repository/darrow-review.original/result.json", old.read_text()
+    )
+    monkeypatch.setenv("DARROW_REVIEW_STATE_DIR", str(state))
+    assert proof.validate(repo, "complete", str(record)).endswith(str(record) + "\n")
+    assert (repo / ".git/goal-complete").read_text() == "complete\n"
+
+
+@pytest.mark.parametrize("value", ["", "relative-state"])
+def test_review_state_requires_absolute_fixture_root(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
+    record = comprehensive(repo)
+    monkeypatch.setenv("DARROW_REVIEW_STATE_DIR", value)
+    with pytest.raises(
+        proof.InvalidProofError, match="absolute DARROW_REVIEW_STATE_DIR"
+    ):
+        proof.validate(repo, "complete", str(record))
 
 
 def test_clear_proof_delegates_and_binds_current_candidate(
@@ -222,14 +257,50 @@ def test_verification_requires_clear_and_original(
     with pytest.raises(proof.InvalidProofError, match=r"original.*missing"):
         proof.validate(repo, "complete", str(record))
     original = comprehensive(repo)
-    write(repo / ".git/darrow-review.duplicate/result.json", original.read_text())
-    with pytest.raises(proof.InvalidProofError, match=r"original.*ambiguous"):
-        proof.validate(repo, "complete", str(record))
+    write(
+        original.parent.parent / "darrow-review.duplicate/result.json",
+        original.read_text(),
+    )
+    assert proof.validate(repo, "complete", str(record)).startswith(
+        "valid clear review"
+    )
     record.write_text(
         record.read_text().replace('"outcome": "clear"', '"outcome": "continue"')
     )
     with pytest.raises(proof.InvalidProofError, match="verification is not clear"):
         proof.validate(repo, "complete", str(record))
+
+
+@pytest.mark.parametrize("matching", [False, True])
+def test_verification_binds_findings_among_reports_for_one_target(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, matching: bool
+) -> None:
+    provider(repo)
+    decoy = comprehensive(repo)
+    original = write(
+        decoy.parent.parent / "darrow-review.bound/result.json", decoy.read_text()
+    )
+    repaired = verification(repo)
+
+    def invoke(_backend: Path, _repo: Path, *args: str) -> str:
+        if args[1] == "validate-original" and (
+            not matching or args[2] != str(original)
+        ):
+            raise proof.InvalidProofError("complete ordered finding set differs")
+        return json.dumps({"target": "WORKTREE@current"})
+
+    monkeypatch.setattr(proof, "invoke", invoke)
+    if matching:
+        assert proof.validate(repo, "complete", str(repaired)).startswith(
+            "valid clear review"
+        )
+        assert (repo / ".git/goal-complete").is_file()
+    else:
+        with pytest.raises(
+            proof.InvalidProofError, match=r"original.*missing|original.*match"
+        ):
+            proof.validate(repo, "complete", str(repaired))
+        assert not (repo / ".git/goal-complete").exists()
 
 
 @pytest.mark.parametrize(

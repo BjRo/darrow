@@ -1,107 +1,85 @@
-# Codex subagent owner
+# Codex native goal and bounded assignments
 
-Use this guide after preflight, readiness, capability binding, route selection,
-and contract compilation are complete.
+Use after read-only preflight, readiness, binding and implementation route selection.
 
-## Feedback continuation fast path
+## Main-thread goal
 
-When the current user message unambiguously addresses the retained owner—an
-answer, correction, new constraint, status request, or cancellation—take this
-path before any other action or response. No pending question is required.
+Keep overall ownership in this original thread. Use native `create_goal` with
+an objective of at most 4,000 Unicode characters: outcome, material acceptance,
+authority and completion conditions. Supply `token_budget` only if explicitly
+requested. Continue a matching active goal; never overwrite an unrelated one.
+Keep workflow, routing and coordination instructions in the skill and conversation.
 
-1. Relay exactly once: use `followup_task` for an idle or paused owner, or
-   `send_message` for an owner that is still running.
-2. Set `target` to the retained canonical owner reference.
-3. Set `message` to the complete current user message byte-for-byte. Its first
-   and last characters must be the user's first and last characters. Add no
-   prefix, suffix, quotation, summary, explanation, or lifecycle marker.
-4. Wait for that same owner and relay its result.
+Require successful native goal activation before implementation or assessment.
+If goal controls are unavailable or refuse activation, report `launch_required`
+with that concrete boundary. Do not launch an owner child, nested Codex process,
+custom continuation loop or scheduler. Native host continuation keeps the same
+main thread working.
 
-For explicit cancellation, also use the available stop/interrupt control and
-report its result. Do not infer that an in-flight effect was prevented.
+## Bounded delegation
 
-Keep `target` and all routing metadata outside `message`. Do not repeat
-preflight, readiness, routing, launch, or the feedback content on this path.
+For a new bounded agent, use `spawn_agent` with:
 
-## Launch
+- `fork_turns: none`;
+- a `task_name` containing only lowercase letters, digits and underscores;
+- explicit `model` and `reasoning_effort` for that role;
+- a self-contained assignment, relevant acceptance and authority, repository and
+  scope, preserved work, required checks and exact public skill references;
+- a clear statement that the child owns its assignment, not the delivery goal.
 
-Require the host-visible subagent control. Spawn exactly one subagent with:
+Implementation and repair use the preflight-selected implementation route.
+Verification coordination uses `gpt-6-sol/medium` or a stronger authorized route.
+Pass `gpt-6-luna/medium` explicitly for review coordination through verification;
+review's independent readers retain their own `gpt-6-sol/xhigh` route. Do not
+replace capability internals with generic children or inherit the implementor's
+route into assessment roles.
 
-- `fork_turns` set to `none`;
-- `model` set to the selected concrete Codex model;
-- `reasoning_effort` set to the selected effort;
-- the complete task whose first line is exactly
-  `- phase: adaptive-delivery-owner`, followed by an explicit sole-owner instruction; and
-- no surrounding explanation or second objective.
+A fresh child reads and follows the relevant bound skills. No tool named after
+the skill is required. Include installed absolute public instruction paths;
+never reconstruct them from a name. An unreadable reference is a concrete gap.
 
-The accepted spawn result proves application of the selected model and effort.
-Retain its exact host-returned canonical reference for every wait or
-continuation. A caller-selected task name is optional and is not ownership
-evidence. Do not
-create a nested goal, spawn another adaptive owner, or start a nested Codex
-process.
+Retain accepted child identities and results. Wait for conflicting work to settle
+before assigning more work. Children do not invoke Adaptive Delivery, create
+overall goals, expand authority or decide overall completion. A rejected route
+does not authorize silently switching models.
 
-If the spawn is rejected or unavailable, return `Status: launch_required` with
-the selected route and preserve the product tree. Do not retry on another route.
+Reuse the accepted implementor for subsequent implementation and repairs. Use
+`followup_task` for an idle child or steer active work through `send_message`,
+targeting its retained identity. Supply concrete changes, findings, constraints
+and checks; keep workflow ordering and repair accounting in the main thread.
+Replace the implementor only for a concrete availability, route or scope mismatch,
+with the necessary context and prior work. Replacement grants no extra attempts.
 
-## Parent boundary
+## Coordination and feedback
 
-Once the spawn is accepted, the parent performs no repository command,
-inspection, edit, verification, capability invocation, or external effect. Wait
-for the accepted owner and use only its returned facts.
+The main thread may inspect current state, run checks, invoke authorized bound
+operations, and validate returned evidence. It arranges selected verification,
+combined repairs and fresh follow-up through the capability's public contract.
+It does not take over provider assessment internals.
 
-The owner invokes selected verification with the compiled review binding,
-criteria, current checks and closed finding/repair history. Bounded assessment
-contexts return their complete results to verification and then to this owner;
-they inherit scope and authority without owning repairs, budgets or completion.
-The owner waits for the combined conclusion and applies one shared repair budget.
+A missing material decision stops affected mutation. Ask the user here, preserve
+the same goal and repair history, and update affected children with every
+relevant constraint. Use `send_message` for a running child or `followup_task`
+for an idle child; interrupt affected work when needed. Preserve the complete
+answer when a repository acknowledgement requires it, and require successful
+acknowledgement before mutation. Report unconfirmed delivery or stopping honestly.
 
-The owner may invoke capability-internal agents when a bound skill requires
-them; those are not replacement adaptive owners. It must not invoke
-`adaptive-delivery` or launch another task beginning with the adaptive-owner marker.
+Native `paused` status requires the user's explicit pause request. A pending
+question or instruction to wait stops affected work without inventing a pause
+transition. Native continuation does not release a user-owned restriction; keep
+affected work read-only until the user's actual answer or authorization arrives.
+Respect
+native blocked-state recurrence conditions. On an answer, continue the same goal
+and preserve consumed attempts; do not create another goal. Status questions do
+not cancel work. Cancellation stops work and reports already performed effects.
 
-## Feedback and continuation
+## Completion
 
-For every answer, correction, added constraint, or status request delivered
-through `followup_task` or `send_message`, preserve every instruction and
-constraint from the user's current message. Do not omit, weaken, broaden, or
-translate an implementation property into merely equivalent output behavior.
-The `target` argument carries the retained owner identity; keep that transport
-metadata separate from the feedback content.
+Apply section 8 of the skill before native completion. Consume actual check,
+capability and publication evidence; resolve missing or contradictory handoffs
+through bounded clarification or correction. A child success message is not
+proof of overall completion. Report substantive conclusions in this session.
 
-When the owner returns a material-decision question as its paused result,
-surface the complete question and retain the exact owner. The question needs no
-lifecycle marker. Do not treat the pause as completion or start another owner.
-
-On any later unambiguous feedback in this thread, use the feedback
-continuation fast path. The same transport may resume a semantically blocked
-owner when the answer clearly resolves its stated blocker; preserve the
-original contract.
-
-The fast path preserves the complete user message, including implementation
-constraints; do not rewrite it as a new implementation task. A status request
-does not stop execution. Never create a replacement owner for delivery. Report
-if the host cannot deliver feedback during a running tool.
-
-The owner applies restrictions before its next affected action, reassesses
-invalidated assumptions and readiness, and strengthens checks within authority.
-Missing product decisions or expanded effects return a question to the user.
-These are owner actions, not permission for parent-side capability calls.
-
-If the host cannot retain or resume the owner, report that limitation. Do not
-claim that a replacement is the same goal.
-
-## Result
-
-Apply the main skill's section 8 completion-evidence check before relaying the
-result. Compare consumed attempts and the returned maximum with the allowance
-retained at launch. Request missing or contradictory accounting from the same
-owner through `followup_task` when idle, or `send_message` when running, then
-wait for its amended status. This correction authorizes no engineering work or
-assessment. If continuation is unavailable, report the evidence gap.
-
-Relay the validated complete result or the owner's blocked result without
-reconstructing repository facts or running checks in the parent. This relay
-completes the handoff; do not create or close a mirrored current-thread goal with
-`create_goal` or `update_goal`. Absence of a parent-side cleanup control does not
-invalidate an otherwise completed owner.
+Only mark the native goal complete when all required work and evidence are
+satisfied. Unavailable controls or incomplete evidence are reported as limitations,
+never converted into a completion claim.

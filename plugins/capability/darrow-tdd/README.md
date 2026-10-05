@@ -71,6 +71,11 @@ An ordinary request can select the appropriate capability:
 To select it explicitly, choose `tdd` from Codex's `$` skill menu,
 or use `/darrow-tdd:tdd` in Claude Code, followed by your request.
 
+This plugin includes a Codex `SessionStart` hook that improves automatic selection
+for matching TDD requests. Trust the hook to enable its session reminder. The
+reminder does not start work or grant additional authority. If automatic selection
+is missed, invoke `tdd` explicitly.
+
 ## Expected result
 
 Observed red and green from the same focused command, then relevant final checks. Product and test files change; publication is separate.

@@ -127,9 +127,16 @@ feature, but each cycle incorporates what the preceding cycle revealed.
 4. **TDD-P4 — Reference-sized instructions.** `SKILL.md` contains only the
    durable red/green, seam, slice, and oracle discipline. Detailed examples and
    mocking guidance MAY live in directly linked references loaded on demand.
-5. **TDD-P5 — No unnecessary mechanics.** The plugin SHOULD contain no runtime
-   script unless evals demonstrate a repeated deterministic check that models
-   perform unreliably.
+5. **TDD-P5 — No unnecessary mechanics.** Apart from the static host-context
+   launcher permitted by TDD-P6, the plugin SHOULD contain no runtime script
+   unless evals demonstrate a repeated deterministic check that models perform
+   unreliably.
+6. **TDD-P6 — Static Codex discovery context.** The installed plugin supplies a
+   Codex SessionStart reminder of the `tdd` intent and exclusions. It MUST be
+   static and plugin-local: no prompt classification, repository inspection,
+   skill invocation, mutation, or authority grant. The skill description still
+   carries its own trigger, so declining hook trust does not disable direct or
+   model-invoked use of the skill.
 
 ## Evaluation requirements
 

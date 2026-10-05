@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from cryptography.fernet import Fernet
 
-from darrow_artificer import account, native, prompts, worker
+from darrow_artificer import native, prompts, worker
 from darrow_artificer.github import GitHub
 from darrow_artificer.installation import Installation
 from darrow_artificer.models import Claim, Outcome
@@ -20,7 +20,7 @@ def native_claim(site: Installation) -> tuple[Claim, Path, Path, Path]:
     home = site.delivery_dir(claim.id) / "native"
     rollout(home, "parent")
     rollout(home, "child", "parent", "/root/owner")
-    claim.native = native.correlate(home, "parent", "/root/owner", site.grant)
+    claim.native = native.correlate(home, "parent", site.grant)
     claim.worktree = str(site.root)
     claim.status = "running"
     site.save(claim)
@@ -34,7 +34,6 @@ def native_claim(site: Installation) -> tuple[Claim, Path, Path, Path]:
             detail="decision needed",
             question="Choose a scope?",
             pr=None,
-            owner="/root/owner",
         ).model_dump_json()
     )
     return claim, home, events, output
@@ -72,13 +71,23 @@ def test_pr_outcome_and_changed_owner(
             detail="verified",
             question=None,
             pr=9,
-            owner="/root/owner",
         ).model_dump_json()
     )
+    with events.open("a") as stream:
+        stream.write(
+            json.dumps(
+                {
+                    "type": "artificer.settled",
+                    "thread_id": "parent",
+                    "goal_status": "complete",
+                }
+            )
+            + "\n"
+        )
     worker.finish(installation, claim.id, home, (events, output), None)
     assert installation.claim(claim.id).status == "pr-open"
     assert claim.native is not None
-    claim.native.owner_model = "changed"
+    claim.native.model = "changed"
     installation.save(claim)
     with pytest.raises(ValueError, match="changed"):
         worker.apply_outcome(installation, claim, home, events, output)
@@ -98,12 +107,11 @@ def test_failed_readiness_retains_original_parent(installation: Installation) ->
             detail="Readiness rejected: missing acceptance",
             question=None,
             pr=None,
-            owner=None,
         ).model_dump_json()
     )
     worker.apply_outcome(installation, claim, home, events, output)
     assert claim.status == "needs-attention" and claim.native is not None
-    assert claim.native.parent == "parent" and claim.native.owner == ""
+    assert claim.native.thread == "parent"
     claim.pending_answer = "The missing acceptance is now supplied."
     assert "retained readiness/preflight" in prompts.continuation(claim)
 
@@ -148,48 +156,24 @@ def test_home_refuses_ambiguous_or_lost_state(installation: Installation) -> Non
 
 def test_empty_question_refused(installation: Installation) -> None:
     claim = existing(installation, 1)
-    outcome = Outcome(status="question", detail="", question="", pr=None, owner=None)
+    outcome = Outcome(status="question", detail="", question="", pr=None)
     with pytest.raises(ValueError, match="empty question"):
         worker.question(installation, claim, outcome)
 
 
-def test_parent_cannot_claim_pr_without_engineering_owner(
+def test_parent_cannot_claim_pr_without_goal_completion(
     installation: Installation,
 ) -> None:
     claim, home, events, output = native_claim(installation)
     output.write_text(
         Outcome(
-            status="pr-open", detail="unsupported", question=None, pr=9, owner=None
+            status="pr-open", detail="unsupported", question=None, pr=9
         ).model_dump_json()
     )
     worker.finish(installation, claim.id, home, (events, output), None)
     saved = installation.claim(claim.id)
     assert saved.status == "needs-attention" and saved.pr is None
-    assert "engineering owner" in saved.detail
-
-
-@pytest.mark.parametrize("code", [0, 1])
-def test_execute_uses_retained_parent_and_preserves_payload(
-    installation: Installation, monkeypatch: pytest.MonkeyPatch, code: int
-) -> None:
-    claim, home, _, _ = native_claim(installation)
-    claim.pending_answer = "  complete\nanswer\n"
-    observed: list[list[str]] = []
-
-    def run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[bytes]:
-        observed.append(command)
-        content = kwargs["input"]
-        assert isinstance(content, bytes)
-        assert json.dumps(claim.pending_answer) in content.decode()
-        return subprocess.CompletedProcess(command, code, b"", b"diagnostic")
-
-    monkeypatch.setattr(subprocess, "run", run)
-    if code:
-        with pytest.raises(RuntimeError, match="exited 1"):
-            worker.execute(installation, claim, home)
-    else:
-        worker.execute(installation, claim, home)
-    assert observed[0][1:4] == ["exec", "resume", "parent"]
+    assert "completion evidence" in saved.detail
 
 
 def test_initial_prompt_and_worktree(
@@ -232,7 +216,6 @@ def test_worker_lifecycle(
             raise ValueError("Login needs attention")
 
     monkeypatch.setattr(native, "check_login", login)
-    monkeypatch.setattr(account, "check", lambda *args: None)
     monkeypatch.setattr(worker, "worktree", lambda *args: None)
     monkeypatch.setattr(worker, "execute", lambda *args: (events, output))
     monkeypatch.setattr(GitHub, "comment", lambda *args: 44)

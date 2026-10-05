@@ -26,6 +26,8 @@ fixture:
   setup: |
     mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
+  - name: human response excludes machine JSON
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
   - name: unavailable repository policy is retained without fallback
     run: >-
       selection=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name reviewer-route.json -type f | sort | tail -n '1');
@@ -61,9 +63,7 @@ checks:
       python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has verdict blocked &&
       test "$(git status --porcelain --untracked-files=all)" = ' M src/config.js'
     expect_regex: "^valid: darrow-review-result-v3$"
-  - name: default response does not duplicate canonical JSON
-    run: "! grep -F 'format	darrow-review-result-v3' .git/last-message.md"
-  - name: final response preserves every canonical rendered line
+  - name: retained Markdown preserves every canonical rendered line
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
@@ -72,5 +72,12 @@ checks:
       expected=.git/expected-review.md;
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render "$record" >"$expected" &&
       awk 'NF' "$expected" >.git/expected-review-normalized.md &&
-      awk 'NF' .git/last-message.md >.git/actual-review-normalized.md &&
+      awk 'NF' "$(dirname "$record")/review.md" >.git/actual-review-normalized.md &&
       cmp .git/expected-review-normalized.md .git/actual-review-normalized.md
+semantic_output_checks:
+  - name: review outcome and issues are understandable inline
+    proposition: >-
+      The response reports blocked independent review because the configured
+      native reviewer route is unavailable. It does not present coordinator
+      judgment as an independent review or claim that a fallback reviewer
+      completed it.

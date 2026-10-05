@@ -1,0 +1,27 @@
+{
+  "id": "artificer-account-usage",
+  "activation": "positive",
+  "invariant": "ART-C1,ART-C10",
+  "goal_report": "forbidden",
+  "expect_head_change": false,
+  "fixture":
+    {
+      "commits":
+        [{ "message": "chore: init", "files": { "README.md": "fixture\n" } }],
+    },
+  "prompt": "{{skill_invocation}} Before configuring Artificer for owner/repo, explain the account requirement only; don't initialize or schedule anything. I use ChatGPT login and have prepaid credits and automatic reload enabled. I'm happy for unattended deliveries to use my subscription and available credits, including after the included allowance runs out. Does that account setup block Artificer?",
+  "checks":
+    [
+      {
+        "name": "repository remains unchanged",
+        "run": 'git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1',
+      },
+    ],
+  "semantic_output_checks":
+    [
+      {
+        "name": "accepted account usage permits credits",
+        "proposition": "The response says the user's accepted ChatGPT account setup is compatible with Artificer: prepaid credits and automatic reload do not themselves block execution, and available credits may fund work after included allowance is exhausted. It does not promise zero paid usage or recommend purchasing credits, changing billing settings or switching to API-key billing. It need not recite those prohibitions or every prerequisite; other installation prerequisites may remain.",
+      },
+    ],
+}

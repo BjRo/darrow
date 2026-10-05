@@ -1,11 +1,12 @@
 # Capability: Skill Authoring
 
-Creates or improves one focused agent skill as an observable, independently
-adoptable capability for Claude Code and Codex. The workflow treats discovery,
-instruction behavior, deterministic mechanics, packaging, and evaluation as one
-public contract rather than polishing `SKILL.md` prose in isolation.
+Provides two focused capabilities for Claude Code and Codex: creating a new
+agent skill and auditing an existing one without changing it. Creation treats
+discovery, behavior, mechanics, packaging, and evaluation as one public
+contract. Audit assesses that contract and returns actionable findings.
 
-Plugin: `darrow-skill-authoring`. Skill: `author-agent-skill`.
+Plugin: `darrow-skill-authoring`. Skills: `create-agent-skill` and
+`audit-agent-skill`.
 
 ## Why
 
@@ -15,17 +16,22 @@ premature completion, deterministic rules are left to model judgment, or their
 supporting files depend on an author's local environment. A useful authoring
 workflow makes these failure modes observable before declaring a skill ready.
 
-The capability is a skill-development workflow, not a general prompt-writing
-framework, plugin runtime, marketplace publisher, or substitute for the target
-repository's own instructions and evaluation harness.
+These capabilities are not a general prompt-writing framework, plugin runtime,
+marketplace publisher, or substitute for the target repository's own
+instructions and evaluation harness. Implementing audit findings is ordinary
+engineering work against those findings and the target repository's rules;
+neither skill owns a general revision workflow.
 
 ## Public contract
 
 ### Intent triggers
 
-"create an agent skill", "write a SKILL.md", "improve this skill", "make this
-skill work in Claude Code and Codex", "test skill triggering", "validate a skill
-package", or an explicit skill invocation.
+- Creation: "create an agent skill", "turn this recurring workflow into a
+  skill", "write a new SKILL.md", or explicit `create-agent-skill` invocation.
+- Audit: "audit this skill", "validate a skill package", "check this skill's
+  discovery and workflow", or explicit `audit-agent-skill` invocation.
+- Implementation of audit findings, general skill revision, running an existing
+  eval suite, and plugin metadata work alone do not select either capability.
 
 ### Inputs
 
@@ -42,11 +48,11 @@ input.
 
 ### Output
 
-One focused skill with valid discovery metadata, a bounded workflow, only the
-colocated resources it needs, deterministic validation where mechanics are
-checkable, and recorded evidence for trigger behavior and workflow quality.
-Its human-facing output leads with the result and next action in concise,
-understandable language while preserving required evidence and protocol data.
+Creation produces one focused skill with valid discovery metadata, a bounded
+workflow, only the colocated resources it needs, and recorded behavior evidence.
+Audit produces read-only findings with the inspected basis, severity or impact,
+and concrete acceptance criteria for an implementing agent. Each result leads
+with the outcome and next action while preserving required evidence.
 
 ## Invariants
 
@@ -56,19 +62,39 @@ understandable language while preserving required evidence and protocol data.
   incomplete-input, negative-trigger, and plausible counterexample requests.
   Delegating invention of an unspecified goal or destination does not satisfy
   the contract and must not authorize a repository or user-level skill change.
-  For a behavior-changing revision, capture baseline behavior before relying on
-  the revised skill unless the harness cannot provide an uncontaminated
-  baseline; disclose that limitation instead of fabricating one.
+  Before creation, ask for every unresolved contract input together, including
+  goal, destination, and supported runtimes when all three are unknown. Do not
+  narrow the question to one missing input or infer another from a suggestion.
+  Existing-skill repair follows the target repository's implementation rules
+  and audit findings; it is not a third authoring-skill branch.
 - **SA-C2 — Discovery is a tested interface.** Use a lower-case hyphenated,
   verb-led name. Front-load a concise description with the skill's recognizable
   goal and concrete trigger conditions, including meaningful exclusions where
   ambiguity is likely. Keep procedure details in the body so metadata does not
-  become a lossy shortcut. Test both activation and non-activation requests.
+  become a lossy shortcut. Creation intent selects `create-agent-skill` and
+  read-only audit intent selects `audit-agent-skill` when both are installed.
+  Creation selects the plugin skill ahead of generic host skill creators,
+  including when the user's request leaves required contract inputs missing.
+  A request to fix audit findings selects neither Darrow authoring skill.
+  Test each intended activation, cross-skill confusion, and non-activation.
+  In validation, a syntactically valid description is not evidence that its
+  trigger is useful; report that judgment separately from manifest and metadata
+  parsing, even when another defect blocks installation.
+  When comparing discovery descriptions, hold the skill body, installed
+  catalog, prompts, fixtures, model, effort, and grading fixed. Measure both
+  intended activation and false activation on declared cases before choosing
+  new metadata.
 - **SA-C3 — One bounded workflow.** Each skill serves one recognizable user
   goal. State expected inputs, ordered actions, output, facts that must not be
   inferred, and conditions to ask, stop, or refuse. Every phase ends in a
-  checkable and sufficiently demanding completion criterion. Split workflows
-  whose triggers, inputs, or success criteria materially differ.
+  checkable and sufficiently demanding completion criterion. The creation
+  workflow may write the new skill under the supplied contract; the audit
+  workflow remains read-only and does not perform the target skill's external
+  actions. Both assess consequential actions: which user request or delegation
+  authorizes each, what conditions make it ready, and when the workflow asks or
+  stops. Audit reports unclear boundaries with evidence and repair acceptance
+  criteria. An action such as publication is not itself a defect when its
+  authority and conditions are clear.
 - **SA-C4 — Deliberate information hierarchy.** Keep the core workflow and
   universally needed judgment in `SKILL.md`. Move branch-specific or heavy
   reference behind an explicit one-level pointer. Keep definitions, rules, and
@@ -98,11 +124,10 @@ understandable language while preserving required evidence and protocol data.
   successful empty state.
 - **SA-C7 — Portable self-containment.** A packaged helper keeps its manifest,
   lock, entrypoints, dependencies, and state inside the owning plugin. A helper
-  owned by one skill is colocated inside that skill; a plugin-level location is
-  reserved for helpers shared by multiple skills or non-skill plugin
-  components. Invoke a skill-local helper from the host-provided installed
-  skill directory without adding a launcher solely to locate the helper or
-  forward arguments. Add a compatibility launcher only when a stable external
+  owned by one skill is colocated inside that skill; the inspector and shell
+  matrix shared by creation and audit live at plugin level. Invoke packaged
+  helpers from the host-provided installed path without a launcher solely to
+  locate a helper or forward arguments. Add a compatibility launcher only when a stable external
   command contract or host lifecycle or protocol adaptation requires one. The
   helper follows the target repository's runtime and development dependency
   conventions, uses reproducible locked execution, and verifies its public
@@ -125,11 +150,15 @@ understandable language while preserving required evidence and protocol data.
   criteria. Hidden deterministic checks or rubrics cover workflow behavior,
   output quality, safety boundaries, and relevant repository state. Run scoped
   dry validation before live trials on supported harnesses selected by the
-  repository. Shell-reporting acceptance must allow observed successful runs
-  and explicitly unverified coverage; it must not assume a required interpreter
-  is unavailable when the fixture inherits the host's shell availability.
-- **SA-C9 — One current independent challenge before completion.** Give a
-  fresh-context reviewer the finished artifact and task-local evidence without
+  repository. Prepared target skills in authoring evals use draft filenames
+  rather than `SKILL.md`; producing the standard skill file is an observable
+  outcome of a creation case. Audit cases never promote a draft.
+  Shell-reporting acceptance must allow observed successful runs and
+  explicitly unverified coverage; it must not
+  assume a required interpreter is unavailable when the fixture inherits the
+  host's shell availability.
+- **SA-C9 — One current independent challenge before creation completion.** Give a
+  fresh-context reviewer the created artifact and task-local evidence without
   the intended answer or prior conclusions. Challenge discovery,
   self-containment, portability, safety, completion bounds, and eval loopholes.
   An earlier user-requested or enclosing-goal review satisfies this step when
@@ -144,15 +173,20 @@ understandable language while preserving required evidence and protocol data.
   review solely because the repair changed content. A changed scope,
   unrelated edit, missing review input or coverage, inconclusive result, or
   unresolved blocker still needs the appropriate independent assessment.
-  Address material findings and rerun affected script tests and evals.
-- **SA-C10 — Verified delivery.** Validate skill metadata, plugin manifests,
-  marketplace/discovery entries, local-reference containment, relevant native
-  platform or both-shell behavior, and repository gates. Report exact commands,
-  outcomes, evaluation limitations, and residual risks. Authoring does not
-  imply commit, push, pull request, publication, release, or deployment
+  Resolve material findings and rerun affected script tests and evals. If a
+  material finding cannot be resolved, report creation as incomplete rather
+  than claiming completion. Read-only audit reports their own inspected
+  evidence and do not launch a second review by default.
+- **SA-C10 — Verified delivery.** Creation validates skill metadata, plugin
+  manifests, marketplace/discovery entries, local-reference containment,
+  relevant native platform or both-shell behavior, and repository gates.
+  Audit checks the requested claims without changing checked-in files and
+  labels unavailable evidence unverified. Both report exact commands,
+  outcomes, limitations, and residual risks. Neither capability implies
+  commit, push, pull request, publication, release, or deployment
   authority.
-- **SA-C11 — Clear human-facing output.** New and revised skills lead with the
-  result and next action when their public contract permits it. They use
+- **SA-C11 — Clear human-facing output.** Created skills and audit reports lead
+  with the result and next action when their public contract permits it. They use
   familiar words, active voice, and short sentences and paragraphs; explain
   necessary domain terms; and remove repetition and unnecessary process
   narration. Progressive disclosure never removes technical meaning, safety

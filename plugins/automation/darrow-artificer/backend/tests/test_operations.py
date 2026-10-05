@@ -93,19 +93,19 @@ def test_recovery_preserves_native_identity(installation: Installation) -> None:
     home = installation.delivery_dir(claim.id) / "native"
     rollout(home, "parent")
     rollout(home, "child", "parent", "/root/owner")
-    result = operations.recover(installation, claim.id, "parent", "/root/owner")
+    result = operations.recover(installation, claim.id, "parent")
     assert result.status == "needs-attention" and result.native is not None
     assert result.attention_since is not None and result.saved_at is not None
     assert (installation.delivery_dir(claim.id) / "session.enc").is_file()
     original = result.native
-    result.native = Native(**{**original.model_dump(), "owner_model": "different"})
+    result.native = Native(**{**original.model_dump(), "model": "different"})
     installation.save(result)
     with pytest.raises(ValueError, match="preserve"):
-        operations.recover(installation, claim.id, "parent", "/root/owner")
+        operations.recover(installation, claim.id, "parent")
     result.status = "released"
     installation.save(result)
     with pytest.raises(ValueError, match="running or released"):
-        operations.recover(installation, claim.id, "parent", "/root/owner")
+        operations.recover(installation, claim.id, "parent")
 
 
 def test_installation_refuses_wrong_binding(installation: Installation) -> None:
@@ -159,6 +159,6 @@ def test_missing_home_requires_fresh_original_archive(
     claim.saved_at = time.time()
     claim.question_comment = 123
     installation.save(claim)
-    restored = operations.recover(installation, claim.id, "parent", "/root/owner")
+    restored = operations.recover(installation, claim.id, "parent")
     assert restored.status == "question"
     assert (home / "auth.json").is_symlink()

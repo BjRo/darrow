@@ -24,6 +24,8 @@ def original_doc() -> dict[str, object]:
             "location": "file.txt:2",
             "source": "rule",
             "evidence": r"C:\path",
+            "repair_guidance": "remove the advisory concern when in scope",
+            "resolution_evidence": "the concern is absent without changing behavior",
         },
     )
     return data
@@ -50,7 +52,7 @@ def write_json(path: Path, value: dict[str, object]) -> str:
     return str(path)
 
 
-def test_original_order_and_mixed_guidance(tmp_path: Path) -> None:
+def test_original_order_and_guidance(tmp_path: Path) -> None:
     original = write_json(tmp_path / "original.json", original_doc())
     current = write_json(tmp_path / "current.json", followup_doc())
     expected = serialize(

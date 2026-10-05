@@ -100,4 +100,27 @@ def review_candidate(repo: Path, mode: str, candidate: Candidate) -> str:
         append(
             state / "review-events", f"review\t{findings.outcome}\t{observation[1]}\n"
         )
-    return report(findings, mode, candidate, repo, git_dir)
+    output = report(findings, mode, candidate, repo, git_dir)
+    return retain_report(output, findings, state)
+
+
+def retain_report(output: str, findings: Findings, state: Path) -> str:
+    history = lines(state / "independent-review-invocations")
+    original = state / "review-result-0.md"
+    artifact = state / f"review-result-{len(history) - 1}.md"
+    if (
+        findings.outcome == "clear"
+        and original.is_file()
+        and "Finding R1:" in original.read_text(encoding="utf-8")
+    ):
+        output += "Finding R1: resolved; original blocking disposition preserved; no direct regression observed.\n"
+    original_target = history[0].split("\t")[0]
+    output += (
+        f"Original target: {original_target}\n"
+        f"Original review result: {original}\n"
+        "Assessment history (target, outcome, mode):\n"
+        + "\n".join(history)
+        + f"\nComplete review result: {artifact}\n"
+    )
+    artifact.write_text(output, encoding="utf-8", newline="\n")
+    return output

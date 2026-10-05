@@ -34,14 +34,17 @@ def fixture_plugin(root: Path) -> Path:
     plugin = root / "fixture-delivery"
     skill = plugin / "skills/ticket-to-pr"
     skill.mkdir(parents=True)
+    (plugin / ".codex-plugin").mkdir()
+    (plugin / ".codex-plugin/plugin.json").write_text('{"name":"fixture-delivery"}')
     (skill / "SKILL.md").write_text(
         "---\nname: ticket-to-pr\ndescription: Explicit native transport integration fixture.\n---\n"
-        "This is a transport-only fixture, not real engineering delivery. Spawn exactly one "
-        "child named transport_owner. Tell it: remember private marker cobalt-157; ask 'Choose a color?'; "
-        "on later feedback, ask a new question consisting of 'cobalt-157:' immediately followed by "
-        "the exact feedback including all whitespace. No shell, edits or children. Wait for the "
-        "child, retain it, and return its question with its canonical owner in the supplied schema. "
-        "No commits, pushes, PRs or external effects in this fixture."
+        "This is a transport-only fixture, not real engineering delivery. Keep ownership in "
+        "this original main thread. Create a native goal to retain the transport test and "
+        "handle human feedback. Remember marker cobalt-157 and ask 'Choose a color?'; "
+        "on later feedback, ask a new question consisting of 'cobalt-157:' immediately followed "
+        "by the complete decoded human answer including whitespace. Return each question "
+        "in the supplied status/detail/question/pr JSON envelope. Wait for the actual answer "
+        "without completing the goal. No edits, children, commits, pushes, PRs or external effects."
     )
     return plugin
 
@@ -87,11 +90,11 @@ def installation(root: Path) -> Installation:
         gh=str(fixture),
         codex=shutil.which("codex") or "codex",
         git=shutil.which("git") or "git",
-        model="gpt-5.6-terra",
+        model="gpt-6-sol",
         effort="medium",
         credential_home=str(Path.home() / ".codex"),
         plugins=[str(fixture_plugin(root))],
-        subscription_only_confirmed=True,
+        account_usage_accepted=True,
         effects="claims,questions,worktrees,recipe,commits,push,pr,archives",
     )
     setup.bind(site, grant)

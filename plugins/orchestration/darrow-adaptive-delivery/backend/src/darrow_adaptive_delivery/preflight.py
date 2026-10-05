@@ -7,7 +7,7 @@ from pathlib import Path
 
 from .arguments import options, require
 from .common import PLUGIN, RefusalError, git_text, read_text, record, repository
-from .routes import catalog, validate_owner, validate_tuple
+from .routes import catalog, validate_tuple
 
 USAGE = """usage:
   adaptive-delivery-preflight prepare --repo <path> --host <codex|claude>
@@ -63,7 +63,6 @@ def prepare(repo: Path, host: str, plugin: Path) -> str:
     result += record("working_tree", "dirty" if status else "clean")
     result += instruction_records(repo)
     for route in routes:
-        validate_owner(host, route.model)
         result += record("route", route.profile, *route.tuple)
         result += record("route_policy_source", route.profile, route.source)
     if not routes:
@@ -94,7 +93,6 @@ def selected(repo: Path, host: str, profile: str, explicit: str, plugin: Path) -
             raise RefusalError(f"no route for host={host} profile={profile}")
         route = match.tuple
         provenance = record("policy_route_source", match.source)
-    validate_owner(host, route[2])
     return (
         record("format", "darrow-native-goal-route-v2")
         + record("profile", profile)

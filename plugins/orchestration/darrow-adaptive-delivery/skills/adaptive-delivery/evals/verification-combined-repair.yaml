@@ -4,12 +4,12 @@ goal_report: forbidden
 goal_route_checks: false
 prompt: >-
   Use {{skill_invocation}} to continue the existing candidate. Run bash check.sh and
-  obtain its initial assessment before changing src/config.js. Select independent
-  review and the compatible QA-like cache assessment through the advertised
-  verification capability. The originating criteria are TIMEOUT_MS = 2500,
-  RETRY_COUNT = 3, and CACHE_SIZE = 5. Repair is authorized only in src/config.js.
-  Complete this local change when its selected assurance clears. No commits,
-  publication, additional owner or new product behavior is authorized.
+  obtain its initial assessment before changing src/config.js. Select independent review
+  and the compatible QA-like cache assessment through the advertised verification
+  capability. The originating criteria are TIMEOUT_MS = 2500, RETRY_COUNT = 3, and
+  CACHE_SIZE = 5. Repair is authorized only in src/config.js. Complete this local change
+  when its selected assurance clears. No commits, publication, additional owner or new
+  product behavior is authorized.
 fixture:
   commits:
     - message: "chore: baseline"
@@ -56,11 +56,18 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
 semantic_output_checks:
   - name: completion preserves the combined conclusion
-    proposition: The response reports completion after repairing the retry-count and cache-size blockers, with clear independent review and QA-like assessment of the repaired candidate. It accounts for all three originating criteria. The fixture establishes the attempt count; the response need not repeat that count explicitly.
+    proposition:
+      The response reports completion after repairing the retry-count and
+      cache-size blockers, with clear independent review and QA-like assessment of the
+      repaired candidate. It accounts for all three originating criteria. The fixture
+      establishes the attempt count; the response need not repeat that count explicitly.
   - name: no provider-specific repair allowance is claimed
-    proposition: The response does not claim a budget reset when switching providers, extra repair attempts from another provider, or separate review and QA repair allowances. Any such claim fails this check even if it also claims successful completion. Omitting the attempt count is allowed.
+    proposition:
+      The response does not claim a budget reset when switching providers, extra
+      repair attempts from another provider, or separate review and QA repair
+      allowances. Any such claim fails this check even if it also claims successful
+      completion. Omitting the attempt count is allowed.
 transcript_checks:
-  - name: same accepted owner performs the work
-    expect_regex: '"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"'
-  - name: no lifecycle ledger or nested goal
-    not_regex: 'adaptive-delivery-preflight step|"tool":"create_goal"'
+  - name: no lifecycle ledger
+    not_regex: adaptive-delivery-preflight step
+native_goal: required

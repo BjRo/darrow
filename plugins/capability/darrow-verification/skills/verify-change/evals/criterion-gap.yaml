@@ -67,8 +67,9 @@ semantic_output_checks:
       The response puts the non-clear conclusion and smallest evidence-gathering
       next action before detailed criterion and provider evidence. It uses
       direct and familiar language, compact sections or a table, and no
-      step-by-step chronology. A brief provider-compatibility rationale is
-      required evidence, not process narration. The response does not repeat
-      the conclusion or complete-report link and preserves the candidate
-      identity, C1/C2 support, C3 gap, provider outcome, limitations, and final
-      complete-report link.
+      step-by-step chronology or substantial duplicated passages. A brief
+      provider-compatibility rationale is required evidence, not process
+      narration. A short restatement of the disposition or the retained report
+      path alongside its final link is acceptable. The response preserves the
+      candidate identity, C1/C2 support, C3 gap, provider outcome, limitations,
+      and final complete-report link.

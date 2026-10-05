@@ -21,10 +21,18 @@ Implicit invocation is disabled. Claude Code can explicitly invoke
 
 ## Hosts and prerequisites
 
-Initial prerequisites: macOS, Codex CLI 0.154.0 with normal persistent ChatGPT
+Initial prerequisites: macOS, Codex CLI 0.159.2 with normal persistent ChatGPT
 login, UV/Python 3.10–3.13, Git, GitHub CLI with repository write access, and the
 independently installed delivery capabilities. The default launchd interval is
 15 minutes. WIP and per-activation limits independently default to one.
+
+The app-server adapter keeps the original main thread and its native goal alive
+through automatic continuation. New grants default to `gpt-6-sol`/`medium`.
+Adaptive Delivery selects bounded implementation and assurance assignments;
+Artificer does not override their routes or run engineering phases.
+Healthy native execution has no overall time limit. Individual protocol requests
+and process shutdown remain bounded; failures retain the claim and native state
+for explicit human recovery. Test/eval entrypoints own their experiment limits.
 
 ## Installation
 
@@ -55,19 +63,30 @@ owner. Session archives use authenticated encryption with a separate private
 key and exclude authentication credentials. Default retention is five days
 from the last successful save.
 
-Account setup must exclude paid credits and automatic reload. The adapter
-forces ChatGPT authentication and the OpenAI provider and removes model API
-credentials from the child environment. Subscription login alone does not
-prove account-level credit configuration. Access failures require explicit
-human recovery; the scheduler never purchases credits or chooses a fallback.
+The recurring grant accepts normal ChatGPT account usage, including available
+credits after included allowance is exhausted. Codex enforces availability under
+the existing account billing settings. The adapter forces ChatGPT authentication
+and the OpenAI provider and removes model API credentials from the child
+environment. Artificer never purchases credits, changes billing settings or
+switches to API-key billing. Access failures require explicit human recovery.
+This policy does not guarantee zero additional cost.
 
 ## Troubleshooting
 
 Run `status` first. For login or allowance failures, restore access and use the
 explicit resume comment; a timer does not retry stopped delivery. Lost state,
 uncertain effects, and unavailable original owners require human reconciliation.
-Use `recover` only with the inspected original parent and owner identifiers.
+Use `recover` only with the inspected original main-thread identifier.
 Never remove a claim to manufacture free capacity.
+
+Version 0.2.0 changes native storage and recovery to one main-thread identity.
+Earlier separate-owner records require reconciliation with their original
+installation; they are not automatically converted, retried or released. Keep
+their state, worktrees, claims and published effects until reconciled.
+
+Version 0.3.0 replaces subscription-only confirmation with explicit account usage
+acceptance (`--accept-chatgpt-account-usage`, saved as `account_usage_accepted`).
+Existing grants are not silently expanded to authorize credit usage.
 
 ## License
 

@@ -6,7 +6,7 @@ description: Diagnose whether the effective Codex or Claude Code host configurat
 # Doctor Adaptive Delivery
 
 Inspect the active host configuration without changing it, identify the exact
-source checked, and explain whether it supports the baseline owner path and the
+source checked, and explain whether it supports bounded implementation and the
 full required-assessment topology.
 
 ## 1. Bind the host and effective source
@@ -92,14 +92,16 @@ around it, or suggest that unknown capacity is adequate.
 Base the conclusion on this topology:
 
 ```text
-primary -> owner -> verification coordinator -> review coordinator
+main -> verification coordinator -> review coordinator
                                               -> Standards reader
                                               -> Spec reader
 ```
 
-The baseline owner-only path needs one spawned-agent slot and one layer below
-the primary. The full required-assessment path needs five concurrently open
-spawned-agent slots and four nesting layers. Codex concurrency excludes the
+Bounded implementation needs one spawned-agent slot and one layer below
+the main thread. With implementation settled before assessment, the full
+required-assessment path needs four active spawned-agent slots and three nesting
+layers. Hosts may also count retained inactive threads; configuration alone
+does not prove current free capacity or native goal availability. Codex concurrency excludes the
 primary. Keep concurrency and nesting separate: on Codex V2,
 `agents.max_depth` is V1-only and ignored, so it cannot compensate for too few
 concurrent threads.

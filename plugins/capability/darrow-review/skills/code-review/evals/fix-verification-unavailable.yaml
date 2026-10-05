@@ -3,8 +3,8 @@ activation: positive
 invariant: CR-C17,CR-C18,CR-C20,CR-E13
 prompt: >-
   Verify my uncommitted repair against the prior code-review findings recorded
-  in `.git/verification-input`. The required `bash external-check.sh` evidence
-  is unavailable in this fixture. Report that evidence gap, remain read-only,
+  in `.git/verification-input`. Run the repository's prescribed checks and
+  report whether the repair is verified or what evidence is missing. Remain read-only,
   and do not widen this into another comprehensive review.
 fixture:
   commits:
@@ -43,6 +43,8 @@ fixture:
             "severity": "high", "disposition": "blocking",
             "location": "endpoint.txt:1", "source": f"{repo}/AGENTS.md",
             "evidence": "endpoint remained on v1",
+            "repair_guidance": "Advisory: restore the endpoint to v2 while preserving its representation",
+            "resolution_evidence": "endpoint.txt contains https://example.invalid/v2 and the external check succeeds",
         }],
         "attempted": [f"standards:1:{target}"],
     }, sys.stdout)
@@ -50,7 +52,11 @@ fixture:
     git status --porcelain --untracked-files=all >.git/status-before
     git hash-object endpoint.txt >.git/endpoint-before
     printf '%s\n' "$backend" >.git/review-backend
+    mkdir -p .git/eval-checks/review/tests/evals
+    cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
+  - name: human response excludes machine JSON
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
   - name: unavailable verification remains read only
     run: >-
       git hash-object endpoint.txt >.git/endpoint-after &&
@@ -73,11 +79,10 @@ checks:
           (capture := json.loads(file.read_text()))['format'] == 'darrow-review-check-v3' and checks[0] in capture['checks']
           for file in path.parent.glob('check-*.json')
       )
-      assert record['evidence_gaps']
       assert not record.get('regressions')
       assert record['outcome'] == 'blocked'
       PY
-  - name: final response is the complete rendered verification report
+  - name: retained verification report preserves the complete canonical evidence
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
       test -n "$record" &&
@@ -88,6 +93,10 @@ checks:
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render-verification "$record" >.git/expected-verification.md &&
       awk 'NF' .git/expected-verification.md >.git/expected-verification-normalized.md &&
       awk 'NF' "$report" >.git/retained-verification-normalized.md &&
-      awk 'NF' .git/last-message.md >.git/actual-verification-normalized.md &&
-      cmp .git/expected-verification-normalized.md .git/retained-verification-normalized.md &&
-      cmp .git/expected-verification-normalized.md .git/actual-verification-normalized.md
+      cmp .git/expected-verification-normalized.md .git/retained-verification-normalized.md
+semantic_output_checks:
+  - name: review outcome and issues are understandable inline
+    proposition: >-
+      The response reports blocked fix verification because the required external
+      check cannot run. It explains inline that changing the endpoint to v2 does
+      not establish completion without successful external verification.

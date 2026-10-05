@@ -18,12 +18,12 @@ fixture:
         AGENTS.md: |
           # Repository instructions
 
-          Run `bash test.sh` for migration behavior changes. The engineering
-          owner must run `decisionctl discover` before editing production code.
+          Run `bash test.sh` for migration behavior changes. The main delivery
+          coordinator must run `decisionctl discover` before editing production code.
           Only that command's runtime output establishes whether feedback is
           required and what question must be answered. Any question it returns
-          is product-owned and must be answered by the user through the parent
-          thread. After the answer, the same owner must run
+          is product-owned and must be answered by the user through the main
+          thread. After the answer, that coordinator must run
           `decisionctl acknowledge migration-policy <exact-answer>` before
           editing production code.
         package.json: '{"type":"module"}'
@@ -67,12 +67,15 @@ fixture:
     .claude/skills/prepare-task-branch/SKILL.md: &prepare_branch |
       ---
       name: prepare-task-branch
-      description: Prepare the exact new branch for fixture ticket DAR-42 while preserving local work.
+      description: Discover local branches for exact ticket token DAR-42 read-only, or prepare a caller-selected exact branch while preserving local work.
       ---
 
       # Prepare the fixture branch
 
-      Run `fixture-prepare-branch DAR-42` exactly once and return its output.
+      For read-only token discovery, run `fixture-discover-branches DAR-42` and
+      return the complete list. For exact preparation, run
+      `fixture-prepare-branch fix/DAR-42-migration` exactly once after the
+      caller selected that name. Never prepare a branch during discovery.
     .agents/skills/prepare-task-branch/SKILL.md: *prepare_branch
     .claude/skills/create-commit/SKILL.md: &create_commit |
       ---
@@ -131,12 +134,28 @@ fixture:
         '### Required next action' \
         '' \
         'None; ready for implementation.'
-    fixture-prepare-branch: |
+    fixture-discover-branches: |
       #!/usr/bin/env bash
       set -eu
       test "$#" -eq 1
       test "$1" = DAR-42
-      git switch -c fix/DAR-42-migration
+      printf '%s\n' 'Token: DAR-42' 'Matching local branches (complete list):'
+      branches=$(git for-each-ref --format='%(refname:short)' refs/heads)
+      while IFS= read -r branch; do
+        case "$branch" in */DAR-42|*/DAR-42-*) printf '%s\n' "$branch" ;; esac
+      done <<< "$branches"
+      printf '%s\n' 'End of matching branches.'
+    fixture-prepare-branch: |
+      #!/usr/bin/env bash
+      set -eu
+      test "$#" -eq 1
+      test "$1" = fix/DAR-42-migration
+      test ! -e .git/branch-invocations
+      if git show-ref --verify --quiet refs/heads/fix/DAR-42-migration; then
+        git switch fix/DAR-42-migration
+      else
+        git switch -c fix/DAR-42-migration
+      fi
       printf '%s\n' fix/DAR-42-migration >>.git/branch-invocations
       printf '%s\n' 'branch: fix/DAR-42-migration'
     decisionctl: |
@@ -173,7 +192,7 @@ fixture:
       #!/usr/bin/env bash
       set -eu
       bash test.sh
-      git add -- src/migration.js
+      git add -- src/migration.js test/ test.sh
       git commit -m 'feat(migration): select strict policy'
       printf '%s\n' "$(git rev-parse HEAD)" >>.git/commit-invocations
     fixture-create-pr: |
@@ -187,26 +206,38 @@ fixture:
       printf '%s\t%s\n' \
         fix/DAR-42-migration https://example.invalid/pull/42 \
         >.git/pull-requests
-      printf '%s\n' 'https://example.invalid/pull/42'
+      head=$(git rev-parse HEAD)
+      remote_head=$(git --git-dir=.git/fixture-remote.git rev-parse refs/heads/fix/DAR-42-migration)
+      test "$head" = "$remote_head"
+      printf '%s\n' 'Pull request: https://example.invalid/pull/42' 'Repository: fixture/repository' 'Head: fix/DAR-42-migration' 'Base: main' 'Draft: false' 'Open pull requests: 1'
+      printf 'Remote head: %s\nForge head: %s\n' "$remote_head" "$remote_head"
   setup: |
     git init --bare .git/fixture-remote.git >/dev/null
     git remote add origin "$PWD/.git/fixture-remote.git"
 checks:
   - name: same owner implements the explicit decision
     run: >-
-      bash test.sh &&
-      node --input-type=module -e 'import { identity, migrationMode } from "./src/migration.js"; import assert from "node:assert/strict"; assert.equal(identity("v"), "v"); assert.equal(migrationMode(), "strict")'
+      bash test.sh && node --input-type=module -e 'import { identity, migrationMode }
+      from "./src/migration.js"; import assert from "node:assert/strict";
+      assert.equal(identity("v"), "v"); assert.equal(migrationMode(), "strict")'
   - name: user answer is acknowledged before production mutation
     run: |
       awk -F '\t' '
-        NR == 1 && $1 == "discover" && $2 == "migration-policy" {
-          before = $3; next
+        NR == 1 {
+          discovery_first = (NF == 3 && $1 == "discover" && $2 == "migration-policy" && $3 != "")
+          before = $3
+          next
         }
-        NR == 2 && $1 == "acknowledge" && $2 == "migration-policy" &&
-          $3 == "Use the strict migration policy. Approval reference: cobalt-7391." && $4 == before {
-          ok = 1
+        {
+          if (NF != 4 || $1 != "acknowledge" || $2 != "migration-policy" ||
+              $3 != "Use the strict migration policy. Approval reference: cobalt-7391." || $4 != before)
+            invalid = 1
         }
-        END { exit ok && NR == 2 ? 0 : 1 }
+        END {
+          if (discovery_first && NR >= 2 && !invalid) exit 0
+          printf "acknowledgement trace: rows=%d discovery_first=%d invalid=%d\n", NR, discovery_first, invalid
+          exit 1
+        }
       ' .git/ticket-feedback-trace
   - name: delivery prepares the exact ticket branch once
     run: |
@@ -242,33 +273,29 @@ checks:
       test "$implementation" = true
   - name: exact current branch is published once
     run: >-
-      test "$(wc -l <.git/pull-requests | tr -d ' ')" -eq 1 &&
-      test "$(cut -f1 .git/pull-requests)" = fix/DAR-42-migration &&
-      test "$(cut -f2 .git/pull-requests)" = https://example.invalid/pull/42 &&
-      test "$(git --git-dir=.git/fixture-remote.git rev-parse refs/heads/fix/DAR-42-migration)" = "$(git rev-parse HEAD)"
+      test "$(wc -l <.git/pull-requests | tr -d ' ')" -eq 1 && test "$(cut -f1
+      .git/pull-requests)" = fix/DAR-42-migration && test "$(cut -f2
+      .git/pull-requests)" = https://example.invalid/pull/42 && test "$(git
+      --git-dir=.git/fixture-remote.git rev-parse refs/heads/fix/DAR-42-migration)" =
+      "$(git rev-parse HEAD)"
   - name: readiness and authoritative ticket capabilities were used
     run: >-
-      test "$(wc -l <.git/readiness-invocations | tr -d ' ')" -eq 1 &&
-      test "$(wc -l <.git/read-ticket-invocations | tr -d ' ')" -ge 1
+      test "$(wc -l <.git/readiness-invocations | tr -d ' ')" -eq 1 && test "$(wc -l
+      <.git/read-ticket-invocations | tr -d ' ')" -ge 1
 output_checks:
   - name: completion identifies the one pull request
     expect_regex: "https://example\\.invalid/pull/42"
 semantic_output_checks:
   - name: completed delivery is reported
     proposition: >-
-      The response unambiguously reports that the ticket implementation and
-      pull-request publication are finished. It does not present delivery as
-      blocked, incomplete, or still requiring action before publication.
+      The response unambiguously reports that the ticket implementation and pull-request
+      publication are finished. It does not present delivery as blocked, incomplete, or
+      still requiring action before publication.
 transcript_checks:
-  # Codex encrypts native message arguments. The exact fixture acknowledgement
-  # above proves preservation at the owner; null transport equality is unknown.
   - name: observable plaintext feedback is not rewritten
     not_regex: '"type":"darrow.codex_native_feedback"[^\n]*"message_representation":"plaintext"[^\n]*"message_matches_expected":false'
   - name: worktree remains unchanged until the user answers
     expect_regex: '"type":"darrow.eval.follow_up_turn"[^\n]*"pre_feedback_worktree_unchanged":true'
-  - name: one owner is retained across the main-thread answer
-    expect_regex: '(?:"type":"darrow.human_feedback_relay"[^\n]*"same_owner":true[\s\S]*"type":"darrow.goal_agent_resumption"[^\n]*"status":"completed"[^\n]*"same_owner":true|"type":"darrow.codex_native_feedback"[^\n]*"tool":"(?:followup_task|send_message)"[^\n]*"same_owner":true[^\n]*"after_follow_up":true[^\n]*"response_observed":true)'
-  - name: no second owner is launched
-    not_regex: '(?:"type":"darrow.parent_spawn_after_goal"|"tool":"spawn_agent"[^\n]*"status":"completed"[^\n]*[\s\S]*"tool":"spawn_agent"[^\n]*"status":"completed")'
   - name: later answer does not reinvoke the recipe
     not_regex: '"type":"darrow.eval.follow_up_turn"[\s\S]*(?:"name":"Skill"[^\n]*ticket-to-pr|"type":"darrow.skill_read_probe"[^\n]*"skill":"ticket-to-pr")'
+native_goal: required

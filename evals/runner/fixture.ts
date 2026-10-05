@@ -241,6 +241,7 @@ async function copySkillWithoutEvals(
 
 interface PluginMountPaths {
   backend: string;
+  references: string;
   manifest: string;
   codexManifest: string;
   agents: string;
@@ -270,6 +271,11 @@ async function mountPluginMechanics(
     await copySkillWithoutEvals(
       paths.backend,
       join(repoDir, mount, "..", "backend"),
+    );
+  if (existsSync(paths.references))
+    await copySkillWithoutEvals(
+      paths.references,
+      join(pluginRoot, "references"),
     );
   if (existsSync(paths.bin))
     await cp(paths.bin, join(repoDir, mount, "..", "bin"), { recursive: true });
@@ -318,6 +324,11 @@ async function mountSourceClaudePlugin(
     await cp(paths.hooks, join(evalPlugin, "hooks"), { recursive: true });
   if (existsSync(paths.backend))
     await copySkillWithoutEvals(paths.backend, join(evalPlugin, "backend"));
+  if (existsSync(paths.references))
+    await copySkillWithoutEvals(
+      paths.references,
+      join(evalPlugin, "references"),
+    );
 }
 
 async function mountSourceCodexPlugin(
@@ -346,6 +357,8 @@ async function mountSourceCodexPlugin(
     await cp(paths.hooks, join(plugin, "hooks"), { recursive: true });
   if (existsSync(paths.backend))
     await copySkillWithoutEvals(paths.backend, join(plugin, "backend"));
+  if (existsSync(paths.references))
+    await copySkillWithoutEvals(paths.references, join(plugin, "references"));
   const manifest = JSON.parse(await readFile(paths.codexManifest, "utf8")) as {
     name?: unknown;
   };
@@ -418,6 +431,7 @@ function pluginMountPaths(
   const pluginRoot = sourcePluginRoot ?? dirname(dirname(skillDir));
   return {
     backend: join(pluginRoot, "backend"),
+    references: join(pluginRoot, "references"),
     bin: join(pluginRoot, "bin"),
     config: join(pluginRoot, "config"),
     agents: join(pluginRoot, "agents"),

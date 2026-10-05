@@ -1,0 +1,25 @@
+id: work-through-decisions-feature-discovery
+invariant: DG-C1,DF-C1,DC-E1,DC-C1
+activation: positive
+prompt: >-
+  Help me discover and shape a feature that lets workspace administrators
+  schedule temporary maintenance banners. The affected users, scheduling
+  behavior, dismissal rules, and acceptance criteria are still unclear. Ask
+  whatever questions are needed to produce a discovery brief, but do not plan
+  or implement it and do not modify the repository.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Workspace application\n"
+checks:
+  - name: feature discovery remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+semantic_output_checks:
+  - name: feature outcome uses discovery mode
+    proposition: >-
+      The response addresses unresolved maintenance-banner product behavior
+      through a current decision frontier with advisory recommendations and
+      stops without inventing settled behavior or drafting an implementation
+      plan.

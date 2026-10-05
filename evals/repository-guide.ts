@@ -60,7 +60,7 @@ for (const question of questions) {
       "--threshold",
       "1",
       "--semantic-check-model",
-      "gpt-5.6-terra",
+      "gpt-6-luna",
       "--semantic-check-effort",
       "medium",
       "--output",

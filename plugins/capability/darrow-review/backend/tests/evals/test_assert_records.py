@@ -37,3 +37,31 @@ def test_route_assertion_reads_named_fields(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     check(artifact, "has", ["selected_route", "codex", "openai", "gpt-6-astra", "high"])
+
+
+@pytest.mark.parametrize("protocol", ["result", "verification"])
+@pytest.mark.parametrize("fenced", [False, True])
+def test_human_response_rejects_appended_machine_record(
+    tmp_path: Path, protocol: str, fenced: bool
+) -> None:
+    artifact = tmp_path / "response.md"
+    summary = "Review failed: restore the required input guard in parseName."
+    artifact.write_text(summary, encoding="utf-8")
+    check(artifact, "human-response", [])
+    raw = json.dumps({"format": f"darrow-review-{protocol}-v3", "evidence": "wrong"})
+    addition = f"```json\n{raw}\n```" if fenced else raw
+    artifact.write_text(summary + "\n\n" + addition, encoding="utf-8")
+    with pytest.raises(ValueError, match="machine record"):
+        check(artifact, "human-response", [])
+
+
+def test_human_response_allows_ordinary_markdown_and_protocol_names(
+    tmp_path: Path,
+) -> None:
+    artifact = tmp_path / "response.md"
+    artifact.write_text(
+        "Review passed. The change validates darrow-review-result-v3. "
+        'Example input `{"count": 2}` is valid; malformed `{text}` is rejected.',
+        encoding="utf-8",
+    )
+    check(artifact, "human-response", [])

@@ -200,6 +200,47 @@ def test_previous_artifact_integrity(tmp_path: Path) -> None:
         validate_verification(serialize(data))
 
 
+@pytest.mark.parametrize(
+    ("status", "progress", "gaps", "outcome"),
+    [
+        ("unresolved", "progressing", [], "no_progress"),
+        ("unresolved", "unchanged", [], "no_progress"),
+        ("blocked", "unavailable", [], "blocked"),
+        ("resolved", "resolved", ["Required check unavailable"], "blocked"),
+    ],
+)
+def test_assessment_correction_never_waives_unresolved_evidence(
+    tmp_path: Path, status: str, progress: str, gaps: list[str], outcome: str
+) -> None:
+    data, _ = later_round(tmp_path)
+    data.update(
+        current_target=data["prior_target"],
+        assessment_correction="Fresh assessment corrects the earlier incomplete evidence.",
+        evidence_gaps=gaps,
+        outcome=outcome,
+    )
+    data["regressions"][0].update(status=status, progress=progress)
+    assert validate_verification(serialize(data)).value("outcome") == outcome
+    with pytest.raises(ReviewError, match="outcome"):
+        validate_verification(serialize(changed(data, outcome="clear")))
+
+
+@pytest.mark.parametrize("variant", ["first", "changed", "blank"])
+def test_assessment_correction_requires_same_candidate_prior_and_reason(
+    tmp_path: Path, variant: str
+) -> None:
+    data, _ = later_round(tmp_path)
+    if variant == "first":
+        data = verification_record()
+    if variant != "changed":
+        data["current_target"] = data["prior_target"]
+    if variant == "blank":
+        data["outcome"] = "no_progress"
+    data["assessment_correction"] = " \n " if variant == "blank" else "New evidence."
+    with pytest.raises(ReviewError, match="assessment correction"):
+        validate_verification(serialize(data))
+
+
 def test_original_immutability_and_history_duplicates(tmp_path: Path) -> None:
     data, _ = later_round(tmp_path)
     data["original_findings"][0]["evidence"] = "rewritten evidence"
@@ -220,6 +261,8 @@ def test_original_immutability_and_history_duplicates(tmp_path: Path) -> None:
             "location": "f:3",
             "source": "request",
             "evidence": "unrelated",
+            "repair_guidance": "remove the unrelated behavior",
+            "resolution_evidence": "the unrelated behavior no longer occurs",
         }
     )
     with pytest.raises(ReviewError, match="new original finding"):

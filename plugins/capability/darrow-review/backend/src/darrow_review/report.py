@@ -2,12 +2,45 @@
 
 from __future__ import annotations
 
+import re
 from collections import Counter
+from pathlib import Path
 
 from . import report_templates as templates
-from .common import read_text
+from .common import read_text, require
 from .records import Records, validate_result
 from .verification import validate_verification
+
+DESTINATION_ESCAPES = str.maketrans(
+    {
+        "%": "%25",
+        " ": "%20",
+        "#": "%23",
+        "?": "%3F",
+        "<": "%3C",
+        ">": "%3E",
+        "\\": "%5C",
+    }
+)
+
+
+def escape_destination(value: str) -> str:
+    """Escape Markdown URI delimiters without double-escaping replacements."""
+    return value.translate(DESTINATION_ESCAPES)
+
+
+def report_link(command: str, result_path: str) -> str:
+    report_name = "verification.md" if command == "render-verification" else "review.md"
+    report_path = Path(result_path).parent.resolve(strict=True) / report_name
+    destination = str(report_path)
+    require(
+        not any(
+            ord(character) < 32 or ord(character) == 127 for character in destination
+        ),
+        "report path contains a control character",
+    )
+    return f"\nComplete review report: [report](<{escape_destination(destination)}>)\n"
+
 
 ESCAPES = str.maketrans(
     {
@@ -27,17 +60,17 @@ ESCAPES = str.maketrans(
 
 
 def escape(value: str) -> str:
-    return (
-        value.translate(ESCAPES)
-        .replace("\r", "\\r")
-        .replace("\n", "\\n")
-        .replace("\t", "\\t")
+    # A single underscore followed by a letter or digit cannot close CommonMark
+    # emphasis. Escape all possible closers, including runs, across every field.
+    chunks = re.split(r"((?<!_)_(?=[^\W_]))", value)
+    escaped = "".join(
+        chunk if index % 2 else chunk.translate(ESCAPES)
+        for index, chunk in enumerate(chunks)
     )
+    return escaped.replace("\r", "\\r").replace("\n", "\\n").replace("\t", "\\t")
 
 
 def guidance(item: dict[str, str], prefix: str = "") -> str:
-    if "repair_guidance" not in item:
-        return ""
     return (
         f"\n{prefix}- **Repair guidance (advisory):** {escape(item['repair_guidance'])}"
         f"\n{prefix}- **Resolution evidence:** {escape(item['resolution_evidence'])}"
@@ -150,7 +183,7 @@ def target_binding(result: Records) -> str:
         if history
         else ""
     )
-    return templates.TARGET_BINDING.substitute(
+    binding = templates.TARGET_BINDING.substitute(
         original=escape(result.value("original_target")),
         prior=escape(result.value("prior_target")),
         current=escape(result.value("current_target")),
@@ -158,6 +191,13 @@ def target_binding(result: Records) -> str:
         artifact=escape(result.object("previous_verification")["path"]),
         earlier_targets=earlier_targets,
     )
+    correction = result.value("assessment_correction")
+    if correction:
+        binding += (
+            "\n- **Assessment correction (supersedes the retained previous result):** "
+            + escape(correction)
+        )
+    return binding
 
 
 def closed_findings(result: Records) -> str:
@@ -196,5 +236,7 @@ def verification(result: Records) -> str:
 def render(command: str, path: str) -> str:
     text = read_text(path, "result")
     if command == "render-verification":
-        return verification(validate_verification(text, path))
-    return comprehensive(validate_result(text))
+        rendered = verification(validate_verification(text, path))
+    else:
+        rendered = comprehensive(validate_result(text))
+    return rendered + report_link(command, path)

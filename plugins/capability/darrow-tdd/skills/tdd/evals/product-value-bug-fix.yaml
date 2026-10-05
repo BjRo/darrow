@@ -1,5 +1,5 @@
 id: tdd-product-value-bug-fix
-invariant: TDD-E1,TDD-E7
+invariant: TDD-C4,TDD-C9,TDD-C12,TDD-E1,TDD-E7
 activation: positive
 mount_plugin_skills: true
 prompt: >-
@@ -9,7 +9,7 @@ prompt: >-
   values. For the independent example nowMs=1893456000000 and
   value="Tue, 01 Jan 2030 00:00:05 GMT", it must return 5000. Preserve numeric
   Retry-After behavior and add durable regression coverage. Use bash test.sh
-  for the test suite.
+  as the focused red/green command and the final test command.
 fixture:
   commits:
     - message: "chore: init"

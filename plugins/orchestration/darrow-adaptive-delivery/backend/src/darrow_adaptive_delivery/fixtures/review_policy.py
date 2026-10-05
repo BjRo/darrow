@@ -73,10 +73,7 @@ def constrain(findings: Findings, mode: str, target: str, history: list[str]) ->
     if findings.outcome == "blocking":
         findings.outcome = "continue"
     prior_targets = {row.split("\t")[0] for row in history}
-    if (
-        findings.outcome not in {"inconclusive", "unavailable", "blocked"}
-        and target in prior_targets
-    ):
+    if findings.outcome == "continue" and target in prior_targets:
         findings.outcome = "no_progress"
         findings.failure = "Target fingerprint repeats an earlier convergence state"
 
@@ -99,7 +96,13 @@ def details(findings: Findings, git_dir: Path) -> str:
             if guidance.exists()
             else ""
         )
-        return f"Blocking finding: {findings.failure}\n" + extra
+        return (
+            "Finding R1: axis spec; severity high; disposition blocking.\n"
+            f"Blocking finding: {findings.failure}\n"
+            f"Evidence: {findings.failure}\n"
+            "Resolution: satisfy the originating acceptance without introducing a direct regression.\n"
+            + extra
+        )
     gaps = {
         "blocked": findings.failure,
         "inconclusive": "The review could not reach a reliable conclusion from the available evidence.",

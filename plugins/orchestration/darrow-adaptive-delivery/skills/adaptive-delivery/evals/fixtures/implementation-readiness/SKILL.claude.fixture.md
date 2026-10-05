@@ -10,5 +10,5 @@ Use the native Read tool, never Bash, to read the complete file
 contents as this capability's complete human-readable result and return them
 verbatim to adaptive-delivery preflight. Do not invoke another tool, implement the
 request, or perform the result's next action inside this capability. A `ready`
-result may be compiled into the separate owner's inline contract. Any other
-verdict stops before owner launch and mutation.
+result may be compiled into the main thread's delivery contract. Any other
+verdict stops before native goal activation and implementation.

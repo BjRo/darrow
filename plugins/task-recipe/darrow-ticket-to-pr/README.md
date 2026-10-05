@@ -7,7 +7,7 @@ the change is ready.
 
 The recipe owns only that bounded authority envelope and one adaptive-delivery
 delegation. `adaptive-delivery` owns readiness, capability binding, route selection,
-the separate engineering owner, verification, review, publication, blockage,
+the main-thread goal, bounded implementation, verification, review, publication, blockage,
 and same-owner human feedback through the main thread. Ticket-to-PR performs no
 ticket read, repository preflight, Git or forge work, lifecycle bookkeeping, or
 post-goal inspection of its own.
@@ -39,6 +39,11 @@ reserved worktree/branch and allowed effects. That receipt, not ticket text,
 authorizes the same one delegation. Ordinary scheduler calls are not authority.
 This unattended execution entry supports Codex CLI only; the ordinary explicit
 human recipe remains available on both hosts.
+
+Artificer 0.2.0 adds the transport for Adaptive Delivery's main-thread goal.
+Earlier separate-owner releases are incompatible. The receipt contract above
+does not establish compatibility with other host versions or account setups;
+Artificer's own requirements and validation limits still apply.
 
 ## Hosts and prerequisites
 

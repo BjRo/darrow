@@ -134,6 +134,31 @@ async function runSelection(
   return { stdout, stderr, code, results };
 }
 
+test("Codex entrypoint is explicit provenance and separates run identity", async () => {
+  const root = await selectionFixture();
+  const digests: string[] = [];
+  for (const entrypoint of ["exec", "app-server"] as const) {
+    const { code, stdout, stderr, results } = await runSelection(
+      root,
+      [
+        "--skill",
+        "create-commit",
+        "--case",
+        "alpha",
+        "--codex-entrypoint",
+        entrypoint,
+      ],
+      "codex",
+    );
+    expect(code, `${stdout}\n${stderr}`).toBe(0);
+    expect(results).toHaveLength(1);
+    expect(results[0]!.codexEntrypoint).toBe(entrypoint);
+    expect(results[0]!.executionMode).toBe("dry");
+    digests.push(results[0]!.evaluationDigest);
+  }
+  expect(new Set(digests).size).toBe(2);
+});
+
 test("--skill selects all colocated cases independently of case IDs", async () => {
   const root = await selectionFixture();
   const { code, stderr, results } = await runSelection(root, [
@@ -147,6 +172,54 @@ test("--skill selects all colocated cases independently of case IDs", async () =
     join(root, skillPath),
   ]);
 });
+
+test("native goal cases require passive Codex app-server observation", async () => {
+  const root = await selectionFixture();
+  const path = join(root, skillPath, "evals/alpha.yaml");
+  const value = JSON.parse(await readFile(path, "utf8"));
+  value.native_goal = "required";
+  await writeFile(path, JSON.stringify(value));
+  const selection = ["--skill", "create-commit", "--case", "alpha"];
+  for (const args of [[], ["--codex-entrypoint", "app-server"]]) {
+    const result = await runSelection(root, [...selection, ...args], "codex");
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain("native_goal requires");
+    expect(result.results).toEqual([]);
+  }
+  const result = await runSelection(
+    root,
+    [
+      ...selection,
+      "--codex-entrypoint",
+      "app-server",
+      "--owner-evaluation",
+      "passive",
+    ],
+    "codex",
+  );
+  expect(result.code, result.stderr).toBe(0);
+  expect(result.results[0]!.executionMode).toBe("dry");
+});
+
+test.each([
+  ["codex", "invalid"],
+  ["claude", "app-server"],
+])(
+  "entrypoint %s/%s refuses before fixture execution",
+  async (host, entrypoint) => {
+    const root = await selectionFixture();
+    const result = await runSelection(
+      root,
+      ["--codex-entrypoint", entrypoint],
+      host,
+    );
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain(
+      "--codex-entrypoint requires --harness codex",
+    );
+    expect(result.results).toEqual([]);
+  },
+);
 
 test.each(["claude", "codex"])(
   "repository skill cases use the native %s entrypoint without plugin ownership",

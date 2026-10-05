@@ -1,7 +1,7 @@
 {
   "name": "darrow-adaptive-delivery",
-  "version": "0.23.7",
-  "description": "Adaptive Delivery: diagnose host capacity or launch one routed owner for bounded engineering work",
+  "version": "0.24.9",
+  "description": "Adaptive Delivery: diagnose host capacity or coordinate bounded engineering with a main-thread native goal",
   "author": {
     "name": "Björn Rochel",
     "email": "bjoern@bjro.de"
@@ -9,13 +9,13 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Darrow -> Adaptive Delivery",
-    "shortDescription": "One routed owner for bounded engineering goals",
-    "longDescription": "Adaptive Delivery can diagnose host delegation capacity read-only, or prepare a bounded engineering request and launch exactly one separate routed owner without a lifecycle ledger.",
+    "shortDescription": "A native goal with bounded implementation and verification",
+    "longDescription": "Keep acceptance, user decisions and completion in the main thread. Delegate routed implementation and selected verification using native goal continuation.",
     "developerName": "Björn Rochel",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],
     "defaultPrompt": [
-      "Diagnose this host's delivery capacity or preflight a bounded request and launch one route-selected owner."
+      "Diagnose host capacity or coordinate this bounded request with a main-thread native goal."
     ]
   }
 }

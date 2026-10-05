@@ -8,11 +8,13 @@ from pathlib import Path
 from types import FrameType
 from uuid import uuid4
 
-from . import account, archive, native, prompts
+from . import archive, native, prompts
 from .github import GitHub
 from .installation import Installation
-from .models import Claim, Outcome
+from .models import Claim, Native, Outcome
 from .reconciliation import verified_pr
+from .rpc import Rpc
+from .session import Session
 from .storage import locked, write_bytes
 
 
@@ -33,9 +35,7 @@ def home_for(site: Installation, claim: Claim) -> Path:
 def verify_retained_home(site: Installation, claim: Claim, home: Path) -> None:
     if claim.native is None:
         return
-    observed = native.correlate(
-        home, claim.native.parent, claim.native.owner, site.grant
-    )
+    observed = native.correlate(home, claim.native.thread, site.grant)
     if observed != claim.native:
         raise ValueError(
             "Original native owner or route no longer matches the reservation"
@@ -72,45 +72,91 @@ def execute(site: Installation, claim: Claim, home: Path) -> tuple[Path, Path]:
     prompt = (
         prompts.continuation(claim) if claim.native else prompts.initial(site, claim)
     )
-    parent = claim.native.parent if claim.native else None
-    with events.open("wb") as stream:
-        result = subprocess.run(
-            native.command(site.grant, home, output, parent),
-            input=prompt.encode(),
-            stdout=stream,
-            stderr=subprocess.PIPE,
+
+    def observed_goal(objective: str) -> None:
+        with locked(site.lock):
+            retained = site.claim(claim.id)
+            retained.goal_objective = objective
+            site.save(retained)
+
+    with (
+        events.open("wb") as stream,
+        (directory / f"{attempt}-stderr").open("wb") as errors,
+        subprocess.Popen(
+            native.command(site.grant),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=errors,
             cwd=claim.worktree,
             env=native.environment(home),
-            check=False,
-        )
-    write_bytes(directory / f"{attempt}-stderr", result.stderr)
-    if result.returncode:
-        raise RuntimeError(
-            f"Codex exited {result.returncode}; access or execution needs attention"
-        )
+            bufsize=0,
+        ) as process,
+    ):
+        try:
+            session = Session(
+                Rpc(process, stream),
+                site.grant,
+                Path(claim.worktree),
+                claim.goal_objective,
+            )
+            submit(site, claim, session, prompt)
+            session.observed_goal = observed_goal
+            outcome = session.wait()
+            write_bytes(output, outcome.model_dump_json().encode())
+        finally:
+            process.terminate()
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
     return events, output
+
+
+def submit(site: Installation, claim: Claim, session: Session, prompt: str) -> None:
+    with locked(site.lock):
+        retained = site.claim(claim.id)
+        if retained.status == "cancelled" or not site.grant.enabled:
+            raise ValueError("Delivery was cancelled or revoked before turn submission")
+
+        def accepted(observed: Native) -> None:
+            retained.native = observed
+            site.save(retained)
+
+        session.start(claim.native, accepted)
+        retained.goal_objective = session.objective
+        site.save(retained)
+        session.submit(prompt)
 
 
 def apply_outcome(
     site: Installation, claim: Claim, home: Path, events: Path, output: Path
 ) -> None:
     outcome = Outcome.model_validate_json(output.read_bytes())
-    if outcome.status == "pr-open" and not outcome.owner:
-        raise ValueError("PR completion requires the original engineering owner")
-    parent = native.thread_id(events)
-    observed = native.correlate(home, parent, outcome.owner or "", site.grant)
-    if claim.native is not None and not native.preserves(claim.native, observed):
-        raise ValueError("Original parent/owner identity or model/effort changed")
-    claim.native = observed
-    site.save(claim)
+    accept_identity(site, claim, home, events, outcome)
     claim.pending_answer = None
     claim.question = claim.question_text = None
     claim.question_comment = None
     claim.status, claim.detail, claim.pr = outcome.status, outcome.detail, outcome.pr
+    if outcome.status == "needs-attention":
+        claim.needs_attention(outcome.detail)
     if outcome.status == "question":
         question(site, claim, outcome)
     if outcome.status == "pr-open":
         verified_pr(claim, GitHub(site.grant.gh, site.grant.repository))
+
+
+def accept_identity(
+    site: Installation, claim: Claim, home: Path, events: Path, outcome: Outcome
+) -> None:
+    thread = native.thread_id(events)
+    observed = native.correlate(home, thread, site.grant)
+    if claim.native is not None and claim.native != observed:
+        raise ValueError("Original main-thread identity or model/effort changed")
+    if outcome.status == "pr-open":
+        native.require_completion(events, thread)
+    claim.native = observed
+    site.save(claim)
 
 
 def question(site: Installation, claim: Claim, outcome: Outcome) -> None:
@@ -174,7 +220,6 @@ def run(site: Installation, delivery: str) -> None:
                 return
             home = home_for(site, claim)
             native.check_login(site.grant, home)
-            account.check(site.grant, home)
             worktree(site, claim)
         result = execute(site, claim, home)
     except Exception as failure:

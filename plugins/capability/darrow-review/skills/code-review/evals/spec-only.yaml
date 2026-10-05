@@ -1,6 +1,6 @@
 id: code-review-spec-only
 activation: positive
-invariant: CR-E2,CR-E4,CR-E7,CR-E8
+invariant: CR-E2,CR-E4,CR-E7,CR-E8,CR-E14
 prompt: >-
   Review my uncommitted changes against this originating requirement:
   formatName must trim outer whitespace and return exactly "Anonymous" when
@@ -27,7 +27,15 @@ fixture:
       }
   setup: |
     git status --porcelain --untracked-files=all >.git/status-before
+    mkdir -p .git/eval-checks/review/tests/evals
+    cp "{{case_dir}}/../../../backend/pyproject.toml" "{{case_dir}}/../../../backend/uv.lock" .git/eval-checks/review/
+    cp -R "{{case_dir}}/../../../backend/src" .git/eval-checks/review/
+    cp "{{case_dir}}/../../../backend/tests/evals/eval_routes.py" .git/eval-checks/review/tests/evals/
+    mkdir -p .git/eval-checks/review/tests/evals
+    cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
+  - name: human response excludes machine JSON
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
   - name: review is read-only
     run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
   - name: canonical JSON is retained beneath the review scope artifact
@@ -37,9 +45,17 @@ checks:
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
       test -n "$tool" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record"
     expect_regex: "^valid: darrow-review-result-v3$"
-  - name: default response does not duplicate canonical JSON
-    run: "! grep -F 'format	darrow-review-result-v3' .git/last-message.md"
-  - name: final response preserves every canonical rendered line
+  - name: only Spec blocks for the seeded requirement defect
+    run: >-
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
+      test -n "$record" || exit 1;
+      python3 -c 'import json,sys; record=json.load(open(sys.argv[1])); assert record["standards"]=="pass" and record["spec"]==record["verdict"]=="fail"; assert any(finding["axis"]=="spec" and finding["disposition"]=="blocking" for finding in record["findings"]); assert not any(finding["axis"]=="standards" and finding["disposition"]=="blocking" for finding in record["findings"])' "$record"
+  - name: native reviewers use both configured independent axis routes
+    run: >-
+      uv run --quiet --frozen --no-dev --project .git/eval-checks/review
+      python .git/eval-checks/review/tests/evals/eval_routes.py
+      --host "$DARROW_EVAL_HARNESS" --profile default --axes standards spec
+  - name: retained Markdown preserves every canonical rendered line
     run: >-
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
@@ -48,5 +64,21 @@ checks:
       expected=.git/expected-review.md;
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render "$record" >"$expected" &&
       awk 'NF' "$expected" >.git/expected-review-normalized.md &&
-      awk 'NF' .git/last-message.md >.git/actual-review-normalized.md &&
+      awk 'NF' "$(dirname "$record")/review.md" >.git/actual-review-normalized.md &&
       cmp .git/expected-review-normalized.md .git/actual-review-normalized.md
+semantic_output_checks:
+  - name: seeded empty-name defect is detected and traced to the requirement
+    proposition: >-
+      The review identifies that formatName returns an empty string for an
+      empty or whitespace-only input after trimming, violating the originating
+      requirement to return exactly Anonymous when the trimmed name is empty.
+      It makes clear that this defect causes the failed review. A fail verdict
+      tied to this sole defect establishes its blocking effect; literal Spec
+      or blocking labels are optional. Contrasting the empty string with the
+      required Anonymous value restates and traces the inline requirement;
+      repeating an "originating request" citation label is not required.
+      A blocked or passing report, generic claim of a specification mismatch,
+      or unrelated finding without this defect does not satisfy the check.
+      Assess the finding's diagnosis of current code. Repair guidance and
+      resolution evidence describe the desired behavior after repair; they do
+      not claim that the current code already implements that behavior.

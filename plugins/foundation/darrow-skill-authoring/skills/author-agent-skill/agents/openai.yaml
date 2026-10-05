@@ -1,4 +1,0 @@
-interface:
-  display_name: "Author Agent Skill"
-  short_description: "Create reliable cross-runtime agent skills"
-  default_prompt: "Use $author-agent-skill to create or improve this agent skill."

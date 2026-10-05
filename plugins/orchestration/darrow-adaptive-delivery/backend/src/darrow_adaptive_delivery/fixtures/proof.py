@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -60,11 +61,18 @@ def invoke(backend: Path, repo: Path, *args: str) -> str:
     return result.stdout
 
 
-def canonical_record(git_dir: Path, selected: str) -> Path:
+def review_state_root() -> Path:
+    root = Path(os.environ.get("DARROW_REVIEW_STATE_DIR", ""))
+    if not root.is_absolute():
+        raise InvalidProofError("fixture requires an absolute DARROW_REVIEW_STATE_DIR")
+    return root.resolve()
+
+
+def canonical_record(state: Path, selected: str) -> Path:
     path = Path(selected).resolve()
     if not path.is_file():
         raise InvalidProofError(f"unreadable artifact: {selected}")
-    if not path.is_relative_to(git_dir) or not path.parent.name.startswith(
+    if not path.is_relative_to(state) or not path.parent.name.startswith(
         "darrow-review."
     ):
         raise InvalidProofError(f"not a canonical fixture review artifact: {path}")
@@ -95,25 +103,42 @@ def machine_record(backend: Path, repo: Path, path: Path) -> Path:
     return record
 
 
-def original_record(git_dir: Path, target: str) -> Path:
-    matches = [
-        path
-        for path in git_dir.rglob("result.json")
-        if path.parent.name.startswith("darrow-review.")
-        and field(path, "target") == target
-    ]
-    if len(matches) != 1:
-        reason = "ambiguous" if matches else "missing"
-        raise InvalidProofError(f"original comprehensive result is {reason}")
-    return matches[0]
+def original_matches(
+    backend: Path, repo: Path, original: Path, verification: Path
+) -> bool:
+    try:
+        invoke(
+            backend,
+            repo,
+            "review-result",
+            "validate-original",
+            str(original),
+            str(verification),
+        )
+    except InvalidProofError:
+        return False
+    return True
 
 
-def reviewed_target(backend: Path, repo: Path, git_dir: Path, path: Path) -> str:
+def original_record(backend: Path, repo: Path, state: Path, verification: Path) -> Path:
+    target = field(verification, "original_target")
+    for path in state.rglob("result.json"):
+        if (
+            not path.parent.name.startswith("darrow-review.")
+            or field(path, "target") != target
+        ):
+            continue
+        if original_matches(backend, repo, path, verification):
+            return path
+    raise InvalidProofError("matching original comprehensive result is missing")
+
+
+def reviewed_target(backend: Path, repo: Path, state: Path, path: Path) -> str:
     format_name = field(path, "format")
     if format_name == "darrow-review-result-v3":
         return comprehensive_target(backend, repo, path)
     if format_name == "darrow-review-verification-v3":
-        return verification_target(backend, repo, git_dir, path)
+        return verification_target(backend, repo, state, path)
     raise InvalidProofError(f"unsupported format: {format_name}")
 
 
@@ -128,16 +153,13 @@ def comprehensive_target(backend: Path, repo: Path, path: Path) -> str:
     return field(path, "target")
 
 
-def verification_target(backend: Path, repo: Path, git_dir: Path, path: Path) -> str:
+def verification_target(backend: Path, repo: Path, state: Path, path: Path) -> str:
     if path.name != "verification.json":
         raise InvalidProofError("wrong verification artifact name")
     invoke(backend, repo, "review-result", "validate-verification", str(path))
     if field(path, "outcome") != "clear":
         raise InvalidProofError("verification is not clear")
-    original = original_record(git_dir, field(path, "original_target"))
-    invoke(
-        backend, repo, "review-result", "validate-original", str(original), str(path)
-    )
+    original_record(backend, repo, state, path)
     return field(path, "current_target")
 
 
@@ -181,10 +203,11 @@ def validate_selected(repo: Path, mode: str, selected: str) -> str:
     proof = git_dir / "fixture-state/high-risk-review-proof"
     if mode != "complete":
         selected = proof.read_text(encoding="utf-8").strip()
-    path = canonical_record(git_dir, selected)
+    state = review_state_root()
+    path = canonical_record(state, selected)
     backend = provider(git_dir)
     path = machine_record(backend, repo, path)
-    target = reviewed_target(backend, repo, git_dir, path)
+    target = reviewed_target(backend, repo, state, path)
     if mode != "artifact":
         current(backend, repo, target)
     if mode == "complete":

@@ -1,112 +1,101 @@
 # Darrow Skill Authoring
 
-`darrow-skill-authoring` provides one workflow for creating, revising, and
-validating focused agent skills that remain useful in both Claude Code and
-Codex.
+`darrow-skill-authoring` supplies two independently selectable skills for
+Claude Code and Codex:
 
-For creation and revision, an independent review of the exact finished skill
-can satisfy the authoring challenge even when the user or an enclosing goal
-requested it earlier. The review must cover the authoring questions and current
-check evidence. Finding-driven repairs use closed follow-up verification;
-unrelated changes need a new broad challenge.
-
-## Skill
-
-- `author-agent-skill` defines an observable skill contract, tests discovery
-  and workflow behavior, separates deterministic mechanics from judgment, and
-  verifies the resulting package in fresh context.
-
-The plugin is self-contained. It does not require another Darrow plugin, an MCP
-server, or a workflow runtime. Its locked Python inspector validates portable
-metadata and containment for inline Markdown-linked local resources on Linux,
-macOS, and native Windows; the workflow inspects other path forms, and native
-runtime validators remain authoritative for their complete formats.
-
-## Design boundaries
-
-Validation keeps the target repository and installed plugin read-only. On first
-use, the packaged bootstrap prepares the locked Python environment in the
-user-writable Darrow cache. Any `.venv` left in an older installed copy is
-stale, disposable, and removable after older processes exit. Creation and
-revision require a supplied goal, destination, supported runtimes, and clear
-authority. The skill does not invent a capability or publish it without a
-separate explicit request.
-
-## Development
-
-From this plugin directory, prepare the locked helper environment without
-development dependencies:
-
-```text
-uv sync --quiet --frozen --no-dev --project skills/author-agent-skill/backend
-```
-
-From the repository root, run the Python quality checks with
-`bun run check:python`. From this plugin directory, run the shell regression
-suites through the version-aware matrix:
-
-```text
-uv run --quiet --frozen --no-dev \
-  --project skills/author-agent-skill/backend \
-  verify-shell-tests -- \
-  skills/author-agent-skill/backend/tests/shell/inspect-skill.test.sh \
-  skills/author-agent-skill/backend/tests/shell/verify-shell-tests.test.sh \
-  skills/author-agent-skill/backend/tests/shell/interpreter-routing.test.sh
-```
-
-The matrix reports observed interpreter versions. Exit `3` leaves an unavailable
-required version unverified; two executable names do not prove two versions.
-
-Run the judgment evals from the repository `evals` directory:
-
-```sh
-bun runner/run.ts --case author-agent-skill --harness claude --dry
-bun runner/run.ts --case author-agent-skill --harness claude
-```
-
-See the [eval case and shell-evidence notes](skills/author-agent-skill/evals/README.md)
-when changing reporting checks or interpreting coverage.
+- `create-agent-skill` builds a new, focused skill from an approved capability,
+  destination, runtime, and authority contract.
+- `audit-agent-skill` reviews an existing skill or named draft without edits and
+  returns findings with evidence and repair acceptance criteria.
 
 ## When to use
 
-Create, revise, or validate one reusable skill. Do not use it for generic instruction-file prose or an invented capability.
+Use creation when you need a new reusable agent skill. Use audit when you need
+findings on an existing skill or draft. Implement audit findings as ordinary
+engineering work under the target repository's instructions.
+
+## Safety boundaries
+
+Neither skill owns a general revision workflow.
+The plugin is self-contained and does not require another Darrow plugin, MCP
+server, or workflow runtime.
+
+Creation may write the new skill and its local tests under the approved
+contract. Audit leaves checked-in files unchanged and never performs the
+target skill's external action. Neither skill commits, installs, or publishes
+without separate user authority.
+
+## Shared mechanics
+
+The plugin-level locked Python backend supplies `inspect-skill` and
+`verify-shell-tests` to both skills. The inspector checks portable metadata
+and inline Markdown-linked local resources; the skills inspect other path
+forms and use native validators for their complete formats. The shell matrix
+reports observed interpreter versions rather than inferring them from command
+names. On first use, the launcher prepares a locked environment in a
+user-writable Darrow cache, leaving the installed plugin read-only.
 
 ## Hosts and prerequisites
 
-Codex and Claude Code;
+Claude Code and Codex are supported. The shared backend requires
 [UV and Python](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md#uv-and-python-for-plugin-helpers).
-Shell-matrix verification also needs the target interpreters and their baseline
-Unix tools.
-Live evaluations need the target's supported host harness.
+The skill needs access to the target repository; the shell matrix only claims
+versions it actually runs.
+
+## Development
+
+From this plugin directory, prepare the runtime backend:
+
+```text
+uv sync --quiet --frozen --no-dev --project backend
+```
+
+From the repository root, run `bun run check:python`. From this plugin
+directory, run the bundled shell regression suites:
+
+```text
+uv run --quiet --frozen --no-dev \
+  --project backend \
+  verify-shell-tests -- \
+  backend/tests/shell/inspect-skill.test.sh \
+  backend/tests/shell/verify-shell-tests.test.sh \
+  backend/tests/shell/interpreter-routing.test.sh
+```
+
+The matrix exits `3` when a required interpreter is unavailable and leaves
+that target unverified. Run the colocated evals with the shared runner and
+`--plugin darrow-skill-authoring`; use one trial and one job while diagnosing.
+The [eval notes](skills/create-agent-skill/evals/README.md) describe the active
+case boundaries.
 
 ## Installation
 
 Install `darrow-skill-authoring@darrow` using the
-[host installation, update, removal, and verification instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
-Review this plugin's local prerequisites and safety boundaries first.
+[host installation instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
 
 ## Usage
 
-An ordinary request can select the appropriate capability:
+Ordinary requests can select either skill:
 
-> Validate this skill for Claude Code and Codex.
+> Create a skill that validates our release notes.
 
-To select it explicitly, choose `author-agent-skill` from Codex's `$` skill menu,
-or use `/darrow-skill-authoring:author-agent-skill` in Claude Code, followed by your request.
+> Audit this skill's discovery and safety boundaries without editing it.
+
+For explicit selection, use `create-agent-skill` or `audit-agent-skill` in
+Codex's `$` skill menu, or `/darrow-skill-authoring:create-agent-skill` and
+`/darrow-skill-authoring:audit-agent-skill` in Claude Code.
 
 ## Expected result
 
-The result and next action come first. Validation then reports complete evidence
-without edits. Revision produces a bounded skill and checks. Installation and
-publication need separate authority.
+Creation returns a new skill, local evidence, and any unverified host support.
+Audit returns read-only findings with repair acceptance criteria.
 
 ## Troubleshooting
 
-An unreadable required resource blocks dependent advice. The version-aware shell helper keeps a missing interpreter unverified; fix the exact named input before rerunning.
-For a discovery or host problem, use the
-[documented installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md)
-and report the plugin version, host version, exact invocation, and error
-without credentials.
+An unreadable required resource blocks dependent advice. For host problems,
+follow the [installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md)
+and report the plugin and host versions, invocation, and error without
+credentials.
 
 ## License
 

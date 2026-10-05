@@ -14,6 +14,10 @@ checks:
     run: grep -F 'DEFAULT_TIMEOUT_MS = 2500' src/config.js
   - name: no review artifact was returned
     run: "! grep -F 'darrow-review-result-v3' .git/last-message.md"
+  - name: no coordinated review artifact is created
+    run: >-
+      records=$(find "$DARROW_REVIEW_STATE_DIR" -type f \( -name result.json -o -name verification.json \));
+      test -z "$records"
 output_checks:
   - name: skill does not claim a review
     not_regex: "darrow-review-result-v3|^standards\\t|^spec\\t"

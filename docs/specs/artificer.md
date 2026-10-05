@@ -21,9 +21,12 @@ acceptance. This specification defines the local implementation boundary.
   prevents subsequent admissions and continuations; it does not undo effects.
 - **ART-C3 — Ownership.** Automation owns admission and process/storage mechanics.
   The recipe owns its permission envelope. Adaptive delivery owns readiness and
-  exactly one engineering owner. A scheduler supplies a deliberate grant-bound
+  the original main thread's native goal. That thread retains readiness,
+  acceptance, decisions, bounded delegation and completion. A scheduler supplies a deliberate grant-bound
   unattended entry, never an impersonated human invocation. Failed readiness
-  permits no implementation. The same parent and owner retain all continuation.
+  permits no implementation. The same main thread retains all continuation.
+  The initial route is `gpt-6-sol`/`medium`; implementation and assurance routes
+  remain selected by Adaptive Delivery and its bound capabilities.
 
 ## Admission and reconciliation
 
@@ -40,7 +43,7 @@ acceptance. This specification defines the local implementation boundary.
   directory protects all admissions. One controlling installation is bound to
   that repository. Persist correlation before any GitHub write or launch;
   consume `artificer:ready`, establish `artificer:claimed`, and correlate issue,
-  delivery, activation, grant, worktree, parent and owner. Local unreleased
+  delivery, activation, grant, worktree and original thread. Local unreleased
   reservations and external claims occupy capacity, counted once per issue.
   Partial writes and failed/ambiguous launches retain reservations and consume
   allowance. Never admit replacement work for them during that activation.
@@ -62,15 +65,38 @@ acceptance. This specification defines the local implementation boundary.
   `/artificer resume <delivery>` requests recovery after needs-attention; it
   cannot authorize a replacement owner or bypass unresolved questions.
 - **ART-C9 — Native continuation.** Support must be established against an exact
-  Codex version. After the original CLI exits, resume its exact parent ID and
-  deliver feedback to its exact owner, preserving both histories and their
-  original models and effort. Never use `--last`, forks, fresh owners, or summary
-  reconstruction. Retain unusable state and ambiguous effects for recovery.
-- **ART-C10 — Subscription.** Use persistent normal ChatGPT login and Codex token
+  Codex version. A contained app-server client hosts the original main thread
+  through native continuation. After process exit, resume its exact thread ID
+  and deliver the complete authorized feedback there, preserving native history,
+  goal and route. Retain an observed goal's objective across process exits and
+  refuse its later disappearance or replacement. A host snapshot with no goal
+  is valid before the first goal is created. Questions before goal creation
+  also retain that same thread.
+  Never use forks, fresh owners, summary reconstruction, synthetic continuation
+  prompts or an engineering phase loop. Persist the accepted identity before
+  submitting the first turn. Serialize authority checks, native resume and turn
+  submission with grant revocation. Release the lock while observing execution.
+  Later delivery requires observed native completion
+  and a validated result with a verified PR; an intermediate final response or
+  a child result cannot establish completion. Preserve malformed results, host
+  errors and uncertain handoffs for recovery without automatic retries.
+  Earlier separate-owner records are not converted or relaunched.
+  Production execution has no overall elapsed-time limit. Observe healthy native
+  continuation until completion, a user question, cancellation or a host failure.
+  Individual protocol requests and process shutdown remain bounded. Experiment
+  duration limits belong only to test/eval entrypoints; they never become an
+  implicit delivery budget or automatic retry policy.
+- **ART-C10 — Account usage.** Use persistent normal ChatGPT login and Codex token
   refresh. Force ChatGPT authentication and the OpenAI provider; exclude API-key,
-  custom-provider, and API-base overrides. Do not buy credits or introduce paid
-  fallback. An access/allowance failure retains native state and the claim,
-  reports needs-attention, and cannot be restarted by a tick without an explicit
+  custom-provider, and API-base overrides. The recurring grant explicitly accepts
+  account usage, including available credits after included allowance is exhausted.
+  Credit balances and automatic reload settings do not block execution. Codex
+  enforces account availability; Artificer does not impose a subscription-only
+  allowance gate or promise zero additional cost. Never purchase credits, change
+  billing settings or introduce API-key fallback. A stricter user requirement
+  such as zero paid usage must be resolved before enabling; it is not satisfied
+  by a point-in-time allowance check. An access/allowance failure retains native
+  state and the claim, reports needs-attention, and cannot be restarted by a tick without an explicit
   authorized human resume. Polling itself invokes no model.
 - **ART-C11 — Scheduler and cancellation.** The initial local host is macOS with
   launchd, absolute executables, no terminal dependency, and a configurable
@@ -83,13 +109,17 @@ acceptance. This specification defines the local implementation boundary.
   `SESSION_RETENTION_DAYS` defaults to 5, measured from the latest successful
   save. Expiry removes the archive without releasing ownership. Do not silently
   restore corrupt, missing, expired or mismatched native state.
+  Exclude regenerable native temporary launchers from archives; unexpected
+  symbolic links in persistent state remain errors. Archive only after the host
+  process has stopped so native databases and histories are settled. Restore
+  executable helpers' permission bits without restoring elevated permissions.
 
 ## Evidence required
 
 Mechanical tests cover all admission combinations, concurrent processes, partial
 effects, replies while paused, competing/duplicate replies, cancellation,
 completion, encryption, expiry, malformed configuration, and fresh installation.
-Live Codex evidence must prove original parent and owner restoration, history,
+Live Codex evidence must prove original main-thread restoration, goal, history,
 model and effort after process exit. Live launchd evidence must show nonterminal
 activation and the configured interval. Explicit-entry evals cover a direct
 request, missing authority, status, revocation and a request to bypass recovery.

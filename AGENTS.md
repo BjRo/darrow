@@ -35,10 +35,25 @@ between capabilities and orchestration, read [`docs/design.md`](docs/design.md).
 - `docs/decisions/` — accepted decisions for the surviving plugin/eval surface.
 - `evals/runner/` — shared skill-evaluation runner. Results are gitignored.
 
+## Plugin README content
+
+Keep plugin entry READMEs focused on current behavior, installation, usage,
+prerequisites, developer test commands, and actionable limitations. Record
+historical eval results, trial counts, pass rates, experiment comparisons, and
+investigation narratives in `docs/research/` or colocated eval/test documentation.
+Keep eval-runner internals in development documentation. Preserve historical
+evidence when cleaning a README; a short link may point to it without repeating
+the results. State current compatibility and reliability limits as practical
+guidance without recounting the trials that established them.
+
 ## Skill development
 
-For skill creation, revision, or validation, follow
-[`author-agent-skill`](plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/SKILL.md).
+For new skill creation, follow
+[`create-agent-skill`](plugins/foundation/darrow-skill-authoring/skills/create-agent-skill/SKILL.md).
+For a read-only skill audit, follow
+[`audit-agent-skill`](plugins/foundation/darrow-skill-authoring/skills/audit-agent-skill/SKILL.md).
+Implement audit findings or other changes to an existing skill as ordinary
+engineering work against the findings and this repository's instructions.
 Add or adjust the applicable invariant under `docs/specs/` before implementation.
 Keep contextual judgment in the skill. Put repeatable, error-prone command and
 tool-protocol mechanics behind narrow bundled scripts so the model supplies

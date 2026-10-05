@@ -246,17 +246,19 @@ describe("eval fixture skill mounts", () => {
   });
 
   test.each(["project", "claude", "codex"])(
-    "mounts a plugin-level Python backend for %s without generated state",
+    "mounts plugin backend and references for %s without generated state",
     async (host) => {
       const root = await mkdtemp(join(tmpdir(), "darrow-fixture-backend-"));
       cleanup.push(root);
       const plugin = join(root, "plugin");
       const skill = join(plugin, "skills", "primary");
       const backend = join(plugin, "backend");
+      const references = join(plugin, "references");
       await mkdir(skill, { recursive: true });
       await mkdir(join(backend, ".venv"), { recursive: true });
       await mkdir(join(backend, "evals"), { recursive: true });
       await mkdir(join(backend, "tests", "evals"), { recursive: true });
+      await mkdir(join(references, "evals"), { recursive: true });
       await mkdir(join(plugin, ".claude-plugin"), { recursive: true });
       await mkdir(join(plugin, ".codex-plugin"), { recursive: true });
       await writeFile(
@@ -267,6 +269,8 @@ describe("eval fixture skill mounts", () => {
       await writeFile(join(backend, ".venv", "generated"), "private\n");
       await writeFile(join(backend, "evals", "secret.yaml"), "hidden\n");
       await writeFile(join(backend, "tests", "evals", "oracle.py"), "hidden\n");
+      await writeFile(join(references, "guide.md"), "packaged reference\n");
+      await writeFile(join(references, "evals", "secret.yaml"), "hidden\n");
       await writeFile(
         join(plugin, ".claude-plugin", "hooks.json"),
         '{"hooks":{"SessionStart":[]}}\n',
@@ -295,6 +299,12 @@ describe("eval fixture skill mounts", () => {
       expect(existsSync(join(destination, ".venv"))).toBe(false);
       expect(existsSync(join(destination, "evals"))).toBe(false);
       expect(existsSync(join(destination, "tests", "evals"))).toBe(false);
+      expect(
+        existsSync(join(dirname(destination), "references", "guide.md")),
+      ).toBe(true);
+      expect(
+        existsSync(join(dirname(destination), "references", "evals")),
+      ).toBe(false);
       expect(
         existsSync(join(dirname(destination), ".claude-plugin", "hooks.json")),
       ).toBe(host !== "project");

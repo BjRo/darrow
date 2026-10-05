@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { parse } from "yaml";
 import { gradeActivation, validateActivationCase } from "./activation";
 import { buildFixture, destroyFixture } from "./fixture";
+import { trialReviewStateDir } from "./environment";
 import type { EvalCase } from "./types";
 
 const source = new URL(
@@ -138,7 +139,7 @@ function fixtureGuidance(
   },
   handoff = false,
 ): string[] {
-  if (!scenario.guidance || (handoff && scenario.omittedGuidance)) return [];
+  if (handoff && scenario.omittedGuidance) return [];
   return [
     handoff && scenario.forgedGuidance
       ? "forged guidance"
@@ -276,6 +277,7 @@ for (const scenario of [
               location: "/synthetic/auth-config.js:1",
               source: "AGENTS.md",
               evidence: "Synthetic finding for oracle regression",
+              ...guidanceFields(fixtureGuidance({})),
             },
           ]
         : [],
@@ -300,7 +302,6 @@ for (const scenario of [
           },
         ],
         files: {
-          ".git/darrow-review.fixture/result.json": JSON.stringify(records),
           ...(await reviewFiles()),
           ...(await proofFiles()),
         },
@@ -309,17 +310,19 @@ for (const scenario of [
       skillMounts: [],
     });
     try {
-      const artifact = await selectedArtifact(
-        repo,
-        `${repo}/.git/darrow-review.fixture/result.json`,
-        scenario,
-      );
+      const recordPath = `${trialReviewStateDir(repo)}/darrow-review.fixture/result.json`;
+      await Bun.write(recordPath, JSON.stringify(records));
+      const artifact = await selectedArtifact(repo, recordPath, scenario);
       await Bun.write(
         `${repo}/.git/fixture-state/high-risk-review-proof`,
         `${artifact}\n`,
       );
       const grade = Bun.spawnSync(["/bin/bash", "-c", check!.run], {
         cwd: repo,
+        env: {
+          ...process.env,
+          DARROW_REVIEW_STATE_DIR: trialReviewStateDir(repo),
+        },
       });
       expect(grade.exitCode === 0).toBe(scenario.passes);
       if (scenario.passes)
@@ -394,7 +397,13 @@ for (const scenario of [
         args[0]!.startsWith("review-")
           ? reviewCommand(args[0]!, ...args.slice(1))
           : proofCommand(...args.slice(1)),
-        { cwd: repo },
+        {
+          cwd: repo,
+          env: {
+            ...process.env,
+            DARROW_REVIEW_STATE_DIR: trialReviewStateDir(repo),
+          },
+        },
       );
     const scope = () => {
       const result = run(
@@ -407,7 +416,7 @@ for (const scenario of [
         "--target",
         "WORKTREE",
       );
-      expect(result.exitCode).toBe(0);
+      expect(result.exitCode, result.stderr.toString()).toBe(0);
       return (JSON.parse(result.stdout.toString()) as { target: string })
         .target;
     };
@@ -435,7 +444,7 @@ for (const scenario of [
         "user request",
         "optional clarity",
       ];
-      const resultPath = `${repo}/.git/darrow-review.original/result.json`;
+      const resultPath = `${trialReviewStateDir(repo)}/darrow-review.original/result.json`;
       if (!scenario.missing)
         await Bun.write(
           resultPath,
@@ -467,6 +476,7 @@ for (const scenario of [
                       location: advisory[3],
                       source: advisory[4],
                       evidence: advisory[5],
+                      ...guidanceFields(fixtureGuidance({})),
                     },
                   ]
                 : []),
@@ -488,7 +498,7 @@ for (const scenario of [
       const current = scope();
       const key = `standards:1:${original}`;
       const [state, progress, outcome] = repairState(scenario);
-      const record = `${repo}/.git/darrow-review.repaired/verification.json`;
+      const record = `${trialReviewStateDir(repo)}/darrow-review.repaired/verification.json`;
       await Bun.write(
         record,
         serialize({
@@ -522,6 +532,7 @@ for (const scenario of [
                     location: advisory[3],
                     source: advisory[4],
                     evidence: advisory[5],
+                    ...guidanceFields(fixtureGuidance({})),
                   },
                 ]
               : []),
@@ -541,11 +552,18 @@ for (const scenario of [
           next_action: "resume the enclosing goal",
         }),
       );
-      // Every negative is a valid public artifact: rejection must be the gate's
-      // outcome, current-content, or original-evidence check, not bad test JSON.
-      expect(
-        run("review-result", "validate-verification", record).exitCode,
-      ).toBe(0);
+      // Only the missing-required-guidance case is intentionally invalid JSON.
+      // Other negatives must reach outcome, content or original-evidence checks.
+      const validation = run("review-result", "validate-verification", record);
+      if (scenario.omittedGuidance) {
+        expect(validation.exitCode).not.toBe(0);
+        expect(run("fixture-proof", "complete", record).exitCode).not.toBe(0);
+        expect(await Bun.file(`${repo}/.git/goal-complete`).exists()).toBe(
+          false,
+        );
+        return;
+      }
+      expect(validation.exitCode, validation.stderr.toString()).toBe(0);
       if (scenario.stale)
         await Bun.write(`${repo}/value.txt`, "changed after review\n");
       const artifact = await selectedArtifact(repo, record, scenario);

@@ -10,6 +10,17 @@ Review is explicitly requested, either directly or as a selected clause in a
 larger goal contract. The plugin does not trigger merely because an agent edited
 code.
 
+### Session reminder
+
+This plugin includes a `SessionStart` hook that improves automatic selection for
+matching review and repair-verification requests and reminds the coordinator to
+launch its independent reviewers. Trust the hook to enable its session reminder.
+The reminder does not start work or grant additional authority. If automatic
+selection is missed, invoke `code-review` explicitly.
+
+Codex uses Bash on Unix and PowerShell on Windows. Claude has its own Bash hook
+registration. Live Claude and Windows hook execution remain unverified.
+
 ## What it provides
 
 ### `code-review`
@@ -17,10 +28,13 @@ code.
 Reviews a pull request, branch, fixed-point diff, or selected working-tree
 layer. It pins the base, target, and complete changed-file set before review;
 runs applicable deterministic checks; delegates standards and specification
-analysis independently; then returns one complete Markdown report with only
-evidence-backed findings. The validated `darrow-review-result-v3` remains the
+analysis independently; then explains the outcome and evidence-backed findings directly in the session. The validated `darrow-review-result-v3` remains the
 canonical artifact beneath the review scope and is returned only when explicitly
 requested as raw machine format.
+
+The response may use concise paraphrases and ordinary Markdown. It includes the
+issues, evidence, advice, and blockers inline; opening a report file is not
+required. Complete JSON and Markdown artifacts remain retained for verification.
 
 Each finding explains the failure and its cause, then carries the originating
 reviewer's suggested repair, rationale, important constraints, and observable
@@ -43,8 +57,8 @@ and unresolved advisories never gate convergence.
 
 Example: _“Review all uncommitted changes.”_
 
-The default response starts with the decision a human needs, then keeps the
-full traceability later in the same report:
+The default response starts with the decision a human needs and explains each
+issue inline. For example:
 
 ```md
 # Code review — FAIL
@@ -91,6 +105,10 @@ discovered later unless the repair directly caused it.
 Resolves and snapshots the requested review scope. It accounts for committed,
 staged, unstaged, renamed, deleted, and untracked paths as appropriate so every
 reviewer examines the same immutable change packet.
+For fix verification, `prepare --prior-manifest <absolute-scope.json>` derives
+the effective base from that validated manifest when `--base` is omitted.
+An explicitly different base is refused. The current target and working-tree
+layers still come from the requested repair.
 
 ### Review state and cleanup
 
@@ -127,11 +145,54 @@ aggregate, each fix-verification axis, and additive repair-verification records.
 This keeps status, severity, lifecycle identity, progress, prior-artifact
 continuity, evidence, and target binding mechanically consistent while leaving
 code judgment to the reviewers.
+`read-evidence --repo <repository> --input <supplied-path>` reads an exact
+caller-owned JSON file before fix verification. Relative paths resolve against
+the repository, including extensionless files. The output contains its absolute
+path and unchanged record; directories and invalid or unreadable files produce
+concrete errors.
 `original-findings` copies the complete original finding entries with stable
 cross-axis keys; `validate-original` checks a follow-up against that retained
 comprehensive result, including advisory entries and exact source/evidence text,
-repair guidance, and resolution evidence. The guidance fields are a paired
-additive extension; legacy v1 records without them remain valid.
+repair guidance, and resolution evidence. Every finding and regression requires
+both nonempty guidance fields. Since **0.9.0**, older records without those
+fields are rejected. External handoffs remain supported when their records are
+complete; they do not require an original review artifact.
+
+`finalize --manifest <scope.json> --draft <draft.json> --output <result.json>`
+copies scope identity and captured checks from retained files, derives the
+verdict, validates the result, and materializes its complete Markdown report.
+Repeat `--check <absolute-check.json>` for each captured command. Applicable
+checks require retained receipts; inapplicability remains an explicit draft
+decision. For fix verification, use `verification.json` and add `--original`
+with the original comprehensive result, immediately prior verification, or
+complete external handoff. The helper preserves immutable original findings,
+required guidance fields, target bindings, and prior-verification history.
+It writes only inside the current private review run. Readers still own
+judgment; the coordinator still chooses sources, checks, and accepted findings.
+
+`prepare-reader` generates a separate immutable input and short launch
+message for each axis. It binds the complete reader instructions, scope, and
+retained checks, embeds readable
+source content with original citation paths, and resolves the installed
+Standards baseline. Fix inputs preserve the axis's original findings, prior
+scope, and carried regressions. `read-reader` rejects changed or unavailable
+required evidence before judgment and returns the full instructions and schema
+directly to the reader. The coordinator only relays the short loading command.
+
+An input-read error or invalid returned record permits one diagnostic-only
+correction with the same route-bound native reader. `reader-feedback` retains
+that correction and refuses a different child, changed route, or second round.
+The reader owns any corrected judgment. Persistent failures remain evidence
+gaps rather than becoming product findings. See the
+[reader input workflow](skills/code-review/references/reader-inputs.md).
+
+The human renderer keeps ordinary identifiers such as `not_applicable` and
+leading underscores in paths such as `/_cache/file.js` readable. It preserves
+single underscores followed by a letter or digit, which cannot close Markdown
+emphasis, and escapes potential closing delimiters and repeated underscores.
+The same rule protects retained report content in both review modes. The session
+response explains the issues inline and may paraphrase without repeating the
+complete report or its artifact link.
 
 ### Reviewer routes
 
@@ -209,6 +270,17 @@ The skill bundles axis prompts, a design-smell reference, and the result
 protocol used by fresh reviewers. These files make the two review questions
 explicit without relying on another installed plugin.
 
+## Assessment correction
+
+When concrete new evidence corrects an erroneous or incomplete assessment at
+unchanged code, the follow-up draft can include `assessment_correction` with
+the reason and new evidence. Bind the latest completed result, preserve its
+checksum and full finding/target history, and supply fresh judgments and checks.
+Only fully resolved current evidence can clear. The previous artifact remains
+unchanged; repeated unresolved conclusions remain blocked or no-progress.
+This correction neither consumes nor resets an enclosing implementation repair
+allowance.
+
 ## Design boundaries
 
 - Reviewers report defects; they never edit, repair, commit, push, approve,
@@ -271,11 +343,22 @@ or use `/darrow-review:code-review` in Claude Code, followed by your request.
 
 ## Expected result
 
-A pinned report leads with its verdict and next action, then retains findings,
-checks, risks, scope, and sources. Validated evidence artifacts remain available,
+The session response leads with its verdict and next action, then explains the
+findings, relevant checks, risks, and scope inline. It may group resolved items
+and omit repeated history. Complete validated evidence artifacts remain saved,
 and product files stay unchanged.
 
 ## Troubleshooting
+
+Check the returned assessment for blocked or incomplete review axes. The
+coordinator launches reviewers through native tools; the session reminder cannot
+override host restrictions. When the host permits subagents requested by a skill,
+the review skill's explicit reader requirement satisfies that condition. An
+unconditional prohibition still blocks review.
+
+Unintended worktree changes remain an unresolved issue in Codex review sessions.
+Inspect the working tree after review. Historical evidence is retained in the
+[stabilization report](../../../docs/research/darrow-review-luna-medium-stabilization-2026-09-29.md).
 
 A missing route, unverifiable child identity, invalid scope, or malformed result blocks review. Preserve the evidence and correct the exact input; selection alone does not prove a route ran.
 For a discovery or host problem, use the

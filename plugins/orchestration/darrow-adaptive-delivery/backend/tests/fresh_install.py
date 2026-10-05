@@ -130,7 +130,7 @@ def diagnoses(backend: Path, repo: Path) -> None:
         backend, repo, "host-config-doctor", "claude", "--version", "2.1.219"
     )
     assert "configuration_source: process-environment\n" in claude
-    assert "full_required_assessment: unsupported\n" in claude
+    assert "full_required_assessment: supported\n" in claude
 
 
 def fixtures(plugin: Path, repo: Path) -> None:
@@ -187,7 +187,7 @@ def fixtures(plugin: Path, repo: Path) -> None:
         str(repo),
         "initial",
     )
-    assert "Conclusion: no-progress\n" in runtime(
+    assert "Conclusion: clear\n" in runtime(
         repo / ".claude/backend",
         repo,
         "adaptive-delivery-fixture",

@@ -5,6 +5,17 @@ finding states to the owner; do not count, allocate or spend its repair budget.
 An assessment invocation is not an owner repair attempt. Preserve supplied repair
 history without inventing attempt counts or remaining allowances.
 
+A concrete assessment error or missing observation may justify a bounded
+correction at the same candidate. Preserve the immediately prior completed
+assessment and every earlier result. Ask the provider for fresh closed-set
+judgment explaining what new evidence corrects the earlier result. Consume its
+normal public correction operation and preserve the new result's reference to
+the superseded assessment. Fresh evidence can clear unchanged code; a repeated
+assertion cannot. Do not call a completed blocked result an aborted operation,
+restart from the original review, or reset previous history to obtain clearance.
+Return the correction and its reason visibly. No implementation repair attempt
+is consumed or replenished by correcting an assessment.
+
 ## Bind the closed history
 
 Require the original objective, criteria and constraints, plus:

@@ -301,8 +301,12 @@ verified publication.
   real content from the branch, instructions in HTML comments followed and
   the comments removed. The template defines the body's shape and overrides
   the default why/what structure. With multiple templates
-  (`.github/PULL_REQUEST_TEMPLATE/`), the user chooses; never silently
-  pick one.
+  (`.github/PULL_REQUEST_TEMPLATE/`), the user either names an exact template
+  or explicitly delegates the choice. A request merely to open a PR does not
+  delegate it. When delegated, choose from the branch's change and report the
+  selected filename and reason. If no template fits the change, ask the user.
+  Without a named template or delegation, ask before pushing or creating a PR;
+  never silently pick one.
 - **GW-P9 — Verified publication.** An authorized reuse requires the intended
   full commit ID and verifies exactly one open same-repository PR with the
   expected head, base and draft state before pushing. Push only that commit to

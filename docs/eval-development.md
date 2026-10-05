@@ -16,6 +16,11 @@ constraints for producing and interpreting that evidence.
 - Prefer observable repository state, external effects, and user-visible
   outcomes over prose. When free-form text is the only public seam, assert the
   smallest semantic decision rather than parsing a complete explanation.
+- For a free-form saved document, use `semantic_artifact` to grade the artifact
+  itself. Its repository-relative `path` may contain one `*` in the filename and
+  must resolve to exactly one regular file. Keep deterministic checks for file
+  presence, status, and structural validation; `semantic_output_checks` grade
+  only the final response.
 - Give one case one concrete state and one decision. When success would require
   recognizing several conditional branches in one free-form answer, split the
   branches into separate concrete-state cases.
@@ -67,6 +72,11 @@ constraints for producing and interpreting that evidence.
 - A Codex case without the placeholder remains an implicit-discovery probe and
   requires a completed mounted-skill body read. Do not use the explicit path to
   make implicit selection pass.
+  A complete read of the byte-identical marketplace staging copy of an
+  installed plugin skill also counts: the staging path must come from that
+  eval's installed marketplace catalog, and the observed output must match
+  the installed body. Prepared target skill drafts elsewhere in the fixture
+  never count as activation.
 - Missing, repeated, malformed, or unverified observation evidence stays
   unknown. A failed compound shell command may still prove an earlier skill
   read only when the command names a mounted skill path and its output contains
@@ -237,11 +247,18 @@ evaluation that stops at the first failure. `--only <question-id>` and
 before continuing. Fixtures snapshot current public documentation, manifests,
 and relevant code while excluding inventory, hidden checks, and delivery
 conclusions from the participant repository.
-The guide driver pins semantic grading to Codex `gpt-5.6-terra` / medium;
-the shared runner's default lightweight grader remains unchanged. The route
-was calibrated against retained correct and reversed-delegation diagrams.
+The guide driver pins semantic grading to Codex `gpt-6-luna` / medium;
+the shared runner's default lightweight grader remains unchanged.
 
 ## Live-run controls
+
+Use `--codex-entrypoint app-server` for Codex native main-thread goal trials.
+This hosts the original participant thread through native continuation; it does
+not drive synthetic turns or launch a separate execution owner. The selected
+entrypoint is retained in case provenance and the run digest; the harness records
+the actual transport. Use `--owner-evaluation passive` with the adopted ownership
+design. Historical separate-owner guards are not valid architecture assertions
+for a main-thread coordinator. Preserve historical results and attribution gaps.
 
 Use `--owner-evaluation passive` for native trials of the shipped adaptive-delivery
 skill. It omits the Codex spawn/parent guard (including its `fork_turns` rewrite)
@@ -285,9 +302,18 @@ with `No cases matched.` The separate `--skill-dir <path>` option overrides
 the mounted skill after selection; `--without-skill` disables mounting while
 preserving the selected cases.
 
+For a frozen plugin copy passed through `--skill-dir`, preserve the owning
+plugin directory name: `<snapshot>/<plugin-name>/skills/<skill-name>`. The
+current prompt renderer derives the Codex invocation namespace from the source
+plugin path or that directory name, while installation uses the manifest name.
+Verify that the rendered `$<plugin-name>:<skill-name>` token matches the
+installed manifest before a live run. A copy renamed `candidate` or `plugin`
+can produce a mismatched invocation; retain such runs separately from valid
+explicit-invocation evidence.
+
 Codex runs use independent defaults for each eval role:
 
-- candidate: `gpt-5.6-terra` at `medium` effort;
+- candidate: `gpt-6-luna` at `medium` effort;
 - advisory quality judge: `gpt-5.6-sol` at `low` effort;
 - gating semantic-output grader: `gpt-5.6-luna` at `low` effort.
 
@@ -320,6 +346,31 @@ unreadable configuration, invalid TOML, or a nonpositive/noninteger limit fails
 explicitly.
 
 ## Runner compatibility baseline
+
+The main-thread ownership pilot can explicitly set
+`HarnessRunRequest.control.codexEntrypoint` to `app-server` when calling the Codex
+adapter. This is a programmatic opt-in; the normal CLI entrypoint remains `exec`.
+Use passive owner evaluation. Both comparison arms must use the same entrypoint.
+The client sends the initial user prompt once, observes the participant's native
+goal, and waits through automatic turns until it has a terminal goal state and
+the completing response. It does not create or mutate goals, launch an execution
+owner, or supply continuation prompts. A declared follow-up prompt is the only
+additional client-requested user turn.
+
+Deliver a declared follow-up at a completed response boundary even when the
+native goal remains active. Preserve the prior response and capture the actual
+pre-feedback worktree state before sending it. If native continuation races
+readback, wait for a settled response boundary. Do not require an inactive goal
+or manufacture a pause, blockage or completion to deliver the user's message.
+Comparisons of waiting behavior use identical feedback timing in both arms;
+historical trials with different timing remain separate evidence.
+
+The default wall-clock bound is one hour per invocation; a diagnostic may set
+`appServerTimeoutMs` explicitly. Time bounds, unanswered server requests, failed
+turns and malformed protocol remain failures. Results retain `codexEntrypoint`
+and bounded `darrow.eval.app_server` lifecycle evidence separately from task and
+activation grades. Native child token usage remains incomplete in the standard
+harness summary; pilot observations must reconcile actor usage separately.
 
 Run the command-level compatibility baseline without live harness calls or
 credentials:

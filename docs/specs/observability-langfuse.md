@@ -198,6 +198,10 @@ line of a prompt exactly one of:
 @darrow.attribution auto
 ```
 
+Guidance for these controls presents each applicable directive as a standalone,
+copyable line, without a prompt prefix or Markdown marker on the directive
+itself. The user must be able to place that line first in a prompt.
+
 `set` applies the bounded identifier to the current and subsequent turns,
 `clear` makes the current and subsequent turns explicitly unattributed, and
 `auto` returns the current and subsequent turns to fallback resolution. A valid

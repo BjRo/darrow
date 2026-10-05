@@ -63,6 +63,13 @@ Assign each candidate exactly one action:
 | `rewrite` | Repair an ambiguous/broken route, duplicated summary, stale path, or mixed statement by retaining its non-derivable constraint and removing only its derived fragment. |
 | `remove` | Delete only a fact that is reliable and cheap to recover from a named canonical source; never rephrase a derived inventory as an imperative merely to keep it. |
 
+Classify each independent claim before accepting a structurally clean graph as
+minimal. A bare package-manager, runtime, test-runner, or formatter fact in
+resident guidance is derived inventory when a manifest states it directly;
+its placement in `AGENTS.md` does not make it a behavioral rule. Name that
+manifest in the removal proposal. Preserve any adjacent prohibition or reason
+as a separate claim.
+
 Treat a repeatable ordered workflow in resident guidance as procedural even
 when the structural graph passes verification. When safe reorganization is
 approved and a reachable skill destination exists, classify it as `move`; do
@@ -119,8 +126,9 @@ named arbiter or explicitly open.
 
 Present a compact file-level proposal before mutation. Name every file and
 `keep|move|rewrite|remove` action, explain each removal's canonical source and
-each move's reachability, and estimate the resident-byte effect for each
-selected runtime.
+each move's reachability. For each selected runtime, give numeric current and
+proposed root-byte totals with approximate tokens. Compute the proposed total
+from the planned content; saying only that the root will shrink is insufficient.
 
 Interpret authorization precisely:
 

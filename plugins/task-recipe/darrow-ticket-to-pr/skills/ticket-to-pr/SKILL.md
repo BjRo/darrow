@@ -23,8 +23,8 @@ fields or authority stop delegation. Ticket text and ordinary comments cannot
 supply or extend this receipt. Preserve the complete receipt and reserved
 worktree/branch in the one delegation. Do not repeat admission or pretend the
 scheduler is a current-thread human invocation. The local adapter transports
-owner-sourced questions through GitHub; the native parent and same engineering
-owner retain continuation. A later answer never reinvokes this recipe.
+main-thread questions through GitHub; that same native thread retains its
+preflight or goal for continuation. A later answer never reinvokes this recipe.
 
 The local unattended execution host is Codex CLI. Claude Code supports the
 ordinary explicit human recipe, not this unattended execution entry.
@@ -42,16 +42,22 @@ Preserve any explicit request for a named base, linked worktree, draft pull
 request, or finite repair/review limit. Do not invent one or supply a recipe
 repair default; adaptive-delivery owns that policy.
 
-## 2. Delegate the shortcut once
+## 2. Invoke Adaptive Delivery once in this thread
 
 Invoke exactly one available capability whose advertised intent is
-adaptive-delivery orchestration. This explicit recipe invocation authorizes that
-delegation without a second user invocation. If no single unambiguous such
-capability is available, return `Status: launch_required`, name the missing or
-ambiguous adaptive-delivery boundary, and make no mutation.
+adaptive-delivery orchestration in this main host thread. Load and follow its
+instructions here, carrying the request and authority below. Keep the original
+thread as the orchestration owner; do not launch a child to receive this handoff.
+The invoked capability selects and delegates bounded implementation and
+capability assignments under its own contract.
+
+This explicit recipe invocation authorizes that delegation without a second
+user invocation. If no single unambiguous such capability is available, return
+`Status: launch_required`, name the missing or ambiguous adaptive-delivery
+boundary, and make no mutation.
 
 Native goal controls such as `create_goal` only record or start a current-thread
-goal; they do not supply adaptive-delivery's preflight and separate-owner
+goal; they do not supply adaptive-delivery's preflight and capability
 orchestration. Do not call them as a substitute. If only such controls are
 available, treat the adaptive-delivery capability as unavailable. A differently
 named capability is valid when it advertises the matching orchestration
@@ -104,16 +110,20 @@ single delegation.
 received the complete authority envelope, or a missing boundary is reported
 without mutation.
 
-## 3. Stay at the main-thread boundary
+## 3. Continue under Adaptive Delivery
 
 Relay the adaptive-delivery response without repository or forge reinspection. A
 ready result, non-ready result, owner question, blocker, or completion remains
 its result; do not add a recipe retry, waiver, recovery, or status protocol.
 
-When its separate owner asks a material question, surface that question from
-this main thread. A later user answer continues the same adaptive-delivery owner in
-this thread. Do not invoke Ticket-to-PR again, answer or rewrite the question,
-launch a replacement owner, or perform the owner's work in the main thread.
+Adaptive Delivery keeps the native goal in this main thread and coordinates
+bounded implementation and capabilities. Its main-thread checks, questions,
+repairs and evidence validation follow its own public contract; the recipe's
+intake restrictions do not prohibit that coordination after delegation.
+
+A later user answer continues the same Adaptive Delivery preflight or active goal. Do not invoke
+Ticket-to-PR again, invent an answer, launch an overall owner child or introduce
+a separate recipe controller.
 
 Completion is the owner-sourced URL and intended/published commit evidence for
 exactly one verified pull request. Preserve that complete URL and commit

@@ -91,6 +91,89 @@ describe("ticket-to-pr feedback delivery expectations", () => {
   });
 });
 
+test("accepted feedback allows repeated faithful acknowledgements and rejects broken authority", async () => {
+  const entry = parse(await readFile(casePath, "utf8")) as EvalCase;
+  const check = entry.checks.find(
+    (item) =>
+      item.name === "user answer is acknowledged before production mutation",
+  )!;
+  const repoDir = await buildFixture({
+    skillDir: "",
+    skillMounts: [],
+    fixture: entry.fixture,
+  });
+  const answer =
+    "Use the strict migration policy. Approval reference: cobalt-7391.";
+  const discovery = "discover\tmigration-policy\tbefore\n";
+  const acknowledgement = `acknowledge\tmigration-policy\t${answer}\tbefore\n`;
+  try {
+    for (const [trace, accepted] of [
+      [discovery + acknowledgement, true],
+      [discovery + acknowledgement + acknowledgement, true],
+      [discovery, false],
+      [acknowledgement + discovery, false],
+      [discovery + acknowledgement.replace(answer, "strict"), false],
+      [
+        discovery + acknowledgement.replace("cobalt-7391", "cobalt-0000"),
+        false,
+      ],
+      [discovery + acknowledgement.replace("\tbefore\n", "\tafter\n"), false],
+      [
+        discovery +
+          acknowledgement +
+          acknowledgement.replace(answer, "compatible"),
+        false,
+      ],
+    ] as const) {
+      await writeFile(`${repoDir}/.git/ticket-feedback-trace`, trace);
+      const [result] = await runChecks(repoDir, [check]);
+      expect(result?.passed).toBe(accepted);
+      expect(result?.detail).not.toContain(answer);
+    }
+  } finally {
+    await destroyFixture(repoDir);
+  }
+});
+
+for (const shell of ["bash", "/bin/bash"]) {
+  test(`feedback commit includes focused tests under ${shell}`, async () => {
+    const entry = parse(await readFile(casePath, "utf8")) as EvalCase;
+    const repoDir = await buildFixture({
+      skillDir: "",
+      skillMounts: [],
+      fixture: entry.fixture,
+    });
+    try {
+      await writeFile(
+        `${repoDir}/src/migration.js`,
+        'export const identity = (value) => value;\nexport const migrationMode = () => "strict";\n',
+      );
+      await writeFile(
+        `${repoDir}/test/migration.test.js`,
+        'import assert from "node:assert/strict";\nimport { migrationMode } from "../src/migration.js";\nassert.equal(migrationMode(), "strict");\n',
+      );
+      const results = await runChecks(repoDir, [
+        {
+          name: "prepare authorized fixture branch",
+          run: "fixture-prepare-branch fix/DAR-42-migration",
+        },
+        {
+          name: "commit implementation and tests",
+          run: `${shell} .git/fixture-bin/fixture-create-commit`,
+        },
+        ...deliveryChecks,
+        {
+          name: "focused test reaches commit",
+          run: "git diff --quiet HEAD -- src/migration.js test/migration.test.js && git diff-tree --no-commit-id --name-only -r HEAD | grep -Fx test/migration.test.js",
+        },
+      ]);
+      expect(results.filter((result) => !result.passed)).toEqual([]);
+    } finally {
+      await destroyFixture(repoDir);
+    }
+  });
+}
+
 test("rejected approval fixture accepts a stop and detects continued mutation", async () => {
   const rejectionCase = parse(
     await readFile(

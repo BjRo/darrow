@@ -1,0 +1,10 @@
+{
+  "name": "darrow-discovery-unified-probe",
+  "version": "0.0.1",
+  "description": "Experimental unified discovery conversation",
+  "author": {
+    "name": "Björn Rochel",
+    "email": "bjoern@bjro.de"
+  },
+  "skills": "./skills/"
+}
