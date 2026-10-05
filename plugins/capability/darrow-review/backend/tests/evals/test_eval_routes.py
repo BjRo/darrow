@@ -14,7 +14,7 @@ def evidence(root: Path, host: str, axes: list[str]) -> list[dict[str, Any]]:
     (directory / "reviewer-route.json").write_text("fixture\n")
     (directory / "result.json").write_text('{"format":"darrow-review-result-v3"}\n')
     model, provider = (
-        ("gpt-6-sol", "openai") if host == "codex" else ("claude-opus-5", "anthropic")
+        ("gpt-6.1-sol", "openai") if host == "codex" else ("claude-opus-5", "anthropic")
     )
     route = {"host": host, "provider": provider, "model": model, "effort": "xhigh"}
     subagent = f"darrow-review:review-reader-{model}-xhigh"

@@ -452,16 +452,16 @@ The bundled Codex implementation policy is:
 | -------------- | ------------- | -------- |
 | `routine`      | `gpt-6-luna`  | `medium` |
 | `routine-plus` | `gpt-6-luna`  | `high`   |
-| `scaled`       | `gpt-6-sol`   | `medium` |
-| `repo-wide`    | `gpt-6-sol`   | `high`   |
+| `scaled`       | `gpt-6.1-sol` | `medium` |
+| `repo-wide`    | `gpt-6.1-sol` | `high`   |
 | `judgment`     | `gpt-6-astra` | `high`   |
 
-Main-thread coordination is recommended on Codex `gpt-6-sol/medium`. A known
+Main-thread coordination is recommended on Codex `gpt-6.1-sol/medium`. A known
 weaker compatible main model receives a brief nonblocking hint; do not switch
 the user's session model or claim reliability for untested stronger routes.
-Verification coordination uses explicit `gpt-6-sol/medium` or a stronger
+Verification coordination uses explicit `gpt-6.1-sol/medium` or a stronger
 authorized route. Review coordination remains explicitly
-`gpt-6-luna/medium`; review's independent readers retain `gpt-6-sol/xhigh`.
+`gpt-6-luna/medium`; review's independent readers retain `gpt-6.1-sol/xhigh`.
 Neither main-model nor implementation-model inheritance may change those roles.
 
 On Claude, use the same ownership design with native session goals. Bounded

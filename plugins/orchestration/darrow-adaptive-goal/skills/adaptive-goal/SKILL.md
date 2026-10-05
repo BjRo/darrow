@@ -14,7 +14,7 @@ owner, workflow runtime or lifecycle ledger.
 Read the active host guide before goal activation or delegation:
 [Codex](references/codex-launch.md) or [Claude](references/claude-launch.md).
 Native goal support is required. The main thread's current model stays unchanged.
-On Codex, recommend Sol/medium for coordination. If the current model is known
+On Codex, recommend GPT-6.1 Sol/medium for coordination. If the current model is known
 to be weaker, give one brief nonblocking reliability hint and continue within
 its supported controls; do not silently switch models. Stronger routes are
 permitted, but have not all been validated.
@@ -405,11 +405,11 @@ launch failure, not permission to silently choose another model.
 
 Launch verification as a separate bounded capability assignment with the intent
 to coordinate acceptance verification. Pin this coordinator to Codex
-`gpt-6-sol/medium` or a stronger authorized route; on Claude use the scoped
+`gpt-6.1-sol/medium` or a stronger authorized route; on Claude use the scoped
 `claude-opus-5/high` agent. Preserve review coordination separately: explicitly
 pass Codex `gpt-6-luna/medium` or Claude `claude-sonnet-5/medium` as the review
 coordinator route. This never overrides review's independent-reader route
-(Codex `gpt-6-sol/xhigh`). Do not allow parent-model inheritance to change roles.
+(Codex `gpt-6.1-sol/xhigh`). Do not allow parent-model inheritance to change roles.
 Supply the verification skill's exact installed instruction
 path, compatible review binding, selected providers, originating acceptance,
 scope/base/current candidate, successful checks, constraints and existing evidence.

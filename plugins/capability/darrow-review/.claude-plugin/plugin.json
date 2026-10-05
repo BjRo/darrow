@@ -1,7 +1,7 @@
 {
   "name": "darrow-review",
   "description": "Read-only comprehensive code review and fix-scoped repair verification",
-  "version": "0.11.3",
+  "version": "0.11.4",
   "hooks": "./.claude-plugin/hooks.json",
   "license": "BUSL-1.1",
   "author": {

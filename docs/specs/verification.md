@@ -4,7 +4,7 @@
 
 When an enclosing owner delegates verification, it selects the verification
 coordinator independently of implementation. Adaptive Goal uses at least
-Codex Sol/medium, or the explicit Claude Opus 5/high route. Verification's
+Codex GPT-6.1 Sol/medium, or the explicit Claude Opus 5/high route. Verification's
 review-provider coordinator uses an explicit route: Codex Luna/medium or the
 plugin's Claude Sonnet 5/medium scoped agent, unless a compatible explicit caller
 route was supplied. Parent-model inheritance must not change those roles.

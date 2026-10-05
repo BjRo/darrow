@@ -68,21 +68,21 @@ Implementation difficulty controls the bounded implementor:
 | ------------ | ----------- | ------ |
 | routine      | gpt-6-luna  | medium |
 | routine-plus | gpt-6-luna  | high   |
-| scaled       | gpt-6-sol   | medium |
-| repo-wide    | gpt-6-sol   | high   |
+| scaled       | gpt-6.1-sol | medium |
+| repo-wide    | gpt-6.1-sol | high   |
 | judgment     | gpt-6-astra | high   |
 
 A fully specified localized security change can remain routine implementation
 while requiring high-risk assurance. `routine-plus` needs an actual implementation
 tradeoff or an explicit first-pass correctness priority.
 
-**Use Codex Sol/medium for main-thread coordination.** Weaker compatible models
+**Use Codex GPT-6.1 Sol/medium for main-thread coordination.** Weaker compatible models
 are permitted with a brief hint about coordination and evidence-handling risks.
 Stronger compatible configurations are allowed. Model selection alone does not
 guarantee reliable coordination or complete evidence.
 
-Verification coordination is explicitly Sol/medium or stronger. Review
-coordination stays Luna/medium, while review's independent readers stay Sol/xhigh.
+Verification coordination is explicitly GPT-6.1 Sol/medium or stronger. Review
+coordination stays Luna/medium, while review's independent readers stay GPT-6.1 Sol/xhigh.
 Parent-model inheritance and the implementation route must not change these roles.
 
 Claude uses the same architecture. Its implementation policy selects scoped
