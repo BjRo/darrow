@@ -1,8 +1,8 @@
 ---
-name: adaptive-goal-sonnet-5-medium
-description: Execute one bounded Adaptive Goal implementation or capability assignment on claude-sonnet-5 at medium effort. The main thread retains goal ownership.
-model: claude-sonnet-5
-effort: medium
+name: adaptive-goal-sonnet-5-5-low
+description: Execute one bounded Adaptive Goal implementation or capability assignment on claude-sonnet-5-5 at low effort. The main thread retains goal ownership.
+model: claude-sonnet-5-5
+effort: low
 background: false
 ---
 

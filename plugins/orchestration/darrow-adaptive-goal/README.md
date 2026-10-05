@@ -86,8 +86,8 @@ coordination stays Luna/medium, while review's independent readers stay GPT-6.1 
 Parent-model inheritance and the implementation route must not change these roles.
 
 Claude uses the same architecture. Its implementation policy selects scoped
-Sonnet 5/low, Sonnet 5/medium or Opus 5/high agents. Verification coordination uses
-Opus 5/high; review coordination uses Sonnet 5/medium and preserves review's own
+Sonnet 5.5/low, Sonnet 5.5/medium or Opus 5.5/high agents. Verification coordination uses
+Opus 5.5/high; review coordination uses Sonnet 5.5/medium and preserves review's own
 reader routes. Claude has lighter validation than Codex; these routes are not
 claimed to be measured equivalents.
 

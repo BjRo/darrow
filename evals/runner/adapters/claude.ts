@@ -473,7 +473,7 @@ interface SelectedClaudeRoute {
 }
 
 const adaptiveGoalRunner =
-  /^darrow-adaptive-goal:adaptive-goal-(?:sonnet-5-(?:low|medium)|opus-5-high)$/;
+  /^darrow-adaptive-goal:adaptive-goal-(?:sonnet-5-5-(?:low|medium)|opus-5-5-high)$/;
 
 function retainGoalAgentStarts(
   event: ClaudeResultEnvelope,
@@ -1133,16 +1133,16 @@ function concreteAbsolutePath(path: string): boolean {
 
 function routeForGoalRunner(subagentType: string) {
   const routes: Record<string, { model: string; effort: string }> = {
-    "darrow-adaptive-goal:adaptive-goal-sonnet-5-low": {
-      model: "claude-sonnet-5",
+    "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low": {
+      model: "claude-sonnet-5-5",
       effort: "low",
     },
-    "darrow-adaptive-goal:adaptive-goal-sonnet-5-medium": {
-      model: "claude-sonnet-5",
+    "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-medium": {
+      model: "claude-sonnet-5-5",
       effort: "medium",
     },
-    "darrow-adaptive-goal:adaptive-goal-opus-5-high": {
-      model: "claude-opus-5",
+    "darrow-adaptive-goal:adaptive-goal-opus-5-5-high": {
+      model: "claude-opus-5-5",
       effort: "high",
     },
   };
@@ -1659,7 +1659,7 @@ function runnerPreflightCall(
     words[6] === "--provider",
     words[7] === "anthropic",
     words[8] === "--model",
-    /^(?:claude-sonnet-5|claude-opus-5)$/.test(words[9] ?? ""),
+    /^(?:claude-sonnet-5-5|claude-opus-5-5)$/.test(words[9] ?? ""),
     words[10] === "--effort",
     /^(?:low|medium|high)$/.test(words[11] ?? ""),
   ].every(Boolean);
@@ -1698,9 +1698,9 @@ function exactOptionalClaudeRoute(words: string[]): boolean {
 
 function goalRunnerForRoute(model: string, effort: string): string | undefined {
   return [
-    "darrow-adaptive-goal:adaptive-goal-sonnet-5-low",
-    "darrow-adaptive-goal:adaptive-goal-sonnet-5-medium",
-    "darrow-adaptive-goal:adaptive-goal-opus-5-high",
+    "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low",
+    "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-medium",
+    "darrow-adaptive-goal:adaptive-goal-opus-5-5-high",
   ].find((runner) => {
     const route = routeForGoalRunner(runner);
     return route?.model === model && route.effort === effort;

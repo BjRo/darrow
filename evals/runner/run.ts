@@ -875,16 +875,16 @@ function adaptiveGoalParentWorkCheck(raw: string): CheckResult {
 }
 
 const CLAUDE_GOAL_RUNNERS: Record<string, { model: string; effort: string }> = {
-  "darrow-adaptive-goal:adaptive-goal-sonnet-5-low": {
-    model: "claude-sonnet-5",
+  "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low": {
+    model: "claude-sonnet-5-5",
     effort: "low",
   },
-  "darrow-adaptive-goal:adaptive-goal-sonnet-5-medium": {
-    model: "claude-sonnet-5",
+  "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-medium": {
+    model: "claude-sonnet-5-5",
     effort: "medium",
   },
-  "darrow-adaptive-goal:adaptive-goal-opus-5-high": {
-    model: "claude-opus-5",
+  "darrow-adaptive-goal:adaptive-goal-opus-5-5-high": {
+    model: "claude-opus-5-5",
     effort: "high",
   },
 };

@@ -1,7 +1,7 @@
 ---
-name: review-reader-claude-sonnet-5-high
-description: Read-only isolated code-review reader routed to Claude Sonnet 5 at high effort. Invoke only when code-review selects this exact tuple and supplies one bounded axis task.
-model: claude-sonnet-5
+name: review-reader-claude-sonnet-5-5-high
+description: Read-only isolated code-review reader routed to Claude Sonnet 5.5 at high effort. Invoke only when code-review selects this exact tuple and supplies one bounded axis task.
+model: claude-sonnet-5-5
 effort: high
 background: false
 tools: Read, Grep, Glob, Bash

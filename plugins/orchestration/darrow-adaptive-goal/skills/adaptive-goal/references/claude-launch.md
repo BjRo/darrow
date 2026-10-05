@@ -31,7 +31,7 @@ route with the bundled helper:
 
 ```sh
 uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" claude-agent-route \
-  --provider anthropic --model <claude-sonnet-5|claude-opus-5> \
+  --provider anthropic --model <claude-sonnet-5-5|claude-opus-5-5> \
   --effort <low|medium|high>
 ```
 
@@ -41,13 +41,13 @@ higher-priority environment overrides. A refusal stops the affected assignment;
 do not launch anyway or silently select another route.
 
 Implementation and repair use the preflight-selected route. Verification
-coordination uses `claude-opus-5/high`. Pass `claude-sonnet-5/medium` explicitly
+coordination uses `claude-opus-5-5/high`. Pass `claude-sonnet-5-5/medium` explicitly
 for review coordination through verification, preserving review's own independent
 reader route. A capability provides its own compatible review-agent boundary;
 do not assume a sibling plugin's agent is installed.
 
 For the verification assignment, call this resolver with
-`--provider anthropic --model claude-opus-5 --effort high`. Launch the returned
+`--provider anthropic --model claude-opus-5-5 --effort high`. Launch the returned
 Adaptive Goal scoped `subagent_type` and give it the bound verification
 skill's exact public reference and the acceptance-verification assignment.
 Supply the review binding and Sonnet/medium coordinator route to this Opus/high

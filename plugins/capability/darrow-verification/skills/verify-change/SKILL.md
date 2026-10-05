@@ -182,9 +182,9 @@ explicit coordinator route. This does not override the review capability's
 independent-reader model or effort.
 
 On Claude, use this plugin's
-`darrow-verification:review-coordinator-sonnet-5-medium` scoped Agent, with
+`darrow-verification:review-coordinator-sonnet-5-5-medium` scoped Agent, with
 `run_in_background: false` and no per-call model override. Its frontmatter pins
-`claude-sonnet-5/medium`. Before launch, inspect only
+`claude-sonnet-5-5/medium`. Before launch, inspect only
 `CLAUDE_CODE_SUBAGENT_MODEL` and `CLAUDE_CODE_EFFORT_LEVEL`; unset values are fine,
 but a conflicting nonempty override blocks that route. If a caller requests
 another route, require an available scoped Agent that explicitly pins it and

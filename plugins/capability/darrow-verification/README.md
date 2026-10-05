@@ -51,7 +51,7 @@ incompatible required review blocks instead of falling back to self-review.
 Verification and implementation are separate assignments. Adaptive Goal
 uses Codex GPT-6.1 Sol/medium or stronger for verification coordination. Review
 coordination is explicitly Luna/medium; review keeps its own independent-reader
-routes. Claude uses the plugin's Sonnet 5/medium review coordinator with pinned
+routes. Claude uses the plugin's Sonnet 5.5/medium review coordinator with pinned
 frontmatter. Parent-model inheritance must not change these roles.
 
 A concrete assessment error or new evidence can justify a bounded correction

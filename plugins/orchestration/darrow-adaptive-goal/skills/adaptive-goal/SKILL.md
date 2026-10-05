@@ -406,8 +406,8 @@ launch failure, not permission to silently choose another model.
 Launch verification as a separate bounded capability assignment with the intent
 to coordinate acceptance verification. Pin this coordinator to Codex
 `gpt-6.1-sol/medium` or a stronger authorized route; on Claude use the scoped
-`claude-opus-5/high` agent. Preserve review coordination separately: explicitly
-pass Codex `gpt-6-luna/medium` or Claude `claude-sonnet-5/medium` as the review
+`claude-opus-5-5/high` agent. Preserve review coordination separately: explicitly
+pass Codex `gpt-6-luna/medium` or Claude `claude-sonnet-5-5/medium` as the review
 coordinator route. This never overrides review's independent-reader route
 (Codex `gpt-6.1-sol/xhigh`). Do not allow parent-model inheritance to change roles.
 Supply the verification skill's exact installed instruction

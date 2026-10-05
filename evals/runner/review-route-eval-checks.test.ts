@@ -17,14 +17,14 @@ const cases = [
   {
     file: "reviewer-route-override",
     check: "both isolated axes retain exact route application evidence",
-    claude: ["claude-sonnet-5", "high"],
+    claude: ["claude-sonnet-5-5", "high"],
     codex: ["gpt-5.6-sol", "xhigh"],
   },
   {
     file: "fix-verification-resolved",
     check: "both fix verifiers retain exact default route evidence",
-    claude: ["claude-opus-5", "xhigh"],
-    codex: ["gpt-6-sol", "xhigh"],
+    claude: ["claude-opus-5-5", "xhigh"],
+    codex: ["gpt-6.1-sol", "xhigh"],
   },
 ] as const;
 type Mutation =

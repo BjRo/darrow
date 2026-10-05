@@ -75,9 +75,9 @@ def routes(backend: Path, repo: Path) -> None:
             assert f"selected_route\t{host}\t" in route
             assert "policy_route_source\tbundled\n" in route
     for model, effort in (
-        ("claude-sonnet-5", "low"),
-        ("claude-sonnet-5", "medium"),
-        ("claude-opus-5", "high"),
+        ("claude-sonnet-5-5", "low"),
+        ("claude-sonnet-5-5", "medium"),
+        ("claude-opus-5-5", "high"),
     ):
         assert "subagent_type\tdarrow-adaptive-goal:" in runtime(
             backend,
@@ -97,7 +97,7 @@ def routes(backend: Path, repo: Path) -> None:
         "--provider",
         "anthropic",
         "--model",
-        "claude-opus-5",
+        "claude-opus-5-5",
         "--effort",
         "low",
         expected=2,

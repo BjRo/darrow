@@ -1,7 +1,7 @@
 ---
-name: review-coordinator-sonnet-5-medium
+name: review-coordinator-sonnet-5-5-medium
 description: Invoke one explicitly bound independent-review capability for a verification assignment. Return its complete public result; the verification caller retains reconciliation.
-model: claude-sonnet-5
+model: claude-sonnet-5-5
 effort: medium
 background: false
 ---

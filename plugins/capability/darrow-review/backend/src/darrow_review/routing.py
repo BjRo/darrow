@@ -59,8 +59,8 @@ class Route:
             ("codex", "gpt-6.1-sol"): ("high", "xhigh", "max"),
             ("codex", "gpt-5.6-sol"): ("high", "xhigh", "max"),
             ("codex", "gpt-5.5"): ("high", "xhigh"),
-            ("claude", "claude-opus-5"): ("xhigh",),
-            ("claude", "claude-sonnet-5"): ("high",),
+            ("claude", "claude-opus-5-5"): ("xhigh",),
+            ("claude", "claude-sonnet-5-5"): ("high",),
         }
         require(
             self.effort in routes.get((self.host, self.model), ()),
@@ -211,7 +211,7 @@ def claude_agent(route: Route) -> str:
     direct()
     require(
         (route.model, route.effort)
-        in (("claude-opus-5", "xhigh"), ("claude-sonnet-5", "high")),
+        in (("claude-opus-5-5", "xhigh"), ("claude-sonnet-5-5", "high")),
         f"unsupported Claude reviewer route: {route.model}/{route.effort}",
     )
     name = f"review-reader-{route.model}-{route.effort}"

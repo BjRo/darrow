@@ -1,7 +1,7 @@
 ---
-name: review-reader-claude-opus-5-xhigh
-description: Read-only isolated code-review reader routed to Claude Opus 5 at xhigh effort. Invoke only when code-review selects this exact tuple and supplies one bounded axis task.
-model: claude-opus-5
+name: review-reader-claude-opus-5-5-xhigh
+description: Read-only isolated code-review reader routed to Claude Opus 5.5 at xhigh effort. Invoke only when code-review selects this exact tuple and supplies one bounded axis task.
+model: claude-opus-5-5
 effort: xhigh
 background: false
 tools: Read, Grep, Glob, Bash

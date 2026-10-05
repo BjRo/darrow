@@ -401,6 +401,9 @@ not prove equivalence or savings.
   direct host event or explicitly labeled controlled-probe source, primary and
   ordered observed skills, and preserve unavailable or incomplete observation
   as unknown without changing task outcomes.
+  Claude route observations match the shipped scoped agent names, model IDs,
+  and effort levels. An agent name alone does not establish goal ownership or
+  successful route application.
 - **SE-C11 — Separate activation reporting.** Reports preserve per-case and
   per-class activation results and compute recall and precision only from a
   complete measured set, so task success cannot hide routing failure and one
