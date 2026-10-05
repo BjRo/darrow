@@ -97,7 +97,7 @@ constraints for producing and interpreting that evidence.
   separately from the normalized activation name. This distinguishes namespaced
   plugin dispatch from a same-named command without retaining skill arguments;
   an invocation identifier alone does not prove provider execution or compliance.
-  Adaptive-delivery observations recover deeper Skill dispatch from the native
+  Adaptive-goal observations recover deeper Skill dispatch from the native
   session's completed Agent result graph when the outer stream omits it. Recovery
   binds session and child identities, preserves chronological skill order and
   retains only invocation metadata. Missing or inconsistent graph evidence
@@ -260,9 +260,9 @@ the actual transport. Use `--owner-evaluation passive` with the adopted ownershi
 design. Historical separate-owner guards are not valid architecture assertions
 for a main-thread coordinator. Preserve historical results and attribution gaps.
 
-Use `--owner-evaluation passive` for native trials of the shipped adaptive-delivery
+Use `--owner-evaluation passive` for native trials of the shipped adaptive-goal
 skill. It omits the Codex spawn/parent guard (including its `fork_turns` rewrite)
-and Claude's adaptive-delivery-specific scheduler exclusion. The default
+and Claude's adaptive-goal-specific scheduler exclusion. The default
 `--owner-evaluation enforced` preserves the historical diagnostic condition.
 Neither mode removes ordinary fixture/credential isolation. Suite modes can
 set `owner_evaluation: passive|enforced` independently. Results retain requested
@@ -427,6 +427,6 @@ without changing Darrow's baseline.
 - When changing `darrow-review`'s externally visible independent-review or
   fix-verification outcome semantics, also run the affected review-composition
   evals under
-  `plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/`.
+  `plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/evals/`.
 - Keep activation, task outcome, invariant coverage, and matched ablation as
   separate evidence dimensions; one does not substitute for another.

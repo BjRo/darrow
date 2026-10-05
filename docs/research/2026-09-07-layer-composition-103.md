@@ -1,5 +1,9 @@
 # Layer composition — issue 103 evidence
 
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
+
 Scope: readiness return semantics, behavioral capability compatibility,
 authorized existing-PR publication and the thin ticket-to-PR outcome envelope.
 Both Claude Code and Codex are supported. Automation remains future work.

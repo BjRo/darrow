@@ -55,7 +55,7 @@ const launch = (agent: string | undefined, child: string, time: number) => [
 const jsonl = (entries: object[]) =>
   entries.map((e) => JSON.stringify(e)).join("\n");
 const rootTranscript = jsonl([
-  skill(undefined, 1, "adaptive-delivery"),
+  skill(undefined, 1, "adaptive-goal"),
   ...launch(undefined, "owner", 2),
 ]);
 const children: Record<string, string> = {
@@ -71,7 +71,7 @@ const recover = (
   recoverClaudeNestedSkills({
     rootTranscript,
     sessionId,
-    streamSkills: ["adaptive-delivery", "verify-change"],
+    streamSkills: ["adaptive-goal", "verify-change"],
     readAgent: async (id) => children[id]!,
     ...overrides,
   });
@@ -86,7 +86,7 @@ test("recovers only completed session-bound descendant Skill invocations", async
   });
   expect(result.complete).toBe(true);
   expect(result.observedSkills).toEqual([
-    "adaptive-delivery",
+    "adaptive-goal",
     "verify-change",
     "code-review",
   ]);
@@ -122,7 +122,7 @@ test("missing, foreign, malformed, and uncorrelated native evidence cannot clear
 
 test("native order must preserve observed stream order", async () => {
   const result = await recover({
-    streamSkills: ["verify-change", "adaptive-delivery"],
+    streamSkills: ["verify-change", "adaptive-goal"],
   });
   expect(result.complete).toBe(false);
 });
@@ -143,9 +143,9 @@ test("merging retains earlier native dispatch unless an explicit expansion owns 
     mergeClaudeNestedSkillActivation(observation, receipt).primarySkill,
   ).toBe("code-review");
   expect(
-    mergeClaudeNestedSkillActivation(observation, receipt, "adaptive-delivery")
+    mergeClaudeNestedSkillActivation(observation, receipt, "adaptive-goal")
       .observedSkills,
-  ).toEqual(["adaptive-delivery", "code-review", "verify-change"]);
+  ).toEqual(["adaptive-goal", "code-review", "verify-change"]);
 });
 
 test("ignores non-message metadata and refuses repeated child receipts", async () => {
@@ -209,7 +209,7 @@ test("native sidecars bind nested results that omit top-level result metadata", 
         repo,
         configRoot: directory,
         stream: JSON.stringify({ type: "result", session_id: sessionId }),
-        streamSkills: ["adaptive-delivery", "verify-change"],
+        streamSkills: ["adaptive-goal", "verify-change"],
         matchingPaths: async (root, filename) => {
           const paths: string[] = [];
           for await (const path of new Bun.Glob("**/*").scan({
@@ -231,7 +231,7 @@ test("native sidecars bind nested results that omit top-level result metadata", 
       JSON.stringify({ toolUseId: "provider", parentAgentId: "owner" }),
     );
     expect((await observe()).observedSkills).toEqual([
-      "adaptive-delivery",
+      "adaptive-goal",
       "verify-change",
       "code-review",
     ]);

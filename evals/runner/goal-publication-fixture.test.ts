@@ -48,7 +48,7 @@ for (const shell of ["bash", "/bin/bash"])
   ]) {
     test(`publication draft oracle (${shell}): ${scenario.name}`, async () => {
       const source = new URL(
-        "../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/authorized-publication.yaml",
+        "../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/evals/authorized-publication.yaml",
         import.meta.url,
       );
       const evalCase = parse(await Bun.file(source).text()) as EvalCase;
@@ -113,7 +113,7 @@ async function publicationState(repo: string) {
 
 test("publication fixture help is read-only and preserves the single creation allowance", async () => {
   const source = new URL(
-    "../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/authorized-publication.yaml",
+    "../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/evals/authorized-publication.yaml",
     import.meta.url,
   );
   const evalCase = parse(await Bun.file(source).text()) as EvalCase;
@@ -163,7 +163,7 @@ test("publication fixture help is read-only and preserves the single creation al
 
 test("publication evidence reflects the actual draft flag and remote commit", async () => {
   const source = new URL(
-    "../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/authorized-publication.yaml",
+    "../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/evals/authorized-publication.yaml",
     import.meta.url,
   );
   const evalCase = parse(await Bun.file(source).text()) as EvalCase;

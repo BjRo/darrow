@@ -338,16 +338,16 @@ describe("semantic output gate", () => {
   });
 });
 
-test("the adaptive-delivery suite keeps propositions out of rigid regex tricks", async () => {
+test("the adaptive-goal suite keeps propositions out of rigid regex tricks", async () => {
   const evalDir = join(
     import.meta.dir,
     "..",
     "..",
     "plugins",
     "orchestration",
-    "darrow-adaptive-delivery",
+    "darrow-adaptive-goal",
     "skills",
-    "adaptive-delivery",
+    "adaptive-goal",
     "evals",
   );
   const failures: string[] = [];

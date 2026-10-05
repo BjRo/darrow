@@ -3,7 +3,7 @@
 The repository-level installer reads the current `.claude-plugin/marketplace.json`
 inventory at execution time and installs each listed plugin except
 `darrow-ticket-pipeline` and `darrow-observability-langfuse` through the selected
-host's ordinary per-plugin installation command. `darrow-adaptive-delivery`
+host's ordinary per-plugin installation command. `darrow-adaptive-goal`
 remains included. The installer is not a plugin, does not introduce a runtime
 dependency between plugins, and preserves every marketplace plugin as an
 optionality boundary.

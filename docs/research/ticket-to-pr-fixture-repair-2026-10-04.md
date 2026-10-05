@@ -1,5 +1,9 @@
 # Ticket-to-PR: fixture repair and Codex re-verification
 
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
+
 Follow-up: the [0.5.3 main-thread clarification](ticket-to-pr-main-thread-2026-10-04.md)
 completed a separate two-case n:5 comparison. The 0.5.2 results below remain
 unchanged baseline evidence.
@@ -52,7 +56,7 @@ contents.
 
 This follow-up implements the approved repairs from the
 [current-candidate investigation](ticket-to-pr-investigation-2026-10-04.md).
-Ticket-to-PR is 0.5.2; Adaptive Delivery remains 0.24.6. Four affected cases each
+Ticket-to-PR is 0.5.2; Adaptive Goal remains 0.24.6. Four affected cases each
 received five fresh trials. The earlier six diagnostics, original Luna failures,
 and all attribution gaps remain separate evidence.
 
@@ -72,7 +76,7 @@ and all attribution gaps remain separate evidence.
   continuation. The README records that Artificer's current separate-owner
   transport is incompatible; migration remains a separate follow-up.
 
-The runner runtime, Adaptive Delivery, review and verification are unchanged.
+The runner runtime, Adaptive Goal, review and verification are unchanged.
 The two modified files under `evals/runner/` are deterministic fixture tests.
 The experiment-local launcher and observer schedule and inspect native trials;
 they do not inject instructions or modify participant requests.
@@ -82,7 +86,7 @@ they do not inject instructions or modify participant requests.
 ### One delivery used a separate goal owner
 
 In `composition-existing-pr` trial 4, the Sol main thread immediately launched
-an Adaptive Delivery child and waited for its result. It created no native
+an Adaptive Goal child and waited for its result. It created no native
 goal. The child owned and completed the goal and delegated implementation.
 Retained native routes identify that child as Luna/medium under the host's
 pinned default-child configuration. The other trials do not replace this one.
@@ -97,7 +101,7 @@ the owner's response before its continuation section clarifies main-thread
 ownership. That is a plausible source of ambiguity, not proven causation.
 The smallest next candidate would clarify same-thread capability invocation
 at that delegation point and distinguish it from launching an overall owner
-child. Keep Adaptive Delivery's bounded delegation and route selection intact.
+child. Keep Adaptive Goal's bounded delegation and route selection intact.
 Discuss and test that candidate separately; no such wording change was mixed
 into these trials.
 
@@ -128,7 +132,7 @@ the accepted answer and final checks still supported successful delivery.
 This is an observed fixture-provider contract violation, also seen in the
 earlier diagnostic candidate. It is not evidence that production readiness
 must be called only once: the real capability allows reassessment, and
-Adaptive Delivery requires it when assumptions change. Keep this deviation
+Adaptive Goal requires it when assumptions change. Keep this deviation
 separate from task success and discuss the validity of that synthetic limit
 before adding a production prohibition. The current hidden check counts
 successful recorded invocations, so it does not detect this refused retry.
@@ -137,7 +141,7 @@ successful recorded invocations, so it does not detect this refused retry.
 
 `composition-replacement` trial 1 called the branch preparation capability
 before creating its main-thread goal. The helper returned `current` and changed
-no branch or worktree. Adaptive Delivery assigns preparation to goal
+no branch or worktree. Adaptive Goal assigns preparation to goal
 coordination, so retain a qualified workflow result. The visible outcome does
 not justify treating this as failed delivery or imposing a universal fixed
 phase sequence.

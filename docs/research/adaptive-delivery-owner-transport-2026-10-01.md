@@ -1,4 +1,8 @@
-# Adaptive Delivery owner transport follow-up
+# Adaptive Goal owner transport follow-up
+
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
 
 The user requested a checkpoint commit and continuation of the proposed isolated
 experiment. **31eb00d0** checkpoints the eval repairs and completed 60-trial pilot.

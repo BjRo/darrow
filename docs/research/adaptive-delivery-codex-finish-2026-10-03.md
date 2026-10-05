@@ -1,4 +1,8 @@
-# Adaptive Delivery bounded Codex finish
+# Adaptive Goal bounded Codex finish
+
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
 
 Status: the approved frozen Codex coverage is complete: 92/92 trials assessed,
 comprising eight n:5 cohorts (40 trials) and 52 single-trial breadth cases.
@@ -14,7 +18,7 @@ substring-selection batch, whose trials were reconciled before coverage resumed.
 | Raw task checks            | 89   | 3    | 0       | 0              |
 | All applicable contracts   | 64   | 26   | 2       | 0              |
 | Bound capability contracts | 40   | 5    | 4       | 43             |
-| Adaptive Delivery contract | 64   | 21   | 1       | 6              |
+| Adaptive Goal contract     | 64   | 21   | 1       | 6              |
 | Evidence correctness       | 88   | 4    | 0       | 0              |
 | Evidence preservation      | 92   | 0    | 0       | 0              |
 | Required role routes       | 92   | 0    | 0       | 0              |
@@ -39,32 +43,32 @@ historical candidates and subsequent fixture repairs are not pooled here.
 | Eight n:5 cases, 40 trials | 38/40    | 17 / 21 / 2                    | 36/40       | 40/40 each            |
 | 52 breadth cases, n:1      | 51/52    | 47 / 5 / 0                     | 52/52       | 52/52 each            |
 
-Adaptive Delivery's 85 trials have 83 raw task passes and 85 successful task
+Adaptive Goal's 85 trials have 83 raw task passes and 85 successful task
 outcomes after the two fixture adjudications. Doctor has 6/7 task passes. This
-distinction does not remove Adaptive Delivery's workflow or reporting defects.
+distinction does not remove Adaptive Goal's workflow or reporting defects.
 
 ## Remaining failures and decisions
 
 Counts overlap when one trial has more than one defect. Exact slots and their
 evidence remain in the cohort sections below and per-trial assessments.
 
-| Group                                                            | Affected frozen slots                                                                                                                                   | Ownership and next action                                                                                                                                                                                                                                                                                                |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Repair use/maximum omitted in terminal response                  | 14: failed-check publication 1–5; incomplete verification 1–4; combined repair 2; reassessment 1; recipe-parent, quality-sensitive and steering breadth | Adaptive Delivery reporting defect. Keep semantic wording flexible; require the existing two accounting facts to survive the closing response. Discuss one bounded coordination change before another candidate.                                                                                                         |
-| Required failing regression omitted before implementation/repair | 8: real-review repair 1–5; reassessment 3 and 5; steering                                                                                               | Adaptive Delivery workflow defect. Current artifacts prove the omission but encrypted assignments cannot locate its origin. Focus follow-up on retaining the selected workflow through repair/resumption and checking returned evidence before completion. Do not change review or verification judgments to compensate. |
-| Unchanged deterministic failed check retried                     | Failed-check publication 1–3                                                                                                                            | Adaptive Delivery continuation defect. Preserve the known blocker and require a concrete changed condition before retry; read-only diagnosis remains allowed.                                                                                                                                                            |
-| Historical target mistyped                                       | Focused repair 4                                                                                                                                        | Production verification reporting defect. Original/current reports remain intact; an authored historical hash gains one character. Keep open for a separate bounded verification change and affected n:5.                                                                                                                |
-| Review-only artifact called complete combined evidence           | Combined repair 3 and 5                                                                                                                                 | Synthetic provider handoff defect, not demonstrated loss of the full underlying reports. Correct labeling at the fixture-provider boundary before inferring a production capability problem.                                                                                                                             |
-| Transient wrong source-file attribution                          | Reassessment 4                                                                                                                                          | Recovered evidence-correctness failure. The individual file read corrects it before editing, but the earlier false claim remains a failure.                                                                                                                                                                              |
-| Compatible Python treated as separate prerequisite               | Doctor depth breadth                                                                                                                                    | Doctor prerequisite/behavior defect. Align with the accepted UV-selected runtime policy and reverify separately; do not infer that an unrestricted command succeeded in the failed slot.                                                                                                                                 |
-| Forbidden plugin-storage search by documentation helper          | Unauthorized-parent breadth                                                                                                                             | Synthetic helper contract violation. Adaptive Delivery's authority stop passes. Discuss whether that extra fixture restriction is useful before treating it as a product change requirement.                                                                                                                             |
-| Multiline body inflated PR creation count                        | Authorized publication 3 and 4                                                                                                                          | Confirmed eval defect; corrected and regraded separately below. Original scores remain retained.                                                                                                                                                                                                                         |
-| Claimed complete handoff is encrypted                            | Focused repair 3; capability bindings 1; incomplete verification 3 and 4                                                                                | Observation gaps: four unknown capability contracts. Downstream public evidence is preserved. Neither omission nor successful delivery of encrypted contents is inferred.                                                                                                                                                |
-| Supplementary handoff interrupted after completion               | Combined repair 3                                                                                                                                       | Unknown delivery completion evidence and incomplete whole-tree usage. Initial/current assessment exists; the encrypted requested supplement cannot be reconstructed.                                                                                                                                                     |
+| Group                                                            | Affected frozen slots                                                                                                                                   | Ownership and next action                                                                                                                                                                                                                                                                                            |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Repair use/maximum omitted in terminal response                  | 14: failed-check publication 1–5; incomplete verification 1–4; combined repair 2; reassessment 1; recipe-parent, quality-sensitive and steering breadth | Adaptive Goal reporting defect. Keep semantic wording flexible; require the existing two accounting facts to survive the closing response. Discuss one bounded coordination change before another candidate.                                                                                                         |
+| Required failing regression omitted before implementation/repair | 8: real-review repair 1–5; reassessment 3 and 5; steering                                                                                               | Adaptive Goal workflow defect. Current artifacts prove the omission but encrypted assignments cannot locate its origin. Focus follow-up on retaining the selected workflow through repair/resumption and checking returned evidence before completion. Do not change review or verification judgments to compensate. |
+| Unchanged deterministic failed check retried                     | Failed-check publication 1–3                                                                                                                            | Adaptive Goal continuation defect. Preserve the known blocker and require a concrete changed condition before retry; read-only diagnosis remains allowed.                                                                                                                                                            |
+| Historical target mistyped                                       | Focused repair 4                                                                                                                                        | Production verification reporting defect. Original/current reports remain intact; an authored historical hash gains one character. Keep open for a separate bounded verification change and affected n:5.                                                                                                            |
+| Review-only artifact called complete combined evidence           | Combined repair 3 and 5                                                                                                                                 | Synthetic provider handoff defect, not demonstrated loss of the full underlying reports. Correct labeling at the fixture-provider boundary before inferring a production capability problem.                                                                                                                         |
+| Transient wrong source-file attribution                          | Reassessment 4                                                                                                                                          | Recovered evidence-correctness failure. The individual file read corrects it before editing, but the earlier false claim remains a failure.                                                                                                                                                                          |
+| Compatible Python treated as separate prerequisite               | Doctor depth breadth                                                                                                                                    | Doctor prerequisite/behavior defect. Align with the accepted UV-selected runtime policy and reverify separately; do not infer that an unrestricted command succeeded in the failed slot.                                                                                                                             |
+| Forbidden plugin-storage search by documentation helper          | Unauthorized-parent breadth                                                                                                                             | Synthetic helper contract violation. Adaptive Goal's authority stop passes. Discuss whether that extra fixture restriction is useful before treating it as a product change requirement.                                                                                                                             |
+| Multiline body inflated PR creation count                        | Authorized publication 3 and 4                                                                                                                          | Confirmed eval defect; corrected and regraded separately below. Original scores remain retained.                                                                                                                                                                                                                     |
+| Claimed complete handoff is encrypted                            | Focused repair 3; capability bindings 1; incomplete verification 3 and 4                                                                                | Observation gaps: four unknown capability contracts. Downstream public evidence is preserved. Neither omission nor successful delivery of encrypted contents is inferred.                                                                                                                                            |
+| Supplementary handoff interrupted after completion               | Combined repair 3                                                                                                                                       | Unknown delivery completion evidence and incomplete whole-tree usage. Initial/current assessment exists; the encrypted requested supplement cannot be reconstructed.                                                                                                                                                 |
 
 The bounded finish establishes broad task/authority behavior and preserved
 evidence, with specific remaining obligation and reporting failures. It does
-not establish full contract reliability. Prioritize the shared Adaptive Delivery
+not establish full contract reliability. Prioritize the shared Adaptive Goal
 workflow and terminal-accounting issues; keep the verification identity defect
 and synthetic-provider questions separate. No further architecture, route or
 capability change is adopted by this report.
@@ -151,7 +155,7 @@ five-trial regression below assesses the unchanged fixture's actual contract.
 
 ## Bounded candidate
 
-Adaptive Delivery 0.24.4 changes only the inert synthetic review template and
+Adaptive Goal 0.24.4 changes only the inert synthetic review template and
 paired manifests; its production skill, routes and runtime are unchanged from
 0.24.3. The evaluation specification records the clarified expectation.
 
@@ -236,7 +240,7 @@ Raw evidence and per-trial assessments are retained under the ignored directory
 
 ## Approved final regression scope
 
-The user approved 60 Codex-applicable cases: 53 Adaptive Delivery and seven
+The user approved 60 Codex-applicable cases: 53 Adaptive Goal and seven
 doctor cases. Eight cases receive five trials each:
 
 - `goal-review-repair-verification`
@@ -294,9 +298,9 @@ five results. Historical candidates remain separate.
 | `goal-intent-capability-bindings`                 | 5 / 5              | 5 pass                      | 4 pass / 1 unknown | 4 pass / 1 unknown  | 5 pass                     | 5 pass       | 5 pass |
 | `goal-verification-existing-review`               | 5 / 5              | 5 pass                      | 5 fail             | 5 pass              | 5 pass                     | 5 pass       | 5 pass |
 
-Overall contract includes Adaptive Delivery's own response obligations as well
+Overall contract includes Adaptive Goal's own response obligations as well
 as its bound capabilities. Capability compliance is also counted separately:
-an omitted repair maximum in main's final response is an Adaptive Delivery
+an omitted repair maximum in main's final response is an Adaptive Goal
 reporting failure, not a verification capability failure. The first seven
 assessment records retain their original combined grading in backup files;
 the additional fields separate ownership without removing any failure or
@@ -360,7 +364,7 @@ capability contract and correctness fail. One of two repairs was used. All
 actors completed; usage is 905,333 tokens and wall time is 257.26 seconds.
 
 Across these five combined-repair trials, task and preservation are 5/5.
-Capability compliance and correctness are each 3/5. Adaptive Delivery's own
+Capability compliance and correctness are each 3/5. Adaptive Goal's own
 delivery contract is three pass, one fail and one unknown; overall compliance
 is two pass and three fail. Four complete token trees sum to 3,672,118; slot 3
 has only partial counters. All five candidate wall times sum to 1,353.51 seconds.
@@ -373,7 +377,7 @@ coverage or a combined conclusion. The service executes once; main does not
 invent the missing judgment. The same native goal becomes blocked only after
 three turns. Its first response records zero of two repair attempts, but its
 terminal response omits that required accounting. Task, capability compliance,
-correctness and preservation pass; Adaptive Delivery's self-contained reporting
+correctness and preservation pass; Adaptive Goal's self-contained reporting
 contract fails. Usage is 675,137 tokens and wall time is 157.40 seconds.
 
 The verification actor's broad helper-path search also returns main-session
@@ -738,7 +742,7 @@ wording could be clarified later, but absent helper records are not an agent
 handoff failure. Usage is 127,172 tokens and 51.72 seconds. No live Claude model
 is exercised and the Claude comparison remains frozen.
 
-The negative doctor-selection case loads Adaptive Delivery for the explicit
+The negative doctor-selection case loads Adaptive Goal for the explicit
 delivery request. Read-only preflight finds only a README and asks which
 application/runtime to use before creating a goal or inventing behavior. Doctor
 does not activate. This tests selection and preflight stopping, not successful
@@ -801,20 +805,20 @@ preserves zero of two repairs and local-only authority. Usage is 502,282 tokens
 and 107.90 seconds. This response-boundary trial does not establish a prolonged
 human wait; encrypted assignments remain unknown.
 
-Ordinary engineering does not activate Adaptive Delivery. Main implements the
+Ordinary engineering does not activate Adaptive Goal. Main implements the
 requested function and negative test directly, verifies the final tree, and
 returns accurate results with no goal or publication. An overbroad parent-directory
 filename search is interrupted and replaced with scoped instruction checks; no
 foreign instruction contents are consumed. Usage is 112,524 tokens and 39.71 seconds.
 
 The unauthorized-parent probe returns the exact authority stop and makes no
-preflight, goal, implementation or publication action. Task and Adaptive Delivery
+preflight, goal, implementation or publication action. Task and Adaptive Goal
 authority compliance pass. The synthetic documentation helper explicitly forbids
 plugin-storage inspection, but the participant enumerates plugin skill filenames
 after two mistyped reads. Record that fixture-helper contract failure separately
 from the successful production boundary. The eventual public skill read and
 refusal are complete and accurate. Usage is 102,605 tokens and 37.83 seconds.
-This does not establish an Adaptive Delivery authority defect or a failure of a
+This does not establish an Adaptive Goal authority defect or a failure of a
 shipped verification/review capability.
 
 Authorized recipe delegation succeeds through one 364-character main-thread

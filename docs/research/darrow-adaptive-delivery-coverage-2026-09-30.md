@@ -1,4 +1,8 @@
-# Adaptive Delivery: Codex Luna/medium coverage
+# Adaptive Goal: Codex Luna/medium coverage
+
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
 
 ## Current result
 
@@ -13,8 +17,8 @@ The candidate is frozen at **0.23.12**. The already completed diagnosis n:5 batc
 ## Conditions and authorization
 
 - Codex parent **gpt-6-luna/medium**, **n:5**, **jobs:3**, threshold **100%**; native owner routes follow the plugin policy.
-- **Passive owner evaluation**; no Adaptive Delivery spawn/parent guard. Ordinary fixture isolation remains enabled.
-- Frozen directory name **darrow-adaptive-delivery**; actual prompt rendering verifies the owning skill invocation before each case. Implicit and negative cases receive no inserted invocation.
+- **Passive owner evaluation**; no Adaptive Goal spawn/parent guard. Ordinary fixture isolation remains enabled.
+- Frozen directory name **darrow-adaptive-goal**; actual prompt rendering verifies the owning skill invocation before each case. Implicit and negative cases receive no inserted invocation.
 - Cases run sequentially. Failed batches finish all five trials and are inspected before advancing. No passing repeat replaces a failed trial.
 - Plugin, supporting capabilities, runner, and repository concurrency inputs are hashed. The final audit verified all 617 source-input hashes and 131 frozen candidate-file hashes, exact case selection, explicit invocation proofs, and passive evaluation provenance. Raw results remain local and gitignored.
 - The overlapping `goal-budgeted-repair-default` ID uses an isolated discovery project with the unchanged runner, unchanged case, and identical Codex concurrency configuration. Its installed candidate remains the same frozen plugin.
@@ -122,12 +126,12 @@ Activation/avoidance totals include only cases with a configured activation cont
 
 Task: **3/5**. Failed trials: 2, 4.
 
-**Assessment: Capability invocation/loading failure.** The authority response was never reached in two trials. Trial 4 returned a failed SKILL.md lookup whose path omitted the darrow-adaptive-delivery directory between the marketplace namespace and version. Trial 2 reported an unavailable listed skill path; the exact lookup was not retained, so its path-level cause remains unverified. Both trials preserved the repository and publication boundary. This is not merely a response-format defect, and no exact-response assertion is relaxed.
+**Assessment: Capability invocation/loading failure.** The authority response was never reached in two trials. Trial 4 returned a failed SKILL.md lookup whose path omitted the darrow-adaptive-goal directory between the marketplace namespace and version. Trial 2 reported an unavailable listed skill path; the exact lookup was not retained, so its path-level cause remains unverified. Both trials preserved the repository and publication boundary. This is not merely a response-format defect, and no exact-response assertion is relaxed.
 
 **Recommendation:** Keep both failures open as invocation/loading evidence. Investigate preservation of the advertised public skill path across the calling helper and host catalog after the broader coverage pass; changing the unread skill body cannot by itself ensure the outer helper loads it.
 
-- Trial 2: adaptive-delivery returns the exact authority stop.
-- Trial 4: adaptive-delivery returns the exact authority stop.
+- Trial 2: adaptive-goal returns the exact authority stop.
+- Trial 4: adaptive-goal returns the exact authority stop.
 
 ### goal-authorized-publication
 
@@ -226,9 +230,9 @@ Task: **0/5**. Failed trials: 1, 2, 3, 4, 5.
 
 Task: **4/5**. Failed trials: 1.
 
-**Assessment: Cross-plugin result-contract mismatch: exact next_action wording.** All five trials selected fresh Luna/medium owners, passed activation, implemented the cookie change with focused evidence, and produced retained darrow-review-result-v3 artifacts with verdict pass. Trial 1 then failed the required mark-complete.sh step. The retained result.json says next_action = "Return control to the enclosing goal."; Adaptive Delivery’s comprehensive_target proof requires exact equality with "return control to enclosing goal". The missing completion/proof artifacts and final incomplete status follow that rejection. The review schema accepts a free-form string and the main skill describes returning control in ordinary prose, while its result-protocol reference specifies the exact composition phrase used by the proof. This is a demonstrated cross-plugin contract inconsistency, not missing review execution or a routing failure. No previous failure is erased.
+**Assessment: Cross-plugin result-contract mismatch: exact next_action wording.** All five trials selected fresh Luna/medium owners, passed activation, implemented the cookie change with focused evidence, and produced retained darrow-review-result-v3 artifacts with verdict pass. Trial 1 then failed the required mark-complete.sh step. The retained result.json says next_action = "Return control to the enclosing goal."; Adaptive Goal’s comprehensive_target proof requires exact equality with "return control to enclosing goal". The missing completion/proof artifacts and final incomplete status follow that rejection. The review schema accepts a free-form string and the main skill describes returning control in ordinary prose, while its result-protocol reference specifies the exact composition phrase used by the proof. This is a demonstrated cross-plugin contract inconsistency, not missing review execution or a routing failure. No previous failure is erased.
 
-**Recommendation:** Align the composed-result contract across review instructions, canonical artifact generation and Adaptive Delivery proof. Decide whether this is a machine value to emit deterministically or semantic guidance whose wording the proof must tolerate. Preserve validated verdict, exact target binding and actual owner continuation as the substantive gates. Do not silently relax the consumer or call this a review-behavior regression from the task-name change; rerun the affected composition cases after the contract decision.
+**Recommendation:** Align the composed-result contract across review instructions, canonical artifact generation and Adaptive Goal proof. Decide whether this is a machine value to emit deterministically or semantic guidance whose wording the proof must tolerate. Preserve validated verdict, exact target binding and actual owner continuation as the substantive gates. Do not silently relax the consumer or call this a review-behavior regression from the task-name change; rerun the affected composition cases after the contract decision.
 
 - Trial 1: clear independent review returns control to the goal; independent review artifact is canonical and clear; independent review covers the exact final worktree; high-risk owner reports completion.
 
@@ -336,7 +340,7 @@ Task: **3/5**. Failed trials: 2, 3.
 
 Task: **4/5**. Failed trials: 3.
 
-**Assessment: Companion capability discovery/activation failure.** Four trials load the real prepare-task-branch capability and ask for an explicit choice between the two existing DAR-123 branches. Trial 3 loads Adaptive Delivery but reports that no compatible advertised Git capability is available, despite this fixture installing darrow-git and its token-discovery capability. It therefore never discovers or presents the two branch choices. The complete activation observation contains only adaptive-delivery, so both task and the required companion activation score 4/5. The clean worktree and no-new-branch boundaries are preserved. The retained evidence establishes the missed binding and refusal, but not whether the exact catalog entry was overlooked or unavailable in that trial's effective view.
+**Assessment: Companion capability discovery/activation failure.** Four trials load the real prepare-task-branch capability and ask for an explicit choice between the two existing DAR-123 branches. Trial 3 loads Adaptive Goal but reports that no compatible advertised Git capability is available, despite this fixture installing darrow-git and its token-discovery capability. It therefore never discovers or presents the two branch choices. The complete activation observation contains only adaptive-goal, so both task and the required companion activation score 4/5. The clean worktree and no-new-branch boundaries are preserved. The retained evidence establishes the missed binding and refusal, but not whether the exact catalog entry was overlooked or unavailable in that trial's effective view.
 
 **Recommendation:** Investigate companion discovery as part of the shared capability-binding path, alongside other false unavailable claims. Preserve the distinction between a genuinely absent required provider and a missed installed capability; retain the real prepare-task-branch boundary rather than bypassing it with raw Git. Compare ambiguity, exact reuse and creation cases together after any change. Keep this 4/5 and its catalog-visibility evidence limit.
 
@@ -346,7 +350,7 @@ Task: **4/5**. Failed trials: 3.
 
 Task: **3/5**. Failed trials: 3, 4.
 
-**Assessment: Companion capability discovery/activation failures.** Trials 3 and 4 load Adaptive Delivery but refuse before owner launch, claiming the exact-token branch-discovery capability is unavailable. They leave main selected, create no branch, and do not implement the requested edit. The complete activation observations omit prepare-task-branch. Trials 1, 2 and 5 pass all task and activation checks. A bounded public catalog capture from passing trial 5 proves prepare-task-branch was installed at darrow-git 0.8.7 and advertised with exact-token discovery and caller-bound name preparation in that session. That later capture cannot establish the failed trials' effective catalogs, which were not retained. Raw task and activation are both 3/5.
+**Assessment: Companion capability discovery/activation failures.** Trials 3 and 4 load Adaptive Goal but refuse before owner launch, claiming the exact-token branch-discovery capability is unavailable. They leave main selected, create no branch, and do not implement the requested edit. The complete activation observations omit prepare-task-branch. Trials 1, 2 and 5 pass all task and activation checks. A bounded public catalog capture from passing trial 5 proves prepare-task-branch was installed at darrow-git 0.8.7 and advertised with exact-token discovery and caller-bound name preparation in that session. That later capture cannot establish the failed trials' effective catalogs, which were not retained. Raw task and activation are both 3/5.
 
 **Recommendation:** Investigate the shared companion capability discovery/availability decision across all three ticket-branch cases. Preserve exact-token discovery and the no-raw-Git fallback boundary. Retain installed-body hashes and the bounded public catalog entry in future trials to distinguish catalog visibility from a model selection miss. Keep these failures open; do not treat the passing trial's catalog as proof about the failed sessions.
 
@@ -357,7 +361,7 @@ Task: **3/5**. Failed trials: 3, 4.
 
 Task: **2/5**. Failed trials: 1, 2, 5.
 
-**Assessment: Confirmed advertised companion selection miss and parent metadata polling.** Task is 2/5; activation is 4/5. Trials 1 and 2 correctly reuse fix/77-original-suffix, preserve its tip, implement the requested local edit, and load prepare-task-branch, but each parent calls list_agents once after owner acceptance. Trial 5 claims no compatible Git capability is advertised and launches no owner. Unlike the earlier branch misses, this failed session has positive bounded evidence: the only no-owner fixture, darrow-eval-9yimD7, contains the installed prepare-task-branch body at darrow-git 0.8.7 and its exact public catalog entry in the parent developer message before the Luna/medium turn. The description explicitly covers exact-token discovery and caller-bound preparation. The complete activation observation still contains only adaptive-delivery. This is a demonstrated missed advertised companion, not evidence of a missing installation or merely activation tracking.
+**Assessment: Confirmed advertised companion selection miss and parent metadata polling.** Task is 2/5; activation is 4/5. Trials 1 and 2 correctly reuse fix/77-original-suffix, preserve its tip, implement the requested local edit, and load prepare-task-branch, but each parent calls list_agents once after owner acceptance. Trial 5 claims no compatible Git capability is advertised and launches no owner. Unlike the earlier branch misses, this failed session has positive bounded evidence: the only no-owner fixture, darrow-eval-9yimD7, contains the installed prepare-task-branch body at darrow-git 0.8.7 and its exact public catalog entry in the parent developer message before the Luna/medium turn. The description explicitly covers exact-token discovery and caller-bound preparation. The complete activation observation still contains only adaptive-goal. This is a demonstrated missed advertised companion, not evidence of a missing installation or merely activation tracking.
 
 **Recommendation:** Strengthen the shared preflight discovery decision so a compatible advertised entry is read and evaluated before claiming absence. Keep capability matching based on public behavior and exact references, with no private sibling lookup or raw-Git bypass. Use this retained failed catalog as a counterexample alongside genuine missing-provider cases. Retest all ticket-branch cases together after that change; handle the two parent polls under the common ownership decision. Earlier failed catalogs remain unverified.
 
@@ -451,7 +455,7 @@ Task: **3/5**. Failed trials: 2, 4.
 - Trial 2: provider does not reset shared budget.
 - Trial 4: provider does not reset shared budget.
 
-### doctor-adaptive-delivery-counterexample-depth
+### doctor-adaptive-goal-counterexample-depth
 
 Task: **1/5**. Failed trials: 2, 3, 4, 5.
 
@@ -464,7 +468,7 @@ Task: **1/5**. Failed trials: 2, 3, 4, 5.
 - Trial 4: depth does not compensate for concurrency.
 - Trial 5: depth does not compensate for concurrency.
 
-### doctor-adaptive-delivery-effective-project
+### doctor-adaptive-goal-effective-project
 
 Task: **1/5**. Failed trials: 1, 2, 3, 4.
 
@@ -477,7 +481,7 @@ Task: **1/5**. Failed trials: 1, 2, 3, 4.
 - Trial 3: project precedence is effective.
 - Trial 4: project precedence is effective.
 
-### doctor-adaptive-delivery-incomplete-host
+### doctor-adaptive-goal-incomplete-host
 
 Task: **5/5**. Failed trials: 1.
 
@@ -487,7 +491,7 @@ Task: **5/5**. Failed trials: 1.
 
 - Trial 1: activation contract.
 
-### doctor-adaptive-delivery-indirect-claude
+### doctor-adaptive-goal-indirect-claude
 
 Task: **3/5**. Failed trials: 1, 2.
 

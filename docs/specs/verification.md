@@ -3,7 +3,7 @@
 ## Coordinator routes
 
 When an enclosing owner delegates verification, it selects the verification
-coordinator independently of implementation. Adaptive Delivery uses at least
+coordinator independently of implementation. Adaptive Goal uses at least
 Codex Sol/medium, or the explicit Claude Opus 5/high route. Verification's
 review-provider coordinator uses an explicit route: Codex Luna/medium or the
 plugin's Claude Sonnet 5/medium scoped agent, unless a compatible explicit caller
@@ -150,7 +150,7 @@ complete provider results, criterion-level evidence, combined findings with
 dispositions, and limitations. Provider-specific artifacts can travel opaquely
 with provenance; only the provider interprets its own mechanical records.
 
-Adaptive delivery binds this capability in preflight and the
+Adaptive goal binds this capability in preflight and the
 existing owner contract, preserving routine omission and high-risk review
 selection. The owner supplies successful current checks before assessment,
 waits for every selected result, addresses eligible combined blockers under

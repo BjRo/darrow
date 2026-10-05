@@ -1,8 +1,12 @@
 # Darrow Review stabilization on Luna/medium
 
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
+
 ## Evidence correction: snapshot invocation namespace
 
-A later Adaptive Delivery investigation found that the frozen-copy runner used
+A later Adaptive Goal investigation found that the frozen-copy runner used
 `<run>/plugin/skills/code-review`. The shared prompt renderer derives the Codex
 namespace from the directory name, while installation uses the manifest name.
 Seven selected cases therefore received `$plugin:code-review` instead of
@@ -65,7 +69,7 @@ explicit route. Improving the coordinator does not lower reviewer capability.
 | Reader handoff                 | The coordinator sometimes rejected its own launches as abbreviated and abandoned accepted independent readers. Native launch bodies were encrypted, so exact prompt mismatch remains unverified. | Observed coordinator failure, with the precise message difference unknown. The new handoff sends a short generated loading command. Complete axis instructions and schema are bound into the validated input and read directly by the reviewer. |
 | Advisory presentation          | A correct `continue` artifact was summarized without distinguishing the remaining advisory from the blocking finding.                                                                            | Skill presentation defect. The response must identify the completion effect of every remaining issue.                                                                                                                                           |
 | Human-output envelope          | A hidden exclusion check still looked for retired TSV syntax and would miss current machine JSON appended to prose.                                                                              | Eval defect found in the required fresh-context audit. A JSON-aware oracle now rejects actual protocol records in human output while allowing ordinary Markdown and unrelated JSON.                                                             |
-| Adjacent review composition    | Adaptive-delivery fixtures searched for canonical review records under `.git`, although current review state is external.                                                                        | Fixture defect. Affected searches and proof validation now use the explicit isolated review-state root. Adaptive-delivery packaging is updated to **0.23.8**; its owner behavior is unchanged.                                                  |
+| Adjacent review composition    | Adaptive-goal fixtures searched for canonical review records under `.git`, although current review state is external.                                                                            | Fixture defect. Affected searches and proof validation now use the explicit isolated review-state root. Adaptive-goal packaging is updated to **0.23.8**; its owner behavior is unchanged.                                                      |
 | Skill-read observation         | A yielded command delivered the full body before its final output chunk, which the observer alone inspected.                                                                                     | Runner defect. Recover only earlier chunks bound to the same completed command and actor. Preserve the historical unproved reads separately.                                                                                                    |
 | Reader JSON and citations      | Instructions demanded strings for array fields and did not explain citations for an inline objective.                                                                                            | Skill and diagnostic defects. Clarify the schema and permitted citations; give exact array-validation errors for the bounded correction.                                                                                                        |
 | Host delegation interpretation | Luna treated permission for skill-requested subagents as a blanket prohibition.                                                                                                                  | Skill clarification. State the explicit reader requirement and preserve actual host restrictions; retain a no-delegation control.                                                                                                               |
@@ -120,7 +124,7 @@ This is diagnostic evidence, not a stability measurement.
 
 `bun run check:python` passed for every registered package on 0.10.6. The review package
 passed **336 tests**, with one PowerShell skip, **97.97% statement** and **96.07% branch** coverage;
-adaptive-delivery passed **218 tests** with **97.98% statement** and **96.57%
+adaptive-goal passed **218 tests** with **97.98% statement** and **96.57%
 branch** coverage. The fresh copied review plugin passed all seven public
 entrypoints using runtime-only dependencies; its provider transcript was mocked.
 Documentation validation and `git diff --check` also passed.
@@ -189,9 +193,9 @@ The runtime/skill digest is
 ### Adjacent composition results
 
 Both checks ran separately with Codex gpt-6-luna/medium as the parent,
-`--owner-evaluation passive`, one trial and one job, using adaptive-delivery
+`--owner-evaluation passive`, one trial and one job, using adaptive-goal
 0.23.8, verification 0.2.10, and review 0.10.6. They do not count toward the 155
-review trials or constitute a full adaptive-delivery sweep.
+review trials or constitute a full adaptive-goal sweep.
 
 | Case                                | Task | Activation | Observed owner                   | Result                                                                                                                                          |
 | ----------------------------------- | ---: | ---------: | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -207,14 +211,14 @@ observed in both checks. Encrypted owner contracts remain role-unverified in
 native receipts; task and authority checks supply the bounded composition
 evidence.
 
-The second check exposed an **Adaptive Delivery profile-selection defect**.
+The second check exposed an **Adaptive Goal profile-selection defect**.
 Bounded live command inspection showed selection of `routine-plus`, and the
 retained native receipt confirms its bundled gpt-6-luna/high route. The current
 policy still maps clear, localized work to `routine` and gpt-6-luna/medium;
 high consequence risk separately requires review. The case remains valid and
 failed. Its actual Standards and Spec reader launches used fresh
 gpt-6-sol/xhigh routes, and the canonical review passed. Keep this routing
-failure for the planned later Adaptive Delivery investigation; do not weaken
+failure for the planned later Adaptive Goal investigation; do not weaken
 the assertion or change orchestration policy during this review follow-up.
 
 The adjacent checks therefore stand at **1/2 task and 2/2 activation**. The
@@ -222,11 +226,11 @@ review component completed in both; the full adjacent gate is not green.
 
 ### Remaining failures and recommendation
 
-| Plugin / case                         | Assessment                                                                                             | Recommended next action                                                                                                             |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Review / pull-request                 | Original read-only failure remains unexplained; two clean n:5 repeats are not a repair.                | Keep the failure open, retain changed paths and bounded command evidence on recurrence, and preserve the read-only contract.        |
-| Review / standards-only               | Same observable failure class, but a shared cause is unproved; two clean n:5 repeats are not a repair. | Keep it open under the expanded capture. Do not invent a skill rule without identifying the write.                                  |
-| Adaptive Delivery / high-risk routine | Wrong reasoning profile selected; the current eval expectation is valid.                               | Investigate risk versus reasoning-demand classification when this plugin's planned turn arrives. Retain the failed adjacent result. |
+| Plugin / case                     | Assessment                                                                                             | Recommended next action                                                                                                             |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Review / pull-request             | Original read-only failure remains unexplained; two clean n:5 repeats are not a repair.                | Keep the failure open, retain changed paths and bounded command evidence on recurrence, and preserve the read-only contract.        |
+| Review / standards-only           | Same observable failure class, but a shared cause is unproved; two clean n:5 repeats are not a repair. | Keep it open under the expanded capture. Do not invent a skill rule without identifying the write.                                  |
+| Adaptive Goal / high-risk routine | Wrong reasoning profile selected; the current eval expectation is valid.                               | Investigate risk versus reasoning-demand classification when this plugin's planned turn arrives. Retain the failed adjacent result. |
 
 The review candidate has complete n:5 coverage and the known deterministic
 repairs are verified. Keep both accepted unresolved review failures visible.

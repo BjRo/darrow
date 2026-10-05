@@ -15,7 +15,7 @@ import {
   codexSpawnGuardRequested,
   codexThreadId,
   codexTokenUsage,
-  legacyAdaptiveDeliveryPreflight,
+  legacyAdaptiveGoalPreflight,
   retainedCodexEvidence,
   retainedCodexEvidenceForThread,
 } from "./codex";
@@ -43,7 +43,7 @@ test("Python plugin commands do not claim historical shell enforcement", async (
     await cp(
       join(
         import.meta.dir,
-        "../../../plugins/orchestration/darrow-adaptive-delivery",
+        "../../../plugins/orchestration/darrow-adaptive-goal",
       ),
       plugin,
       {
@@ -84,7 +84,7 @@ test("Python plugin commands do not claim historical shell enforcement", async (
       "--no-dev",
       "--project",
       join(plugin, "backend"),
-      "adaptive-delivery-preflight",
+      "adaptive-goal-preflight",
     ];
     expect(
       run(repo, [...argv, "prepare", "--repo", repo, "--host", "codex"]),
@@ -101,13 +101,13 @@ test("Python plugin commands do not claim historical shell enforcement", async (
         "routine",
       ]),
     ).toContain("selected_route\tcodex");
-    expect(await legacyAdaptiveDeliveryPreflight([plugin])).toBeUndefined();
+    expect(await legacyAdaptiveGoalPreflight([plugin])).toBeUndefined();
     await mkdir(join(plugin, "bin"));
     await writeFile(
       join(plugin, "bin/adaptive-delivery-preflight"),
       "legacy fixture",
     );
-    expect(await legacyAdaptiveDeliveryPreflight([plugin])).toEndWith(
+    expect(await legacyAdaptiveGoalPreflight([plugin])).toEndWith(
       "/bin/adaptive-delivery-preflight",
     );
   } finally {
@@ -115,7 +115,7 @@ test("Python plugin commands do not claim historical shell enforcement", async (
   }
 }, 30000);
 const COMPLETE_CONTRACT = [
-  "Role: You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-delivery or seek another owner.",
+  "Role: You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-goal or seek another owner.",
   "Outcome: Implement the requested fixture behavior.",
   "Acceptance criteria: The requested behavior and checks pass.",
   "Scope and authority: included=fixture implementation and tests; authorized=local edits and checks only; forbidden=publication; preserve=unrelated repository state",
@@ -128,17 +128,17 @@ test("uses GPT-6 Luna as the default Codex eval model", () => {
   expect(codexAdapter.defaultModel).toBe("gpt-6-luna");
 });
 
-test("installs the adaptive-delivery spawn guard only for relevant turns", () => {
+test("installs the adaptive-goal spawn guard only for relevant turns", () => {
   expect(
     codexSpawnGuardRequested("Implement the bounded refactor."),
   ).toBeFalse();
   expect(
-    codexSpawnGuardRequested("Invoke adaptive-delivery for this request."),
+    codexSpawnGuardRequested("Invoke adaptive-goal for this request."),
   ).toBeTrue();
   expect(
     codexSpawnGuardRequested(
       "Assess the ticket first.",
-      "Now invoke adaptive-delivery for the unchanged scope.",
+      "Now invoke adaptive-goal for the unchanged scope.",
     ),
   ).toBeTrue();
 });
@@ -633,10 +633,9 @@ describe("Codex skill activation observation", () => {
         type: "item.completed",
         item: {
           type: "command_execution",
-          command:
-            "sed -n '1,260p' './.agents/skills/adaptive-delivery/SKILL.md'",
+          command: "sed -n '1,260p' './.agents/skills/adaptive-goal/SKILL.md'",
           aggregated_output:
-            "---\nname: adaptive-delivery\ndescription: Orchestrate\n",
+            "---\nname: adaptive-goal\ndescription: Orchestrate\n",
           exit_code: 0,
           status: "completed",
         },
@@ -658,8 +657,8 @@ describe("Codex skill activation observation", () => {
     expect(codexSkillActivation(stream, REPO)).toEqual({
       source: "skill_file_read_probe",
       complete: true,
-      primarySkill: "adaptive-delivery",
-      observedSkills: ["adaptive-delivery", "grilling"],
+      primarySkill: "adaptive-goal",
+      observedSkills: ["adaptive-goal", "grilling"],
     });
   });
 
@@ -1054,15 +1053,15 @@ describe("Codex skill activation observation", () => {
 
   test("observes project capability reads alongside an installed orchestrator", () => {
     const installedSkillsRoot =
-      "/tmp/eval-home/plugins/cache/darrow/darrow-adaptive-delivery/0.13.0/skills";
+      "/tmp/eval-home/plugins/cache/darrow/darrow-adaptive-goal/0.13.0/skills";
     const stream = [
       JSON.stringify({
         type: "item.completed",
         item: {
           type: "command_execution",
-          command: `cat ${installedSkillsRoot}/adaptive-delivery/SKILL.md`,
+          command: `cat ${installedSkillsRoot}/adaptive-goal/SKILL.md`,
           aggregated_output:
-            "---\nname: adaptive-delivery\ndescription: Orchestrate\n",
+            "---\nname: adaptive-goal\ndescription: Orchestrate\n",
           exit_code: 0,
           status: "completed",
         },
@@ -1085,8 +1084,8 @@ describe("Codex skill activation observation", () => {
     expect(codexSkillActivation(stream, REPO, installedSkillsRoot)).toEqual({
       source: "skill_file_read_probe",
       complete: true,
-      primarySkill: "adaptive-delivery",
-      observedSkills: ["adaptive-delivery", "assess-implementation-readiness"],
+      primarySkill: "adaptive-goal",
+      observedSkills: ["adaptive-goal", "assess-implementation-readiness"],
     });
     expect(
       retainedCodexEvidence(stream, REPO, undefined, installedSkillsRoot),
@@ -1097,7 +1096,7 @@ describe("Codex skill activation observation", () => {
     const recipeRoot =
       "/tmp/eval-home/plugins/cache/darrow/recipe/0.3.0/skills";
     const goalRoot =
-      "/tmp/eval-home/plugins/cache/darrow/darrow-adaptive-delivery/0.13.1/skills";
+      "/tmp/eval-home/plugins/cache/darrow/darrow-adaptive-goal/0.13.1/skills";
     const stream = [
       JSON.stringify({
         type: "item.completed",
@@ -1113,9 +1112,8 @@ describe("Codex skill activation observation", () => {
         type: "item.completed",
         item: {
           type: "command_execution",
-          command: `cat ${goalRoot}/adaptive-delivery/SKILL.md`,
-          aggregated_output:
-            "---\nname: adaptive-delivery\ndescription: Goal\n",
+          command: `cat ${goalRoot}/adaptive-goal/SKILL.md`,
+          aggregated_output: "---\nname: adaptive-goal\ndescription: Goal\n",
           exit_code: 0,
           status: "completed",
         },
@@ -1127,7 +1125,7 @@ describe("Codex skill activation observation", () => {
       source: "skill_file_read_probe",
       complete: true,
       primarySkill: "ticket-to-pr",
-      observedSkills: ["ticket-to-pr", "adaptive-delivery"],
+      observedSkills: ["ticket-to-pr", "adaptive-goal"],
     });
   });
 
@@ -1381,7 +1379,7 @@ describe("Codex skill activation observation", () => {
           reasoning_effort: "xhigh",
           fork_turns: "none",
           prompt:
-            "- phase: adaptive-delivery-runner\nsensitive copied context\n- phase: confidential-acquisition\n- stable_child_id: patient-123\n- review_axis: spec",
+            "- phase: adaptive-goal-runner\nsensitive copied context\n- phase: confidential-acquisition\n- stable_child_id: patient-123\n- review_axis: spec",
         },
       }),
       JSON.stringify({
@@ -1414,7 +1412,7 @@ describe("Codex skill activation observation", () => {
     expect(retained).toContain('"tool":"wait_agent"');
     expect(retained).toContain('"sender_thread_id":"parent-thread"');
     expect(retained).toContain("- review_axis: standards");
-    expect(retained).toContain("- phase: adaptive-delivery-runner");
+    expect(retained).toContain("- phase: adaptive-goal-runner");
     expect(retained).not.toContain("confidential-acquisition");
     expect(retained).not.toContain("patient-123");
     expect(retained).toContain(
@@ -1840,13 +1838,13 @@ describe("Codex skill activation observation", () => {
       const childThread = "01a04f35-c37a-74b3-baa4-961bc21b6f50";
       const skillsRoot = join(repoDir, ".agents", "skills");
       const primaryBody =
-        "---\nname: adaptive-delivery\ndescription: Primary fixture skill\n---\n\n# Adaptive delivery\n";
+        "---\nname: adaptive-goal\ndescription: Primary fixture skill\n---\n\n# Adaptive goal\n";
       const supportingBody =
         "---\nname: create-pr\ndescription: Sensitive supporting fixture skill\n---\n\n# Create PR\n";
-      await mkdir(join(skillsRoot, "adaptive-delivery"), { recursive: true });
+      await mkdir(join(skillsRoot, "adaptive-goal"), { recursive: true });
       await mkdir(join(skillsRoot, "create-pr"), { recursive: true });
       await writeFile(
-        join(skillsRoot, "adaptive-delivery", "SKILL.md"),
+        join(skillsRoot, "adaptive-goal", "SKILL.md"),
         primaryBody,
       );
       await writeFile(
@@ -1915,7 +1913,7 @@ describe("Codex skill activation observation", () => {
           type: "item.completed",
           item: {
             type: "command_execution",
-            command: `cat ${join(skillsRoot, "adaptive-delivery", "SKILL.md")}`,
+            command: `cat ${join(skillsRoot, "adaptive-goal", "SKILL.md")}`,
             aggregated_output: primaryBody,
             exit_code: 0,
             status: "completed",
@@ -1930,9 +1928,9 @@ describe("Codex skill activation observation", () => {
         configRoot,
         { installedSkillsRoot: skillsRoot },
       );
-      expect(retained).toContain('"skill":"adaptive-delivery"');
+      expect(retained).toContain('"skill":"adaptive-goal"');
       expect(retained).toContain('"skill":"create-pr"');
-      expect(retained.indexOf('"skill":"adaptive-delivery"')).toBeLessThan(
+      expect(retained.indexOf('"skill":"adaptive-goal"')).toBeLessThan(
         retained.indexOf('"skill":"create-pr"'),
       );
       expect(retained).not.toContain("Sensitive supporting fixture skill");
@@ -1947,7 +1945,7 @@ describe("Codex skill activation observation", () => {
               command: [
                 "/bin/zsh",
                 "-lc",
-                `for f in ${skillsRoot}/adaptive-delivery/SKILL.md ${skillsRoot}/create-pr/SKILL.md; do sed -n '1,$p' "$f"; done`,
+                `for f in ${skillsRoot}/adaptive-goal/SKILL.md ${skillsRoot}/create-pr/SKILL.md; do sed -n '1,$p' "$f"; done`,
               ],
               aggregated_output:
                 primaryBody +
@@ -2239,8 +2237,7 @@ describe("Codex skill activation observation", () => {
         fixtureStateSha256: await fixtureStateFingerprint(repo),
         requestSha256: "4".repeat(64),
         objectiveRoot,
-        adaptiveDeliveryPreflightPath:
-          "/plugin/bin/adaptive-delivery-preflight",
+        adaptiveGoalPreflightPath: "/plugin/bin/adaptive-goal-preflight",
         statePath: join(repo, ".git", "guard-state"),
       };
       const hook = {
@@ -2250,8 +2247,8 @@ describe("Codex skill activation observation", () => {
         cwd: repo,
         tool_name: "Agent",
         tool_input: {
-          task_name: "adaptive_delivery_fixture",
-          message: "- phase: adaptive-delivery-owner\n" + COMPLETE_CONTRACT,
+          task_name: "adaptive_goal_fixture",
+          message: "- phase: adaptive-goal-owner\n" + COMPLETE_CONTRACT,
           model: "gpt-5.6-luna",
           reasoning_effort: "low",
           fork_turns: "none",
@@ -2328,7 +2325,7 @@ describe("Codex skill activation observation", () => {
         acceptedAgentRef: ownerId,
         acceptedOwner,
       });
-      expect(retained).toContain("- phase: adaptive-delivery-owner");
+      expect(retained).toContain("- phase: adaptive-goal-owner");
       expect(retained).toContain('"tool":"wait_agent"');
       expect(retained).toContain('"type":"darrow.parent_tool_after_goal"');
       expect(retained.match(/darrow\.parent_tool_after_goal/g)).toHaveLength(1);
@@ -2346,7 +2343,7 @@ describe("Codex skill activation observation", () => {
   });
 
   test("keeps same-owner feedback bound to the accepted owner", () => {
-    const owner = "/root/adaptive_delivery_fixture";
+    const owner = "/root/adaptive_goal_fixture";
     const collaboration = (
       tool: "spawn_agent" | "wait_agent" | "followup_task",
       receiver: string,
@@ -2361,9 +2358,7 @@ describe("Codex skill activation observation", () => {
           receiver_thread_ids: [receiver],
           task_name: tool === "spawn_agent" ? receiver : undefined,
           prompt:
-            tool === "spawn_agent"
-              ? "- phase: adaptive-delivery-owner"
-              : undefined,
+            tool === "spawn_agent" ? "- phase: adaptive-goal-owner" : undefined,
         },
       });
     const retained = retainedCodexEvidence(
@@ -2387,7 +2382,7 @@ describe("Codex skill activation observation", () => {
   });
 
   test("retains an opaque replacement spawn after owner acceptance", () => {
-    const owner = "/root/adaptive_delivery_fixture";
+    const owner = "/root/adaptive_goal_fixture";
     const replacement = "/root/replacement_owner";
     const collaboration = (receiver: string, prompt: string, sender: string) =>
       JSON.stringify({
@@ -2404,11 +2399,7 @@ describe("Codex skill activation observation", () => {
       });
     const retained = retainedCodexEvidence(
       [
-        collaboration(
-          owner,
-          "- phase: adaptive-delivery-owner",
-          "/root/parent",
-        ),
+        collaboration(owner, "- phase: adaptive-goal-owner", "/root/parent"),
         collaboration(
           replacement,
           "unmarked replacement task",

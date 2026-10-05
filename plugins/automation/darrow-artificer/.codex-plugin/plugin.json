@@ -1,6 +1,6 @@
 {
   "name": "darrow-artificer",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Explicit local admission and native Codex continuation for nominated GitHub tickets",
   "skills": "./skills/",
   "interface": {

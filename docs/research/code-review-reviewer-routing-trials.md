@@ -1,5 +1,9 @@
 # Reviewer-routing trials
 
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
+
 Date: 2026-08-18
 
 ## Live Codex route-mechanism proof

@@ -2,10 +2,10 @@ id: ticket-to-pr-ordinary-engineering-nonactivation
 activation: negative
 mount_plugin_skills: true
 additional_plugins:
-  - plugins/orchestration/darrow-adaptive-delivery
+  - plugins/orchestration/darrow-adaptive-goal
 activation_excludes:
   - ticket-to-pr
-  - adaptive-delivery
+  - adaptive-goal
 invariant: TPR-C1
 goal_report: forbidden
 prompt: >-
@@ -20,5 +20,5 @@ checks:
   - name: fixture remains inspectable after the adjacent request
     run: git rev-parse --verify HEAD
 transcript_checks:
-  - name: ticket recipe and adaptive delivery remain inactive
-    not_regex: '"skill":"ticket-to-pr"|"skill":"adaptive-delivery"|"name":"Skill"[^\n]*(?:ticket-to-pr|adaptive-delivery)|"tool":"spawn_agent"'
+  - name: ticket recipe and adaptive goal remain inactive
+    not_regex: '"skill":"ticket-to-pr"|"skill":"adaptive-goal"|"name":"Skill"[^\n]*(?:ticket-to-pr|adaptive-goal)|"tool":"spawn_agent"'

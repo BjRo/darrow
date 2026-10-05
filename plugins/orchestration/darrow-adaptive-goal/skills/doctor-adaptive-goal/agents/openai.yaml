@@ -1,0 +1,4 @@
+interface:
+  display_name: "Doctor Adaptive Goal"
+  short_description: "Check host delegation capacity"
+  default_prompt: "Use $doctor-adaptive-goal to diagnose this host's Adaptive Goal configuration."

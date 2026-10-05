@@ -1,4 +1,8 @@
-# Adaptive Delivery main-thread model comparison
+# Adaptive Goal main-thread model comparison
+
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
 
 Completed all 50 comparison slots: D (Luna/medium main) passed 18/25
 task checks; E (Sol/medium main) passed 24/25. Sol recovered more

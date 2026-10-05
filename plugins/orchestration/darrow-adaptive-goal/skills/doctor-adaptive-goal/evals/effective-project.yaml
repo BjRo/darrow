@@ -1,0 +1,26 @@
+id: doctor-adaptive-goal-effective-project
+invariant: ADL-D1
+activation: positive
+prompt: >-
+  {{skill_invocation}} Diagnose the represented Codex V2 host configuration,
+  not this eval runner's own configuration. The current fixture checkout is
+  explicitly trusted and is its project root. Its user configuration is
+  ./user-config.toml. Check whether the effective configuration supports the
+  full Adaptive Goal path. Diagnose only; do not edit anything.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        user-config.toml: "[agents]\nenabled = true\n"
+        .codex/config.toml: "[agents]\nmax_concurrent_threads_per_session = 5\n"
+checks:
+  - name: diagnosis is read-only
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: trusted project layer contributes
+    proposition: The response reports both the absolute user and project configuration paths as checked and contributing sources, says checkout configuration was used, and concludes that the baseline and full required-assessment paths are supported.
+  - name: effective concurrency is five
+    proposition: The response reports that the completed diagnosis found effective concurrency of five spawned-agent slots. A supplied configuration value, hypothetical capacity, or failed diagnosis is insufficient.
+transcript_checks:
+  - name: orchestration does not activate
+    not_regex: 'adaptive-goal-preflight|"tool":"spawn_agent"|"name":"Agent"'

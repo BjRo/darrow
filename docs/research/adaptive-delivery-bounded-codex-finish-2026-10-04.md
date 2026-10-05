@@ -1,4 +1,8 @@
-# Adaptive Delivery: bounded Codex finish
+# Adaptive Goal: bounded Codex finish
+
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
 
 Status: the agreed five-case round is complete, with n:5 per case on the frozen
 0.24.6 candidate. Both remaining controls passed 5/5. All 25 intended task

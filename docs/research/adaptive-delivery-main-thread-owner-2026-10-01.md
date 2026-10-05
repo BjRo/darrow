@@ -1,4 +1,8 @@
-# Adaptive Delivery main-thread ownership pilot
+# Adaptive Goal main-thread ownership pilot
+
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
 
 The user approved an isolated Codex comparison of the current native subagent
 owner (A) and a main-thread native goal with bounded implementation assignments
@@ -60,7 +64,7 @@ The existing adapter awaits CLI process exit; it does not issue a stop at the
 first final response or manage goal state. Its explicit second-turn path applies
 only when a follow-up user prompt was supplied; this diagnostic supplied none.
 This is a host lifecycle prerequisite failure, not a measured failure of the
-proposed Adaptive Delivery skill. Automatic turn start is observed, but completed
+proposed Adaptive Goal skill. Automatic turn start is observed, but completed
 automatic continuation is not established in this headless path.
 
 Evidence is retained under `native-goal-probe-2026-10-01T08-54-20.714Z`, including
@@ -109,7 +113,7 @@ runs keep their entrypoint. It reuses fixture isolation, installed plugin setup
 and native evidence readers, pins the requested main-thread model/effort, and
 leaves goal creation and delegation to the participant. The client submits no
 automatic continuation prompt and never mutates goal state. Review and
-verification capabilities and the production Adaptive Delivery skill are unchanged.
+verification capabilities and the production Adaptive Goal skill are unchanged.
 
 Both Luna/medium native probes completed successfully on Codex 0.159.2:
 
@@ -188,7 +192,7 @@ ambiguous. The repaired lookup delegates complete original-finding validation to
 the unchanged provider. It accepts matching evidence among unrelated records and
 still rejects missing/changed findings and stale content. Retained artifacts and
 counterexamples pass, along with 23 focused tests and the full Python quality
-gate (224 Adaptive Delivery tests). Both manifests advance to 0.23.18 for this
+gate (224 Adaptive Goal tests). Both manifests advance to 0.23.18 for this
 eval-helper repair; the production orchestration skill is unchanged.
 
 The frozen A/D candidates, participant fixtures, runner and capabilities remain

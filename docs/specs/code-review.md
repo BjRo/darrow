@@ -689,7 +689,7 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
     insufficient fixture evidence.
 14. **CR-E14 — Reviewer route application.** Deterministic and cross-harness
     evidence covers bundled GPT-6 Sol/xhigh and Opus/xhigh defaults, repository
-    overrides in a config that may also contain adaptive-delivery routes, direct
+    overrides in a config that may also contain adaptive-goal routes, direct
     Anthropic-provider detection and rejection of every supported third-party
     or custom-endpoint selector, parallel
     two-axis application, one-axis omission, fix-verifier application,

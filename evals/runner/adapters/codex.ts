@@ -1046,7 +1046,7 @@ function completedGoalOwnerAgentRef(stream: string): string | undefined {
     const item = event.item;
     const markedOwner =
       typeof item?.prompt === "string" &&
-      item.prompt.startsWith("- phase: adaptive-delivery-owner\n");
+      item.prompt.startsWith("- phase: adaptive-goal-owner\n");
     if (
       event.type !== "item.completed" ||
       item?.type !== "collab_tool_call" ||
@@ -1080,12 +1080,11 @@ function collaborationAgentRefConflicts(
 function retainedCollaborationPrompt(prompt: unknown): string | undefined {
   if (typeof prompt !== "string") return undefined;
   const lines = prompt.split("\n");
-  if (/^- phase: adaptive-delivery-(?:owner|runner)$/.test(lines[0] ?? ""))
+  if (/^- phase: adaptive-goal-(?:owner|runner)$/.test(lines[0] ?? ""))
     return lines[0];
   const retained = lines
     .filter((line, index) => {
-      if (/^- phase: adaptive-delivery-(?:owner|runner)$/.test(line))
-        return false;
+      if (/^- phase: adaptive-goal-(?:owner|runner)$/.test(line)) return false;
       return (
         /^- (?:phase|iteration|stable_child_id|required skill|phase_skill): /.test(
           line,
@@ -1106,7 +1105,7 @@ function retainedCollaborationEvent(
   const item = event.item!;
   const prompt = retainedCollaborationPrompt(item.prompt);
   const attestation = collaborationSpawnAttestation(item, spawnGuardSecret);
-  const isGoalOwner = prompt === "- phase: adaptive-delivery-owner";
+  const isGoalOwner = prompt === "- phase: adaptive-goal-owner";
   if (collaborationAgentRefConflicts(event, acceptedAgentRef)) return undefined;
   const agentRef =
     acceptedCollaborationAgentRef(event) ||
@@ -1289,7 +1288,7 @@ interface PostGoalEvidenceContext {
   seen: Set<string>;
   repoDir: string;
   attestation: ReturnType<typeof verifiedCodexSpawnAttestation>;
-  adaptiveDeliveryPreflightPath?: string;
+  adaptiveGoalPreflightPath?: string;
   agentRef?: string;
   activationState: "pending" | "recorded" | "rejected";
   goalPersistence: "none" | "confirmed" | "unavailable";
@@ -1325,14 +1324,14 @@ function retainedGoalLifecycleEvent(
   const activation = retainedGoalActivationEvent(
     event,
     context.attestation,
-    context.adaptiveDeliveryPreflightPath,
+    context.adaptiveGoalPreflightPath,
     context.agentRef,
   );
   if (activation) return activation;
   const rejected = retainedGoalActivationRejectedEvent(
     event,
     context.attestation,
-    context.adaptiveDeliveryPreflightPath,
+    context.adaptiveGoalPreflightPath,
     context.agentRef,
   );
   if (rejected) return rejected;
@@ -1343,7 +1342,7 @@ function retainedGoalLifecycleEvent(
       ? retainedGoalLaunchStopEvent(
           event,
           context.attestation,
-          context.adaptiveDeliveryPreflightPath,
+          context.adaptiveGoalPreflightPath,
           context.agentRef,
         )
       : undefined;
@@ -1351,13 +1350,13 @@ function retainedGoalLifecycleEvent(
   const release = retainedObjectiveReleaseEvent(
     event,
     context.attestation,
-    context.adaptiveDeliveryPreflightPath,
+    context.adaptiveGoalPreflightPath,
   );
   if (release) return release;
   const report = retainedGoalReportEvent(
     event,
     context.attestation,
-    context.adaptiveDeliveryPreflightPath,
+    context.adaptiveGoalPreflightPath,
   );
   return goalReportFollowsLifecycle(report, context) ? report : undefined;
 }
@@ -1370,7 +1369,7 @@ function retainedGoalPersistenceForState(
     ? retainedGoalPersistenceEvent(
         event,
         context.attestation,
-        context.adaptiveDeliveryPreflightPath,
+        context.adaptiveGoalPreflightPath,
         context.agentRef,
       )
     : undefined;
@@ -1467,16 +1466,15 @@ function literalShellWords(command: string): string[] | undefined {
 function retainedObjectiveReleaseEvent(
   event: CodexEvent,
   attestation: ReturnType<typeof verifiedCodexSpawnAttestation>,
-  adaptiveDeliveryPreflightPath?: string,
+  adaptiveGoalPreflightPath?: string,
 ): unknown | undefined {
   const command = completedCommand(event);
-  if (!command || !attestation || !adaptiveDeliveryPreflightPath)
-    return undefined;
+  if (!command || !attestation || !adaptiveGoalPreflightPath) return undefined;
   if (
     !objectiveReleaseCommandMatches(
       command,
       attestation,
-      adaptiveDeliveryPreflightPath,
+      adaptiveGoalPreflightPath,
     )
   )
     return undefined;
@@ -1491,21 +1489,21 @@ function retainedObjectiveReleaseEvent(
 function retainedGoalActivationEvent(
   event: CodexEvent,
   attestation: ReturnType<typeof verifiedCodexSpawnAttestation>,
-  adaptiveDeliveryPreflightPath?: string,
+  adaptiveGoalPreflightPath?: string,
   acceptedAgentRef?: string,
 ): unknown | undefined {
   const command = completedCommand(event);
   if (
     !command ||
     !attestation ||
-    !adaptiveDeliveryPreflightPath ||
+    !adaptiveGoalPreflightPath ||
     !acceptedAgentRef
   )
     return undefined;
   const evidence = goalActivationCommandEvidence(
     command,
     attestation,
-    adaptiveDeliveryPreflightPath,
+    adaptiveGoalPreflightPath,
     acceptedAgentRef,
   );
   if (!evidence || !goalActivationOutputMatches(event, evidence))
@@ -1522,21 +1520,21 @@ function retainedGoalActivationEvent(
 function retainedGoalActivationRejectedEvent(
   event: CodexEvent,
   attestation: ReturnType<typeof verifiedCodexSpawnAttestation>,
-  adaptiveDeliveryPreflightPath?: string,
+  adaptiveGoalPreflightPath?: string,
   acceptedAgentRef?: string,
 ): unknown | undefined {
   const command = rejectedCommand(event);
   if (
     !command ||
     !attestation ||
-    !adaptiveDeliveryPreflightPath ||
+    !adaptiveGoalPreflightPath ||
     !acceptedAgentRef
   )
     return undefined;
   const evidence = goalActivationCommandEvidence(
     command,
     attestation,
-    adaptiveDeliveryPreflightPath,
+    adaptiveGoalPreflightPath,
     acceptedAgentRef,
   );
   return evidence
@@ -1551,15 +1549,15 @@ function retainedGoalActivationRejectedEvent(
 function retainedGoalPersistenceEvent(
   event: CodexEvent,
   attestation: ReturnType<typeof verifiedCodexSpawnAttestation>,
-  adaptiveDeliveryPreflightPath?: string,
+  adaptiveGoalPreflightPath?: string,
   acceptedAgentRef?: string,
 ): unknown | undefined {
-  if (!attestation || !adaptiveDeliveryPreflightPath || !acceptedAgentRef)
+  if (!attestation || !adaptiveGoalPreflightPath || !acceptedAgentRef)
     return undefined;
   const status = goalPersistenceCommandStatus(
     event,
     attestation,
-    adaptiveDeliveryPreflightPath,
+    adaptiveGoalPreflightPath,
     acceptedAgentRef,
   );
   if (!status || !goalPersistenceOutputMatches(event, status)) return undefined;
@@ -1573,7 +1571,7 @@ function retainedGoalPersistenceEvent(
 function goalPersistenceCommandStatus(
   event: CodexEvent,
   attestation: NonNullable<ReturnType<typeof verifiedCodexSpawnAttestation>>,
-  adaptiveDeliveryPreflightPath: string,
+  adaptiveGoalPreflightPath: string,
   acceptedAgentRef: string,
 ): "active" | "unavailable" | undefined {
   const command = completedCommand(event);
@@ -1584,7 +1582,7 @@ function goalPersistenceCommandStatus(
   if (status !== "active" && status !== "unavailable") return undefined;
   const expected = [
     "/bin/bash",
-    adaptiveDeliveryPreflightPath,
+    adaptiveGoalPreflightPath,
     "step",
     "goal-state",
     "--ledger",
@@ -1627,7 +1625,7 @@ function rejectedCommand(event: CodexEvent): string | undefined {
 function goalActivationCommandEvidence(
   command: string,
   attestation: NonNullable<ReturnType<typeof verifiedCodexSpawnAttestation>>,
-  adaptiveDeliveryPreflightPath: string,
+  adaptiveGoalPreflightPath: string,
   acceptedAgentRef: string,
 ): { agentRef: string; route: string } | undefined {
   const words = literalShellWords(command);
@@ -1635,7 +1633,7 @@ function goalActivationCommandEvidence(
   if (!words || words.length !== 16) return undefined;
   const prefix = [
     "/bin/bash",
-    adaptiveDeliveryPreflightPath,
+    adaptiveGoalPreflightPath,
     "step",
     "activate",
     "--ledger",
@@ -1684,14 +1682,14 @@ function goalActivationOutputMatches(
 function retainedGoalLaunchStopEvent(
   event: CodexEvent,
   attestation: ReturnType<typeof verifiedCodexSpawnAttestation>,
-  adaptiveDeliveryPreflightPath?: string,
+  adaptiveGoalPreflightPath?: string,
   acceptedAgentRef?: string,
 ): unknown | undefined {
   const command = completedCommand(event);
   if (
     !command ||
     !attestation ||
-    !adaptiveDeliveryPreflightPath ||
+    !adaptiveGoalPreflightPath ||
     !acceptedAgentRef
   )
     return undefined;
@@ -1699,7 +1697,7 @@ function retainedGoalLaunchStopEvent(
     !goalLaunchStopCommandMatches(
       command,
       attestation,
-      adaptiveDeliveryPreflightPath,
+      adaptiveGoalPreflightPath,
       acceptedAgentRef,
     ) ||
     !goalLaunchStopOutputMatches(event, acceptedAgentRef)
@@ -1716,12 +1714,12 @@ function retainedGoalLaunchStopEvent(
 function goalLaunchStopCommandMatches(
   command: string,
   attestation: NonNullable<ReturnType<typeof verifiedCodexSpawnAttestation>>,
-  adaptiveDeliveryPreflightPath: string,
+  adaptiveGoalPreflightPath: string,
   acceptedAgentRef: string,
 ): boolean {
   const expected = [
     "/bin/bash",
-    adaptiveDeliveryPreflightPath,
+    adaptiveGoalPreflightPath,
     "step",
     "launch-stop",
     "--ledger",
@@ -1756,15 +1754,14 @@ function goalLaunchStopOutputMatches(
 function retainedGoalReportEvent(
   event: CodexEvent,
   attestation: ReturnType<typeof verifiedCodexSpawnAttestation>,
-  adaptiveDeliveryPreflightPath?: string,
+  adaptiveGoalPreflightPath?: string,
 ): unknown | undefined {
   const command = completedCommand(event);
-  if (!command || !attestation || !adaptiveDeliveryPreflightPath)
-    return undefined;
+  if (!command || !attestation || !adaptiveGoalPreflightPath) return undefined;
   const evidence = goalReportCommandEvidence(
     command,
     attestation,
-    adaptiveDeliveryPreflightPath,
+    adaptiveGoalPreflightPath,
   );
   if (!evidence || !goalReportOutputMatches(event, evidence.status))
     return undefined;
@@ -1778,13 +1775,13 @@ function retainedGoalReportEvent(
 function goalReportCommandEvidence(
   command: string,
   attestation: NonNullable<ReturnType<typeof verifiedCodexSpawnAttestation>>,
-  adaptiveDeliveryPreflightPath: string,
+  adaptiveGoalPreflightPath: string,
 ): { status: string; humanInterruptions: number } | undefined {
   const words = literalShellWords(command);
   if (!words || words.length !== 10) return undefined;
   const prefix = [
     "/bin/bash",
-    adaptiveDeliveryPreflightPath,
+    adaptiveGoalPreflightPath,
     "step",
     "report",
     "--ledger",
@@ -1818,13 +1815,13 @@ function goalReportOutputMatches(event: CodexEvent, status: string): boolean {
 function objectiveReleaseCommandMatches(
   command: string,
   attestation: NonNullable<ReturnType<typeof verifiedCodexSpawnAttestation>>,
-  adaptiveDeliveryPreflightPath: string,
+  adaptiveGoalPreflightPath: string,
 ): boolean {
   if (!attestation.attachmentDir || attestation.objectiveMode !== "file-backed")
     return false;
   const expected = [
     "/bin/bash",
-    adaptiveDeliveryPreflightPath,
+    adaptiveGoalPreflightPath,
     "step",
     "release-objective",
     "--ledger",
@@ -1871,9 +1868,7 @@ function postGoalCommandOperation(command: string, repoDir: string): string {
   if (/\bindependent-review-fixture\b/.test(command))
     return "independent-review";
   if (
-    /\badaptive-delivery-preflight\s+release-(?:staging|objective)\b/.test(
-      command,
-    )
+    /\badaptive-goal-preflight\s+release-(?:staging|objective)\b/.test(command)
   )
     return "objective-cleanup";
   const privateRoot = join(repoDir, ".git", "darrow-eval", "state", "codex");
@@ -1953,7 +1948,7 @@ function acceptedGoalOwnerSpawn(value: unknown): boolean {
     event.item.status === "completed" &&
     canonicalCodexAgentRef(event.item.agent_ref) === event.item.agent_ref &&
     (!!event.item.goal_spawn_attestation ||
-      event.item.prompt === "- phase: adaptive-delivery-owner")
+      event.item.prompt === "- phase: adaptive-goal-owner")
   );
 }
 
@@ -2044,7 +2039,7 @@ interface CodexRetentionStatus {
   nativeSession?: string;
   expectedFollowUpPrompt?: string;
   spawnGuardSecret?: string;
-  adaptiveDeliveryPreflightPath?: string;
+  adaptiveGoalPreflightPath?: string;
   acceptedAgentRef?: string;
   acceptedOwner?: AcceptedCodexOwner;
 }
@@ -2075,7 +2070,7 @@ function retainedLifecycleEvent(
     seen: state.postGoalToolIds,
     repoDir,
     attestation: state.goalAttestation,
-    adaptiveDeliveryPreflightPath: status?.adaptiveDeliveryPreflightPath,
+    adaptiveGoalPreflightPath: status?.adaptiveGoalPreflightPath,
     agentRef: state.goalOwnerReference,
     activationState: state.activationState,
     goalPersistence: state.goalPersistence,
@@ -4001,7 +3996,7 @@ interface CodexExecution {
   code: number;
   durationMs: number;
   spawnGuardSecret?: string;
-  adaptiveDeliveryPreflightPath?: string;
+  adaptiveGoalPreflightPath?: string;
   acceptedAgentRef?: string;
   acceptedOwner?: AcceptedCodexOwner;
 }
@@ -4019,7 +4014,7 @@ interface CodexSpawnGuardPolicy {
   fixtureStateSha256: string;
   requestSha256: string;
   objectiveRoot: string;
-  adaptiveDeliveryPreflightPath: string;
+  adaptiveGoalPreflightPath: string;
   statePath: string;
 }
 
@@ -4033,7 +4028,7 @@ async function installCodexSpawnGuard(
   options: {
     prompt: string;
     objectiveRoot: string;
-    adaptiveDeliveryPreflightPath: string;
+    adaptiveGoalPreflightPath: string;
   },
 ): Promise<CodexSpawnGuard> {
   const configRoot = env.CODEX_HOME;
@@ -4050,7 +4045,7 @@ async function installCodexSpawnGuard(
     fixtureStateSha256: await fixtureStateFingerprint(repoDir),
     requestSha256: createHash("sha256").update(options.prompt).digest("hex"),
     objectiveRoot: options.objectiveRoot,
-    adaptiveDeliveryPreflightPath: options.adaptiveDeliveryPreflightPath,
+    adaptiveGoalPreflightPath: options.adaptiveGoalPreflightPath,
     statePath,
   };
   await compileCodexSpawnGuard(wrapperPath, executablePath, policy);
@@ -4132,7 +4127,7 @@ interface CodexProcessContext {
   canonicalRepoDir: string;
   installedSkillsRoots: string[];
   installedPluginRoots: string[];
-  adaptiveDeliveryPreflightPath?: string;
+  adaptiveGoalPreflightPath?: string;
   objectiveRoot: string;
   env: Record<string, string>;
   spawnGuard?: CodexSpawnGuard;
@@ -4143,7 +4138,7 @@ export function codexSpawnGuardRequested(
   followUpPrompt?: string,
 ): boolean {
   return [prompt, followUpPrompt].some((value) =>
-    value?.includes("adaptive-delivery"),
+    value?.includes("adaptive-goal"),
   );
 }
 
@@ -4170,7 +4165,7 @@ async function installedCodexPluginContext(
 }
 
 /** Historical step attestations require their actual shell helper. */
-export async function legacyAdaptiveDeliveryPreflight(
+export async function legacyAdaptiveGoalPreflight(
   pluginRoots: string[],
 ): Promise<string | undefined> {
   const candidate = pluginRoots
@@ -4194,21 +4189,21 @@ async function codexProcessContext(
   env.TMPDIR = objectiveRoot;
   const { installedSkillsRoots, installedPluginRoots } =
     await installedCodexPluginContext(repoDir, env);
-  const adaptiveDeliveryPreflightPath =
-    await legacyAdaptiveDeliveryPreflight(installedPluginRoots);
+  const adaptiveGoalPreflightPath =
+    await legacyAdaptiveGoalPreflight(installedPluginRoots);
   const spawnGuard =
-    adaptiveDeliveryPreflightPath && enableSpawnGuard
+    adaptiveGoalPreflightPath && enableSpawnGuard
       ? await installCodexSpawnGuard(canonicalRepoDir, env, {
           prompt,
           objectiveRoot,
-          adaptiveDeliveryPreflightPath,
+          adaptiveGoalPreflightPath,
         })
       : undefined;
   return {
     canonicalRepoDir,
     installedSkillsRoots,
     installedPluginRoots,
-    adaptiveDeliveryPreflightPath,
+    adaptiveGoalPreflightPath,
     objectiveRoot,
     env,
     spawnGuard,
@@ -4432,7 +4427,7 @@ async function executeCodex(
       code,
       durationMs: performance.now() - start,
       spawnGuardSecret: spawnGuard?.secret,
-      adaptiveDeliveryPreflightPath: context.adaptiveDeliveryPreflightPath,
+      adaptiveGoalPreflightPath: context.adaptiveGoalPreflightPath,
       acceptedAgentRef: acceptedOwner?.agentRef,
       acceptedOwner,
     };
@@ -4456,7 +4451,7 @@ async function runCodexProcess(
       // Fixture mocks shadow real network tools for the harness and children.
       env: {
         ...env,
-        DARROW_ADAPTIVE_DELIVERY_EXTERNAL_SANDBOX: "1",
+        DARROW_ADAPTIVE_GOAL_EXTERNAL_SANDBOX: "1",
         PATH: `${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`,
       },
     }),
@@ -4507,7 +4502,7 @@ function codexRetentionStatus(
         : undefined,
     expectedFollowUpPrompt: request.control?.followUpPrompt,
     spawnGuardSecret: execution.spawnGuardSecret,
-    adaptiveDeliveryPreflightPath: execution.adaptiveDeliveryPreflightPath,
+    adaptiveGoalPreflightPath: execution.adaptiveGoalPreflightPath,
     acceptedAgentRef: execution.acceptedAgentRef,
     acceptedOwner: execution.acceptedOwner,
   };

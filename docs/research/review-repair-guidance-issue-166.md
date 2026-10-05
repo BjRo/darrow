@@ -1,5 +1,9 @@
 # Advisory repair guidance: issue 166 evidence
 
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
+
 Observed on 2026-09-16 for [issue #166](https://github.com/BjRo/darrow/issues/166).
 The contract is CR-C9, CR-C18, CR-C19, and CR-E15 in
 [Code Review](../specs/code-review.md).
@@ -35,7 +39,7 @@ Additional failures were retained and investigated:
 
 - An earlier implicit Codex control did not activate the skill. It is not
   evidence of the old skill's review behavior.
-- The enforced adaptive-delivery trial was rejected by the harness hook before
+- The enforced adaptive-goal trial was rejected by the harness hook before
   nested assessment, despite an accepted owner and supporting skill reads.
   The documented native passive mode passed; the failed enforced run is not
   silently counted as successful product behavior.

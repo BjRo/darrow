@@ -1,5 +1,9 @@
 # Codex review stabilization — issue 108
 
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
+
 This follow-up implements [issue #108](https://github.com/BjRo/darrow/issues/108).
 All 26 fresh N=5 cases meet both 80% gates. Joint passes increased from
 119 to 122 out of 130, and perfect cases increased from 15 to 18.

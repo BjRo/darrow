@@ -48,10 +48,10 @@ and refuse conflicts; ticket retrieval refuses a foreign-project URL.
 A refusal does not authorize force, fallback mutations, or bypassing hooks.
 Resolve the exact missing input or authority through the responsible workflow.
 
-## Adaptive Delivery cannot launch a nested coordinator or reader
+## Adaptive Goal cannot launch a nested coordinator or reader
 
-Invoke `doctor-adaptive-delivery` from the installed
-`darrow-adaptive-delivery` plugin. It performs a read-only check of the current
+Invoke `doctor-adaptive-goal` from the installed
+`darrow-adaptive-goal` plugin. It performs a read-only check of the current
 host's effective configuration, reports the exact source, and distinguishes
 the one-slot implementation path from the four-slot, three-layer full verification
 and review topology.

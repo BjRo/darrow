@@ -1,5 +1,9 @@
 # Adaptive Ticket-to-PR Opportunity
 
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
+
 Status: exploratory research, not an accepted decision or implementation plan\
 Reviewed: 2026-08-12\
 Sources: comparison with the AutoScout24 SDLC `ticket-to-pr` skill and
@@ -451,7 +455,7 @@ PR capabilities by intent. Explicit invocation of `ticket-to-pr`, rather than
 successful implementation alone, supplies the narrow publication authority.
 
 The authoritative wording is maintained in
-[`adaptive-goal-loop.md`](../specs/adaptive-delivery.md).
+[`adaptive-goal-loop.md`](../specs/adaptive-goal.md).
 
 ## Workflows, risk, and canonical review
 

@@ -1,4 +1,8 @@
-# Adaptive Delivery verification-coordinator model comparison
+# Adaptive Goal verification-coordinator model comparison
+
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
 
 Status: complete. All ten E controls and ten scheduled F trials are retained.
 This is an isolated experiment, not production adoption.

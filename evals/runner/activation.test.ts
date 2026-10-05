@@ -4,7 +4,7 @@ import {
   activationProbeForCase,
   activationPassRate,
   activationPassesThreshold,
-  expectsAdaptiveDeliveryOwner,
+  expectsAdaptiveGoalOwner,
   gradeActivation,
   validateActivationCase,
   validateMountedActivationTarget,
@@ -27,18 +27,18 @@ function evalCase(overrides: Partial<EvalCase> = {}): EvalCase {
 describe("skill activation grading", () => {
   test("supporting read membership accepts either order but not missing or incomplete evidence", () => {
     for (const observedSkills of [
-      ["adaptive-delivery", "verify-change", "code-review"],
-      ["adaptive-delivery", "code-review", "verify-change"],
-      ["adaptive-delivery", "code-review"],
+      ["adaptive-goal", "verify-change", "code-review"],
+      ["adaptive-goal", "code-review", "verify-change"],
+      ["adaptive-goal", "code-review"],
     ]) {
       for (const complete of [true, false]) {
         const grade = gradeActivation(
           "positive",
-          "adaptive-delivery",
+          "adaptive-goal",
           {
             source: "skill_file_read_probe",
             complete,
-            primarySkill: "adaptive-delivery",
+            primarySkill: "adaptive-goal",
             observedSkills,
           },
           { includes: ["verify-change", "code-review"] },
@@ -64,10 +64,10 @@ describe("skill activation grading", () => {
     );
     const target = evalCase({
       activation: "positive",
-      owningSkillName: "adaptive-delivery",
+      owningSkillName: "adaptive-goal",
       skillDir: resolve(
         import.meta.dir,
-        "../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery",
+        "../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal",
       ),
       activation_includes: ["verify-change"],
     });
@@ -89,8 +89,8 @@ describe("skill activation grading", () => {
         "../../plugins/task-recipe/darrow-ticket-to-pr/skills/ticket-to-pr",
       ),
       owningSkillName: "ticket-to-pr",
-      activation_excludes: ["ticket-to-pr", "adaptive-delivery"],
-      additional_plugins: ["plugins/orchestration/darrow-adaptive-delivery"],
+      activation_excludes: ["ticket-to-pr", "adaptive-goal"],
+      additional_plugins: ["plugins/orchestration/darrow-adaptive-goal"],
     });
     expect(await validateMountedActivationTarget(target)).toEqual([]);
     expect(
@@ -99,14 +99,14 @@ describe("skill activation grading", () => {
         additional_plugins: [],
       }),
     ).toEqual([
-      "activation-case: activation exclusion adaptive-delivery is absent from the mounted skill set",
+      "activation-case: activation exclusion adaptive-goal is absent from the mounted skill set",
     ]);
     expect(
       await validateMountedActivationTarget({
         ...target,
         additional_plugins: [],
         additional_skills: [
-          "plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery",
+          "plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal",
         ],
       }),
     ).toEqual([]);
@@ -131,30 +131,26 @@ describe("skill activation grading", () => {
     });
   });
 
-  test("expects an owner for adaptive-delivery cases except negative activation", () => {
+  test("expects an owner for adaptive-goal cases except negative activation", () => {
     expect(
-      expectsAdaptiveDeliveryOwner(
+      expectsAdaptiveGoalOwner(
         evalCase({
-          skillDir:
-            "/repo/plugins/darrow-adaptive-delivery/skills/adaptive-delivery",
+          skillDir: "/repo/plugins/darrow-adaptive-goal/skills/adaptive-goal",
         }),
       ),
     ).toBe(true);
     expect(
-      expectsAdaptiveDeliveryOwner(
-        evalCase({ adaptive_delivery_composition: true }),
-      ),
+      expectsAdaptiveGoalOwner(evalCase({ adaptive_goal_composition: true })),
     ).toBe(true);
     expect(
-      expectsAdaptiveDeliveryOwner(
+      expectsAdaptiveGoalOwner(
         evalCase({
-          skillDir:
-            "/repo/plugins/darrow-adaptive-delivery/skills/adaptive-delivery",
+          skillDir: "/repo/plugins/darrow-adaptive-goal/skills/adaptive-goal",
           activation: "negative",
         }),
       ),
     ).toBe(false);
-    expect(expectsAdaptiveDeliveryOwner(evalCase())).toBe(false);
+    expect(expectsAdaptiveGoalOwner(evalCase())).toBe(false);
   });
 
   test("grades a positive primary selection and preserves unavailable evidence as unknown", () => {

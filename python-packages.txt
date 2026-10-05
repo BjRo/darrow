@@ -8,6 +8,6 @@ plugins/capability/darrow-tickets/backend
 plugins/foundation/darrow-decisions/backend
 plugins/foundation/darrow-information-architecture/backend
 plugins/capability/darrow-review/backend
-plugins/orchestration/darrow-adaptive-delivery/backend
+plugins/orchestration/darrow-adaptive-goal/backend
 plugins/orchestration/darrow-ticket-pipeline/backend
 plugins/automation/darrow-artificer/backend

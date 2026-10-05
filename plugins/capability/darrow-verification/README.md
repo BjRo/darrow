@@ -48,7 +48,7 @@ incompatible required review blocks instead of falling back to self-review.
 
 ## Coordinator routes and assessment correction
 
-Verification and implementation are separate assignments. Adaptive Delivery
+Verification and implementation are separate assignments. Adaptive Goal
 uses Codex Sol/medium or stronger for verification coordination. Review
 coordination is explicitly Luna/medium; review keeps its own independent-reader
 routes. Claude uses the plugin's Sonnet 5/medium review coordinator with pinned

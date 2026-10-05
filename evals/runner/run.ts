@@ -71,7 +71,7 @@ import {
   activationPassRate,
   activationPassesThreshold,
   activationTargetSkill,
-  expectsAdaptiveDeliveryOwner,
+  expectsAdaptiveGoalOwner,
   gradeActivation,
   validateActivationCase,
   validateMountedActivationTarget,
@@ -263,9 +263,7 @@ async function scanCases(
 function validateOptionalBoolean(
   evalCase: EvalCase,
   field:
-    | "goal_route_checks"
-    | "expect_head_change"
-    | "adaptive_delivery_composition",
+    "goal_route_checks" | "expect_head_change" | "adaptive_goal_composition",
 ): void {
   const value = evalCase[field];
   if (value !== undefined && value !== null && typeof value !== "boolean")
@@ -315,7 +313,7 @@ function validateCaseConfiguration(evalCase: EvalCase): void {
     );
   validateOptionalBoolean(evalCase, "goal_route_checks");
   validateOptionalBoolean(evalCase, "expect_head_change");
-  validateOptionalBoolean(evalCase, "adaptive_delivery_composition");
+  validateOptionalBoolean(evalCase, "adaptive_goal_composition");
   validateFollowUpPrompt(evalCase);
   validateCompositionPaths(evalCase);
   const activationErrors = validateActivationCase(evalCase);
@@ -480,7 +478,7 @@ function activationEvidence(evalCase: EvalCase) {
 }
 
 function goalReportEvidence(evalCase: EvalCase) {
-  if (!evalCase.skillDir.endsWith("/adaptive-delivery")) return null;
+  if (!evalCase.skillDir.endsWith("/adaptive-goal")) return null;
   return evalCase.goal_report ?? "forbidden";
 }
 
@@ -502,7 +500,7 @@ function evaluationDigest(options: RunCaseOptions): string {
     source_plugin: sourcePlugin = null,
     additional_skills: additionalSkills = [],
     additional_plugins: additionalPlugins = [],
-    adaptive_delivery_composition: adaptiveDeliveryComposition = false,
+    adaptive_goal_composition: adaptiveGoalComposition = false,
     output_checks: outputChecks = [],
     semantic_output_checks: semanticOutputChecks = [],
     transcript_checks: transcriptChecks = [],
@@ -524,7 +522,7 @@ function evaluationDigest(options: RunCaseOptions): string {
     sourcePlugin,
     additionalSkills,
     additionalPlugins,
-    adaptiveDeliveryComposition,
+    adaptiveGoalComposition,
     fixture: evalCase.fixture,
     repositorySkill: evalCase.skillScope === "repository",
     checks: evalCase.checks,
@@ -750,25 +748,25 @@ async function orchestrationContractChecks(
       harness.raw,
       evalCase.transcript_checks ?? [],
     )),
-    ...adaptiveDeliveryReportChecks(evalCase, harness, adapterName),
+    ...adaptiveGoalReportChecks(evalCase, harness, adapterName),
   ];
 }
 
-function adaptiveDeliveryReportChecks(
+function adaptiveGoalReportChecks(
   evalCase: EvalCase,
   harness: HarnessResult,
   adapterName: string,
 ): CheckResult[] {
   if (evalCase.native_goal !== undefined)
     return mainThreadReportChecks(evalCase.native_goal, harness);
-  const ownsAdaptiveDelivery = evalCase.skillDir.endsWith("/adaptive-delivery");
-  const ownershipChecks = adaptiveDeliveryOwnershipChecks(harness.raw);
+  const ownsAdaptiveGoal = evalCase.skillDir.endsWith("/adaptive-goal");
+  const ownershipChecks = adaptiveGoalOwnershipChecks(harness.raw);
   const nativeClaudeRouteChecks = nativeClaudeRouteChecksFor(
     adapterName,
     harness.raw,
   );
-  if (!ownsAdaptiveDelivery)
-    return evalCase.adaptive_delivery_composition
+  if (!ownsAdaptiveGoal)
+    return evalCase.adaptive_goal_composition
       ? [...ownershipChecks, ...nativeClaudeRouteChecks]
       : [];
   if (evalCase.goal_route_checks === false)
@@ -819,15 +817,12 @@ function removedCanonicalGoalReportCheck(hasReport: boolean): CheckResult {
     name: "removed canonical goal report is absent",
     passed: !hasReport,
     detail:
-      "adaptive-delivery output must not contain the removed canonical report",
+      "adaptive-goal output must not contain the removed canonical report",
   };
 }
 
-function adaptiveDeliveryOwnershipChecks(raw: string): CheckResult[] {
-  return [
-    adaptiveDeliverySingleOwnerCheck(raw),
-    adaptiveDeliveryParentWorkCheck(raw),
-  ];
+function adaptiveGoalOwnershipChecks(raw: string): CheckResult[] {
+  return [adaptiveGoalSingleOwnerCheck(raw), adaptiveGoalParentWorkCheck(raw)];
 }
 
 function nativeClaudeRouteChecksFor(
@@ -845,7 +840,7 @@ function hasCanonicalGoalReport(resultText: string): boolean {
   );
 }
 
-function adaptiveDeliverySingleOwnerCheck(raw: string): CheckResult {
+function adaptiveGoalSingleOwnerCheck(raw: string): CheckResult {
   return {
     name: "no parent replacement owner is spawned after acceptance",
     passed:
@@ -860,7 +855,7 @@ function adaptiveDeliverySingleOwnerCheck(raw: string): CheckResult {
   };
 }
 
-function adaptiveDeliveryParentWorkCheck(raw: string): CheckResult {
+function adaptiveGoalParentWorkCheck(raw: string): CheckResult {
   const parentWork = raw
     .split("\n")
     .some(
@@ -880,15 +875,15 @@ function adaptiveDeliveryParentWorkCheck(raw: string): CheckResult {
 }
 
 const CLAUDE_GOAL_RUNNERS: Record<string, { model: string; effort: string }> = {
-  "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low": {
+  "darrow-adaptive-goal:adaptive-goal-sonnet-5-low": {
     model: "claude-sonnet-5",
     effort: "low",
   },
-  "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-medium": {
+  "darrow-adaptive-goal:adaptive-goal-sonnet-5-medium": {
     model: "claude-sonnet-5",
     effort: "medium",
   },
-  "darrow-adaptive-delivery:adaptive-delivery-opus-5-high": {
+  "darrow-adaptive-goal:adaptive-goal-opus-5-high": {
     model: "claude-opus-5",
     effort: "high",
   },
@@ -1164,7 +1159,7 @@ async function evaluateLiveTrial(
       ...goalRouteControl(
         options.expectedGoalRoute,
         trialFollowUpPrompt(options, repoDir),
-        expectsAdaptiveDeliveryOwner(evalCase),
+        expectsAdaptiveGoalOwner(evalCase),
         evalCase.activation && !options.withoutSkill
           ? activationProbeForCase(evalCase, adapter.name)
           : undefined,
@@ -1505,7 +1500,7 @@ async function runCase(options: RunCaseOptions): Promise<CaseResult> {
   return summarizeCase(options, trialResults);
 }
 
-/** The human-readable completion record an adaptive-delivery run must report. */
+/** The human-readable completion record an adaptive-goal run must report. */
 function goalRouteRecordChecks(
   resultText: string,
   report: GoalReport | undefined,

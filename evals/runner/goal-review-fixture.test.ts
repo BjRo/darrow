@@ -6,7 +6,7 @@ import { trialReviewStateDir } from "./environment";
 import type { EvalCase } from "./types";
 
 const source = new URL(
-  "../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/high-risk-routine.yaml",
+  "../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/evals/high-risk-routine.yaml",
   import.meta.url,
 );
 const backendSource = new URL(
@@ -42,7 +42,7 @@ function proofCommand(...args: string[]) {
     "--no-dev",
     "--project",
     ".git/fixture-backend",
-    "adaptive-delivery-fixture",
+    "adaptive-goal-fixture",
     "proof",
     ...args,
   ];
@@ -97,24 +97,24 @@ function reviewCommand(command: string, ...args: string[]) {
 
 test("high-risk composition requires verification and supporting review reads", async () => {
   const evalCase = parse(await Bun.file(source).text()) as EvalCase;
-  evalCase.owningSkillName = "adaptive-delivery";
+  evalCase.owningSkillName = "adaptive-goal";
   evalCase.skillDir = new URL("..", source).pathname;
   expect(validateActivationCase(evalCase)).toEqual([]);
   expect(evalCase.activation).toBe("positive");
   for (const [skills, passed] of [
-    [["adaptive-delivery", "verify-change", "code-review"], true],
-    [["adaptive-delivery", "code-review", "verify-change"], true],
-    [["adaptive-delivery", "code-review"], false],
-    [["adaptive-delivery", "verify-change"], false],
-    [["adaptive-delivery"], false],
+    [["adaptive-goal", "verify-change", "code-review"], true],
+    [["adaptive-goal", "code-review", "verify-change"], true],
+    [["adaptive-goal", "code-review"], false],
+    [["adaptive-goal", "verify-change"], false],
+    [["adaptive-goal"], false],
   ] as const) {
     const grade = gradeActivation(
       "positive",
-      "adaptive-delivery",
+      "adaptive-goal",
       {
         source: "skill_file_read_probe",
         complete: true,
-        primarySkill: "adaptive-delivery",
+        primarySkill: "adaptive-goal",
         observedSkills: [...skills],
       },
       { includes: evalCase.activation_includes },

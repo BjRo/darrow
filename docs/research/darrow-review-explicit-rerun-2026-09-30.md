@@ -1,5 +1,9 @@
 # Darrow Review: corrected explicit-invocation reruns
 
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
+
 ## Current result
 
 All seven requested cases have completed: **31/35 task passes (88.6%)** and

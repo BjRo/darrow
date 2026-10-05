@@ -1,4 +1,8 @@
-# Adaptive Delivery: capability handoff on Luna/medium
+# Adaptive Goal: capability handoff on Luna/medium
+
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
 
 Follow-up: [parent waiting and launch names](darrow-adaptive-delivery-parent-wait-launch-2026-09-30.md)
 records the unchanged quality-sensitive 5/5 recheck, two new diagnosis blockers,
@@ -69,7 +73,7 @@ runner were unchanged. Public references come from the installed host catalog;
 the candidate adds neither a registry nor assumed sibling paths.
 
 One fresh-context `audit-agent-skill` audit found no material defects. It checked
-the broader Adaptive Delivery and verification/review contracts, discovery, and
+the broader Adaptive Goal and verification/review contracts, discovery, and
 packaging. The contained skill inspector returned `valid`; both manifests are
 0.23.11. Documentation validation, scoped formatting, and `git diff --check`
 passed before evaluation. Static inspection does not prove behavioral reliability.

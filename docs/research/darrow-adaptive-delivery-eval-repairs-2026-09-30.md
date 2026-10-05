@@ -1,4 +1,8 @@
-# Adaptive Delivery: eval defect repairs
+# Adaptive Goal: eval defect repairs
+
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
 
 ## Result
 
@@ -6,7 +10,7 @@
 
 Doctor follow-up on **0.23.14**: **9/10 task**, **10/10 activation**. Using the latest batch for each selected case gives **57/70 task**, **20/20 activation**, with **7/14 cases** meeting every configured threshold. Both batches remain visible below; 80 new trials have run in total.
 
-Checkpoint: **67a32a32 — fix(adaptive-delivery): checkpoint launch names and full eval coverage**. This local commit records the complete original sweep; no push was requested.
+Checkpoint: **67a32a32 — fix(adaptive-goal): checkpoint launch names and full eval coverage**. This local commit records the complete original sweep; no push was requested.
 
 The eval repair candidate is **0.23.13**. Both product skill bodies are byte-identical to the 0.23.12 baseline. Changes are confined to evaluation inputs, assertions, synthetic providers, their tests, the evaluation specification, and version metadata. Skill errors and the parent-status/review-next-action contract questions remain deferred.
 
@@ -21,7 +25,7 @@ The eval repair candidate is **0.23.13**. Both product skill bodies are byte-ide
 
 ## Verification
 
-- `bun run check:python` passed for every package. Adaptive Delivery: **222 tests**, **98.00% statement coverage**, **96.57% branch coverage**. An initial lint failure was corrected before the passing full gate.
+- `bun run check:python` passed for every package. Adaptive Goal: **222 tests**, **98.00% statement coverage**, **96.57% branch coverage**. An initial lint failure was corrected before the passing full gate.
 - Exact targeted fixture tests: **28 passed**, including token checks under both `bash` and `/bin/bash`, invalid inputs, and real commit/PR composition. The first test command used substring paths and accidentally selected archived copies; rerunning with exact `./` paths passed.
 - **24/24** final semantic calibration samples have expected verdicts: retained valid answers pass and counterexamples fail. Three initial criterion mistakes and two subsequent overly strict grades remain recorded. Calibration is regrading evidence, not a fresh model task result.
 - One fresh-context review found two YAML indentation mistakes; both were fixed. The reviewer confirmed all **62 plugin cases parse**, synchronized manifests, and no remaining material findings in its bounded scope. It did not run live trials or independently regrade calibration.
@@ -94,7 +98,7 @@ Raw task: **3/5**; failed trials: 2, 5.
 
 **Next step:** Keep raw 3/5 and preserve the real red/green/final oracle. Discuss the parent wait-tool contract and repair the missing-red behavior in the requested later skill phase; do not weaken this eval or infer the encrypted handoff content.
 
-### doctor-adaptive-delivery-counterexample-depth
+### doctor-adaptive-goal-counterexample-depth
 
 Raw task: **4/5**; failed trials: 2.
 
@@ -102,7 +106,7 @@ Raw task: **4/5**; failed trials: 2.
 
 **Next step:** Keep the raw 4/5 task and 5/5 activation. Defer removal of the unnecessary doctor system-Python prerequisite to the requested skill-error phase, then retest the represented Codex and Claude doctor cases. Do not weaken the completed-diagnosis requirement.
 
-### doctor-adaptive-delivery-effective-project
+### doctor-adaptive-goal-effective-project
 
 Raw task: **0/5**; failed trials: 1, 2, 3, 4, 5.
 
@@ -112,7 +116,7 @@ Raw task: **0/5**; failed trials: 1, 2, 3, 4, 5.
 
 **Eval follow-up completed:** The 0.23.14 batch is 4/5 task and 5/5 activation. All four completed diagnoses grade correctly; one prerequisite refusal remains. The original 0/5 and its assessment are retained above.
 
-### doctor-adaptive-delivery-indirect-claude
+### doctor-adaptive-goal-indirect-claude
 
 Raw task: **4/5**; failed trials: 3, 4.
 
@@ -137,7 +141,7 @@ The 0.23.13 live runs exposed two remaining presentation false negatives despite
 
 The follow-up does not replace the raw grades above or establish a product improvement. It measures two changed eval assertions on fresh trials.
 
-### Follow-up: doctor-adaptive-delivery-effective-project
+### Follow-up: doctor-adaptive-goal-effective-project
 
 Failed task or activation trials: 3.
 
@@ -225,7 +229,7 @@ feasibility evidence, not code to restore or a reliability result for 0.159.2.
    repair accounting and effects in the response shown in the Codex session;
    a report-file link alone is insufficient.
 
-The product change would be confined to Adaptive Delivery's Codex launch and
+The product change would be confined to Adaptive Goal's Codex launch and
 continuation boundary, with a contained Python transport adapter if adopted.
 Update ADL-R2, ADL-L1, ADL-L3 and ADL-L5, the launch guide, and the accepted
 architecture decision before implementation. Preserve Claude's current path.

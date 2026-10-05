@@ -265,10 +265,10 @@ describe("eval CLI presentation", () => {
         activation: {
           passed: false,
           className: "positive",
-          targetSkill: "adaptive-delivery",
+          targetSkill: "adaptive-goal",
           requiredSkills: ["verify-change", "code-review"],
-          primarySkill: "adaptive-delivery",
-          observedSkills: ["adaptive-delivery", "code-review"],
+          primarySkill: "adaptive-goal",
+          observedSkills: ["adaptive-goal", "code-review"],
           source: "skill-read",
         },
       },
@@ -279,9 +279,7 @@ describe("eval CLI presentation", () => {
       "Activation failed · missing required verify-change",
     );
     expect(lines).not.toContain("missing required verify-change, code-review");
-    expect(lines).not.toContain(
-      "expected adaptive-delivery, got adaptive-delivery",
-    );
+    expect(lines).not.toContain("expected adaptive-goal, got adaptive-goal");
   });
 
   test("reports a forbidden skill observed after another primary skill", () => {

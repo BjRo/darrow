@@ -167,9 +167,9 @@ export async function isolatedHarnessEnvironment(
   env.UV_CACHE_DIR = join(tempRoot, "uv-cache");
   env.ZDOTDIR = shellRoot;
   // The runner wraps the evaluated agent in sandboxedAgentCommand. Nested
-  // adaptive-delivery-preflight mechanics must reuse that boundary instead of attempting an
+  // adaptive-goal-preflight mechanics must reuse that boundary instead of attempting an
   // unsupported second sandbox-exec layer.
-  env.DARROW_ADAPTIVE_DELIVERY_EXTERNAL_SANDBOX = "1";
+  env.DARROW_ADAPTIVE_GOAL_EXTERNAL_SANDBOX = "1";
   env.CODEX_HOME = configRoot;
   env.CLAUDE_CONFIG_DIR = configRoot;
   return env;

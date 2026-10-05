@@ -262,7 +262,7 @@ function retainedAgentPromptMarker(prompt: unknown): string | undefined {
   if (typeof prompt !== "string") return undefined;
   const first = prompt.split("\n", 1)[0];
   return first &&
-    /^(?:- review_axis: (?:standards|spec)|- phase: (?:adaptive-delivery-(?:owner|runner)|blocked-goal-response))$/.test(
+    /^(?:- review_axis: (?:standards|spec)|- phase: (?:adaptive-goal-(?:owner|runner)|blocked-goal-response))$/.test(
       first,
     )
     ? first
@@ -275,8 +275,8 @@ function retainedInlineContractIssue(
 ): string | undefined {
   if (
     typeof prompt !== "string" ||
-    !prompt.startsWith("- phase: adaptive-delivery-owner\n") ||
-    !adaptiveDeliveryRunner.test(subagentType)
+    !prompt.startsWith("- phase: adaptive-goal-owner\n") ||
+    !adaptiveGoalRunner.test(subagentType)
   )
     return undefined;
   return inlineOwnerContractIssue(prompt, subagentType);
@@ -472,8 +472,8 @@ interface SelectedClaudeRoute {
   effort: string;
 }
 
-const adaptiveDeliveryRunner =
-  /^darrow-adaptive-delivery:adaptive-delivery-(?:sonnet-5-(?:low|medium)|opus-5-high)$/;
+const adaptiveGoalRunner =
+  /^darrow-adaptive-goal:adaptive-goal-(?:sonnet-5-(?:low|medium)|opus-5-high)$/;
 
 function retainGoalAgentStarts(
   event: ClaudeResultEnvelope,
@@ -527,11 +527,11 @@ function inlineGoalAgentStart(block: unknown) {
   const rawPrompt = isRecord(block.input) ? block.input.prompt : undefined;
   if (
     !input ||
-    !adaptiveDeliveryRunner.test(input.subagentType) ||
+    !adaptiveGoalRunner.test(input.subagentType) ||
     input.runInBackground !== false ||
     input.model !== undefined ||
     typeof rawPrompt !== "string" ||
-    !rawPrompt.startsWith("- phase: adaptive-delivery-owner\n")
+    !rawPrompt.startsWith("- phase: adaptive-goal-owner\n")
   )
     return undefined;
   return { id: input.id, pending: { subagentType: input.subagentType } };
@@ -673,7 +673,7 @@ function inlineOwnerContractIssue(
   if (missing.length) return `missing-${missing.join("+")}`;
   if (
     fields.Role !==
-    "You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-delivery or seek another owner."
+    "You are the already-launched sole engineering owner. Perform this contract directly; do not invoke adaptive-goal or seek another owner."
   )
     return "role";
   return inlineOwnerPolicyIssue(fields, subagentType);
@@ -795,10 +795,10 @@ function goalAgentStart(block: unknown, objective: MaterializedGoalObjective) {
   const input = normalizedReviewAgentInput(block);
   if (!input || !isRecord(block.input)) return undefined;
   const valid = [
-    adaptiveDeliveryRunner.test(input.subagentType),
+    adaptiveGoalRunner.test(input.subagentType),
     input.runInBackground === false,
     input.model === undefined,
-    input.prompt === "- phase: adaptive-delivery-runner",
+    input.prompt === "- phase: adaptive-goal-runner",
     boundGoalAgentPrompt(block.input.prompt, objective),
   ].every(Boolean);
   if (!valid) return undefined;
@@ -817,7 +817,7 @@ function goalAgentPromptIssue(
   objective: MaterializedGoalObjective,
 ): string | undefined {
   if (typeof prompt !== "string") return "shape";
-  const marker = "- phase: adaptive-delivery-runner";
+  const marker = "- phase: adaptive-goal-runner";
   if (!prompt.startsWith(`${marker}\n`)) return "marker";
   const body = prompt.slice(marker.length + 1);
   const boundedObjective =
@@ -1133,15 +1133,15 @@ function concreteAbsolutePath(path: string): boolean {
 
 function routeForGoalRunner(subagentType: string) {
   const routes: Record<string, { model: string; effort: string }> = {
-    "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low": {
+    "darrow-adaptive-goal:adaptive-goal-sonnet-5-low": {
       model: "claude-sonnet-5",
       effort: "low",
     },
-    "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-medium": {
+    "darrow-adaptive-goal:adaptive-goal-sonnet-5-medium": {
       model: "claude-sonnet-5",
       effort: "medium",
     },
-    "darrow-adaptive-delivery:adaptive-delivery-opus-5-high": {
+    "darrow-adaptive-goal:adaptive-goal-opus-5-high": {
       model: "claude-opus-5",
       effort: "high",
     },
@@ -1252,11 +1252,7 @@ function materializeObjectiveCall(
   const valid = [
     words.length === 10,
     words[0] === "/bin/bash",
-    expectedBundledExecutable(
-      words[1]!,
-      "adaptive-delivery-preflight",
-      context,
-    ),
+    expectedBundledExecutable(words[1]!, "adaptive-goal-preflight", context),
     words[2] === "step",
     words[3] === "materialize",
     words[4] === "--ledger",
@@ -1270,7 +1266,7 @@ function materializeObjectiveCall(
   return { id: tool.id, goalFile: words[7]!, contractSha256: words[9]! };
 }
 
-function exactAdaptiveDeliveryPreflightStepWords(
+function exactAdaptiveGoalPreflightStepWords(
   words: string[] | undefined,
   context: ClaudeEvidenceContext | undefined,
   ledger: string | undefined,
@@ -1280,7 +1276,7 @@ function exactAdaptiveDeliveryPreflightStepWords(
   if (
     !expectedBundledExecutable(
       words[1] ?? "",
-      "adaptive-delivery-preflight",
+      "adaptive-goal-preflight",
       context,
     )
   )
@@ -1305,7 +1301,7 @@ function stagingRegistrationCall(
   if (!tool) return undefined;
   const words = literalShellWords(tool.command);
   if (
-    !exactAdaptiveDeliveryPreflightStepWords(words, context, ledger, {
+    !exactAdaptiveGoalPreflightStepWords(words, context, ledger, {
       step: "stage",
       length: 8,
     })
@@ -1328,11 +1324,7 @@ function objectiveReleaseCall(
   const valid = [
     words.length === 10,
     words[0] === "/bin/bash",
-    expectedBundledExecutable(
-      words[1]!,
-      "adaptive-delivery-preflight",
-      context,
-    ),
+    expectedBundledExecutable(words[1]!, "adaptive-goal-preflight", context),
     words[2] === "step",
     words[3] === "release-objective",
     words[4] === "--ledger",
@@ -1365,7 +1357,7 @@ function goalReportCall(
   if (!tool) return undefined;
   const words = literalShellWords(tool.command);
   if (
-    !exactAdaptiveDeliveryPreflightStepWords(words, context, ledger, {
+    !exactAdaptiveGoalPreflightStepWords(words, context, ledger, {
       step: "report",
       length: 10,
     })
@@ -1391,15 +1383,10 @@ function goalBlockCall(
   const words = literalShellWords(tool.command) ?? [];
   if (
     ![14, 16].includes(words.length) ||
-    !exactAdaptiveDeliveryPreflightStepWords(
-      words.slice(0, 6),
-      context,
-      ledger,
-      {
-        step: "block",
-        length: 6,
-      },
-    )
+    !exactAdaptiveGoalPreflightStepWords(words.slice(0, 6), context, ledger, {
+      step: "block",
+      length: 6,
+    })
   )
     return undefined;
   const options = parseGoalBlockOptions(words);
@@ -1449,7 +1436,7 @@ function goalEndCall(
   if (!tool) return false;
   const words = literalShellWords(tool.command);
   return (
-    exactAdaptiveDeliveryPreflightStepWords(words, context, ledger, {
+    exactAdaptiveGoalPreflightStepWords(words, context, ledger, {
       step: "end",
       length: 8,
     }) &&
@@ -1470,11 +1457,7 @@ function stagingReleaseCall(
   const valid = [
     words.length === 10,
     words[0] === "/bin/bash",
-    expectedBundledExecutable(
-      words[1]!,
-      "adaptive-delivery-preflight",
-      context,
-    ),
+    expectedBundledExecutable(words[1]!, "adaptive-goal-preflight", context),
     words[2] === "step",
     words[3] === "release-staging",
     words[4] === "--ledger",
@@ -1503,7 +1486,7 @@ function provisionalClaudeActivationCall(
   const words = literalShellWords(tool.command);
   if (!words || words.length !== 16) return undefined;
   const selectedRoute = `claude|anthropic|${selected.model}|${selected.effort}`;
-  const exactStep = exactAdaptiveDeliveryPreflightStepWords(
+  const exactStep = exactAdaptiveGoalPreflightStepWords(
     words,
     context,
     ledger,
@@ -1541,12 +1524,12 @@ function claudePreflightCall(
   const words = tool ? literalShellWords(tool.command) : undefined;
   if (!tool || !words || words[0] !== "/bin/bash") return undefined;
   return (
-    adaptiveDeliveryHelperCall(tool.id, words, context, ledger) ??
+    adaptiveGoalHelperCall(tool.id, words, context, ledger) ??
     runnerPreflightCall(tool.id, words, context, ledger)
   );
 }
 
-function adaptiveDeliveryHelperCall(
+function adaptiveGoalHelperCall(
   id: string,
   words: string[],
   context: ClaudeEvidenceContext | undefined,
@@ -1555,7 +1538,7 @@ function adaptiveDeliveryHelperCall(
   if (
     !expectedBundledExecutable(
       words[1] ?? "",
-      "adaptive-delivery-preflight",
+      "adaptive-goal-preflight",
       context,
     )
   )
@@ -1666,7 +1649,7 @@ function runnerPreflightCall(
     words.length === 12,
     expectedBundledExecutable(
       words[1] ?? "",
-      "adaptive-delivery-preflight",
+      "adaptive-goal-preflight",
       context,
     ),
     words[2] === "step",
@@ -1715,9 +1698,9 @@ function exactOptionalClaudeRoute(words: string[]): boolean {
 
 function goalRunnerForRoute(model: string, effort: string): string | undefined {
   return [
-    "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
-    "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-medium",
-    "darrow-adaptive-delivery:adaptive-delivery-opus-5-high",
+    "darrow-adaptive-goal:adaptive-goal-sonnet-5-low",
+    "darrow-adaptive-goal:adaptive-goal-sonnet-5-medium",
+    "darrow-adaptive-goal:adaptive-goal-opus-5-high",
   ].find((runner) => {
     const route = routeForGoalRunner(runner);
     return route?.model === model && route.effort === effort;
@@ -1810,7 +1793,7 @@ function resolvedRunnerResult(
 ): string | undefined {
   const runner = goalRunnerForRoute(route.model, route.effort);
   if (!runner || !context) return undefined;
-  const runnerName = runner.slice("darrow-adaptive-delivery:".length);
+  const runnerName = runner.slice("darrow-adaptive-goal:".length);
   const expected = [
     "format\tdarrow-claude-agent-route-v1",
     `selected_route\tclaude\tanthropic\t${route.model}\t${route.effort}`,
@@ -2182,11 +2165,11 @@ function rejectedGoalAgentOperation(
 function goalAgentInvocationIssue(
   input: NonNullable<ReturnType<typeof normalizedReviewAgentInput>>,
 ): string | undefined {
-  if (!adaptiveDeliveryRunner.test(input.subagentType))
+  if (!adaptiveGoalRunner.test(input.subagentType))
     return "agent-route-invalid";
   if (input.runInBackground !== false) return "agent-background-invalid";
   if (input.model !== undefined) return "agent-model-override";
-  if (input.prompt !== "- phase: adaptive-delivery-runner")
+  if (input.prompt !== "- phase: adaptive-goal-runner")
     return "agent-marker-invalid";
   return undefined;
 }
@@ -2705,22 +2688,22 @@ function knownBashOperation(
   if (command.includes("claude-agent-route")) return "agent-route-unbound";
   if (command.includes("claude-route-gate")) return "route-gate-unbound";
   if (command.includes("claude-owner-route")) return "owner-route-unbound";
-  const unboundAdaptiveDeliveryPreflight =
-    unboundAdaptiveDeliveryPreflightOperation(command);
-  if (unboundAdaptiveDeliveryPreflight) return unboundAdaptiveDeliveryPreflight;
+  const unboundAdaptiveGoalPreflight =
+    unboundAdaptiveGoalPreflightOperation(command);
+  if (unboundAdaptiveGoalPreflight) return unboundAdaptiveGoalPreflight;
   return undefined;
 }
 
-function unboundAdaptiveDeliveryPreflightOperation(
+function unboundAdaptiveGoalPreflightOperation(
   command: string,
 ): string | undefined {
-  if (!command.includes("adaptive-delivery-preflight")) return undefined;
+  if (!command.includes("adaptive-goal-preflight")) return undefined;
   const step = command.match(
-    /adaptive-delivery-preflight[ \t]+step[ \t]+([a-z-]+)/,
+    /adaptive-goal-preflight[ \t]+step[ \t]+([a-z-]+)/,
   )?.[1];
   return step
-    ? `adaptive-delivery-preflight-unbound-${step}`
-    : "adaptive-delivery-preflight-unbound";
+    ? `adaptive-goal-preflight-unbound-${step}`
+    : "adaptive-goal-preflight-unbound";
 }
 
 function diagnosticShellExecutables(command: string): string[] {
@@ -3982,7 +3965,7 @@ interface ClaudeArgvOptions {
 function disallowScheduler(prompt: string, expectGoalOwner?: boolean): boolean {
   return (
     expectGoalOwner === true ||
-    /(?:^|\s)(?:\/adaptive-delivery|\$adaptive-delivery)(?:\s|$)/.test(prompt)
+    /(?:^|\s)(?:\/adaptive-goal|\$adaptive-goal)(?:\s|$)/.test(prompt)
   );
 }
 
@@ -4081,7 +4064,7 @@ function claudeProcessEnvironment(
 ) {
   return {
     ...env,
-    DARROW_ADAPTIVE_DELIVERY_EXTERNAL_SANDBOX: "1",
+    DARROW_ADAPTIVE_GOAL_EXTERNAL_SANDBOX: "1",
     PATH: `${claudeSafeInspectionBin(repoDir)}:${join(repoDir, ".git", "fixture-bin")}:${env.PATH ?? ""}`,
   };
 }
@@ -4358,15 +4341,9 @@ async function claudeHarnessResult(options: {
   };
 }
 
-function hasAdaptiveDeliveryPreflight(pluginRoot: string): boolean {
+function hasAdaptiveGoalPreflight(pluginRoot: string): boolean {
   return existsSync(
-    join(
-      pluginRoot,
-      "backend",
-      "src",
-      "darrow_adaptive_delivery",
-      "preflight.py",
-    ),
+    join(pluginRoot, "backend", "src", "darrow_adaptive_goal", "preflight.py"),
   );
 }
 
@@ -4382,14 +4359,14 @@ async function executeClaude(
   );
   env.TMPDIR = stagingRoot;
   const evalPlugins = claudeEvalPluginDirs(repo);
-  const adaptiveDeliveryPlugin =
-    evalPlugins.find(hasAdaptiveDeliveryPreflight) ??
+  const adaptiveGoalPlugin =
+    evalPlugins.find(hasAdaptiveGoalPreflight) ??
     evalPlugins[0] ??
     join(repo, ".git", "eval-plugin");
   configureClaudePluginData(env, repo);
   const evidenceContext = claudeEvidenceContext({
     repoDir: repo,
-    pluginDir: adaptiveDeliveryPlugin,
+    pluginDir: adaptiveGoalPlugin,
     stagingRoot,
     engineeringRequest: request.prompt,
     followUpPrompt: request.control?.followUpPrompt,

@@ -44,7 +44,7 @@ cp "$source_root/$artificer/backend/pyproject.toml" "$source_root/$artificer/bac
 cp "$source_root/$artificer/skills/manage-artificer/SKILL.md" "$artificer/skills/manage-artificer/"
 cp -R "$source_root/$artificer/skills/manage-artificer/references" "$source_root/$artificer/skills/manage-artificer/agents" "$artificer/skills/manage-artificer/"
 if [ "${1:-}" = conflict ]; then
-  printf '\n## Activation claim\n\nComplex work starts adaptive-delivery automatically without explicit invocation.\n' >> plugins/orchestration/darrow-adaptive-delivery/README.md
+  printf '\n## Activation claim\n\nComplex work starts adaptive-goal automatically without explicit invocation.\n' >> plugins/orchestration/darrow-adaptive-goal/README.md
 fi
 if [ "${1:-}" = diagnosis ]; then
   mkdir -p .agents/skills/diagnose-plugin .claude/skills/diagnose-plugin

@@ -1,4 +1,8 @@
-# Adaptive Delivery: coordinator instructions and implementor reuse
+# Adaptive Goal: coordinator instructions and implementor reuse
+
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
 
 Status: historical proposal. The user stopped the developer-context approach
 and requested its app-server changes be reverted; they were reverted. The current
@@ -40,7 +44,7 @@ and configuration, but no `developerInstructions`. It submits the task through
 [codex-app-server.ts](../../evals/runner/adapters/codex-app-server.ts).
 
 In frozen `goal-failed-check-blocks-publication`, slot 1, the passive observer
-records a complete Adaptive Delivery skill injection at ordinal 10 of the first
+records a complete Adaptive Goal skill injection at ordinal 10 of the first
 main-thread turn. The observer only emits that observation for a user-role
 message whose text contains the complete mounted skill body. The root thread is
 `01a102bc-deee-7af3-8222-eb92cbba6da3`; all three retained turn contexts are
@@ -100,12 +104,12 @@ Recommend a small Codex plugin hook that supplies canonical static coordinator
 instructions. The existing Review and TDD plugins provide a local packaging
 precedent; this proposal does not change either plugin.
 
-1. Keep one canonical instruction source in the Adaptive Delivery skill's
+1. Keep one canonical instruction source in the Adaptive Goal skill's
    resources, also read by the hook. Include workflow selection and the six
    workflows, authority and preflight requirements, delegation boundaries,
    capability prerequisites, repair accounting, feedback, blockers and completion.
    Exclude capability internals and duplicated command documentation.
-2. State that these rules apply only after explicit Adaptive Delivery invocation
+2. State that these rules apply only after explicit Adaptive Goal invocation
    or an authorized continuation. They do not start a goal or make bounded
    implementation, verification or review children delivery owners.
 3. Supply the rules on native session start, resume and compaction. Use portable
@@ -120,7 +124,7 @@ precedent; this proposal does not change either plugin.
    decode encrypted messages.
 
 This is a material integration choice because installed sessions would receive
-the conditional rules even when Adaptive Delivery is not invoked. The current
+the conditional rules even when Adaptive Goal is not invoked. The current
 coordination sections, lifecycle and six workflows alone total about 21,500
 characters before consolidation. Exact payload size and token overhead need to
 be measured; a short activation hint would not supply the requested workflow
