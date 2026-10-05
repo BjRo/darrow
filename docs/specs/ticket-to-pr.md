@@ -55,11 +55,6 @@ Authorized replies resume that same thread and its retained preflight or native
 goal without recipe reinvocation. Missing authority or unavailable native
 continuation remains a blocker.
 
-Artificer's current transport retains a separate owner child and is incompatible
-with the adopted main-thread goal. Its migration remains a separate follow-up.
-Receipt-forwarding evals establish the authority seam, not Artificer runtime
-compatibility. Use explicit human invocation until that adapter is migrated.
-
 Explicit invocation names this recipe as the requested shortcut. An ordinary
 request describing the same delivery outcome does not grant recipe authority,
 even when its wording closely matches the recipe's delegated request.

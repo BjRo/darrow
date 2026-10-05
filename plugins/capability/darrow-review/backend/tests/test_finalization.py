@@ -109,6 +109,7 @@ def test_prior_verification_history_is_carried_without_transcription(
 def test_assessment_correction_clears_same_candidate_and_retains_prior_result(
     repo: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    monkeypatch.setenv("DARROW_REVIEW_STATE_DIR", str(repo.parent / "review-state_"))
     (repo / "file.txt").write_text("original\n", encoding="utf-8")
     original_scope = prepare(repo)
     original = finalize(
@@ -171,7 +172,7 @@ def test_assessment_correction_clears_same_candidate_and_retains_prior_result(
     assert Path(previous).read_bytes() == prior_bytes
     rendered = str(cli.report_command(["render-verification", output]))
     assert reason in rendered
-    assert previous in rendered
+    assert previous in html.unescape(rendered)
 
 
 def prior_with_regression(repo: Path) -> tuple[str, str]:

@@ -316,11 +316,11 @@ relaxation into one candidate.
 ## Evidence
 
 - [Original 60-case coverage and all failures](darrow-adaptive-delivery-coverage-2026-09-30.md)
-- [Local corrected run inventory](../../evals/results/adaptive-eval-repair-2026-09-30/coverage.json)
-- [Final calibration summary](../../evals/results/adaptive-eval-repair-2026-09-30/calibration-summary.json)
-- [Local failure assessments](../../evals/results/adaptive-eval-repair-2026-09-30/classifications.json)
-- [Doctor follow-up results](../../evals/results/adaptive-doctor-eval-repair-2026-09-30/summary.json)
-- [Initial candidate provenance audit](../../evals/results/adaptive-eval-repair-2026-09-30/evidence-audit.json)
-- [Doctor follow-up provenance audit](../../evals/results/adaptive-doctor-eval-repair-2026-09-30/evidence-audit.json)
+- Local corrected run inventory (`evals/results/adaptive-eval-repair-2026-09-30/coverage.json`)
+- Final calibration summary (`evals/results/adaptive-eval-repair-2026-09-30/calibration-summary.json`)
+- Local failure assessments (`evals/results/adaptive-eval-repair-2026-09-30/classifications.json`)
+- Doctor follow-up results (`evals/results/adaptive-doctor-eval-repair-2026-09-30/summary.json`)
+- Initial candidate provenance audit (`evals/results/adaptive-eval-repair-2026-09-30/evidence-audit.json`)
+- Doctor follow-up provenance audit (`evals/results/adaptive-doctor-eval-repair-2026-09-30/evidence-audit.json`)
 
 Raw evidence is local and gitignored. Original raw results, initial calibration mismatches, and unresolved product failures remain preserved.

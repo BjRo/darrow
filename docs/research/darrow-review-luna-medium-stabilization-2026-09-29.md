@@ -10,7 +10,7 @@ Seven selected cases therefore received `$plugin:code-review` instead of
 guidance-alternative, guidance-uncertain, guidance-unresolved,
 reviewer-route-override, and reviewer-route-unavailable.
 
-The [snapshot and invocation audit](../../evals/results/adaptive-routing-option1-corrected-2026-09-29/review-invocation-audit.json)
+The snapshot and invocation audit (`evals/results/adaptive-routing-option1-corrected-2026-09-29/review-invocation-audit.json`)
 confirms **35 affected trials**. Their recorded task passes remain observations
 under that mismatched prompt. They do not establish the intended explicit
 invocation, and the runner's explicit activation scores must not be used as

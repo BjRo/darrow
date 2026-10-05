@@ -38,10 +38,38 @@ def test_session_hint_resolves_its_installed_skill_from_another_cwd(
     skill.write_text("Complete skill fixture.\n", encoding="utf-8")
     invocation = hook_command(host, plugin)
     result = subprocess.run(
-        invocation, cwd=tmp_path, capture_output=True, text=True, check=False
+        invocation,
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
     )
     assert result.returncode == 0, result.stderr
-    assert str(skill.resolve()) in result.stdout
+    prefix = "DARROW_REVIEW_SKILL_PATH_V1: For matching review or repair-verification requests, read this complete skill file: "
+    first_line = result.stdout.splitlines()[0]
+    assert first_line.startswith(prefix)
+    reported_skill = first_line.removeprefix(prefix)
+    if host == "bash":
+        # Compare file identity in the shell that owns this path notation (MSYS on Windows).
+        identity = subprocess.run(
+            [
+                invocation[0],
+                "-c",
+                'test "$1" -ef "$2"',
+                "_",
+                reported_skill,
+                str(skill),
+            ],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=False,
+        )
+        assert identity.returncode == 0, identity.stderr
+    else:
+        assert Path(reported_skill).resolve(strict=True) == skill.resolve()
     assert "DARROW_REVIEW_SESSION_HINT_V1:" in result.stdout
     assert "matching" in result.stdout
     skill.unlink()

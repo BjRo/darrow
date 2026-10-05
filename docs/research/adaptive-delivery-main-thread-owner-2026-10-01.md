@@ -345,4 +345,4 @@ The user authorized a [D/E main-thread model comparison](adaptive-delivery-main-
 reusing eligible D trials and retaining A as additional context. Production
 adoption remains a separate decision.
 
-Local evidence: [main-thread pilot](../../evals/results/adaptive-main-thread-owner-2026-10-01/).
+Local evidence: main-thread pilot (`evals/results/adaptive-main-thread-owner-2026-10-01/`).

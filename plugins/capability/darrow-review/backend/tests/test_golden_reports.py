@@ -5,6 +5,7 @@ from __future__ import annotations
 from html import unescape
 from pathlib import Path
 from typing import cast
+from urllib.parse import unquote
 
 import pytest
 from hypothesis import given, settings
@@ -14,6 +15,16 @@ from darrow_review import cli, report
 from darrow_review.common import blob_hash, document, serialize
 
 GOLDEN = Path(__file__).with_name("golden")
+
+
+def assert_complete_report(actual: str, expected: str, report_path: Path) -> None:
+    body, separator, destination = actual.rpartition(
+        "\nComplete review report: [report](<"
+    )
+    assert body == expected
+    assert separator
+    assert not any(character in destination[:-3] for character in " \\#?<>")
+    assert unquote(destination) == f"{report_path}>)\n"
 
 
 @pytest.mark.parametrize(
@@ -30,9 +41,10 @@ def test_complete_report_bytes(name: str, operation: str, tmp_path: Path) -> Non
     expected = (GOLDEN / f"{name}.txt").read_text(encoding="utf-8")
     report_name = "verification.md" if name == "verification" else "review.md"
     report_path = record.parent / report_name
-    assert actual == (
-        expected.replace("/workspace/", root)
-        + f"\nComplete review report: [report](<{report_path}>)\n"
+    assert_complete_report(
+        actual,
+        expected.replace("/workspace/", root),
+        report_path,
     )
 
 
@@ -53,12 +65,12 @@ def test_checksum_bound_report_bytes(tmp_path: Path) -> None:
     path = tmp_path / "current.json"
     path.write_text(serialize(current), encoding="utf-8")
     actual = cli.report_command(["render-verification", str(path)])
-    assert (
-        actual.replace(report.escape(str(previous)), "PREVIOUS_ARTIFACT")
-        == (GOLDEN / "verification-next.txt")
+    assert_complete_report(
+        actual.replace(report.escape(str(previous)), "PREVIOUS_ARTIFACT"),
+        (GOLDEN / "verification-next.txt")
         .read_text(encoding="utf-8")
-        .replace("PREVIOUS_CHECKSUM", blob_hash(previous.read_bytes()))
-        + f"\nComplete review report: [report](<{path.parent / 'verification.md'}>)\n"
+        .replace("PREVIOUS_CHECKSUM", blob_hash(previous.read_bytes())),
+        path.parent / "verification.md",
     )
 
 
@@ -78,7 +90,9 @@ def test_report_destination_escapes_markdown_delimiters() -> None:
 def test_reports_preserve_leading_underscore_paths_without_emphasis(
     name: str, operation: str, finding_set: str, tmp_path: Path
 ) -> None:
-    record = document((GOLDEN / f"{name}.json").read_text(encoding="utf-8"))
+    root = f"{tmp_path.drive}/workspace/"
+    source = (GOLDEN / f"{name}.json").read_text(encoding="utf-8")
+    record = document(source.replace("/workspace/", root))
     finding = cast(list[dict[str, str]], record[finding_set])[0]
     finding["location"] = "/workspace/_cache/_module/file_name.js:1"
     finding["source"] = "/workspace/_rules/AGENTS.md"

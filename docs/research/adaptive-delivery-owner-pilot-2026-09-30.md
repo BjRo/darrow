@@ -558,13 +558,13 @@ automatic continuation. It is not implemented or measured by this pilot.
 
 ## Local evidence
 
-- [Frozen input hashes](../../evals/results/adaptive-owner-pilot-2026-09-30/inputs.json)
-- [Freeze record](../../evals/results/adaptive-owner-pilot-2026-09-30/frozen.json)
-- [Complete trial summary](../../evals/results/adaptive-owner-pilot-2026-09-30/summary.json)
-- [Per-case statistics](../../evals/results/adaptive-owner-pilot-2026-09-30/stats.json)
-- [Failure classifications](../../evals/results/adaptive-owner-pilot-2026-09-30/classifications.json)
-- [Final provenance audit](../../evals/results/adaptive-owner-pilot-2026-09-30/final-audit.json)
-- [Provider-boundary evidence](../../evals/results/adaptive-owner-pilot-2026-09-30/provider-boundary-audit.json)
+- Frozen input hashes (`evals/results/adaptive-owner-pilot-2026-09-30/inputs.json`)
+- Freeze record (`evals/results/adaptive-owner-pilot-2026-09-30/frozen.json`)
+- Complete trial summary (`evals/results/adaptive-owner-pilot-2026-09-30/summary.json`)
+- Per-case statistics (`evals/results/adaptive-owner-pilot-2026-09-30/stats.json`)
+- Failure classifications (`evals/results/adaptive-owner-pilot-2026-09-30/classifications.json`)
+- Final provenance audit (`evals/results/adaptive-owner-pilot-2026-09-30/final-audit.json`)
+- Provider-boundary evidence (`evals/results/adaptive-owner-pilot-2026-09-30/provider-boundary-audit.json`)
 
 Raw evidence and prototype helpers remain local and gitignored. Delivery
 coverage is complete; the observed results are a bounded sample.

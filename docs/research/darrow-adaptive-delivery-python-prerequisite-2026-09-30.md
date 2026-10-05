@@ -88,13 +88,13 @@ campaigns.
 
 ## Evidence
 
-- [Current summary](../../evals/results/adaptive-python-prerequisite-2026-09-30/summary.json)
-- [Comparison and input verification](../../evals/results/adaptive-python-prerequisite-2026-09-30/comparison.json)
-- [Invocation proof](../../evals/results/adaptive-python-prerequisite-2026-09-30/invocation-proof.json)
-- [Failure classifications](../../evals/results/adaptive-python-prerequisite-2026-09-30/failure-classifications.json)
-- [High-risk results](../../evals/results/adaptive-python-prerequisite-2026-09-30/goal-preflight-high-risk-routine/results.json)
-- [Quality-sensitive results](../../evals/results/adaptive-python-prerequisite-2026-09-30/goal-preflight-quality-sensitive-localized/results.json)
-- [Diagnosis results](../../evals/results/adaptive-python-prerequisite-2026-09-30/goal-preflight-routing-difficult-routine-diagnosis/results.json)
+- Current summary (`evals/results/adaptive-python-prerequisite-2026-09-30/summary.json`)
+- Comparison and input verification (`evals/results/adaptive-python-prerequisite-2026-09-30/comparison.json`)
+- Invocation proof (`evals/results/adaptive-python-prerequisite-2026-09-30/invocation-proof.json`)
+- Failure classifications (`evals/results/adaptive-python-prerequisite-2026-09-30/failure-classifications.json`)
+- High-risk results (`evals/results/adaptive-python-prerequisite-2026-09-30/goal-preflight-high-risk-routine/results.json`)
+- Quality-sensitive results (`evals/results/adaptive-python-prerequisite-2026-09-30/goal-preflight-quality-sensitive-localized/results.json`)
+- Diagnosis results (`evals/results/adaptive-python-prerequisite-2026-09-30/goal-preflight-routing-difficult-routine-diagnosis/results.json`)
 - [Previous corrected campaign](darrow-adaptive-delivery-routing-luna-medium-2026-09-29.md)
 
 Raw evidence is local and gitignored. The report preserves the comparison and

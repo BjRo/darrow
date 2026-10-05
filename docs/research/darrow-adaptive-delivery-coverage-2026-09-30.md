@@ -500,9 +500,9 @@ Task: **3/5**. Failed trials: 1, 2.
 
 ## Local evidence
 
-- [Inventory and per-case coverage](../../evals/results/adaptive-coverage-2026-09-30/coverage.json)
-- [Failure classifications](../../evals/results/adaptive-coverage-2026-09-30/classifications.json)
-- [Candidate and authorization checkpoint](../../evals/results/adaptive-coverage-2026-09-30/checkpoint.json)
-- [Final evidence audit](../../evals/results/adaptive-coverage-2026-09-30/evidence-audit.json)
+- Inventory and per-case coverage (`evals/results/adaptive-coverage-2026-09-30/coverage.json`)
+- Failure classifications (`evals/results/adaptive-coverage-2026-09-30/classifications.json`)
+- Candidate and authorization checkpoint (`evals/results/adaptive-coverage-2026-09-30/checkpoint.json`)
+- Final evidence audit (`evals/results/adaptive-coverage-2026-09-30/evidence-audit.json`)
 
 Each case directory contains results, the exact command, bounded observations, and run provenance. Raw evidence links require the local checkout.

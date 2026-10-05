@@ -35,7 +35,7 @@ def test_review_retains_original_finding_and_cleared_history(repo: Path) -> None
     )
     assert f"Original target: {original_target}\n" in original
     saved = repo / ".git/fixture-state/review-result-0.md"
-    assert saved.read_text() == original
+    assert saved.read_text(encoding="utf-8") == original
 
     assert "Fix verification: no_progress." in review.assess(repo, "verify", CONTRACT)
     subject.write_text("repaired\n")
@@ -46,7 +46,7 @@ def test_review_retains_original_finding_and_cleared_history(repo: Path) -> None
     assert f"Original review result: {saved}\n" in clear
     assert f"{original_target}\tblocking\tcomprehensive\n" in clear
     assert f"{current_target}\tclear\tverify\n" in clear
-    assert saved.read_text() == original
+    assert saved.read_text(encoding="utf-8") == original
     assert "Fix verification: clear." in review.assess(repo, "verify", CONTRACT)
     subject.write_text("defective\n")
     assert "Fix verification: no_progress." in review.assess(repo, "verify", CONTRACT)

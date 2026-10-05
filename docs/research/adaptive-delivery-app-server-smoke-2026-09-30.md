@@ -191,18 +191,18 @@ protocol probes. The matched delivery experiment remains necessary.
 
 All raw protocol evidence and prototype scripts are local and gitignored:
 
-- [Smoke audit and closeout script hashes](../../evals/results/adaptive-owner-proposal-2026-09-30/smoke-audit.json)
-- [First goal probe, with premature disconnect](../../evals/results/adaptive-owner-proposal-2026-09-30/smoke-2026-09-30T15-18-41.531Z/summary.json)
-- [Corrected goal and response probe](../../evals/results/adaptive-owner-proposal-2026-09-30/smoke-2026-09-30T15-20-51.514Z/summary.json)
-- [Native capacity control](../../evals/results/adaptive-owner-proposal-2026-09-30/capacity-native-2026-09-30T15-24-21.213Z/summary.json)
-- [App-server capacity probe](../../evals/results/adaptive-owner-proposal-2026-09-30/capacity-app-2026-09-30T15-25-31.933Z/summary.json)
-- [Untrusted hook probe](../../evals/results/adaptive-owner-proposal-2026-09-30/launch-evidence-2026-09-30T15-27-34.345Z/summary.json)
-- [Persisted trust, Agent matcher probe](../../evals/results/adaptive-owner-proposal-2026-09-30/launch-evidence-2026-09-30T15-30-39.096Z/summary.json)
-- [Trusted wildcard observer, encrypted launch](../../evals/results/adaptive-owner-proposal-2026-09-30/launch-evidence-2026-09-30T15-32-58.013Z/summary.json)
-- [Contract injection setup failure](../../evals/results/adaptive-owner-proposal-2026-09-30/contract-order-2026-09-30T15-41-20.684Z/summary.json)
-- [User-role contract before goal activation](../../evals/results/adaptive-owner-proposal-2026-09-30/contract-order-2026-09-30T15-41-52.031Z/summary.json)
-- [Native capacity returns and effective routes](../../evals/results/adaptive-owner-proposal-2026-09-30/capacity-native-evidence.json)
-- [Final-response regression checks](../../evals/results/adaptive-owner-proposal-2026-09-30/final-response.test.ts)
+- Smoke audit and closeout script hashes (`evals/results/adaptive-owner-proposal-2026-09-30/smoke-audit.json`)
+- First goal probe, with premature disconnect (`evals/results/adaptive-owner-proposal-2026-09-30/smoke-2026-09-30T15-18-41.531Z/summary.json`)
+- Corrected goal and response probe (`evals/results/adaptive-owner-proposal-2026-09-30/smoke-2026-09-30T15-20-51.514Z/summary.json`)
+- Native capacity control (`evals/results/adaptive-owner-proposal-2026-09-30/capacity-native-2026-09-30T15-24-21.213Z/summary.json`)
+- App-server capacity probe (`evals/results/adaptive-owner-proposal-2026-09-30/capacity-app-2026-09-30T15-25-31.933Z/summary.json`)
+- Untrusted hook probe (`evals/results/adaptive-owner-proposal-2026-09-30/launch-evidence-2026-09-30T15-27-34.345Z/summary.json`)
+- Persisted trust, Agent matcher probe (`evals/results/adaptive-owner-proposal-2026-09-30/launch-evidence-2026-09-30T15-30-39.096Z/summary.json`)
+- Trusted wildcard observer, encrypted launch (`evals/results/adaptive-owner-proposal-2026-09-30/launch-evidence-2026-09-30T15-32-58.013Z/summary.json`)
+- Contract injection setup failure (`evals/results/adaptive-owner-proposal-2026-09-30/contract-order-2026-09-30T15-41-20.684Z/summary.json`)
+- User-role contract before goal activation (`evals/results/adaptive-owner-proposal-2026-09-30/contract-order-2026-09-30T15-41-52.031Z/summary.json`)
+- Native capacity returns and effective routes (`evals/results/adaptive-owner-proposal-2026-09-30/capacity-native-evidence.json`)
+- Final-response regression checks (`evals/results/adaptive-owner-proposal-2026-09-30/final-response.test.ts`)
 
 The audit hashes describe the prototype sources at closeout. These sources
 evolved during the probes; the hashes are not proof of a frozen candidate for

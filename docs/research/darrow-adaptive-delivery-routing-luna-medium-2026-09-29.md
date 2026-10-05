@@ -27,7 +27,7 @@ The first 15-trial batch used a frozen directory named `candidate`. The runner
 derived `$candidate:adaptive-delivery` from that path, while the installed
 manifest declared `darrow-adaptive-delivery`. Those requests did not use the
 intended explicit invocation. Preserve the
-[original results](../../evals/results/adaptive-routing-option1-2026-09-29/summary.json)
+original results (`evals/results/adaptive-routing-option1-2026-09-29/summary.json`)
 as setup diagnostics and exclude them from valid explicit-invocation coverage.
 In particular, the two observed skill/owner bypasses in the difficult-diagnosis
 case cannot establish a plugin activation defect under the intended request.
@@ -35,7 +35,7 @@ case cannot establish a plugin activation defect under the intended request.
 The corrected copy is named `darrow-adaptive-delivery` and contains the identical
 frozen plugin bytes. Before rerunning, the shared prompt renderer verified the
 exact installed namespace for all three cases; see the
-[invocation proof](../../evals/results/adaptive-routing-option1-corrected-2026-09-29/invocation-proof.json).
+invocation proof (`evals/results/adaptive-routing-option1-corrected-2026-09-29/invocation-proof.json`).
 The runner implementation was not changed. Snapshot naming guidance was added
 to `docs/eval-development.md` to prevent this setup mistake.
 
@@ -75,7 +75,7 @@ The high-risk activation contract includes parent reads of verification and
 review; it does not by itself prove those providers executed successfully.
 
 Raw corrected evidence and the frozen-source comparison are in the
-[run summary](../../evals/results/adaptive-routing-option1-corrected-2026-09-29/summary.json).
+run summary (`evals/results/adaptive-routing-option1-corrected-2026-09-29/summary.json`).
 
 ## Remaining failures
 

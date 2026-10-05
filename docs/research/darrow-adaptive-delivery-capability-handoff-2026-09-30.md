@@ -116,11 +116,11 @@ contract decision; this candidate does not make that change.
 
 ## Evidence
 
-- [Trial results](../../evals/results/adaptive-capability-handoff-2026-09-30/goal-preflight-high-risk-routine/results.json)
-- [Task, route, activation, and check summary](../../evals/results/adaptive-capability-handoff-2026-09-30/summary.json)
-- [Historical comparison and owner skill reads](../../evals/results/adaptive-capability-handoff-2026-09-30/comparison.json)
-- [Invocation proof](../../evals/results/adaptive-capability-handoff-2026-09-30/invocation-proof.json)
-- [Run provenance](../../evals/results/adaptive-capability-handoff-2026-09-30/goal-preflight-high-risk-routine/provenance.json)
+- Trial results (`evals/results/adaptive-capability-handoff-2026-09-30/goal-preflight-high-risk-routine/results.json`)
+- Task, route, activation, and check summary (`evals/results/adaptive-capability-handoff-2026-09-30/summary.json`)
+- Historical comparison and owner skill reads (`evals/results/adaptive-capability-handoff-2026-09-30/comparison.json`)
+- Invocation proof (`evals/results/adaptive-capability-handoff-2026-09-30/invocation-proof.json`)
+- Run provenance (`evals/results/adaptive-capability-handoff-2026-09-30/goal-preflight-high-risk-routine/provenance.json`)
 
 Raw evidence remains local and gitignored. Prior campaigns and every recorded
 failure remain intact.

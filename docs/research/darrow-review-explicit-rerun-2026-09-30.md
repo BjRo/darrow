@@ -144,12 +144,12 @@ work is done; do not strengthen the skill based only on this score.
 
 ## Evidence and limits
 
-- [Completed batch summary](../../evals/results/review-explicit-invocation-2026-09-30/summary.json)
-- [Completed raw results](../../evals/results/review-explicit-invocation-2026-09-30/results.json)
-- [Failure classifications](../../evals/results/review-explicit-invocation-2026-09-30/failure-classifications.json)
-- [Invocation proof](../../evals/results/review-explicit-invocation-2026-09-30/presentation-default/invocation-proof.json)
-- [Combined 31-case summary and provenance](../../evals/results/review-explicit-invocation-2026-09-30/selected-31-summary.json)
-- [Combined 31-case raw results](../../evals/results/review-explicit-invocation-2026-09-30/selected-31-results.json)
+- Completed batch summary (`evals/results/review-explicit-invocation-2026-09-30/summary.json`)
+- Completed raw results (`evals/results/review-explicit-invocation-2026-09-30/results.json`)
+- Failure classifications (`evals/results/review-explicit-invocation-2026-09-30/failure-classifications.json`)
+- Invocation proof (`evals/results/review-explicit-invocation-2026-09-30/presentation-default/invocation-proof.json`)
+- Combined 31-case summary and provenance (`evals/results/review-explicit-invocation-2026-09-30/selected-31-summary.json`)
+- Combined 31-case raw results (`evals/results/review-explicit-invocation-2026-09-30/selected-31-results.json`)
 - [Earlier stabilization and historical evidence](darrow-review-luna-medium-stabilization-2026-09-29.md)
 
 Raw artifacts remain local and gitignored. The earlier 24 selected cases without

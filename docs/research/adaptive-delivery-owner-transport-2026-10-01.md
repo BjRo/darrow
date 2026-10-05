@@ -269,7 +269,7 @@ a new user decision.
 ## Local evidence
 
 All prototype files, diagnostics, completed trial evidence and unfinished work remain local:
-[transport experiment](../../evals/results/adaptive-owner-transport-2026-10-01/).
+transport experiment (`evals/results/adaptive-owner-transport-2026-10-01/`).
 The [previous pilot report](adaptive-delivery-owner-pilot-2026-09-30.md) preserves
 the native baseline, transport defects and both capability handoff boundaries.
 

@@ -120,13 +120,13 @@ evidence. The exception does not turn subsequent unexplained failures into passe
 
 ## Evidence
 
-- [Unchanged quality-sensitive results](../../evals/results/adaptive-parent-wait-control-2026-09-30/goal-preflight-quality-sensitive-localized/results.json)
-- [Unchanged diagnosis results, including both failures](../../evals/results/adaptive-parent-wait-control-2026-09-30/goal-preflight-routing-difficult-routine-diagnosis/results.json)
-- [Successful trial 5 prerequisite probe](../../evals/results/adaptive-parent-wait-control-2026-09-30/goal-preflight-routing-difficult-routine-diagnosis/prerequisite-probe.json)
-- [0.23.12 diagnosis results](../../evals/results/adaptive-launch-name-2026-09-30/goal-preflight-routing-difficult-routine-diagnosis/results.json)
-- [Comparison, native owner routes, names, and provenance](../../evals/results/adaptive-launch-name-2026-09-30/comparison.json)
-- [0.23.12 check summary](../../evals/results/adaptive-launch-name-2026-09-30/summary.json)
-- [Invocation proof](../../evals/results/adaptive-launch-name-2026-09-30/invocation-proof.json)
+- Unchanged quality-sensitive results (`evals/results/adaptive-parent-wait-control-2026-09-30/goal-preflight-quality-sensitive-localized/results.json`)
+- Unchanged diagnosis results, including both failures (`evals/results/adaptive-parent-wait-control-2026-09-30/goal-preflight-routing-difficult-routine-diagnosis/results.json`)
+- Successful trial 5 prerequisite probe (`evals/results/adaptive-parent-wait-control-2026-09-30/goal-preflight-routing-difficult-routine-diagnosis/prerequisite-probe.json`)
+- 0.23.12 diagnosis results (`evals/results/adaptive-launch-name-2026-09-30/goal-preflight-routing-difficult-routine-diagnosis/results.json`)
+- Comparison, native owner routes, names, and provenance (`evals/results/adaptive-launch-name-2026-09-30/comparison.json`)
+- 0.23.12 check summary (`evals/results/adaptive-launch-name-2026-09-30/summary.json`)
+- Invocation proof (`evals/results/adaptive-launch-name-2026-09-30/invocation-proof.json`)
 
 Raw evidence is local and gitignored. All earlier failures and campaigns remain
 intact. These runs do not establish Claude, Windows, or full-plugin reliability.
