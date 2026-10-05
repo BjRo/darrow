@@ -27,7 +27,7 @@ Rebuild it with `decision catalog rebuild` and verify it with `decision catalog 
 
 <!-- darrow-source: cd9996efb2f66b1602ead9a405a48686e14f67a9 1820997609 370 ADR-0002-separate-capabilities-from-orchestration.md -->
 <!-- darrow-source: 452327e39a9dff558c6897356d0e1e85cf65906f 3673420192 418 ADR-0003-treat-plugins-as-optionality-boundaries.md -->
-<!-- darrow-source: 42bc1095831a4d097a6bda6462d29315bc0f0529 2382776868 628 ADR-0004-use-native-goal-ownership-for-core-orchestration.md -->
+<!-- darrow-source: f1c8d2ae686cda7a2d5284e2bfa4576bd6c436df 2753672910 628 ADR-0004-use-native-goal-ownership-for-core-orchestration.md -->
 <!-- darrow-source: 739b2fa46ad8b0ed220c4d341317bf670d3d7a41 243106577 398 ADR-0006-keep-decisions-with-their-authoritative-owners.md -->
 <!-- darrow-source: ae5948d48fa4b0b0ce2c80ea76e23a71d582aa71 4074249863 369 ADR-0007-separate-skill-evaluation-evidence-dimensions.md -->
 <!-- darrow-source: aab600b869cf357f81f4424f1813a75596d0a64c 2479862079 646 ADR-0008-allow-python-and-uv-for-langfuse-observability.md -->
