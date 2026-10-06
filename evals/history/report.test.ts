@@ -14,10 +14,10 @@ import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 
 const roots: string[] = [];
-const legacyCommand = resolve(import.meta.dir, "../report.ts");
+const legacyCommand = resolve(import.meta.dir, "../runner/report.ts");
 const standaloneCommand = resolve(
   import.meta.dir,
-  "../../sevro-extension/legacy-report.ts",
+  "../sevro-extension/legacy-report.ts",
 );
 
 test("empty historical result cells still validate their exit code", async () => {
@@ -578,7 +578,7 @@ test("historical reporting remains usable without the generic runner or a Sevro 
     "legacy-output.ts",
   ]) {
     await copyFile(
-      resolve(import.meta.dir, "../../sevro-extension", name),
+      resolve(import.meta.dir, "../sevro-extension", name),
       join(consumer, name),
     );
   }

@@ -10,11 +10,11 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { selectCaseIds } from "../../sevro-extension/index";
-import { sevroCommand } from "../../sevro-extension/sevro-command";
+import { selectCaseIds } from "../sevro-extension/index";
+import { sevroCommand } from "../sevro-extension/sevro-command";
 
 const roots: string[] = [];
-const suiteCommand = resolve(import.meta.dir, "../../sevro-extension/suite.ts");
+const suiteCommand = resolve(import.meta.dir, "../sevro-extension/suite.ts");
 
 afterEach(async () => {
   await Promise.all(
@@ -2687,7 +2687,7 @@ test("suite seeded execution preserves legacy block order and replay", async () 
       caseId,
     })),
   );
-  expect(plans[0]).toEqual(expected);
+  expect(plans[0]).toEqual([...expected]);
   expect(plans[1]).toEqual(expected);
   expect(plans[2]).not.toEqual(expected);
 }, 45_000);

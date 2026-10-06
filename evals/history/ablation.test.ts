@@ -12,8 +12,8 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
-const command = resolve(import.meta.dir, "../ablation.ts");
-const ownerDirectory = resolve(import.meta.dir, "../../sevro-extension");
+const command = resolve(import.meta.dir, "../runner/ablation.ts");
+const ownerDirectory = resolve(import.meta.dir, "../sevro-extension");
 const roots: string[] = [];
 afterEach(async () => {
   await Promise.all(

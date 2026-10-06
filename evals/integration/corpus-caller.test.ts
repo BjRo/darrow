@@ -13,8 +13,8 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 
-const direct = resolve(import.meta.dir, "../run.ts");
-const migration = resolve(import.meta.dir, "../../sevro-extension/run.ts");
+const direct = resolve(import.meta.dir, "../runner/run.ts");
+const migration = resolve(import.meta.dir, "../sevro-extension/run.ts");
 const roots: string[] = [];
 afterEach(async () => {
   await Promise.all(

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 const roots: string[] = [];
-const runCommand = resolve(import.meta.dir, "../../sevro-extension/run.ts");
+const runCommand = resolve(import.meta.dir, "../sevro-extension/run.ts");
 
 afterEach(async () => {
   await Promise.all(

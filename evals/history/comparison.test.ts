@@ -3,8 +3,8 @@ import { copyFile, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
-const legacyCommand = resolve(import.meta.dir, "../compare.ts");
-const standaloneDirectory = resolve(import.meta.dir, "../../sevro-extension");
+const legacyCommand = resolve(import.meta.dir, "../runner/compare.ts");
+const standaloneDirectory = resolve(import.meta.dir, "../sevro-extension");
 const roots: string[] = [];
 afterEach(async () => {
   await Promise.all(

@@ -73,7 +73,7 @@ jobs:
         run: |
           set -euo pipefail
           env -u SEVRO_CHECKOUT -u SEVRO_PACKAGE_BIN \
-            bun run test:eval-runner-compatibility 2>&1 \
+            bun run test:evals 2>&1 \
             | tee "$SEVRO_ARTIFACT_DIR/parity.log"
       - name: Retain pin and verification evidence
         if: always()
@@ -159,7 +159,7 @@ jobs:
         run: |
           set -euo pipefail
           env -u SEVRO_CHECKOUT -u SEVRO_PACKAGE_BIN \
-            bun run test:eval-runner-sevro-package 2>&1 \
+            bun run test:eval-package 2>&1 \
             | tee "$SEVRO_ARTIFACT_DIR/parity.log"
       - name: Retain candidate and verification evidence
         if: always()

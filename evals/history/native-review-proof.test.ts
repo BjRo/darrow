@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { historicalReviewProofCommand } from "./historical-review-proof-command";
+import { historicalReviewProofCommand } from "./review-proof-command";
 
 const entry = (ordinal: number, payload: Record<string, unknown>) =>
   JSON.stringify({

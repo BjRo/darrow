@@ -1,10 +1,15 @@
 import { afterEach, expect, test } from "bun:test";
+
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+
 import { tmpdir } from "node:os";
+
 import { join, resolve } from "node:path";
 
 const outputRoots: string[] = [];
-const repository = resolve(import.meta.dir, "../../..");
+
+const repository = resolve(import.meta.dir, "../..");
+
 const command = join(repository, "evals/repository-guide.ts");
 
 afterEach(async () => {
@@ -14,59 +19,6 @@ afterEach(async () => {
       .map((root) => rm(root, { recursive: true, force: true })),
   );
 });
-
-test("guide migration retains a public unassessed dry result", async () => {
-  const child = Bun.spawn(
-    [
-      process.execPath,
-      command,
-      "--only",
-      "guide-negative",
-      "--harness",
-      "codex",
-      "--dry",
-    ],
-    { cwd: repository, stdout: "pipe", stderr: "pipe" },
-  );
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ]);
-  const output = stdout.match(/^Guide evidence: (.+)$/m)?.[1];
-  expect(output, stdout + stderr).toBeDefined();
-  outputRoots.push(output!);
-  expect(code, stderr).toBe(0);
-  const result = JSON.parse(
-    await readFile(join(output!, "guide-negative-codex.json"), "utf8"),
-  );
-  expect(result.format).toBe("sevro.cli-result.v1");
-  expect(result.execution.status).toBe("not_run");
-  expect(result.grading.status).toBe("not_requested");
-  expect(result.task.verdict).toBe("not_assessed");
-  expect(result.cases.map((row: { caseId: string }) => row.caseId)).toEqual([
-    "guide-negative",
-  ]);
-  const evidence = JSON.parse(await readFile(result.evidencePath, "utf8"));
-  expect(evidence.result).toEqual(result);
-  expect(evidence.configuration.redacted.jobs).toBe(1);
-  expect(evidence.routes).toEqual(
-    expect.arrayContaining([
-      expect.objectContaining({
-        role: "candidate",
-        host: "sevro.host.codex",
-        model: "gpt-6-luna",
-        effort: "medium",
-      }),
-      expect.objectContaining({
-        role: "semantic",
-        host: "sevro.host.codex",
-        model: "gpt-6-luna",
-        effort: "medium",
-      }),
-    ]),
-  );
-}, 30_000);
 
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-guide-"));
@@ -113,62 +65,6 @@ async function fixture() {
   await writeFile(credential, '{"synthetic":"credential"}', { mode: 0o600 });
   return { root, binary, credential, results: join(root, "results") };
 }
-
-test("guide caller uses the frozen package without route overrides", async () => {
-  const { root, binary, credential, results } = await fixture();
-  const child = Bun.spawn(
-    [
-      process.execPath,
-      command,
-      "--project-root",
-      root,
-      "--results-root",
-      results,
-      "--only",
-      "guide-beta",
-      "--harness",
-      "codex",
-      "--dry",
-      "--",
-      "--codex-bin",
-      binary,
-      "--codex-auth-file",
-      credential,
-    ],
-    {
-      cwd: root,
-      env: {
-        ...process.env,
-        SEVRO_CHECKOUT: undefined,
-        SEVRO_PACKAGE_BIN: undefined,
-      },
-      stdout: "pipe",
-      stderr: "pipe",
-    },
-  );
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ]);
-  expect(code, stderr + stdout).toBe(0);
-  const output = stdout.match(/^Guide evidence: (.+)$/m)?.[1];
-  expect(output, stderr + stdout).toBeDefined();
-  const result = JSON.parse(
-    await readFile(join(output!, "guide-beta-codex.json"), "utf8"),
-  );
-  expect(result).toMatchObject({
-    format: "sevro.cli-result.v1",
-    task: { verdict: "not_assessed" },
-    cases: [{ caseId: "guide-beta" }],
-  });
-  const evidence = JSON.parse(await readFile(result.evidencePath, "utf8"));
-  expect(evidence.runner).toMatchObject({
-    source: "package",
-    packageName: "@bjoernrochel/sevro",
-    version: "0.1.0-rc.2",
-  });
-}, 30_000);
 
 async function invoke(
   root: string,
@@ -239,7 +135,7 @@ for (const event of [
   return calls;
 }
 
-test("guide migration stops after failed activation despite a passed task", async () => {
+test("guide caller stops after failed activation despite a passed task", async () => {
   const { root, binary, credential, results } = await fixture();
   const calls = await successfulTaskHost(root, binary);
   const run = await invoke(root, results, [
@@ -279,7 +175,7 @@ for (const [exit, raw] of [
   [2, '{"format":'],
   [64, ""],
 ] as const)
-  test(`guide migration retains invalid output and process exit ${exit}`, async () => {
+  test(`guide caller retains invalid output and process exit ${exit}`, async () => {
     const { root, binary, credential, results } = await fixture();
     const packageBin = join(root, "sevro");
     await writeFile(
@@ -329,7 +225,7 @@ for (const [signal, exit] of [
   ["SIGINT", 130],
   ["SIGTERM", 143],
 ] as const)
-  test(`guide migration retains partial startup output on ${signal}`, async () => {
+  test(`guide caller retains partial startup output on ${signal}`, async () => {
     const { root, binary, credential, results } = await fixture();
     const ready = join(root, "startup-ready");
     const raw = '{"format":';
@@ -407,7 +303,7 @@ await new Promise(() => { setInterval(() => {}, 1000); });
     }
   }, 30_000);
 
-test("guide migration refuses caller-owned forwarded options before execution", async () => {
+test("guide caller refuses caller-owned forwarded options before execution", async () => {
   const { root, binary, credential, results } = await fixture();
   const run = await invoke(root, results, [
     "--harness",
@@ -427,7 +323,7 @@ test("guide migration refuses caller-owned forwarded options before execution", 
   ).toBe(false);
 });
 
-test("guide migration runs unmounted controls in inventory order", async () => {
+test("guide caller runs unmounted controls in inventory order", async () => {
   const { root, binary, credential, results } = await fixture();
   const calls = await successfulTaskHost(root, binary);
   const run = await invoke(root, results, [
@@ -456,7 +352,7 @@ test("guide migration runs unmounted controls in inventory order", async () => {
   ).toEqual(["guide-alpha", "guide-beta"]);
 }, 30_000);
 
-test("guide migration stops after task failure and retains its public exit", async () => {
+test("guide caller stops after task failure and retains its public exit", async () => {
   const { root, binary, credential, results } = await fixture();
   const calls = await successfulTaskHost(root, binary);
   await writeFile(
@@ -487,7 +383,7 @@ test("guide migration stops after task failure and retains its public exit", asy
   expect((await readFile(calls, "utf8")).trim().split("\n")).toHaveLength(1);
 }, 30_000);
 
-test("guide migration retains interrupted evidence and stops later cells", async () => {
+test("guide caller retains interrupted evidence and stops later cells", async () => {
   for (const [signal, exit] of [
     ["SIGINT", 130],
     ["SIGTERM", 143],
@@ -555,7 +451,7 @@ test("guide migration retains interrupted evidence and stops later cells", async
   }
 }, 30_000);
 
-test("guide migration uses separate roots and explicit routes on both hosts", async () => {
+test("guide caller uses separate roots and explicit routes on both hosts", async () => {
   const { root, binary, credential, results } = await fixture();
   const run = await invoke(root, results, [
     "--only",

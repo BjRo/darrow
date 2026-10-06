@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { historicalReviewProofCommand } from "./historical-review-proof-command";
+import { historicalReviewProofCommand } from "./review-proof-command";
 
 const route = "claude\tanthropic\tclaude-opus-5\txhigh";
 

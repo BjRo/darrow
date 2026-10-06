@@ -61,8 +61,9 @@ try {
       "test",
       "--timeout",
       "30000",
-      "evals/runner/parity",
+      "evals/integration",
       "evals/domain",
+      "evals/history",
     ],
     projectRoot,
     env,
@@ -70,7 +71,7 @@ try {
   process.stdout.write(result.stdout);
   process.stderr.write(result.stderr);
   process.stdout.write(
-    `Darrow parity passed with installed Sevro ${manifest.version}\n`,
+    `Darrow checks passed with installed Sevro ${manifest.version}\n`,
   );
 } finally {
   await rm(consumer, { recursive: true, force: true });

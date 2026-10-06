@@ -788,7 +788,7 @@ representation and comparison result enter retained evidence.
 For local protocol and public CLI validation, run:
 
 ```sh
-SEVRO_CHECKOUT=/absolute/path/to/sevro bun test evals/runner/parity/sevro-extension.test.ts
+SEVRO_CHECKOUT=/absolute/path/to/sevro bun test evals/integration/sevro-extension.test.ts
 ```
 
 Darrow fixture-oracle and repository-tooling tests live under `evals/domain/`.

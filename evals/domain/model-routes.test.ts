@@ -4,7 +4,7 @@ import {
   defaultEvalRoute,
   resolveEvalRoute,
   type EvalModelRole,
-} from "./model-defaults";
+} from "../sevro-extension/model-defaults";
 
 const codex = {
   name: "codex",

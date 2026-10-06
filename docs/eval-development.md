@@ -391,7 +391,7 @@ integration and Darrow domain gate:
 
 ```sh
 bun install --frozen-lockfile
-env -u SEVRO_CHECKOUT -u SEVRO_PACKAGE_BIN bun run test:eval-runner-compatibility
+env -u SEVRO_CHECKOUT -u SEVRO_PACKAGE_BIN bun run test:evals
 ```
 
 This command exercises Sevro's installed public CLI, versioned extension
@@ -413,14 +413,14 @@ records. The retained `DARROW_EVAL_RUNNER_COMMAND` launcher seam is retired too.
 For coordinated development, use one explicit absolute route:
 
 ```sh
-SEVRO_CHECKOUT=/absolute/path/to/sevro bun run test:eval-runner-sevro-parity
+SEVRO_CHECKOUT=/absolute/path/to/sevro bun run test:eval-integration
 ```
 
 A separate candidate archive can be installed and exercised without its source
 checkout:
 
 ```sh
-SEVRO_PACKAGE_TARBALL=/absolute/path/to/bjoernrochel-sevro-version.tgz bun run test:eval-runner-sevro-package
+SEVRO_PACKAGE_TARBALL=/absolute/path/to/bjoernrochel-sevro-version.tgz bun run test:eval-package
 ```
 
 The package gate includes the candidate checks, installs the archive in a
