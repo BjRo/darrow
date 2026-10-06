@@ -1,9 +1,13 @@
 import { afterEach, expect, test } from "bun:test";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { auditCaseCompatibility, resolveCase, selectCaseIds } from "./index";
+import {
+  validateCaseInventory,
+  resolveCase,
+  selectCaseIds,
+} from "../sevro-extension/index";
 
 const roots: string[] = [];
 
@@ -13,27 +17,7 @@ afterEach(async () => {
   );
 });
 
-async function invoke(root: string, extra: string[] = []) {
-  const child = Bun.spawn(
-    [
-      process.execPath,
-      join(import.meta.dir, "compatibility.ts"),
-      "--project-root",
-      root,
-      "--json",
-      ...extra,
-    ],
-    { stdout: "pipe", stderr: "pipe" },
-  );
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ]);
-  return { code, stderr, report: JSON.parse(stdout) };
-}
-
-test("compatibility inventory names unsupported cases and fails closed", async () => {
+test("case inventory names unsupported cases and fails closed", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-inventory-"));
   roots.push(root);
   const cases = join(root, "evals/experiments/sample/cases");
@@ -59,9 +43,9 @@ test("compatibility inventory names unsupported cases and fails closed", async (
       transcript_checks: [{ name: "raw", expect_regex: "tool" }],
     }),
   );
-  const inventory = await auditCaseCompatibility(root);
+  const inventory = await validateCaseInventory(root);
   expect(inventory).toMatchObject({
-    format: "darrow-sevro-compatibility-v1",
+    format: "darrow-case-inventory-v1",
     total: 2,
     supported: 1,
     valid: false,
@@ -73,12 +57,8 @@ test("compatibility inventory names unsupported cases and fails closed", async (
       },
     ],
   });
-  const strict = await invoke(root);
-  expect(strict.code, strict.stderr).toBe(1);
-  expect(strict.report.failures).toEqual(inventory.failures);
-  expect((await invoke(root, ["--allow-unsupported"])).code).toBe(0);
   await rm(unsupported);
-  expect((await invoke(root)).report).toMatchObject({
+  expect(await validateCaseInventory(root)).toMatchObject({
     supported: 1,
     valid: true,
     failures: [],
@@ -146,7 +126,7 @@ test("resolves continuation prompts including a later skill invocation", async (
   });
 });
 
-test("compatibility inventory includes repository invocation and composition", async () => {
+test("case inventory includes repository invocation and composition", async () => {
   const root = await mkdtemp(
     join(tmpdir(), "darrow-sevro-repository-inventory-"),
   );
@@ -172,7 +152,7 @@ test("compatibility inventory includes repository invocation and composition", a
   expect(await selectCaseIds(root, ["repository-"])).toEqual([
     "repository-probe",
   ]);
-  const inventory = await auditCaseCompatibility(root);
+  const inventory = await validateCaseInventory(root);
   expect(inventory).toMatchObject({
     total: 1,
     supported: 1,
@@ -188,4 +168,13 @@ test("compatibility inventory includes repository invocation and composition", a
     additionalPlugins: ["plugins/capability/provider"],
     activation: { sequence: ["probe", "provider"] },
   });
+});
+
+test("all canonical Darrow cases resolve through the current extension", async () => {
+  const inventory = await validateCaseInventory(
+    resolve(import.meta.dir, "../.."),
+  );
+  expect(inventory.total).toBeGreaterThan(0);
+  expect(inventory.failures).toEqual([]);
+  expect(inventory.valid).toBe(true);
 });

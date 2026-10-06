@@ -73,9 +73,9 @@ policy does not change the configured defaults or explicit route overrides.
 
 ### Repository-owned fixture sources
 
-The extraction compatibility inventory includes canonical repository-skill,
-plugin-skill, and skill-less experiment cases. Unsupported scopes remain named
-failures; omitting a scope cannot produce a valid migration gate.
+The regular case-resolution test includes canonical repository-skill,
+plugin-skill, and skill-less experiment cases. Unsupported cases remain named
+failures; omitting a scope cannot produce a valid result.
 
 Implicit repository-skill cases retain their repository scope. On Codex, prepare
 the owning skill under `.agents/skills/` without a plugin wrapper, exclude eval

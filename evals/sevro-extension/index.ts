@@ -2774,8 +2774,8 @@ export async function selectRunCaseIds(
   return selected.sort();
 }
 
-/** Inventory every Darrow case against the current extension before a switch. */
-export async function auditCaseCompatibility(root: string) {
+/** Validate every canonical Darrow case against the current extension. */
+export async function validateCaseInventory(root: string) {
   const projectRoot = await realpath(root);
   const entries = await caseEntries(projectRoot);
   if (!entries.length) throw new Error("No cases found.");
@@ -2799,7 +2799,7 @@ export async function auditCaseCompatibility(root: string) {
     }
   }
   return {
-    format: "darrow-sevro-compatibility-v1",
+    format: "darrow-case-inventory-v1",
     projectRoot,
     total: entries.length,
     supported,

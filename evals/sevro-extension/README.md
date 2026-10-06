@@ -696,17 +696,14 @@ hosts missing Codex native-call evidence. Invalid maps also exit `64` before
 candidate execution. Claude's existing selected-owner cases keep their separate
 Claude policy; this option supplies no replacement for that policy.
 
-To inventory case compatibility before switching a workflow, run:
+The regular domain test checks that all canonical Darrow cases resolve:
 
 ```sh
-bun run eval:sevro:compatibility -- --allow-unsupported
+bun test evals/domain/case-resolution.test.ts
 ```
 
-The command reports every case that cannot resolve through the current Darrow
-extension. Omit `--allow-unsupported` to fail when any case remains unsupported;
-use `--json` for the versioned machine-readable report. Missing or unreadable
-case inputs fail the scan. This inventory tests resolution, not host execution
-or grade parity.
+Missing, unreadable, duplicate, or unsupported cases fail the test. Resolution
+does not establish host execution or successful task grading.
 
 The Claude non-ready readiness case uses ordered native `Skill` and `Agent`
 calls to check that readiness ran once and no owner started. Its retired-ledger
