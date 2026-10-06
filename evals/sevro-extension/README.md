@@ -424,16 +424,12 @@ trial-number order in results and checkpoints, and drains active trials before
 finalizing cancellation or persistence errors. Selected cases remain sequential.
 Normal callers use the same installed public boundary by default.
 
-Selection validates the complete public result with Ajv and the bundled
-[`cli-result-v1.schema.json`](schemas/cli-result-v1.schema.json) contract snapshot.
-It comes from Sevro commit `4a6482a`, with SHA-256
-`34e8995c9065e198272f3ed300c98cfb95becc2baeb9e4e80ab635b4d143bf01`.
-It includes nested case/trial fields and state consistency, without importing
-engine internals. Additional Darrow checks bind the selected case, process exit,
-and absolute evidence path. Refresh the snapshot from Sevro's public `schemas/`
-contract when adopting a compatible release, update this provenance, and rerun
-selection and installed-package parity checks. The schema participates in the
-retained extension content digest.
+Selection validates the complete public result with Ajv and the public
+[`cli-result-v1.schema.json`](https://github.com/BjRo/sevro/blob/main/schemas/cli-result-v1.schema.json)
+shipped by the exact installed Sevro dependency. Additional Darrow checks bind
+the selected case, process exit, and absolute evidence path. The schema
+participates in the retained extension content digest. Rerun integration checks
+when upgrading the pin.
 
 ## Separate configuration roots
 
@@ -912,11 +908,11 @@ quality metric unavailable. `protocolPassRate` uses public task verdicts,
 including any selected task policy. Groups keep mode, harness, requested and
 actual condition, and candidate route separate. An unavailable trial leaves its
 group rate unknown. Invalid or inconsistent inputs retain a diagnostic and
-fail the report and suite. The report validates both public schema snapshots,
-including [`run-evidence-v1.schema.json`](schemas/run-evidence-v1.schema.json),
-and rejects duplicate check IDs before measuring outcomes. Refresh the evidence
-snapshot alongside the CLI schema when upgrading Sevro and rerun installed-package
-parity. See [quality report validation](quality-validation.md)
+fail the report and suite. The report validates both public schemas shipped by
+the pinned package, including
+[`run-evidence-v1.schema.json`](https://github.com/BjRo/sevro/blob/main/schemas/run-evidence-v1.schema.json),
+and rejects duplicate check IDs before measuring outcomes. Rerun installed-package
+integration checks when upgrading Sevro. See [quality report validation](quality-validation.md)
 for the public-command evidence and limits.
 
 The separate

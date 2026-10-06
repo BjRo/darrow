@@ -135,6 +135,11 @@ without changing generic Sevro setup policy.
 
 ### Direct runner roots
 
+Public result and run-evidence schemas come from Darrow's exact installed Sevro
+dependency. Darrow does not maintain copies of engine schemas. Development
+overrides remain subject to that pinned public contract. Darrow callers reject
+malformed or contradictory results before applying repository policy.
+
 The direct runner accepts `--project-root <directory>` for case discovery,
 supporting plugin and skill paths, repository skill mirrors, and the default
 corpus and result locations. It accepts `--config-root <directory>` for the

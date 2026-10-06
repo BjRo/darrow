@@ -26,7 +26,10 @@ const sourceFiles = [
   join(repositoryRoot, "evals/fixture-ticket.ts"),
   join(import.meta.dir, "run.ts"),
   join(import.meta.dir, "selection.ts"),
-  join(import.meta.dir, "schemas/cli-result-v1.schema.json"),
+  Bun.resolveSync(
+    "@bjoernrochel/sevro/schemas/cli-result-v1.schema.json",
+    import.meta.dir,
+  ),
   join(import.meta.dir, "benchmark-condition.ts"),
   join(import.meta.dir, "skill-mount.ts"),
   join(import.meta.dir, "benchmark-policy.ts"),

@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import Ajv2020 from "ajv/dist/2020";
-import schema from "./schemas/cli-result-v1.schema.json";
+import schema from "@bjoernrochel/sevro/schemas/cli-result-v1.schema.json";
 import { optionValue } from "./suite-routes";
 import { preflightCaseDetails } from "./index";
 import { activationGate, type ActivationExpectation } from "./activation";

@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join } from "node:path";
 import Ajv2020 from "ajv/dist/2020";
-import cliResultSchema from "./schemas/cli-result-v1.schema.json";
+import cliResultSchema from "@bjoernrochel/sevro/schemas/cli-result-v1.schema.json";
 import { invocation } from "./run";
 import { selectRunCaseIds } from "./index";
 import { candidateArguments, type CaseRoutes } from "./suite-routes";

@@ -2,8 +2,8 @@ import { readFile, writeFile } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import Ajv2020 from "ajv/dist/2020";
-import schema from "./schemas/cli-result-v1.schema.json";
-import evidenceSchema from "./schemas/run-evidence-v1.schema.json";
+import schema from "@bjoernrochel/sevro/schemas/cli-result-v1.schema.json";
+import evidenceSchema from "@bjoernrochel/sevro/schemas/run-evidence-v1.schema.json";
 
 const validator = new Ajv2020({ strict: false }).addSchema(schema);
 const validate = validator.getSchema(schema.$id)!;
