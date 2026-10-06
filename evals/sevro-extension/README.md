@@ -17,7 +17,7 @@ Run one focused case before attempting a wider live evaluation:
 
 ```sh
 bun eval --harness codex --owner-evaluation passive \
-  --skill create-commit --case commit \
+  --skill create-commit --case create-commit-conventional-format \
   --trials 1 --jobs 1 --threshold 1 \
   --results-root /absolute/path/to/results
 ```
