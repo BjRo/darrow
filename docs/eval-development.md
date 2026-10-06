@@ -10,6 +10,9 @@ constraints for producing and interpreting that evidence.
 - Keep independent Darrow oracle and repository-tooling tests under
   `evals/domain/`. Invoke the owning oracle directly or use Sevro's public CLI
   and protocol; do not import generic runner implementation or its private types.
+- Keep installed public-interface checks under `evals/integration/` and
+  standalone historical-reader tests under `evals/history/`. Sevro owns the
+  scheduling, isolation, host, built-in grading and persistence test matrix.
 - Give every skill colocated eval cases that verify its public behavior and
   intent boundaries. Test deterministic scripts separately when present.
 - Start with the exact normative invariant or public promise under test. An
@@ -384,7 +387,7 @@ limits simultaneous trials. Missing configuration uses the host default;
 unreadable configuration, invalid TOML, or a nonpositive/noninteger limit fails
 explicitly.
 
-## Runner compatibility baseline
+## Installed Sevro verification
 
 Install the exact published development dependency before running the public
 integration and Darrow domain gate:
@@ -404,11 +407,10 @@ or types.
 Integration commands allow 30 seconds per test for frozen backend startup and
 isolated CLI fixtures. A test's explicit timeout still takes precedence.
 
-The source-copy compatibility launcher and temporary legacy cross-runner
-comparison are retired. Their observed results and deliberate command, output,
-condition, and historical interpretation changes remain recorded in the
-[migration guide](../evals/sevro-extension/migration.md) and its validation
-records. The retained `DARROW_EVAL_RUNNER_COMMAND` launcher seam is retired too.
+The [test ownership guide](../evals/README.md) separates installed integration,
+Darrow policy and historical readers. The source-copy launcher and comparison
+against the retired runner are gone. Their evidence and deliberate command
+changes are preserved in the [research record](research/sevro-extraction.md).
 
 For coordinated development, use one explicit absolute route:
 
@@ -423,11 +425,12 @@ checkout:
 SEVRO_PACKAGE_TARBALL=/absolute/path/to/bjoernrochel-sevro-version.tgz bun run test:eval-package
 ```
 
-The package gate includes the candidate checks, installs the archive in a
-temporary consumer, and clears its checkout override. Public command fixtures retain package name, version, build
-identity, and available native observations. The three default-caller tests
-also verify Darrow's own frozen pin with both overrides cleared. An explicit
-checkout retains its revision and patch identity; it is development evidence.
+The package gate installs the archive in a temporary consumer and runs the
+integration, policy and historical-reader groups with its checkout override
+cleared. Default-caller checks also verify Darrow's own frozen pin with both
+overrides cleared. An explicit checkout retains its revision and patch identity;
+it is development evidence. Upgrade and rollback instructions are in the
+[development and release guide](../evals/sevro-extension/migration.md).
 
 Normal direct, guide, and benchmark callers use the frozen installed pin. The
 suite caller retains selectors, route options, seeded ordering, and

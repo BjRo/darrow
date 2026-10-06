@@ -88,6 +88,10 @@ The old migration command names are replaced by `test:eval-integration`,
 
 ## Original records
 
+The [original extension README](https://github.com/BjRo/darrow/blob/16a443f896b0b25373a381e3a5b55cd471dbe27a/evals/sevro-extension/README.md)
+and [original migration guide](https://github.com/BjRo/darrow/blob/16a443f896b0b25373a381e3a5b55cd471dbe27a/evals/sevro-extension/migration.md)
+retain their complete milestone narratives and earlier contract descriptions.
+
 The following links pin complete original records to the pre-cleanup commit.
 Their statements about pending work and source routes describe their milestone,
 not the current installation. The records are retained byte-for-byte in Git
