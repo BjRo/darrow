@@ -2691,3 +2691,81 @@ test("ticket composition packages only selected Git skills", async () => {
     ".sevro-marketplace/plugins/2-darrow-git/skills/create-branch/SKILL.md",
   );
 });
+
+test("Darrow translates skill schema assets to public output checks", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-schema-"));
+  roots.push(root);
+  const skill = join(root, "plugins/capability/example/skills/example");
+  const cases = join(skill, "evals");
+  await mkdir(cases, { recursive: true });
+  await writeFile(
+    join(skill, "SKILL.md"),
+    "---\nname: example\ndescription: Example\n---\n",
+  );
+  const schema = {
+    type: "object",
+    required: ["status"],
+    properties: { status: { const: "ready" } },
+    additionalProperties: false,
+  };
+  await writeFile(join(cases, "result.schema.json"), JSON.stringify(schema));
+  const caseFile = join(cases, "schema.yaml");
+  const definition = {
+    id: "schema-case",
+    invariant: "EXAMPLE-SCHEMA",
+    prompt: "Return status JSON.",
+    fixture: {
+      commits: [{ message: "Initialize", files: { "README.md": "fixture\n" } }],
+    },
+    checks: [],
+    output_checks: [
+      {
+        name: "schema result",
+        valid_json: true,
+        schema: "./evals/result.schema.json",
+      },
+    ],
+  };
+  await writeFile(caseFile, JSON.stringify(definition));
+  const resolveParams = {
+    projectRoot: pathToFileURL(root).href,
+    selectors: { caseIds: ["schema-case"] },
+    configuration: {},
+  };
+  const resolved = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", resolveParams),
+  );
+  expect(resolved.code, resolved.stderr).toBe(0);
+  expect(resolved.value.result.cases[0]!.checks[0]).toMatchObject({
+    grader: "sevro.output",
+    configuration: { validJson: true, schema },
+  });
+  await writeFile(
+    caseFile,
+    JSON.stringify({
+      ...definition,
+      output_checks: [
+        { name: "schema result", schema: "../../../../outside.json" },
+      ],
+    }),
+  );
+  const escaped = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", resolveParams),
+  );
+  expect(escaped.value.error.message).toMatch(/schema path is invalid/);
+
+  const realCase = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(projectRoot).href,
+      selectors: { caseIds: ["readiness-json-explicit"] },
+      configuration: {},
+    }),
+  );
+  expect(realCase.code, realCase.stderr).toBe(0);
+  expect(realCase.value.result.cases[0]!.checks[2]).toMatchObject({
+    configuration: { schema: { type: "object" } },
+  });
+});
