@@ -73,7 +73,7 @@ its identity between cells.
 Darrow translates `follow_up_prompt`; Sevro owns continuation on the original
 Claude session. The extension grades declared feedback boundaries from complete,
 bound observations. Missing or contradictory evidence remains unavailable.
-See Sevro's [extension protocol](https://github.com/BjRo/sevro/blob/main/docs/extension-protocol-v1.md)
+See Sevro's [extension protocol](https://github.com/BjRo/sevro/blob/6387cca22609f3463e4558813b5e5e92c1c4f952/docs/extension-protocol-v1.md)
 for the host capability contract.
 
 Repository-skill trials require the `.claude/skills/<name>` mirror and
@@ -186,7 +186,7 @@ prompt, fixture, host, routes, checks and instrumentation.
 Callers validate results against public schemas shipped by the pinned Sevro
 package. They bind the selected case, process exit and evidence path before
 applying Darrow policy. Public protocol, result and identity mechanics are
-documented in [Sevro](https://github.com/BjRo/sevro/tree/main/docs).
+documented in [Sevro](https://github.com/BjRo/sevro/tree/6387cca22609f3463e4558813b5e5e92c1c4f952/docs).
 
 ## Historical result interpretation
 
