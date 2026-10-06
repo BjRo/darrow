@@ -3,10 +3,23 @@ set -euo pipefail
 printf '/.agents/\n/.claude/\n' >> .git/info/exclude
 source_root=$(cd "$DARROW_EVAL_CASE_DIR/../../../.." && pwd -P)
 mkdir -p .git/fixture-bin
+mkdir -p .git/fixture-global-node-modules
 for tool in gh curl wget npm npx; do
+  printf '%s\n' '#!/bin/sh' > ".git/fixture-bin/$tool"
+  if [ "$tool" = npm ]; then
+    # Claude probes its global installation during startup. Supply only this
+    # read-only query from fixture state; other npm calls stay intercepted.
+    # shellcheck disable=SC2016
+    printf '%s\n' \
+      'if [ "$#" -eq 2 ] && [ "$1" = root ] && [ "$2" = -g ]; then' \
+      '  fixture_root=$(cd "$(dirname "$0")/../.." && pwd -P)' \
+      '  printf "%s\n" "$fixture_root/.git/fixture-global-node-modules"' \
+      '  exit 0' \
+      'fi' >> ".git/fixture-bin/$tool"
+  fi
   # The generated mock expands $0 at invocation, not during fixture setup.
   # shellcheck disable=SC2016
-  printf '%s\n' '#!/bin/sh' 'printf "%s\n" "${0##*/}" >> .git/guide-effects' 'exit 73' > ".git/fixture-bin/$tool"
+  printf '%s\n' 'printf "%s\n" "${0##*/}" >> .git/guide-effects' 'exit 73' >> ".git/fixture-bin/$tool"
   chmod +x ".git/fixture-bin/$tool"
 done
 for file in README.md CONTRIBUTING.md LICENSE package.json; do
