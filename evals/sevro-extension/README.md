@@ -11,11 +11,11 @@ changes, the compatibility matrix, and release update and rollback steps.
 Normal direct, benchmark, and guide callers use published
 `@bjoernrochel/sevro@0.1.0-rc.2` from Darrow's frozen development dependency.
 Explicit package or checkout routes remain available for development.
-The [scoped release validation](scoped-release-validation.md) records the initial
+The [scoped release validation](../../docs/research/sevro-extraction.md#scoped-release-validation) records the initial
 archive identity, checks, and targeted benchmark expectation repair.
-The [runner retirement record](runner-retirement-validation.md) records generic
+The [runner retirement record](../../docs/research/sevro-extraction.md#runner-retirement-validation) records generic
 implementation removal and the retained public integration boundary.
-The [frozen CI matrix](frozen-ci-validation.md) records automatic installed-pin
+The [frozen CI matrix](../../docs/research/sevro-extraction.md#frozen-ci-validation) records automatic installed-pin
 verification, host prerequisites, and local evidence limits.
 
 This migration slice resolves one selected skill-free experiment case or
@@ -42,7 +42,7 @@ plugins keep their own package directories on Claude too.
 An explicit Claude repository prompt must begin with `{{skill_invocation}}` and
 its arguments. An inline mention is rejected before execution. Plugin invocations
 use their installed namespace: `$plugin:skill` on Codex and `/plugin:skill` on
-Claude. See [activation and prompt validation](activation-prompt-validation.md)
+Claude. See [activation and prompt validation](../../docs/research/sevro-extraction.md#activation-prompt-validation)
 for the legacy rendering migrations and public-interface tests.
 Pass `--claude-project-settings` for either explicit or implicit repository
 trials. Without it, preparation rejects the unavailable project-skill route.
@@ -163,7 +163,7 @@ boundary, child usage, and orchestration counts as recorded claims. They do not
 supply native owner acceptance or change measured outcomes. Missing fields stay
 null; malformed provided metadata produces diagnostics. Unrelated private
 payload fields are omitted. See
-[archival claims validation](historical-claims-validation.md).
+[archival claims validation](../../docs/research/sevro-extraction.md#historical-claims-validation).
 
 Measured task quality excludes only the two historical bookkeeping checks;
 protocol rate retains the recorded trial verdict. Bookkeeping requires both
@@ -181,8 +181,8 @@ output. Unsupported or unversioned suite manifests are diagnosed; their result
 arrays can still be interpreted separately without inventing suite provenance.
 Other comparison
 formats remain preserved in their original files and are explicitly unsupported
-by this reader. See [historical validation](history-validation.md) and
-[report-command validation](legacy-report-command-validation.md).
+by this reader. See [historical validation](../../docs/research/sevro-extraction.md#history-validation) and
+[report-command validation](../../docs/research/sevro-extraction.md#legacy-report-command-validation).
 
 Compare two legacy result arrays through the existing command or its standalone
 entrypoint:
@@ -209,7 +209,7 @@ Exit `0` means the recorded summaries were compared. It does not establish a
 complete planned run, current evaluator equivalence, or live behavioral
 stability. Comparison of suite manifests and checkpoints remains unsupported;
 interpret those with the historical reader. See
-[comparison validation](legacy-compare-validation.md).
+[comparison validation](../../docs/research/sevro-extraction.md#legacy-compare-validation).
 
 Interpret a named skill ablation in a historical suite through its existing
 command or the standalone entrypoint:
@@ -249,7 +249,7 @@ ineligible for ablation deltas. The interpreter does not read a mutable suite
 file to invent the missing settings. Their input digests and diagnostics remain
 available, and the historical reader still interprets their archived results.
 The private runner formatter tests are replaced by tests of the public commands.
-See [ablation validation](legacy-ablation-validation.md).
+See [ablation validation](../../docs/research/sevro-extraction.md#legacy-ablation-validation).
 
 ### Historical reviewer-routing artifacts
 
@@ -281,12 +281,12 @@ a new proof. These tools interpret retained historical evidence; their format
 names do not make synthetic fixtures live evidence or establish current Sevro
 evaluator equivalence. The Claude validator continues to reject the recorded
 undashed-marker study. See the [original study](../../docs/research/code-review-reviewer-routing-trials.md)
-and [migration validation](historical-review-proof-validation.md).
+and [migration validation](../../docs/research/sevro-extraction.md#historical-review-proof-validation).
 
 ## Direct evaluation caller
 
 The existing direct command uses Darrow's exact installed Sevro dependency.
-See [default package validation](default-package-validation.md) for all three
+See [default package validation](../../docs/research/sevro-extraction.md#default-package-validation) for all three
 caller switches and their public-command regressions.
 
 Example:
@@ -360,7 +360,7 @@ source provenance. The manifest, its containing directory, the source cache,
 and related repository worktrees are protected from isolated checks and bundled
 native tools. Repeated attempts keep the same corpus identity; changed manifest
 bytes change it. Reusing a results root preserves the earlier provenance files.
-See [corpus validation](corpus-caller-validation.md).
+See [corpus validation](../../docs/research/sevro-extraction.md#corpus-caller-validation).
 
 The direct command accepts `--human-review-minutes <number>` before `--`.
 It records manually supplied minutes per trial in the selection manifest's
@@ -372,10 +372,10 @@ per-attempt, latest, optional output, failed, and interrupted manifests.
 It does not assert that a review happened or enter Sevro's task grading,
 evaluator identity, automated measurements, or generic reports. Dry execution
 remains unassessed. The Darrow direct caller owns this option and refuses it
-after `--`. See [manual-review validation](manual-review-validation.md).
+after `--`. See [manual-review validation](../../docs/research/sevro-extraction.md#manual-review-validation).
 
 Private goal assertions remain an explicit migration gap and are rejected. See
-[direct caller validation](direct-caller-validation.md).
+[direct caller validation](../../docs/research/sevro-extraction.md#direct-caller-validation).
 
 ## Direct case selection
 
@@ -458,8 +458,8 @@ and whether visible worktree contents stayed unchanged before feedback.
 Unmeasured fingerprints remain partial and unknown. Unbound native results
 leave usage and cost unknown. Existing ownership and feedback assertions keep
 their declared host and evidence requirements. Deterministic integration
-coverage is in [suite-validation.md](suite-validation.md); one installed-build
-live continuation is in [live-validation.md](live-validation.md).
+coverage is in [suite-validation.md](../../docs/research/sevro-extraction.md#suite-validation); one installed-build
+live continuation is in [live-validation.md](../../docs/research/sevro-extraction.md#live-validation).
 
 ## Benchmark condition files
 
@@ -551,7 +551,7 @@ SEVRO_PACKAGE_BIN=/absolute/path/to/sevro bun evals/repository-guide.ts \
 ```
 
 Explicit `SEVRO_CHECKOUT` and `SEVRO_PACKAGE_BIN` overrides remain available.
-See [guide validation](guide-validation.md)
+See [guide validation](../../docs/research/sevro-extraction.md#guide-validation)
 for the test-first evidence and synthetic-host limits.
 
 ## Benchmark suite caller
@@ -559,7 +559,7 @@ for the test-first evidence and synthetic-host limits.
 The three canonical routing benchmarks provide explicit `-passive` modes for
 observational comparisons. Their original enforced modes remain available and
 unsupported by bundled hosts. Select passive mode names explicitly; see the
-[commands and regression evidence](passive-benchmark-validation.md). The variants
+[commands and regression evidence](../../docs/research/sevro-extraction.md#passive-benchmark-validation). The variants
 preserve task and route checks and add no active benchmark correction.
 
 The existing suite command uses Darrow's exact installed Sevro dependency.
@@ -605,11 +605,11 @@ enforced execution still fail explicitly. The three revised canonical suites
 now use explicit native owner-route maps; custom suites retaining private fields
 remain unsupported. Dry preparation preserves enforced labels and stays
 unassessed. See
-[benchmark migration validation](benchmark-migration-validation.md).
+[benchmark migration validation](../../docs/research/sevro-extraction.md#benchmark-migration-validation).
 
 Without a runner override, the caller uses the frozen installed dependency.
 An invalid explicit route cannot fall back. See
-[caller validation](benchmark-caller-validation.md).
+[caller validation](../../docs/research/sevro-extraction.md#benchmark-caller-validation).
 
 ## Candidate skill overrides
 
@@ -718,7 +718,7 @@ Sevro extension. For Codex cases, a complete native-call observation is required
 extension checks that no replacement owner launched, that later parent calls
 only waited or addressed the accepted child, and that the final answer omitted
 internal goal records. Missing or partial host evidence leaves those checks
-unavailable. The [completion-policy reconciliation](completion-policy-validation.md)
+unavailable. The [completion-policy reconciliation](../../docs/research/sevro-extraction.md#completion-policy-validation)
 preserves the legacy internal TSV and Markdown-wrapper examples through public
 grading and identifies the retired fixed completion-report grammar.
 Full goal-route reports and most transcript checks remain
@@ -801,7 +801,7 @@ SEVRO_PACKAGE_BIN=/absolute/path/to/consumer/node_modules/.bin/sevro bun test ev
 ```
 
 The extension creates `.git/fixture-state` before case setup or tools run.
-See [fixture-state validation](fixture-state-validation.md) for the public
+See [fixture-state validation](../../docs/research/sevro-extraction.md#fixture-state-validation) for the public
 regression and migrated failed-check oracle examples.
 
 To run one supported case through the Darrow entrypoint, use the frozen installed
@@ -851,7 +851,7 @@ the complete `cellPlan`, with one-based `index`, `harness`, `mode`, and `caseId`
 Completed or cancelled `cells` form its executed prefix with the same indices.
 Selection lists describe the selected set, while the plan describes execution
 order. The seed changes no evaluation or comparison-eligibility dimension.
-See [ordering validation](ordering-validation.md) for replay and interruption
+See [ordering validation](../../docs/research/sevro-extraction.md#ordering-validation) for replay and interruption
 evidence. Each case still uses its own public Sevro command.
 
 This suite route accepts a nonempty, unique `harnesses` list containing `codex`,
@@ -912,7 +912,7 @@ fail the report and suite. The report validates both public schemas shipped by
 the pinned package, including
 [`run-evidence-v1.schema.json`](https://github.com/BjRo/sevro/blob/main/schemas/run-evidence-v1.schema.json),
 and rejects duplicate check IDs before measuring outcomes. Rerun installed-package
-integration checks when upgrading Sevro. See [quality report validation](quality-validation.md)
+integration checks when upgrading Sevro. See [quality report validation](../../docs/research/sevro-extraction.md#quality-validation)
 for the public-command evidence and limits.
 
 The separate
@@ -1023,9 +1023,9 @@ route with `--dry`, validating its protocol identity and retained artifacts
 without starting a model turn. On macOS with Codex installed, it also drives a
 controlled JSONL turn through the bundled host to verify complete and partial
 native activation receipts end to end without a model call.
-The first focused live run is recorded in [live-validation.md](live-validation.md).
+The first focused live run is recorded in [live-validation.md](../../docs/research/sevro-extraction.md#live-validation).
 Suite activation regressions and the focused native Claude suite are recorded
-in [suite-validation.md](suite-validation.md).
+in [suite-validation.md](../../docs/research/sevro-extraction.md#suite-validation).
 
 The entrypoint supplies `index.ts`, `run.ts`, `benchmark-condition.ts`,
 `benchmark-policy.ts`, `benchmark-owner.ts`, `skill-mount.ts`,

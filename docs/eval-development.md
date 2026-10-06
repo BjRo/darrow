@@ -227,8 +227,8 @@ reader defaults to stdout. Both refuse input archives and their aliases as
 output. The human layout deliberately replaces the old rollups with the
 historical view's recorded facts and explicit measurement boundaries. See the
 [historical reader contract](../evals/sevro-extension/README.md#historical-result-interpretation)
-and [validation](../evals/sevro-extension/history-validation.md), plus
-[report-command validation](../evals/sevro-extension/legacy-report-command-validation.md).
+and [validation](research/sevro-extraction.md#history-validation), plus
+[report-command validation](research/sevro-extraction.md#legacy-report-command-validation).
 
 Historical skill ablation uses
 `bun evals/runner/ablation.ts /absolute/path/to/suite-run.json` or
@@ -241,7 +241,7 @@ instrumentation are ineligible. Valid peer comparisons remain visible. A dry
 suite is unmeasured preparation. Input digests and diagnostics remain in the
 report, and no output may replace an archive or its alias. See the
 [historical ablation contract](../evals/sevro-extension/README.md#historical-result-interpretation)
-and [validation](../evals/sevro-extension/legacy-ablation-validation.md).
+and [validation](research/sevro-extraction.md#legacy-ablation-validation).
 
 Shell checks, including dry checks, use the same outer isolation mechanism as
 candidate execution with a separate credential-free home and environment.

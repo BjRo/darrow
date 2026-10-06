@@ -6,7 +6,7 @@ published `@bjoernrochel/sevro@0.1.0-rc.2` as an exact development dependency.
 Run `bun install --frozen-lockfile` before using these commands. Generic runner
 implementation, private tests, and source-copy integration are removed from
 Darrow; public integration tests and domain policy remain.
-The [runner cutover inventory](runner-cutover-inventory.md) records the remaining
+The [runner cutover inventory](../../docs/research/sevro-extraction.md#runner-cutover-inventory) records the remaining
 ownership groups, source dependencies, and domain tests already moved out.
 The ownership boundary is recorded in
 [ADR-0010](../../docs/decisions/ADR-0010-extract-the-evaluation-runner-into-sevro.md)
@@ -68,7 +68,7 @@ Suite `--seed` remains before `--` and preserves the legacy host/mode block
 shuffle. The manifest retains `orderSeed` and the full indexed `cellPlan`
 before execution; completed and cancelled cells retain its executed prefix.
 An omitted seed generates a retained timestamp, and an empty seed is valid.
-See [ordering validation](ordering-validation.md). This covers execution order;
+See [ordering validation](../../docs/research/sevro-extraction.md#ordering-validation). This covers execution order;
 normal benchmark callers now use the installed package. Bundled hosts still
 reject enforced requests explicitly.
 
@@ -82,14 +82,14 @@ rejects invalid invocation with `64`, and preserves cancellation exits.
 `--corpus-manifest` selects an explicit pinned corpus with retained manifest
 identity and source provenance. Its paths resolve from the invocation directory
 on the direct command; the migration entrypoint requires an absolute path before
-`--`. See [corpus validation](corpus-caller-validation.md).
+`--`. See [corpus validation](../../docs/research/sevro-extraction.md#corpus-caller-validation).
 The direct caller also accepts `--human-review-minutes` before `--`, retaining
 minutes per trial as a user-supplied selection annotation. Missing values stay
 unknown, zero is explicit, and empty, negative, or non-finite values fail before
 execution. The annotation does not enter Sevro grading, identity, automated
-measurements, or generic reports. See [manual-review validation](manual-review-validation.md)
+measurements, or generic reports. See [manual-review validation](../../docs/research/sevro-extraction.md#manual-review-validation)
 and
-[direct caller validation](direct-caller-validation.md).
+[direct caller validation](../../docs/research/sevro-extraction.md#direct-caller-validation).
 
 The suite caller preserves relative `--suite` and `--output`, default storage,
 selectors, evidence limits, seeds, dry execution, and supported native routes.
@@ -101,7 +101,7 @@ The default advisory route is Codex `gpt-5.6-sol/low`; `--no-judge` disables it,
 while the independent semantic route remains Codex `gpt-5.6-luna/low`.
 Sevro does not yet supply native Claude grader routes. Requested Claude semantic
 or active advisory grading fails explicitly instead of substituting Codex.
-See [caller validation](benchmark-caller-validation.md).
+See [caller validation](../../docs/research/sevro-extraction.md#benchmark-caller-validation).
 
 Sevro's task, execution, and grading states remain separate. Activation,
 semantic gates, and advisory assessments retain their own evidence. The direct
@@ -137,7 +137,7 @@ retain all required checks and any selected task policy. Invalid inputs fail
 the report. Dry or unavailable evidence stays unmeasured, and custom task
 policies do not acquire a default quality rate. This explicit treatment of
 unavailable evidence is not a claim of numeric equivalence to historical legacy
-quality rates. See [quality report validation](quality-validation.md).
+quality rates. See [quality report validation](../../docs/research/sevro-extraction.md#quality-validation).
 
 ### Fixture preparation
 
@@ -145,40 +145,40 @@ Fixture preparation now preserves the legacy `.git/fixture-state` directory
 through the Darrow extension. Generic Sevro mechanics do not create this domain
 state. The failed-check fixture's oracle tests have moved to `evals/domain/` and
 the installed package gate includes that directory. See
-[fixture-state validation](fixture-state-validation.md) for the regression,
+[fixture-state validation](../../docs/research/sevro-extraction.md#fixture-state-validation) for the regression,
 preserved examples, and observed gates.
 The incomplete-verification fixture's sixteen tests also use that transport;
-see [verification fixture validation](verification-fixture-validation.md).
+see [verification fixture validation](../../docs/research/sevro-extraction.md#verification-fixture-validation).
 The authorized-publication fixture's eight tests preserve draft flags, help
 state, and remote commit evidence through the same public command; see
-[publication fixture validation](publication-fixture-validation.md).
+[publication fixture validation](../../docs/research/sevro-extraction.md#publication-fixture-validation).
 The verification-cadence fixture's eleven synthetic trace examples also use the
-public command; see [cadence fixture validation](cadence-fixture-validation.md).
+public command; see [cadence fixture validation](../../docs/research/sevro-extraction.md#cadence-fixture-validation).
 Canonical Darrow setup now resolves ambient tools before fixture wrappers, as
 the legacy setup did. Execution and shell grading still use declared fixture
 tools. The capability-review fixture's eight examples use the public command;
-see [capability fixture validation](capability-fixture-validation.md).
+see [capability fixture validation](../../docs/research/sevro-extraction.md#capability-fixture-validation).
 The readiness fixture's nine examples also use the public command, with copied
 domain assets and explicitly prepared tools for isolated checks; see
-[readiness fixture validation](readiness-fixture-validation.md).
+[readiness fixture validation](../../docs/research/sevro-extraction.md#readiness-fixture-validation).
 The real commit fixture's twelve examples retain the actual Git plugin helper,
 hook failure, guarded remediation, review evidence, and local publication
 through the public command; see
-[real commit fixture validation](real-commit-fixture-validation.md).
+[real commit fixture validation](../../docs/research/sevro-extraction.md#real-commit-fixture-validation).
 The discovery loophole tests preserve the canonical subject question and
 semantic-check declarations; see
-[discovery oracle validation](discovery-oracle-validation.md).
+[discovery oracle validation](../../docs/research/sevro-extraction.md#discovery-oracle-validation).
 The feedback fixture's six tests retain scoped delivery, rejected approval, and
-bounded diagnostics; see [feedback fixture validation](feedback-fixture-validation.md).
+bounded diagnostics; see [feedback fixture validation](../../docs/research/sevro-extraction.md#feedback-fixture-validation).
 The four composition fixture tests retain actual publication observations,
 explicit repair limits, and newline policy; see
-[composition fixture validation](composition-fixture-validation.md).
+[composition fixture validation](../../docs/research/sevro-extraction.md#composition-fixture-validation).
 The sixty review-outcome tests preserve package setup, captured check evidence,
 finding states, and complete report presentation under both shell paths; see
-[review outcome validation](review-outcome-validation.md).
+[review outcome validation](../../docs/research/sevro-extraction.md#review-outcome-validation).
 The twenty-five goal-review tests preserve activation requirements, canonical
 artifacts, and original-finding-bound repair proof through public protocol and
-command requests; see [goal review validation](goal-review-fixture-validation.md).
+command requests; see [goal review validation](../../docs/research/sevro-extraction.md#goal-review-fixture-validation).
 
 ### Activation and prompt policy
 
@@ -186,7 +186,7 @@ The twelve activation policy tests and five prompt tests now live under
 `evals/domain/`. They exercise public resolve, prepare, and evaluate requests,
 Darrow's separate activation gate, and prompt output from the installed command.
 The legacy implementation files are removed after the published-package cutover.
-See [activation and prompt validation](activation-prompt-validation.md).
+See [activation and prompt validation](../../docs/research/sevro-extraction.md#activation-prompt-validation).
 
 Claude plugin tokens now use `/plugin:skill`, binding the installed manifest's
 namespace. Explicit Claude repository prompts must begin with `/skill`; an inline
@@ -200,23 +200,23 @@ the existing public native-acceptance matrix. Model and effort mismatches, conte
 inheritance, and complete observations without a unique accepted child fail;
 missing or malformed evidence remains unavailable. Native route evidence leaves
 private contract selection unverified. See
-[owner evidence validation](owner-evidence-validation.md).
+[owner evidence validation](../../docs/research/sevro-extraction.md#owner-evidence-validation).
 
 The generic permission-locked cleanup test now belongs to Sevro's public CLI
 regressions. Its fix passes independent installed-package checks. See
-[fixture cleanup validation](fixture-cleanup-validation.md).
+[fixture cleanup validation](../../docs/research/sevro-extraction.md#fixture-cleanup-validation).
 
 The exact local ticket round-trip example now lives under `evals/domain/` and
 uses the installed public command. It retains committed scaffolding, case-asset
 setup, exact ticket body bytes, the log alias, and ordered events. See
-[ticket fixture validation](ticket-fixture-validation.md).
+[ticket fixture validation](../../docs/research/sevro-extraction.md#ticket-fixture-validation).
 
 The three backend mounting examples now use public preparation requests under
 `evals/domain/`. Migration exposed an omitted owning backend in implicit Codex
 project discovery; the extension preserves `.agents/backend` with bounded,
 Git-excluded artifacts and hidden-eval filtering. Native plugin packages retain
 their own backend layout. See
-[backend mounting validation](backend-mount-validation.md).
+[backend mounting validation](../../docs/research/sevro-extraction.md#backend-mount-validation).
 
 The remaining mounting policy is now reconciled through public preparation and
 installed-command examples. Native packages retain filtered skill-local
@@ -226,7 +226,7 @@ unrelated setup files under `.agents/` stay visible. The legacy merged
 `source_plugin` identity is retired in favor of separately packaged providers.
 The mixed fixture test file is removed; its canonical workspace assertion is
 preserved by a new Sevro public CLI regression and engine fix. See
-[mounting fixture validation](mounting-fixture-validation.md).
+[mounting fixture validation](../../docs/research/sevro-extraction.md#mounting-fixture-validation).
 
 ## Benchmark assertion migration
 
@@ -246,14 +246,14 @@ The suites no longer assert private goal profiles, workflow/risk selection, or
 selected-versus-effective goal contract application. Historical mode names and
 condition instructions remain labels and task inputs; they do not establish
 private dimensions. Original snapshots retain their original interpretation.
-See [benchmark migration validation](benchmark-migration-validation.md).
+See [benchmark migration validation](../../docs/research/sevro-extraction.md#benchmark-migration-validation).
 
 The suites also expose explicit `-passive` variants for observational runs.
 Each variant preserves its original benchmark inputs and route checks and sets
 `owner_evaluation: passive`. Select those mode names explicitly; selecting all
 modes also selects the original enforced variants. This installs no active
 benchmark correction and leaves ordinary fixture isolation in place. See the
-[passive commands and regression evidence](passive-benchmark-validation.md).
+[passive commands and regression evidence](../../docs/research/sevro-extraction.md#passive-benchmark-validation).
 
 The deprecated `darrow-ticket-pipeline` baseline gains no special handling.
 Its task checks and explicitly requested self-reported evaluation counts use the
@@ -263,7 +263,7 @@ not prove those bindings. This follows the user's choice to retain outcomes and
 counts without building new phase evidence or active benchmark correction.
 The baseline remains a historical reference, with no native phase-equivalence
 claim. Existing enforced variants remain explicitly unsupported by bundled hosts.
-See [orchestration-policy reconciliation](orchestration-policy-migration.md).
+See [orchestration-policy reconciliation](../../docs/research/sevro-extraction.md#orchestration-policy-migration).
 
 Custom suites using `goal_expectations` or `apply_expected_goal_routes`,
 and the legacy `--expected-goal-routes`, `--assert-goal-routes`, and
@@ -292,7 +292,7 @@ It writes Markdown or `--json` to standard output, needs no Sevro installation
 or generic runner, and preserves the original files. The existing legacy
 report command now uses this view for both Markdown and `--json`. See the
 [historical reader contract](README.md#historical-result-interpretation) and
-[validation](history-validation.md).
+[validation](../../docs/research/sevro-extraction.md#history-validation).
 Missing execution mode, evaluator identity, or completeness stays unknown.
 Never infer execution from an empty response or zero timing, manufacture a
 current Sevro identity, or silently make different grading and instrumentation
@@ -313,7 +313,7 @@ native acceptance, populate `effectiveOwnerRoute`, or alter measured rates.
 Absent values stay null and malformed provided values produce diagnostics.
 The interpreter reads the already recorded metadata; it does not reparse a
 private goal contract or execute its former runtime. See
-[archival claims validation](historical-claims-validation.md).
+[archival claims validation](../../docs/research/sevro-extraction.md#historical-claims-validation).
 
 The legacy report command preserves adjacent `report.md` and explicit `--output`
 destinations. Its human format deliberately changes to the historical view,
@@ -328,7 +328,7 @@ archives exit `0` even when trials failed or measured rates are unavailable.
 Unversioned suite manifests are now diagnosed by the default route too; pass
 their result arrays separately to retain unknown suite provenance. The old
 formatter and its private function tests are removed. See
-[report-command validation](legacy-report-command-validation.md).
+[report-command validation](../../docs/research/sevro-extraction.md#legacy-report-command-validation).
 
 The documented `evals/runner/compare.ts <baseline.json> <candidate.json>` command
 now delegates legacy array comparison to `evals/sevro-extension/legacy-compare.ts`.
@@ -340,7 +340,7 @@ The output explicitly limits these deltas to archival claims: they do not
 establish complete planned runs or current evaluator equivalence. Missing
 grading metadata remains unknown. See the
 [command contract](README.md#historical-result-interpretation) and
-[comparison validation](legacy-compare-validation.md). Other specialized
+[comparison validation](../../docs/research/sevro-extraction.md#legacy-compare-validation). Other specialized
 comparison formats retain their migration gates.
 
 The two historical reviewer-routing validators now live at
@@ -353,7 +353,7 @@ without importing runner implementation or private types. The shared axis-name
 matcher is Darrow policy; the legacy Codex adapter imports it independently of
 the historical validator. No historical result is relabeled as Sevro evidence.
 See the [command contract](README.md#historical-reviewer-routing-artifacts) and
-[validation](historical-review-proof-validation.md).
+[validation](../../docs/research/sevro-extraction.md#historical-review-proof-validation).
 
 ## Release, update, and rollback
 
@@ -373,14 +373,14 @@ The current published exact pin uses Sevro `0.1.0-rc.2`, extension protocol
 digest, Darrow revision and patch identity, negotiated capabilities, host route,
 and result paths for the applicable rows below.
 
-| Boundary                               | Required check                                                                                                                    | Current evidence and limits                                                                                                                                                                                                                     |
-| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Standalone package                     | Sevro typecheck, formatting, tests, and `test:package-install`                                                                    | Sevro's `Verify Sevro` workflow declares macOS, Node 24, and Bun 1.3.13. Local gates pass; no remote workflow run is claimed here.                                                                                                              |
-| Installed Darrow integration           | Darrow `test:eval-package` against the exact candidate tarball                                                                    | The installer clears the checkout override and runs public CLI/protocol fixtures from a separate consumer. See [suite-validation.md](suite-validation.md) for the package digest and results.                                                   |
-| Generic passive and enforced execution | Shared parity fixtures with adapters that declare the relevant capabilities                                                       | Covers condition identity, grading, interruption, ownership, and isolation. It does not establish enforced execution by bundled hosts.                                                                                                          |
-| Bundled Codex and Claude               | Supported passive suite and extension fixtures with synthetic executables and complete or deliberately incomplete native receipts | Covers host-specific preparation, route binding, continuation, activation, and unavailable evidence. These deterministic checks make no live model claim.                                                                                       |
-| Focused native behavior                | One understood trial at a time on the selected native host                                                                        | [live-validation.md](live-validation.md) records Codex negative activation, Claude repository dispatch/control checks, and standalone Claude continuation. Their models and routes are explicit; one trial is not a stability claim.            |
-| Published Darrow pin                   | Frozen dependency installation and the installed integration gate against the exact release                                       | Publication, exact pinning, and frozen installation passed. The manual [installed candidate workflow](../../.github/workflows/sevro-integration.yml) is prepared; automatic frozen-pin verification is configured for pull requests and pushes. |
+| Boundary                               | Required check                                                                                                                    | Current evidence and limits                                                                                                                                                                                                                                               |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Standalone package                     | Sevro typecheck, formatting, tests, and `test:package-install`                                                                    | Sevro's `Verify Sevro` workflow declares macOS, Node 24, and Bun 1.3.13. Local gates pass; no remote workflow run is claimed here.                                                                                                                                        |
+| Installed Darrow integration           | Darrow `test:eval-package` against the exact candidate tarball                                                                    | The installer clears the checkout override and runs public CLI/protocol fixtures from a separate consumer. See [suite-validation.md](../../docs/research/sevro-extraction.md#suite-validation) for the package digest and results.                                        |
+| Generic passive and enforced execution | Shared parity fixtures with adapters that declare the relevant capabilities                                                       | Covers condition identity, grading, interruption, ownership, and isolation. It does not establish enforced execution by bundled hosts.                                                                                                                                    |
+| Bundled Codex and Claude               | Supported passive suite and extension fixtures with synthetic executables and complete or deliberately incomplete native receipts | Covers host-specific preparation, route binding, continuation, activation, and unavailable evidence. These deterministic checks make no live model claim.                                                                                                                 |
+| Focused native behavior                | One understood trial at a time on the selected native host                                                                        | [live-validation.md](../../docs/research/sevro-extraction.md#live-validation) records Codex negative activation, Claude repository dispatch/control checks, and standalone Claude continuation. Their models and routes are explicit; one trial is not a stability claim. |
+| Published Darrow pin                   | Frozen dependency installation and the installed integration gate against the exact release                                       | Publication, exact pinning, and frozen installation passed. The manual [installed candidate workflow](../../.github/workflows/sevro-integration.yml) is prepared; automatic frozen-pin verification is configured for pull requests and pushes.                           |
 
 Native isolation checks require the relevant host's sandbox or macOS sandbox
 support. A skipped platform or unavailable-host assertion is not evidence for
@@ -396,12 +396,12 @@ npm metadata, verified candidate identity, Darrow revision, and parity log for
 30 days, including failed runs. It does not publish a package or run live models.
 There is no default candidate version. A first remote execution awaits a
 published release; local workflow validation does not prove remote CI success.
-See [installed CI validation](installed-ci-validation.md) for the local checks.
+See [installed CI validation](../../docs/research/sevro-extraction.md#installed-ci-validation) for the local checks.
 The exact development dependency is pinned. Its automatic job is configured for pull requests and all pushes. It runs
 the frozen installed public-interface/domain gate with both runner overrides
 cleared, retains package and lock identity with its logs, and declares the
 native sandbox and fixture-tool prerequisites. Candidate archive testing remains
-manual-only. See [frozen CI validation](frozen-ci-validation.md) for the complete
+manual-only. See [frozen CI validation](../../docs/research/sevro-extraction.md#frozen-ci-validation) for the complete
 matrix, observed local mechanics, and remote-run limits.
 
 Before cutover:

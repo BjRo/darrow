@@ -261,7 +261,7 @@ assertions. Parent case routes remain separate. Their enforced defaults remain
 explicit: the Sevro route can prepare dry cells, but its bundled hosts reject
 enforced execution. This does not establish a live comparison or convert the
 condition to passive. See
-[benchmark migration validation](../../sevro-extension/benchmark-migration-validation.md).
+[benchmark migration validation](../../../docs/research/sevro-extraction.md#benchmark-migration-validation).
 
 Useful scoped and calibration runs:
 
