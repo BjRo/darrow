@@ -6,7 +6,7 @@ import {
 } from "./fixture-command";
 
 const source = new URL(
-  "../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/authorized-publication.yaml",
+  "../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/evals/authorized-publication.yaml",
   import.meta.url,
 );
 

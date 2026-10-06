@@ -10,7 +10,18 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import NoReturn
 
-from . import check, provider, report, result, routing, scope, storage
+from . import (
+    check,
+    finalization,
+    provider,
+    reader_feedback,
+    reader_inputs,
+    report,
+    result,
+    routing,
+    scope,
+    storage,
+)
 from .common import ReviewError, read_text, require, root_directory, serialize
 from .records import validate_result
 
@@ -90,8 +101,8 @@ def prepare_scope(args: list[str]) -> str:
     parsed = options(
         "review-scope prepare",
         args,
-        ("base", "target"),
-        ("repo", "prior-manifest"),
+        ("target",),
+        ("repo", "base", "prior-manifest"),
         ("merge-base", "staged", "unstaged", "untracked", "allow-empty"),
     )
     parsed.repo = parsed.repo or "."
@@ -114,7 +125,7 @@ def allocate_terminal_scope(args: list[str]) -> str:
     parsed = options("review-scope allocate-terminal", args, ("repo",))
     repo = root_directory(parsed.repo)
     run = storage.allocate_terminal(repo)
-    return serialize([["artifact_dir", str(run)], ["manifest", str(run / "scope.tsv")]])
+    return serialize({"artifact_dir": str(run), "manifest": str(run / "scope.json")})
 
 
 def locate_scope(args: list[str]) -> str:
@@ -125,7 +136,7 @@ def locate_scope(args: list[str]) -> str:
         f"review artifact is unavailable for target: {parsed.target}",
         4,
     )
-    return serialize([["manifest", str(candidate)]])
+    return serialize({"manifest": str(candidate)})
 
 
 def prune_scope(args: list[str]) -> str:
@@ -144,23 +155,33 @@ def prune_scope(args: list[str]) -> str:
         else storage.prune(root_directory(parsed.repo), age)
     )
     return serialize(
-        [["pruned", str(len(removed))], *[["removed", str(p)] for p in removed]]
+        {"pruned": str(len(removed)), "removed": [str(p) for p in removed]}
     )
 
 
 def pin_scope(args: list[str]) -> str:
     parsed = options("review-scope pin", args, ("manifest",))
-    return serialize([["pinned", str(storage.pin(Path(parsed.manifest)))]])
+    return serialize({"pinned": str(storage.pin(Path(parsed.manifest)))})
 
 
 def unpin_scope(args: list[str]) -> str:
     parsed = options("review-scope unpin", args, ("manifest",))
-    return serialize([["unpinned", str(storage.unpin(Path(parsed.manifest)))]])
+    return serialize({"unpinned": str(storage.unpin(Path(parsed.manifest)))})
 
 
 def result_command(args: list[str]) -> str:
     require(args, "Usage: review-result COMMAND FILE [FILE]")
     command, rest = args[0], args[1:]
+    readers = {
+        "read-evidence": read_evidence,
+        "prepare-reader": prepare_reader,
+        "read-reader": read_reader,
+        "reader-feedback": reader_correction,
+    }
+    if command in readers:
+        return readers[command](rest)
+    if command == "finalize":
+        return finalize_result(rest)
     counts = {
         "validate": 1,
         "validate-verification": 1,
@@ -178,14 +199,59 @@ def result_command(args: list[str]) -> str:
     return result_operation(command, rest)
 
 
+def read_evidence(args: list[str]) -> str:
+    parsed = options("review-result read-evidence", args, ("repo", "input"))
+    return result.read_evidence(parsed.repo, parsed.input)
+
+
+def prepare_reader(args: list[str]) -> str:
+    parser = argparse.ArgumentParser(
+        prog="review-result prepare-reader", allow_abbrev=False
+    )
+    for name in ("manifest", "axis", "context"):
+        parser.add_argument("--" + name, required=True)
+    parser.add_argument("--check", action="append", default=[])
+    parser.add_argument("--original", default="")
+    parsed = parser.parse_args(args)
+    return reader_inputs.prepare(
+        parsed.manifest, parsed.axis, parsed.context, parsed.check, parsed.original
+    )
+
+
+def read_reader(args: list[str]) -> str:
+    parsed = options("review-result read-reader", args, ("input",))
+    return reader_inputs.read(parsed.input)
+
+
+def reader_correction(args: list[str]) -> str:
+    parsed = options(
+        "review-result reader-feedback", args, ("input", "agent-id", "error")
+    )
+    return reader_feedback.feedback(parsed.input, parsed.agent_id, parsed.error)
+
+
+def finalize_result(args: list[str]) -> str:
+    parser = argparse.ArgumentParser(prog="review-result finalize", allow_abbrev=False)
+    for name in ("manifest", "draft", "output"):
+        parser.add_argument("--" + name, required=True)
+    parser.add_argument("--check", action="append", default=[])
+    parser.add_argument("--original", default="")
+    parsed = parser.parse_args(args)
+    return finalization.finalize(
+        parsed.manifest, parsed.draft, parsed.output, parsed.check, parsed.original
+    )
+
+
 def result_operation(command: str, args: list[str]) -> str:
     handlers: dict[str, Callable[[], str]] = {
         "scope-records": lambda: serialize(result.scope_records(args[0])),
         "validate-scope": lambda: result.validate_scope(args[0], args[1]),
         "original-findings": lambda: serialize(
-            result.original_findings(
-                validate_result(read_text(args[0], "original result"))
-            )
+            {
+                "original_findings": result.original_findings(
+                    validate_result(read_text(args[0], "original result"))
+                )
+            }
         ),
         "validate-original": lambda: result.validate_original(args[0], args[1]),
     }

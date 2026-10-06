@@ -46,6 +46,19 @@ checks, and support closed follow-up judgments when that mode is requested.
 Its name, internal layout and serialization are immaterial. Missing or
 incompatible required review blocks instead of falling back to self-review.
 
+## Coordinator routes and assessment correction
+
+Verification and implementation are separate assignments. Adaptive Goal
+uses Codex GPT-6.1 Sol/medium or stronger for verification coordination. Review
+coordination is explicitly Luna/medium; review keeps its own independent-reader
+routes. Claude uses the plugin's Sonnet 5.5/medium review coordinator with pinned
+frontmatter. Parent-model inheritance must not change these roles.
+
+A concrete assessment error or new evidence can justify a bounded correction
+at unchanged code through the provider's public contract. Preserve the earlier
+result and complete history, obtain fresh judgment, and explain the correction.
+This neither consumes nor resets the caller's implementation repair allowance.
+
 ## Safety boundaries
 
 Independent review remains separately usable. Ordinary implementation, running
@@ -90,6 +103,12 @@ supported Python runtime blocks assessment. Supply the exact missing input or
 compatible provider, preserving prior evidence for follow-up. Do not replace
 the blocked result with self-review, another checkout's renderer, or a new
 repair loop.
+
+The renderer package is at `<plugin-root>/backend`, resolved as `../../backend`
+from the loaded `verify-change` skill directory. Verification checks and binds
+this absolute location before review, then reuses it for the handoff. Compare a
+failed invocation with the public instructions before diagnosing a missing
+installation; report the actual path and diagnostic when a file is unavailable.
 
 ## License
 

@@ -1,0 +1,17 @@
+id: work-through-decisions-natural-missing-subject
+invariant: DG-C1,DC-E4,DC-E1
+activation: positive
+prompt: >-
+  Grill me. Do not modify the repository.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Unrelated repository\n"
+checks:
+  - name: subjectless grilling remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: only the missing subject is requested
+    run: cat .git/last-message.md
+    expect_exact: "What subject would you like me to grill?"

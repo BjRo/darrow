@@ -6,7 +6,7 @@ explicit orchestration, with each plugin serving as an optionality boundary.
 Capabilities are model-invoked in response to matching user intent, though a
 user may also name one explicitly. Orchestration starts only through explicit
 user invocation; never infer it from task complexity or duration.
-`darrow-adaptive-delivery` is the core orchestration helper: it frames a bounded native
+`darrow-adaptive-goal` is the core orchestration helper: it frames a bounded native
 goal and then leaves execution to the host. `darrow-ticket-pipeline` is retained
 only as a reference implementation of the former static phase approach and as a
 benchmark baseline. Neither is a daemon, queue, general workflow runtime, or
@@ -37,10 +37,25 @@ between capabilities and orchestration, read [`docs/design.md`](docs/design.md).
 - `evals/sevro-extension/` — Darrow's cases, policy, and public Sevro integration.
 - `evals/domain/` — Darrow fixture, oracle, and policy tests. Results are gitignored.
 
+## Plugin README content
+
+Keep plugin entry READMEs focused on current behavior, installation, usage,
+prerequisites, developer test commands, and actionable limitations. Record
+historical eval results, trial counts, pass rates, experiment comparisons, and
+investigation narratives in `docs/research/` or colocated eval/test documentation.
+Keep eval-runner internals in development documentation. Preserve historical
+evidence when cleaning a README; a short link may point to it without repeating
+the results. State current compatibility and reliability limits as practical
+guidance without recounting the trials that established them.
+
 ## Skill development
 
-For skill creation, revision, or validation, follow
-[`author-agent-skill`](plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/SKILL.md).
+For new skill creation, follow
+[`create-agent-skill`](plugins/foundation/darrow-skill-authoring/skills/create-agent-skill/SKILL.md).
+For a read-only skill audit, follow
+[`audit-agent-skill`](plugins/foundation/darrow-skill-authoring/skills/audit-agent-skill/SKILL.md).
+Implement audit findings or other changes to an existing skill as ordinary
+engineering work against the findings and this repository's instructions.
 Add or adjust the applicable invariant under `docs/specs/` before implementation.
 Keep contextual judgment in the skill. Put repeatable, error-prone command and
 tool-protocol mechanics behind narrow bundled scripts so the model supplies

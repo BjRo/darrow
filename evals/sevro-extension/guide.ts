@@ -81,7 +81,7 @@ function forwardedHostArguments(host: string, forwarded: string[]) {
 
 function hostDefaults(host: string): Array<[string, () => string]> {
   return [
-    ["--model", () => (host === "codex" ? "gpt-5.6-terra" : "claude-sonnet-5")],
+    ["--model", () => (host === "codex" ? "gpt-6-luna" : "claude-sonnet-5-5")],
     ["--effort", () => "medium"],
     ["--codex-bin", () => binary("codex")],
     [
@@ -90,7 +90,7 @@ function hostDefaults(host: string): Array<[string, () => string]> {
         join(process.env.CODEX_HOME ?? join(homedir(), ".codex"), "auth.json"),
     ],
     ["--semantic-host", () => "codex"],
-    ["--semantic-model", () => "gpt-5.6-terra"],
+    ["--semantic-model", () => "gpt-6-luna"],
     ["--semantic-effort", () => "medium"],
     ...(host === "claude"
       ? [["--claude-bin", () => binary("claude")] as [string, () => string]]

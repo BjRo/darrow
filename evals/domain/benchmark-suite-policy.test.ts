@@ -1,13 +1,14 @@
 import { expect, test } from "bun:test";
 import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { policyProject } from "./policy-project";
 
 type Route = { model: string; effort: string };
 type Routes = Record<string, Route>;
 
 const suiteDirectory = "evals/experiments/orchestration";
-const adaptiveDirectory = "plugins/orchestration/darrow-adaptive-delivery";
+const adaptiveDirectory = "plugins/orchestration/darrow-adaptive-goal";
 const ossRoutes: Routes = {
   "orchestration-oss-ajv-instance-path": {
     model: "gpt-5.6-sol",
@@ -38,8 +39,8 @@ async function canonicalProject(filename: string, routes: Routes) {
     { id: "unused-fixture-case" },
     {
       directory: adaptiveDirectory,
-      plugin: "darrow-adaptive-delivery",
-      skill: "adaptive-delivery",
+      plugin: "darrow-adaptive-goal",
+      skill: "adaptive-goal",
     },
   );
   const cases = join(project.root, suiteDirectory, "cases");
@@ -67,8 +68,8 @@ async function canonicalProject(filename: string, routes: Routes) {
   );
   const conditions = [
     "native-goal-codex.md",
-    "darrow-adaptive-delivery-workflow-codex.md",
-    "darrow-adaptive-delivery-codex.md",
+    "darrow-adaptive-goal-workflow-codex.md",
+    "darrow-adaptive-goal-codex.md",
   ];
   for (const name of conditions) {
     const target = join(project.root, suiteDirectory, "conditions", name);
@@ -167,10 +168,19 @@ async function expectOwnerComparisons(
     expect(cell.condition).toBe("enforced");
     expect(cell.exitCode).toBe(0);
     const evidence = JSON.parse(await readFile(cell.evidencePath, "utf8"));
-    expect(evidence.runner).toMatchObject({
-      source: "package",
-      packageName: "@bjoernrochel/sevro",
-    });
+    if (process.env.SEVRO_CHECKOUT !== undefined) {
+      expect(evidence.runner).toMatchObject({
+        source: "checkout",
+        root: pathToFileURL(process.env.SEVRO_CHECKOUT).href,
+      });
+      expect(evidence.runner.revision).toMatch(/^[a-f0-9]{40}$/);
+      expect(evidence.runner.buildDigest).toMatch(/^[a-f0-9]{64}$/);
+    } else {
+      expect(evidence.runner).toMatchObject({
+        source: "package",
+        packageName: "@bjoernrochel/sevro",
+      });
+    }
     expect(evidence.routes).toContainEqual({
       role: "candidate",
       host: "sevro.host.codex",

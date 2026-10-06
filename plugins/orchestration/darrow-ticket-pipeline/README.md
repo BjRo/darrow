@@ -2,12 +2,12 @@
 
 > **Deprecated reference.** This plugin remains installable and its explicitly
 > invoked `deliver-ticket` workflow remains available for reproducible
-> comparison. Use Adaptive Delivery for new orchestration work. This is
+> comparison. Use Adaptive Goal for new orchestration work. This is
 > informational only: deliberately invoking
 > `deliver-ticket` does not add a warning or confirmation gate.
 
 This plugin delivers one existing engineering ticket through a deliberately
-static sequence of fresh phase agents. Unlike Adaptive Delivery, the route
+static sequence of fresh phase agents. Unlike Adaptive Goal, the route
 is known in advance: refine and challenge the plan, implement it, review and
 rework when needed, verify acceptance in QA, then identify any durable learning.
 
@@ -88,7 +88,7 @@ defines them, and every new verdict comes from a fresh read-only phase agent.
 
 ## When to use
 
-Use this deprecated reference for deliberate static-workflow comparisons. Use Adaptive Delivery for new orchestration work. Ordinary ticket requests do not activate it.
+Use this deprecated reference for deliberate static-workflow comparisons. Use Adaptive Goal for new orchestration work. Ordinary ticket requests do not activate it.
 
 ## Hosts and prerequisites
 
@@ -124,11 +124,8 @@ accepted; and `needs_revision` continues to select refinement after a new
 refinement until an explicit matching challenge is recorded. They are reference
 behavior, not new recommendations for orchestration.
 
-[Matched command evidence](backend/tests/README.md) covers the Bash reference
-and Python candidate. The package gate runs on Python 3.10–3.13 across macOS,
-Linux, and native Windows, and copied-artifact validation uses only locked
-runtime dependencies. The meaningful shell regression scenarios are ported to native Python
-integration tests; the shell test and runtime facade are removed. No Python quality exception is needed.
+For development checks and migration evidence, see the
+[backend test documentation](backend/tests/README.md).
 
 ## Installation
 

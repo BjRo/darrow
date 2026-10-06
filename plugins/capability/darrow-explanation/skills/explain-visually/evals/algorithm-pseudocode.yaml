@@ -3,7 +3,7 @@ invariant: VE-C2,VE-C3,VE-C5,VE-C7
 activation: positive
 mount_plugin_skills: true
 prompt: >-
-  Explain nextDelay as compact pseudocode. Preserve invalid-attempt handling,
+  Use {{skill_invocation}} to explain nextDelay as compact pseudocode. Preserve invalid-attempt handling,
   the exponential cap, and the jitter range. Do not modify files and do not
   restate the TypeScript line by line.
 fixture:

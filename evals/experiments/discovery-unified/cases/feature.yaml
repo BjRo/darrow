@@ -1,0 +1,28 @@
+id: unified-discovery-feature
+invariant: DU-X1
+prompt: >-
+  Can we spec out a feature for delivering saved reports on a schedule? Analysts
+  save reports and administrators manage teams, but we have not decided whether
+  each schedule belongs to an analyst or an administrator-managed team. Help me
+  work out what this feature should do before anyone designs the implementation.
+  Do not change files.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: |
+          # Analytics
+
+          Analysts can save reports. Administrators manage teams. There is no
+          scheduled-reporting feature yet.
+checks:
+  - name: conversation remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+semantic_output_checks:
+  - name: chooses feature discovery behavior
+    proposition: >-
+      The response treats this as feature discovery, asks the user to choose
+      analyst or administrator-managed team ownership with a concrete advisory
+      recommendation and rationale, and stops without assuming the answer,
+      producing a final discovery brief, or drafting an implementation plan.

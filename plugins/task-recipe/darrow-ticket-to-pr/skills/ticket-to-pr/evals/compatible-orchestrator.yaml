@@ -17,13 +17,13 @@ fixture:
     .agents/skills/bounded-delivery/SKILL.md: &orchestrator |
       ---
       name: bounded-delivery
-      description: Provide adaptive-delivery orchestration for an explicitly delegated engineering request, owning preflight and one separate execution owner. Accept preserved authority from an explicit task recipe.
+      description: Provide adaptive-goal orchestration for an explicitly delegated engineering request, owning preflight and one main-thread native goal. Accept preserved authority from an explicit task recipe.
       ---
 
       # Bounded delivery
 
       This fixture observes the delegation boundary and returns a blocker
-      before preflight or owner launch. Accept the request only when it
+      before preflight or native goal activation. Accept the request only when it
       preserves the exact ticket URL, new-branch delivery, verification,
       intended commits, non-force push and one verified pull request, without
       authorizing merge, deployment, release, ticket mutation, destructive Git

@@ -153,7 +153,7 @@ test("direct caller routes a filtered dry evaluation through Sevro", async () =>
     {
       role: "candidate",
       host: "sevro.host.codex",
-      model: "gpt-5.6-terra",
+      model: "gpt-6-luna",
       effort: "medium",
     },
     {
@@ -633,7 +633,7 @@ test("direct caller retains evaluation-record and effective-owner policy", async
     effectiveOwnerRoute: { model: "owner-model", effort: "high" },
   });
   expect(evidence.routes[0]).toMatchObject({
-    model: "gpt-5.6-terra",
+    model: "gpt-6-luna",
     effort: "medium",
   });
   expect(result.task.verdict).toBe("not_assessed");

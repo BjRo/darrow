@@ -21,40 +21,51 @@ fixture:
       esac
       base=$(git rev-parse HEAD~1)
       head=$(git rev-parse HEAD)
-      printf '{"baseRefOid":"%s","headRefOid":"%s","body":"Requirement: add health.txt containing exactly ok.","url":"https://example.invalid/pr/12"}\n' "$base" "$head"
+      printf '{"baseRefOid":"%s","headRefOid":"%s","body":"Requirement: add health.txt containing exactly ok followed by one trailing newline.","url":"https://example.invalid/pr/12"}\n' "$base" "$head"
+  setup: |
+    git status --porcelain --untracked-files=all >.git/status-before
+    test ! -s .git/status-before
+    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
+  - name: human response excludes machine JSON
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
   - name: pull-request review does not mutate Git state
-    run: test -z "$(git status --porcelain --untracked-files=all)"
+    run: |
+      git status --porcelain --untracked-files=all >.git/status-after
+      cat .git/status-after
+      cmp .git/status-before .git/status-after
   - name: pull-request review does not publish or approve
     run: test "$(git rev-list --all --reflog --count)" -eq 2; test ! -s .git/forbidden-gh
-  - name: canonical TSV is retained beneath the review scope artifact
+  - name: canonical JSON is retained beneath the review scope artifact
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
       test -n "$tool" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record"
-    expect_regex: "^valid: darrow-review-result-v1$"
+    expect_regex: "^valid: darrow-review-result-v3$"
   - name: review is pinned to the pull-request objects and body specification
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       base=$(git rev-parse HEAD~1) && target=$(git rev-parse HEAD) &&
-      grep -F "base	$base" "$record" >/dev/null &&
-      grep -F "target	$target" "$record" >/dev/null &&
-      grep -F 'spec	pass' "$record" >/dev/null &&
-      grep -F 'verdict	pass' "$record" >/dev/null &&
-      awk -F '\t' '$1 == "changed_file" { count++; if ($2 ~ /\/health[.]txt$/) found = 1 }
-      END { exit !(count == 1 && found) }' "$record"
-  - name: default response does not duplicate canonical TSV
-    run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
-  - name: final response preserves every canonical rendered line
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has "base" "$base" &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has "target" "$target" &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has spec pass &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has verdict pass &&
+      python3 -c 'import json,sys; files=json.load(open(sys.argv[1]))["changed_files"]; assert len(files)==1 and files[0].endswith("/health.txt")' "$record"
+  - name: retained Markdown preserves every canonical rendered line
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n '1');
       test -n "$tool" || exit 1;
       expected=.git/expected-review.md;
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render "$record" >"$expected" &&
       awk 'NF' "$expected" >.git/expected-review-normalized.md &&
-      awk 'NF' .git/last-message.md >.git/actual-review-normalized.md &&
+      awk 'NF' "$(dirname "$record")/review.md" >.git/actual-review-normalized.md &&
       cmp .git/expected-review-normalized.md .git/actual-review-normalized.md
+semantic_output_checks:
+  - name: review outcome and issues are understandable inline
+    proposition: >-
+      The response reports a passing review with no blocking findings inline.
+      A report-file link alone does not supply that outcome.

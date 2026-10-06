@@ -56,7 +56,15 @@ try {
   };
   delete env.SEVRO_CHECKOUT;
   const result = await run(
-    [process.execPath, "test", "evals/runner/parity", "evals/domain"],
+    [
+      process.execPath,
+      "test",
+      "--timeout",
+      "30000",
+      "evals/runner/parity",
+      "evals/domain",
+      "evals/sevro-candidate",
+    ],
     projectRoot,
     env,
   );

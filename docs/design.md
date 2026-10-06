@@ -100,7 +100,7 @@ accepting the rest of the marketplace.
 A task recipe packages one repeatable, explicitly invoked delivery outcome. It
 uses the orchestration activation model, but owns only the outcome-specific
 authority, intake, and publication envelope. A recipe can delegate its one
-bounded request to adaptive-delivery without another user invocation, preserving
+bounded request to adaptive-goal without another user invocation, preserving
 the original request and permissions. It is not a controller, phase graph,
 ledger, queue, or durable workflow runtime.
 
@@ -166,10 +166,10 @@ invocations, human interruptions, tokens, cost, and wall time. A design is not
 called better because it is plausible or because one run succeeded; empirical
 claims carry their evidence, uncertainty, and limitations.
 
-## Adaptive Delivery is the core orchestration helper
+## Adaptive Goal is the core orchestration helper
 
-The core path for bounded engineering work is the `adaptive-delivery` skill in
-[`darrow-adaptive-delivery`](../plugins/orchestration/darrow-adaptive-delivery/README.md).
+The core path for bounded engineering work is the `adaptive-goal` skill in
+[`darrow-adaptive-goal`](../plugins/orchestration/darrow-adaptive-goal/README.md).
 
 Long-running native agent work often begins with a request that leaves
 completion criteria, repository constraints, verification depth, or reasoning
@@ -179,24 +179,37 @@ recovery, and completion machinery. Darrow's earlier orchestration benchmark
 found no incremental value from that duplication and measured substantial
 wall-time and child-invocation overhead.
 
-Adaptive Delivery keeps the useful part and removes the duplicate runtime:
+Adaptive Goal keeps the useful part and removes the duplicate runtime:
 
 ```text
-request + repository -> read-only preflight/readiness -> goal contract -> one routed subagent owner
+request + repository -> read-only preflight/readiness -> native goal in the main thread
+                                                        -> bounded implementation
+                                                        -> selected capabilities
 ```
 
 Preflight discovers applicable repository instructions and checks, turns the
 request into observable acceptance criteria and scope, reuses or obtains a
 same-scope readiness result when required, binds matching advertised skills,
 selects a task workflow and risk gate, and chooses proportionate model and
-effort. It then activates exactly one route-selected host-visible subagent. That
-owner invokes the bound skills and owns implementation, adaptation, recovery,
-verification, feedback, and completion from that point onward.
+effort for bounded implementation. The main thread retains the native goal,
+acceptance criteria, user decisions and completion responsibility. It delegates
+implementation and selected verification as separate assignments, consumes their
+evidence, requests authorized repairs and arranges reassessment. Capabilities
+retain their own delegation and model selection; the implementor's route never
+overrides a reviewer route.
+
+The goal stays within 4,000 characters and states the outcome and completion
+criteria. Coordination instructions stay in the skill. Native continuation and
+delegation keep the work moving on both Codex and Claude; Darrow adds no fixed
+phase pipeline or custom goal runtime. Codex coordination is recommended on
+Sol/medium, and verification coordination is explicitly routed to at least
+Sol/medium. These choices follow bounded experiments, not a claim that every
+task or stronger model configuration has been proven reliable.
 
 The helper therefore improves the initial conditions for an adaptive run; it is
 not a second adaptive loop, multi-agent controller, lifecycle ledger, daemon,
 queue, publication mechanism, or general workflow runtime. The normative
-contract is in [Capability: Adaptive Delivery](specs/adaptive-delivery.md).
+contract is in [Capability: Adaptive Goal](specs/adaptive-goal.md).
 
 ## The ticket pipeline is a reference and benchmark baseline
 
@@ -222,7 +235,7 @@ are specified in [Capability: Ticket Pipeline](specs/ticket-pipeline.md).
 - Add focused, reusable behavior as an intent-matched capability.
 - Introduce orchestration only when work needs an explicit continuation and
   completion contract and the user invokes it explicitly.
-- Use Adaptive Delivery as the default orchestration helper for bounded
+- Use Adaptive Goal as the default orchestration helper for bounded
   engineering work.
 - Treat the ticket pipeline as historical reference and comparative evidence,
   not as a template for new orchestration features.

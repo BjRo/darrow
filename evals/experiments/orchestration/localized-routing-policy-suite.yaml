@@ -7,8 +7,8 @@ case_filter:
 modes:
   adaptive-policy:
     condition_by_harness:
-      codex: conditions/darrow-adaptive-delivery-codex.md
-    skill_dir: ../../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery
+      codex: conditions/darrow-adaptive-goal-codex.md
+    skill_dir: ../../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal
     mount_plugin_skills: true
     require_evaluation_records: true
     effective_owner_routes:
@@ -20,8 +20,8 @@ modes:
   adaptive-policy-passive:
     owner_evaluation: passive
     condition_by_harness:
-      codex: conditions/darrow-adaptive-delivery-codex.md
-    skill_dir: ../../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery
+      codex: conditions/darrow-adaptive-goal-codex.md
+    skill_dir: ../../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal
     mount_plugin_skills: true
     require_evaluation_records: true
     effective_owner_routes:

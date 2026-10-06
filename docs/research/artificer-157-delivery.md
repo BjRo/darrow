@@ -1,5 +1,9 @@
 # Local Artificer delivery evidence — #157
 
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
+
 This record separates deterministic acceptance checks, live native observations,
 and remaining limits. The contract is [Local Artificer](../specs/artificer.md).
 It does not establish GitHub Actions support.
@@ -14,7 +18,7 @@ engineering workflow. No schedule was enabled for the Darrow repository.
 
 Supported execution host: macOS, Codex CLI `0.154.0`, normal persistent ChatGPT
 Pro login. Parent model/effort defaults are `gpt-5.6-terra`/`medium`; the selected
-engineering owner keeps the route chosen by adaptive delivery. Both routes are
+engineering owner keeps the route chosen by adaptive goal. Both routes are
 checked against native records on continuation. Other CLI versions fail closed.
 
 ## Mechanical acceptance

@@ -7,11 +7,11 @@ import {
 } from "./fixture-command";
 
 const questionSource = new URL(
-  "../../plugins/capability/darrow-discovery/skills/grilling/evals/incomplete-subject.yaml",
+  "../../plugins/capability/darrow-discovery/skills/work-through-decisions/evals/grilling-incomplete-subject.yaml",
   import.meta.url,
 );
 const planningRoot = new URL(
-  "../../plugins/capability/darrow-discovery/skills/plan-implementation/evals/",
+  "../../plugins/capability/darrow-discovery/skills/work-through-decisions/evals/",
   import.meta.url,
 );
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
@@ -21,7 +21,11 @@ type PlanningCase = {
 };
 
 async function planningCase(name: string): Promise<PlanningCase> {
-  return parse(await Bun.file(new URL(`${name}.yaml`, planningRoot)).text());
+  return parse(
+    await Bun.file(
+      new URL(`plan-implementation-${name}.yaml`, planningRoot),
+    ).text(),
+  );
 }
 
 describe("discovery eval loopholes", () => {

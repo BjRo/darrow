@@ -26,7 +26,7 @@ class Grant(Record):
     effort: str
     credential_home: str
     plugins: list[str] = Field(default_factory=list)
-    subscription_only_confirmed: bool
+    account_usage_accepted: bool
     effects: Literal["claims,questions,worktrees,recipe,commits,push,pr,archives"]
     WORK_IN_PROGRESS_LIMIT: int = Field(default=1, ge=0)
     MAX_STARTS_PER_ACTIVATION: int = Field(default=1, ge=1)
@@ -40,13 +40,9 @@ class Process(Record):
 
 
 class Native(Record):
-    parent: str
-    owner: str
-    owner_thread: str
+    thread: str
     model: str
     effort: str
-    owner_model: str
-    owner_effort: str
 
 
 class Claim(Record):
@@ -68,6 +64,7 @@ class Claim(Record):
     detail: str = ""
     process: Process | None = None
     native: Native | None = None
+    goal_objective: str | None = None
     question: str | None = None
     question_text: str | None = None
     question_comment: int | None = None
@@ -89,4 +86,3 @@ class Outcome(Record):
     detail: str
     question: str | None
     pr: int | None
-    owner: str | None

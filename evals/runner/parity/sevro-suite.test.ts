@@ -799,9 +799,9 @@ test("suite gates requested evaluation records independently of existing task ch
   expect(markdown).toContain("Public task");
 });
 
-test("suite preserves dry and adaptive-delivery record exceptions", async () => {
+test("suite preserves dry and adaptive-goal record exceptions", async () => {
   const { root, suite, adapter, results } = await fixture();
-  const skillDir = "plugins/orchestration/example/skills/adaptive-delivery";
+  const skillDir = "plugins/orchestration/example/skills/adaptive-goal";
   await mkdir(join(root, skillDir), { recursive: true });
   await writeFile(join(root, skillDir, "SKILL.md"), "Adaptive delivery body\n");
   await writeFile(

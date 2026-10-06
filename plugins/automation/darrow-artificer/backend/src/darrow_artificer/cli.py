@@ -21,22 +21,24 @@ def parser() -> argparse.ArgumentParser:
     init.add_argument("--checkout", type=Path, required=True)
     init.add_argument("--plugin", action="append", required=True)
     init.add_argument("--credential-home", type=Path, default=Path.home() / ".codex")
-    init.add_argument("--model", default="gpt-5.6-terra")
+    init.add_argument("--model", default="gpt-6-sol")
     init.add_argument("--effort", default="medium")
     init.add_argument("--issue", type=int, action="append", default=[])
     init.add_argument(
         "--authorize-recurring-delivery", action="store_true", required=True
     )
     init.add_argument(
-        "--confirm-no-paid-credits-or-auto-reload", action="store_true", required=True
+        "--accept-chatgpt-account-usage",
+        action="store_true",
+        required=True,
+        help="Allow subscription usage and available credits under the account's billing settings",
     )
     for name in ("tick", "status", "revoke", "schedule", "unschedule"):
         commands.add_parser(name)
     commands.add_parser("cancel").add_argument("delivery")
     recover = commands.add_parser("recover")
     recover.add_argument("delivery")
-    recover.add_argument("--parent", required=True)
-    recover.add_argument("--owner", required=True)
+    recover.add_argument("--thread", required=True)
     configure = commands.add_parser("configure")
     for name in (
         "WORK_IN_PROGRESS_LIMIT",
@@ -92,7 +94,7 @@ def dispatch(site: Installation, args: argparse.Namespace) -> object:
         "cancel": lambda: operations.cancel(site, args.delivery).model_dump(),
         "revoke": lambda: operations.revoke(site),
         "recover": lambda: operations.recover(
-            site, args.delivery, args.parent, args.owner
+            site, args.delivery, args.thread
         ).model_dump(),
         "schedule": lambda: str(
             scheduler.install(site, Path(__file__).resolve().parents[2])

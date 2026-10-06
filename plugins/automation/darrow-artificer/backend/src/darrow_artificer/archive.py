@@ -16,6 +16,8 @@ REGENERABLE = {".venv", "__pycache__", ".pytest_cache", ".ruff_cache", ".mypy_ca
 def members(home: Path) -> Iterator[Path]:
     for root, directories, files in os.walk(home, followlinks=False):
         directories[:] = [name for name in directories if name not in REGENERABLE]
+        if Path(root) == home:
+            directories[:] = [name for name in directories if name != "tmp"]
         for name in directories + files:
             path = Path(root) / name
             if included(path, home):
@@ -23,7 +25,7 @@ def members(home: Path) -> Iterator[Path]:
 
 
 def included(path: Path, home: Path) -> bool:
-    if path.relative_to(home).parts[0] == "auth.json":
+    if path.relative_to(home).parts[0] in {"auth.json", "tmp"}:
         return False
     if path.is_symlink():
         raise ValueError(f"Native state contains symbolic link: {path}")
@@ -61,4 +63,6 @@ def restore(archive: Path, destination: Path, key: bytes) -> None:
             raise ValueError("Archive contains credentials")
         destination.mkdir(mode=0o700, parents=True)
         for name in names:
-            write_bytes(destination / name, bundle.read(name))
+            path = destination / name
+            write_bytes(path, bundle.read(name))
+            path.chmod(0o600 | (bundle.getinfo(name).external_attr >> 16 & 0o111))

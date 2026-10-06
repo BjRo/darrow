@@ -9,6 +9,6 @@
 | Verify an alternative implementation that satisfies the original requirement | The suggested implementation remains advisory   | repair-guidance-alternative                                                   |
 | Verify adoption of the suggested approach while a required case still fails  | Original behavior determines resolution         | repair-guidance-unresolved                                                    |
 
-The shell regression covers preservation, malformed fields, legacy records,
+The Python regressions cover preservation, malformed or missing guidance,
 Markdown escaping, and immutable guidance across the verification chain.
 Live evals cover the reviewer judgment that serialization cannot establish.

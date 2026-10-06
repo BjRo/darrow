@@ -1,18 +1,16 @@
 id: ticket-to-pr-composition-replacement
 invariant: TPR-C3,TPR-C4,TPR-C6,TPR-C7,LC-C1,LC-C3,LC-C4,GW-P9
 expect_head_change: true
-adaptive_delivery_composition: true
+adaptive_goal_composition: true
 activation: positive
 mount_plugin_skills: true
 activation_sequence:
   - ticket-to-pr
-  - adaptive-delivery
+  - adaptive-goal
 additional_plugins:
-  - plugins/orchestration/darrow-adaptive-delivery
+  - plugins/orchestration/darrow-adaptive-goal
   - plugins/capability/darrow-readiness-gate
-additional_skills:
-  - plugins/capability/darrow-git/skills/prepare-task-branch
-  - plugins/capability/darrow-git/skills/create-commit
+  - plugins/capability/darrow-git
 prompt: "{{skill_invocation}} https://example.invalid/tickets/42"
 fixture:
   commits:
@@ -32,9 +30,9 @@ fixture:
 
       name: fetch-work-item
 
-      description: Read one exact authoritative ticket for the current
-      repository without mutation. Use when ticket content is needed for
-      assessment or implementation.
+      description: Read one exact authoritative ticket for the current repository
+      without mutation. Use when ticket content is needed for assessment or
+      implementation.
 
       ---
 
@@ -48,9 +46,9 @@ fixture:
 
       name: fetch-work-item
 
-      description: Read one exact authoritative ticket for the current
-      repository without mutation. Use when ticket content is needed for
-      assessment or implementation.
+      description: Read one exact authoritative ticket for the current repository
+      without mutation. Use when ticket content is needed for assessment or
+      implementation.
 
       ---
 
@@ -73,10 +71,9 @@ fixture:
         'Outcome: config.json must contain {"timeoutMs":2500}. Trailing newlines are insignificant.' \
         'Acceptance: bash check.sh passes; preserve the committed NOTES.md.' \
         'Delivery branch: reuse fix/GH-42-timeout in the current checkout.' \
-        'Existing open PR: https://github.com/fixture/repo/pull/42, into main, ready for review.'
-  setup:
-    bash "{{case_dir}}/fixtures/setup-composition.sh" "{{case_dir}}/fixtures"
-    replacement
+        'Existing open PR: https://github.com/fixture/repo/pull/42, into main, ready for review.' \
+        'Publication provider: use the advertised ship-proposal capability for this delivery.'
+  setup: bash "{{case_dir}}/fixtures/setup-composition.sh" "{{case_dir}}/fixtures" replacement
 checks:
   - name: ticket implementation meets acceptance
     run: bash check.sh
@@ -84,10 +81,9 @@ checks:
     run:
       test "$(git rev-parse HEAD)" = "$(git --git-dir=.git/remote.git rev-parse
       refs/heads/fix/GH-42-timeout)" && git merge-base --is-ancestor "$(cat
-      .git/original-local-head)" HEAD && test "$(git --git-dir=.git/remote.git
-      show fix/GH-42-timeout:config.json)" = '{"timeoutMs":2500}' && test "$(git
-      --git-dir=.git/remote.git show fix/GH-42-timeout:NOTES.md)" = "$(cat
-      NOTES.md)"
+      .git/original-local-head)" HEAD && test "$(git --git-dir=.git/remote.git show
+      fix/GH-42-timeout:config.json)" = '{"timeoutMs":2500}' && test "$(git
+      --git-dir=.git/remote.git show fix/GH-42-timeout:NOTES.md)" = "$(cat NOTES.md)"
   - name: forge observation proves the intended final commit
     run: grep -Fx "$(git rev-parse HEAD)" .git/forge-observations
   - name: owner reports the intended commit evidence
@@ -106,15 +102,12 @@ checks:
 semantic_output_checks:
   - name: owner completion and existing URL are relayed
     proposition: >-
-      The response unambiguously reports that delivery is complete and includes
-      the exact pull request URL https://github.com/fixture/repo/pull/42. It does
-      not present the result as blocked, incomplete, or still requiring action.
+      The response unambiguously reports that delivery is complete and includes the
+      exact pull request URL https://github.com/fixture/repo/pull/42. It does not
+      present the result as blocked, incomplete, or still requiring action.
 # Composition is gated by accepted handoff, executed publication and artifacts.
 # Full supporting-skill activation remains a separate reported observation.
 transcript_checks:
-  - name: one agent is accepted for the composed task
-    expect_regex: '"type":"(?:darrow.codex_native_single_agent_accepted|darrow.goal_agent_completion)"'
   - name: bound publisher is invoked
     expect_regex: (?:"type":"darrow.skill_read_probe"[^\n]*"skill":"ship-proposal"[^\n]*"status":"completed"|"name":"Skill"[^\n]*"skill":"[^"]*ship-proposal")
-  - name: native parent performs no work after handoff
-    not_regex: '"type":"darrow.codex_native_parent_tool_after_agent"'
+native_goal: required

@@ -4,14 +4,14 @@
       "host": "codex",
       "harness": "codex",
       "provider": "openai",
-      "model": "gpt-6-sol",
+      "model": "gpt-6.1-sol",
       "effort": "xhigh"
     },
     {
       "host": "claude",
       "harness": "claude",
       "provider": "anthropic",
-      "model": "claude-opus-5",
+      "model": "claude-opus-5-5",
       "effort": "xhigh"
     }
   ]

@@ -61,8 +61,15 @@ An ordinary request can select the appropriate capability:
 
 > Show me the worker state transitions.
 
-To select it explicitly, choose `explain-visually` from Codex's `$` skill menu,
-or use `/darrow-explanation:explain-visually` in Claude Code, followed by your request.
+To select it explicitly, choose `explain-visually` from Codex's `$` skill menu
+or type `$darrow-explanation:explain-visually`; in Claude Code, use
+`/darrow-explanation:explain-visually`, followed by your request.
+
+### Implicit activation in Codex
+
+Implicit selection can be inconsistent on Codex `gpt-6-luna`/medium. Invoke
+`explain-visually` explicitly when its grounding and view-selection instructions
+matter. A useful diagram alone does not establish that those instructions ran.
 
 ## Expected result
 

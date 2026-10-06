@@ -1,7 +1,7 @@
 {
   "name": "darrow-skill-authoring",
-  "version": "0.2.10",
-  "description": "Create and improve reliable cross-runtime agent skills",
+  "version": "0.3.0",
+  "description": "Create and audit reliable cross-runtime agent skills",
   "author": {
     "name": "Björn Rochel",
     "email": "bjoern@bjro.de"
@@ -9,15 +9,14 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Darrow -> Skill Authoring",
-    "shortDescription": "Build focused, evaluated agent skills",
-    "longDescription": "Create or improve one self-contained agent skill with deliberate discovery metadata, deterministic validation, and behavior evidence for Claude Code and Codex.",
+    "shortDescription": "Create and audit agent skills",
+    "longDescription": "Create focused agent skills or audit existing ones for discovery, workflow, safety, and independent installation in Claude Code and Codex.",
     "developerName": "Björn Rochel",
     "category": "Productivity",
     "capabilities": ["Interactive", "Write"],
     "defaultPrompt": [
       "Create a focused skill for this workflow.",
-      "Improve this skill's triggering and reliability.",
-      "Validate this skill for Claude Code and Codex."
+      "Audit this existing skill for Claude Code and Codex."
     ]
   }
 }

@@ -77,7 +77,7 @@ def initialize(
         credential_home=str(credential_home.resolve(strict=True)),
         plugins=[str(Path(plugin).resolve(strict=True)) for plugin in plugins],
         issue_scope=issues,
-        subscription_only_confirmed=True,
+        account_usage_accepted=True,
         effects="claims,questions,worktrees,recipe,commits,push,pr,archives",
     )
     bind(site, grant)

@@ -9,7 +9,7 @@ contract.
 | Skill         | A focused procedure advertised to the host through trigger metadata; see [skill authoring](specs/skill-authoring.md).                                                |
 | Capability    | Intent-matched work with its own outcome and invariants; see [capabilities and orchestration](decisions/ADR-0002-separate-capabilities-from-orchestration.md).       |
 | Foundation    | A capability that maintains durable context or reusable agent surfaces; see [layer composition](specs/layer-composition.md).                                         |
-| Orchestration | An explicitly invoked owner of the completion contract and execution handoff; see [Adaptive Delivery](specs/adaptive-delivery.md).                                   |
+| Orchestration | An explicitly invoked owner of the completion contract and execution handoff; see [Adaptive Goal](specs/adaptive-goal.md).                                           |
 | Task recipe   | An explicit familiar outcome and permission envelope that delegates bounded work; see [ticket to PR](specs/ticket-to-pr.md).                                         |
 | Native owner  | The host-visible agent that owns execution after the handoff; see [native goal ownership](decisions/ADR-0004-use-native-goal-ownership-for-core-orchestration.md).   |
 | Readiness     | An assessment of whether work has sufficient decisions and evidence to implement; see [implementation readiness](specs/implementation-readiness.md).                 |

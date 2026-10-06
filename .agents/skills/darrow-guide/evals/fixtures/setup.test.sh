@@ -21,7 +21,7 @@ test ! -e plugins/automation/darrow-artificer/skills/manage-artificer/evals
 test ! -e docs/research/repository-guide-98-delivery.md
 test ! -e docs/research/artificer-157-delivery.md
 test ! -e .agents/skills/darrow-guide/evals/inventory.json
-grep -F 'Complex work starts adaptive-delivery automatically' plugins/orchestration/darrow-adaptive-delivery/README.md >/dev/null
+grep -F 'Complex work starts adaptive-goal automatically' plugins/orchestration/darrow-adaptive-goal/README.md >/dev/null
 test "$(git rev-parse HEAD)" = "$(cat .git/guide-base)"
 test -z "$(git status --porcelain --untracked-files=all)"
 test ! -s .git/guide-effects

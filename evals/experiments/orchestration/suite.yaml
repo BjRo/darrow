@@ -10,11 +10,11 @@ modes:
       claude: conditions/native-goal-claude.md
       codex: conditions/native-goal-codex.md
     require_evaluation_records: true
-  darrow-adaptive-delivery:
+  darrow-adaptive-goal:
     condition_by_harness:
-      claude: conditions/darrow-adaptive-delivery-claude.md
-      codex: conditions/darrow-adaptive-delivery-codex.md
-    skill_dir: ../../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery
+      claude: conditions/darrow-adaptive-goal-claude.md
+      codex: conditions/darrow-adaptive-goal-codex.md
+    skill_dir: ../../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal
     mount_plugin_skills: true
     require_evaluation_records: true
   darrow-ticket-pipeline:

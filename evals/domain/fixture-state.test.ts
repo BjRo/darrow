@@ -4,7 +4,7 @@ import { runFixtureChecks } from "./fixture-command";
 test("Darrow prepares fixture state before canonical setup", async () => {
   const result = await runFixtureChecks({
     source: new URL(
-      "../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/failed-check-blocks-publication.yaml",
+      "../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/evals/failed-check-blocks-publication.yaml",
       import.meta.url,
     ),
     setupPrefix: "test -d .git/fixture-state || exit 9",
@@ -25,7 +25,7 @@ test("Darrow setup resolves system Git before declared wrappers", async () => {
   const quoted = `'${git.replaceAll("'", "'\\''")}'`;
   const result = await runFixtureChecks({
     source: new URL(
-      "../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/file-backed-capability-routing.yaml",
+      "../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/evals/file-backed-capability-routing.yaml",
       import.meta.url,
     ),
     setupPrefix:

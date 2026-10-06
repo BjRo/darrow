@@ -25,7 +25,7 @@ const benchmarkOptions = {
     type: "string",
     default: CODEX_EVAL_ROLE_DEFAULTS.candidate.model,
   },
-  "claude-model": { type: "string", default: "claude-sonnet-5" },
+  "claude-model": { type: "string", default: "claude-sonnet-5-5" },
   dry: { type: "boolean", default: false },
   "no-judge": { type: "boolean", default: false },
   "semantic-check-harness": { type: "string", default: "codex" },

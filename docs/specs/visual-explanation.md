@@ -25,9 +25,14 @@ only when it is visibly distinguished from observed structure.
 
 ### Intent
 
-Use `explain-visually` when the user asks to visualize, diagram, draw, map, show
-the structure or flow, restate a dense explanation visually, or explicitly
-invokes the skill for a current technical subject.
+Use `explain-visually` when the user asks for a visual explanation of a
+technical subject or explicitly invokes the skill. Natural requests may ask to
+show the structure or flow, draw or map relationships, or turn an explanation
+that is too much prose into a view; they need not contain the exact words
+“explain visually.” A request to explain an algorithm as pseudocode alone is
+an output-format request, not necessarily visual-explanation intent. The skill
+can still produce pseudocode when it is invoked or the surrounding request
+clearly asks for a visual explanation.
 
 Do not select it merely because a technical answer has several parts. Do not
 use it for polished graphic design, UI mockup production, image generation,
@@ -94,6 +99,9 @@ understand:
 Use Mermaid only when it materially clarifies relationships and the response
 remains understandable as source text if it is not rendered. Prefer a fenced
 text form when rendering support is unknown or an ASCII tree is equally clear.
+For directory ownership, root the view at the owning directory and label its
+relevant child areas. An export or barrel file may be mentioned as context, but
+must not replace the directory ownership map or cause a redundant second view.
 
 Prune incidental helpers, files, props, states, and branches. Preserve error
 paths, exceptional states, ordering, or boundaries when omitting them would
@@ -120,9 +128,12 @@ compression.
 
 ## Invariants
 
-1. **VE-C1 — Intent-matched explanation.** Direct and indirect requests for a
-   visual explanation select the capability; ordinary implementation,
-   artifact creation, and sufficiently answered short-prose requests do not.
+1. **VE-C1 — Intent-matched explanation.** Direct and indirect requests to
+   explain technical relationships visually select the capability, including
+   natural requests for responsibility maps and state transitions. A
+   pseudocode-only format request does not by itself require selection;
+   ordinary implementation, artifact creation, and sufficiently answered
+   short-prose requests do not select it.
 2. **VE-C2 — Smallest fitting view.** Representation follows the relationship
    being explained, with one primary view by default and no catalogue of every
    supported form.
@@ -150,13 +161,15 @@ compression.
 The public behavior must cover these representative requests before skill
 prose is implemented:
 
-| Class          | Representative request                                                       | Expected behavior                                                                                  |
-| -------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| Direct         | “Use `explain-visually` to show what happens when a job is submitted.”       | Inspect the named code and return a compact observed call-flow view.                               |
-| Indirect       | “This state-machine explanation is too much prose. Show me the transitions.” | Choose a state-oriented view without requiring the user to name a format.                          |
-| Incomplete     | “Use `explain-visually`. Show me.”                                           | Ask what subject to explain and do not invent one.                                                 |
-| Negative       | “Implement the documented retry behavior and keep the response concise.”     | Leave visual explanation unselected and perform only the requested implementation workflow.        |
-| Counterexample | “Draw the exact production architecture from this one-line product ticket.”  | Expose the evidence gap or label a conceptual/proposed view; do not invent current files or calls. |
+| Class          | Representative request                                                                        | Expected behavior                                                                                  |
+| -------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Direct         | “Use `explain-visually` to show what happens when a job is submitted.”                        | Inspect the named code and return a compact observed call-flow view.                               |
+| Core implicit  | “Explain visually what happens when a job is submitted.”                                      | Select the skill without an invocation token and return a grounded view.                           |
+| Indirect       | “This state-machine explanation is too much prose. Show me the transitions.”                  | Choose a state-oriented view without requiring the user to name a format.                          |
+| Format         | “Use `explain-visually` to explain this algorithm as compact pseudocode.”                     | Preserve the material algorithm in a compact view without treating format alone as a trigger.      |
+| Incomplete     | “Use `explain-visually`. Show me.”                                                            | Ask what subject to explain and do not invent one.                                                 |
+| Negative       | “Implement the documented retry behavior and keep the response concise.”                      | Leave visual explanation unselected and perform only the requested implementation workflow.        |
+| Counterexample | “Use `explain-visually` to draw the exact production architecture from this one-line ticket.” | Expose the evidence gap or label a conceptual/proposed view; do not invent current files or calls. |
 
 ## Packaging and portability
 
@@ -173,9 +186,11 @@ prose is implemented:
 ## Evaluation requirements
 
 1. **VE-E1 — Intent boundaries.** Explicit direct and incomplete-subject
-   requests dispatch the named skill, indirect visual-explanation requests
-   select it through completed skill-body discovery, and implementation and
-   visual-artifact requests do not select it.
+   requests dispatch the named skill. A canonical visual-explanation request
+   and natural visual paraphrases select it through completed skill-body
+   discovery. Format-specific and evidence-pressure cases may use explicit
+   invocation to assess task behavior separately from discovery.
+   Implementation and visual-artifact requests do not select it.
 2. **VE-E2 — Representation fit.** Call flow, state transition, ownership,
    change, and algorithm cases choose a fitting compact form rather than a
    generic prose list or an unrelated diagram type.

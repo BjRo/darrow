@@ -1,0 +1,32 @@
+id: plan-implementation-lets-plan-this
+invariant: PI-C1,PI-C2,DG-C1,DC-E1,DC-C1
+activation: positive
+prompt: >-
+  We have settled the product behavior: callers may configure a request timeout,
+  and a timed-out request returns an explicit timeout result. Let's plan how to
+  implement this. One implementation choice remains open: should timeout
+  configuration be service-wide or per request? We have not chosen. Do not
+  change files.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: |
+          # Service
+
+          Requests currently use one fixed timeout.
+        src/config.js: |
+          export const DEFAULT_TIMEOUT_MS = 1000;
+checks:
+  - name: planning remains read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+semantic_output_checks:
+  - name: natural planning wording retains the implementation frontier
+    proposition: >-
+      The response treats this as implementation planning, asks the user to
+      choose service-wide or per-request timeout configuration with a concrete
+      advisory recommendation and rationale, and stops without claiming the
+      scope is settled or drafting implementation slices. An explicitly
+      advisory recommendation for one scope is required and does not count as
+      choosing on the user's behalf.

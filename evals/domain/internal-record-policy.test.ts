@@ -5,7 +5,7 @@ import { policyProject } from "./policy-project";
 test("public ownership grading preserves internal-record exclusions", async () => {
   const project = await policyProject(
     { goal_report: "forbidden", goal_route_checks: false },
-    { plugin: "darrow-adaptive-delivery", skill: "adaptive-delivery" },
+    { plugin: "darrow-adaptive-goal", skill: "adaptive-goal" },
   );
   const selected = await project.resolve();
   const checkId = "darrow.evals.ownership.internal-record";

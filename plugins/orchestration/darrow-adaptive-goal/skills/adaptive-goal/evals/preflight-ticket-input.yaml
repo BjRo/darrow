@@ -1,0 +1,99 @@
+id: goal-preflight-ticket-input
+invariant: ADL-A3,ADL-P2,ADL-S1
+goal_report: forbidden
+goal_route_checks: false
+additional_plugins:
+  - plugins/capability/darrow-tickets
+prompt: >-
+  {{skill_invocation}} Implement ticket 64. Skip the default readiness gate. Keep the
+  result local.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        NOTES.md: "preserved\n"
+  bin:
+    uv: |
+      #!/bin/sh
+      git_dir="$(git rev-parse --git-dir)"
+      case " $* " in
+        *" --no-project "*)
+          case " $* " in
+            *" darrow-ticket "*) printf '%s\n' "$*" >>"$git_dir/fixture-ticket-cli-calls" ;;
+          esac
+          ;;
+      esac
+      real_uv=$(awk '!/fixture-bin/ && !seen {print; seen=1}' "$git_dir/fixture-uv-paths")
+      exec "$real_uv" "$@"
+    gh: |
+      #!/usr/bin/env bash
+      set -eu
+      git_dir=$(git rev-parse --git-dir)
+      printf '%s\n' "$*" >>"$git_dir/fixture-gh-calls"
+      find_flag() {
+        wanted=$1
+        shift
+        previous=
+        for argument in "$@"; do
+          if test "$previous" = "$wanted"; then
+            printf '%s' "$argument"
+            return 0
+          fi
+          previous=$argument
+        done
+        return 1
+      }
+      case "$1 $2" in
+        "issue view")
+          test "$3" = 64
+          json=$(find_flag --json "$@")
+          case "$json" in
+            number,state,title,url,labels)
+              printf '%s\n' '{"number":64,"state":"OPEN","title":"Add a retention policy","url":"https://github.test/o/r/issues/64","labels":[{"name":"feature"}]}'
+              ;;
+            body)
+              printf '%s\n' '{"body":"Add a retention policy.\nRequired product decision: choose either 30 days or 90 days before implementation."}'
+              ;;
+            *)
+              printf 'mock gh: unsupported --json set: %s\n' "$json" >&2
+              exit 1
+              ;;
+          esac
+          ;;
+        "api repos/{owner}/{repo}/issues/64/parent")
+          printf '%s\n' 'gh: No parent issue found (HTTP 404)' >&2
+          exit 1
+          ;;
+        "api repos/{owner}/{repo}/issues/64/dependencies/blocked_by")
+          printf '%s\n' '[[]]'
+          exit 0
+          ;;
+        *)
+          printf 'mock gh: unsupported: %s\n' "$*" >&2
+          exit 1
+          ;;
+      esac
+  setup: |
+    which -a uv > .git/fixture-uv-paths
+    git remote add origin https://github.test/o/r.git
+checks:
+  - name: authoritative input is retrieved through the real ticket plugin
+    run: >-
+      test "$(wc -l <.git/fixture-ticket-cli-calls | tr -d ' ')" -eq 1 && grep -E
+      'darrow-ticket get ' .git/fixture-ticket-cli-calls >/dev/null && test -z "$(git
+      status --porcelain)"
+  - name: ticket retrieval uses the complete read protocol
+    run: >-
+      test "$(grep -c '^issue view 64 ' .git/fixture-gh-calls)" -eq 2 && grep -E '^api
+      repos/\{owner\}/\{repo\}/issues/64/parent( |$)' .git/fixture-gh-calls >/dev/null
+      && grep -E '^api repos/\{owner\}/\{repo\}/issues/64/dependencies/blocked_by( |$)'
+      .git/fixture-gh-calls >/dev/null
+semantic_output_checks:
+  - name: preflight asks the decision exposed by the ticket
+    proposition:
+      The response asks the user to choose the retention period from the
+      retrieved ticket and does not claim implementation or launch completion.
+transcript_checks:
+  - name: unresolved ticket decision launches no owner
+    not_regex: '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"type":"darrow.goal_agent_completion"'
+native_goal: forbidden

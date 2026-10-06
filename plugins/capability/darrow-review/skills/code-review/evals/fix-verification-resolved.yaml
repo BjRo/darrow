@@ -14,6 +14,11 @@ fixture:
           # Repository instructions
 
           DEBUG must remain false. Run `bash check.sh` for config changes.
+        maintenance-note.md: |
+          # Maintenance note
+
+          Remove the obsolete LEGACY export from src/config.js. Retaining it is
+          an advisory maintenance finding; it does not block convergence.
         src/config.js: |
           export const DEBUG = false;
           export const TIMEOUT_MS = 2500;
@@ -41,57 +46,69 @@ fixture:
     set -eu
     backend=$(cd "{{case_dir}}/../../../backend" && pwd -P)
     prior_output=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
-    prior_manifest=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "manifest" { print $2 }')
-    original_target=$(printf '%s\n' "$prior_output" | awk -F '\t' '$1 == "target" { print $2 }')
-    {
-      printf 'original_target\t%s\n' "$original_target"
-      printf 'prior_target\t%s\n' "$original_target"
-      printf 'prior_manifest\t%s\n' "$prior_manifest"
-      printf 'previous_verification\tnone\tnone\n'
-      printf 'original_finding\tstandards:1:%s\tstandards\t1\thigh\tblocking\tsrc/config.js:1\t%s/AGENTS.md\tDEBUG remained enabled\n' "$original_target" "$PWD"
-      printf 'original_finding\tspec:2:%s\tspec\t2\thigh\tblocking\tsrc/config.js:2\trequirement: TIMEOUT_MS must be 2500\tTIMEOUT_MS was 1000\n' "$original_target"
-      printf 'original_finding\tspec:3:%s\tspec\t3\tlow\tadvisory\tsrc/config.js:3\tmaintenance note\tLEGACY was retained\n' "$original_target"
-      printf 'attempted\tstandards:1:%s\n' "$original_target"
-      printf 'attempted\tspec:2:%s\n' "$original_target"
-      printf 'attempted\tspec:3:%s\n' "$original_target"
-    } >.git/verification-input
+    prior_manifest=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' manifest)
+    original_target=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' target)
+    python3 - "$original_target" "$prior_manifest" "$PWD" <<'PY' >.git/verification-input
+    import json, sys
+    target, manifest, repo = sys.argv[1:]
+    json.dump({
+        "original_target": target,
+        "prior_target": target,
+        "prior_manifest": manifest,
+        "previous_verification": {"checksum": "none", "path": "none"},
+        "original_findings": [
+            {"key": f"standards:1:{target}", "axis": "standards", "order": "1", "severity": "high", "disposition": "blocking", "location": "src/config.js:1", "source": f"{repo}/AGENTS.md", "evidence": "DEBUG remained enabled", "repair_guidance": "Advisory: set DEBUG to false so runtime debugging remains disabled", "resolution_evidence": "src/config.js exports DEBUG as false"},
+            {"key": f"spec:2:{target}", "axis": "spec", "order": "2", "severity": "high", "disposition": "blocking", "location": "src/config.js:2", "source": "requirement: TIMEOUT_MS must be 2500", "evidence": "TIMEOUT_MS was 1000", "repair_guidance": "Advisory: restore TIMEOUT_MS to 2500 to meet the required timeout", "resolution_evidence": "src/config.js exports TIMEOUT_MS as 2500"},
+            {"key": f"spec:3:{target}", "axis": "spec", "order": "3", "severity": "low", "disposition": "advisory", "location": "src/config.js:3", "source": f"{repo}/maintenance-note.md", "evidence": "LEGACY was retained", "repair_guidance": "Advisory: remove the obsolete LEGACY export while preserving the required configuration", "resolution_evidence": "LEGACY is absent and DEBUG and TIMEOUT_MS retain their required values"},
+        ],
+        "attempted": [
+            f"standards:1:{target}", f"spec:2:{target}", f"spec:3:{target}",
+        ],
+    }, sys.stdout)
+    PY
     git status --porcelain --untracked-files=all >.git/status-before
     git hash-object src/config.js >.git/config-before
     printf '%s\n' "$backend" >.git/review-backend
+    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
+  - name: human response excludes machine JSON
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
   - name: verification preserves the repair bytes
     run: git hash-object src/config.js >.git/config-after; cmp .git/config-before .git/config-after
   - name: verification remains read only
     run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
-  - name: current verification scope remains in the requested repository
+  - name: current verification scope binds the requested repository
     run: >-
-      verification=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
+      verification=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
       test -n "$verification" &&
       artifact_dir=$(cd "$(dirname "$verification")" && pwd -P) &&
-      manifest=$artifact_dir/scope.tsv &&
+      manifest=$artifact_dir/scope.json &&
       test -r "$manifest" &&
       expected_repo=$(pwd -P) &&
-      git_dir=$(git rev-parse --absolute-git-dir) &&
-      git_dir=$(cd "$git_dir" && pwd -P) &&
-      test "$(awk -F '\t' '$1 == "repository" { print $2 }' "$manifest")" = "$expected_repo" &&
-      case "$manifest" in "$git_dir"/*) ;; *) exit 1 ;; esac
+      state_dir=$(cd "$DARROW_REVIEW_STATE_DIR" && pwd -P) &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$manifest" has repository "$expected_repo" &&
+      case "$manifest" in "$state_dir"/*) ;; *) exit 1 ;; esac
   - name: additive verification artifact validates and clears
-    run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
-      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1') &&
-      test -n "$tool" &&
-      test -n "$record" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-verification "$record" &&
-      grep -F 'outcome	clear' "$record" >/dev/null &&
-      awk -F '\t' '$1 == "attempt" { count++; if ($3 != "resolved" || $4 != "resolved") invalid=1 }
-      END { exit !(count == 3 && !invalid) }' "$record"
+    run: |
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
+      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n 1)
+      test -n "$tool" && test -n "$record" || exit 1
+      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-verification "$record" || exit 1
+      python3 - "$record" <<'PY'
+      import json, sys
+      record = json.load(open(sys.argv[1]))
+      attempts = record['attempts']
+      assert record['outcome'] == 'clear'
+      assert len(attempts) == 3 and all(item['status'] == item['progress'] == 'resolved' for item in attempts)
+      PY
   - name: both fix verifiers retain exact default route evidence
     run: >-
       uv run --quiet --frozen --no-dev --project .git/eval-checks/review
       python .git/eval-checks/review/tests/evals/eval_routes.py
       --host "$DARROW_EVAL_HARNESS" --profile default --axes standards spec
-  - name: final response is the complete rendered verification report
+  - name: retained verification report preserves the complete canonical evidence
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.tsv -type f | sort | tail -n 1) &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
       test -n "$record" &&
       report=$(dirname "$record")/verification.md &&
       test -r "$report" && test -s "$report" &&
@@ -100,13 +117,13 @@ checks:
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render-verification "$record" >.git/expected-verification.md &&
       awk 'NF' .git/expected-verification.md >.git/expected-verification-normalized.md &&
       awk 'NF' "$report" >.git/retained-verification-normalized.md &&
-      awk 'NF' .git/last-message.md >.git/actual-verification-normalized.md &&
-      cmp .git/expected-verification-normalized.md .git/retained-verification-normalized.md &&
-      cmp .git/expected-verification-normalized.md .git/actual-verification-normalized.md
-  - name: verification response renders values as ordinary Markdown text
-    run: >-
-      ! grep -F '<code>' .git/last-message.md &&
-      ! grep -F '</code>' .git/last-message.md &&
-      ! grep -F '`' .git/last-message.md &&
-      ! grep -E '\[[^][]+\]\([^)]*\)' .git/last-message.md &&
-      esc=$(printf '\033]8;') && ! grep -F "$esc" .git/last-message.md
+      cmp .git/expected-verification-normalized.md .git/retained-verification-normalized.md
+semantic_output_checks:
+  - name: review outcome and issues are understandable inline
+    proposition: >-
+      The response reports clear fix verification: all prior findings are
+      resolved and current checks pass. It may group resolved findings rather
+      than repeat their individual values. If mentioned, DEBUG must be false,
+      TIMEOUT_MS must be 2500, and LEGACY must be removed. Reject a report-file
+      link or unexplained verdict alone, a remaining unresolved or blocked
+      finding, a failed current check, or incorrect claims about those values.

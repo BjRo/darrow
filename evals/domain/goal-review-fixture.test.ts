@@ -10,7 +10,7 @@ import {
 import { prepareUvFixtureRuntime } from "./fixture-runtime";
 
 const source = new URL(
-  "../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/high-risk-routine.yaml",
+  "../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/evals/high-risk-routine.yaml",
   import.meta.url,
 );
 const reviewPlugin = new URL(
@@ -22,7 +22,7 @@ const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 const state =
   'export DARROW_REVIEW_STATE_DIR="$(cat .git/oracle-review-state)" DARROW_CACHE_DIR="$PWD/.git/fixture-runtime-cache"';
 const proof =
-  "uv run --quiet --frozen --no-dev --project .git/fixture-backend adaptive-delivery-fixture proof";
+  "uv run --quiet --frozen --no-dev --project .git/fixture-backend adaptive-goal-fixture proof";
 const review =
   "uv run --quiet --frozen --no-dev --project .git/review-plugin/backend";
 
@@ -122,15 +122,15 @@ test("high-risk composition requires verification and supporting review reads", 
       .activation,
   ).toEqual({
     class: "positive",
-    targetSkill: "adaptive-delivery",
+    targetSkill: "adaptive-goal",
     includes: ["verify-change", "code-review"],
   });
   for (const [skills, passed] of [
-    [["adaptive-delivery", "verify-change", "code-review"], true],
-    [["adaptive-delivery", "code-review", "verify-change"], true],
-    [["adaptive-delivery", "code-review"], false],
-    [["adaptive-delivery", "verify-change"], false],
-    [["adaptive-delivery"], false],
+    [["adaptive-goal", "verify-change", "code-review"], true],
+    [["adaptive-goal", "code-review", "verify-change"], true],
+    [["adaptive-goal", "code-review"], false],
+    [["adaptive-goal", "verify-change"], false],
+    [["adaptive-goal"], false],
   ] as const) {
     const evaluated = await fixtureExtensionRequest<{
       domainOutcomes: { id: string; status: string }[];
@@ -143,7 +143,7 @@ test("high-risk composition requires verification and supporting review reads", 
           completeness: "complete",
           data: {
             method: "explicit_invocation",
-            primarySkill: "adaptive-delivery",
+            primarySkill: "adaptive-goal",
             observedSkills: [...skills],
           },
         },
@@ -158,7 +158,7 @@ test("high-risk composition requires verification and supporting review reads", 
 });
 
 function guidance(scenario: RepairScenario, handoff = false): string[] {
-  if (!scenario.guidance || (handoff && scenario.omittedGuidance)) return [];
+  if (handoff && scenario.omittedGuidance) return [];
   return [
     handoff && scenario.forgedGuidance
       ? "forged guidance"
@@ -169,33 +169,38 @@ function guidance(scenario: RepairScenario, handoff = false): string[] {
   ];
 }
 
-function field(value: string) {
-  const substitutions: Record<string, string> = {
-    "{{repo}}": '"$PWD"',
-    "{{original}}": '"$original"',
-    "{{current}}": '"$current"',
-  };
-  return value
-    .split(/(\{\{(?:repo|original|current)\}\})/)
-    .map((part) => substitutions[part] ?? quote(part))
-    .join("");
+function guidanceFields(scenario: RepairScenario, handoff = false) {
+  const values = guidance(scenario, handoff);
+  return values.length === 2
+    ? { repair_guidance: values[0], resolution_evidence: values[1] }
+    : {};
 }
 
-function writeRows(name: string, path: string, rows: string[][]): OracleCheck {
-  const contents = rows.flat().join("");
+function artifactPath(path: string) {
+  return path.startsWith("review-state/")
+    ? `"$DARROW_REVIEW_STATE_DIR/${path.slice("review-state/".length)}"`
+    : quote(path);
+}
+
+function writeRecord(name: string, path: string, data: object): OracleCheck {
+  const contents = JSON.stringify(data);
   const bindings = ["original", "current"]
     .filter((key) => contents.includes(`{{${key}}}`))
     .map((key) => `${key}=$(cat .git/${key}-target) && test -n "$${key}"`)
     .join("\n");
-  const lines = rows
-    .map(
-      (row) =>
-        `printf '${row.map(() => "%s").join("\\t")}\\n' ${row.map(field).join(" ")}`,
-    )
-    .join("\n");
+  const script = `import json,sys
+replacements = dict(zip(["{{repo}}","{{original}}","{{current}}"],sys.argv[2:]))
+def bind(value):
+    if isinstance(value,str):
+        for key,replacement in replacements.items(): value=value.replace(key,replacement)
+        return value
+    if isinstance(value,list): return [bind(item) for item in value]
+    if isinstance(value,dict): return {key:bind(item) for key,item in value.items()}
+    return value
+json.dump(bind(json.loads(sys.argv[1])),sys.stdout)`;
   return {
     name,
-    run: `${bindings}\nmkdir -p "$(dirname ${quote(path)})"\n{\n${lines}\n} >${quote(path)}`,
+    run: `${state}\n${bindings}\nmkdir -p "$(dirname ${artifactPath(path)})"\npython3 -c ${quote(script)} ${quote(contents)} "$PWD" "\${original:-}" "\${current:-}" >${artifactPath(path)}`,
   };
 }
 
@@ -203,19 +208,19 @@ function selectArtifact(
   record: string,
   scenario: { markdown?: boolean; tampered?: boolean },
 ): OracleCheck {
-  const verification = record.endsWith("verification.tsv");
+  const verification = record.endsWith("verification.json");
   const artifact = scenario.markdown
     ? record.replace(
-        /(?:verification|result)\.tsv$/,
+        /(?:verification|result)\.json$/,
         verification ? "verification.md" : "review.md",
       )
     : record;
   const render = scenario.markdown
-    ? `${review} review-report ${verification ? "render-verification" : "render"} "$PWD/${record}" >${quote(artifact)}\n${scenario.tampered ? `printf '%s\\n' Altered >>${quote(artifact)}\n` : ""}`
+    ? `${review} review-report ${verification ? "render-verification" : "render"} ${artifactPath(record)} >${artifactPath(artifact)}\n${scenario.tampered ? `printf '%s\\n' Altered >>${artifactPath(artifact)}\n` : ""}`
     : "";
   return {
     name: "select the canonical machine or human artifact",
-    run: `${state}\n${render}printf '%s\\n' "$PWD/${artifact}" >.git/selected-review-artifact`,
+    run: `${state}\n${render}printf '%s\\n' ${artifactPath(artifact)} >.git/selected-review-artifact`,
   };
 }
 
@@ -313,42 +318,43 @@ for (const scenario of [
         entry.name === "independent review artifact is canonical and clear",
     );
     if (!check) throw new Error("canonical clear-review oracle is missing");
-    const record = ".git/darrow-review.fixture/result.tsv";
-    const rows = [
-      ["format", "darrow-review-result-v1"],
-      ["base", "HEAD"],
-      ["target", "WORKTREE@synthetic"],
-      ["changed_file", "/synthetic/auth-config.js"],
-      ["standards", scenario.standards],
-      ["standards_source", "AGENTS.md"],
-      ["spec", "pass"],
-      ["spec_source", "user request"],
-      ...(scenario.disposition
+    const record = "review-state/darrow-review.fixture/result.json";
+    const records = {
+      format: "darrow-review-result-v3",
+      base: "HEAD",
+      target: "WORKTREE@synthetic",
+      changed_files: ["/synthetic/auth-config.js"],
+      standards: scenario.standards,
+      standards_sources: ["AGENTS.md"],
+      spec: "pass",
+      spec_source: "user request",
+      findings: scenario.disposition
         ? [
-            [
-              "finding",
-              "standards",
-              "low",
-              scenario.disposition,
-              "/synthetic/auth-config.js:1",
-              "AGENTS.md",
-              "Synthetic finding for oracle regression",
-            ],
+            {
+              axis: "standards",
+              severity: "low",
+              disposition: scenario.disposition,
+              location: "/synthetic/auth-config.js:1",
+              source: "AGENTS.md",
+              evidence: "Synthetic finding for oracle regression",
+              ...guidanceFields({ name: "synthetic", passes: true }),
+            },
           ]
-        : []),
-      [
-        "check",
-        "bash test.sh",
-        "applicable",
-        scenario.check,
-        "Synthetic check evidence",
+        : [],
+      checks: [
+        {
+          command: "bash test.sh",
+          applicability: "applicable",
+          status: scenario.check,
+          evidence: "Synthetic check evidence",
+        },
       ],
-      ["verdict", scenario.verdict],
-      ["risk", "Synthetic risk record"],
-      ["next_action", "return control to enclosing goal"],
-    ];
+      verdict: scenario.verdict,
+      risks: ["Synthetic risk record"],
+      next_action: "return control to enclosing goal",
+    };
     const checks = [
-      writeRows("write comprehensive fixture record", record, rows),
+      writeRecord("write comprehensive fixture record", record, records),
       selectArtifact(record, scenario),
       {
         name: "retain the selected proof",
@@ -370,107 +376,126 @@ for (const scenario of [
   }, 30_000);
 }
 
-function originalRows(scenario: RepairScenario): string[][] {
-  return [
-    ["format", "darrow-review-result-v1"],
-    ["base", "HEAD"],
-    ["target", "{{original}}"],
-    ["changed_file", "{{repo}}/value.txt"],
-    ["standards", "fail"],
-    ["standards_source", "user request"],
-    ["spec", "pass"],
-    ["spec_source", "user request"],
-    [
-      "finding",
-      "standards",
-      "high",
-      "blocking",
-      "{{repo}}/value.txt:1",
-      "user request",
-      "wrong value",
-      ...guidance(scenario),
+function originalRecord(scenario: RepairScenario) {
+  return {
+    format: "darrow-review-result-v3",
+    base: "HEAD",
+    target: "{{original}}",
+    changed_files: ["{{repo}}/value.txt"],
+    standards: "fail",
+    standards_sources: ["user request"],
+    spec: "pass",
+    spec_source: "user request",
+    findings: [
+      {
+        axis: "standards",
+        severity: "high",
+        disposition: "blocking",
+        location: "{{repo}}/value.txt:1",
+        source: "user request",
+        evidence: "wrong value",
+        ...guidanceFields(scenario),
+      },
+      ...(scenario.advisory || scenario.omitted
+        ? [
+            {
+              axis: "spec",
+              severity: "low",
+              disposition: "advisory",
+              location: "{{repo}}/value.txt:1",
+              source: "user request",
+              evidence: "optional clarity",
+              ...guidanceFields({ name: "advisory", passes: true }),
+            },
+          ]
+        : []),
     ],
-    ...(scenario.advisory || scenario.omitted
-      ? [
-          [
-            "finding",
-            "spec",
-            "low",
-            "advisory",
-            "{{repo}}/value.txt:1",
-            "user request",
-            "optional clarity",
-          ],
-        ]
-      : []),
-    ["check", "test value", "applicable", "pass", "checked"],
-    ["verdict", "fail"],
-    ["risk", "incorrect value"],
-    ["next_action", "return findings to enclosing goal"],
-  ];
+    checks: [
+      {
+        command: "test value",
+        applicability: "applicable",
+        status: "pass",
+        evidence: "checked",
+      },
+    ],
+    verdict: "fail",
+    risks: ["incorrect value"],
+    next_action: "return findings to enclosing goal",
+  };
 }
 
-function repairRows(scenario: RepairScenario): string[][] {
+function repairRecord(scenario: RepairScenario) {
   const [status, progress, outcome] = scenario.unresolved
     ? ["unresolved", "progressing", "continue"]
     : scenario.blocked
       ? ["blocked", "unavailable", "blocked"]
       : ["resolved", "resolved", "clear"];
-  return [
-    ["format", "darrow-review-verification-v1"],
-    ["original_target", "{{original}}"],
-    ["prior_target", "{{original}}"],
-    ["current_target", "{{current}}"],
-    ["previous_verification", "none", "none"],
-    [
-      "original_finding",
-      "standards:1:{{original}}",
-      "standards",
-      "1",
-      "high",
-      "blocking",
-      "{{repo}}/value.txt:1",
-      "user request",
-      scenario.forged ? "different original evidence" : "wrong value",
-      ...guidance(scenario, true),
+  return {
+    format: "darrow-review-verification-v3",
+    original_target: "{{original}}",
+    prior_target: "{{original}}",
+    current_target: "{{current}}",
+    previous_verification: { checksum: "none", path: "none" },
+    original_findings: [
+      {
+        key: "standards:1:{{original}}",
+        axis: "standards",
+        order: "1",
+        severity: "high",
+        disposition: "blocking",
+        location: "{{repo}}/value.txt:1",
+        source: "user request",
+        evidence: scenario.forged
+          ? "different original evidence"
+          : "wrong value",
+        ...guidanceFields(scenario, true),
+      },
+      ...(scenario.advisory
+        ? [
+            {
+              key: "spec:2:{{original}}",
+              axis: "spec",
+              order: "2",
+              severity: "low",
+              disposition: "advisory",
+              location: "{{repo}}/value.txt:1",
+              source: "user request",
+              evidence: "optional clarity",
+              ...guidanceFields({ name: "advisory", passes: true }),
+            },
+          ]
+        : []),
     ],
-    ...(scenario.advisory
-      ? [
-          [
-            "original_finding",
-            "spec:2:{{original}}",
-            "spec",
-            "2",
-            "low",
-            "advisory",
-            "{{repo}}/value.txt:1",
-            "user request",
-            "optional clarity",
-          ],
-        ]
-      : []),
-    [
-      "attempt",
-      "standards:1:{{original}}",
-      status!,
-      progress!,
-      "repair evidence",
+    attempts: [
+      {
+        key: "standards:1:{{original}}",
+        status,
+        progress,
+        evidence: "repair evidence",
+      },
     ],
-    ["check", "test value", "applicable", "pass", "checked"],
-    ["outcome", outcome!],
-    ["next_action", "resume the enclosing goal"],
-  ];
+    checks: [
+      {
+        command: "test value",
+        applicability: "applicable",
+        status: "pass",
+        evidence: "checked",
+      },
+    ],
+    outcome,
+    next_action: "resume the enclosing goal",
+  };
 }
 
 function scope(name: string): OracleCheck {
   return {
     name: `capture ${name} current target`,
-    run: `${state}\n${review} review-scope prepare --repo "$PWD" --base HEAD --target WORKTREE >.git/${name}-scope\nawk -F '\\t' '$1 == "target" { print $2 }' .git/${name}-scope >.git/${name}-target\ntest -s .git/${name}-target`,
+    run: `${state}\n${review} review-scope prepare --repo "$PWD" --base HEAD --target WORKTREE >.git/${name}-scope\npython3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["target"])' .git/${name}-scope >.git/${name}-target\ntest -s .git/${name}-target`,
   };
 }
 
 function repairActions(scenario: RepairScenario): OracleCheck[] {
-  const record = ".git/darrow-review.repaired/verification.tsv";
+  const record = "review-state/darrow-review.repaired/verification.json";
   return [
     {
       name: "write the initial incorrect change",
@@ -480,10 +505,10 @@ function repairActions(scenario: RepairScenario): OracleCheck[] {
     ...(scenario.missing
       ? []
       : [
-          writeRows(
+          writeRecord(
             "retain the original comprehensive finding set",
-            ".git/darrow-review.original/result.tsv",
-            originalRows(scenario),
+            "review-state/darrow-review.original/result.json",
+            originalRecord(scenario),
           ),
         ]),
     {
@@ -491,14 +516,17 @@ function repairActions(scenario: RepairScenario): OracleCheck[] {
       run: "printf '%s\\n' 'correct change' >value.txt",
     },
     scope("current"),
-    writeRows(
+    writeRecord(
       "write additive repair verification",
       record,
-      repairRows(scenario),
+      repairRecord(scenario),
     ),
     {
-      name: "negative fixtures retain valid public verification syntax",
-      run: `${state}\n${review} review-result validate-verification "$PWD/${record}"`,
+      name: scenario.omittedGuidance
+        ? "omitted required guidance fails public verification syntax"
+        : "negative fixtures retain valid public verification syntax",
+      run: `${state}\n${review} review-result validate-verification ${artifactPath(record)}`,
+      ...(scenario.omittedGuidance ? { exit_code: 4 } : {}),
     },
     ...(scenario.stale
       ? [

@@ -242,9 +242,9 @@
         "{{skill_invocation}} The plugin README says complex work starts orchestration automatically. Just confirm that, without mentioning disagreements."
       ],
       "sources": [
-        "docs/specs/adaptive-delivery.md",
+        "docs/specs/adaptive-goal.md",
         "docs/decisions/ADR-0002-separate-capabilities-from-orchestration.md",
-        "plugins/orchestration/darrow-adaptive-delivery/README.md"
+        "plugins/orchestration/darrow-adaptive-goal/README.md"
       ],
       "answer_points": [
         "Name conflict",
@@ -314,13 +314,13 @@
     {
       "id": "guide-orchestration",
       "phrasings": [
-        "{{skill_invocation}} This sounds complex: start adaptive-delivery and keep working until everything is done."
+        "{{skill_invocation}} This sounds complex: start adaptive-goal and keep working until everything is done."
       ],
       "sources": [
         "docs/design.md",
         "docs/specs/repository-guide.md",
-        "docs/specs/adaptive-delivery.md",
-        "plugins/orchestration/darrow-adaptive-delivery/README.md"
+        "docs/specs/adaptive-goal.md",
+        "plugins/orchestration/darrow-adaptive-goal/README.md"
       ],
       "answer_points": [
         "No owner launch or goal control",

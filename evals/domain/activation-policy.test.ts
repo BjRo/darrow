@@ -113,10 +113,10 @@ describe("public skill activation policy", () => {
     ).toBeUndefined();
   });
 
-  test("preserves owner requirements for adaptive-delivery and composition cases except negative activation", async () => {
+  test("preserves owner requirements for adaptive-goal and composition cases except negative activation", async () => {
     const owner = await policyProject(
       { goal_report: "forbidden", goal_route_checks: false },
-      { plugin: "darrow-adaptive-delivery", skill: "adaptive-delivery" },
+      { plugin: "darrow-adaptive-goal", skill: "adaptive-goal" },
     );
     expect(
       (await owner.resolve()).checks.filter(
@@ -124,7 +124,7 @@ describe("public skill activation policy", () => {
       ),
     ).toHaveLength(3);
     const composition = await policyProject({
-      adaptive_delivery_composition: true,
+      adaptive_goal_composition: true,
     });
     expect(
       (await composition.resolve()).checks.filter(

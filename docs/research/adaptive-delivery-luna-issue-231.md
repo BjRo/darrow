@@ -1,8 +1,12 @@
-# Adaptive Delivery Luna owner routes: trials for issue #231
+# Adaptive Goal Luna owner routes: trials for issue #231
+
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
 
 On 2026-09-23, [issue #229](https://github.com/BjRo/darrow/issues/229)
 established that a GPT-6 Luna Codex agent could spawn one child. This trial
-checked whether Luna could own routine Adaptive Delivery work, including a
+checked whether Luna could own routine Adaptive Goal work, including a
 goal that requires independent review.
 
 ## Method

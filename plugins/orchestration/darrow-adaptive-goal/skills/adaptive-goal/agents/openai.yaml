@@ -1,0 +1,4 @@
+interface:
+  display_name: "Adaptive Goal"
+  short_description: "Coordinate a native goal in the main thread"
+  default_prompt: "Use $darrow-adaptive-goal:adaptive-goal to preflight this request, retain the native goal here, and delegate bounded implementation and verification."

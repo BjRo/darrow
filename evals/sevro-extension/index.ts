@@ -5,6 +5,13 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import { nativeOwnerRouteChecks } from "./benchmark-owner";
+import { nativeGoalPolicy, nativeGoalOutcomes } from "./native-goal-policy";
+import {
+  nativeTranscriptPolicy,
+  nativeTranscriptOutcomes,
+  nativeTranscriptEvidence,
+  type NativeTranscript,
+} from "./native-transcript-policy";
 import {
   benchmarkCasePolicy,
   benchmarkRecordChecks,
@@ -401,6 +408,30 @@ function semanticOutputChecks(value: unknown) {
   });
 }
 
+function semanticArtifactChecks(value: unknown) {
+  if (value === undefined) return [];
+  const config = record(value, "semantic artifact");
+  keys(config, ["path", "checks"], "semantic artifact");
+  const path = string(config.path, "semantic artifact path");
+  if (
+    isAbsolute(path) ||
+    path.includes("\\") ||
+    path.split("/").some((part) => part === ".." || part === ".git") ||
+    dirname(path).includes("*") ||
+    !/^[^*]*\*?[^*]*$/.test(path.split("/").at(-1)!)
+  )
+    throw new Error(
+      "semantic artifact path must be relative with at most one basename *",
+    );
+  if (!Array.isArray(config.checks) || !config.checks.length)
+    throw new Error("semantic artifact checks must be nonempty");
+  return semanticOutputChecks(config.checks).map((check, index) => ({
+    ...check,
+    id: `darrow.semantic-artifact.${index + 1}`,
+    configuration: { ...check.configuration, artifactPath: path },
+  }));
+}
+
 function headChecks(value: unknown) {
   if (value === undefined || value === null) return [];
   if (typeof value !== "boolean")
@@ -734,6 +765,8 @@ const CASE_FIELDS = [
   "expect_head_change",
   "output_checks",
   "semantic_output_checks",
+  "semantic_artifact",
+  "native_goal",
   "activation",
   "activation_sequence",
   "activation_includes",
@@ -743,7 +776,7 @@ const CASE_FIELDS = [
   "additional_skills",
   "goal_report",
   "goal_route_checks",
-  "adaptive_delivery_composition",
+  "adaptive_goal_composition",
   "transcript_checks",
 ];
 
@@ -764,14 +797,14 @@ const NO_AGENT_TRANSCRIPT_PATTERNS = new Set([
   '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"name":"Agent"|"name":"Task"',
 ]);
 const NO_LEDGER_TRANSCRIPT_PATTERN =
-  'adaptive-delivery-preflight step|Protocol ledger|"tool":"create_goal"';
+  'adaptive-goal-preflight step|Protocol ledger|"tool":"create_goal"';
 const NO_PREFLIGHT_GOAL_PATTERN =
-  'adaptive-delivery-preflight step|"tool":"create_goal"';
+  'adaptive-goal-preflight step|"tool":"create_goal"';
 const NO_LEDGER_TRANSCRIPT_PATTERNS = new Set([
   NO_LEDGER_TRANSCRIPT_PATTERN,
   NO_PREFLIGHT_GOAL_PATTERN,
-  "adaptive-delivery-preflight step|darrow-native-goal-report",
-  "adaptive-delivery-preflight step|Protocol ledger",
+  "adaptive-goal-preflight step|darrow-native-goal-report",
+  "adaptive-goal-preflight step|Protocol ledger",
 ]);
 const ONE_OWNER_TRANSCRIPT_PATTERNS = new Set([
   '"type":"darrow.codex_native_single_agent_accepted"',
@@ -788,18 +821,18 @@ const CONTINUATION_UNCHANGED_PATTERNS = new Set([
 const CROSS_TURN_UNCHANGED_PATTERN =
   '"type":"darrow.eval.follow_up_turn"[^\\n]*"pre_feedback_worktree_unchanged":true|"type":"darrow.goal_agent_completion"';
 const CROSS_TURN_OWNER_BEFORE_PATTERN =
-  '(?:"type":"darrow.goal_agent_completion"[^\\n]*"status":"completed"[^\\n]*"agent_id":"[^"]+"[\\s\\S]*"type":"darrow.eval.follow_up_turn"|"tool":"spawn_agent"[^\\n]*"status":"completed"[^\\n]*"receiver_thread_ids":\\["[^"]+"\\][^\\n]*"prompt":"- phase: adaptive-delivery-owner"[\\s\\S]*"type":"darrow.eval.follow_up_turn"|"type":"darrow.codex_native_single_agent_accepted"[^\\n]*"accepted_before_follow_up":true)';
+  '(?:"type":"darrow.goal_agent_completion"[^\\n]*"status":"completed"[^\\n]*"agent_id":"[^"]+"[\\s\\S]*"type":"darrow.eval.follow_up_turn"|"tool":"spawn_agent"[^\\n]*"status":"completed"[^\\n]*"receiver_thread_ids":\\["[^"]+"\\][^\\n]*"prompt":"- phase: adaptive-goal-owner"[\\s\\S]*"type":"darrow.eval.follow_up_turn"|"type":"darrow.codex_native_single_agent_accepted"[^\\n]*"accepted_before_follow_up":true)';
 const CROSS_TURN_SAME_OWNER_PATTERN =
   '(?:"type":"darrow.goal_agent_completion"[^\\n]*"agent_id":"([^"]+)"[\\s\\S]*"type":"darrow.human_feedback_request"[^\\n]*"agent_id":"\\1"[^\\n]*"question_present":true[\\s\\S]*"type":"darrow.eval.follow_up_turn"[\\s\\S]*"type":"darrow.human_feedback_relay"[^\\n]*"agent_id":"\\1"[^\\n]*"same_owner":true[\\s\\S]*"type":"darrow.goal_agent_resumption"[^\\n]*"agent_id":"\\1"[^\\n]*"status":"completed"[^\\n]*"same_owner":true|"tool":"spawn_agent"[^\\n]*"status":"completed"[^\\n]*"receiver_thread_ids":\\["([^"]+)"\\][^\\n]*"agent_ref":"\\2"[\\s\\S]*"type":"darrow.eval.follow_up_turn"[\\s\\S]*"tool":"(?:followup_task|send_input)"[^\\n]*"status":"completed"[^\\n]*"receiver_thread_ids":\\["\\2"\\][^\\n]*"agent_ref":"\\2"|"type":"darrow.codex_native_single_agent_accepted"[^\\n]*"agent_ref":"([^"]+)"[\\s\\S]*"type":"darrow.codex_native_feedback"[^\\n]*"tool":"(?:followup_task|send_message)"[^\\n]*"agent_ref":"\\3"[^\\n]*"same_owner":true[^\\n]*"after_follow_up":true[^\\n]*"delivery":"unverified")';
 const CROSS_TURN_NO_REPLACEMENT_PATTERN =
-  '"type":"darrow.eval.follow_up_turn"[\\s\\S]*(?:"type":"darrow.parent_spawn_after_goal"|"tool":"spawn_agent"|adaptive-delivery-preflight step|Protocol ledger|"tool":"create_goal")';
+  '"type":"darrow.eval.follow_up_turn"[\\s\\S]*(?:"type":"darrow.parent_spawn_after_goal"|"tool":"spawn_agent"|adaptive-goal-preflight step|Protocol ledger|"tool":"create_goal")';
 const CONTINUATION_CHANGED_PATTERN = String.raw`"type":"darrow\.eval\.follow_up_turn"(?![^\n]*"pre_feedback_worktree_unchanged":true)[^\n]*[\s\S]*"type":"darrow\.codex_native_`;
 const OWNER_AFTER_CONTINUATION_PATTERN = String.raw`"type":"darrow.eval.follow_up_turn"[\s\S]*"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"`;
 const NO_OWNER_BEFORE_CONTINUATION_PATTERN = String.raw`"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"[\s\S]*"type":"darrow.eval.follow_up_turn"`;
 const NO_NATIVE_GOAL_CONTROL_PATTERN = String.raw`"type":"darrow\.codex_native_goal_control"[^\n]*"tool":"(?:create_goal|update_goal)"`;
 const NO_OWNER_OR_GOAL_CONTROL_PATTERN = String.raw`"type":"darrow\.(?:codex_native_goal_control|codex_native_spawn|codex_native_single_agent_accepted|goal_agent_completion|review_agent_launch)"`;
 const PR_EVIDENCE_INACTIVE_PATTERN = String.raw`"skill":"publish-pr-evidence"|"name":"Skill"[^\n]*publish-pr-evidence`;
-const TICKET_RECIPE_INACTIVE_PATTERN = String.raw`"skill":"ticket-to-pr"|"skill":"adaptive-delivery"|"name":"Skill"[^\n]*(?:ticket-to-pr|adaptive-delivery)|"tool":"spawn_agent"`;
+const TICKET_RECIPE_INACTIVE_PATTERN = String.raw`"skill":"ticket-to-pr"|"skill":"adaptive-goal"|"name":"Skill"[^\n]*(?:ticket-to-pr|adaptive-goal)|"tool":"spawn_agent"`;
 const STEERING_SAME_OWNER_PATTERN = String.raw`(?:"type":"darrow.codex_native_single_agent_accepted"[^\n]*"agent_ref":"([^"]+)"[\s\S]*"type":"darrow.codex_native_feedback"[^\n]*"tool":"(?:followup_task|send_message)"[^\n]*"agent_ref":"\1"[^\n]*"same_owner":true[^\n]*"after_follow_up":true[^\n]*"delivery":"unverified"|"type":"darrow.goal_agent_completion"[^\n]*"agent_id":"([^"]+)"[\s\S]*"type":"darrow.goal_agent_resumption"[^\n]*"agent_id":"\2"[^\n]*"same_owner":true)`;
 const REJECTED_FEEDBACK_PATTERN = String.raw`(?:"type":"darrow.human_feedback_relay"[^\n]*"same_owner":true[\s\S]*"type":"darrow.goal_agent_resumption"[^\n]*"same_owner":true|"type":"darrow.codex_native_feedback"[^\n]*"tool":"(?:followup_task|send_message)"[^\n]*"same_owner":true[^\n]*"after_follow_up":true[^\n]*"response_observed":true)`;
 const RELAYED_FEEDBACK_PATTERN = String.raw`(?:"type":"darrow.human_feedback_relay"[^\n]*"same_owner":true[\s\S]*"type":"darrow.goal_agent_resumption"[^\n]*"status":"completed"[^\n]*"same_owner":true|"type":"darrow.codex_native_feedback"[^\n]*"tool":"(?:followup_task|send_message)"[^\n]*"same_owner":true[^\n]*"after_follow_up":true[^\n]*"response_observed":true)`;
@@ -819,15 +852,15 @@ const SECOND_OWNER_PATTERN = String.raw`(?:"type":"darrow.parent_spawn_after_goa
 const TWO_OWNER_COMPLETIONS_PATTERN = String.raw`"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"[\s\S]*"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"`;
 const OWNER_ROUTE_PATTERNS = new Map([
   [
-    String.raw`(?:"type":"darrow\.codex_native_single_agent_accepted"[^\n]*"model":"gpt-6-luna","reasoning_effort":"medium"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-adaptive-delivery:adaptive-delivery-sonnet-5-(?:low|medium)")`,
+    String.raw`(?:"type":"darrow\.codex_native_single_agent_accepted"[^\n]*"model":"gpt-6-luna","reasoning_effort":"medium"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-adaptive-goal:adaptive-goal-sonnet-5-5-(?:low|medium)")`,
     { model: "gpt-6-luna", reasoningEffort: "medium" },
   ],
   [
-    String.raw`(?:"type":"darrow\.codex_native_single_agent_accepted"[^\n]*"model":"gpt-6-luna","reasoning_effort":"high"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-adaptive-delivery:adaptive-delivery-sonnet-5-medium")`,
+    String.raw`(?:"type":"darrow\.codex_native_single_agent_accepted"[^\n]*"model":"gpt-6-luna","reasoning_effort":"high"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-adaptive-goal:adaptive-goal-sonnet-5-5-medium")`,
     { model: "gpt-6-luna", reasoningEffort: "high" },
   ],
   [
-    String.raw`(?:"type":"darrow\.codex_native_single_agent_accepted"[^\n]*"model":"gpt-6-astra","reasoning_effort":"high"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-adaptive-delivery:adaptive-delivery-opus-5-high")`,
+    String.raw`(?:"type":"darrow\.codex_native_single_agent_accepted"[^\n]*"model":"gpt-6-astra","reasoning_effort":"high"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-adaptive-goal:adaptive-goal-opus-5-5-high")`,
     { model: "gpt-6-astra", reasoningEffort: "high" },
   ],
 ]);
@@ -836,14 +869,14 @@ const DUAL_NESTED_READER_PATTERN = String.raw`(?=[\s\S]*"type":"darrow.codex_nat
 const NO_INHERITED_READER_CONTEXT_PATTERN = String.raw`"subagent_type":"fork"|"type":"darrow.codex_native_(nested_)?spawn"[^\n]*"fork_turns":"(all|[1-9][0-9]*)"`;
 const FRESH_PROVIDER_CONTEXT_PATTERN = String.raw`"type":"darrow.codex_native_spawn"[^\n]*"fork_turns":"none"|"name":"Agent"`;
 const ACCEPTED_CHILD_SESSION_PATTERN = String.raw`"type":"darrow.codex_native_child_skill_evidence"[^\n]*"actor":"accepted_child"[^\n]*"session_status":"available"|"name":"Agent"`;
-const DOCTOR_NO_ORCHESTRATION_PATTERN = String.raw`"skill":"adaptive-delivery"|adaptive-delivery-preflight|"tool":"spawn_agent"`;
-const DOCTOR_NO_ORCHESTRATION_AGENT_PATTERN = String.raw`"skill":"adaptive-delivery"|adaptive-delivery-preflight|"tool":"spawn_agent"|"name":"Agent"`;
-const DOCTOR_NO_PREFLIGHT_AGENT_PATTERN = String.raw`adaptive-delivery-preflight|"tool":"spawn_agent"|"name":"Agent"`;
-const DOCTOR_NO_HOST_CHOICE_PATTERN = String.raw`host-config-doctor|adaptive-delivery-preflight|"tool":"spawn_agent"|"name":"Agent"`;
-const DOCTOR_INACTIVE_PATTERN = String.raw`"skill":"doctor-adaptive-delivery"|host-config-doctor`;
-const TICKET_INPUT_NO_DELEGATION_PATTERN = String.raw`(?:"name":"Skill"[^\n]*adaptive-delivery|"type":"darrow.skill_read_probe"[^\n]*"skill":"adaptive-delivery")`;
-const ADVICE_ONLY_NO_OWNER_PATTERN = String.raw`"tool":"spawn_agent"|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"|"name":"Agent"|adaptive-delivery-preflight (?:prepare|route|step)`;
-const ADAPTIVE_SUPPORTING_READ_PATTERN = String.raw`(?:"name":"Skill"[^\n]*adaptive-delivery|"type":"darrow.skill_read_probe"[^\n]*"skill":"adaptive-delivery"[^\n]*"status":"completed")`;
+const DOCTOR_NO_ORCHESTRATION_PATTERN = String.raw`"skill":"adaptive-goal"|adaptive-goal-preflight|"tool":"spawn_agent"`;
+const DOCTOR_NO_ORCHESTRATION_AGENT_PATTERN = String.raw`"skill":"adaptive-goal"|adaptive-goal-preflight|"tool":"spawn_agent"|"name":"Agent"`;
+const DOCTOR_NO_PREFLIGHT_AGENT_PATTERN = String.raw`adaptive-goal-preflight|"tool":"spawn_agent"|"name":"Agent"`;
+const DOCTOR_NO_HOST_CHOICE_PATTERN = String.raw`host-config-doctor|adaptive-goal-preflight|"tool":"spawn_agent"|"name":"Agent"`;
+const DOCTOR_INACTIVE_PATTERN = String.raw`"skill":"doctor-adaptive-goal"|host-config-doctor`;
+const TICKET_INPUT_NO_DELEGATION_PATTERN = String.raw`(?:"name":"Skill"[^\n]*adaptive-goal|"type":"darrow.skill_read_probe"[^\n]*"skill":"adaptive-goal")`;
+const ADVICE_ONLY_NO_OWNER_PATTERN = String.raw`"tool":"spawn_agent"|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"|"name":"Agent"|adaptive-goal-preflight (?:prepare|route|step)`;
+const ADAPTIVE_SUPPORTING_READ_PATTERN = String.raw`(?:"name":"Skill"[^\n]*adaptive-goal|"type":"darrow.skill_read_probe"[^\n]*"skill":"adaptive-goal"[^\n]*"status":"completed")`;
 const TICKET_PRE_RUN_PATTERN = String.raw`(?:"name":"Skill"[^\n]*(?:read-ticket|assess-implementation-readiness|prepare-task-branch)|"type":"darrow.skill_read_probe"[^\n]*"skill":"(?:read-ticket|assess-implementation-readiness|prepare-task-branch)")`;
 const TICKET_UNAVAILABLE_PATTERN = String.raw`(?:"name":"Skill"[^\n]*(?:read-ticket|assess-implementation-readiness|prepare-task-branch)|"type":"darrow.skill_read_probe"[^\n]*"skill":"(?:read-ticket|assess-implementation-readiness|prepare-task-branch)|"tool":"spawn_agent"|"name":"Agent")`;
 const PUBLISHER_READ_PATTERNS = new Map([
@@ -858,7 +891,7 @@ const PUBLISHER_READ_PATTERNS = new Map([
 ]);
 const PARENT_TOOL_AFTER_AGENT_PATTERN =
   '"type":"darrow.codex_native_parent_tool_after_agent"';
-const ORDINARY_ENGINEERING_NO_ADAPTIVE_DELIVERY_PATTERN = String.raw`"skill":"adaptive-delivery"|adaptive-delivery-preflight prepare|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"|"name":"Agent"[^\n]*"adaptive-delivery-owner"`;
+const ORDINARY_ENGINEERING_NO_ADAPTIVE_DELIVERY_PATTERN = String.raw`"skill":"adaptive-goal"|adaptive-goal-preflight prepare|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"|"name":"Agent"[^\n]*"adaptive-goal-owner"`;
 const FORBIDDEN_EVENT_REGEX = new Map([
   [
     TICKET_INPUT_NO_DELEGATION_PATTERN,
@@ -930,10 +963,10 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     DOCTOR_NO_ORCHESTRATION_PATTERN,
     {
       kind: "inactive-controls",
-      forbiddenSkills: ["adaptive-delivery"],
+      forbiddenSkills: ["adaptive-goal"],
       forbiddenEventTerms: [
-        '"skill":"adaptive-delivery"',
-        "adaptive-delivery-preflight",
+        '"skill":"adaptive-goal"',
+        "adaptive-goal-preflight",
       ],
       forbidSpawn: true,
     },
@@ -942,10 +975,10 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     DOCTOR_NO_ORCHESTRATION_AGENT_PATTERN,
     {
       kind: "inactive-controls",
-      forbiddenSkills: ["adaptive-delivery"],
+      forbiddenSkills: ["adaptive-goal"],
       forbiddenEventTerms: [
-        '"skill":"adaptive-delivery"',
-        "adaptive-delivery-preflight",
+        '"skill":"adaptive-goal"',
+        "adaptive-goal-preflight",
       ],
       forbidSpawn: true,
       forbidAgentTool: true,
@@ -955,7 +988,7 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     DOCTOR_NO_PREFLIGHT_AGENT_PATTERN,
     {
       kind: "inactive-controls",
-      forbiddenEventTerms: ["adaptive-delivery-preflight"],
+      forbiddenEventTerms: ["adaptive-goal-preflight"],
       forbidSpawn: true,
       forbidAgentTool: true,
     },
@@ -964,10 +997,7 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     DOCTOR_NO_HOST_CHOICE_PATTERN,
     {
       kind: "inactive-controls",
-      forbiddenEventTerms: [
-        "host-config-doctor",
-        "adaptive-delivery-preflight",
-      ],
+      forbiddenEventTerms: ["host-config-doctor", "adaptive-goal-preflight"],
       forbidSpawn: true,
       forbidAgentTool: true,
     },
@@ -976,9 +1006,9 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     DOCTOR_INACTIVE_PATTERN,
     {
       kind: "inactive-controls",
-      forbiddenSkills: ["doctor-adaptive-delivery"],
+      forbiddenSkills: ["doctor-adaptive-goal"],
       forbiddenEventTerms: [
-        '"skill":"doctor-adaptive-delivery"',
+        '"skill":"doctor-adaptive-goal"',
         "host-config-doctor",
       ],
     },
@@ -987,7 +1017,7 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     TICKET_INPUT_NO_DELEGATION_PATTERN,
     {
       kind: "inactive-controls",
-      forbiddenSkills: ["adaptive-delivery"],
+      forbiddenSkills: ["adaptive-goal"],
       forbiddenEventPattern: TICKET_INPUT_NO_DELEGATION_PATTERN,
     },
   ],
@@ -1004,7 +1034,7 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     ORDINARY_ENGINEERING_NO_ADAPTIVE_DELIVERY_PATTERN,
     {
       kind: "inactive-controls",
-      forbiddenSkills: ["adaptive-delivery"],
+      forbiddenSkills: ["adaptive-goal"],
       forbiddenEventPattern: ORDINARY_ENGINEERING_NO_ADAPTIVE_DELIVERY_PATTERN,
     },
   ],
@@ -1057,7 +1087,7 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     TICKET_RECIPE_INACTIVE_PATTERN,
     {
       kind: "skills-inactive",
-      forbiddenSkills: ["ticket-to-pr", "adaptive-delivery"],
+      forbiddenSkills: ["ticket-to-pr", "adaptive-goal"],
       forbidSpawn: true,
     },
   ],
@@ -1075,7 +1105,7 @@ function readerTranscriptSelection(pattern: unknown) {
 
 function ticketTranscriptSelection(pattern: unknown) {
   if (pattern === ADAPTIVE_SUPPORTING_READ_PATTERN)
-    return { kind: "supporting-skill-read", skill: "adaptive-delivery" };
+    return { kind: "supporting-skill-read", skill: "adaptive-goal" };
   const publisher = PUBLISHER_READ_PATTERNS.get(pattern as string);
   if (publisher) return { kind: "bound-child-skill", skill: publisher };
   return null;
@@ -1191,7 +1221,7 @@ function caseTranscriptChecks(value: unknown) {
 
 function ignoredGoalPolicy(selected: RecordValue, skillDir: string | null) {
   return (
-    !skillDir?.endsWith("/adaptive-delivery") &&
+    !skillDir?.endsWith("/adaptive-goal") &&
     selected.goal_report === "forbidden" &&
     (selected.goal_route_checks === undefined ||
       selected.goal_route_checks === false)
@@ -1212,11 +1242,11 @@ function caseHostIds(value: unknown): string[] | null {
 
 function compositionOwnership(selected: RecordValue) {
   if (
-    selected.adaptive_delivery_composition !== undefined &&
-    typeof selected.adaptive_delivery_composition !== "boolean"
+    selected.adaptive_goal_composition !== undefined &&
+    typeof selected.adaptive_goal_composition !== "boolean"
   )
     throw new Error("adaptive delivery composition must be a boolean");
-  if (selected.adaptive_delivery_composition !== true) return null;
+  if (selected.adaptive_goal_composition !== true) return null;
   if (
     selected.goal_report !== undefined ||
     selected.goal_route_checks !== undefined
@@ -1243,7 +1273,7 @@ function caseOwnership(selected: RecordValue, skillDir: string | null) {
     return null;
   if (ignoredGoalPolicy(selected, skillDir)) return null;
   if (
-    !skillDir?.endsWith("/adaptive-delivery") ||
+    !skillDir?.endsWith("/adaptive-goal") ||
     selected.goal_route_checks !== false ||
     (selected.goal_report !== undefined && selected.goal_report !== "forbidden")
   )
@@ -1417,6 +1447,67 @@ function guideTranscriptChecks(value: unknown, skillDir: string | null) {
 }
 
 function casePolicy(selected: RecordValue, skillDir: string | null) {
+  return selected.native_goal === undefined
+    ? legacyCasePolicy(selected, skillDir)
+    : nativeGoalCasePolicy(selected);
+}
+
+function currentTranscriptSelection(value: unknown) {
+  const current: NativeTranscript[] = [];
+  const legacy: ReturnType<typeof caseTranscriptCheck>[] = [];
+  if (value === undefined) return { current, legacy };
+  if (!Array.isArray(value))
+    throw new Error("transcript checks must be an array");
+  for (const [index, entry] of value.entries()) {
+    try {
+      current.push({
+        ...nativeTranscriptPolicy([entry])[0]!,
+        id: `darrow.evals.transcript.${index + 1}`,
+      });
+    } catch {
+      legacy.push(caseTranscriptCheck(entry, index));
+    }
+  }
+  return { current, legacy };
+}
+
+function nativeGoalCasePolicy(selected: RecordValue) {
+  const policy = nativeGoalPolicy(selected.native_goal);
+  const transcriptChecks = currentTranscriptSelection(
+    selected.transcript_checks,
+  );
+  return {
+    checks: [
+      ...policy.checks,
+      ...[...transcriptChecks.current, ...transcriptChecks.legacy].map(
+        ({ id }) => ({
+          id,
+          grader: "darrow.evals.transcript",
+          configuration: {},
+        }),
+      ),
+    ],
+    requiredEvidence: [
+      ...new Set([
+        ...policy.requiredEvidence,
+        "sevro.host.native-controls",
+        ...nativeTranscriptEvidence(transcriptChecks.current),
+        ...policyEvidence(null, transcriptChecks.legacy),
+      ]),
+    ],
+    details: {
+      ...policy.details,
+      ...(transcriptChecks.current.length
+        ? { nativeTranscriptChecks: transcriptChecks.current }
+        : {}),
+      ...(transcriptChecks.legacy.length
+        ? { transcriptChecks: transcriptChecks.legacy }
+        : {}),
+    },
+  };
+}
+
+function legacyCasePolicy(selected: RecordValue, skillDir: string | null) {
   if (selected.id === "claude-readiness-nonready-stops")
     return claudeReadinessCasePolicy(selected.transcript_checks);
   if (selected.id === "goal-review-high-selected-claude")
@@ -1455,6 +1546,7 @@ async function caseChecks(
     ...headChecks(selected.expect_head_change),
     ...(await outputChecks(selected.output_checks, root, skillDir)),
     ...semanticOutputChecks(selected.semantic_output_checks),
+    ...semanticArtifactChecks(selected.semantic_artifact),
   ];
 }
 
@@ -1924,19 +2016,22 @@ async function projectSkillArtifacts(
   const artifacts = await skillArtifacts(sources);
   if (!ownerSkillRoot) return artifacts;
   const pluginRoot = dirname(dirname(ownerSkillRoot));
-  const backend = join(pluginRoot, "backend");
-  if (!(await optionalPluginDirectory(backend))) return artifacts;
-  await collectPluginDirectory(pluginRoot, backend, ["backend"], {
-    artifacts,
-    total: {
-      bytes: artifacts.reduce(
-        (size, artifact) =>
-          size + Buffer.from(artifact.contentBase64, "base64").byteLength,
-        0,
-      ),
-    },
-    destination: ".agents",
-  });
+  const total = {
+    bytes: artifacts.reduce(
+      (size, artifact) =>
+        size + Buffer.from(artifact.contentBase64, "base64").byteLength,
+      0,
+    ),
+  };
+  for (const name of ["backend", "references"]) {
+    const directory = join(pluginRoot, name);
+    if (await optionalPluginDirectory(directory))
+      await collectPluginDirectory(pluginRoot, directory, [name], {
+        artifacts,
+        total,
+        destination: ".agents",
+      });
+  }
   return artifacts;
 }
 
@@ -2008,6 +2103,7 @@ async function appendPluginMechanics(
     "config",
     "hooks",
     "backend",
+    "references",
   ]) {
     const directory = join(pluginRoot, name);
     if (await optionalPluginDirectory(directory))
@@ -3615,7 +3711,7 @@ function supportingSkillOutcome(
   selected: RecordValue,
   observed: ReturnType<typeof observedActivation>,
 ) {
-  if (selected.skill !== "adaptive-delivery")
+  if (selected.skill !== "adaptive-goal")
     throw new Error("supporting skill check configuration is invalid");
   return {
     status: observed
@@ -4168,7 +4264,7 @@ function noReplacementAfterContinuationOutcome(
   );
   const prohibitedEvent = [
     '"type":"darrow.parent_spawn_after_goal"',
-    "adaptive-delivery-preflight step",
+    "adaptive-goal-preflight step",
     "Protocol ledger",
   ].some((term) => followUpEvents.includes(term));
   return {
@@ -4815,9 +4911,7 @@ function claudeCalls(observations: unknown): RecordValue[] | null {
 function claudeOwner(call: RecordValue) {
   return (
     call.name === "Agent" &&
-    String(call.subagentType).startsWith(
-      "darrow-adaptive-delivery:adaptive-delivery-",
-    )
+    String(call.subagentType).startsWith("darrow-adaptive-goal:adaptive-goal-")
   );
 }
 
@@ -4870,7 +4964,7 @@ function claudeReadinessPassed(
   if (kind === "claude-no-ledger")
     return (
       events !== null &&
-      !events.includes("adaptive-delivery-preflight step") &&
+      !events.includes("adaptive-goal-preflight step") &&
       !events.includes("darrow-native-goal-report")
     );
   throw new Error("unsupported Claude readiness check");
@@ -4916,10 +5010,10 @@ async function claudeReadinessTranscriptChecks(
 }
 
 const CLAUDE_OWNER_MARKER = createHash("sha256")
-  .update("- phase: adaptive-delivery-owner")
+  .update("- phase: adaptive-goal-owner")
   .digest("hex");
 const CLAUDE_SELECTED_TYPE =
-  "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low";
+  "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low";
 
 function claudeSelectedCalls(observations: unknown) {
   const calls = claudeCalls(observations);
@@ -5056,7 +5150,7 @@ function claudeResolverResult(block: RecordValue) {
             .map((item) => item.text)
             .join("\n")
         : "";
-  return /(?:^|\n)format\tdarrow-claude-agent-route-v1\r?\nselected_route\tclaude\tanthropic\tclaude-sonnet-5\tlow\r?\nsubagent_type\tdarrow-adaptive-delivery:adaptive-delivery-sonnet-5-low\r?\nagent_file\t\/[^\r\n]*\/agents\/adaptive-delivery-sonnet-5-low\.md(?:\r?\n|$)/.test(
+  return /(?:^|\n)format\tdarrow-claude-agent-route-v1\r?\nselected_route\tclaude\tanthropic\tclaude-sonnet-5\tlow\r?\nsubagent_type\tdarrow-adaptive-goal:adaptive-goal-sonnet-5-5-low\r?\nagent_file\t\/[^\r\n]*\/agents\/adaptive-goal-sonnet-5-5-low\.md(?:\r?\n|$)/.test(
     text,
   );
 }
@@ -5198,7 +5292,7 @@ function claudeNoLedger(eventsText: string | null) {
   return (
     eventsText !== null &&
     ![
-      "adaptive-delivery-preflight step",
+      "adaptive-goal-preflight step",
       "Protocol ledger",
       "claude-route-gate",
     ].some((term) => eventsText.includes(term))
@@ -5397,6 +5491,101 @@ function guideDisclosureOutcomes(checkIds: unknown, observations: unknown) {
   }));
 }
 
+async function currentNativeTranscriptChecks(
+  details: RecordValue,
+  params: RecordValue,
+) {
+  if (details.nativeTranscriptChecks === undefined) return [];
+  const nativeGoal = uniqueObservation(
+    params.observations,
+    "sevro.host.native-goal",
+  );
+  const eventId =
+    nativeGoal?.source === "sevro.host.claude"
+      ? "sevro.claude.events"
+      : "sevro.codex.events";
+  const events = await codexEventText(params.artifacts, eventId);
+  const tools = claudeCalls(params.observations);
+  return nativeTranscriptOutcomes(
+    details.nativeTranscriptChecks as NativeTranscript[],
+    params.observations,
+    {
+      events,
+      eventId,
+      spawns:
+        nativeControlEvidence(params.observations)?.acceptedSpawns ?? null,
+      claudeTools: tools,
+      claudeNestedSkills: claudeNestedSkills(params.observations),
+      claudeCompletedRoutes: currentClaudeCompletedRoutes(tools, events),
+    },
+  );
+}
+
+function currentClaudeCompletedRoutes(
+  calls: RecordValue[] | null,
+  text: string | null,
+): RecordValue[] | null {
+  const events = claudeRawEvents(text);
+  if (!calls || !events) return null;
+  const results = events.filter(
+    (event) => event.type === "result" && !event.parent_tool_use_id,
+  );
+  if (
+    results.length !== 1 ||
+    results[0]!.subtype !== "success" ||
+    results[0]!.is_error !== false
+  )
+    return null;
+  const routes = calls.filter(
+    (call) => call.name === "Agent" && call.actor === "parent",
+  );
+  if (new Set(routes.map((call) => call.toolUseId)).size !== routes.length)
+    return null;
+  return routes.every((call) => currentClaudeRouteCompleted(events, call))
+    ? routes
+    : null;
+}
+
+function currentClaudeRouteBlocks(
+  events: RecordValue[],
+  call: RecordValue,
+  result: boolean,
+) {
+  return events.flatMap((event, index) =>
+    event.type === (result ? "user" : "assistant") && !event.parent_tool_use_id
+      ? claudeEventBlocks(event)
+          .filter(
+            (block) =>
+              block.type === (result ? "tool_result" : "tool_use") &&
+              (result ? block.tool_use_id : block.id) === call.toolUseId,
+          )
+          .map((block) => ({ block, index }))
+      : [],
+  );
+}
+
+function currentClaudeRouteInvocation(block: RecordValue, call: RecordValue) {
+  const input = activationData(block.input);
+  return (
+    ["Agent", "Task"].includes(String(block.name)) &&
+    (input?.subagent_type ?? input?.subagentType) === call.subagentType &&
+    input?.run_in_background === call.runInBackground
+  );
+}
+
+function currentClaudeRouteCompleted(events: RecordValue[], call: RecordValue) {
+  if (call.parentToolUseId !== null) return false;
+  const uses = currentClaudeRouteBlocks(events, call, false);
+  const completions = currentClaudeRouteBlocks(events, call, true);
+  return (
+    uses.length === 1 &&
+    completions.length === 1 &&
+    currentClaudeRouteInvocation(uses[0]!.block, call) &&
+    completions[0]!.index > uses[0]!.index &&
+    completions[0]!.block.is_error !== true
+  );
+}
+
 async function evaluateCase(params: RecordValue) {
   const omitSkills = withoutSkill(params.configuration);
   const extensionData = record(
@@ -5407,6 +5596,8 @@ async function evaluateCase(params: RecordValue) {
   const metrics = caseMetrics(details, params);
   const ownership = await caseOwnershipChecks(details, params);
   const checks = [
+    ...nativeGoalOutcomes(details.nativeGoal, params.observations),
+    ...(await currentNativeTranscriptChecks(details, params)),
     ...guideDisclosureOutcomes(details.disclosureChecks, params.observations),
     ...caseBenchmarkChecks(details, params),
     ...(details.ownership === "composition"
@@ -5478,6 +5669,7 @@ if (import.meta.main) {
             protocols: ["sevro.extension.v1"],
             requiredCapabilities: ["sevro.host.exec"],
             optionalCapabilities: [
+              "sevro.host.native-goal",
               "sevro.case.host-route",
               "sevro.fixture.setup",
               "sevro.host.continuation",
@@ -5491,6 +5683,7 @@ if (import.meta.main) {
               "sevro.claude.repository-invocation",
             ],
             graders: [
+              "darrow.evals.native-goal",
               "darrow.evals.ownership",
               "darrow.evals.transcript",
               "darrow.evals.disclosure",

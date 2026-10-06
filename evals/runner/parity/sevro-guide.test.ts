@@ -55,13 +55,13 @@ test("guide migration retains a public unassessed dry result", async () => {
       expect.objectContaining({
         role: "candidate",
         host: "sevro.host.codex",
-        model: "gpt-5.6-terra",
+        model: "gpt-6-luna",
         effort: "medium",
       }),
       expect.objectContaining({
         role: "semantic",
         host: "sevro.host.codex",
-        model: "gpt-5.6-terra",
+        model: "gpt-6-luna",
         effort: "medium",
       }),
     ]),

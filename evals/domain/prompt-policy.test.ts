@@ -66,7 +66,7 @@ describe("public participant prompt policy", () => {
     const project = await policyProject(
       { prompt: "Use {{skill_invocation}}." },
       {
-        plugin: "darrow-adaptive-delivery",
+        plugin: "darrow-adaptive-goal",
         directory: "plugins/task-recipe/darrow-ticket-to-pr",
         skill: "ticket-to-pr",
       },
@@ -74,10 +74,10 @@ describe("public participant prompt policy", () => {
     await assertPrompt(
       project,
       "codex",
-      "Use $darrow-adaptive-delivery:ticket-to-pr.",
+      "Use $darrow-adaptive-goal:ticket-to-pr.",
     );
     await project.write({
-      source_plugin: "plugins/orchestration/darrow-adaptive-delivery",
+      source_plugin: "plugins/orchestration/darrow-adaptive-goal",
     });
     await expect(project.resolve()).rejects.toThrow(/source_plugin/);
   });

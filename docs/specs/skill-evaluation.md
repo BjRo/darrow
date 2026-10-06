@@ -8,6 +8,40 @@ Surface: `evals/runner/`. Runtime: repository development infrastructure on
 TypeScript and Bun; this is not a plugin-shipped dependency or user-invoked
 orchestration capability.
 
+## Native goal entrypoint
+
+Codex evals may select `--codex-entrypoint app-server` to host the original
+participant thread through native goal continuation. The adapter observes native
+goal state and automatic turns; it does not create goals, synthesize continuation
+messages or launch a separate execution owner. Record the requested entrypoint
+in case provenance and the actual transport in each harness result, and include
+the selection in the evaluation digest. Dry runs establish setup only. Historical
+exec trials and their attribution gaps remain unchanged.
+
+Retain bounded public diagnostics for original-thread app-server errors: source,
+thread/turn identity, retry intent, public message, error classification and HTTP
+status when supplied. A failed turn may carry this evidence without a separate
+error notification. Preserve errors received during final-response settlement
+too. Bound record count and message length, marking truncation; omit private
+additional details, continuation instructions, request bodies and credentials.
+Diagnostics do not authorize retries, synthesized user input, model fallback or
+accepting an earlier checkpoint as completion. Unrecoverable host failures stay
+failed, with incomplete evidence labeled unknown.
+
+Current main-thread cases declare `native_goal: required|forbidden`. Grade actual
+native activation separately from child acceptance and task outcomes. A valid
+Codex app-server readback binds the original thread, goal lifecycle and a goal of
+at most 4,000 characters. Missing, malformed or failed observation cannot pass.
+Bounded multiple children and main-thread checks are valid in this architecture;
+the former single-child and parent-inactivity assertions do not apply. Other
+hosts need equivalent observed native evidence. Claude uses original-session
+native `goal_status` attachments, bound to a successful result and the observed
+session ID. A sentinel clear is not assessed completion. Headless Claude cases
+requiring activation enter through the user-visible native `/goal` command;
+the runner never inserts it on the participant's behalf. Absent observation is
+a gap, not evidence of activation or nonactivation. Keep capability consumption
+and candidate correctness as separate checks.
+
 ## Why
 
 A skill can have plausible instructions and passing candidate-only cases while
@@ -469,6 +503,14 @@ cost remain in the trial evidence. A grader failure, unavailable route,
 malformed response, duplicate or missing verdict, or unrecognized check name
 fails the affected trial closed.
 
+When the public contract belongs to a saved free-form document, an eval may
+declare a `semantic_artifact` with one repository-relative filename pattern and
+gating propositions. The runner resolves exactly one regular file inside the
+fixture, grades its contents independently of the final response, and retains
+the path, route, verdicts, and grader evidence. Missing, ambiguous, unsafe, or
+unreadable artifacts fail closed. Deterministic checks still establish the
+document's existence, required metadata, and structural validity.
+
 The grader receives the candidate response as untrusted quoted data and must
 not follow instructions embedded in it. The rubric and propositions are
 evaluator-owned inputs that are not exposed to the candidate. Cases use this
@@ -549,8 +591,8 @@ and effective-owner assertions. Relative project, configuration, result, active
 storage, skill, condition, and output paths resolve from the invocation directory.
 Result storage defaults to the evaluated project's `evals/results`.
 
-The candidate defaults remain Codex `gpt-5.6-terra/medium` and Claude
-`claude-sonnet-5/medium`; the semantic default is Codex `gpt-5.6-luna/low`.
+The candidate defaults remain Codex `gpt-6-luna/medium` and Claude
+`claude-sonnet-5-5/medium`; the semantic default is Codex `gpt-5.6-luna/low`.
 An advisory judge is requested only by `--judge-harness`, with Codex
 `gpt-5.6-sol/low` defaults. Requested Claude graders fail explicitly. Per-case
 candidate routes override only the parent model and effort. The historical
@@ -611,8 +653,8 @@ project's `evals/results/<experiment>/<timestamp>`. An optional absolute
 cannot be overridden there. Active-run storage remains a native forwarded
 option; result storage is owned by the caller.
 
-Candidate defaults remain Codex `gpt-5.6-terra/medium` and Claude
-`claude-sonnet-5/medium`. The separate semantic route remains Codex
+Candidate defaults remain Codex `gpt-6-luna/medium` and Claude
+`claude-sonnet-5-5/medium`. The separate semantic route remains Codex
 `gpt-5.6-luna/low`, and the optional advisory judge remains Codex
 `gpt-5.6-sol/low`. `--no-judge` disables only advisory grading; dry execution
 requests no advisory judge. Requested Claude grader routes remain explicitly
@@ -986,9 +1028,9 @@ remains copyable and useful when hyperlinks are unavailable.
 
 ## Invariants
 
-`adaptive-delivery` trials record requested evaluation mode and actual per-trial
+`adaptive-goal` trials record requested evaluation mode and actual per-trial
 policy assistance separately. Passive observation installs no product-policy
-guard, rewrites no launch inputs, and disables no tools for adaptive-delivery
+guard, rewrites no launch inputs, and disables no tools for adaptive-goal
 compliance. Fixture isolation remains identical. Enforced trials evaluate the
 skill plus eval assistance; missing historical provenance is unknown. Reports
 must expose this distinction. Matched framing comparisons hold fixture,
@@ -1030,6 +1072,9 @@ not prove equivalence or savings.
   direct host event or explicitly labeled controlled-probe source, primary and
   ordered observed skills, and preserve unavailable or incomplete observation
   as unknown without changing task outcomes.
+  Claude route observations match the shipped scoped agent names, model IDs,
+  and effort levels. An agent name alone does not establish goal ownership or
+  successful route application.
 - **SE-C11 — Separate activation reporting.** Reports preserve per-case and
   per-class activation results and compute recall and precision only from a
   complete measured set, so task success cannot hide routing failure and one
@@ -1106,6 +1151,29 @@ not prove equivalence or savings.
   Missing intervals, altered content and pages split across actors do not.
   Exact source coverage may be embedded in compound command output; unrelated
   returned text neither contributes coverage nor erases verified source bytes.
+  A yielded Codex command may expose its early output only in tool-result
+  chunks. Recover those chunks only when their process identifier binds to one
+  completed native command in the same actor's session, before that completion.
+  Keep the existing successful mounted-read and complete-body requirements;
+  unmatched, ambiguous, late, or cross-actor chunks establish no read. Retain
+  bounded recovery facts, never tool output or skill text. Diagnostic fields
+  distinguish the completed command's output from recovered earlier chunks.
+  A completed executor result may also carry the complete body while the native
+  command output is empty. Recover its plain text only when one unique matching
+  executor call encloses exactly one native command completion, with no
+  interleaved tool calls, duplicate results, or reused command identity in the
+  same actor. The host's completed-executor envelope and the complete mounted
+  body remain required. Arbitrary objects and printed nested result JSON cannot
+  supply this evidence. Retain this recovery separately from yielded chunks.
+  When plain output arrives before its native command completes, bind it only
+  through a unique unconditional top-level awaited `tools.exec_command` with a
+  literal command and direct `text(result.output)`, plus one matching completed
+  native command in the same actor. Reject dynamic or conditional code, changed
+  output, mismatched working directories, duplicate commands or results, and
+  missing completion. Submitted code alone never proves execution. Retain only
+  the recovery fact, not submitted code or output.
+  Parent read diagnostics remain available when a review launches multiple
+  independent readers; diagnostic retention requires no single-owner claim.
   Native recovery reconciles completeness and shared read-order anchors without
   repairing invalid explicit dispatch. Conflicting source orders remain
   unknown; recovered earlier reads are not appended after known later reads.
@@ -1141,6 +1209,7 @@ not prove equivalence or savings.
   independently of case-ID naming and mounted-skill overrides. Case filters
   narrow that set, skill-less cases are excluded, and an empty selection
   fails explicitly.
+
 - **SE-C26 — Select cases by owning plugin.** The direct runner's `--plugin`
   filter selects every discovered case colocated under all skills of the exact
   named plugin, across plugin kinds and independently of case IDs or mounting
@@ -1228,6 +1297,35 @@ not prove equivalence or savings.
   matching event or a goal-control attempt fails the check. Missing, altered,
   incomplete, or contradictory evidence leaves it unavailable. The raw event
   text is never copied into the graded result.
+
+- **SE-C33 — Native goal evaluation entrypoint.** An explicitly selected Codex
+  app-server entrypoint hosts the original main thread with the same isolated
+  environment, installed plugins and passive observation as the exec adapter.
+  It submits the requested user input once and observes native continuation;
+  it never creates, replaces, completes or resumes a goal on the participant's
+  behalf. An active goal keeps the session open after a completed turn. A terminal
+  goal state requires the associated completed turn and its final response before
+  shutdown. Failed/interrupted turns, protocol failures and time bounds remain
+  failures with retained evidence. No-goal runs may return at completed-turn
+  boundaries. Only an explicitly supplied follow-up user prompt starts another
+  client-requested turn. Deliver that prompt after a completed response in the
+  original thread, regardless of whether its goal remains active. Retain the
+  response and actual pre-feedback worktree boundary before delivery. Do not
+  require the participant to complete or block its goal to receive user input.
+  A later in-flight native turn defers delivery to a settled response boundary;
+  it does not authorize interrupting the goal or inventing continuation input.
+  Results identify the entrypoint and preserve bounded
+  root-thread, turn and goal-state evidence without private reasoning. Existing
+  exec results and defaults remain distinct and unchanged.
+  A check requiring a specific host observation declares that identifier as
+  required evidence. A conditionally consumed observation is validated when
+  used. Missing, incomplete or contradictory evidence remains unavailable.
+  Dual-host implementation-route checks require the shared native control
+  receipt and validate the applicable host's facts when grading. Codex routes
+  use correlated accepted spawns. Claude routes bind the normalized Agent call
+  to its unique native invocation and successful tool result in verified host
+  events. A launch attempt alone is unavailable. Grade readiness and skill
+  absence only from valid complete call records, including valid empty records.
 
 ## Evaluation requirements
 

@@ -1,0 +1,31 @@
+id: goal-budgeted-repair-default
+invariant: ADL-A4
+goal_report: forbidden
+goal_route_checks: false
+prompt: >-
+  {{skill_invocation}} Advice only; do not launch or perform work. No user or repository
+  repair limit was supplied. The owner used one repair and fix verification resolved one
+  original blocker and narrowed the remaining original blocker to a missed null input.
+  Repairing it is within scope and authority. Should it attempt another repair, and may
+  it publish now?
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        NOTES.md: "preserved\n"
+checks:
+  - name: advice leaves repository unchanged
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: default permits a second progressing repair
+    proposition:
+      The response permits another repair of the remaining original blocker
+      within the remaining allowance, without requiring a new budget. Referring to the
+      remaining allowance is sufficient; neither the consumed count nor the numeric
+      maximum needs repeating. Permitting multiple additional attempts, unlimited
+      retries, or a budget reset fails.
+  - name: publication waits for verification
+    proposition:
+      The response withholds completion and publication until required checks and
+      fix verification clear the repaired current content.
+native_goal: forbidden

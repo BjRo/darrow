@@ -7,14 +7,14 @@ import {
 import { prepareUvFixtureRuntime } from "./fixture-runtime";
 
 const source = new URL(
-  "../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/readiness-artifact-selected.yaml",
+  "../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/evals/readiness-artifact-selected.yaml",
   import.meta.url,
 );
 const fixtureAssets = new URL("../../../", source);
 const postLaunch = new URL("post-launch-reassessment.yaml", source);
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 const assess =
-  'uv run --quiet --frozen --no-dev --project .agents/backend adaptive-delivery-fixture readiness "$PWD"';
+  'uv run --quiet --frozen --no-dev --project .agents/backend adaptive-goal-fixture readiness "$PWD"';
 async function postLaunchFixture() {
   const { fixture } = await readFixtureCase(postLaunch);
   const runtime = await prepareUvFixtureRuntime(true);

@@ -5,6 +5,16 @@ description: Coordinate acceptance verification of an implementation candidate. 
 
 # Verify a change
 
+**Follow-up mode gate:** A request to verify fixes from an earlier review is a
+targeted follow-up. Keep that mode even if the caller also asks for a new full
+review or says to call the fixes verified. Read the follow-up handoff contract
+and require the original findings, original target, and repair/target history
+before any assessment. If any required history is missing, return blocked with
+the smallest missing input. Do not invoke a provider, switch to initial mode,
+run a comprehensive review, or conclude that the candidate is clear within
+this follow-up operation. A separate initial review, if later requested, cannot
+establish the historical fix status.
+
 **Final handoff gate:** when a provider retains a local report, the assessment
 is not returned until step 5 renders it. Finish all judgment in step 4, then
 invoke the bundled renderer and return its complete stdout unchanged, including
@@ -18,8 +28,9 @@ Never replace it with “the assessment above”, “see above”, or a short co
 plus report path. Copy every rendered section and the last report link into
 the final message, even if the tool output is already visible in the conversation.
 
-**Provider gate comes first.** Before inspecting the implementation, running
-checks or launching any agent, consider all host-advertised skills whose
+**Provider gate comes first for an assessable request.** After the follow-up
+mode and required history are bound, and before inspecting the implementation,
+running checks or launching any agent, consider all host-advertised skills whose
 descriptions match independent code-review intent and read the matching public
 instructions. A provider can have any name: a skill described as independently
 assessing code against standards and acceptance is a candidate even when its
@@ -129,6 +140,18 @@ required, report that unsupported selection as blocked rather than executing
 it, dropping it or inventing its evidence. Existing review/check/repair evidence
 is still required and is not an optional presentation package.
 
+For a provider that retains reports, bind the renderer before launch. This
+plugin's package is at `<plugin-root>/backend`; the plugin root is two
+directories above this skill directory. On Codex, derive the skill directory
+from this loaded skill's absolute catalog path. On Claude, use
+`CLAUDE_SKILL_DIR`. Resolve `../../backend` once to an absolute path and check
+that `scripts/run_locked.py`, `pyproject.toml` and `uv.lock` are readable there.
+Keep that exact backend path for step 5. UV selects compatible Python; a
+separate system Python check is unnecessary. If a file is unavailable, report
+its authoritative absolute path and the observed diagnostic. Do not infer a
+missing package from a lookup relative to the repository or a guessed cache
+version, and do not substitute another installation.
+
 **Complete when:** a compatible provider is bound for the selected mode, with
 all selected requirements accounted for, or a concrete compatibility gap is
 returned to the owner.
@@ -152,6 +175,24 @@ repair, choose assurance, continue the goal or control a budget. It must let the
 provider create its own independent readers and apply its own public routing.
 Do not replace the provider with a generic review prompt in that context.
 
+Pin the provider coordinator's route separately from this verification thread
+and implementation. On Codex, explicitly use `model: "gpt-6-luna"` and
+`reasoning_effort: "medium"`, unless the caller supplied another compatible
+explicit coordinator route. This does not override the review capability's
+independent-reader model or effort.
+
+On Claude, use this plugin's
+`darrow-verification:review-coordinator-sonnet-5-5-medium` scoped Agent, with
+`run_in_background: false` and no per-call model override. Its frontmatter pins
+`claude-sonnet-5-5/medium`. Before launch, inspect only
+`CLAUDE_CODE_SUBAGENT_MODEL` and `CLAUDE_CODE_EFFORT_LEVEL`; unset values are fine,
+but a conflicting nonempty override blocks that route. If a caller requests
+another route, require an available scoped Agent that explicitly pins it and
+check those same overrides. Never silently inherit a different route or rely
+on another plugin's private agent file. If the required native Agent is
+unavailable, return that invocation gap. The provider still creates and routes
+its own independent readers.
+
 Do not load the provider as an inline role switch in this coordinator: its final
 response would end the current turn before reconciliation. If the host cannot
 return a bounded provider response, return blocked with that invocation gap.
@@ -161,12 +202,34 @@ capability's final response by itself. Preserve its complete findings,
 tests/checks, repair evidence, evidence gaps, risks and native outcome with
 provenance.
 
+If the provider's public instructions say it retains a local report, require
+its normal result to expose that report's absolute path. A complete inline
+rendering without the promised path is an incomplete handoff: return blocked
+with that specific gap. Do not search the provider's storage, infer a filename,
+or relabel a known retained report as inline-only evidence. Pass a supplied
+report path to step 5 for validation and the final handoff.
+
 Every selected supported assessment must return before the combined result can
 be used for owner repairs. Missing or incomplete results remain evidence gaps;
 never report early clearance or repair while another required result is pending.
 If evidence is unavailable, return the refusal and next needed evidence to the
 same owner. Do not retry in a loop or ask a new comprehensive review to reset
 history. A blocked suboperation does not replace or terminate the active owner.
+
+When a concrete assessment error or new available evidence justifies correction,
+request one bounded correction through the provider's public contract. Preserve
+the completed previous result and complete finding/target history; obtain fresh
+judgment at the same candidate and explain why the new result supersedes the
+earlier conclusion. Follow the correction rules in `references/follow-up.md`.
+This neither authorizes implementation nor spends or resets a repair attempt.
+
+Before accepting a provider's diagnosis of an unavailable helper or broken
+command, compare its attempted command, arguments and paths with the loaded
+public instructions and inspect the actual diagnostic. A misspelled command
+or altered argument is an invocation error. Request a bounded correction
+through that same provider and preserve the prior result; do not repair its
+artifacts, invent another command, or retry an unchanged refusal. If the cause
+cannot be established, report the observed failure and unverified cause.
 
 **Complete when:** each selected supported assessment has one complete result
 for the current candidate, or its explicit unavailable/incomplete status.
@@ -176,6 +239,12 @@ for the current candidate, or its explicit unavailable/incomplete status.
 Account for every material criterion individually: identify its source, current
 supporting provider/check evidence, supported failure, or unsupported/unavailable
 evidence. A provider pass does not establish an unassessed criterion. Cross-check
+the exact command and current successful result of each required check. When a
+command runs a repository script, read that script on the bound candidate as
+code evidence to determine its assertions; its exit status or name alone does
+not establish coverage. A current passing check that asserts a criterion's
+required value can support that criterion even if the provider report does not
+restate it; a shape-only check cannot. Cross-check
 the provider's target against the request and current evidence. Preserve honest
 limits when identity or evidence cannot be established. Do not invent a product
 finding to fill a coverage gap or weaken a provider's failure into an advisory.
@@ -260,7 +329,7 @@ or a lifecycle ledger.
 ## 5. Render a retained-report handoff
 
 When the selected provider returned a retained local report, use the packaged
-[assessment renderer](backend/src/darrow_verification/assessment.py) for the final handoff. It owns
+[assessment renderer](../../backend/src/darrow_verification/assessment.py) for the final handoff. It owns
 absolute-reference validation and rendering; do not reproduce its output by
 hand. It does not interpret the provider's format or decide findings.
 
@@ -269,12 +338,15 @@ file outside the product scope with the host's native temporary-file facility
 (`mktemp` in a POSIX shell or `[System.IO.Path]::GetTempFileName()` in
 PowerShell), then write that assessment using the host's file-writing tool.
 This temporary draft is assessment output, not an implementation edit or a
-required evidence package. Resolve the renderer backend from the loaded skill:
+required evidence package. Reuse the absolute backend path bound in step 2.
 
-- Claude Code: resolve `backend` from the absolute skill directory supplied in
-  `CLAUDE_SKILL_DIR`; use the host shell's environment-variable and path syntax.
-- Codex: take the absolute `SKILL.md` path supplied in the selected skill's
-  catalog entry and resolve `backend` relative to that file's directory.
+Take the report's absolute filesystem path from the provider's public result.
+For a Markdown link, remove its `(<` and `>)` delimiters and decode any escaped
+destination characters; do not include Markdown syntax in the renderer argument
+or reconstruct the path from the review state directory. Confirm that the
+resulting path names a readable, nonempty regular file
+before rendering. If it does not, return blocked with that handoff gap; do not
+substitute a different report path.
 
 Then run:
 
@@ -308,7 +380,10 @@ return the assessment prefix and final link together as the renderer emitted
 them. A response containing only the link, only a conclusion, or a summary of
 the draft is an incomplete handoff.
 
-A renderer refusal is a blocked handoff. Return the precise missing/unreadable
+A failed lookup at another path is not a renderer refusal. Compare the attempted
+path with the path bound in step 2 and correct a demonstrated invocation error
+before diagnosing the installation. Preserve the failed attempt and diagnostic.
+A refusal from the correctly invoked renderer is a blocked handoff. Return the precise missing/unreadable
 evidence gap rather than a partial rendering or a passing summary. Do not
 repair the provider's report or run an assessment retry loop. If the provider
 returned only inline evidence, retain that complete result and its references

@@ -114,7 +114,7 @@ function recordCasePolicy(
 ) {
   const required =
     configuration.requireEvaluationRecords === true &&
-    !skillDir?.endsWith("/adaptive-delivery");
+    !skillDir?.endsWith("/adaptive-goal");
   return {
     checks: required
       ? recordChecks.map(({ id }) => ({

@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { readFixtureCase, runFixtureChecks } from "./fixture-command";
 
 const source = new URL(
-  "../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/verification-cadence.yaml",
+  "../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/evals/verification-cadence.yaml",
   import.meta.url,
 );
 

@@ -58,14 +58,18 @@ for (const name of [
       fixture,
       reviewState: true,
       fixtureAssets: plugin,
-      fixtureAssetFiles: ["backend/tests/evals/eval_routes.py"],
+      fixtureAssetFiles: [
+        "backend/tests/evals/eval_routes.py",
+        "backend/tests/evals/assert_records.py",
+        "backend/tests/evals/assert_guidance.py",
+      ],
       checks: [
         {
           name: "setup retains the owning package or requested repository manifest",
           run:
             name === "goal-contract-repair-rereview"
               ? "cmp .git/expected-review-backend .git/review-backend"
-              : `manifest=$(awk -F '\\t' '$1 == "prior_manifest" { print $2 }' .git/verification-input) && test -n "$manifest" && tab=$(printf '\\t') && grep -F "repository$tab$(pwd -P)" "$manifest"`,
+              : `manifest=$(python3 -c 'import json; print(json.load(open(".git/verification-input"))["prior_manifest"])') && python3 .git/eval-checks/review/tests/evals/assert_records.py "$manifest" has repository "$(pwd -P)"`,
         },
       ],
     });
@@ -78,35 +82,52 @@ function verification(
   checkEvidence = "exited 0: no output",
 ) {
   const target = "a".repeat(40);
-  const rows = [
-    "format\tdarrow-review-verification-v1",
-    `original_target\t${target}`,
-    `prior_target\t${target}`,
-    `current_target\t${"b".repeat(40)}`,
-    "previous_verification\tnone\tnone",
-  ];
+  const record = {
+    format: "darrow-review-verification-v3",
+    original_target: target,
+    prior_target: target,
+    current_target: "b".repeat(40),
+    previous_verification: { checksum: "none", path: "none" },
+    original_findings: [] as Record<string, string>[],
+    attempts: [] as Record<string, string>[],
+    checks: [
+      {
+        command: "bash check.sh",
+        applicability: "applicable",
+        status: "pass",
+        evidence: checkEvidence,
+      },
+    ],
+    outcome: "clear",
+    next_action: "none",
+  };
   for (const [index, axis] of ["standards", "spec", "spec"].entries()) {
     const order = index + 1;
-    rows.push(
-      `original_finding\t${axis}:${order}:${target}\t${axis}\t${order}\t${order === 3 ? "low\tadvisory" : "high\tblocking"}\tsrc/config.js:${order}\trequirement\tOriginal evidence`,
-    );
+    record.original_findings.push({
+      key: `${axis}:${order}:${target}`,
+      axis,
+      order: String(order),
+      severity: order === 3 ? "low" : "high",
+      disposition: order === 3 ? "advisory" : "blocking",
+      location: `src/config.js:${order}`,
+      source: "requirement",
+      evidence: "Original evidence",
+      repair_guidance:
+        "Advisory: correct the reported behavior while preserving the public API",
+      resolution_evidence: "The original reported counterexample succeeds",
+    });
   }
   for (const [index, axis] of ["standards", "spec", "spec"].entries()) {
-    const current =
-      index === 2 && !advisoryResolved
-        ? "unresolved\tunchanged"
-        : "resolved\tresolved";
-    rows.push(
-      `attempt\t${axis}:${index + 1}:${target}\t${current}\tWhether resolved or unresolved, evidence prose is not the state`,
-    );
+    const unresolved = index === 2 && !advisoryResolved;
+    record.attempts.push({
+      key: `${axis}:${index + 1}:${target}`,
+      status: unresolved ? "unresolved" : "resolved",
+      progress: unresolved ? "unchanged" : "resolved",
+      evidence:
+        "Whether resolved or unresolved, evidence prose is not the state",
+    });
   }
-  return [
-    ...rows,
-    `check\tbash check.sh\tapplicable\tpass\t${checkEvidence}`,
-    "outcome\tclear",
-    "next_action\tnone",
-    "",
-  ].join("\n");
+  return JSON.stringify(record);
 }
 
 function write(name: string, path: string, contents: string): OracleCheck {
@@ -127,12 +148,12 @@ function render(record: string): OracleCheck[] {
   return [
     write(
       "write current verification",
-      `${artifacts}/verification.tsv`,
+      `${artifacts}/verification.json`,
       record,
     ),
     {
       name: "render the canonical report and final response",
-      run: `${state}\n${renderCommand} ${artifactPath(`${artifacts}/verification.tsv`)} >${artifactPath(`${artifacts}/verification.md`)} && cp ${artifactPath(`${artifacts}/verification.md`)} .git/last-message.md`,
+      run: `${state}\n${renderCommand} ${artifactPath(`${artifacts}/verification.json`)} >${artifactPath(`${artifacts}/verification.md`)} && cp ${artifactPath(`${artifacts}/verification.md`)} .git/last-message.md`,
     },
   ];
 }
@@ -151,6 +172,7 @@ async function runOracle(
   return runFixtureChecks({
     source,
     fixtureAssets: plugin,
+    fixtureAssetFiles: ["backend/tests/evals/assert_records.py"],
     reviewState: true,
     fixture: {
       commits: [
@@ -179,17 +201,22 @@ for (const shell of ["bash", "/bin/bash"]) {
           variant === "different diagnostic"
             ? "exited 127: verifier service cannot be reached"
             : "exited 127: required external verifier is unavailable";
-        const row = `check\tbash external-check.sh\tapplicable\tblocked\t${diagnostic}`;
-        const record = verification()
-          .replace(/check\tbash check[.]sh[^\n]+/, row)
-          .replace(
-            "outcome\tclear",
-            "evidence_gap\tRequired check unavailable\noutcome\tblocked",
-          );
+        const check = {
+          command: "bash external-check.sh",
+          applicability: "applicable",
+          status: "blocked",
+          evidence: diagnostic,
+        };
+        const record = JSON.stringify({
+          ...JSON.parse(verification()),
+          checks: [check],
+          evidence_gaps: ["Required check unavailable"],
+          outcome: "blocked",
+        });
         const actions = [
           write(
             "write blocked verification",
-            `${artifacts}/verification.tsv`,
+            `${artifacts}/verification.json`,
             record,
           ),
         ];
@@ -197,8 +224,19 @@ for (const shell of ["bash", "/bin/bash"]) {
           actions.push(
             write(
               "write independently captured check evidence",
-              `${artifacts}/check-1.tsv`,
-              `format\tdarrow-review-check-v1\n${variant === "invented evidence" ? row.replace(diagnostic, "exited 127: a different observation") : row}\n`,
+              `${artifacts}/check-1.json`,
+              JSON.stringify({
+                format: "darrow-review-check-v3",
+                checks: [
+                  {
+                    ...check,
+                    evidence:
+                      variant === "invented evidence"
+                        ? "exited 127: a different observation"
+                        : diagnostic,
+                  },
+                ],
+              }),
             ),
           );
         const result = await runOracle(
@@ -244,7 +282,7 @@ for (const shell of ["bash", "/bin/bash"]) {
           if (file === "fix-verification-regression-second-round") {
             // The prior artifact sorts after the current one and has no report.
             const previous =
-              "review-state/darrow-review.zz-previous/verification.tsv";
+              "review-state/darrow-review.zz-previous/verification.json";
             actions.push(
               write(
                 "write prior verification without a report",
@@ -253,7 +291,7 @@ for (const shell of ["bash", "/bin/bash"]) {
               ),
               {
                 name: "bind the exact prior artifact",
-                run: `${state}\nprintf 'previous_verification\\tprior-checksum\\t%s\\n' ${artifactPath(previous)} >.git/verification-input`,
+                run: `${state}\npython3 -c 'import json,sys; json.dump({"previous_verification":{"checksum":"prior-checksum","path":sys.argv[1]}},sys.stdout)' ${artifactPath(previous)} >.git/verification-input`,
               },
             );
           }
@@ -279,7 +317,7 @@ for (const shell of ["bash", "/bin/bash"]) {
             actions.push(
               write(
                 "change the record after rendering",
-                `${artifacts}/verification.tsv`,
+                `${artifacts}/verification.json`,
                 verification(true, "exited 0: fresh check output"),
               ),
             );
@@ -292,7 +330,7 @@ for (const shell of ["bash", "/bin/bash"]) {
           }
           const result = await runOracle(
             file,
-            "final response is the complete rendered verification report",
+            "retained verification report preserves the complete canonical evidence",
             shell,
             actions,
           );

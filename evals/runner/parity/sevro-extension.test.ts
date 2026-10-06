@@ -820,7 +820,11 @@ interface ExtensionReply {
       extensionData: {
         "darrow.case": {
           invariant: string;
-          activation?: { class: string; targetSkill: string };
+          activation?: {
+            class: string;
+            targetSkill: string;
+            excludes?: string[];
+          };
           setupDigest?: string;
           ticketDigest?: string;
           checkMetrics?: Array<{ checkId: string; metric: string }>;
@@ -958,7 +962,7 @@ test("Darrow extension resolves supported cases and rejects unsupported fixtures
   );
   const activationCase = await command<ExtensionReply>(
     [process.execPath, extension],
-    request("resolve", resolveParams("author-agent-skill-validate-read-only")),
+    request("resolve", resolveParams("audit-agent-skill-validate-read-only")),
   );
   expect(activationCase.code, activationCase.stderr).toBe(0);
   expect(
@@ -966,7 +970,8 @@ test("Darrow extension resolves supported cases and rejects unsupported fixtures
       .activation,
   ).toEqual({
     class: "positive",
-    targetSkill: "author-agent-skill",
+    targetSkill: "audit-agent-skill",
+    excludes: ["create-agent-skill"],
   });
   const siblingCase = await command<ExtensionReply>(
     [process.execPath, extension],
@@ -1174,189 +1179,6 @@ test("Darrow activation needs a complete and consistent host observation", async
   expect(negative.value.result.domainOutcomes[0]!.status).toBe("failed");
 });
 
-test("Darrow ownership checks use complete native evidence without private task content", async () => {
-  const resolved = await command<{
-    result: {
-      cases: Array<{
-        checks: Array<{ id: string; grader: string }>;
-        requiredEvidence: string[];
-        extensionData: Record<string, unknown>;
-      }>;
-    };
-  }>(
-    [process.execPath, extension],
-    request("resolve", {
-      projectRoot: pathToFileURL(projectRoot).href,
-      selectors: { caseIds: ["goal-verification-clear-first"] },
-      configuration: {},
-    }),
-  );
-  expect(resolved.code, resolved.stderr).toBe(0);
-  const selected = resolved.value.result.cases[0]!;
-  expect(selected.requiredEvidence).toEqual(["sevro.codex.native-calls"]);
-  expect(
-    selected.checks.filter(
-      (check) => check.grader === "darrow.evals.ownership",
-    ),
-  ).toHaveLength(3);
-  const prepareParams = {
-    case: selected,
-    host: {
-      id: "sevro.host.codex",
-      capabilities: [
-        "sevro.codex.plugin-marketplace",
-        "sevro.codex.explicit-invocation",
-        "sevro.codex.native-calls",
-      ],
-    },
-    condition: "passive",
-    configuration: {},
-  };
-  const prepared = await command<{ result: { artifacts: unknown[] } }>(
-    [process.execPath, extension],
-    request("prepare", prepareParams),
-  );
-  expect(prepared.value.result.artifacts.length).toBeGreaterThan(0);
-  const missingCapability = await command<{ error: { message: string } }>(
-    [process.execPath, extension],
-    request("prepare", {
-      ...prepareParams,
-      host: { ...prepareParams.host, capabilities: [] },
-    }),
-  );
-  expect(missingCapability.value.error.message).toMatch(/native-call evidence/);
-  const native = {
-    id: "sevro.codex.native-calls",
-    source: "sevro.host.codex",
-    completeness: "complete",
-    data: {
-      method: "native_session",
-      calls: [],
-      toolCalls: [],
-      acceptedSpawns: [],
-      submittedExecCalls: 0,
-    },
-  };
-  const final = {
-    id: "sevro.observation.final-message",
-    source: "sevro.host.codex",
-    completeness: "complete",
-    data: { text: "Proceed toward completion." },
-  };
-  const evaluate = (observations: unknown[]) =>
-    command<{
-      result: { checks: Array<{ id: string; status: string }> };
-    }>(
-      [process.execPath, extension],
-      request("evaluate", {
-        observations,
-        extensionData: selected.extensionData,
-      }),
-    );
-  const noOwner = await evaluate([native, final]);
-  expect(noOwner.value.result.checks.map((check) => check.status)).toEqual([
-    "passed",
-    "passed",
-    "passed",
-  ]);
-  const accepted = {
-    ...native,
-    data: {
-      ...native.data,
-      toolCalls: [
-        { ordinal: 0, namespace: "collaboration", name: "spawn_agent" },
-        {
-          ordinal: 3,
-          namespace: "collaboration",
-          name: "send_message",
-          target: "/root/owner",
-        },
-        { ordinal: 4, namespace: "collaboration", name: "wait_agent" },
-      ],
-      acceptedSpawns: [
-        {
-          requestedOrdinal: 0,
-          startedOrdinal: 1,
-          acceptedOrdinal: 2,
-          agentRef: "/root/owner",
-        },
-      ],
-    },
-  };
-  const allowed = await evaluate([accepted, final]);
-  expect(allowed.value.result.checks.map((check) => check.status)).toEqual([
-    "passed",
-    "passed",
-    "passed",
-  ]);
-  const parentWork = await evaluate([
-    {
-      ...accepted,
-      data: {
-        ...accepted.data,
-        toolCalls: [
-          ...accepted.data.toolCalls,
-          { ordinal: 5, namespace: "other", name: "exec" },
-        ],
-      },
-    },
-    final,
-  ]);
-  expect(parentWork.value.result.checks[1]?.status).toBe("failed");
-  const wrongTarget = await evaluate([
-    {
-      ...accepted,
-      data: {
-        ...accepted.data,
-        toolCalls: [
-          accepted.data.toolCalls[0],
-          {
-            ordinal: 3,
-            namespace: "collaboration",
-            name: "send_message",
-            target: "/root/other",
-          },
-        ],
-      },
-    },
-    final,
-  ]);
-  expect(wrongTarget.value.result.checks[1]?.status).toBe("failed");
-  const replacement = await evaluate([
-    {
-      ...accepted,
-      data: {
-        ...accepted.data,
-        toolCalls: [
-          ...accepted.data.toolCalls,
-          { ordinal: 5, namespace: "collaboration", name: "spawn_agent" },
-        ],
-      },
-    },
-    final,
-  ]);
-  expect(replacement.value.result.checks[0]?.status).toBe("failed");
-  const incomplete = await evaluate([
-    { ...native, completeness: "partial" },
-    final,
-  ]);
-  expect(
-    incomplete.value.result.checks.slice(0, 2).map((check) => check.status),
-  ).toEqual(["unavailable", "unavailable"]);
-  const malformed = await evaluate([
-    { ...native, data: { ...native.data, toolCalls: [null] } },
-    final,
-  ]);
-  expect(
-    malformed.value.result.checks.slice(0, 2).map((check) => check.status),
-  ).toEqual(["unavailable", "unavailable"]);
-  const internalRecord = await evaluate([
-    native,
-    { ...final, data: { text: "format\tdarrow-native-goal-v1" } },
-  ]);
-  expect(internalRecord.value.result.checks[2]?.status).toBe("failed");
-});
-
 test("task recipe composition keeps the two legacy ownership checks", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-composition-"));
   roots.push(root);
@@ -1368,7 +1190,7 @@ test("task recipe composition keeps the two legacy ownership checks", async () =
       id: "composition",
       invariant: "COMPOSITION-C1",
       prompt: "Delegate the accepted request.",
-      adaptive_delivery_composition: true,
+      adaptive_goal_composition: true,
       fixture: {
         commits: [
           { message: "chore: init", files: { "README.md": "ready\n" } },
@@ -1431,130 +1253,6 @@ test("task recipe composition keeps the two legacy ownership checks", async () =
     "passed",
     "passed",
   ]);
-});
-
-test("Darrow translates no-agent transcript assertions into bounded native checks", async () => {
-  const selected = await command<{
-    result: {
-      cases: Array<{
-        checks: Array<{
-          id: string;
-          grader: string;
-          configuration: Record<string, unknown>;
-        }>;
-        requiredEvidence: string[];
-        extensionData: Record<string, unknown>;
-      }>;
-    };
-  }>(
-    [process.execPath, extension],
-    request("resolve", {
-      projectRoot: pathToFileURL(projectRoot).href,
-      selectors: { caseIds: ["goal-budgeted-repair-explicit-zero"] },
-      configuration: {},
-    }),
-  );
-  expect(selected.code, selected.stderr).toBe(0);
-  const selectedCase = selected.value.result.cases[0]!;
-  expect(selectedCase.requiredEvidence).toEqual(["sevro.codex.native-calls"]);
-  expect(selectedCase.checks).toContainEqual({
-    id: "darrow.evals.transcript.1",
-    grader: "darrow.evals.transcript",
-    configuration: {},
-  });
-  const native = {
-    id: "sevro.codex.native-calls",
-    source: "sevro.host.codex",
-    completeness: "complete",
-    data: {
-      method: "native_session",
-      calls: [],
-      toolCalls: [],
-      acceptedSpawns: [],
-      submittedExecCalls: 0,
-    },
-  };
-  const evaluate = (observations: unknown[]) =>
-    command<{
-      result: {
-        checks: Array<{ id: string; status: string; evidenceRefs: string[] }>;
-      };
-    }>(
-      [process.execPath, extension],
-      request("evaluate", {
-        observations,
-        extensionData: selectedCase.extensionData,
-      }),
-    );
-  const status = async (observations: unknown[]) => {
-    const response = await evaluate(observations);
-    expect(response.code, response.stderr).toBe(0);
-    return response.value.result.checks.find(
-      (check) => check.id === "darrow.evals.transcript.1",
-    );
-  };
-  expect(await status([native])).toMatchObject({
-    status: "passed",
-    evidenceRefs: ["sevro.codex.native-calls"],
-  });
-  const spawn = {
-    ...native,
-    data: {
-      ...native.data,
-      calls: [
-        {
-          ordinal: 0,
-          namespace: "collaboration",
-          name: "spawn_agent",
-          evidence: "invocation_attempt",
-        },
-      ],
-      toolCalls: [
-        { ordinal: 0, namespace: "collaboration", name: "spawn_agent" },
-      ],
-    },
-  };
-  expect((await status([spawn]))?.status).toBe("failed");
-  expect(
-    (await status([{ ...spawn, data: { ...spawn.data, toolCalls: [] } }]))
-      ?.status,
-  ).toBe("unavailable");
-  expect((await status([{ ...native, completeness: "partial" }]))?.status).toBe(
-    "unavailable",
-  );
-  expect((await status([native, native]))?.status).toBe("unavailable");
-  for (const id of [
-    "ticket-to-pr-compatible-orchestrator",
-    "author-agent-skill-reuse-current-review",
-    "verification-missing-review",
-  ]) {
-    const variant = await command<ExtensionReply>(
-      [process.execPath, extension],
-      request("resolve", {
-        projectRoot: pathToFileURL(projectRoot).href,
-        selectors: { caseIds: [id] },
-        configuration: {},
-      }),
-    );
-    expect(variant.code, variant.stderr).toBe(0);
-    const variantCase = variant.value.result.cases[0]!;
-    expect(variantCase.requiredEvidence).toContain("sevro.codex.native-calls");
-    const evaluated = await command<{
-      result: { checks: Array<{ id: string; status: string }> };
-    }>(
-      [process.execPath, extension],
-      request("evaluate", {
-        observations: [spawn],
-        extensionData: variantCase.extensionData,
-      }),
-    );
-    expect(evaluated.code, evaluated.stderr).toBe(0);
-    expect(
-      evaluated.value.result.checks.find(
-        (check) => check.id === "darrow.evals.transcript.1",
-      )?.status,
-    ).toBe("failed");
-  }
 });
 
 test("repository guide assertions forbid owner and goal-control attempts", async () => {
@@ -1844,7 +1542,7 @@ test("Darrow doctor controls require intact negative evidence", async () => {
       [process.execPath, extension],
       request("resolve", {
         projectRoot: pathToFileURL(projectRoot).href,
-        selectors: { caseIds: [`doctor-adaptive-delivery-${suffix}`] },
+        selectors: { caseIds: [`doctor-adaptive-goal-${suffix}`] },
         configuration: {},
       }),
     );
@@ -1875,7 +1573,7 @@ test("Darrow doctor controls require intact negative evidence", async () => {
     [process.execPath, extension],
     request("resolve", {
       projectRoot: pathToFileURL(projectRoot).href,
-      selectors: { caseIds: ["doctor-adaptive-delivery-direct-codex"] },
+      selectors: { caseIds: ["doctor-adaptive-goal-direct-codex"] },
       configuration: {},
     }),
   );
@@ -1889,8 +1587,8 @@ test("Darrow doctor controls require intact negative evidence", async () => {
           ...skills,
           data: {
             ...skills.data,
-            primarySkill: "adaptive-delivery",
-            observedSkills: ["adaptive-delivery"],
+            primarySkill: "adaptive-goal",
+            observedSkills: ["adaptive-goal"],
           },
         },
       ],
@@ -1901,14 +1599,14 @@ test("Darrow doctor controls require intact negative evidence", async () => {
     await evaluate(
       selectedCase,
       [native, skills],
-      [await events("adaptive-delivery-preflight\n")],
+      [await events("adaptive-goal-preflight\n")],
     ),
   ).toBe("failed");
   expect(
     await evaluate(
       selectedCase,
       [native, skills],
-      [await events('{"skill":"adaptive-delivery"}\n')],
+      [await events('{"skill":"adaptive-goal"}\n')],
     ),
   ).toBe("failed");
   expect(
@@ -1955,7 +1653,7 @@ test("Darrow doctor controls require intact negative evidence", async () => {
   ).toBe("failed");
 });
 
-test("Darrow keeps adaptive delivery inactive for ordinary engineering", async () => {
+test("Darrow keeps Adaptive Goal inactive for ordinary engineering", async () => {
   const selected = await command<ExtensionReply>(
     [process.execPath, extension],
     request("resolve", {
@@ -1982,7 +1680,7 @@ test("Darrow keeps adaptive delivery inactive for ordinary engineering", async (
   const clean = await events("clean.jsonl", "turn.completed\n");
   const owner = await events(
     "owner.jsonl",
-    '{"name":"Agent","phase":"adaptive-delivery-owner"}\n',
+    "adaptive-goal-preflight prepare\n",
   );
   const skills = {
     id: "sevro.codex.skill-reads",
@@ -2019,8 +1717,8 @@ test("Darrow keeps adaptive delivery inactive for ordinary engineering", async (
           ...skills,
           data: {
             ...skills.data,
-            primarySkill: "adaptive-delivery",
-            observedSkills: ["adaptive-delivery"],
+            primarySkill: "adaptive-goal",
+            observedSkills: ["adaptive-goal"],
           },
         },
       ],
@@ -2049,11 +1747,11 @@ test("Darrow guards advice-only and missing-ticket delegation", async () => {
   const clean = await artifact("clean.jsonl", "turn.completed\n");
   const skillCall = await artifact(
     "skill.jsonl",
-    '{"name":"Skill","skill":"adaptive-delivery"}\n',
+    '{"name":"Skill","skill":"adaptive-goal"}\n',
   );
   const preflight = await artifact(
     "preflight.jsonl",
-    "adaptive-delivery-preflight prepare\n",
+    "adaptive-goal-preflight prepare\n",
   );
   const native = {
     id: "sevro.codex.native-calls",
@@ -2143,8 +1841,8 @@ test("Darrow grades ticket delegation from supporting reads and forbidden calls"
     completeness: "complete",
     data: {
       method: "skill_file_read_probe",
-      primarySkill: "adaptive-delivery",
-      observedSkills: ["adaptive-delivery"],
+      primarySkill: "adaptive-goal",
+      observedSkills: ["adaptive-goal"],
     },
   };
   const native = {
@@ -2206,7 +1904,7 @@ test("Darrow grades ticket delegation from supporting reads and forbidden calls"
   ]);
   expect((await statuses(shortcut, [skills], [forbidden]))[1]).toBe("failed");
   const unavailable = await resolveTicket(
-    "ticket-to-pr-adaptive-delivery-unavailable",
+    "ticket-to-pr-adaptive-goal-unavailable",
   );
   const ticketReads = {
     ...skills,
@@ -2264,134 +1962,6 @@ test("Darrow grades ticket delegation from supporting reads and forbidden calls"
       [clean],
     ),
   ).toEqual(["failed"]);
-});
-
-test("Darrow binds composed publisher reads to the accepted child", async () => {
-  const accepted = {
-    id: "sevro.codex.native-calls",
-    source: "sevro.host.codex",
-    completeness: "complete",
-    data: {
-      method: "native_session",
-      calls: [
-        {
-          ordinal: 1,
-          namespace: "collaboration",
-          name: "spawn_agent",
-          evidence: "invocation_attempt",
-        },
-      ],
-      toolCalls: [
-        { ordinal: 1, namespace: "collaboration", name: "spawn_agent" },
-      ],
-      acceptedSpawns: [
-        {
-          requestedOrdinal: 1,
-          startedOrdinal: 2,
-          acceptedOrdinal: 3,
-          agentRef: "/root/owner",
-          threadId: "child-thread",
-        },
-      ],
-      childSessions: [
-        {
-          threadId: "child-thread",
-          status: "available",
-          resultStatus: "completed",
-          readDiagnostics: {
-            completeness: "complete",
-            observedSkills: ["create-pr"],
-            commandExecutions: 1,
-            readAttempts: 1,
-            truncated: false,
-          },
-          nestedSpawns: [],
-          requestsTruncated: false,
-        },
-      ],
-      childrenTruncated: false,
-      submittedExecCalls: 0,
-    },
-  };
-  for (const [caseId, publisher] of [
-    ["ticket-to-pr-composition-existing-pr", "create-pr"],
-    ["ticket-to-pr-composition-replacement", "ship-proposal"],
-  ] as const) {
-    const resolved = await command<ExtensionReply>(
-      [process.execPath, extension],
-      request("resolve", {
-        projectRoot: pathToFileURL(projectRoot).href,
-        selectors: { caseIds: [caseId] },
-        configuration: {},
-      }),
-    );
-    expect(resolved.code, resolved.stderr).toBe(0);
-    const selectedCase = resolved.value.result.cases[0]!;
-    expect(selectedCase.requiredEvidence).toContain("sevro.codex.native-calls");
-    const statuses = async (observation: unknown) => {
-      const reply = await command<{
-        result: { checks: Array<{ id: string; status: string }> };
-        error?: { message: string };
-      }>(
-        [process.execPath, extension],
-        request("evaluate", {
-          extensionData: selectedCase.extensionData,
-          observations: observation ? [observation] : [],
-        }),
-      );
-      expect(reply.code, reply.stderr).toBe(0);
-      expect(reply.value.result, reply.value.error?.message).toBeDefined();
-      return reply.value.result.checks
-        .filter((check) => check.id.startsWith("darrow.evals.transcript."))
-        .map((check) => check.status);
-    };
-    const bound = {
-      ...accepted,
-      data: {
-        ...accepted.data,
-        childSessions: [
-          {
-            ...accepted.data.childSessions[0]!,
-            readDiagnostics: {
-              ...accepted.data.childSessions[0]!.readDiagnostics,
-              observedSkills: [publisher],
-            },
-          },
-        ],
-      },
-    };
-    expect(await statuses(bound)).toEqual(["passed", "passed", "passed"]);
-    expect((await statuses(accepted))[1]).toBe(
-      publisher === "create-pr" ? "passed" : "failed",
-    );
-    expect(
-      (
-        await statuses({
-          ...bound,
-          data: {
-            ...bound.data,
-            childSessions: [
-              { ...bound.data.childSessions[0], status: "partial" },
-            ],
-          },
-        })
-      )[1],
-    ).toBe("unavailable");
-    expect(
-      (
-        await statuses({
-          ...bound,
-          data: {
-            ...bound.data,
-            toolCalls: [
-              ...bound.data.toolCalls,
-              { ordinal: 4, namespace: "other", name: "exec" },
-            ],
-          },
-        })
-      )[2],
-    ).toBe("failed");
-  }
 });
 
 test("Darrow grades skill nonactivation from complete reads and native calls", async () => {
@@ -2502,265 +2072,6 @@ test("Darrow grades skill nonactivation from complete reads and native calls", a
       ).toBe("failed");
     }
   }
-});
-
-test("Darrow grades accepted owner assertions from correlated native receipts", async () => {
-  const accepted = {
-    id: "sevro.codex.native-calls",
-    source: "sevro.host.codex",
-    completeness: "complete",
-    data: {
-      method: "native_session",
-      calls: [
-        {
-          ordinal: 1,
-          namespace: "collaboration",
-          name: "spawn_agent",
-          evidence: "invocation_attempt",
-        },
-      ],
-      toolCalls: [
-        { ordinal: 1, namespace: "collaboration", name: "spawn_agent" },
-      ],
-      acceptedSpawns: [
-        {
-          requestedOrdinal: 1,
-          startedOrdinal: 2,
-          acceptedOrdinal: 3,
-          agentRef: "/root/owner",
-          threadId: "child-thread",
-        },
-      ],
-      submittedExecCalls: 0,
-    },
-  };
-  for (const id of [
-    "goal-post-launch-reassessment",
-    "goal-verification-combined-repair",
-  ]) {
-    const selected = await command<ExtensionReply>(
-      [process.execPath, extension],
-      request("resolve", {
-        projectRoot: pathToFileURL(projectRoot).href,
-        selectors: { caseIds: [id] },
-        configuration: {},
-      }),
-    );
-    expect(selected.code, selected.stderr).toBe(0);
-    const selectedCase = selected.value.result.cases[0]!;
-    expect(selectedCase.requiredEvidence).toContain("sevro.codex.native-calls");
-    const transcript = selectedCase.checks.find(
-      (check) => check.grader === "darrow.evals.transcript",
-    )!;
-    const status = async (observations: unknown[]) => {
-      const response = await command<{
-        result: { checks: Array<{ id: string; status: string }> };
-      }>(
-        [process.execPath, extension],
-        request("evaluate", {
-          extensionData: selectedCase.extensionData,
-          observations,
-        }),
-      );
-      expect(response.code, response.stderr).toBe(0);
-      return response.value.result.checks.find(
-        (check) => check.id === transcript.id,
-      )?.status;
-    };
-    expect(await status([accepted])).toBe("passed");
-    expect(
-      await status([
-        { ...accepted, data: { ...accepted.data, acceptedSpawns: [] } },
-      ]),
-    ).toBe("failed");
-    expect(
-      await status([
-        {
-          ...accepted,
-          data: {
-            ...accepted.data,
-            acceptedSpawns: [
-              { ...accepted.data.acceptedSpawns[0], requestedOrdinal: 0 },
-            ],
-          },
-        },
-      ]),
-    ).toBe("unavailable");
-    expect(await status([])).toBe("unavailable");
-  }
-});
-
-test("Darrow grades the selected Codex owner route from native acceptance", async () => {
-  const accepted = {
-    id: "sevro.codex.native-calls",
-    source: "sevro.host.codex",
-    completeness: "complete",
-    data: {
-      method: "native_session",
-      calls: [
-        {
-          ordinal: 1,
-          namespace: "collaboration",
-          name: "spawn_agent",
-          evidence: "invocation_attempt",
-        },
-      ],
-      toolCalls: [
-        { ordinal: 1, namespace: "collaboration", name: "spawn_agent" },
-      ],
-      acceptedSpawns: [
-        {
-          requestedOrdinal: 1,
-          startedOrdinal: 2,
-          acceptedOrdinal: 3,
-          agentRef: "/root/owner",
-          threadId: "child-thread",
-          model: "gpt-6-luna",
-          reasoningEffort: "medium",
-        },
-      ],
-      submittedExecCalls: 0,
-    },
-  };
-  for (const [caseId, model, reasoningEffort] of [
-    ["goal-preflight-high-risk-routine", "gpt-6-luna", "medium"],
-    ["goal-preflight-quality-sensitive-localized", "gpt-6-luna", "high"],
-    [
-      "goal-preflight-routing-difficult-routine-diagnosis",
-      "gpt-6-astra",
-      "high",
-    ],
-  ] as const) {
-    const selected = await command<ExtensionReply>(
-      [process.execPath, extension],
-      request("resolve", {
-        projectRoot: pathToFileURL(projectRoot).href,
-        selectors: { caseIds: [caseId] },
-        configuration: {},
-      }),
-    );
-    expect(selected.code, selected.stderr).toBe(0);
-    const selectedCase = selected.value.result.cases[0]!;
-    expect(selectedCase.requiredEvidence).toContain("sevro.codex.native-calls");
-    const status = async (observation: unknown) => {
-      const reply = await command<{
-        result: { checks: Array<{ id: string; status: string }> };
-      }>(
-        [process.execPath, extension],
-        request("evaluate", {
-          extensionData: selectedCase.extensionData,
-          observations: observation ? [observation] : [],
-          builtinChecks: [],
-          execution: { status: "completed" },
-        }),
-      );
-      expect(reply.code, reply.stderr).toBe(0);
-      expect(reply.value.result, JSON.stringify(reply.value)).toBeDefined();
-      return reply.value.result.checks.find(
-        (check) => check.id === "darrow.evals.transcript.1",
-      )?.status;
-    };
-    const routed = {
-      ...accepted,
-      data: {
-        ...accepted.data,
-        acceptedSpawns: [
-          { ...accepted.data.acceptedSpawns[0], model, reasoningEffort },
-        ],
-      },
-    };
-    expect(await status(routed)).toBe("passed");
-    expect(
-      await status({
-        ...routed,
-        data: {
-          ...routed.data,
-          acceptedSpawns: [
-            { ...routed.data.acceptedSpawns[0], model: "gpt-6-sol" },
-          ],
-        },
-      }),
-    ).toBe("failed");
-    expect(
-      await status({
-        ...routed,
-        data: {
-          ...routed.data,
-          acceptedSpawns: [
-            { ...routed.data.acceptedSpawns[0], model: undefined },
-          ],
-        },
-      }),
-    ).toBe("unavailable");
-    expect(await status({ ...routed, completeness: "partial" })).toBe(
-      "unavailable",
-    );
-  }
-  const bounded = await command<ExtensionReply>(
-    [process.execPath, extension],
-    request("resolve", {
-      projectRoot: pathToFileURL(projectRoot).href,
-      selectors: { caseIds: ["goal-preflight-bounded-native-goal"] },
-      configuration: {},
-    }),
-  );
-  expect(bounded.code, bounded.stderr).toBe(0);
-  const selectedCase = bounded.value.result.cases[0]!;
-  const statuses = async (observation: unknown) => {
-    const reply = await command<{
-      result: { checks: Array<{ id: string; status: string }> };
-    }>(
-      [process.execPath, extension],
-      request("evaluate", {
-        extensionData: selectedCase.extensionData,
-        observations: [observation],
-        builtinChecks: [],
-        execution: { status: "completed" },
-      }),
-    );
-    expect(reply.code, reply.stderr).toBe(0);
-    return reply.value.result.checks
-      .filter((check) => check.id.startsWith("darrow.evals.transcript."))
-      .map((check) => check.status);
-  };
-  expect((await statuses(accepted)).slice(0, 3)).toEqual([
-    "passed",
-    "passed",
-    "passed",
-  ]);
-  expect(
-    (
-      await statuses({
-        ...accepted,
-        data: {
-          ...accepted.data,
-          calls: [
-            ...accepted.data.calls,
-            {
-              ordinal: 4,
-              namespace: "collaboration",
-              name: "spawn_agent",
-              evidence: "invocation_attempt",
-            },
-          ],
-          toolCalls: [
-            ...accepted.data.toolCalls,
-            { ordinal: 4, namespace: "collaboration", name: "spawn_agent" },
-          ],
-          acceptedSpawns: [
-            ...accepted.data.acceptedSpawns,
-            {
-              requestedOrdinal: 4,
-              startedOrdinal: 5,
-              acceptedOrdinal: 6,
-              agentRef: "/root/second",
-              threadId: "second-thread",
-            },
-          ],
-        },
-      })
-    )[2],
-  ).toBe("failed");
 });
 
 test("Darrow grades completed independent readers through nested native receipts", async () => {
@@ -3072,126 +2383,6 @@ test("Darrow grades a resumed conversation and its unchanged workspace boundary"
   ]);
 });
 
-test("Darrow orders accepted owners around the native follow-up boundary", async () => {
-  const selected = await command<ExtensionReply>(
-    [process.execPath, extension],
-    request("resolve", {
-      projectRoot: pathToFileURL(projectRoot).href,
-      selectors: { caseIds: ["goal-readiness-iterative-resolution"] },
-      configuration: {},
-    }),
-  );
-  expect(selected.code, selected.stderr).toBe(0);
-  const selectedCase = selected.value.result.cases[0]!;
-  expect(selectedCase.requiredEvidence).toContain("sevro.codex.native-calls");
-  const continuation = {
-    id: "sevro.codex.continuation",
-    source: "sevro.host.codex",
-    completeness: "complete",
-    data: {
-      method: "same_thread_resume",
-      threadId: "thread-1",
-      nativeAfterOrdinal: 5,
-      preFollowUpWorktreeUnchanged: true,
-    },
-  };
-  const native = {
-    id: "sevro.codex.native-calls",
-    source: "sevro.host.codex",
-    completeness: "complete",
-    data: {
-      method: "native_session",
-      calls: [
-        {
-          ordinal: 6,
-          namespace: "collaboration",
-          name: "spawn_agent",
-          evidence: "invocation_attempt",
-        },
-      ],
-      toolCalls: [
-        { ordinal: 6, namespace: "collaboration", name: "spawn_agent" },
-      ],
-      acceptedSpawns: [
-        {
-          requestedOrdinal: 6,
-          startedOrdinal: 7,
-          acceptedOrdinal: 8,
-          agentRef: "/root/owner",
-          threadId: "child-thread",
-        },
-      ],
-      submittedExecCalls: 0,
-    },
-  };
-  const statuses = async (observations: unknown[]) => {
-    const response = await command<{
-      result: { checks: Array<{ id: string; status: string }> };
-    }>(
-      [process.execPath, extension],
-      request("evaluate", {
-        extensionData: selectedCase.extensionData,
-        observations,
-      }),
-    );
-    expect(response.code, response.stderr).toBe(0);
-    return response.value.result.checks
-      .filter((check) => check.id.startsWith("darrow.evals.transcript."))
-      .map((check) => check.status);
-  };
-  expect(await statuses([continuation, native])).toEqual([
-    "passed",
-    "passed",
-    "unavailable",
-    "passed",
-  ]);
-  expect(
-    await statuses([
-      {
-        ...continuation,
-        data: { ...continuation.data, nativeAfterOrdinal: 9 },
-      },
-      native,
-    ]),
-  ).toEqual(["failed", "failed", "unavailable", "passed"]);
-  expect(
-    await statuses([
-      {
-        ...continuation,
-        data: { ...continuation.data, nativeAfterOrdinal: null },
-      },
-      native,
-    ]),
-  ).toEqual(["unavailable", "unavailable", "unavailable", "passed"]);
-  expect(await statuses([continuation])).toEqual([
-    "unavailable",
-    "unavailable",
-    "unavailable",
-    "unavailable",
-  ]);
-  const updateGoal = {
-    ordinal: 9,
-    namespace: "functions",
-    name: "update_goal",
-    evidence: "invocation_attempt",
-  };
-  expect(
-    (
-      await statuses([
-        continuation,
-        {
-          ...native,
-          data: {
-            ...native.data,
-            calls: [...native.data.calls, updateGoal],
-            toolCalls: [...native.data.toolCalls, updateGoal],
-          },
-        },
-      ])
-    ).at(-1),
-  ).toBe("failed");
-});
-
 test("Darrow grades readiness skill reads on their actual turn", async () => {
   const selected = await command<ExtensionReply>(
     [process.execPath, extension],
@@ -3276,922 +2467,7 @@ test("Darrow grades readiness skill reads on their actual turn", async () => {
   ).toEqual(["passed", "unavailable"]);
 });
 
-test("Darrow rejects a recipe read or Skill call in the follow-up turn", async () => {
-  const source = parseYaml(
-    await readFile(
-      join(
-        projectRoot,
-        "plugins/task-recipe/darrow-ticket-to-pr/skills/ticket-to-pr/evals/feedback-relay.yaml",
-      ),
-      "utf8",
-    ),
-  ) as { transcript_checks: Array<{ not_regex?: string }> };
-  const pattern = source.transcript_checks[4]?.not_regex;
-  expect(pattern).toBeTruthy();
-  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-turn-skill-"));
-  roots.push(root);
-  const cases = join(root, "evals/experiments/sample/cases");
-  await mkdir(cases, { recursive: true });
-  await writeFile(
-    join(cases, "turn-skill.yaml"),
-    JSON.stringify({
-      id: "turn-skill",
-      invariant: "TURN-SKILL-C1",
-      prompt: "Wait for feedback.",
-      follow_up_prompt: "Continue after feedback.",
-      fixture: {
-        commits: [
-          { message: "chore: init", files: { "README.md": "ready\n" } },
-        ],
-      },
-      checks: [],
-      transcript_checks: [
-        { name: "recipe is not read again", not_regex: pattern },
-      ],
-    }),
-  );
-  const selected = await command<ExtensionReply>(
-    [process.execPath, extension],
-    request("resolve", {
-      projectRoot: pathToFileURL(root).href,
-      selectors: { caseIds: ["turn-skill"] },
-      configuration: {},
-    }),
-  );
-  expect(selected.code, selected.stderr).toBe(0);
-  const selectedCase = selected.value.result.cases[0]!;
-  const followUp = {
-    id: "sevro.codex.follow-up-skill-reads",
-    source: "sevro.host.codex",
-    completeness: "complete",
-    data: {
-      method: "skill_file_read_probe",
-      primarySkill: null,
-      observedSkills: [],
-    },
-  };
-  const native = {
-    id: "sevro.codex.native-calls",
-    source: "sevro.host.codex",
-    completeness: "complete",
-    data: {
-      method: "native_session",
-      calls: [],
-      toolCalls: [],
-      acceptedSpawns: [],
-      submittedExecCalls: 0,
-    },
-  };
-  const continuation = {
-    id: "sevro.codex.continuation",
-    source: "sevro.host.codex",
-    completeness: "complete",
-    data: {
-      method: "same_thread_resume",
-      threadId: "thread-1",
-      nativeAfterOrdinal: 5,
-      preFollowUpWorktreeUnchanged: true,
-    },
-  };
-  const status = async (observations: unknown[]) => {
-    const response = await command<{
-      result: { checks: Array<{ status: string }> };
-    }>(
-      [process.execPath, extension],
-      request("evaluate", {
-        extensionData: selectedCase.extensionData,
-        observations,
-      }),
-    );
-    expect(response.code, response.stderr).toBe(0);
-    return response.value.result.checks[0]?.status;
-  };
-  expect(await status([followUp, native, continuation])).toBe("passed");
-  expect(
-    await status([
-      {
-        ...followUp,
-        data: {
-          ...followUp.data,
-          primarySkill: "ticket-to-pr",
-          observedSkills: ["ticket-to-pr"],
-        },
-      },
-      native,
-      continuation,
-    ]),
-  ).toBe("failed");
-  expect(
-    await status([
-      followUp,
-      {
-        ...native,
-        data: {
-          ...native.data,
-          toolCalls: [{ ordinal: 6, namespace: "other", name: "Skill" }],
-        },
-      },
-      continuation,
-    ]),
-  ).toBe("failed");
-  expect(
-    await status([
-      followUp,
-      {
-        ...native,
-        data: {
-          ...native.data,
-          toolCalls: [{ ordinal: 4, namespace: "other", name: "Skill" }],
-        },
-      },
-      continuation,
-    ]),
-  ).toBe("passed");
-  expect(
-    await status([
-      followUp,
-      native,
-      {
-        ...continuation,
-        data: { ...continuation.data, nativeAfterOrdinal: null },
-      },
-    ]),
-  ).toBe("unavailable");
-});
-
-test("Darrow grades same-owner feedback across the turn boundary", async () => {
-  const selected = await command<ExtensionReply>(
-    [process.execPath, extension],
-    request("resolve", {
-      projectRoot: pathToFileURL(projectRoot).href,
-      selectors: { caseIds: ["goal-cross-turn-feedback-answer"] },
-      configuration: {},
-    }),
-  );
-  expect(selected.code, selected.stderr).toBe(0);
-  const selectedCase = selected.value.result.cases[0]!;
-  expect(selectedCase.requiredEvidence).toContain(
-    "sevro.codex.follow-up-events",
-  );
-  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-cross-turn-"));
-  roots.push(root);
-  const artifact = async (name: string, content: string) => {
-    const path = join(root, name);
-    await writeFile(path, content);
-    return {
-      id: "sevro.codex.follow-up-events",
-      path: pathToFileURL(path).href,
-      sha256: createHash("sha256").update(content).digest("hex"),
-    };
-  };
-  const clean = await artifact("clean.jsonl", "turn.completed\n");
-  const preflight = await artifact(
-    "preflight.jsonl",
-    "adaptive-delivery-preflight step\n",
-  );
-  const native = {
-    id: "sevro.codex.native-calls",
-    source: "sevro.host.codex",
-    completeness: "complete",
-    data: {
-      method: "native_session",
-      calls: [
-        {
-          ordinal: 1,
-          namespace: "collaboration",
-          name: "spawn_agent",
-          evidence: "invocation_attempt",
-        },
-      ],
-      toolCalls: [
-        { ordinal: 1, namespace: "collaboration", name: "spawn_agent" },
-        {
-          ordinal: 6,
-          namespace: "collaboration",
-          name: "followup_task",
-          target: "owner",
-        },
-      ],
-      acceptedSpawns: [
-        {
-          requestedOrdinal: 1,
-          startedOrdinal: 2,
-          acceptedOrdinal: 3,
-          agentRef: "/root/owner",
-          threadId: "child-thread",
-        },
-      ],
-      feedbackCalls: [
-        {
-          ordinal: 6,
-          tool: "followup_task",
-          target: "owner",
-          responseObserved: false,
-        },
-      ],
-      submittedExecCalls: 0,
-    },
-  };
-  const continuation = {
-    id: "sevro.codex.continuation",
-    source: "sevro.host.codex",
-    completeness: "complete",
-    data: {
-      method: "same_thread_resume",
-      threadId: "thread-1",
-      nativeAfterOrdinal: 5,
-      preFollowUpWorktreeUnchanged: true,
-    },
-  };
-  const statuses = async (
-    observations: unknown[],
-    artifacts: unknown[] = [clean],
-  ) => {
-    const response = await command<{
-      result: { checks: Array<{ id: string; status: string }> };
-    }>(
-      [process.execPath, extension],
-      request("evaluate", {
-        extensionData: selectedCase.extensionData,
-        observations,
-        artifacts,
-      }),
-    );
-    expect(response.code, response.stderr).toBe(0);
-    return response.value.result.checks
-      .filter((check) => check.id.startsWith("darrow.evals.transcript."))
-      .map((check) => check.status);
-  };
-  expect(await statuses([native, continuation])).toEqual([
-    "passed",
-    "passed",
-    "passed",
-    "passed",
-  ]);
-  expect(
-    await statuses([
-      native,
-      {
-        ...continuation,
-        data: { ...continuation.data, preFollowUpWorktreeUnchanged: false },
-      },
-    ]),
-  ).toEqual(["failed", "passed", "passed", "passed"]);
-  expect(
-    (
-      await statuses([
-        native,
-        {
-          ...continuation,
-          data: { ...continuation.data, nativeAfterOrdinal: 0 },
-        },
-      ])
-    )[1],
-  ).toBe("failed");
-  expect(
-    (
-      await statuses([
-        {
-          ...native,
-          data: {
-            ...native.data,
-            toolCalls: native.data.toolCalls.map((call) =>
-              call.name === "followup_task"
-                ? { ...call, target: "other" }
-                : call,
-            ),
-            feedbackCalls: [
-              { ...native.data.feedbackCalls[0], target: "other" },
-            ],
-          },
-        },
-        continuation,
-      ])
-    )[2],
-  ).toBe("failed");
-  const replacement = {
-    ordinal: 7,
-    namespace: "collaboration",
-    name: "spawn_agent",
-  };
-  expect(
-    (
-      await statuses([
-        {
-          ...native,
-          data: {
-            ...native.data,
-            calls: [
-              ...native.data.calls,
-              { ...replacement, evidence: "invocation_attempt" },
-            ],
-            toolCalls: [...native.data.toolCalls, replacement],
-          },
-        },
-        continuation,
-      ])
-    )[3],
-  ).toBe("failed");
-  const newGoal = {
-    ordinal: 7,
-    namespace: "functions",
-    name: "create_goal",
-  };
-  expect(
-    (
-      await statuses([
-        {
-          ...native,
-          data: {
-            ...native.data,
-            calls: [
-              ...native.data.calls,
-              { ...newGoal, evidence: "invocation_attempt" },
-            ],
-            toolCalls: [...native.data.toolCalls, newGoal],
-          },
-        },
-        continuation,
-      ])
-    )[3],
-  ).toBe("failed");
-  expect((await statuses([native, continuation], [preflight]))[3]).toBe(
-    "failed",
-  );
-  expect((await statuses([native, continuation], []))[3]).toBe("unavailable");
-  expect(
-    (
-      await statuses(
-        [native, continuation],
-        [{ ...clean, sha256: "0".repeat(64) }],
-      )
-    )[3],
-  ).toBe("unavailable");
-});
-
-test("Darrow binds readiness reads to the parent before owner launch", async () => {
-  const selected = await command<ExtensionReply>(
-    [process.execPath, extension],
-    request("resolve", {
-      projectRoot: pathToFileURL(projectRoot).href,
-      selectors: { caseIds: ["goal-readiness-artifact-selected"] },
-      configuration: {},
-    }),
-  );
-  expect(selected.code, selected.stderr).toBe(0);
-  const selectedCase = selected.value.result.cases[0]!;
-  expect(selectedCase.requiredEvidence).toContain("sevro.codex.native-calls");
-  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-pre-owner-"));
-  roots.push(root);
-  const path = join(root, "events.jsonl");
-  const content = "turn.completed\n";
-  await writeFile(path, content);
-  const artifact = {
-    id: "sevro.codex.events",
-    path: pathToFileURL(path).href,
-    sha256: createHash("sha256").update(content).digest("hex"),
-  };
-  const native = {
-    id: "sevro.codex.native-calls",
-    source: "sevro.host.codex",
-    completeness: "complete",
-    data: {
-      method: "native_session",
-      calls: [
-        {
-          ordinal: 4,
-          namespace: "collaboration",
-          name: "spawn_agent",
-          evidence: "invocation_attempt",
-        },
-      ],
-      toolCalls: [
-        { ordinal: 4, namespace: "collaboration", name: "spawn_agent" },
-      ],
-      acceptedSpawns: [
-        {
-          requestedOrdinal: 4,
-          startedOrdinal: 5,
-          acceptedOrdinal: 6,
-          agentRef: "/root/owner",
-          threadId: "child-thread",
-        },
-      ],
-      parentReadDiagnostics: {
-        completeness: "complete",
-        observedSkills: ["assess-implementation-readiness"],
-        completedReads: [
-          { skill: "assess-implementation-readiness", ordinal: 2 },
-        ],
-        commandExecutions: 1,
-        readAttempts: 1,
-        truncated: false,
-      },
-      submittedExecCalls: 0,
-    },
-  };
-  const statuses = async (observations: unknown[], artifacts = [artifact]) => {
-    const response = await command<{
-      result: { checks: Array<{ id: string; status: string }> };
-    }>(
-      [process.execPath, extension],
-      request("evaluate", {
-        extensionData: selectedCase.extensionData,
-        observations,
-        artifacts,
-      }),
-    );
-    expect(response.code, response.stderr).toBe(0);
-    return response.value.result.checks
-      .filter((check) => check.id.startsWith("darrow.evals.transcript."))
-      .map((check) => check.status);
-  };
-  expect(await statuses([native])).toEqual(["passed", "passed"]);
-  expect(
-    (
-      await statuses([
-        {
-          ...native,
-          data: {
-            ...native.data,
-            parentReadDiagnostics: {
-              ...native.data.parentReadDiagnostics,
-              completedReads: [
-                { skill: "assess-implementation-readiness", ordinal: 7 },
-              ],
-            },
-          },
-        },
-      ])
-    )[0],
-  ).toBe("failed");
-  expect(
-    (
-      await statuses([
-        {
-          ...native,
-          data: { ...native.data, parentReadDiagnostics: undefined },
-        },
-      ])
-    )[0],
-  ).toBe("unavailable");
-  expect((await statuses([native], []))[1]).toBe("unavailable");
-});
-
-test("Darrow grades one readiness read and no owner on a non-ready result", async () => {
-  const selected = await command<ExtensionReply>(
-    [process.execPath, extension],
-    request("resolve", {
-      projectRoot: pathToFileURL(projectRoot).href,
-      selectors: { caseIds: ["goal-readiness-nonready-stops"] },
-      configuration: {},
-    }),
-  );
-  expect(selected.code, selected.stderr).toBe(0);
-  const selectedCase = selected.value.result.cases[0]!;
-  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-nonready-"));
-  roots.push(root);
-  const artifact = async (name: string, content: string) => {
-    const path = join(root, name);
-    await writeFile(path, content);
-    return {
-      id: "sevro.codex.events",
-      path: pathToFileURL(path).href,
-      sha256: createHash("sha256").update(content).digest("hex"),
-    };
-  };
-  const clean = await artifact("clean.jsonl", "turn.completed\n");
-  const ledger = await artifact("ledger.jsonl", "darrow-native-goal-report\n");
-  const native = {
-    id: "sevro.codex.native-calls",
-    source: "sevro.host.codex",
-    completeness: "complete",
-    data: {
-      method: "native_session",
-      calls: [],
-      toolCalls: [],
-      acceptedSpawns: [],
-      submittedExecCalls: 0,
-      parentReadDiagnostics: {
-        completeness: "complete",
-        observedSkills: ["assess-implementation-readiness"],
-        completedReads: [
-          { skill: "assess-implementation-readiness", ordinal: 2 },
-        ],
-        commandExecutions: 1,
-        readAttempts: 1,
-        truncated: false,
-      },
-    },
-  };
-  const statuses = async (
-    observations: unknown[],
-    artifacts: unknown[] = [clean],
-  ) => {
-    const response = await command<{
-      result: { checks: Array<{ id: string; status: string }> };
-    }>(
-      [process.execPath, extension],
-      request("evaluate", {
-        extensionData: selectedCase.extensionData,
-        observations,
-        artifacts,
-      }),
-    );
-    expect(response.code, response.stderr).toBe(0);
-    return response.value.result.checks
-      .filter((check) => check.id.startsWith("darrow.evals.transcript."))
-      .map((check) => check.status);
-  };
-  expect(await statuses([native])).toEqual([
-    "passed",
-    "passed",
-    "passed",
-    "passed",
-  ]);
-  expect(
-    await statuses([
-      {
-        ...native,
-        data: {
-          ...native.data,
-          parentReadDiagnostics: {
-            ...native.data.parentReadDiagnostics,
-            completedReads: [
-              { skill: "assess-implementation-readiness", ordinal: 2 },
-              { skill: "assess-implementation-readiness", ordinal: 3 },
-            ],
-            commandExecutions: 2,
-            readAttempts: 2,
-          },
-        },
-      },
-    ]),
-  ).toEqual(["passed", "failed", "passed", "passed"]);
-  expect(
-    await statuses([
-      {
-        ...native,
-        data: {
-          ...native.data,
-          parentReadDiagnostics: {
-            ...native.data.parentReadDiagnostics,
-            observedSkills: [],
-            completedReads: [],
-            commandExecutions: 0,
-            readAttempts: 0,
-          },
-        },
-      },
-    ]),
-  ).toEqual(["failed", "passed", "passed", "passed"]);
-  expect(
-    (
-      await statuses([
-        {
-          ...native,
-          data: {
-            ...native.data,
-            calls: [
-              {
-                ordinal: 4,
-                namespace: "collaboration",
-                name: "spawn_agent",
-                evidence: "invocation_attempt",
-              },
-            ],
-            toolCalls: [
-              { ordinal: 4, namespace: "collaboration", name: "spawn_agent" },
-            ],
-          },
-        },
-      ])
-    )[2],
-  ).toBe("failed");
-  expect((await statuses([native], [ledger]))[3]).toBe("failed");
-  expect(
-    (
-      await statuses([
-        {
-          ...native,
-          data: { ...native.data, parentReadDiagnostics: undefined },
-        },
-      ])
-    ).slice(0, 2),
-  ).toEqual(["unavailable", "unavailable"]);
-  expect((await statuses([native], []))[3]).toBe("unavailable");
-});
-
-test("Darrow grades feedback to the prior owner after a real follow-up", async () => {
-  const native = {
-    id: "sevro.codex.native-calls",
-    source: "sevro.host.codex",
-    completeness: "complete",
-    data: {
-      method: "native_session",
-      calls: [
-        {
-          ordinal: 1,
-          namespace: "collaboration",
-          name: "spawn_agent",
-          evidence: "invocation_attempt",
-        },
-      ],
-      toolCalls: [
-        { ordinal: 1, namespace: "collaboration", name: "spawn_agent" },
-        {
-          ordinal: 6,
-          namespace: "collaboration",
-          name: "followup_task",
-          target: "owner",
-        },
-      ],
-      acceptedSpawns: [
-        {
-          requestedOrdinal: 1,
-          startedOrdinal: 2,
-          acceptedOrdinal: 3,
-          agentRef: "/root/owner",
-          threadId: "child-thread",
-        },
-      ],
-      feedbackCalls: [
-        {
-          ordinal: 6,
-          tool: "followup_task",
-          target: "owner",
-          responseObserved: true,
-        },
-      ],
-      submittedExecCalls: 0,
-    },
-  };
-  const continuation = {
-    id: "sevro.codex.continuation",
-    source: "sevro.host.codex",
-    completeness: "complete",
-    data: {
-      method: "same_thread_resume",
-      threadId: "thread-1",
-      nativeAfterOrdinal: 5,
-      preFollowUpWorktreeUnchanged: true,
-    },
-  };
-  for (const [caseId, checkId, responseRequired] of [
-    ["goal-steering-without-question", "darrow.evals.transcript.3", false],
-    ["ticket-to-pr-feedback-rejected", "darrow.evals.transcript.2", true],
-  ] as const) {
-    const selected = await command<ExtensionReply>(
-      [process.execPath, extension],
-      request("resolve", {
-        projectRoot: pathToFileURL(projectRoot).href,
-        selectors: { caseIds: [caseId] },
-        configuration: {},
-      }),
-    );
-    expect(selected.code, selected.stderr).toBe(0);
-    const selectedCase = selected.value.result.cases[0]!;
-    expect(selectedCase.requiredEvidence).toContain("sevro.codex.native-calls");
-    const status = async (observations: unknown[]) => {
-      const response = await command<{
-        result: { checks: Array<{ id: string; status: string }> };
-      }>(
-        [process.execPath, extension],
-        request("evaluate", {
-          extensionData: selectedCase.extensionData,
-          observations,
-        }),
-      );
-      expect(response.code, response.stderr).toBe(0);
-      return response.value.result.checks.find((check) => check.id === checkId)
-        ?.status;
-    };
-    expect(await status([native, continuation])).toBe("passed");
-    expect(
-      await status([
-        native,
-        {
-          ...continuation,
-          data: { ...continuation.data, nativeAfterOrdinal: 7 },
-        },
-      ]),
-    ).toBe("failed");
-    expect(
-      await status([
-        {
-          ...native,
-          data: {
-            ...native.data,
-            toolCalls: [
-              native.data.toolCalls[0],
-              { ...native.data.toolCalls[1], target: "other" },
-            ],
-            feedbackCalls: [
-              { ...native.data.feedbackCalls[0], target: "other" },
-            ],
-          },
-        },
-        continuation,
-      ]),
-    ).toBe("failed");
-    expect(
-      await status([
-        {
-          ...native,
-          data: {
-            ...native.data,
-            feedbackCalls: [
-              { ...native.data.feedbackCalls[0], responseObserved: false },
-            ],
-          },
-        },
-        continuation,
-      ]),
-    ).toBe(responseRequired ? "failed" : "passed");
-    expect(
-      await status([
-        { ...native, data: { ...native.data, feedbackCalls: [] } },
-        continuation,
-      ]),
-    ).toBe("unavailable");
-  }
-});
-
-test("Darrow grades the ticket feedback relay without retaining message text", async () => {
-  const selected = await command<ExtensionReply>(
-    [process.execPath, extension],
-    request("resolve", {
-      projectRoot: pathToFileURL(projectRoot).href,
-      selectors: { caseIds: ["ticket-to-pr-feedback-relay"] },
-      configuration: {},
-    }),
-  );
-  expect(selected.code, selected.stderr).toBe(0);
-  const selectedCase = selected.value.result.cases[0]!;
-  const native = {
-    id: "sevro.codex.native-calls",
-    source: "sevro.host.codex",
-    completeness: "complete",
-    data: {
-      method: "native_session",
-      calls: [
-        {
-          ordinal: 1,
-          namespace: "collaboration",
-          name: "spawn_agent",
-          evidence: "invocation_attempt",
-        },
-      ],
-      toolCalls: [
-        { ordinal: 1, namespace: "collaboration", name: "spawn_agent" },
-        {
-          ordinal: 6,
-          namespace: "collaboration",
-          name: "followup_task",
-          target: "owner",
-        },
-      ],
-      acceptedSpawns: [
-        {
-          requestedOrdinal: 1,
-          startedOrdinal: 2,
-          acceptedOrdinal: 3,
-          agentRef: "/root/owner",
-          threadId: "child-thread",
-        },
-      ],
-      feedbackCalls: [
-        {
-          ordinal: 6,
-          tool: "followup_task",
-          target: "owner",
-          responseObserved: true,
-          messageRepresentation: "plaintext",
-          messageMatchesFollowUpPrompt: true,
-        },
-      ],
-      submittedExecCalls: 0,
-    },
-  };
-  const continuation = {
-    id: "sevro.codex.continuation",
-    source: "sevro.host.codex",
-    completeness: "complete",
-    data: {
-      method: "same_thread_resume",
-      threadId: "thread-1",
-      nativeAfterOrdinal: 5,
-      preFollowUpWorktreeUnchanged: true,
-    },
-  };
-  const followUp = {
-    id: "sevro.codex.follow-up-skill-reads",
-    source: "sevro.host.codex",
-    completeness: "complete",
-    data: {
-      method: "skill_file_read_probe",
-      primarySkill: null,
-      observedSkills: [],
-    },
-  };
-  const statuses = async (observations: unknown[]) => {
-    const response = await command<{
-      result: { checks: Array<{ id: string; status: string }> };
-    }>(
-      [process.execPath, extension],
-      request("evaluate", {
-        extensionData: selectedCase.extensionData,
-        observations,
-      }),
-    );
-    expect(response.code, response.stderr).toBe(0);
-    return response.value.result.checks
-      .filter((check) => check.id.startsWith("darrow.evals.transcript."))
-      .map((check) => check.status);
-  };
-  expect(await statuses([native, continuation, followUp])).toEqual([
-    "passed",
-    "passed",
-    "passed",
-    "passed",
-    "passed",
-  ]);
-  expect(
-    (
-      await statuses([
-        {
-          ...native,
-          data: {
-            ...native.data,
-            feedbackCalls: [
-              {
-                ...native.data.feedbackCalls[0],
-                messageMatchesFollowUpPrompt: false,
-              },
-            ],
-          },
-        },
-        continuation,
-        followUp,
-      ])
-    )[0],
-  ).toBe("failed");
-  expect(
-    (
-      await statuses([
-        {
-          ...native,
-          data: {
-            ...native.data,
-            feedbackCalls: [
-              {
-                ...native.data.feedbackCalls[0],
-                messageRepresentation: "encrypted",
-                messageMatchesFollowUpPrompt: null,
-              },
-            ],
-          },
-        },
-        continuation,
-        followUp,
-      ])
-    )[0],
-  ).toBe("passed");
-  const replacement = {
-    ordinal: 7,
-    namespace: "collaboration",
-    name: "spawn_agent",
-    evidence: "invocation_attempt",
-  };
-  expect(
-    (
-      await statuses([
-        {
-          ...native,
-          data: {
-            ...native.data,
-            calls: [...native.data.calls, replacement],
-            toolCalls: [...native.data.toolCalls, replacement],
-            acceptedSpawns: [
-              ...native.data.acceptedSpawns,
-              {
-                requestedOrdinal: 7,
-                startedOrdinal: 8,
-                acceptedOrdinal: 9,
-                agentRef: "/root/replacement",
-                threadId: "replacement-thread",
-              },
-            ],
-          },
-        },
-        continuation,
-        followUp,
-      ])
-    )[3],
-  ).toBe("failed");
-});
-
-test("Darrow ledger checks require intact events and complete goal-control evidence", async () => {
+test("Darrow current ledger exclusions use intact host events", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-ledger-"));
   roots.push(root);
   const selected = await command<ExtensionReply>(
@@ -4247,7 +2523,7 @@ test("Darrow ledger checks require intact events and complete goal-control evide
   };
   expect(await status([native], [clean])).toMatchObject({
     status: "passed",
-    evidenceRefs: ["sevro.codex.events", "sevro.codex.native-calls"],
+    evidenceRefs: ["sevro.codex.events"],
   });
   expect((await status([native], [ledger]))?.status).toBe("failed");
   const goal = {
@@ -4265,14 +2541,14 @@ test("Darrow ledger checks require intact events and complete goal-control evide
       toolCalls: [{ ordinal: 1, namespace: "functions", name: "create_goal" }],
     },
   };
-  expect((await status([goal], [clean]))?.status).toBe("failed");
+  expect((await status([goal], [clean]))?.status).toBe("passed");
   expect((await status([native], []))?.status).toBe("unavailable");
   expect(
     (await status([native], [{ ...clean, sha256: "0".repeat(64) }]))?.status,
   ).toBe("unavailable");
   expect(
     (await status([{ ...native, completeness: "partial" }], [clean]))?.status,
-  ).toBe("unavailable");
+  ).toBe("passed");
   const narrower = await command<ExtensionReply>(
     [process.execPath, extension],
     request("resolve", {
@@ -4298,40 +2574,6 @@ test("Darrow ledger checks require intact events and complete goal-control evide
       (check) => check.id === "darrow.evals.transcript.1",
     )?.status,
   ).toBe("passed");
-  const decision = await command<ExtensionReply>(
-    [process.execPath, extension],
-    request("resolve", {
-      projectRoot: pathToFileURL(projectRoot).href,
-      selectors: { caseIds: ["goal-preflight-decision-gated"] },
-      configuration: {},
-    }),
-  );
-  expect(decision.code, decision.stderr).toBe(0);
-  const decisionData = decision.value.result.cases[0]!.extensionData;
-  const secondStatus = async (observations: unknown[], event: unknown) => {
-    const response = await command<{
-      result: { checks: Array<{ id: string; status: string }> };
-    }>(
-      [process.execPath, extension],
-      request("evaluate", {
-        extensionData: decisionData,
-        observations,
-        artifacts: [event],
-      }),
-    );
-    expect(response.code, response.stderr).toBe(0);
-    return response.value.result.checks.find(
-      (check) => check.id === "darrow.evals.transcript.2",
-    )?.status;
-  };
-  expect(await secondStatus([native], clean)).toBe("passed");
-  expect(
-    await secondStatus(
-      [native],
-      await artifact("native-report.jsonl", "darrow-native-goal-report\n"),
-    ),
-  ).toBe("failed");
-  expect(await secondStatus([goal], clean)).toBe("passed");
 });
 
 test("Sevro grades no-agent evidence through the public CLI", async () => {
@@ -4365,7 +2607,7 @@ test("Sevro grades no-agent evidence through the public CLI", async () => {
         {
           name: "no lifecycle ledger or nested goal is used",
           not_regex:
-            'adaptive-delivery-preflight step|Protocol ledger|"tool":"create_goal"',
+            'adaptive-goal-preflight step|Protocol ledger|"tool":"create_goal"',
         },
       ],
     }),
@@ -4436,403 +2678,6 @@ test("Sevro grades no-agent evidence through the public CLI", async () => {
     status: "passed",
     evidenceRefs: ["sevro.codex.events", "sevro.codex.native-calls"],
   });
-});
-
-test("Sevro grades an existing Darrow ownership case through its public CLI", async () => {
-  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-ownership-"));
-  roots.push(root);
-  const commandFile = join(root, "extension-command.json");
-  const adapter = join(root, "candidate.ts");
-  await writeFile(commandFile, JSON.stringify([process.execPath, extension]));
-  await writeFile(
-    adapter,
-    `export default {
-  id: "sevro.host.codex", model: "synthetic-v1", effort: "none",
-  hostCapabilities: ["sevro.codex.native-calls"],
-  async run() {
-    return {
-      finalMessage: "format: darrow-adaptive-delivery-authority-stop-v1\\nstatus: invocation_required\\nreason: explicit-orchestration-entrypoint-required",
-      complete: true,
-      observations: [{
-        id: "sevro.codex.native-calls", completeness: "complete",
-        data: { method: "native_session", calls: [], toolCalls: [], acceptedSpawns: [], submittedExecCalls: 0 },
-      }],
-    };
-  },
-};
-`,
-  );
-  const route = sevroCommand();
-  const run = await command<CliReply>([
-    ...route.launch,
-    "run",
-    "--json",
-    ...route.extraArgs,
-    "--extension-command-file",
-    commandFile,
-    "--extension-source-file",
-    extension,
-    "--case-id",
-    "goal-preflight-authority-stop-non-orchestration-parent",
-    "--project-root",
-    projectRoot,
-    "--adapter-module",
-    adapter,
-    "--condition",
-    "passive",
-    "--trials",
-    "1",
-    "--threshold",
-    "1",
-    "--shell-isolation",
-    "--results-root",
-    join(root, "results"),
-  ]);
-  expect(run.code, run.stderr).toBe(0);
-  expect(run.value.task.verdict).toBe("passed");
-  expect(
-    run.value.cases[0]!.trials[0]!.checks.filter((check) =>
-      check.id.startsWith("darrow.evals.ownership."),
-    ).map((check) => check.status),
-  ).toEqual(["passed", "passed", "passed"]);
-});
-
-test("Claude readiness stop uses complete native calls and intact events", async () => {
-  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-claude-readiness-"));
-  roots.push(root);
-  const resolved = await command<ExtensionReply>(
-    [process.execPath, extension],
-    request("resolve", {
-      projectRoot: pathToFileURL(projectRoot).href,
-      selectors: { caseIds: ["claude-readiness-nonready-stops"] },
-      configuration: {},
-    }),
-  );
-  expect(resolved.code, resolved.stderr).toBe(0);
-  const selected = resolved.value.result.cases[0]!;
-  expect(selected.requiredEvidence).toEqual([
-    "sevro.claude.tool-calls",
-    "sevro.claude.events",
-  ]);
-  const observations = [
-    {
-      id: "sevro.claude.tool-calls",
-      source: "sevro.host.claude",
-      completeness: "complete",
-      data: {
-        method: "stream_tool_calls",
-        truncated: false,
-        calls: [
-          {
-            ordinal: 1,
-            actor: "parent",
-            name: "Skill",
-            skill: "assess-implementation-readiness",
-            invocation: "darrow-readiness-gate:assess-implementation-readiness",
-          },
-        ],
-      },
-    },
-    {
-      id: "sevro.observation.final-message",
-      source: "sevro.host.claude",
-      completeness: "complete",
-      data: { text: "Readiness needs a decision." },
-    },
-  ];
-  const artifact = async (name: string, content: string) => {
-    const path = join(root, name);
-    await writeFile(path, content);
-    return {
-      id: "sevro.claude.events",
-      path: pathToFileURL(path).href,
-      sha256: createHash("sha256").update(content).digest("hex"),
-    };
-  };
-  const clean = await artifact("clean.jsonl", '{"type":"result"}\n');
-  const evaluate = (calls: unknown[], events: unknown[]) =>
-    command<{
-      result: { checks: Array<{ id: string; status: string }> };
-    }>(
-      [process.execPath, extension],
-      request("evaluate", {
-        observations: calls,
-        artifacts: events,
-        extensionData: selected.extensionData,
-      }),
-    );
-  const passed = await evaluate(observations, [clean]);
-  expect(passed.value.result.checks.map((check) => check.status)).toEqual(
-    Array(7).fill("passed"),
-  );
-  const repeated = await evaluate(
-    [
-      {
-        ...observations[0],
-        data: {
-          ...observations[0]!.data,
-          calls: [
-            ...observations[0]!.data!.calls!,
-            { ...observations[0]!.data!.calls![0]!, ordinal: 2 },
-          ],
-        },
-      },
-      observations[1],
-    ],
-    [clean],
-  );
-  expect(repeated.value.result.checks[4]!.status).toBe("failed");
-  const partial = await evaluate(
-    [{ ...observations[0], completeness: "partial" }, observations[1]],
-    [clean],
-  );
-  expect(partial.value.result.checks[3]!.status).toBe("unavailable");
-  const missingEvents = await evaluate(observations, []);
-  expect(missingEvents.value.result.checks[6]!.status).toBe("unavailable");
-  const ledger = await artifact(
-    "ledger.jsonl",
-    "adaptive-delivery-preflight step\n",
-  );
-  const forbidden = await evaluate(observations, [ledger]);
-  expect(forbidden.value.result.checks[6]!.status).toBe("failed");
-});
-
-test("Claude selected owner binds route, review, and parent handoff", async () => {
-  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-claude-owner-"));
-  roots.push(root);
-  const resolved = await command<ExtensionReply>(
-    [process.execPath, extension],
-    request("resolve", {
-      projectRoot: pathToFileURL(projectRoot).href,
-      selectors: { caseIds: ["goal-review-high-selected-claude"] },
-      configuration: {},
-    }),
-  );
-  expect(resolved.code, resolved.stderr).toBe(0);
-  const selected = resolved.value.result.cases[0]!;
-  expect(selected.requiredEvidence).toEqual([
-    "sevro.claude.tool-calls",
-    "sevro.claude.events",
-    "sevro.claude.nested-skills",
-  ]);
-  const ownerId = "tool-owner";
-  const prepared = await command<{
-    result: { claudePluginDirs: { artifactRoots: string[] } };
-    error?: { message: string };
-  }>(
-    [process.execPath, extension],
-    request("prepare", {
-      case: selected,
-      host: {
-        id: "sevro.host.claude",
-        capabilities: [
-          "sevro.claude.tool-calls",
-          "sevro.claude.plugin-dirs",
-          "sevro.claude.explicit-invocation",
-        ],
-      },
-      condition: "passive",
-      configuration: {},
-    }),
-  );
-  expect(prepared.value.error).toBeUndefined();
-  expect(prepared.value.result.claudePluginDirs.artifactRoots).toHaveLength(2);
-  const marker = createHash("sha256")
-    .update("- phase: adaptive-delivery-owner")
-    .digest("hex");
-  const calls = [
-    {
-      ordinal: 2,
-      actor: "parent",
-      parentToolUseId: null,
-      name: "Agent",
-      toolUseId: ownerId,
-      subagentType: "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
-      runInBackground: false,
-      model: null,
-      promptSha256: marker,
-      promptFirstLineSha256: marker,
-    },
-    {
-      ordinal: 3,
-      actor: "nested",
-      parentToolUseId: ownerId,
-      name: "Skill",
-      skill: "independent-code-review",
-      invocation: "independent-code-review",
-    },
-  ];
-  const observations = (
-    selectedCalls: unknown[],
-    includeNested = true,
-    nestedAncestor = ownerId,
-  ) => [
-    {
-      id: "sevro.claude.tool-calls",
-      source: "sevro.host.claude",
-      completeness: "complete",
-      data: {
-        method: "stream_tool_calls",
-        truncated: false,
-        calls: selectedCalls,
-      },
-    },
-    {
-      id: "sevro.observation.final-message",
-      source: "sevro.host.claude",
-      completeness: "complete",
-      data: { text: "Status: complete" },
-    },
-    ...(includeNested
-      ? [
-          {
-            id: "sevro.claude.nested-skills",
-            source: "sevro.host.claude",
-            completeness: "complete",
-            data: {
-              method: "native_session_graph",
-              calls: [
-                {
-                  ancestorToolUseId: nestedAncestor,
-                  skill: "independent-code-review",
-                  invocation: "independent-code-review",
-                },
-              ],
-            },
-          },
-        ]
-      : []),
-  ];
-  const event = (type: string, content: unknown[], parent?: string) => ({
-    type,
-    ...(parent ? { parent_tool_use_id: parent } : {}),
-    message: { content },
-  });
-  const route = {
-    type: "tool_use",
-    name: "Bash",
-    id: "tool-route",
-    input: {
-      command:
-        'cd "/tmp/fixture" && uv run --quiet --no-project "/tmp/fixture/.sevro-marketplace/plugin/backend/scripts/run_locked.py" claude-agent-route --provider anthropic --model claude-sonnet-5 --effort low 2>&1',
-    },
-  };
-  const routeResult = {
-    type: "tool_result",
-    tool_use_id: "tool-route",
-    content: [
-      {
-        type: "text",
-        text:
-          "format\tdarrow-claude-agent-route-v1\n" +
-          "selected_route\tclaude\tanthropic\tclaude-sonnet-5\tlow\n" +
-          "subagent_type\tdarrow-adaptive-delivery:adaptive-delivery-sonnet-5-low\n" +
-          "agent_file\t/tmp/darrow-adaptive-delivery/agents/adaptive-delivery-sonnet-5-low.md\n",
-      },
-    ],
-  };
-  const events = [
-    event("assistant", [route]),
-    event("user", [routeResult]),
-    event("assistant", [
-      {
-        type: "tool_use",
-        name: "Agent",
-        id: ownerId,
-        input: {
-          subagent_type:
-            "darrow-adaptive-delivery:adaptive-delivery-sonnet-5-low",
-          run_in_background: false,
-          prompt: "- phase: adaptive-delivery-owner\nDo the task",
-        },
-      },
-    ]),
-    event(
-      "assistant",
-      [
-        {
-          type: "tool_use",
-          name: "Skill",
-          input: { skill: "independent-code-review" },
-        },
-      ],
-      ownerId,
-    ),
-    event("user", [
-      { type: "tool_result", tool_use_id: ownerId, content: "done" },
-    ]),
-    { type: "result" },
-  ];
-  const artifact = async (name: string, selectedEvents: unknown[]) => {
-    const content =
-      selectedEvents.map((entry) => JSON.stringify(entry)).join("\n") + "\n";
-    const path = join(root, name);
-    await writeFile(path, content);
-    return {
-      id: "sevro.claude.events",
-      path: pathToFileURL(path).href,
-      sha256: createHash("sha256").update(content).digest("hex"),
-    };
-  };
-  const evaluate = (
-    selectedCalls: unknown[],
-    selectedArtifacts: unknown[],
-    includeNested = true,
-    nestedAncestor = ownerId,
-  ) =>
-    command<{ result: { checks: Array<{ status: string }> } }>(
-      [process.execPath, extension],
-      request("evaluate", {
-        observations: observations(
-          selectedCalls,
-          includeNested,
-          nestedAncestor,
-        ),
-        artifacts: selectedArtifacts,
-        extensionData: selected.extensionData,
-      }),
-    );
-  const clean = await artifact("clean.jsonl", events);
-  const passed = await evaluate(calls, [clean]);
-  expect(passed.code, passed.stderr).toBe(0);
-  expect(passed.value.result.checks.map((check) => check.status)).toEqual(
-    Array(8).fill("passed"),
-  );
-  const recovered = await evaluate([calls[0]], [clean]);
-  expect(recovered.value.result.checks[5]).toMatchObject({
-    status: "passed",
-    evidenceRefs: ["sevro.claude.nested-skills"],
-  });
-  const missingNested = await evaluate([calls[0]], [clean], false);
-  expect(missingNested.value.result.checks[5]!.status).toBe("unavailable");
-  const wrongMarker = await evaluate(
-    [{ ...calls[0], promptFirstLineSha256: "0".repeat(64) }, calls[1]],
-    [clean],
-  );
-  expect(wrongMarker.value.result.checks[3]!.status).toBe("failed");
-  const unboundReview = await evaluate(
-    [calls[0], { ...calls[1], parentToolUseId: "other-agent" }],
-    [clean],
-    true,
-    "other-agent",
-  );
-  expect(unboundReview.value.result.checks[5]!.status).toBe("failed");
-  const lateParent = await artifact("late.jsonl", [
-    ...events,
-    event("assistant", [{ type: "tool_use", name: "Bash", id: "late" }]),
-  ]);
-  const late = await evaluate(calls, [lateParent]);
-  expect(late.value.result.checks[1]!.status).toBe("failed");
-  const missing = await evaluate(calls, []);
-  expect(missing.value.result.checks[1]!.status).toBe("unavailable");
-  expect(missing.value.result.checks[6]!.status).toBe("unavailable");
-  const badRoute = await artifact("bad-route.jsonl", [
-    events[0],
-    event("user", [{ ...routeResult, is_error: true }]),
-    ...events.slice(2),
-  ]);
-  const rejected = await evaluate(calls, [badRoute]);
-  expect(rejected.value.result.checks[6]!.status).toBe("failed");
 });
 
 test("Darrow mounts sibling skills for a competition activation case", async () => {
@@ -6206,7 +4051,7 @@ test("no-skill preparation omits mounts and activation grading", async () => {
     [process.execPath, extension],
     request("resolve", {
       projectRoot: pathToFileURL(projectRoot).href,
-      selectors: { caseIds: ["author-agent-skill-validate-read-only"] },
+      selectors: { caseIds: ["audit-agent-skill-validate-read-only"] },
       configuration: { withoutSkill: true },
     }),
   );
@@ -7656,7 +5501,7 @@ test("Claude guide composition retains repository scope and independent provider
 
 test("real composition providers fit the Sevro preparation boundary", async () => {
   const skillDir =
-    "plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery";
+    "plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal";
   const projectUrl = pathToFileURL(projectRoot).href;
   const prepared = await command<{
     result: {
@@ -7684,7 +5529,7 @@ test("real composition providers fit the Sevro preparation boundary", async () =
             ],
             activation: {
               class: "positive",
-              targetSkill: "adaptive-delivery",
+              targetSkill: "adaptive-goal",
               includes: ["verify-change", "code-review"],
             },
           },
@@ -7700,7 +5545,7 @@ test("real composition providers fit the Sevro preparation boundary", async () =
   );
   expect(prepared.code, prepared.stderr).toBe(0);
   expect(prepared.value.result.codexMarketplace.pluginNames).toEqual([
-    "darrow-adaptive-delivery",
+    "darrow-adaptive-goal",
     "darrow-verification",
     "darrow-review",
   ]);
@@ -7708,7 +5553,7 @@ test("real composition providers fit the Sevro preparation boundary", async () =
     prepared.value.result.artifacts.map((item) => item.relativePath),
   ).toEqual(
     expect.arrayContaining([
-      ".sevro-marketplace/plugin/skills/adaptive-delivery/SKILL.md",
+      ".sevro-marketplace/plugin/skills/adaptive-goal/SKILL.md",
       ".sevro-marketplace/plugins/0-darrow-verification/skills/verify-change/SKILL.md",
       ".sevro-marketplace/plugins/1-darrow-review/skills/code-review/SKILL.md",
     ]),
@@ -7740,7 +5585,7 @@ test("ticket composition packages only selected Git skills", async () => {
               mountPluginSkills: true,
             },
             additionalPlugins: [
-              "plugins/orchestration/darrow-adaptive-delivery",
+              "plugins/orchestration/darrow-adaptive-goal",
               "plugins/capability/darrow-readiness-gate",
             ],
             additionalSkills: [
@@ -7751,7 +5596,7 @@ test("ticket composition packages only selected Git skills", async () => {
             activation: {
               class: "positive",
               targetSkill: "ticket-to-pr",
-              sequence: ["ticket-to-pr", "adaptive-delivery"],
+              sequence: ["ticket-to-pr", "adaptive-goal"],
             },
           },
         },
@@ -7767,7 +5612,7 @@ test("ticket composition packages only selected Git skills", async () => {
   expect(prepared.code, prepared.stderr).toBe(0);
   expect(prepared.value.result.codexMarketplace.pluginNames).toEqual([
     "darrow-ticket-to-pr",
-    "darrow-adaptive-delivery",
+    "darrow-adaptive-goal",
     "darrow-readiness-gate",
     "darrow-git",
   ]);

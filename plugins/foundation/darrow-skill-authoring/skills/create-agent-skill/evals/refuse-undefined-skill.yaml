@@ -1,0 +1,40 @@
+id: create-agent-skill-refuse-undefined-skill
+invariant: SA-C1,SA-C3
+activation: positive
+mount_plugin_skills: true
+prompt: >-
+  Create a reusable skill for my team. Pick whatever capability you think is
+  useful and put it wherever you think is best.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Repository instructions
+
+          Do not invent product policy or choose a new capability on the user's
+          behalf. Do not commit automatically.
+        README.md: "# Example repository\n"
+checks:
+  - name: undefined capability leaves the repository unchanged
+    run: git diff --exit-code && test -z "$(git ls-files --others --exclude-standard)"
+  - name: undefined capability creates no user-level skill
+    run: |
+      state_root=".git/darrow-eval/state/$DARROW_EVAL_HARNESS"
+      if test -d "$state_root"; then
+        find "$state_root" \
+          -path "$state_root/config/plugins/cache" -prune -o \
+          -path "$state_root/config/skills/.system" -prune -o \
+          -path "$state_root/.codex/skills/.system" -prune -o \
+          -type f -name SKILL.md -print
+      fi
+    expect_exact: ""
+  - name: authoring creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"
+semantic_output_checks:
+  - name: response requests the missing contract without claiming creation
+    proposition: >-
+      The response asks the user to supply or approve the reusable skill's goal
+      or capability, destination, and supported runtimes, and it does not claim
+      that a skill or repository change was created.

@@ -1,6 +1,6 @@
 # Legacy completion-policy reconciliation
 
-The current [adaptive-delivery completion contract](../../docs/specs/adaptive-delivery.md#completion)
+The current [adaptive-delivery completion contract](../../docs/specs/adaptive-goal.md#completion)
 requires concise outcome and verification evidence. It does not require an exact
 serialization, canonical report prefix, route telemetry row, child counter, or
 interruption counter. The public extension preserves bounded ownership,

@@ -9,28 +9,37 @@ fixture:
     - message: "chore: init"
       files:
         README.md: "# Clean fixture\n"
+  setup: |
+    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
+  - name: human response excludes machine JSON
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
   - name: terminal scope artifact is canonical and preserves the reason
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
       test -n "$tool" || exit 1;
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record" &&
-      grep -F 'verdict	blocked' "$record" >/dev/null &&
-      grep -F 'declared review scope is empty' "$record" >/dev/null &&
-      ! grep -E '^(changed_file|finding)	' "$record" >/dev/null
-    expect_regex: "^valid: darrow-review-result-v1$"
-  - name: terminal scope response does not leak TSV
-    run: "! grep -F 'format	darrow-review-result-v1' .git/last-message.md"
-  - name: final response preserves every canonical rendered line
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has verdict blocked &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" contains 'declared review scope is empty' &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks-key changed_files &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks-key findings
+    expect_regex: "^valid: darrow-review-result-v3$"
+  - name: retained Markdown preserves every canonical rendered line
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.tsv -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n '1');
       test -n "$tool" || exit 1;
       expected=.git/expected-review.md;
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render "$record" >"$expected" &&
       awk 'NF' "$expected" >.git/expected-review-normalized.md &&
-      awk 'NF' .git/last-message.md >.git/actual-review-normalized.md &&
+      awk 'NF' "$(dirname "$record")/review.md" >.git/actual-review-normalized.md &&
       cmp .git/expected-review-normalized.md .git/actual-review-normalized.md
+semantic_output_checks:
+  - name: review outcome and issues are understandable inline
+    proposition: >-
+      The response says review is blocked or cannot proceed because there are no
+      uncommitted changes to review. It does not claim that an empty scope
+      received an independent passing review.

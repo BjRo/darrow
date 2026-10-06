@@ -1,5 +1,9 @@
 # Repository guide delivery evidence — issue 98
 
+> Naming: explanatory prose uses Adaptive Goal. Recorded commands, identifiers,
+> snapshots, hashes and artifact paths retain their historical names. See the
+> [rename note](adaptive-goal-rename-2026-10-05.md).
+
 This is a maintainer record, not current product policy. The contract is
 [Repository guide](../specs/repository-guide.md); the versioned question
 inventory is [inventory.json](../../.agents/skills/darrow-guide/evals/inventory.json).
@@ -442,7 +446,7 @@ On `c58733d`, all four visual trials passed in `2026-09-11T16-55-10-369Z`, inclu
 the previously omitted Claude disclosure. The same run then passed Codex conflict
 and stopped at Claude conflict. Claude cited agreeing excerpts and incorrectly
 declared the documents consistent, missing the injected contradictory passage
-in the adaptive-delivery README. This is a product source-binding failure, not
+in the adaptive-goal README. This is a product source-binding failure, not
 a grader or fixture defect; the authoritative rule alone does not disclose a
 contradiction elsewhere in the same source. The guide now requires full inspection
 of the relevant short source before declaring consistency, a term-level search

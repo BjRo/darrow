@@ -36,8 +36,11 @@ plugin content. In particular:
 
 - Add or adjust the applicable invariant under `docs/specs/` before
   implementation.
-- For skill creation or revision, follow
-  [`author-agent-skill`](plugins/foundation/darrow-skill-authoring/skills/author-agent-skill/SKILL.md).
+- For skill creation, follow
+  [`create-agent-skill`](plugins/foundation/darrow-skill-authoring/skills/create-agent-skill/SKILL.md).
+  For a read-only skill audit, follow
+  [`audit-agent-skill`](plugins/foundation/darrow-skill-authoring/skills/audit-agent-skill/SKILL.md).
+  Implement audit findings under the repository's ordinary engineering rules.
 - Keep each plugin self-contained. Never reference files outside a plugin or
   assume a sibling plugin is installed.
 - Use imperative Conventional Commits without trailing periods, and no AI

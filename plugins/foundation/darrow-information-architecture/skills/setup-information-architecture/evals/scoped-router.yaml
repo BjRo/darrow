@@ -32,7 +32,7 @@ checks:
     expect_regex: "^adapter$"
   - name: universal merge safety stays resident
     run: cat AGENTS.md
-    expect_regex: "self[- ]?merge|never merge a pull request|merge (its|your) own|do not merge (a )?pull requests? yourself|must not merge (a )?pull requests? yourself"
+    expect_regex: "(never|do not|must not|may not) (self[- ]?merge|merge ((its|your|their) own )?(a )?pull requests?)"
     flags: i
   - name: root contains an explicit deferred read route
     run: cat AGENTS.md
@@ -100,7 +100,7 @@ checks:
     run: >-
       count=$(find . -type f -name '*.md' -not -path './.git/*'
       -not -path './.agents/*' -not -path './.claude/*'
-      -exec grep -Eil 'self[- ]?merge|merge (its|your) own|do not merge (a )?pull requests? yourself|must not merge (a )?pull requests? yourself' {} + | wc -l | tr -d ' ');
+      -exec grep -Eil '(never|do not|must not|may not) (self[- ]?merge|merge ((its|your|their) own )?(a )?pull requests?)' {} + | wc -l | tr -d ' ');
       test "$count" = 1 && echo single
     expect_regex: "^single$"
   - name: money invariant is preserved in project guidance

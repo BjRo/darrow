@@ -6,7 +6,7 @@ import {
 } from "./fixture-command";
 
 const source = new URL(
-  "../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/failed-check-blocks-publication.yaml",
+  "../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/evals/failed-check-blocks-publication.yaml",
   import.meta.url,
 );
 const localEdit: OracleCheck = {

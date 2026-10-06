@@ -18,14 +18,14 @@ const cases = [
   {
     file: "reviewer-route-override",
     check: "both isolated axes retain exact route application evidence",
-    claude: ["claude-sonnet-5", "high"],
-    codex: ["gpt-5.5", "xhigh"],
+    claude: ["claude-sonnet-5-5", "high"],
+    codex: ["gpt-5.6-sol", "xhigh"],
   },
   {
     file: "fix-verification-resolved",
     check: "both fix verifiers retain exact default route evidence",
-    claude: ["claude-opus-5", "xhigh"],
-    codex: ["gpt-6-sol", "xhigh"],
+    claude: ["claude-opus-5-5", "xhigh"],
+    codex: ["gpt-6.1-sol", "xhigh"],
   },
 ] as const;
 type Mutation =
@@ -105,20 +105,34 @@ async function runGate(
   roots.push(root);
   const artifacts = join(root, ".git", "darrow-review.fixture");
   await mkdir(artifacts, { recursive: true });
+  // This oracle consumes route evidence only from a finalized scope.
+  await writeFile(join(artifacts, "result.json"), "{}\n");
   await copyOracle(root);
   const [model, effort] = entry[host];
-  const route = `${host}\t${host === "claude" ? "anthropic" : "openai"}\t${model}\t${effort}`;
+  const route = {
+    host,
+    provider: host === "claude" ? "anthropic" : "openai",
+    model,
+    effort,
+  };
   await writeFile(
-    join(artifacts, "reviewer-route.tsv"),
-    `selected_route\t${route}\n`,
+    join(artifacts, "reviewer-route.json"),
+    JSON.stringify({ selected_route: route }),
   );
   const launches: Record<string, unknown>[] = [];
   const calls: Record<string, unknown>[] = [];
   for (const [index, axis] of ["standards", "spec"].entries()) {
     const id = mutation === "reused child" ? "shared-child" : `${axis}-child`;
-    const record = `axis\t${axis}\nagent_id\t${id}\nobserved_route\t${route}\nrequested_route\t${route}\nroute_bound\ttrue\nprovider_evidence\tcurrent-host-environment-default\n`;
-    await writeFile(join(artifacts, `${axis}-route.tsv`), record);
-    await writeFile(join(artifacts, `${axis}-observed-route.tsv`), record);
+    const record = JSON.stringify({
+      axis,
+      agent_id: id,
+      observed_route: route,
+      requested_route: route,
+      route_bound: "true",
+      provider_evidence: "current-host-environment-default",
+    });
+    await writeFile(join(artifacts, `${axis}-route.json`), record);
+    await writeFile(join(artifacts, `${axis}-observed-route.json`), record);
     const subagent = `darrow-review:review-reader-${model}-${effort}`;
     calls.push({
       name: "Agent",

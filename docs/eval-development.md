@@ -19,6 +19,11 @@ constraints for producing and interpreting that evidence.
 - Prefer observable repository state, external effects, and user-visible
   outcomes over prose. When free-form text is the only public seam, assert the
   smallest semantic decision rather than parsing a complete explanation.
+- For a free-form saved document, use `semantic_artifact` to grade the artifact
+  itself. Its repository-relative `path` may contain one `*` in the filename and
+  must resolve to exactly one regular file. Keep deterministic checks for file
+  presence, status, and structural validation; `semantic_output_checks` grade
+  only the final response.
 - Give one case one concrete state and one decision. When success would require
   recognizing several conditional branches in one free-form answer, split the
   branches into separate concrete-state cases.
@@ -70,6 +75,11 @@ constraints for producing and interpreting that evidence.
 - A Codex case without the placeholder remains an implicit-discovery probe and
   requires a completed mounted-skill body read. Do not use the explicit path to
   make implicit selection pass.
+  A complete read of the byte-identical marketplace staging copy of an
+  installed plugin skill also counts: the staging path must come from that
+  eval's installed marketplace catalog, and the observed output must match
+  the installed body. Prepared target skill drafts elsewhere in the fixture
+  never count as activation.
 - Missing, repeated, malformed, or unverified observation evidence stays
   unknown. A failed compound shell command may still prove an earlier skill
   read only when the command names a mounted skill path and its output contains
@@ -90,7 +100,7 @@ constraints for producing and interpreting that evidence.
   separately from the normalized activation name. This distinguishes namespaced
   plugin dispatch from a same-named command without retaining skill arguments;
   an invocation identifier alone does not prove provider execution or compliance.
-  Adaptive-delivery observations recover deeper Skill dispatch from the native
+  Adaptive-goal observations recover deeper Skill dispatch from the native
   session's completed Agent result graph when the outer stream omits it. Recovery
   binds session and child identities, preserves chronological skill order and
   retains only invocation metadata. Missing or inconsistent graph evidence
@@ -268,9 +278,8 @@ evaluation that stops at the first failure. `--only <question-id>` and
 before continuing. Fixtures snapshot current public documentation, manifests,
 and relevant code while excluding inventory, hidden checks, and delivery
 conclusions from the participant repository.
-The guide driver pins semantic grading to Codex `gpt-5.6-terra` / medium;
-the shared runner's default lightweight grader remains unchanged. The route
-was calibrated against retained correct and reversed-delegation diagrams.
+The guide driver pins semantic grading to Codex `gpt-6-luna` / medium;
+the shared runner's default lightweight grader remains unchanged.
 
 That same command uses Darrow's exact installed Sevro dependency and retains
 separate task and activation outcomes. `SEVRO_CHECKOUT` or `SEVRO_PACKAGE_BIN`
@@ -282,8 +291,16 @@ Normal execution requires `bun install --frozen-lockfile`.
 
 ## Live-run controls
 
+Use `--codex-entrypoint app-server` for Codex native main-thread goal trials
+with `--owner-evaluation passive`. Sevro hosts the original participant thread,
+observes its native continuation, and waits for the terminal response. It never
+supplies synthetic continuation prompts or changes the participant's goal.
+Only a declared follow-up starts another client-requested turn. Requested
+transport contributes to run identity and the host retains its actual transport.
+Historical separate-owner guards remain historical architecture measurements.
+
 Use `--owner-evaluation passive` for observational native trials of the shipped
-adaptive-delivery skill. The default `--owner-evaluation enforced` preserves
+adaptive-goal skill. The default `--owner-evaluation enforced` preserves
 the requested historical diagnostic condition, which bundled Sevro hosts
 currently reject as unsupported. It never becomes passive implicitly.
 Neither mode removes ordinary fixture/credential isolation. Suite modes can
@@ -324,9 +341,18 @@ with `No cases matched.` The separate `--skill-dir <path>` option overrides
 the mounted skill after selection; `--without-skill` disables mounting while
 preserving the selected cases.
 
+For a frozen plugin copy passed through `--skill-dir`, preserve the owning
+plugin directory name: `<snapshot>/<plugin-name>/skills/<skill-name>`. The
+current prompt renderer derives the Codex invocation namespace from the source
+plugin path or that directory name, while installation uses the manifest name.
+Verify that the rendered `$<plugin-name>:<skill-name>` token matches the
+installed manifest before a live run. A copy renamed `candidate` or `plugin`
+can produce a mismatched invocation; retain such runs separately from valid
+explicit-invocation evidence.
+
 Codex runs use independent defaults for each eval role:
 
-- candidate: `gpt-5.6-terra` at `medium` effort;
+- candidate: `gpt-6-luna` at `medium` effort;
 - advisory quality judge: `gpt-5.6-sol` at `low` effort;
 - gating semantic-output grader: `gpt-5.6-luna` at `low` effort.
 
@@ -375,6 +401,9 @@ fixtures. Generic engine and host implementation tests belong to Sevro. No
 integration fixture copies the former runner or imports private implementation
 or types.
 
+Integration commands allow 30 seconds per test for frozen backend startup and
+isolated CLI fixtures. A test's explicit timeout still takes precedence.
+
 The source-copy compatibility launcher and temporary legacy cross-runner
 comparison are retired. Their observed results and deliberate command, output,
 condition, and historical interpretation changes remain recorded in the
@@ -387,6 +416,15 @@ For coordinated development, use one explicit absolute route:
 SEVRO_CHECKOUT=/absolute/path/to/sevro bun run test:eval-runner-sevro-parity
 ```
 
+The main-sync features require the unpublished Sevro `0.1.0-rc.2` candidate.
+The published `0.1.0-rc.1` pin remains the compatibility baseline. Run the
+candidate gate to include the app-server caller checks in
+`evals/sevro-candidate/`:
+
+```sh
+SEVRO_CHECKOUT=/absolute/path/to/sevro bun run test:eval-runner-sevro-candidate
+```
+
 A separate candidate archive can be installed and exercised without its source
 checkout:
 
@@ -394,8 +432,8 @@ checkout:
 SEVRO_PACKAGE_TARBALL=/absolute/path/to/bjoernrochel-sevro-version.tgz bun run test:eval-runner-sevro-package
 ```
 
-The package gate installs the archive in a temporary consumer and clears its
-checkout override. Public command fixtures retain package name, version, build
+The package gate includes the candidate checks, installs the archive in a
+temporary consumer, and clears its checkout override. Public command fixtures retain package name, version, build
 identity, and available native observations. The three default-caller tests
 also verify Darrow's own frozen pin with both overrides cleared. An explicit
 checkout retains its revision and patch identity; it is development evidence.
@@ -451,6 +489,6 @@ actively correct benchmark execution.
 - When changing `darrow-review`'s externally visible independent-review or
   fix-verification outcome semantics, also run the affected review-composition
   evals under
-  `plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/`.
+  `plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/evals/`.
 - Keep activation, task outcome, invariant coverage, and matched ablation as
   separate evidence dimensions; one does not substitute for another.

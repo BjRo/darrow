@@ -42,4 +42,4 @@ semantic_output_checks:
       Read-only repository inspection is permitted.
 output_checks:
   - name: nearby repository evidence
-    expect_regex: docs/specs/adaptive-delivery\.md|plugins/orchestration/darrow-adaptive-delivery/README\.md
+    expect_regex: docs/specs/adaptive-goal\.md|plugins/orchestration/darrow-adaptive-goal/README\.md

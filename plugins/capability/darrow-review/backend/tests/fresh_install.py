@@ -48,11 +48,9 @@ def repository(path: Path) -> None:
 
 
 def field(text: str, name: str) -> str:
-    return next(
-        row.split("\t", 1)[1]
-        for row in text.splitlines()
-        if row.startswith(name + "\t")
-    )
+    value = json.loads(text)[name]
+    assert isinstance(value, str)
+    return value
 
 
 def verify_scope(backend: Path, repo: Path) -> None:
@@ -85,24 +83,76 @@ def verify_scope(backend: Path, repo: Path) -> None:
         "review-check",
         "run",
         "--output",
-        str(artifact / "check.tsv"),
+        str(artifact / "check.json"),
         "--command",
         literal,
     )
-    check = next(
-        line
-        for line in (artifact / "check.tsv").read_text(encoding="utf-8").splitlines()
-        if line.startswith("check\t")
+    check = json.loads((artifact / "check.json").read_text())["checks"][0]
+    evidence = json.loads(
+        runtime(
+            backend,
+            repo.parent,
+            "review-result",
+            "read-evidence",
+            "--repo",
+            str(repo),
+            "--input",
+            str(artifact / "check.json"),
+        )
     )
-    records = runtime(backend, repo, "review-result", "scope-records", manifest)
-    text = (
-        "format\tdarrow-review-result-v1\n"
-        + records
-        + "standards\tpass\nstandards_source\tfixture\nspec\tnot_available\nspec_source\tnot_available\n"
-        + check
-        + "\nverdict\tpass\nrisk\tnone\nnext_action\treturn\n"
+    assert evidence["record"]["checks"] == [check]
+    reader_context = artifact / "standards-context.json"
+    reader_context.write_text(json.dumps({"sources": []}), encoding="utf-8")
+    reader = json.loads(
+        runtime(
+            backend,
+            repo,
+            "review-result",
+            "prepare-reader",
+            "--manifest",
+            manifest,
+            "--axis",
+            "standards",
+            "--context",
+            str(reader_context),
+            "--check",
+            str(artifact / "check.json"),
+        )
     )
-    result = artifact / "result.tsv"
+    bound = json.loads(
+        runtime(
+            backend,
+            repo.parent,
+            "review-result",
+            "read-reader",
+            "--input",
+            reader["input"],
+        )
+    )
+    assert bound["scope"]["manifest"] == manifest
+    assert bound["baseline"]["path"] == str(
+        backend.parent / "skills/code-review/references/design-smells.md"
+    )
+    assert bound["checks"] == [check]
+    assert reader["message"].startswith("- review_axis: standards\n")
+    scope_records = json.loads(
+        runtime(backend, repo, "review-result", "scope-records", manifest)
+    )
+    text = json.dumps(
+        {
+            "format": "darrow-review-result-v3",
+            **scope_records,
+            "standards": "pass",
+            "standards_sources": ["fixture"],
+            "spec": "not_available",
+            "spec_source": "not_available",
+            "checks": [check],
+            "verdict": "pass",
+            "risks": ["none"],
+            "next_action": "return",
+        }
+    )
+    result = artifact / "result.json"
     result.write_text(text, encoding="utf-8", newline="\n")
     runtime(backend, repo, "review-result", "validate-scope", manifest, str(result))
     assert "# Code review — PASS" in runtime(
@@ -111,7 +161,7 @@ def verify_scope(backend: Path, repo: Path) -> None:
 
 
 def verify_routes(backend: Path, repo: Path) -> None:
-    route = repo / ".git/route.tsv"
+    route = repo / ".git/route.json"
     runtime(
         backend,
         repo,
@@ -124,12 +174,12 @@ def verify_routes(backend: Path, repo: Path) -> None:
         "--record",
         str(route),
     )
-    assert "claude-opus-5" in runtime(
+    assert "claude-opus-5-5" in runtime(
         backend, repo, "review-route", "claude-agent", "--route-record", str(route)
     )
-    assert "provider\tclaude\tanthropic" in runtime(
-        backend, repo, "claude-provider", "observe-direct"
-    )
+    assert json.loads(runtime(backend, repo, "claude-provider", "observe-direct"))[
+        "provider"
+    ] == {"host": "claude", "provider": "anthropic"}
     projects = repo.parent / "mock-provider/projects"
     slug = (
         re.sub(r"[^A-Za-z0-9]", "-", str(repo))
@@ -144,13 +194,13 @@ def verify_routes(backend: Path, repo: Path) -> None:
                 "type": "assistant",
                 "agentId": "fresh",
                 "effort": "xhigh",
-                "message": {"role": "assistant", "model": "claude-opus-5"},
+                "message": {"role": "assistant", "model": "claude-opus-5-5"},
             }
         )
         + "\n",
         encoding="utf-8",
     )
-    observed = repo / ".git/observed.tsv"
+    observed = repo / ".git/observed.json"
     runtime(
         backend,
         repo,
@@ -164,7 +214,7 @@ def verify_routes(backend: Path, repo: Path) -> None:
         "--record",
         str(observed),
     )
-    application = repo / ".git/application.tsv"
+    application = repo / ".git/application.json"
     runtime(
         backend,
         repo,
@@ -179,7 +229,7 @@ def verify_routes(backend: Path, repo: Path) -> None:
         "--application-record",
         str(application),
     )
-    assert "route_bound\ttrue" in application.read_text(encoding="utf-8")
+    assert json.loads(application.read_text(encoding="utf-8"))["route_bound"] == "true"
 
 
 def validate(copy: Path, fixture: Path) -> None:

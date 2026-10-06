@@ -8,7 +8,7 @@ import { prepareUvFixtureRuntime } from "./fixture-runtime";
 import { gitPluginFixtureFiles } from "./fixture-git-plugin";
 
 const source = new URL(
-  "../../plugins/orchestration/darrow-adaptive-delivery/skills/adaptive-delivery/evals/real-create-commit-composition.yaml",
+  "../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/evals/real-create-commit-composition.yaml",
   import.meta.url,
 );
 const notes = "# Notes\nReal commit capability composes.\n";

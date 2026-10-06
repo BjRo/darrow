@@ -59,6 +59,7 @@ const directOptions = {
   jobs: { type: "string", default: "3" },
   threshold: { type: "string", default: "0.8" },
   "owner-evaluation": { type: "string", default: "enforced" },
+  "codex-entrypoint": { type: "string" },
   dry: { type: "boolean", default: false },
   "no-color": { type: "boolean" },
   "no-emoji": { type: "boolean" },
@@ -118,6 +119,14 @@ function reviewMinutes(value: string | undefined) {
 function requestOptions(argv: string[]) {
   const { values, forwarded } = parseOptions(argv);
   const host = candidateHost(values.harness);
+  if (
+    values["codex-entrypoint"] !== undefined &&
+    (host !== "codex" ||
+      !["exec", "app-server"].includes(values["codex-entrypoint"]))
+  )
+    throw new Error(
+      "--codex-entrypoint requires --harness codex and exec or app-server",
+    );
   validateLimits(values);
   validateGraders(values);
   const caseRoutes =
@@ -181,11 +190,14 @@ function routeArguments(request: Request) {
   return [
     "--host",
     host,
+    ...(values["codex-entrypoint"]
+      ? ["--codex-entrypoint", values["codex-entrypoint"]]
+      : []),
     "--model",
     values.model ??
       (host === "codex"
         ? CODEX_EVAL_ROLE_DEFAULTS.candidate.model
-        : "claude-sonnet-5"),
+        : "claude-sonnet-5-5"),
     "--effort",
     values.effort!,
     "--semantic-host",
