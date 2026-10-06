@@ -1334,6 +1334,17 @@ not prove equivalence or savings.
 
 ## Evaluation requirements
 
+Test ownership follows the runner boundary. Sevro proves scheduling, isolation,
+host continuation, built-in graders, cancellation, and evidence persistence in
+its own repository. Darrow tests case translation, caller option forwarding and
+response handling, repository policy, and historical interpretation. A small
+installed-package integration suite checks the connection. Darrow does not
+repeat the engine's implementation matrix or compare against a retired runner.
+
+The requirements below describe needed evidence across both repositories.
+Engine and host mechanics belong to Sevro; Darrow retains the corresponding
+request translation and domain-policy checks.
+
 1. Coverage fixtures include covered and uncovered IDs, comma-separated case
    references, duplicate spec IDs, unknown or retired references, malformed
    YAML, unreadable or absent inputs, and strict versus report-only behavior.

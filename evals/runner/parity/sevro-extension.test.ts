@@ -97,119 +97,6 @@ test("Darrow separates case discovery from imported Codex configuration", async 
   expect(JSON.stringify(evidence)).not.toContain("ignored-config-route");
 });
 
-test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
-  "Darrow runs a Claude follow-up through Sevro's public CLI",
-  async () => {
-    const root = await mkdtemp(join(tmpdir(), "darrow-sevro-claude-resume-"));
-    const binRoot = await mkdtemp(
-      join(tmpdir(), "darrow-sevro-claude-resume-bin-"),
-    );
-    roots.push(root, binRoot);
-    const cases = join(root, "evals/experiments/example/cases");
-    await mkdir(cases, { recursive: true });
-    await writeFile(
-      join(cases, "continuation.yaml"),
-      JSON.stringify({
-        id: "claude-continuation",
-        invariant: "CONTINUATION-C1",
-        prompt: "Wait for feedback.",
-        follow_up_prompt: "Finish and return ready.",
-        fixture: {
-          commits: [
-            { message: "chore: initial", files: { "README.md": "fixture\n" } },
-          ],
-        },
-        checks: [
-          {
-            name: "follow-up effect",
-            run: 'test "$(cat .git/final-turn.txt)" = done',
-          },
-        ],
-        output_checks: [{ name: "final response", expect_exact: "ready" }],
-      }),
-    );
-    const credential = join(root, "synthetic-credentials.json");
-    await writeFile(credential, '{"test":"synthetic-login"}', { mode: 0o600 });
-    const binary = join(binRoot, "claude-wrapper");
-    await writeFile(
-      binary,
-      `#!${process.execPath}
-import { readFile, writeFile } from "node:fs/promises";
-const args = process.argv.slice(2);
-const resumed = args.includes("--resume");
-const session = args[args.indexOf(resumed ? "--resume" : "--session-id") + 1];
-if (!/^[0-9a-f-]{36}$/.test(session)) process.exit(9);
-if (resumed) {
-  if (await readFile(".git/session", "utf8") !== session || args[args.indexOf("-p") + 1] !== "Finish and return ready.") process.exit(10);
-  await writeFile(".git/final-turn.txt", "done\\n");
-} else await writeFile(".git/session", session);
-process.stdout.write(JSON.stringify({ type: "result", subtype: "success", is_error: false, session_id: session,
-  result: resumed ? "ready" : "waiting", usage: { input_tokens: 1, output_tokens: 1 }, total_cost_usd: 0.01 }) + "\\n");
-`,
-      { mode: 0o700 },
-    );
-    const run = await command<{
-      task: { verdict: string };
-      evidencePath: string;
-    }>([
-      process.execPath,
-      resolve(import.meta.dir, "../../sevro-extension/run.ts"),
-      "--case-id",
-      "claude-continuation",
-      "--project-root",
-      root,
-      "--results-root",
-      join(root, "results"),
-      "--",
-      "--host",
-      "claude",
-      "--claude-bin",
-      binary,
-      "--claude-credential-file",
-      credential,
-      "--model",
-      "sonnet",
-      "--effort",
-      "low",
-      "--condition",
-      "passive",
-      "--trials",
-      "1",
-      "--threshold",
-      "1",
-      "--shell-isolation",
-    ]);
-    expect(run.code, run.stderr + JSON.stringify(run.value)).toBe(0);
-    expect(run.value.task.verdict).toBe("passed");
-    const evidence = JSON.parse(await readFile(run.value.evidencePath, "utf8"));
-    expect(evidence.extension.capabilities).toContain(
-      "sevro.host.continuation",
-    );
-    expect(
-      evidence.trials[0].observations.find(
-        (item: { id: string }) => item.id === "sevro.claude.continuation",
-      ),
-    ).toMatchObject({
-      source: "sevro.host.claude",
-      completeness: "complete",
-      data: {
-        method: "same_session_resume",
-        preFollowUpWorktreeUnchanged: true,
-      },
-    });
-    expect(
-      await readFile(new URL(evidence.trials[0].rawResult.path), "utf8"),
-    ).toBe("ready");
-    expect(
-      evidence.trials[0].artifactRefs.map((item: { id: string }) => item.id),
-    ).toContain("sevro.claude.initial-events");
-    expect(
-      evidence.trials[0].artifactRefs.map((item: { id: string }) => item.id),
-    ).toContain("sevro.claude.follow-up-events");
-  },
-  10_000,
-);
-
 test("Darrow record checks require one complete final response and unique integer records", async () => {
   const complete =
     "ready\nevaluation_child_invocations\t2\nevaluation_human_interruptions: 0\n";
@@ -2850,7 +2737,7 @@ test("Darrow mounts sibling skills for a competition activation case", async () 
   expect(unsafe.value.error.message).toMatch(/symbolic link/);
 });
 
-test("Darrow extension grades combined shell and final-message assertions", async () => {
+test("Darrow extension translates shell and final-message assertions and grades domain metrics", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-stdout-"));
   roots.push(root);
   const caseDir = join(root, "evals/experiments/example/cases");
@@ -2964,76 +2851,42 @@ test("Darrow extension grades combined shell and final-message assertions", asyn
     failedExecution.value.result.metrics.map((metric) => metric.value),
   ).toEqual([null, null]);
 
-  const sevroRoute = sevroCommand();
-  const commandFile = join(root, "extension-command.json");
-  const adapter = join(root, "candidate.ts");
-  await writeFile(commandFile, JSON.stringify([process.execPath, extension]));
-  const invoke = async (status: string) => {
-    await writeFile(
-      adapter,
-      `export default {
-  id: "darrow.host.output-synthetic", model: "synthetic-v1", effort: "none",
-  async run() { return { finalMessage: JSON.stringify({ status: ${JSON.stringify(status)} }), complete: true }; },
-};
-`,
+  for (const [statuses, expected] of [
+    [
+      ["passed", "passed"],
+      [0, 1],
+    ],
+    [
+      ["failed", "failed"],
+      [1, 0],
+    ],
+  ] as const) {
+    const evaluated = await command<{
+      result: { metrics: Array<{ value: number | null }> };
+    }>(
+      [process.execPath, extension],
+      request("evaluate", {
+        execution: { status: "completed" },
+        builtinChecks: ["darrow.shell.1", "darrow.output.1"].map(
+          (id, index) => ({
+            id,
+            status: statuses[index],
+            evidenceRefs: [],
+          }),
+        ),
+        observations: [],
+        artifacts: [],
+        extensionData: resolved.value.result.cases[0]!.extensionData,
+        configuration: {},
+      }),
     );
-    return command<CliReply>([
-      ...sevroRoute.launch,
-      "run",
-      "--json",
-      ...sevroRoute.extraArgs,
-      "--extension-command-file",
-      commandFile,
-      "--extension-source-file",
-      extension,
-      "--extension-source-file",
-      join(projectRoot, "package.json"),
-      "--extension-source-file",
-      join(projectRoot, "bun.lock"),
-      "--case-id",
-      "stdout-case",
-      "--adapter-module",
-      adapter,
-      "--shell-isolation",
-      "--project-root",
-      root,
-      "--results-root",
-      join(root, "results"),
-      "--condition",
-      "passive",
-      "--trials",
-      "1",
-      "--threshold",
-      "1",
-    ]);
-  };
-  const passed = await invoke("ready");
-  expect(passed.code, passed.stderr).toBe(0);
-  expect(
-    passed.value.cases[0]!.trials[0]!.checks.map((check) => check.status),
-  ).toEqual(["passed", "passed"]);
-  const passedEvidence = JSON.parse(
-    await readFile(passed.value.evidencePath, "utf8"),
-  );
-  expect(passedEvidence.trials[0].metrics).toEqual([
-    { id: "darrow.evals.metric.escaped-defect", value: 0, unit: "count" },
-    { id: "darrow.evals.metric.defect-detection", value: 1, unit: "ratio" },
-  ]);
-  const failed = await invoke("wait");
-  expect(failed.code, failed.stderr).toBe(1);
-  expect(
-    failed.value.cases[0]!.trials[0]!.checks.map((check) => check.status),
-  ).toEqual(["passed", "failed"]);
-  const failedEvidence = JSON.parse(
-    await readFile(failed.value.evidencePath, "utf8"),
-  );
-  expect(failedEvidence.trials[0].metrics).toEqual([
-    { id: "darrow.evals.metric.escaped-defect", value: 0, unit: "count" },
-    { id: "darrow.evals.metric.defect-detection", value: 0, unit: "ratio" },
-  ]);
+    expect(
+      evaluated.value.result.metrics.map((metric) => metric.value),
+    ).toEqual(expected);
+  }
 });
 
-test("Darrow extension grades semantic propositions through an isolated route", async () => {
+test("Darrow extension translates semantic propositions to the public grader", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-semantic-"));
   roots.push(root);
   const caseDir = join(root, "evals/experiments/example/cases");
@@ -3071,86 +2924,6 @@ test("Darrow extension grades semantic propositions through an isolated route", 
       grader: "sevro.semantic",
       configuration: { proposition: "The response promises readiness." },
     },
-  ]);
-
-  const sevroRoute = sevroCommand();
-  const commandFile = join(root, "extension-command.json");
-  const candidate = join(root, "candidate.ts");
-  const semantic = join(root, "semantic.ts");
-  await writeFile(commandFile, JSON.stringify([process.execPath, extension]));
-  await writeFile(
-    semantic,
-    `export default {
-  id: "darrow.host.semantic-synthetic", model: "synthetic-v1", effort: "none",
-  async run({ prompt }) {
-    if (!prompt.includes("The response promises readiness.")) throw new Error("missing proposition");
-    const passed = prompt.includes("The change is ready.");
-    return { finalMessage: JSON.stringify({ checks: [{ id: "darrow.semantic.1", verdict: passed ? "pass" : "fail", reason: "Synthetic semantic verdict" }] }), complete: true };
-  },
-};
-`,
-  );
-  const invoke = async (response: string) => {
-    await writeFile(
-      candidate,
-      `export default {
-  id: "darrow.host.candidate-synthetic", model: "synthetic-v1", effort: "none",
-  async run() { return { finalMessage: ${JSON.stringify(response)}, complete: true }; },
-};
-`,
-    );
-    return command<CliReply>([
-      ...sevroRoute.launch,
-      "run",
-      "--json",
-      ...sevroRoute.extraArgs,
-      "--extension-command-file",
-      commandFile,
-      "--extension-source-file",
-      extension,
-      "--extension-source-file",
-      join(projectRoot, "package.json"),
-      "--extension-source-file",
-      join(projectRoot, "bun.lock"),
-      "--case-id",
-      "semantic-case",
-      "--adapter-module",
-      candidate,
-      "--semantic-adapter-module",
-      semantic,
-      "--project-root",
-      root,
-      "--results-root",
-      join(root, "results"),
-      "--condition",
-      "passive",
-      "--trials",
-      "1",
-      "--threshold",
-      "1",
-    ]);
-  };
-  const passed = await invoke("The change is ready.");
-  expect(passed.code, passed.stderr).toBe(0);
-  expect(passed.value.cases[0]!.trials[0]!.checks).toMatchObject([
-    { id: "darrow.semantic.1", status: "passed" },
-  ]);
-  const passedEvidence = JSON.parse(
-    await readFile(passed.value.evidencePath, "utf8"),
-  );
-  expect(passedEvidence.trials[0].metrics).toEqual([
-    { id: "darrow.evals.metric.false-positive", value: 0, unit: "count" },
-  ]);
-  const failed = await invoke("The change needs work.");
-  expect(failed.code, failed.stderr).toBe(1);
-  expect(failed.value.cases[0]!.trials[0]!.checks).toMatchObject([
-    { id: "darrow.semantic.1", status: "failed" },
-  ]);
-  const failedEvidence = JSON.parse(
-    await readFile(failed.value.evidencePath, "utf8"),
-  );
-  expect(failedEvidence.trials[0].metrics).toEqual([
-    { id: "darrow.evals.metric.false-positive", value: 1, unit: "count" },
   ]);
 });
 
@@ -3368,137 +3141,6 @@ export default {
       (item: { executable?: boolean }) => item.executable,
     ),
   ).toHaveLength(1);
-  const codexDry = await command<{
-    execution: { status: string };
-    evidencePath: string;
-  }>([
-    ...commonArgs,
-    "--dry",
-    "--host",
-    "codex",
-    "--codex-bin",
-    process.execPath,
-    "--codex-auth-file",
-    join(root, "unused-auth.json"),
-    "--model",
-    "synthetic-codex",
-    "--effort",
-    "low",
-    "--shell-isolation",
-    "--results-root",
-    join(root, "codex-dry-results"),
-  ]);
-  expect(codexDry.code, codexDry.stderr).toBe(0);
-  expect(codexDry.value.execution.status).toBe("not_run");
-  const codexEvidence = JSON.parse(
-    await readFile(codexDry.value.evidencePath, "utf8"),
-  );
-  expect(codexEvidence.routes[0].host).toBe("sevro.host.codex");
-  expect(codexEvidence.trials[0].artifactRefs).toHaveLength(3);
-  const installedCodex = Bun.which("codex");
-  if (process.platform === "darwin" && installedCodex) {
-    const fakeRoot = await mkdtemp(join(tmpdir(), "darrow-sevro-codex-"));
-    roots.push(fakeRoot);
-    const fakeCodex = join(fakeRoot, "fake-codex");
-    const quotedCodex = `'${installedCodex.replaceAll("'", `'"'"'`)}'`;
-    const skillBody = await readFile(join(skillDir, "SKILL.md"), "utf8");
-    const events = [
-      { type: "thread.started", thread_id: "synthetic-codex-turn" },
-      {
-        type: "item.completed",
-        item: {
-          type: "command_execution",
-          command: "cat .agents/skills/example/SKILL.md",
-          aggregated_output: skillBody,
-          exit_code: 0,
-          status: "completed",
-        },
-      },
-      {
-        type: "item.completed",
-        item: { type: "agent_message", text: "ready" },
-      },
-      { type: "turn.completed", usage: { input_tokens: 12, output_tokens: 4 } },
-    ]
-      .map((event) => JSON.stringify(event))
-      .join("\n");
-    const fakeSource = `#!/bin/sh
-if [ "$1" = sandbox ]; then exec ${quotedCodex} "$@"; fi
-if [ "$1" = --version ]; then printf 'synthetic-codex\\n'; exit 0; fi
-if [ "$1" != exec ]; then exit 99; fi
-/bin/cat >/dev/null
-/bin/cat <<'SEVRO_EVENTS'
-${events}
-SEVRO_EVENTS
-`;
-    await writeFile(fakeCodex, fakeSource, { mode: 0o700 });
-    await chmod(fakeCodex, 0o700);
-    const authFile = join(root, "auth.json");
-    await writeFile(authFile, "test-only-auth\n", { mode: 0o600 });
-    const nativeHost = await command<CliReply>([
-      ...commonArgs,
-      "--host",
-      "codex",
-      "--codex-bin",
-      fakeCodex,
-      "--codex-auth-file",
-      authFile,
-      "--model",
-      "synthetic-codex",
-      "--effort",
-      "low",
-      "--shell-isolation",
-      "--results-root",
-      join(root, "codex-native-results"),
-    ]);
-    expect(nativeHost.code, nativeHost.stderr).toBe(0);
-    expect(nativeHost.value.task.verdict).toBe("passed");
-    expect(nativeHost.value.cases[0]!.trials[0]!.domainOutcomes).toMatchObject([
-      {
-        id: "darrow.evals.activation",
-        status: "passed",
-        evidenceRefs: ["sevro.codex.skill-reads"],
-      },
-    ]);
-    const nativeEvidence = JSON.parse(
-      await readFile(nativeHost.value.evidencePath, "utf8"),
-    );
-    expect(nativeEvidence.trials[0].observations).toContainEqual({
-      id: "sevro.codex.skill-reads",
-      source: "sevro.host.codex",
-      completeness: "complete",
-      data: {
-        method: "skill_file_read_probe",
-        primarySkill: "example",
-        observedSkills: ["example"],
-      },
-    });
-    await writeFile(
-      fakeCodex,
-      fakeSource.replace(JSON.stringify(skillBody), JSON.stringify("summary")),
-    );
-    const partialHost = await command<CliReply>([
-      ...commonArgs,
-      "--host",
-      "codex",
-      "--codex-bin",
-      fakeCodex,
-      "--codex-auth-file",
-      authFile,
-      "--model",
-      "synthetic-codex",
-      "--effort",
-      "low",
-      "--shell-isolation",
-      "--results-root",
-      join(root, "codex-partial-results"),
-    ]);
-    expect(partialHost.code, partialHost.stderr).toBe(0);
-    expect(partialHost.value.task.verdict).toBe("passed");
-    expect(
-      partialHost.value.cases[0]!.trials[0]!.domainOutcomes[0]!.status,
-    ).toBe("unavailable");
-  }
   await writeFile(join(root, "secret.txt"), "private source\n");
   await symlink(join(root, "secret.txt"), join(skillDir, "references/leak.md"));
   const unsafe = await command<ExtensionReply>(
@@ -3578,7 +3220,7 @@ export default {
   expect(evidence.trials[0].condition.requested).toBe("passive");
 });
 
-test("Darrow head expectations run through Sevro's Git grader", async () => {
+test("Darrow translates head expectations to the public Git grader", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-head-"));
   roots.push(root);
   const cases = join(root, "evals/experiments/head/cases");
@@ -3603,51 +3245,29 @@ test("Darrow head expectations run through Sevro's Git grader", async () => {
       }),
     );
   }
-  const adapter = join(root, "candidate.ts");
-  await writeFile(
-    adapter,
-    `import { writeFile } from "node:fs/promises";
-import { join } from "node:path";
-export default {
-  id: "darrow.host.synthetic", model: "synthetic-v1", effort: "none",
-  async run({ workspace, prompt }) {
-    if (prompt.includes("Commit the update.")) {
-      await writeFile(join(workspace, "README.md"), "updated\\n");
-      const proc = Bun.spawn(["git", "-c", "user.name=Sevro Test", "-c", "user.email=sevro@example.test", "commit", "-am", "Update fixture"], { cwd: workspace, stdout: "pipe", stderr: "pipe" });
-      if ((await proc.exited) !== 0) throw new Error(await new Response(proc.stderr).text());
-    }
-    return { finalMessage: "ready", complete: true };
-  },
-};
-`,
-  );
-  for (const [id, expectedIds] of [
-    ["head-advanced", ["darrow.head.changed", "darrow.head.lineage"]],
-    ["head-unchanged", ["darrow.head.unchanged"]],
+
+  for (const [id, kinds] of [
+    ["head-advanced", ["changed", "base-ancestor"]],
+    ["head-unchanged", ["unchanged"]],
   ] as const) {
-    const result = await command<CliReply>([
-      process.execPath,
-      resolve(import.meta.dir, "../../sevro-extension/run.ts"),
-      "--case-id",
-      id,
-      "--project-root",
-      root,
-      "--results-root",
-      join(root, `results-${id}`),
-      "--",
-      "--adapter-module",
-      adapter,
-      "--condition",
-      "passive",
-      "--trials",
-      "1",
-      "--threshold",
-      "1",
-    ]);
+    const result = await command<ExtensionReply>(
+      [process.execPath, extension],
+      request("resolve", {
+        projectRoot: pathToFileURL(root).href,
+        selectors: { caseIds: [id] },
+        configuration: {},
+      }),
+    );
     expect(result.code, result.stderr).toBe(0);
-    expect(result.value.task.verdict).toBe("passed");
-    expect(result.value.cases[0]!.trials[0]!.checks).toMatchObject(
-      expectedIds.map((checkId) => ({ id: checkId, status: "passed" })),
+    expect(result.value.result.cases[0]!.checks).toEqual(
+      kinds.map((kind) => ({
+        id:
+          kind === "base-ancestor"
+            ? "darrow.head.lineage"
+            : `darrow.head.${kind}`,
+        grader: "sevro.git-head",
+        configuration: { kind },
+      })),
     );
   }
 });
