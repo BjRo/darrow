@@ -9,9 +9,9 @@ The npm package is `@bjoernrochel/sevro`; its installed command remains `sevro`.
 See [migration.md](migration.md) for local development, command and evidence
 changes, the compatibility matrix, and release update and rollback steps.
 Normal direct, benchmark, and guide callers use published
-`@bjoernrochel/sevro@0.1.0-rc.1` from Darrow's frozen development dependency.
+`@bjoernrochel/sevro@0.1.0-rc.2` from Darrow's frozen development dependency.
 Explicit package or checkout routes remain available for development.
-The [scoped release validation](scoped-release-validation.md) records the current
+The [scoped release validation](scoped-release-validation.md) records the initial
 archive identity, checks, and targeted benchmark expectation repair.
 The [runner retirement record](runner-retirement-validation.md) records generic
 implementation removal and the retained public integration boundary.

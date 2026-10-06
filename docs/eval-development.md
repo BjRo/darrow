@@ -416,10 +416,9 @@ For coordinated development, use one explicit absolute route:
 SEVRO_CHECKOUT=/absolute/path/to/sevro bun run test:eval-runner-sevro-parity
 ```
 
-The main-sync features require the unpublished Sevro `0.1.0-rc.2` candidate.
-The published `0.1.0-rc.1` pin remains the compatibility baseline. Run the
+The main-sync features use the published Sevro `0.1.0-rc.2` pin. Run the
 candidate gate to include the app-server caller checks in
-`evals/sevro-candidate/`:
+`evals/sevro-candidate/` when testing a coordinated source checkout:
 
 ```sh
 SEVRO_CHECKOUT=/absolute/path/to/sevro bun run test:eval-runner-sevro-candidate

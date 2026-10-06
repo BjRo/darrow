@@ -2,7 +2,7 @@
 
 Normal `bun eval`, `bun run eval:orchestration`, and `evals/repository-guide.ts`
 run Darrow cases through Sevro's public CLI and extension protocol. Darrow pins
-published `@bjoernrochel/sevro@0.1.0-rc.1` as an exact development dependency.
+published `@bjoernrochel/sevro@0.1.0-rc.2` as an exact development dependency.
 Run `bun install --frozen-lockfile` before using these commands. Generic runner
 implementation, private tests, and source-copy integration are removed from
 Darrow; public integration tests and domain policy remain.
@@ -368,7 +368,7 @@ matrix, and marketplace boundaries. No marketplace plugin gains this runtime.
 
 ### Compatibility matrix
 
-The current published exact pin uses Sevro `0.1.0-rc.1`, extension protocol
+The current published exact pin uses Sevro `0.1.0-rc.2`, extension protocol
 `sevro.extension.v1`, and Bun `1.3.13`. Each release must retain the exact package
 digest, Darrow revision and patch identity, negotiated capabilities, host route,
 and result paths for the applicable rows below.
