@@ -30,7 +30,7 @@ test("direct caller preserves an explicit Codex app-server route", async () => {
   );
   const child = Bun.spawn([
     process.execPath,
-    join(import.meta.dir, "../runner/run.ts"),
+    join(import.meta.dir, "../run.ts"),
     "--project-root",
     root,
     "--results-root",

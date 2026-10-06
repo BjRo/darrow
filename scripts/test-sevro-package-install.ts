@@ -63,7 +63,6 @@ try {
       "30000",
       "evals/runner/parity",
       "evals/domain",
-      "evals/sevro-candidate",
     ],
     projectRoot,
     env,

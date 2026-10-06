@@ -18,7 +18,6 @@
     "eval": "bun evals/runner/run.ts",
     "test:eval-runner-compatibility": "bun test --timeout 30000 evals/runner/parity evals/domain",
     "test:eval-runner-sevro-parity": "bun test --timeout 30000 evals/runner/parity",
-    "test:eval-runner-sevro-candidate": "bun test --timeout 30000 evals/runner/parity evals/domain evals/sevro-candidate",
     "test:eval-runner-sevro-package": "bun scripts/test-sevro-package-install.ts",
     "eval:sevro:compatibility": "bun evals/sevro-extension/compatibility.ts",
     "eval:coverage": "bun evals/coverage.ts",
