@@ -2108,7 +2108,7 @@ test("Darrow extension translates shell and final-message assertions and grades 
   }
 });
 
-test("Darrow extension translates semantic propositions to the public grader", async () => {
+test("Darrow translates semantic propositions and grades false-positive metrics", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-semantic-"));
   roots.push(root);
   const caseDir = join(root, "evals/experiments/example/cases");
@@ -2147,6 +2147,31 @@ test("Darrow extension translates semantic propositions to the public grader", a
       configuration: { proposition: "The response promises readiness." },
     },
   ]);
+  for (const [status, value] of [
+    ["passed", 0],
+    ["failed", 1],
+  ] as const) {
+    const evaluated = await command<{
+      result: {
+        metrics: Array<{ id: string; value: number | null; unit: string }>;
+      };
+    }>(
+      [process.execPath, extension],
+      request("evaluate", {
+        caseId: "semantic-case",
+        execution: { status: "completed" },
+        builtinChecks: [{ id: "darrow.semantic.1", status, evidenceRefs: [] }],
+        observations: [],
+        artifacts: [],
+        extensionData: resolved.value.result.cases[0]!.extensionData,
+        configuration: {},
+      }),
+    );
+    expect(evaluated.code, evaluated.stderr).toBe(0);
+    expect(evaluated.value.result.metrics).toEqual([
+      { id: "darrow.evals.metric.false-positive", value, unit: "count" },
+    ]);
+  }
 });
 
 test("Darrow translates head expectations to the public Git grader", async () => {
