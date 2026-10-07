@@ -390,10 +390,14 @@ explicitly.
 ## Installed Sevro verification
 
 Install the exact published development dependency before running the public
-integration and Darrow domain gate:
+integration and Darrow domain gate. Python fixture tools use a UV-managed Python
+3.13 copy so both UV entrypoints and direct Python oracles use the same isolated
+runtime. System and framework installations may depend on paths outside their
+copied directory.
 
 ```sh
 bun install --frozen-lockfile
+uv python install 3.13
 env -u SEVRO_CHECKOUT -u SEVRO_PACKAGE_BIN bun run test:evals
 ```
 

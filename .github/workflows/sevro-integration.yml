@@ -32,6 +32,8 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           version: 0.11.21
+      - name: Install the relocatable Python fixture runtime
+        run: uv python install 3.13
       - name: Install deterministic sandbox prerequisite
         run: npm install --global --ignore-scripts @openai/codex@0.156.1
       - run: bun install --frozen-lockfile
@@ -102,6 +104,8 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           version: 0.11.21
+      - name: Install the relocatable Python fixture runtime
+        run: uv python install 3.13
       - name: Install deterministic sandbox prerequisite
         run: npm install --global --ignore-scripts @openai/codex@0.156.1
       - run: bun install --frozen-lockfile

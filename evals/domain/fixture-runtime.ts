@@ -14,11 +14,14 @@ afterEach(async () => {
 });
 
 async function publicPythonRuntime(uv: string) {
-  const found = Bun.spawnSync([uv, "python", "find", "--system", "3.13"], {
-    env: { ...process.env, UV_PYTHON_DOWNLOADS: "never" },
-    stdout: "pipe",
-    stderr: "pipe",
-  });
+  const found = Bun.spawnSync(
+    [uv, "python", "find", "--managed-python", "3.13"],
+    {
+      env: { ...process.env, UV_PYTHON_DOWNLOADS: "never" },
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+  );
   if (found.exitCode !== 0) throw new Error(found.stderr.toString());
   const interpreter = await realpath(found.stdout.toString().trim());
   const runtime = await mkdtemp(join(tmpdir(), "darrow-fixture-python-"));
@@ -32,7 +35,10 @@ export async function prepareUvFixtureRuntime(includeNode = false) {
   const uv = Bun.which("uv");
   if (!uv) throw new Error("fixture tool is unavailable: uv");
   const python = await publicPythonRuntime(uv);
-  const bin: Record<string, string> = {};
+  const bin: Record<string, string> = {
+    python: `#!/bin/sh\nexec ${python} "$@"\n`,
+    python3: `#!/bin/sh\nexec ${python} "$@"\n`,
+  };
   for (const name of includeNode ? ["node", "uv"] : ["uv"]) {
     const executable = Bun.which(name);
     if (!executable) throw new Error(`fixture tool is unavailable: ${name}`);
