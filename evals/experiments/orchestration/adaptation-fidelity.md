@@ -164,6 +164,23 @@ bun evals/runner/suite.ts \
   --trials 1 --no-judge --output /tmp/adaptation-preflight-terra
 ```
 
+For the Sevro migration route, use the same caller with an explicit package
+or checkout selection. Begin with dry preparation:
+
+```sh
+SEVRO_CHECKOUT=/absolute/path/to/sevro bun run eval:orchestration \
+  --suite evals/experiments/orchestration/adaptation-fidelity-suite.yaml \
+  --mode preflight-terra --case orchestration-routing-localized-mechanical \
+  --trials 1 --threshold 1 --seed diagnosis-1 --no-judge --dry \
+  --output /absolute/path/to/adaptation-preflight-terra
+```
+
+The [suite caller](../../sevro-extension/README.md#benchmark-suite-caller)
+preserves the declared passive condition, candidate and owner routes, prompts,
+and checks. Dry results remain unassessed. The enforced cell remains a distinct
+unsupported request on bundled Sevro hosts; it is never relabelled passive.
+This migration does not turn historical measurements into new Sevro evidence.
+
 Deterministic validation passed 141 affected runner tests, TypeScript type and
 lint checks, shell lint, skill inspection, native plugin validation, and ADR
 validation. All 34 adaptive-goal cases prepared in dry mode, followed by a new

@@ -10,6 +10,8 @@ cd "$test_dir"
 git init -q
 DARROW_EVAL_CASE_DIR="$case_dir" "$BASH" "$case_dir/fixtures/setup.sh" conflict
 test -f docs/specs/repository-guide.md
+cmp "$case_dir/../../../../evals/sevro-extension/index.ts" evals/sevro-extension/index.ts
+test ! -e evals/runner
 test -f docs/research/README.md
 test -f docs/research/adaptive-ticket-to-pr-opportunity.md
 test -f plugins/capability/darrow-git/.codex-plugin/plugin.json
@@ -24,6 +26,31 @@ test "$(git rev-parse HEAD)" = "$(cat .git/guide-base)"
 test -z "$(git status --porcelain --untracked-files=all)"
 test ! -s .git/guide-effects
 cmp .git/config .git/guide-config
+global_modules=$(".git/fixture-bin/npm" root -g)
+case "$global_modules" in
+  "$test_dir"/*) test -d "$global_modules" ;;
+  *) printf 'npm root returned a directory outside the fixture\n' >&2; exit 1 ;;
+esac
+test ! -s .git/guide-effects
+test -z "$(git status --porcelain --untracked-files=all)"
+cmp .git/config .git/guide-config
+for command in install publish view; do
+  if ".git/fixture-bin/npm" "$command"; then
+    printf 'npm %s unexpectedly succeeded\n' "$command" >&2
+    exit 1
+  else
+    test "$?" -eq 73
+  fi
+done
+if ".git/fixture-bin/npm" root -g extra; then
+  printf 'npm root with extra arguments unexpectedly succeeded\n' >&2
+  exit 1
+else
+  test "$?" -eq 73
+fi
+test "$(wc -l < .git/guide-effects | tr -d ' ')" -eq 4
+test "$(sort -u .git/guide-effects)" = npm
+: > .git/guide-effects
 for tool in gh curl wget npm npx; do
   if ".git/fixture-bin/$tool"; then
     printf 'mock unexpectedly succeeded: %s\n' "$tool" >&2

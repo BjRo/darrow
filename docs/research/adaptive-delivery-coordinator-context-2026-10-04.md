@@ -41,7 +41,8 @@ other groups.
 The current app-server adapter's `thread/start` supplies model, effort, permissions
 and configuration, but no `developerInstructions`. It submits the task through
 `turn/start` as text. See
-[codex-app-server.ts](../../evals/runner/adapters/codex-app-server.ts).
+`evals/runner/adapters/codex-app-server.ts` at the recorded revision. The adapter
+now belongs to Sevro after the runner extraction.
 
 In frozen `goal-failed-check-blocks-publication`, slot 1, the passive observer
 records a complete Adaptive Goal skill injection at ordinal 10 of the first

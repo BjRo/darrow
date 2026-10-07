@@ -9,6 +9,7 @@
         "ajv-formats": "3.0.1",
       },
       "devDependencies": {
+        "@bjoernrochel/sevro": "0.1.0-rc.2",
         "@eslint/js": "^10.0.1",
         "@types/bun": "^1.2.0",
         "eslint": "^10.8.1",
@@ -24,6 +25,8 @@
     },
   },
   "packages": {
+    "@bjoernrochel/sevro": ["@bjoernrochel/sevro@0.1.0-rc.2", "", { "dependencies": { "ajv": "8.20.0", "smol-toml": "1.8.0", "typescript": "5.9.3" }, "bin": { "sevro": "src/cli.ts" } }, "sha512-OO2clEy6QvP/ZQ+qkDK8Mn5eEFLjk4BfHJ3jgXbiAu2/9gxZrpC9+tbLGJZOXI5H2UY22JvssguwgWxWjgC4SA=="],
+
     "@eslint-community/eslint-utils": ["@eslint-community/eslint-utils@4.10.1", "", { "dependencies": { "eslint-visitor-keys": "^3.4.3" }, "peerDependencies": { "eslint": "^6.0.0 || ^7.0.0 || >=8.0.0" } }, "sha512-cuadcxVFE8sDK6iWJbs8Sn0av2Nrh2QSGQhVlBW9AaAHqHwjWsZHT8LJ4hFGPh7ASBV2deFdM7H/DPjulmh8rg=="],
 
     "@eslint-community/regexpp": ["@eslint-community/regexpp@4.12.2", "", {}, "sha512-EriSTlt5OC9/7SXkRSCAhfSxxoSUgBm33OH+IkwbdpgoqsSsUg7y3uh+IICI/Qg4BBWr3U2i39RpmycbxMq4ew=="],

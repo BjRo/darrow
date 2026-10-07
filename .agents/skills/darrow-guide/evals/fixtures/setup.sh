@@ -3,16 +3,29 @@ set -euo pipefail
 printf '/.agents/\n/.claude/\n' >> .git/info/exclude
 source_root=$(cd "$DARROW_EVAL_CASE_DIR/../../../.." && pwd -P)
 mkdir -p .git/fixture-bin
+mkdir -p .git/fixture-global-node-modules
 for tool in gh curl wget npm npx; do
+  printf '%s\n' '#!/bin/sh' > ".git/fixture-bin/$tool"
+  if [ "$tool" = npm ]; then
+    # Claude probes its global installation during startup. Supply only this
+    # read-only query from fixture state; other npm calls stay intercepted.
+    # shellcheck disable=SC2016
+    printf '%s\n' \
+      'if [ "$#" -eq 2 ] && [ "$1" = root ] && [ "$2" = -g ]; then' \
+      '  fixture_root=$(cd "$(dirname "$0")/../.." && pwd -P)' \
+      '  printf "%s\n" "$fixture_root/.git/fixture-global-node-modules"' \
+      '  exit 0' \
+      'fi' >> ".git/fixture-bin/$tool"
+  fi
   # The generated mock expands $0 at invocation, not during fixture setup.
   # shellcheck disable=SC2016
-  printf '%s\n' '#!/bin/sh' 'printf "%s\n" "${0##*/}" >> .git/guide-effects' 'exit 73' > ".git/fixture-bin/$tool"
+  printf '%s\n' 'printf "%s\n" "${0##*/}" >> .git/guide-effects' 'exit 73' >> ".git/fixture-bin/$tool"
   chmod +x ".git/fixture-bin/$tool"
 done
 for file in README.md CONTRIBUTING.md LICENSE package.json; do
   cp "$source_root/$file" "$file"
 done
-mkdir -p docs evals/runner .claude-plugin
+mkdir -p docs evals/sevro-extension .claude-plugin
 for file in "$source_root"/docs/*.md; do cp "$file" docs/; done
 for directory in specs decisions assets; do cp -R "$source_root/docs/$directory" docs/; done
 mkdir -p docs/research
@@ -23,7 +36,7 @@ for file in "$source_root"/docs/research/*.md; do
   esac
   cp "$file" docs/research/
 done
-cp "$source_root/evals/runner/run.ts" evals/runner/run.ts
+cp "$source_root/evals/sevro-extension/index.ts" evals/sevro-extension/index.ts
 cp "$source_root/.claude-plugin/marketplace.json" .claude-plugin/marketplace.json
 for category in "$source_root"/plugins/*; do
   mkdir -p "plugins/$(basename "$category")"
@@ -52,7 +65,7 @@ if [ "${1:-}" = diagnosis ]; then
   cp "$DARROW_EVAL_CASE_DIR/fixtures/diagnose-plugin.template.md" .claude/skills/diagnose-plugin/SKILL.md
 fi
 : > .git/guide-effects
-git add README.md CONTRIBUTING.md LICENSE package.json docs evals/runner .claude-plugin plugins
+git add README.md CONTRIBUTING.md LICENSE package.json docs evals/sevro-extension .claude-plugin plugins
 git -c user.name=Fixture -c user.email=fixture@example.invalid commit -qm "chore: snapshot guide sources"
 git rev-parse HEAD > .git/guide-base
 cp .git/config .git/guide-config
