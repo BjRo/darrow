@@ -5,6 +5,7 @@ import {
   type OracleCheck,
 } from "./fixture-command";
 import { prepareUvFixtureRuntime } from "./fixture-runtime";
+import { runReviewRecordChecks } from "./review-record-oracle";
 
 const plugin = new URL(
   "../../plugins/capability/darrow-review/",
@@ -158,45 +159,31 @@ function render(record: string): OracleCheck[] {
   ];
 }
 
-async function runOracle(
+async function oracleCheck(
   file: string,
   name: string,
-  shell: string,
-  actions: OracleCheck[],
-) {
-  const source = new URL(`${file}.yaml`, cases);
-  const canonical = await readFixtureCase(source);
+  options: { shell: string; variant: string; passes: boolean },
+): Promise<OracleCheck> {
+  const canonical = await readFixtureCase(new URL(`${file}.yaml`, cases));
   const check = canonical.checks.find((entry) => entry.name === name);
   if (!check) throw new Error(`Missing check: ${file}: ${name}`);
-  const runtime = await prepareUvFixtureRuntime();
-  return runFixtureChecks({
-    source,
-    fixtureAssets: plugin,
-    fixtureAssetFiles: ["backend/tests/evals/assert_records.py"],
-    reviewState: true,
-    fixture: {
-      commits: [
-        { message: "chore: init", files: { "README.md": "Oracle fixture.\n" } },
-      ],
-      bin: runtime.bin,
-      setup: `${runtime.setupPrefix}\nmkdir -p .git/eval-tools\ncp -R "{{case_dir}}/../../../backend" ${backend}\nuv sync --quiet --frozen --no-dev --project ${backend}`,
-    },
-    checks: [
-      ...actions,
-      { ...check, run: `${state}\n${quote(shell)} -c ${quote(check.run)}` },
-    ],
-  });
+  return {
+    ...check,
+    name: `${options.variant}: ${name}`,
+    run: `${state}\n${options.passes ? "" : "! "}${quote(options.shell)} -c ${quote(check.run)}`,
+  };
 }
 
 for (const shell of ["bash", "/bin/bash"]) {
   describe(`review outcome eval checks (${shell})`, () => {
-    for (const variant of [
-      "captured diagnostic",
-      "different diagnostic",
-      "invented evidence",
-      "missing capture",
-    ] as const) {
-      test(`unavailable check: ${variant}`, async () => {
+    test("unavailable checks require their exact captured evidence", async () => {
+      const actions: OracleCheck[] = [];
+      for (const variant of [
+        "captured diagnostic",
+        "different diagnostic",
+        "invented evidence",
+        "missing capture",
+      ] as const) {
         const diagnostic =
           variant === "different diagnostic"
             ? "exited 127: verifier service cannot be reached"
@@ -213,13 +200,17 @@ for (const shell of ["bash", "/bin/bash"]) {
           evidence_gaps: ["Required check unavailable"],
           outcome: "blocked",
         });
-        const actions = [
+        actions.push(
+          {
+            name: `${variant}: discard the preceding capture`,
+            run: `${state}\nrm -f ${artifactPath(`${artifacts}/check-1.json`)}`,
+          },
           write(
             "write blocked verification",
             `${artifacts}/verification.json`,
             record,
           ),
-        ];
+        );
         if (variant !== "missing capture")
           actions.push(
             write(
@@ -239,31 +230,40 @@ for (const shell of ["bash", "/bin/bash"]) {
               }),
             ),
           );
-        const result = await runOracle(
-          "fix-verification-unavailable",
-          "unavailable evidence produces a valid blocked artifact",
-          shell,
-          actions,
+        actions.push(
+          await oracleCheck(
+            "fix-verification-unavailable",
+            "unavailable evidence produces a valid blocked artifact",
+            {
+              shell,
+              variant,
+              passes:
+                variant !== "invented evidence" &&
+                variant !== "missing capture",
+            },
+          ),
         );
-        assertResult(
-          result,
-          variant !== "invented evidence" && variant !== "missing capture",
-          actions.length,
+      }
+      await runReviewRecordChecks(actions);
+    }, 30_000);
+    test("resolved states clear while an unresolved advisory is rejected", async () => {
+      const actions: OracleCheck[] = [];
+      for (const resolved of [true, false]) {
+        actions.push(
+          ...render(verification(resolved)),
+          await oracleCheck(
+            "fix-verification-resolved",
+            "additive verification artifact validates and clears",
+            {
+              shell,
+              variant: resolved ? "all resolved" : "unresolved advisory",
+              passes: resolved,
+            },
+          ),
         );
-      }, 30_000);
-    }
-    for (const resolved of [true, false]) {
-      test(`resolved case ${resolved ? "accepts all resolved states" : "rejects an unresolved advisory despite misleading prose"}`, async () => {
-        const actions = render(verification(resolved));
-        const result = await runOracle(
-          "fix-verification-resolved",
-          "additive verification artifact validates and clears",
-          shell,
-          actions,
-        );
-        assertResult(result, resolved, actions.length);
-      }, 30_000);
-    }
+      }
+      await runReviewRecordChecks(actions);
+    }, 30_000);
     for (const file of [
       "fix-verification-resolved",
       "fix-verification-regression-scope",
@@ -271,14 +271,14 @@ for (const shell of ["bash", "/bin/bash"]) {
       "fix-verification-progress-advisory",
       "fix-verification-regression-second-round",
     ]) {
-      for (const variant of [
-        "canonical",
-        "matching summaries",
-        "empty reports",
-        "stale artifact",
-      ] as const) {
-        test(`${file}: ${variant}`, async () => {
-          const actions: OracleCheck[] = [];
+      test(`${file}: canonical and invalid presentation variants`, async () => {
+        const actions: OracleCheck[] = [];
+        for (const variant of [
+          "canonical",
+          "matching summaries",
+          "empty reports",
+          "stale artifact",
+        ] as const) {
           if (file === "fix-verification-regression-second-round") {
             // The prior artifact sorts after the current one and has no report.
             const previous =
@@ -328,15 +328,16 @@ for (const shell of ["bash", "/bin/bash"]) {
               run: "awk 'NF' .git/last-message.md >.git/normalized-message && mv .git/normalized-message .git/last-message.md",
             });
           }
-          const result = await runOracle(
-            file,
-            "retained verification report preserves the complete canonical evidence",
-            shell,
-            actions,
+          actions.push(
+            await oracleCheck(
+              file,
+              "retained verification report preserves the complete canonical evidence",
+              { shell, variant, passes: variant === "canonical" },
+            ),
           );
-          assertResult(result, variant === "canonical", actions.length);
-        }, 30_000);
-      }
+        }
+        await runReviewRecordChecks(actions);
+      }, 30_000);
     }
   });
 }

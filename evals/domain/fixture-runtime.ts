@@ -1,11 +1,14 @@
-import { afterEach } from "bun:test";
+import { afterAll } from "bun:test";
 import { cp, mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 const pythonRoots: string[] = [];
-afterEach(async () => {
+let pythonRuntime: Promise<string> | undefined;
+afterAll(async () => {
+  await pythonRuntime?.catch(() => undefined);
+  pythonRuntime = undefined;
   await Promise.all(
     pythonRoots
       .splice(0)
@@ -34,7 +37,9 @@ async function publicPythonRuntime(uv: string) {
 export async function prepareUvFixtureRuntime(includeNode = false) {
   const uv = Bun.which("uv");
   if (!uv) throw new Error("fixture tool is unavailable: uv");
-  const python = await publicPythonRuntime(uv);
+  // Fixture scripts share executable assets, while each case owns its workspace.
+  pythonRuntime ??= publicPythonRuntime(uv);
+  const python = await pythonRuntime;
   const bin: Record<string, string> = {
     python: `#!/bin/sh\nexec ${python} "$@"\n`,
     python3: `#!/bin/sh\nexec ${python} "$@"\n`,

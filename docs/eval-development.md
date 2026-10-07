@@ -13,6 +13,14 @@ constraints for producing and interpreting that evidence.
 - Keep installed public-interface checks under `evals/integration/` and
   standalone historical-reader tests under `evals/history/`. Sevro owns the
   scheduling, isolation, host, built-in grading and persistence test matrix.
+- Prepare copied executable runtimes once per test file and clean them after
+  the file completes. Keep Git workspaces and result directories case-local.
+  Group variants that differ only in oracle input into one prepared fixture;
+  reset each variant's input and retained evidence before checking its outcome.
+  Keep separate fixtures when a variant changes setup, source, or host state.
+- Run review-record validation and presentation checks through the owning
+  frozen Python CLI. The domain helper prepares only its package and record
+  files; canonical fixture-setup tests retain the installed Sevro connection.
 - Give every skill colocated eval cases that verify its public behavior and
   intent boundaries. Test deterministic scripts separately when present.
 - Start with the exact normative invariant or public promise under test. An
