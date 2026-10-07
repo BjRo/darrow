@@ -3,7 +3,7 @@ import { mkdir, readFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { parse as parseYaml } from "yaml";
-import { resolveCorpusSource } from "../../runner/corpus";
+import { resolveCorpusSource } from "./source";
 
 interface SourceRecord {
   repository: string;

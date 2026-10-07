@@ -253,6 +253,16 @@ fixed Codex quality judge:
 bun run eval:orchestration -- --trials 5
 ```
 
+The three canonical profile-impact, localized-routing, and promoted-routing
+suites now compare task outcomes and independently observed native owner
+model/effort routes on Codex. They retain historical experiment/mode names and
+condition text, while retiring private profile, workflow, risk, and goal-contract
+assertions. Parent case routes remain separate. Their enforced defaults remain
+explicit: the Sevro route can prepare dry cells, but its bundled hosts reject
+enforced execution. This does not establish a live comparison or convert the
+condition to passive. See
+[benchmark migration validation](../../../docs/research/sevro-extraction.md#benchmark-migration-validation).
+
 Useful scoped and calibration runs:
 
 ```sh
@@ -267,7 +277,7 @@ bun evals/runner/suite.ts --harness claude --trials 3 \
 # Omit advisory judging during a cheap calibration pass.
 bun evals/runner/suite.ts --trials 1 --no-judge
 
-# Compare raw native goal, workflow only, and workflow plus risk on Codex.
+# Compare historical condition variants by task and native owner route on Codex.
 bun evals/runner/suite.ts \
   --suite evals/experiments/orchestration/profile-impact-suite.yaml \
   --harness codex --trials 3

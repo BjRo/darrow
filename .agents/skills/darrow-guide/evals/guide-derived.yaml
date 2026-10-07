@@ -2,8 +2,8 @@ id: guide-derived
 invariant: RG-C3,RG-C2,RG-C4,RG-C8
 activation: positive
 prompt:
-  "{{skill_invocation}} In the eval runner's implementation, which scan option allows hidden
-  .agents directories to be discovered, and what glob selects repository-skill cases?"
+  "{{skill_invocation}} In Darrow's Sevro extension implementation, how do suite case filters
+  match case IDs, and what happens when no case matches?"
 fixture:
   setup: bash "{{case_dir}}/fixtures/setup.sh"
 checks:
@@ -34,14 +34,15 @@ semantic_output_checks:
       The response explicitly labels its main finding as derived from the current implementation
       (equivalent evidence-status wording is acceptable). Saying that a variable or path is
       derived is not an evidence-status label for the finding.
-  - name: repository discovery behavior
+  - name: suite case selection behavior
     proposition: >-
-      The response says repository-skill eval cases are discovered at
-      .agents/skills/*/evals/*.yaml with the scan option dot: true, and grounds the finding in
-      evals/runner/run.ts.
+      The response says a case is selected when its ID contains any supplied
+      filter substring and throws "No cases matched." when no case matches.
+      It grounds the finding in
+      evals/sevro-extension/index.ts.
   - name: focused read-only explanation
     proposition: >-
-      The response stays focused on repository-skill discovery rather than giving an unrelated
+      The response stays focused on suite case selection rather than giving an unrelated
       product overview or broad plugin catalog. Related implementation detail, a material
       checkout limitation, and one useful next source or follow-up are permitted. It does not
       claim to have installed plugins, run tests, changed configuration, contacted services,
@@ -49,4 +50,4 @@ semantic_output_checks:
       files and directories is permitted.
 output_checks:
   - name: nearby repository evidence
-    expect_regex: evals/runner/run\.ts
+    expect_regex: evals/sevro-extension/index\.ts

@@ -26,7 +26,7 @@ The verifier-generated
 - both acceptances at session ordinals 7130 and 7135, before the first wait at
   ordinal 7147, with exactly those two spawn requests in the retained batch.
 
-`evals/runner/native-review-proof.ts` derives the pass from the append-only
+`evals/sevro-extension/legacy-native-review-proof.ts` derives the pass from the append-only
 native session prefix, the selected-route record, both axis application
 records, both native starts, both accepted outputs, and the closed retained
 launch batch. Its negative tests reject an application record with no native
@@ -56,7 +56,7 @@ parent and child transcripts record:
 Both Agent prompts used the historical undashed `review_axis:` marker. The
 current protocol requires `- review_axis:` plus direct-provider evidence from
 the current host environment, so the current
-`evals/runner/claude-review-proof.ts` correctly rejects the legacy artifacts
+`evals/sevro-extension/legacy-claude-review-proof.ts` correctly rejects the legacy artifacts
 and no passing JSON artifact is retained. The transcript remains useful evidence that
 Claude can encode one native assistant turn as two envelopes sharing the same
 `message.id`; the eval adapter now joins that shape into one retained parallel
