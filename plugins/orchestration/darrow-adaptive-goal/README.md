@@ -1,12 +1,15 @@
 # Darrow Adaptive Goal
 
 Adaptive Goal keeps one bounded native goal in the main thread. That thread
-owns preflight, acceptance, user decisions and completion. It delegates
-implementation and selected verification as separate assignments.
+owns preflight, acceptance, user decisions and completion. It implements
+directly when its own route matches the selected implementation route. It
+delegates implementation when the selected route is stronger or the main
+route is unknown, or when a cheaper route or concurrent parts repay the
+handoff. Selected verification is always a separate assignment.
 
 ```text
 request + repository -> read-only preflight/readiness -> main-thread native goal
-                                                         -> implementation
+                                                         -> direct or delegated implementation
                                                          -> selected verification
 ```
 
@@ -32,7 +35,8 @@ The skill:
 - selects implementation difficulty separately from consequence risk;
 - binds authorized operations to compatible advertised capabilities;
 - keeps the native goal within 4,000 characters and coordination instructions in the skill;
-- delegates bounded implementation and verification with explicit role routes;
+- places implementation directly or in bounded assignments, and delegates
+  verification with explicit role routes;
 - coordinates repairs, user feedback, reassessment and evidence-supported completion.
 
 Readiness findings stop implementation until resolved. Material changes to scope,
@@ -72,6 +76,23 @@ Implementation difficulty controls the bounded implementor:
 | repo-wide    | gpt-6.1-sol | high   |
 | judgment     | gpt-6-astra | high   |
 
+### Implementation placement
+
+The `placement` helper compares the selected route with the main thread's own
+model and effort, observed from the active Codex or Claude session:
+
+| Selected route vs. main thread | Placement                                                                                      |
+| ------------------------------ | ---------------------------------------------------------------------------------------------- |
+| same                           | implement directly in the main thread                                                          |
+| higher or unknown              | delegate on the selected route                                                                 |
+| lower                          | delegate only when the work is large enough to repay the handoff; otherwise implement directly |
+
+Independent parts with disjoint files and settled interfaces may run as
+concurrent assignments within the host's child limit. Coupled work stays
+sequential. Placement never changes assurance: selected verification and review
+keep their own routes, and one combined repair consumes one shared attempt
+wherever it runs. Expected cost or speed gains are not yet measured claims.
+
 A fully specified localized security change can remain routine implementation
 while requiring high-risk assurance. `routine-plus` needs an actual implementation
 tradeoff or an explicit first-pass correctness priority.
@@ -101,8 +122,8 @@ the complete evidence before authorizing a combined repair.
 The default maximum is **two implementation repair attempts total**, shared
 across providers and findings. Each attempt refreshes checks and obtains fresh
 closed-set verification. Preserve finding identities, prior reports, candidate
-history and direct repair-caused regressions. Reuse the same implementor for
-repairs when it remains available and fits the route and scope. Send concrete
+history and direct repair-caused regressions. When repairs are delegated, reuse
+the same implementor while it remains available and fits the route and scope. Send concrete
 repair instructions without handing over workflow state or attempt accounting.
 Replacement children and comprehensive
 reassessment never reset the allowance. Clear evidence ends repair immediately;
@@ -147,7 +168,9 @@ deterministic blocker does not require another execution of the failing command.
 
 The doctor reads effective host delegation controls and distinguishes:
 
-- bounded implementation: one child slot and one nesting layer;
+- direct implementation: no child slot;
+- delegated implementation: one child slot per concurrent assignment and one
+  nesting layer;
 - required verification and review: four active child slots and three nesting
   layers, with implementation settled before assessment.
 
@@ -173,6 +196,7 @@ Prefix commands with
 ```text
 adaptive-goal-preflight prepare --repo <path> --host <codex|claude>
 adaptive-goal-preflight route --repo <path> --host <codex|claude> --profile <profile> [--route <tuple>]
+adaptive-goal-preflight placement --repo <path> --host <codex|claude> --selected-route <tuple> [--main-route <tuple>]
 claude-agent-route --provider anthropic --model <model> --effort <effort>
 host-config-doctor codex --config <path> [--project-root <path>] --backend <v1|v2|unknown> --context <effective|isolated-eval>
 host-config-doctor claude [--version <installed-version>]
@@ -182,6 +206,11 @@ Repository implementation-route overrides live in `.darrow/config.json`.
 Malformed or unreadable policy refuses resolution. Claude's resolver checks
 scoped-agent frontmatter and conflicting environment overrides; invoke its exact
 Agent type without a per-call model override.
+
+`placement` reads only the active session's model and effort: the
+`CODEX_THREAD_ID` session file under `CODEX_HOME`, or the
+`CLAUDE_CODE_SESSION_ID` transcript under `CLAUDE_CONFIG_DIR` plus
+`CLAUDE_EFFORT`. Missing or partial observations report an unknown main route.
 
 Helpers do not launch models, persist objectives, supervise work or implement
 goal continuation.

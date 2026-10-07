@@ -1,0 +1,30 @@
+id: goal-placement-repair-self-review
+invariant: ADL-R3,ADL-V1
+goal_report: forbidden
+goal_route_checks: false
+prompt: >-
+  {{skill_invocation}} Advice only; do not launch or perform work. The retained goal
+  uses the default repair allowance. Its first combined repair ran in a delegated
+  implementor on a cheaper route, and fresh verification shows material progress but
+  one original blocker remains. The main thread now runs on the same route as the
+  selected implementation route and plans to make the next repair directly instead
+  of resuming the implementor. Independent verification was selected for this goal.
+  After that direct repair, may the main thread clear it by reviewing its own change?
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        NOTES.md: "preserved\n"
+checks:
+  - name: advice leaves repository unchanged
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: direct repair keeps independent verification
+    proposition:
+      The response requires fresh verification through the selected verification
+      capability after the direct repair and does not let the main thread clear the
+      repair by assessing its own change.
+transcript_checks:
+  - name: advice launches no agent
+    not_regex: '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"type":"darrow.goal_agent_completion"'
+native_goal: forbidden

@@ -1,0 +1,109 @@
+id: goal-placement-cheaper-delegation-claude
+invariant: ADL-R1,ADL-R3,ADL-L1,ADL-L5
+goal_report: forbidden
+goal_route_checks: false
+# Claude-native variant: headless Claude enters through native /goal. Run with
+# --harness claude and pin the main route per case: --case-routes
+# '{"goal-placement-cheaper-delegation-claude":{"model":"claude-opus-5-5","effort":"high"}}'.
+prompt: >-
+  /goal {{skill_invocation}} Build an expense report module in src/expenses.js with focused
+  tests in test/expenses.test.js covering every rule below. (1) parseExpenses(text)
+  takes CSV text whose header is date,category,amount,note and returns one
+  { date, category, cents, note } object per non-empty data row. (2) amount has at most
+  two fraction digits and becomes integer cents ("12.5" is 1250). (3) A double-quoted
+  field may contain commas, and "" inside it is one literal quote. (4) category is
+  trimmed and lower-cased. (5) A malformed amount throws Error("invalid amount on line
+  N"), where N is the 1-based line number including the header. (6)
+  totalsByCategory(expenses) returns a plain object whose keys are categories in
+  first-seen order and whose values are summed cents.
+  (7) renderReport(totals) renders one "category: amount" line per category with
+  exactly two fraction digits, then "total: amount", joined by newlines without a
+  trailing newline. Then, building on that module, add src/budgets.js with focused
+  tests in test/budgets.test.js covering every rule below. (8) checkBudgets(totals,
+  budgets) takes the totals and a plain object of category limits in cents and returns
+  { category, spent, limit, over } entries only for categories whose spent cents exceed
+  their limit, sorted by over descending and then category ascending; categories
+  without a limit are ignored. (9) renderAlerts(alerts) renders one "category: over by
+  X.XX (spent Y.YY of Z.ZZ)" line per alert joined by newlines, or exactly "no budget
+  overruns" when there are none. (10) reportFromCsv(text, budgets) returns
+  renderReport of the parsed totals, a blank line, then renderAlerts of the budget
+  check. Acceptance is that bash test.sh passes. This is sizable but routine sequential
+  work, because the budget module builds on the expense module; token cost matters
+  more than wall-clock time. Select and apply the policy route
+  rather than pinning a model. Keep the result local.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Run `bash test.sh` for JavaScript changes.
+        package.json: '{"type":"module"}'
+        src/expenses.js: |
+          // The expense report module belongs here.
+        src/budgets.js: |
+          // The budget module belongs here.
+        test/budgets.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import * as budgets from "../src/budgets.js";
+          test("budgets module loads", () => assert.equal(typeof budgets, "object"));
+        test/expenses.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import * as expenses from "../src/expenses.js";
+          test("module loads", () => assert.equal(typeof expenses, "object"));
+        test.sh: |
+          #!/usr/bin/env bash
+          node --test test/expenses.test.js test/budgets.test.js
+checks:
+  - name: specification is implemented
+    run: >-
+      node --input-type=module -e "import('./src/expenses.js').then(({parseExpenses,
+      totalsByCategory, renderReport}) => { const rows = parseExpenses('date,category,amount,note\n2026-01-01,
+      Food ,12.5,\"lunch, team\"\n\n2026-01-02,travel,3,\"say \"\"hi\"\"\"\n2026-01-03,food,0.25,x\n');
+      if (rows.length !== 3 || rows[0].cents !== 1250 || rows[0].category !== 'food' || rows[0].note
+      !== 'lunch, team' || rows[1].note !== 'say \"hi\"') process.exit(1); const totals =
+      totalsByCategory(rows); if (JSON.stringify(Object.keys(totals)) !== '[\"food\",\"travel\"]'
+      || totals.food !== 1275) process.exit(2); if (renderReport(totals) !== 'food:
+      12.75\ntravel: 3.00\ntotal: 15.75') process.exit(3); try {
+      parseExpenses('date,category,amount,note\nx,y,1.234,z'); process.exit(4) } catch (error) { if
+      (error.message !== 'invalid amount on line 2') process.exit(5) } })"
+  - name: budget module is implemented
+    run: >-
+      node --input-type=module -e "import('./src/budgets.js').then(({checkBudgets,
+      renderAlerts, reportFromCsv}) => { const alerts = checkBudgets({ food: 5000, travel:
+      1200, rent: 900, misc: 10 }, { food: 4000, travel: 200, rent: 900 }); if
+      (JSON.stringify(alerts) !== JSON.stringify([{ category: 'food', spent: 5000, limit:
+      4000, over: 1000 }, { category: 'travel', spent: 1200, limit: 200, over: 1000 }]))
+      process.exit(1); if (renderAlerts(alerts) !== 'food: over by 10.00 (spent 50.00 of
+      40.00)\ntravel: over by 10.00 (spent 12.00 of 2.00)' || renderAlerts([]) !== 'no
+      budget overruns') process.exit(2); if
+      (reportFromCsv('date,category,amount,note\n2026-01-01,food,3,x\n', { food: 100 }) !==
+      'food: 3.00\ntotal: 3.00\n\nfood: over by 2.00 (spent 3.00 of 1.00)') process.exit(3)
+      })"
+  - name: focused tests pass
+    run: >-
+      grep -F 'parseExpenses' test/expenses.test.js >/dev/null && grep -F 'checkBudgets'
+      test/budgets.test.js >/dev/null && bash test.sh >/dev/null
+  - name: no publication occurred
+    run: test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: verification evidence is returned
+    expect_regex: "test\\.sh"
+transcript_checks:
+  - name: an implementation agent was accepted
+    expect_regex: '"type":"darrow\.codex_native_spawn","status":"accepted"|"type":"darrow\.goal_agent_completion"|"name":"Agent"'
+  - name: no lifecycle ledger is used
+    not_regex: adaptive-goal-preflight step|Protocol ledger
+semantic_output_checks:
+  - name: owner reports completion
+    proposition:
+      The response reports the requested outcome as complete, with no unresolved
+      blocker or pending decision preventing completion.
+  - name: implementation was delegated to the cheaper route
+    proposition:
+      The response reports that implementation was delegated to a separate agent on a
+      cheaper or lower route than the main thread's own route.
+native_goal: required

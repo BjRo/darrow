@@ -20,7 +20,8 @@ FIELDS = (
     "fallbackEffort",
 )
 SAFE_VALUE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\Z")
-EFFORTS = {"low", "medium", "high", "xhigh", "max", "ultra"}
+EFFORT_ORDER = ("low", "medium", "high", "xhigh", "max", "ultra")
+EFFORTS = frozenset(EFFORT_ORDER)
 
 
 class Pairs(list[tuple[str, object]]):

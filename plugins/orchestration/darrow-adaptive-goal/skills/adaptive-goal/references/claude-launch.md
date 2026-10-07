@@ -26,7 +26,8 @@ through Skill, start a nested Claude process or create a custom stop hook.
 
 ## Resolve bounded agent routes
 
-For each bounded assignment launched by the main thread, resolve its explicit
+Direct placement implements in this thread and launches no implementation
+agent. For each bounded assignment launched by the main thread, resolve its explicit
 route with the bundled helper:
 
 ```sh
@@ -40,7 +41,10 @@ The helper verifies the scoped agent's model and effort and refuses conflicting
 higher-priority environment overrides. A refusal stops the affected assignment;
 do not launch anyway or silently select another route.
 
-Implementation and repair use the preflight-selected route. Verification
+Delegated implementation and repair use the preflight-selected route. For
+concurrent implementation, issue one Agent call per independent part in the
+same message, each with its owned files and the shared interface, and settle
+all of them before integration or further assignment. Verification
 coordination uses `claude-opus-5-5/high`. Pass `claude-sonnet-5-5/medium` explicitly
 for review coordination through verification, preserving review's own independent
 reader route. A capability provides its own compatible review-agent boundary;
@@ -68,12 +72,14 @@ another assignment. Verification and review keep their own internal delegation
 and response contracts. The main thread consumes those results and owns repair
 accounting and overall completion.
 
-Reuse the retained implementor for subsequent implementation and repairs through
-the host's available agent-resume control. Supply concrete changes, findings,
+While delegation remains the chosen placement, reuse the retained implementor
+for subsequent implementation and repairs through the host's available
+agent-resume control. Supply concrete changes, findings,
 constraints and checks; keep workflow ordering and repair accounting in the main
 thread. If that agent cannot be resumed or no longer fits the required route or
 scope, state the concrete reason and launch a replacement with the necessary
-context and prior work. Replacement grants no extra attempts.
+context and prior work. Replacement or a placement switch grants no extra
+attempts.
 
 ## Feedback and completion
 

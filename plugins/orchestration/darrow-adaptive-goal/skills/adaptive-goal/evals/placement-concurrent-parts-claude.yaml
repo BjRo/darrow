@@ -1,0 +1,107 @@
+id: goal-placement-concurrent-parts-claude
+invariant: ADL-R3,ADL-L1,ADL-L5
+goal_report: forbidden
+goal_route_checks: false
+# Claude-native variant: headless Claude enters through native /goal. Run with
+# --harness claude and pin the main route per case: --case-routes
+# '{"goal-placement-concurrent-parts-claude":{"model":"claude-opus-5-5","effort":"high"}}'.
+prompt: >-
+  /goal {{skill_invocation}} Implement two independent modules; minimizing wall-clock time
+  matters more than token cost. They share no files, code or interfaces, and each has
+  its own focused test command.
+
+  Part A, src/expenses.js with tests in test/expenses.test.js covering every rule:
+  (1) parseExpenses(text) takes CSV text whose header is date,category,amount,note and returns one { date, category, cents, note } object per non-empty data row. (2) amount has at most two fraction digits and becomes integer cents ("12.5" is 1250). (3) A double-quoted field may contain commas, and "" inside it is one literal quote. (4) category is trimmed and lower-cased. (5) A malformed amount throws Error("invalid amount on line N"), where N is the 1-based line number including the header. (6) totalsByCategory(expenses) returns a plain object whose keys are categories in first-seen order and whose values are summed cents. (7) renderReport(totals) renders one "category: amount" line per category with exactly two fraction digits, then "total: amount", joined by newlines without a trailing newline.
+
+  Part B, src/versions.js with tests in test/versions.test.js covering every rule:
+  (1) parseVersion(text) parses "MAJOR.MINOR.PATCH" of non-negative integers without
+  leading zeroes into { major, minor, patch }. (2) Anything else throws Error("invalid
+  version: TEXT"). (3) compareVersions(a, b) returns -1, 0 or 1 by numeric component
+  order. (4) satisfies(version, range) accepts an exact version, a caret range ^X.Y.Z
+  meaning at least X.Y.Z and below the next major, except that ^0.Y.Z stays below
+  0.(Y+1).0, and a tilde range ~X.Y.Z meaning at least X.Y.Z and below X.(Y+1).0. (5)
+  maxSatisfying(versions, range) returns the highest satisfying version string, or
+  null when none satisfies.
+
+  Acceptance is that bash test.sh passes. Select and apply the policy route rather
+  than pinning a model. Keep the result local.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Run `bash test.sh` for all changes. `node --test test/expenses.test.js` and
+          `node --test test/versions.test.js` run each part separately.
+        package.json: '{"type":"module"}'
+        src/expenses.js: |
+          // The expense report module belongs here.
+        src/versions.js: |
+          // The version module belongs here.
+        test/expenses.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import * as expenses from "../src/expenses.js";
+          test("expenses module loads", () => assert.equal(typeof expenses, "object"));
+        test/versions.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import * as versions from "../src/versions.js";
+          test("versions module loads", () => assert.equal(typeof versions, "object"));
+        test.sh: |
+          #!/usr/bin/env bash
+          node --test test/expenses.test.js test/versions.test.js
+checks:
+  - name: expense module is implemented
+    run: >-
+      node --input-type=module -e "import('./src/expenses.js').then(({parseExpenses,
+      totalsByCategory, renderReport}) => { const rows = parseExpenses('date,category,amount,note\n2026-01-01,
+      Food ,12.5,\"lunch, team\"\n\n2026-01-02,travel,3,\"say \"\"hi\"\"\"\n2026-01-03,food,0.25,x\n');
+      if (rows.length !== 3 || rows[0].cents !== 1250 || rows[0].category !== 'food' || rows[0].note
+      !== 'lunch, team' || rows[1].note !== 'say \"hi\"') process.exit(1); const totals =
+      totalsByCategory(rows); if (JSON.stringify(Object.keys(totals)) !== '[\"food\",\"travel\"]'
+      || totals.food !== 1275) process.exit(2); if (renderReport(totals) !== 'food:
+      12.75\ntravel: 3.00\ntotal: 15.75') process.exit(3); try {
+      parseExpenses('date,category,amount,note\nx,y,1.234,z'); process.exit(4) } catch (error) { if
+      (error.message !== 'invalid amount on line 2') process.exit(5) } })"
+  - name: version module is implemented
+    run: >-
+      node --input-type=module -e "import('./src/versions.js').then(({parseVersion,
+      compareVersions, satisfies, maxSatisfying}) => { const v = parseVersion('1.20.3');
+      if (v.major !== 1 || v.minor !== 20 || v.patch !== 3) process.exit(1); for (const bad
+      of ['1.2', '01.2.3', '1.2.3-beta', ' 1.2.3']) { try { parseVersion(bad);
+      process.exit(2) } catch (error) { if (error.message !== 'invalid version: ' + bad)
+      process.exit(3) } } if (compareVersions('1.10.0', '1.9.9') !== 1 ||
+      compareVersions('1.2.3', '1.2.3') !== 0 || compareVersions('0.9.0', '1.0.0') !== -1)
+      process.exit(4); const cases = [['1.9.0', '^1.2.3', true], ['2.0.0', '^1.2.3',
+      false], ['1.2.2', '^1.2.3', false], ['0.2.9', '^0.2.3', true], ['0.3.0', '^0.2.3',
+      false], ['1.2.9', '~1.2.3', true], ['1.3.0', '~1.2.3', false], ['1.2.3', '1.2.3',
+      true], ['1.2.4', '1.2.3', false]]; for (const [version, range, expected] of cases)
+      if (satisfies(version, range) !== expected) process.exit(5); if
+      (maxSatisfying(['1.2.3', '1.10.0', '1.9.9', '2.0.0'], '^1.2.0') !== '1.10.0' ||
+      maxSatisfying(['0.1.0'], '^1.0.0') !== null) process.exit(6) })"
+  - name: focused tests pass
+    run: >-
+      grep -F 'parseExpenses' test/expenses.test.js >/dev/null && grep -F 'maxSatisfying'
+      test/versions.test.js >/dev/null && bash test.sh >/dev/null
+  - name: no publication occurred
+    run: test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: verification evidence is returned
+    expect_regex: "test\\.sh"
+transcript_checks:
+  - name: an implementation agent was accepted
+    expect_regex: '"type":"darrow\.codex_native_spawn","status":"accepted"|"type":"darrow\.goal_agent_completion"|"name":"Agent"'
+  - name: no lifecycle ledger is used
+    not_regex: adaptive-goal-preflight step|Protocol ledger
+semantic_output_checks:
+  - name: owner reports completion
+    proposition:
+      The response reports the requested outcome as complete, with no unresolved
+      blocker or pending decision preventing completion.
+  - name: independent parts ran concurrently
+    proposition:
+      The response reports that the two independent parts were implemented in
+      parallel by separate agents or assignments, rather than one after another.
+native_goal: required
