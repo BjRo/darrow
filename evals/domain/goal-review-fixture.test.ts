@@ -4,10 +4,10 @@ import { pathToFileURL } from "node:url";
 import {
   fixtureExtensionRequest,
   readFixtureCase,
-  runFixtureChecks,
   type OracleCheck,
 } from "./fixture-command";
 import { prepareUvFixtureRuntime } from "./fixture-runtime";
+import { assertGoalReviewChecks, goalReviewOracle } from "./goal-review-oracle";
 
 const source = new URL(
   "../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/evals/high-risk-routine.yaml",
@@ -17,7 +17,6 @@ const reviewPlugin = new URL(
   "../../plugins/capability/darrow-review/",
   import.meta.url,
 );
-const proofBackend = new URL("../../../backend/", source);
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 const state =
   'export DARROW_REVIEW_STATE_DIR="$(cat .git/oracle-review-state)" DARROW_CACHE_DIR="$PWD/.git/fixture-runtime-cache"';
@@ -80,7 +79,6 @@ async function reviewFiles(prefix = ".fixture-review-plugin") {
 async function proofFixture(scenario: RepairScenario | undefined = undefined) {
   const runtime = await prepareUvFixtureRuntime();
   const files = {
-    ...(await packageFiles(proofBackend, ".fixture-proof")),
     ...(await reviewFiles()),
     ...(scenario?.duplicate ? await reviewFiles(".fixture-review-cache") : {}),
   };
@@ -98,10 +96,9 @@ async function proofFixture(scenario: RepairScenario | undefined = undefined) {
     )
     .join("\n");
   return {
-    commits: [{ message: "Initial", files: { "value.txt": "before\n" } }],
     files,
     bin: runtime.bin,
-    setup: `${runtime.setupPrefix}\nmv .fixture-proof .git/fixture-backend\nmv .fixture-review-plugin .git/review-plugin\n${scenario?.duplicate ? "mv .fixture-review-cache .git/plugin-cache\n" : ""}uv sync --quiet --frozen --no-dev --project .git/fixture-backend\nuv sync --quiet --frozen --no-dev --project .git/review-plugin/backend\nexport DARROW_CACHE_DIR="$PWD/.git/fixture-runtime-cache"\n${prepareProviders}`,
+    setup: `${runtime.setupPrefix}\nmv .fixture-review-plugin .git/review-plugin\n${scenario?.duplicate ? "mv .fixture-review-cache .git/plugin-cache\n" : ""}uv sync --quiet --frozen --no-dev --project .git/review-plugin/backend\nexport DARROW_CACHE_DIR="$PWD/.git/fixture-runtime-cache"\n${prepareProviders}`,
   };
 }
 
@@ -224,25 +221,7 @@ function selectArtifact(
   };
 }
 
-function assertChecks(
-  result: Awaited<ReturnType<typeof runFixtureChecks>>,
-  checks: OracleCheck[],
-  rejectedIndex = -1,
-) {
-  const passes = rejectedIndex < 0;
-  expect(result.exitCode, result.diagnostic).toBe(passes ? 0 : 1);
-  expect(result.value.execution.status).toBe("completed");
-  expect(result.value.grading.status).toBe("completed");
-  expect(result.value.task.verdict).toBe(passes ? "passed" : "failed");
-  expect(
-    result.checks.map((entry) => entry.status),
-    result.diagnostic,
-  ).toEqual(
-    checks.map((_, index) => (index === rejectedIndex ? "failed" : "passed")),
-  );
-}
-
-for (const scenario of [
+const reviewScenarios = [
   {
     name: "canonical human comprehensive report",
     standards: "pass",
@@ -310,8 +289,11 @@ for (const scenario of [
     disposition: "advisory",
     passes: false,
   },
-]) {
-  test(`high-risk review oracle: ${scenario.name}`, async () => {
+];
+
+test("high-risk review oracle: valid and invalid artifacts", async () => {
+  const context = await goalReviewOracle(await proofFixture());
+  for (const scenario of reviewScenarios) {
     const canonical = await readFixtureCase(source);
     const check = canonical.checks.find(
       (entry) =>
@@ -366,15 +348,16 @@ for (const scenario of [
         ...(scenario.passes ? { expect_regex: "valid clear review: /" } : {}),
       },
     ];
-    const result = await runFixtureChecks({
-      source,
-      fixture: await proofFixture(),
-      reviewState: true,
-      checks,
-    });
-    assertChecks(result, checks, scenario.passes ? -1 : checks.length - 1);
-  }, 30_000);
-}
+    await assertGoalReviewChecks(
+      context,
+      checks.map((entry) => ({
+        ...entry,
+        name: `${scenario.name}: ${entry.name}`,
+      })),
+      scenario.passes ? -1 : checks.length - 1,
+    );
+  }
+}, 30_000);
 
 function originalRecord(scenario: RepairScenario) {
   return {
@@ -625,12 +608,11 @@ for (const scenario of repairScenarios) {
           ]
         : []),
     ];
-    const result = await runFixtureChecks({
-      source,
-      fixture: await proofFixture(scenario),
-      reviewState: true,
+    const context = await goalReviewOracle(await proofFixture(scenario));
+    await assertGoalReviewChecks(
+      context,
       checks,
-    });
-    assertChecks(result, checks, scenario.passes ? -1 : actions.length);
+      scenario.passes ? -1 : actions.length,
+    );
   }, 30_000);
 }

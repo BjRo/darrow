@@ -21,6 +21,11 @@ constraints for producing and interpreting that evidence.
 - Run review-record validation and presentation checks through the owning
   frozen Python CLI. The domain helper prepares only its package and record
   files; canonical fixture-setup tests retain the installed Sevro connection.
+- Goal-review oracle tests invoke `adaptive-goal-fixture proof` directly and
+  reuse its unchanged package within one test file. Keep a fresh Git repository
+  and review-provider installation for each repair scenario, including stale
+  content and duplicate or conflicting providers. Group synthetic report
+  variants that share the same repository and provider setup.
 - Give every skill colocated eval cases that verify its public behavior and
   intent boundaries. Test deterministic scripts separately when present.
 - Start with the exact normative invariant or public promise under test. An
