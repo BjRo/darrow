@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { planSuite, runSuite } from "../sevro-extension/suite";
 import { policyProject } from "./policy-project";
 
 type Route = { model: string; effort: string };
@@ -86,7 +87,7 @@ async function canonicalProject(filename: string, routes: Routes) {
   return { root: project.root, suite, binary, credential };
 }
 
-async function runCanonicalSuite(
+async function canonicalArguments(
   filename: string,
   routes: Routes,
   modes: string[],
@@ -95,61 +96,67 @@ async function runCanonicalSuite(
     filename,
     routes,
   );
-  const results = join(root, "results");
-  const child = Bun.spawn(
-    [
-      process.execPath,
-      resolve(import.meta.dir, "../sevro-extension/suite.ts"),
-      "--suite",
-      suite,
-      "--project-root",
-      root,
-      "--results-root",
-      results,
-      "--harness",
-      "codex",
-      ...modes.flatMap((mode) => ["--mode", mode]),
-      "--trials",
-      "1",
-      "--threshold",
-      "1",
-      "--seed",
-      "benchmark-migration-1",
-      "--",
-      "--dry",
-      "--host",
-      "codex",
-      "--codex-bin",
-      binary,
-      "--codex-auth-file",
-      credential,
-      "--model",
-      "benchmark-parent",
-      "--effort",
-      "low",
-      "--shell-isolation",
-    ],
-    { stdout: "pipe", stderr: "pipe" },
+  return [
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    join(root, "results"),
+    "--harness",
+    "codex",
+    ...modes.flatMap((mode) => ["--mode", mode]),
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--seed",
+    "benchmark-migration-1",
+    "--",
+    "--dry",
+    "--host",
+    "codex",
+    "--codex-bin",
+    binary,
+    "--codex-auth-file",
+    credential,
+    "--model",
+    "benchmark-parent",
+    "--effort",
+    "low",
+    "--shell-isolation",
+  ];
+}
+
+function option(command: string[], name: string) {
+  const index = command.indexOf(name);
+  return index < 0 ? undefined : command[index + 1];
+}
+
+async function canonicalPlan(
+  filename: string,
+  routes: Routes,
+  modes: string[],
+) {
+  const args = await canonicalArguments(filename, routes, modes);
+  const plan = await planSuite(args);
+  expect(plan.manifest.cells).toEqual([]);
+  expect(plan.manifest.report).toBeNull();
+  expect(await Bun.file(option(args, "--results-root")!).exists()).toBeFalse();
+  expect(plan.manifest.harnesses).toEqual(["codex"]);
+  expect(plan.manifest.caseIds.slice().sort()).toEqual(
+    Object.keys(routes).sort(),
   );
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ]);
-  let diagnostics = stderr + stdout;
-  if (
-    code !== 0 &&
-    (await Bun.file(join(results, "suite-run.json")).exists())
-  ) {
-    const manifest = JSON.parse(
-      await readFile(join(results, "suite-run.json"), "utf8"),
-    );
-    diagnostics += "\n" + JSON.stringify(manifest.cells.slice(0, 2));
-    if (manifest.cells[0]?.result)
-      diagnostics += "\n" + (await readFile(manifest.cells[0].result, "utf8"));
-  }
-  expect(code, diagnostics).toBe(0);
-  return JSON.parse(await readFile(join(results, "suite-run.json"), "utf8"));
+  expect(plan.cells).toHaveLength(Object.keys(routes).length * modes.length);
+  expect(
+    plan.cells.map((cell) => ({
+      index: cell.index,
+      harness: cell.harness,
+      mode: cell.mode,
+      caseId: cell.caseId,
+    })),
+  ).toEqual(plan.manifest.cellPlan);
+  return plan;
 }
 
 async function expectOwnerComparisons(
@@ -157,46 +164,18 @@ async function expectOwnerComparisons(
   routes: Routes,
   modes: string[],
 ) {
-  const manifest = await runCanonicalSuite(filename, routes, modes);
-  expect(manifest.harnesses).toEqual(["codex"]);
-  expect(manifest.caseIds.slice().sort()).toEqual(Object.keys(routes).sort());
-  expect(manifest.cells).toHaveLength(
-    Object.keys(routes).length * modes.length,
-  );
-  for (const cell of manifest.cells) {
+  const plan = await canonicalPlan(filename, routes, modes);
+  for (const cell of plan.cells) {
     expect(modes).toContain(cell.mode);
     expect(cell.condition).toBe("enforced");
-    expect(cell.exitCode).toBe(0);
-    const evidence = JSON.parse(await readFile(cell.evidencePath, "utf8"));
-    if (process.env.SEVRO_CHECKOUT !== undefined) {
-      expect(evidence.runner).toMatchObject({
-        source: "checkout",
-        root: pathToFileURL(process.env.SEVRO_CHECKOUT).href,
-      });
-      expect(evidence.runner.revision).toMatch(/^[a-f0-9]{40}$/);
-      expect(evidence.runner.buildDigest).toMatch(/^[a-f0-9]{64}$/);
-    } else {
-      expect(evidence.runner).toMatchObject({
-        source: "package",
-        packageName: "@bjoernrochel/sevro",
-      });
-    }
-    expect(evidence.routes).toContainEqual({
-      role: "candidate",
-      host: "sevro.host.codex",
-      model: "benchmark-parent",
-      effort: "low",
-    });
+    expect(cell.effectiveOwnerRoute).toEqual(routes[cell.caseId]);
     expect(
-      evidence.configuration.redacted.extensionConfiguration
-        .effectiveOwnerRoute,
-    ).toEqual(routes[cell.caseId]);
-    expect(evidence.result).toMatchObject({
-      execution: { status: "not_run" },
-      grading: { status: "not_requested" },
-      task: { verdict: "not_assessed" },
-    });
-    expect(evidence.result.cases[0].caseId).toBe(cell.caseId);
+      JSON.parse(option(cell.command, "--assert-effective-owner-routes")!),
+    ).toEqual({ [cell.caseId]: routes[cell.caseId] });
+    expect(option(cell.command, "--model")).toBe("benchmark-parent");
+    expect(option(cell.command, "--effort")).toBe("low");
+    expect(option(cell.command, "--condition")).toBe("enforced");
+    expect(option(cell.command, "--case-id")).toBe(cell.caseId);
   }
 }
 
@@ -217,53 +196,39 @@ async function expectPassiveComparisons(
   routedModes: string[],
 ) {
   const passiveModes = modes.map((mode) => `${mode}-passive`);
-  const manifest = await runCanonicalSuite(filename, routes, [
+  const plan = await canonicalPlan(filename, routes, [
     ...modes,
     ...passiveModes,
   ]);
-  expect(manifest.harnesses).toEqual(["codex"]);
-  expect(manifest.caseIds.slice().sort()).toEqual(Object.keys(routes).sort());
-  expect(manifest.cells).toHaveLength(
-    Object.keys(routes).length * modes.length * 2,
-  );
-  for (const cell of manifest.cells) {
+  for (const cell of plan.cells) {
     const passive = passiveModes.includes(cell.mode);
     const baseMode = passive
       ? cell.mode.slice(0, -"-passive".length)
       : cell.mode;
+    const routed = routedModes.includes(baseMode);
+    const route = routed
+      ? routes[cell.caseId]!
+      : { model: "benchmark-parent", effort: "low" };
     expect(modes).toContain(baseMode);
     expect(cell.condition).toBe(passive ? "passive" : "enforced");
-    expect(cell.exitCode).toBe(0);
-    const evidence = JSON.parse(await readFile(cell.evidencePath, "utf8"));
-    expect(evidence.evaluationIdentity.dimensions.condition).toBe(
-      cell.condition,
+    expect(option(cell.command, "--condition")).toBe(cell.condition);
+    expect(option(cell.command, "--model")).toBe(route.model);
+    expect(option(cell.command, "--effort")).toBe(route.effort);
+    expect(cell.effectiveOwnerRoute ?? null).toEqual(
+      routed ? null : routes[cell.caseId]!,
     );
-    expect(evidence.routes).toContainEqual({
-      role: "candidate",
-      host: "sevro.host.codex",
-      ...(routedModes.includes(baseMode)
-        ? routes[cell.caseId]
-        : { model: "benchmark-parent", effort: "low" }),
-    });
-    expect(
-      evidence.configuration.redacted.extensionConfiguration
-        .effectiveOwnerRoute ?? null,
-    ).toEqual(routedModes.includes(baseMode) ? null : routes[cell.caseId]);
-    expect(evidence.result).toMatchObject({
-      execution: { status: "not_run" },
-      grading: { status: "not_requested" },
-      task: { verdict: "not_assessed" },
-    });
+    const ownerRoutes = option(cell.command, "--assert-effective-owner-routes");
+    expect(ownerRoutes === undefined ? null : JSON.parse(ownerRoutes)).toEqual(
+      routed ? null : { [cell.caseId]: routes[cell.caseId] },
+    );
     if (passive) {
-      const original = manifest.cells.find(
-        (peer: { mode: string; caseId: string }) =>
-          peer.mode === baseMode && peer.caseId === cell.caseId,
-      );
-      expect(original).toBeDefined();
-      const peer = JSON.parse(await readFile(original.evidencePath, "utf8"));
-      expect(evidence.evaluationIdentity.digest).not.toBe(
-        peer.evaluationIdentity.digest,
-      );
+      const peer = plan.cells.find(
+        (peer) => peer.mode === baseMode && peer.caseId === cell.caseId,
+      )!;
+      expect(peer).toBeDefined();
+      expect(peer.condition).toBe("enforced");
+      expect(peer.effectiveOwnerRoute).toEqual(cell.effectiveOwnerRoute);
+      expect(peer.requestedRoute).toEqual(cell.requestedRoute);
     }
   }
 }
@@ -369,3 +334,67 @@ test(
     ),
   45_000,
 );
+
+test("canonical owner-route conditions reach installed Sevro without claiming dry measurements", async () => {
+  const routes = {
+    "orchestration-routing-localized-mechanical": {
+      model: "gpt-5.6-luna",
+      effort: "medium",
+    },
+  };
+  const args = await canonicalArguments(
+    "localized-routing-policy-suite.yaml",
+    routes,
+    ["adaptive-policy", "adaptive-policy-passive"],
+  );
+  const result = await runSuite(args);
+  expect(result).toMatchObject({ cells: 2, failed: 0 });
+  const manifest = JSON.parse(await readFile(result.manifest, "utf8"));
+  const evidence = await Promise.all(
+    manifest.cells.map(
+      async (cell: {
+        evidencePath: string;
+        caseId: string;
+        condition: string;
+      }) => {
+        const retained = JSON.parse(await readFile(cell.evidencePath, "utf8"));
+        if (process.env.SEVRO_CHECKOUT !== undefined) {
+          expect(retained.runner).toMatchObject({
+            source: "checkout",
+            root: pathToFileURL(process.env.SEVRO_CHECKOUT).href,
+          });
+          expect(retained.runner.revision).toMatch(/^[a-f0-9]{40}$/);
+          expect(retained.runner.buildDigest).toMatch(/^[a-f0-9]{64}$/);
+        } else {
+          expect(retained.runner).toMatchObject({
+            source: "package",
+            packageName: "@bjoernrochel/sevro",
+          });
+        }
+        expect(retained.routes).toContainEqual({
+          role: "candidate",
+          host: "sevro.host.codex",
+          model: "benchmark-parent",
+          effort: "low",
+        });
+        expect(
+          retained.configuration.redacted.extensionConfiguration
+            .effectiveOwnerRoute,
+        ).toEqual(routes["orchestration-routing-localized-mechanical"]);
+        expect(retained.evaluationIdentity.dimensions.condition).toBe(
+          cell.condition,
+        );
+        expect(retained.result).toMatchObject({
+          execution: { status: "not_run" },
+          grading: { status: "not_requested" },
+          task: { verdict: "not_assessed" },
+        });
+        expect(retained.result.cases[0].caseId).toBe(cell.caseId);
+        return retained;
+      },
+    ),
+  );
+  expect(evidence[0].evaluationIdentity.digest).not.toBe(
+    evidence[1].evaluationIdentity.digest,
+  );
+}, 30_000);

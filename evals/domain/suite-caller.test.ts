@@ -11,6 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { selectCaseIds } from "../sevro-extension/index";
+import { analyzeAblations, planSuite } from "../sevro-extension/suite";
 import { sevroCommand } from "../sevro-extension/sevro-command";
 
 const roots: string[] = [];
@@ -88,11 +89,7 @@ async function waitForFile(path: string) {
   }
 }
 
-async function invoke(
-  args: string[],
-  environment: Record<string, string | undefined> = {},
-  orderSeed: string | null = "existing-order-1",
-) {
+function withSeed(args: string[], orderSeed: string | null) {
   const separator = args.indexOf("--");
   if (orderSeed !== null && !args.slice(0, separator).includes("--seed"))
     args = [
@@ -101,6 +98,27 @@ async function invoke(
       orderSeed,
       ...args.slice(separator),
     ];
+  return args;
+}
+
+async function plan(
+  args: string[],
+  orderSeed: string | null = "existing-order-1",
+) {
+  const result = await planSuite(withSeed(args, orderSeed));
+  expect(result.manifest.cells).toEqual([]);
+  expect(result.manifest.report).toBeNull();
+  const output = args[args.indexOf("--results-root") + 1]!;
+  expect(await Bun.file(output).exists()).toBeFalse();
+  return result;
+}
+
+async function invoke(
+  args: string[],
+  environment: Record<string, string | undefined> = {},
+  orderSeed: string | null = "existing-order-1",
+) {
+  args = withSeed(args, orderSeed);
   const proc = Bun.spawn([process.execPath, suiteCommand, ...args], {
     stdout: "pipe",
     stderr: "pipe",
@@ -206,18 +224,19 @@ test("suite rejects malformed case routes and missing selected harness maps befo
       suite,
       JSON.stringify({ ...definition, case_routes: routes }),
     );
-    const run = await invoke([
-      "--suite",
-      suite,
-      "--project-root",
-      root,
-      "--results-root",
-      results,
-      "--",
-      "--adapter-module",
-      adapter,
-    ]);
-    expect(run.code, run.stderr + run.stdout).toBe(64);
+    await expect(
+      plan([
+        "--suite",
+        suite,
+        "--project-root",
+        root,
+        "--results-root",
+        results,
+        "--",
+        "--adapter-module",
+        adapter,
+      ]),
+    ).rejects.toThrow();
     expect(
       await Bun.file(
         join(results, "cell-1/darrow-extension-command.json"),
@@ -232,18 +251,19 @@ test("suite rejects malformed case routes and missing selected harness maps befo
       suite,
       JSON.stringify({ ...definition, modes: { routed: mode } }),
     );
-    const run = await invoke([
-      "--suite",
-      suite,
-      "--project-root",
-      root,
-      "--results-root",
-      results,
-      "--",
-      "--adapter-module",
-      adapter,
-    ]);
-    expect(run.code, run.stderr + run.stdout).toBe(64);
+    await expect(
+      plan([
+        "--suite",
+        suite,
+        "--project-root",
+        root,
+        "--results-root",
+        results,
+        "--",
+        "--adapter-module",
+        adapter,
+      ]),
+    ).rejects.toThrow();
     expect(
       await Bun.file(
         join(results, "cell-1/darrow-extension-command.json"),
@@ -252,87 +272,79 @@ test("suite rejects malformed case routes and missing selected harness maps befo
   }
 });
 
-test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
-  "suite focuses case routes for both hosts and keeps false and dry modes unassessed",
-  async () => {
-    const { root, suite, results } = await fixture();
-    const hostOptions = join(root, "hosts.json");
-    await writeFile(
-      hostOptions,
-      JSON.stringify({
-        codex: await syntheticCandidateHost(root, "codex"),
-        claude: await syntheticCandidateHost(root, "claude"),
-      }),
-    );
-    const definition = JSON.parse(await readFile(suite, "utf8"));
-    await writeFile(
-      suite,
-      JSON.stringify({
-        ...definition,
-        harnesses: ["codex", "claude"],
-        case_routes: {
-          codex: {
-            "suite-alpha": { model: "case-codex", effort: "high" },
-            "suite-beta": { model: "unused-codex", effort: "low" },
-          },
-          claude: { "suite-alpha": { model: "case-claude", effort: "medium" } },
+test("suite plans focused case routes for both hosts and leaves disabled routes at their defaults", async () => {
+  const { root, suite, results } = await fixture();
+  const hostOptions = join(root, "hosts.json");
+  await writeFile(
+    hostOptions,
+    JSON.stringify({
+      codex: ["--host", "codex", "--model", "base-model", "--effort", "low"],
+      claude: ["--host", "claude", "--model", "base-model", "--effort", "low"],
+    }),
+  );
+  const definition = JSON.parse(await readFile(suite, "utf8"));
+  await writeFile(
+    suite,
+    JSON.stringify({
+      ...definition,
+      harnesses: ["codex", "claude"],
+      case_routes: {
+        codex: {
+          "suite-alpha": { model: "case-codex", effort: "high" },
+          "suite-beta": { model: "unused-codex", effort: "low" },
         },
-        modes: {
-          inactive: { owner_evaluation: "passive", apply_case_routes: false },
-          active: { owner_evaluation: "passive", apply_case_routes: true },
-        },
-      }),
+        claude: { "suite-alpha": { model: "case-claude", effort: "medium" } },
+      },
+      modes: {
+        inactive: { owner_evaluation: "passive", apply_case_routes: false },
+        active: { owner_evaluation: "passive", apply_case_routes: true },
+      },
+    }),
+  );
+  const { manifest, cells } = await plan([
+    "--suite",
+    suite,
+    "--case",
+    "suite-alpha",
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+    "--host-options-file",
+    hostOptions,
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--",
+    "--shell-isolation",
+    "--dry",
+  ]);
+  expect(manifest.caseIds).toEqual(["suite-alpha"]);
+  expect(cells).toHaveLength(4);
+  expect(
+    cells.map((cell: { requestedRoute: unknown }) => cell.requestedRoute),
+  ).toEqual([
+    { model: null, effort: null },
+    { model: null, effort: null },
+    { model: "case-codex", effort: "high" },
+    { model: "case-claude", effort: "medium" },
+  ]);
+  for (const [index, cell] of cells.entries()) {
+    const expected =
+      index < 2
+        ? { model: "base-model", effort: "low" }
+        : index === 2
+          ? { model: "case-codex", effort: "high" }
+          : { model: "case-claude", effort: "medium" };
+    expect(cell.command[cell.command.indexOf("--model") + 1]).toBe(
+      expected.model,
     );
-    const run = await invoke([
-      "--suite",
-      suite,
-      "--case",
-      "suite-alpha",
-      "--project-root",
-      root,
-      "--results-root",
-      results,
-      "--host-options-file",
-      hostOptions,
-      "--trials",
-      "1",
-      "--threshold",
-      "1",
-      "--",
-      "--shell-isolation",
-      "--dry",
-    ]);
-    expect(run.code, run.stderr + run.stdout).toBe(0);
-    const manifest = JSON.parse(
-      await readFile(join(results, "suite-run.json"), "utf8"),
+    expect(cell.command[cell.command.indexOf("--effort") + 1]).toBe(
+      expected.effort,
     );
-    expect(manifest.caseIds).toEqual(["suite-alpha"]);
-    expect(manifest.cells).toHaveLength(4);
-    expect(
-      manifest.cells.map(
-        (cell: { requestedRoute: unknown }) => cell.requestedRoute,
-      ),
-    ).toEqual([
-      { model: null, effort: null },
-      { model: null, effort: null },
-      { model: "case-codex", effort: "high" },
-      { model: "case-claude", effort: "medium" },
-    ]);
-    for (const [index, cell] of manifest.cells.entries()) {
-      const expected =
-        index < 2
-          ? { model: "base-model", effort: "low" }
-          : index === 2
-            ? { model: "case-codex", effort: "high" }
-            : { model: "case-claude", effort: "medium" };
-      expect(cell.provenance.routes[0]).toMatchObject(expected);
-      const result = JSON.parse(await readFile(cell.result, "utf8"));
-      expect(result.task.verdict).toBe("not_assessed");
-      expect(result.execution.status).toBe("not_run");
-    }
-  },
-  15_000,
-);
+  }
+}, 15_000);
 
 async function syntheticCandidateHost(
   root: string,
@@ -490,18 +502,19 @@ test("suite rejects invalid owner-route maps and unsupported selected hosts befo
         modes: { selected: { effective_owner_routes: routes } },
       }),
     );
-    const run = await invoke([
-      "--suite",
-      suite,
-      "--project-root",
-      root,
-      "--results-root",
-      results,
-      "--",
-      "--adapter-module",
-      adapter,
-    ]);
-    expect(run.code, run.stderr + run.stdout).toBe(64);
+    await expect(
+      plan([
+        "--suite",
+        suite,
+        "--project-root",
+        root,
+        "--results-root",
+        results,
+        "--",
+        "--adapter-module",
+        adapter,
+      ]),
+    ).rejects.toThrow();
     expect(
       await Bun.file(
         join(results, "cell-1/darrow-extension-command.json"),
@@ -518,19 +531,19 @@ test("suite rejects invalid owner-route maps and unsupported selected hosts befo
       },
     }),
   );
-  const unsupported = await invoke([
-    "--suite",
-    suite,
-    "--project-root",
-    root,
-    "--results-root",
-    results,
-    "--",
-    "--adapter-module",
-    adapter,
-  ]);
-  expect(unsupported.code, unsupported.stderr + unsupported.stdout).toBe(64);
-  expect(unsupported.stderr).toContain("require Codex");
+  await expect(
+    plan([
+      "--suite",
+      suite,
+      "--project-root",
+      root,
+      "--results-root",
+      results,
+      "--",
+      "--adapter-module",
+      adapter,
+    ]),
+  ).rejects.toThrow("require Codex");
   expect(
     await Bun.file(
       join(results, "cell-1/darrow-extension-command.json"),
@@ -918,18 +931,19 @@ test("suite rejects malformed record policies before any cells start", async () 
         },
       }),
     );
-    const run = await invoke([
-      "--suite",
-      suite,
-      "--project-root",
-      root,
-      "--results-root",
-      results,
-      "--",
-      "--adapter-module",
-      adapter,
-    ]);
-    expect(run.code, run.stderr + run.stdout).toBe(64);
+    await expect(
+      plan([
+        "--suite",
+        suite,
+        "--project-root",
+        root,
+        "--results-root",
+        results,
+        "--",
+        "--adapter-module",
+        adapter,
+      ]),
+    ).rejects.toThrow();
     expect(
       await Bun.file(join(results, "suite-run.json")).exists(),
     ).toBeFalse();
@@ -1069,19 +1083,20 @@ test("suite rejects invalid skill override inputs before starting any cells", as
         },
       }),
     );
-    const run = await invoke([
-      "--suite",
-      suite,
-      "--project-root",
-      root,
-      "--results-root",
-      results,
-      "--",
-      "--adapter-module",
-      adapter,
-      "--shell-isolation",
-    ]);
-    expect(run.code, run.stderr + run.stdout).toBe(64);
+    await expect(
+      plan([
+        "--suite",
+        suite,
+        "--project-root",
+        root,
+        "--results-root",
+        results,
+        "--",
+        "--adapter-module",
+        adapter,
+        "--shell-isolation",
+      ]),
+    ).rejects.toThrow();
     expect(
       await Bun.file(join(results, "suite-run.json")).exists(),
     ).toBeFalse();
@@ -1550,19 +1565,20 @@ test("suite rejects invalid condition inputs before starting any cells", async (
       }),
     );
     const resultRoot = join(results, String(index));
-    const run = await invoke([
-      "--suite",
-      suite,
-      "--project-root",
-      root,
-      "--results-root",
-      resultRoot,
-      "--",
-      "--adapter-module",
-      adapter,
-      "--shell-isolation",
-    ]);
-    expect(run.code, run.stderr + run.stdout).toBe(64);
+    await expect(
+      plan([
+        "--suite",
+        suite,
+        "--project-root",
+        root,
+        "--results-root",
+        resultRoot,
+        "--",
+        "--adapter-module",
+        adapter,
+        "--shell-isolation",
+      ]),
+    ).rejects.toThrow();
     expect(await Bun.file(join(resultRoot, "suite-run.json")).exists()).toBe(
       false,
     );
@@ -1973,7 +1989,7 @@ test("suite supports legacy defaults and focused host, mode, and case selection"
   delete definition.harnesses;
   definition.case_filter = "suite-alpha";
   await writeFile(suite, JSON.stringify(definition));
-  const run = await invoke([
+  const { manifest, cells } = await plan([
     "--suite",
     suite,
     "--project-root",
@@ -1995,17 +2011,13 @@ test("suite supports legacy defaults and focused host, mode, and case selection"
     adapter,
     "--shell-isolation",
   ]);
-  expect(run.code, `${run.stderr}\n${run.stdout}`).toBe(0);
-  const manifest = JSON.parse(
-    await readFile(join(results, "suite-run.json"), "utf8"),
-  );
   expect(manifest.harnesses).toEqual(["codex"]);
   expect(manifest.caseIds).toEqual(["suite-beta"]);
   expect(manifest.modes).toEqual([
     { name: "enforced", condition: "enforced", withoutSkill: false },
   ]);
-  expect(manifest.cells).toHaveLength(1);
-  expect(manifest.cells[0]).toMatchObject({
+  expect(cells).toHaveLength(1);
+  expect(cells[0]).toMatchObject({
     harness: "codex",
     mode: "enforced",
     caseId: "suite-beta",
@@ -2055,22 +2067,15 @@ test("suite keeps both-host options when narrowing a default-host suite", async 
   const focusedArgs = args.map((arg) => (arg === results ? focusedRoot : arg));
   const separator = focusedArgs.indexOf("--");
   focusedArgs.splice(separator, 0, "--harness", "codex");
-  const focused = await invoke(focusedArgs);
-  expect(focused.code, `${focused.stderr}\n${focused.stdout}`).toBe(0);
-  const selected = JSON.parse(
-    await readFile(join(focusedRoot, "suite-run.json"), "utf8"),
-  );
+  const { manifest: selected, cells: focusedCells } = await plan(focusedArgs);
   expect(selected.harnesses).toEqual(["codex"]);
-  expect(selected.cells).toHaveLength(1);
-  const both = await invoke(args);
-  expect(both.code, `${both.stderr}\n${both.stdout}`).toBe(0);
-  const matrix = JSON.parse(
-    await readFile(join(results, "suite-run.json"), "utf8"),
-  );
+  expect(focusedCells).toHaveLength(1);
+  const { manifest: matrix, cells } = await plan(args);
   expect(matrix.harnesses).toEqual(["claude", "codex"]);
-  expect(matrix.cells.map((cell: { harness: string }) => cell.harness)).toEqual(
-    ["claude", "codex"],
-  );
+  expect(cells.map((cell: { harness: string }) => cell.harness)).toEqual([
+    "claude",
+    "codex",
+  ]);
   expect(matrix.hostOptionsSha256).toBe(selected.hostOptionsSha256);
   await writeFile(
     optionsFile,
@@ -2080,10 +2085,9 @@ test("suite keeps both-host options when narrowing a default-host suite", async 
     }),
   );
   const invalidRoot = join(results, "invalid-unused-host");
-  const invalid = await invoke(
-    focusedArgs.map((arg) => (arg === focusedRoot ? invalidRoot : arg)),
-  );
-  expect(invalid.code, invalid.stderr).toBe(64);
+  await expect(
+    plan(focusedArgs.map((arg) => (arg === focusedRoot ? invalidRoot : arg))),
+  ).rejects.toThrow();
   expect(await Bun.file(invalidRoot).exists()).toBeFalse();
 }, 15_000);
 
@@ -2137,17 +2141,18 @@ test("suite rejects invalid mode model and effort declarations before execution"
       suite,
       JSON.stringify({ ...definition, modes: { candidate: mode } }),
     );
-    const run = await invoke([
-      "--suite",
-      suite,
-      "--project-root",
-      root,
-      "--results-root",
-      results,
-      "--",
-      "--dry",
-    ]);
-    expect(run.code, run.stderr).toBe(64);
+    await expect(
+      plan([
+        "--suite",
+        suite,
+        "--project-root",
+        root,
+        "--results-root",
+        results,
+        "--",
+        "--dry",
+      ]),
+    ).rejects.toThrow();
     expect(await Bun.file(results).exists()).toBeFalse();
   }
 });
@@ -2559,7 +2564,7 @@ test("suite retains generated and empty seeds for filtered selections", async ()
   const { root, adapter, suite, results } = await fixture();
   for (const seed of [undefined, ""]) {
     const output = join(results, seed === undefined ? "generated" : "empty");
-    const run = await invoke(
+    const { manifest, cells } = await plan(
       [
         "--suite",
         suite,
@@ -2581,12 +2586,7 @@ test("suite retains generated and empty seeds for filtered selections", async ()
         adapter,
         "--shell-isolation",
       ],
-      {},
       null,
-    );
-    expect(run.code, run.stderr + run.stdout).toBe(0);
-    const manifest = JSON.parse(
-      await readFile(join(output, "suite-run.json"), "utf8"),
     );
     if (seed === undefined)
       expect(manifest.orderSeed).toMatch(
@@ -2597,11 +2597,11 @@ test("suite retains generated and empty seeds for filtered selections", async ()
     expect(manifest.cellPlan).toEqual([
       { index: 1, harness: "codex", mode: "passive", caseId: "suite-beta" },
     ]);
-    expect(manifest.cells[0]).toMatchObject(manifest.cellPlan[0]);
+    expect(cells[0]).toMatchObject(manifest.cellPlan[0]!);
   }
 }, 15_000);
 
-test("suite seeded execution preserves legacy block order and replay", async () => {
+test("suite seeded planning preserves legacy block order and replay", async () => {
   const { root, adapter, suite, results } = await fixture();
   const definition = JSON.parse(await readFile(suite, "utf8"));
   definition.harnesses = ["codex", "claude"];
@@ -2629,7 +2629,7 @@ test("suite seeded execution preserves legacy block order and replay", async () 
     "order-96",
   ].entries()) {
     const output = join(results, String(attempt));
-    const run = await invoke([
+    const { manifest, cells } = await plan([
       "--suite",
       suite,
       "--project-root",
@@ -2647,10 +2647,6 @@ test("suite seeded execution preserves legacy block order and replay", async () 
       "--",
       "--shell-isolation",
     ]);
-    expect(run.code, run.stderr + run.stdout).toBe(0);
-    const manifest = JSON.parse(
-      await readFile(join(output, "suite-run.json"), "utf8"),
-    );
     expect(manifest.orderSeed).toBe(seed);
     expect(manifest.harnesses).toEqual(["codex", "claude"]);
     expect(manifest.modes.map((mode: { name: string }) => mode.name)).toEqual([
@@ -2658,7 +2654,7 @@ test("suite seeded execution preserves legacy block order and replay", async () 
       "enforced",
     ]);
     expect(manifest.cellPlan).toHaveLength(8);
-    const actual = manifest.cells.map(
+    const actual = cells.map(
       (cell: {
         index: number;
         harness: string;
@@ -2694,7 +2690,7 @@ test("suite seeded execution preserves legacy block order and replay", async () 
 
 test("suite runs every selected mode and case through Sevro public commands", async () => {
   const { root, adapter, suite, results } = await fixture();
-  const run = await invoke([
+  const args = [
     "--suite",
     suite,
     "--project-root",
@@ -2709,7 +2705,9 @@ test("suite runs every selected mode and case through Sevro public commands", as
     "--adapter-module",
     adapter,
     "--shell-isolation",
-  ]);
+  ];
+  const planned = await plan(args);
+  const run = await invoke(args);
   const diagnostics = await readFile(join(results, "suite-run.json"), "utf8");
   const firstResult = JSON.parse(diagnostics).cells[0].result;
   const firstEvidence = firstResult ? await readFile(firstResult, "utf8") : "";
@@ -2718,6 +2716,22 @@ test("suite runs every selected mode and case through Sevro public commands", as
   const manifest = JSON.parse(
     await readFile(join(results, "suite-run.json"), "utf8"),
   );
+  expect(manifest.cellPlan).toEqual(planned.manifest.cellPlan);
+  expect(
+    manifest.cells.map(
+      (cell: {
+        index: number;
+        harness: string;
+        mode: string;
+        caseId: string;
+      }) => ({
+        index: cell.index,
+        harness: cell.harness,
+        mode: cell.mode,
+        caseId: cell.caseId,
+      }),
+    ),
+  ).toEqual(planned.manifest.cellPlan);
   expect(manifest.format).toBe("darrow-sevro-suite-v1");
   expect(manifest.harnesses).toEqual(["codex"]);
   expect(manifest.caseIds).toEqual(["suite-alpha", "suite-beta"]);
@@ -3086,6 +3100,67 @@ test("suite compares a mounted skill with a no-skill baseline", async () => {
   expect(
     await readFile(manifest.ablationReport.markdownPath, "utf8"),
   ).toContain("unknown / unknown / unknown");
+  const report = JSON.parse(await readFile(manifest.report.jsonPath, "utf8"));
+  const input = {
+    definitions: manifest.ablations,
+    caseIds: manifest.caseIds,
+    cells: manifest.cells,
+    harnesses: manifest.harnesses,
+    report,
+  };
+  expect(analyzeAblations(input)).toEqual(ablation);
+  const measured = structuredClone(report);
+  Object.assign(
+    measured.rows.find(
+      (row: { resultFile: string }) => row.resultFile === baseline.result,
+    ),
+    {
+      taskPassRate: 0.5,
+      candidateDurationMs: 100,
+      inputTokens: 2,
+      outputTokens: 3,
+      costUsd: 0.2,
+    },
+  );
+  Object.assign(
+    measured.rows.find(
+      (row: { resultFile: string }) => row.resultFile === candidate.result,
+    ),
+    {
+      taskPassRate: 1,
+      candidateDurationMs: 80,
+      inputTokens: 3,
+      outputTokens: 4,
+      costUsd: 0.1,
+    },
+  );
+  expect(
+    analyzeAblations({ ...input, report: measured }).comparisons[0]!.cases[0],
+  ).toMatchObject({
+    passRate: { baseline: 0.5, candidate: 1, delta: 0.5 },
+    durationMs: { baseline: 100, candidate: 80, delta: -20 },
+    tokens: { baseline: 5, candidate: 7, delta: 2 },
+    costUsd: { baseline: 0.2, candidate: 0.1, delta: -0.1 },
+  });
+  const unknown = structuredClone(measured);
+  unknown.rows[0].taskPassRate = null;
+  const unmeasured = analyzeAblations({ ...input, report: unknown });
+  expect(unmeasured.valid).toBeFalse();
+  expect(unmeasured.errors.join("\n")).toContain(
+    "task pass rate is unmeasured",
+  );
+  expect(unmeasured.comparisons[0]!.cases).toEqual([]);
+  expect(analyzeAblations({ ...input, report: null }).valid).toBeFalse();
+  const mismatched = structuredClone(input);
+  mismatched.cells[1].provenance.dimensions.caseDigest = "different-case";
+  expect(analyzeAblations(mismatched).errors.join("\n")).toContain(
+    "caseDigest differs",
+  );
+  const nonfinite = structuredClone(measured);
+  nonfinite.rows[0].costUsd = Infinity;
+  expect(() => analyzeAblations({ ...input, report: nonfinite })).toThrow(
+    "cost",
+  );
 });
 
 test("suite retains failed cells and continues the remaining public runs", async () => {

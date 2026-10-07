@@ -640,10 +640,11 @@ function cellExpectation(
 async function runCell(
   request: SuiteRequest,
   selected: CellSelection,
+  command: string[],
 ): Promise<{ cell: Cell; interrupted: Interrupt | null }> {
   const { mode, caseId, harness, index } = selected;
   const cellRoot = join(request.resultsRoot, `cell-${index}`);
-  const child = Bun.spawn(cellCommand(request, selected), {
+  const child = Bun.spawn(command, {
     stdout: "pipe",
     stderr: "pipe",
     stdin: "inherit",
@@ -950,22 +951,14 @@ function ablationMarkdown(analysis: {
   ].join("\n");
 }
 
-async function ablationReports(input: {
-  resultsRoot: string;
+export function analyzeAblations(input: {
   definitions: Ablation[];
   caseIds: string[];
   cells: Cell[];
-  reportPath: string | null;
+  report: Record<string, unknown> | null;
   harnesses: Harness[];
 }) {
-  const { resultsRoot, definitions, caseIds, cells, reportPath } = input;
-  if (!definitions.length) return null;
-  const report = reportPath
-    ? object(
-        JSON.parse(await readFile(reportPath, "utf8")) as unknown,
-        "Sevro report",
-      )
-    : null;
+  const { definitions, caseIds, cells, report } = input;
   const reportRows = Array.isArray(report?.rows)
     ? report.rows.map((row) => object(row, "public report row"))
     : [];
@@ -982,19 +975,43 @@ async function ablationReports(input: {
   const errors = comparisons.flatMap((comparison) =>
     comparison.errors.map((error) => `${comparison.name}: ${error}`),
   );
-  const analysis = {
+  return {
     format: "darrow-sevro-ablation-v1",
     valid: errors.length === 0,
     comparisons,
     errors,
   };
+}
+
+async function ablationReports(input: {
+  resultsRoot: string;
+  definitions: Ablation[];
+  caseIds: string[];
+  cells: Cell[];
+  reportPath: string | null;
+  harnesses: Harness[];
+}) {
+  const { resultsRoot, definitions, reportPath } = input;
+  if (!definitions.length) return null;
+  const report = reportPath
+    ? object(
+        JSON.parse(await readFile(reportPath, "utf8")) as unknown,
+        "Sevro report",
+      )
+    : null;
+  const analysis = analyzeAblations({ ...input, report });
   const jsonPath = join(resultsRoot, "ablation-report.json");
   const markdownPath = join(resultsRoot, "ablation-report.md");
   await Promise.all([
     writeFile(jsonPath, JSON.stringify(analysis, null, 2)),
     writeFile(markdownPath, ablationMarkdown(analysis)),
   ]);
-  return { jsonPath, markdownPath, valid: analysis.valid, errors };
+  return {
+    jsonPath,
+    markdownPath,
+    valid: analysis.valid,
+    errors: analysis.errors,
+  };
 }
 
 async function saveManifest(resultsRoot: string, manifest: unknown) {
@@ -1087,20 +1104,11 @@ function plannedCells(suite: SuiteConfig, caseIds: string[], seed: string) {
 
 async function runSelectedCells(
   request: SuiteRequest,
-  plan: ReturnType<typeof plannedCells>,
-  expectations: Awaited<ReturnType<typeof preflightCases>>,
+  plan: { selected: CellSelection; command: string[] }[],
   manifest: { cells: Cell[]; interrupted: Interrupt | null },
 ) {
-  for (const selected of plan) {
-    const { mode, harness, caseId } = selected;
-    const expectation = expectations.get(
-      JSON.stringify([mode.name, harness, caseId]),
-    )!;
-    const outcome = await runCell(request, {
-      ...selected,
-      activation: mode.withoutSkill ? null : expectation.activation,
-      recordChecksRequested: expectation.recordChecksRequested,
-    });
+  for (const { selected, command } of plan) {
+    const outcome = await runCell(request, selected, command);
     manifest.cells.push(outcome.cell);
     manifest.interrupted = outcome.interrupted;
     await saveManifest(request.resultsRoot, manifest);
@@ -1211,16 +1219,58 @@ async function suiteInputs(request: SuiteRequest) {
   };
 }
 
-export async function runSuite(argv: string[]) {
+async function prepareSuite(argv: string[]) {
   const request = suiteInvocation(argv);
-  const { resultsRoot } = request;
   const inputs = await suiteInputs(request);
   const { suite, caseIds, expectations } = inputs;
   const plan = plannedCells(suite, caseIds, request.orderSeed);
   const manifest = suiteManifest(request, suite, inputs, plan);
+  const cells = plan.map((cell) => {
+    const expectation = expectations.get(
+      JSON.stringify([cell.mode.name, cell.harness, cell.caseId]),
+    )!;
+    const selected = {
+      ...cell,
+      activation: cell.mode.withoutSkill ? null : expectation.activation,
+      recordChecksRequested: expectation.recordChecksRequested,
+    };
+    return { selected, command: cellCommand(request, selected) };
+  });
+  return { request, suite, caseIds, manifest, cells };
+}
+
+// Planning validates inputs and compiles the executor's commands without running
+// candidates or creating result files. Requested routes are not observations.
+export async function planSuite(argv: string[]) {
+  const { request, manifest, cells } = await prepareSuite(argv);
+  return {
+    manifest,
+    cells: cells.map(({ selected, command }) => ({
+      index: selected.index,
+      harness: selected.harness,
+      mode: selected.mode.name,
+      caseId: selected.caseId,
+      condition: selected.mode.condition,
+      activation: selected.activation,
+      recordChecksRequested: selected.recordChecksRequested,
+      requestedRoute: requestedCandidateRoute(
+        selected.mode,
+        selected.harness,
+        selected.caseId,
+        request.caseRoutes,
+      ),
+      ...requestedBenchmarkPolicy(selected.mode, selected.caseId),
+      command,
+    })),
+  };
+}
+
+export async function runSuite(argv: string[]) {
+  const { request, suite, caseIds, manifest, cells } = await prepareSuite(argv);
+  const { resultsRoot } = request;
   await mkdir(resultsRoot, { recursive: true });
   await saveManifest(resultsRoot, manifest);
-  await runSelectedCells(request, plan, expectations, manifest);
+  await runSelectedCells(request, cells, manifest);
   manifest.report = await suiteReports(resultsRoot, manifest.cells);
   manifest.qualityReport = await qualityReports(
     resultsRoot,

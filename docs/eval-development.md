@@ -13,6 +13,13 @@ constraints for producing and interpreting that evidence.
 - Keep installed public-interface checks under `evals/integration/` and
   standalone historical-reader tests under `evals/history/`. Sevro owns the
   scheduling, isolation, host, built-in grading and persistence test matrix.
+- Check suite selection, route declarations, mode expansion, and seeded order
+  through `planSuite` in `evals/sevro-extension/suite.ts`. It runs the same
+  preflight and compiles the same commands as execution, without creating
+  results. Plans describe requested behavior and never prove observed routes
+  or task outcomes. Keep subprocess coverage for execution, cancellation,
+  retained evidence, and the installed package. Test ablation calculations
+  through `analyzeAblations`, which the report writer also uses.
 - Prepare copied executable runtimes once per test file and clean them after
   the file completes. Keep Git workspaces and result directories case-local.
   Group variants that differ only in oracle input into one prepared fixture;
