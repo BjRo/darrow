@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -20,23 +20,29 @@ test("main Bun test discovery ignores external eval corpus caches", async () => 
     join(root, "bunfig.toml"),
     '[test]\npathIgnorePatterns = ["evals/corpus/**/cache/**"]\n',
   );
-  await writeFile(
-    join(root, "owned.test.ts"),
-    'import { test } from "bun:test"; test("owned sentinel", () => {});\n',
-  );
-  await writeFile(
-    join(cache, "external.test.ts"),
-    'import { test } from "bun:test"; test("external sentinel", () => {});\n',
-  );
+  // Sentinels record execution in files: Bun's reporter omits passing test
+  // names in agent environments (for example CLAUDECODE=1).
+  const sentinel = (name: string) =>
+    [
+      'import { test } from "bun:test";',
+      'import { writeFileSync } from "node:fs";',
+      `test("${name}", () => writeFileSync(${JSON.stringify(join(root, `${name}.ran`))}, ""));`,
+      "",
+    ].join("\n");
+  await writeFile(join(root, "owned.test.ts"), sentinel("owned"));
+  await writeFile(join(cache, "external.test.ts"), sentinel("external"));
+  const ran = (name: string) =>
+    access(join(root, `${name}.ran`)).then(
+      () => true,
+      () => false,
+    );
 
   const result = Bun.spawnSync([process.execPath, "test"], {
     cwd: root,
     stderr: "pipe",
     stdout: "pipe",
   });
-  const output = `${result.stdout}\n${result.stderr}`;
-
-  expect(result.exitCode).toBe(0);
-  expect(output).toContain("owned sentinel");
-  expect(output).not.toContain("external sentinel");
+  expect(result.exitCode, `${result.stdout}\n${result.stderr}`).toBe(0);
+  expect(await ran("owned")).toBe(true);
+  expect(await ran("external")).toBe(false);
 });
