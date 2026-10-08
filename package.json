@@ -16,8 +16,12 @@
     "check:python:inventory": "scripts/test-python-inventory",
     "check:python:performance": "plugins/capability/darrow-observability-langfuse/tests/performance.test.sh",
     "eval": "bun evals/runner/run.ts",
-    "test:eval-runner-compatibility": "bun test evals/runner/compatibility",
-    "eval:coverage": "bun evals/runner/coverage.ts",
+    "test:evals": "bun test --timeout 30000 evals/integration evals/domain evals/history",
+    "test:eval-integration": "bun test --timeout 30000 evals/integration",
+    "test:eval-policy": "bun test --timeout 30000 evals/domain",
+    "test:eval-history": "bun test --timeout 30000 evals/history",
+    "test:eval-package": "bun scripts/test-sevro-package-install.ts",
+    "eval:coverage": "bun evals/coverage.ts",
     "eval:orchestration:prepare": "bun evals/corpus/orchestration/prepare.ts",
     "eval:orchestration": "bun evals/runner/suite.ts",
     "format": "prettier --write .",
@@ -33,6 +37,7 @@
     "ajv-formats": "3.0.1"
   },
   "devDependencies": {
+    "@bjoernrochel/sevro": "0.1.0-rc.2",
     "@eslint/js": "^10.0.1",
     "@types/bun": "^1.2.0",
     "eslint": "^10.8.1",

@@ -33,7 +33,11 @@ between capabilities and orchestration, read [`docs/design.md`](docs/design.md).
   assume a sibling plugin is installed.
 - `docs/specs/` — normative capability invariants.
 - `docs/decisions/` — accepted decisions for the surviving plugin/eval surface.
-- `evals/runner/` — shared skill-evaluation runner. Results are gitignored.
+- `evals/runner/` — thin evaluation callers.
+- `evals/integration/` — installed Sevro public-interface checks.
+- `evals/sevro-extension/` — Darrow's cases, policy, and public Sevro integration.
+- `evals/domain/` — Darrow fixture, oracle, and policy tests. Results are gitignored.
+- `evals/history/` — standalone historical-reader tests.
 
 ## Plugin README content
 

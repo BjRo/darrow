@@ -7,6 +7,32 @@ constraints for producing and interpreting that evidence.
 
 ## Case contracts
 
+- Keep independent Darrow oracle and repository-tooling tests under
+  `evals/domain/`. Invoke the owning oracle directly or use Sevro's public CLI
+  and protocol; do not import generic runner implementation or its private types.
+- Keep installed public-interface checks under `evals/integration/` and
+  standalone historical-reader tests under `evals/history/`. Sevro owns the
+  scheduling, isolation, host, built-in grading and persistence test matrix.
+- Check suite selection, route declarations, mode expansion, and seeded order
+  through `planSuite` in `evals/sevro-extension/suite.ts`. It runs the same
+  preflight and compiles the same commands as execution, without creating
+  results. Plans describe requested behavior and never prove observed routes
+  or task outcomes. Keep subprocess coverage for execution, cancellation,
+  retained evidence, and the installed package. Test ablation calculations
+  through `analyzeAblations`, which the report writer also uses.
+- Prepare copied executable runtimes once per test file and clean them after
+  the file completes. Keep Git workspaces and result directories case-local.
+  Group variants that differ only in oracle input into one prepared fixture;
+  reset each variant's input and retained evidence before checking its outcome.
+  Keep separate fixtures when a variant changes setup, source, or host state.
+- Run review-record validation and presentation checks through the owning
+  frozen Python CLI. The domain helper prepares only its package and record
+  files; canonical fixture-setup tests retain the installed Sevro connection.
+- Goal-review oracle tests invoke `adaptive-goal-fixture proof` directly and
+  reuse its unchanged package within one test file. Keep a fresh Git repository
+  and review-provider installation for each repair scenario, including stale
+  content and duplicate or conflicting providers. Group synthetic report
+  variants that share the same repository and provider setup.
 - Give every skill colocated eval cases that verify its public behavior and
   intent boundaries. Test deterministic scripts separately when present.
 - Start with the exact normative invariant or public promise under test. An
@@ -212,6 +238,34 @@ boolean supply missing provenance. Standalone historical results without such
 provenance remain unknown; empty responses and zero timings do not establish
 execution mode.
 
+For read-only historical interpretation, run
+`bun evals/sevro-extension/legacy-report.ts /absolute/path/to/input.json [--json]`.
+The standalone reader handles legacy arrays, suite manifests, and trial
+checkpoints without Sevro or the generic runner. It preserves archive bytes,
+separates recorded claims from complete executed measurements, and keeps
+unknown provenance and partial attempts unmeasured. The legacy report command
+uses the same view for Markdown and `--json`. Its default remains adjacent
+`report.md`; `--output` selects another Markdown destination. The standalone
+reader defaults to stdout. Both refuse input archives and their aliases as
+output. The human layout deliberately replaces the old rollups with the
+historical view's recorded facts and explicit measurement boundaries. See the
+[historical reader contract](../evals/sevro-extension/README.md#historical-result-interpretation)
+and [validation](research/sevro-extraction.md#history-validation), plus
+[report-command validation](research/sevro-extraction.md#legacy-report-command-validation).
+
+Historical skill ablation uses
+`bun evals/runner/ablation.ts /absolute/path/to/suite-run.json` or
+`bun evals/sevro-extension/legacy-ablation.ts /absolute/path/to/suite-run.json`.
+Both preserve adjacent `ablation.md` and `--output`, resolve relative result
+paths beside the manifest, and run without the generic runner or Sevro.
+Recorded deltas require matched mode definitions and complete executed cells;
+unknown identity, unfinished cells, contradictory evidence, and changed
+instrumentation are ineligible. Valid peer comparisons remain visible. A dry
+suite is unmeasured preparation. Input digests and diagnostics remain in the
+report, and no output may replace an archive or its alias. See the
+[historical ablation contract](../evals/sevro-extension/README.md#historical-result-interpretation)
+and [validation](research/sevro-extraction.md#legacy-ablation-validation).
+
 Shell checks, including dry checks, use the same outer isolation mechanism as
 candidate execution with a separate credential-free home and environment.
 They retain fixture tool access while source worktrees, peer fixtures, global
@@ -250,29 +304,37 @@ conclusions from the participant repository.
 The guide driver pins semantic grading to Codex `gpt-6-luna` / medium;
 the shared runner's default lightweight grader remains unchanged.
 
+That same command uses Darrow's exact installed Sevro dependency and retains
+separate task and activation outcomes. `SEVRO_CHECKOUT` or `SEVRO_PACKAGE_BIN`
+selects an explicit development or candidate override. Its per-cell
+JSON uses the Sevro format. Optional absolute project and results roots and
+forwarded host options are documented in the
+[guide caller migration](../evals/sevro-extension/README.md#repository-guide-caller).
+Normal execution requires `bun install --frozen-lockfile`.
+
 ## Live-run controls
 
-Use `--codex-entrypoint app-server` for Codex native main-thread goal trials.
-This hosts the original participant thread through native continuation; it does
-not drive synthetic turns or launch a separate execution owner. The selected
-entrypoint is retained in case provenance and the run digest; the harness records
-the actual transport. Use `--owner-evaluation passive` with the adopted ownership
-design. Historical separate-owner guards are not valid architecture assertions
-for a main-thread coordinator. Preserve historical results and attribution gaps.
+Use `--codex-entrypoint app-server` for Codex native main-thread goal trials
+with `--owner-evaluation passive`. Sevro hosts the original participant thread,
+observes its native continuation, and waits for the terminal response. It never
+supplies synthetic continuation prompts or changes the participant's goal.
+Only a declared follow-up starts another client-requested turn. Requested
+transport contributes to run identity and the host retains its actual transport.
+Historical separate-owner guards remain historical architecture measurements.
 
-Use `--owner-evaluation passive` for native trials of the shipped adaptive-goal
-skill. It omits the Codex spawn/parent guard (including its `fork_turns` rewrite)
-and Claude's adaptive-goal-specific scheduler exclusion. The default
-`--owner-evaluation enforced` preserves the historical diagnostic condition.
+Use `--owner-evaluation passive` for observational native trials of the shipped
+adaptive-goal skill. The default `--owner-evaluation enforced` preserves
+the requested historical diagnostic condition, which bundled Sevro hosts
+currently reject as unsupported. It never becomes passive implicitly.
 Neither mode removes ordinary fixture/credential isolation. Suite modes can
 set `owner_evaluation: passive|enforced` independently. Results retain requested
 mode on the case and actual assistance on each harness result; historical
 absence stays unknown. A dry run is not an observed passive trial.
 
-The enforced Codex guard still consumes its strict structured contract
-template. It may reject valid presentation variants allowed by the shipped
-skill. Treat those as enforcement-profile results, never native product
-failures. Passive native session evidence proves correlated acceptance and
+The retired Codex guard used a strict structured contract template and could
+reject valid presentation variants allowed by the shipped skill. Retained
+results from that guard remain historical enforcement-profile measurements.
+Passive native session evidence proves correlated acceptance and
 same-target message attempts but leaves delivery and encrypted role/contract contents
 unverified. Combine it with task and authority evidence; do not infer missing
 contract or route-selection facts.
@@ -345,55 +407,73 @@ limits simultaneous trials. Missing configuration uses the host default;
 unreadable configuration, invalid TOML, or a nonpositive/noninteger limit fails
 explicitly.
 
-## Runner compatibility baseline
+## Installed Sevro verification
 
-The main-thread ownership pilot can explicitly set
-`HarnessRunRequest.control.codexEntrypoint` to `app-server` when calling the Codex
-adapter. This is a programmatic opt-in; the normal CLI entrypoint remains `exec`.
-Use passive owner evaluation. Both comparison arms must use the same entrypoint.
-The client sends the initial user prompt once, observes the participant's native
-goal, and waits through automatic turns until it has a terminal goal state and
-the completing response. It does not create or mutate goals, launch an execution
-owner, or supply continuation prompts. A declared follow-up prompt is the only
-additional client-requested user turn.
-
-Deliver a declared follow-up at a completed response boundary even when the
-native goal remains active. Preserve the prior response and capture the actual
-pre-feedback worktree state before sending it. If native continuation races
-readback, wait for a settled response boundary. Do not require an inactive goal
-or manufacture a pause, blockage or completion to deliver the user's message.
-Comparisons of waiting behavior use identical feedback timing in both arms;
-historical trials with different timing remain separate evidence.
-
-The default wall-clock bound is one hour per invocation; a diagnostic may set
-`appServerTimeoutMs` explicitly. Time bounds, unanswered server requests, failed
-turns and malformed protocol remain failures. Results retain `codexEntrypoint`
-and bounded `darrow.eval.app_server` lifecycle evidence separately from task and
-activation grades. Native child token usage remains incomplete in the standard
-harness summary; pilot observations must reconcile actor usage separately.
-
-Run the command-level compatibility baseline without live harness calls or
-credentials:
+Install the exact published development dependency before running the public
+integration and Darrow domain gate. Python fixture tools use a UV-managed Python
+3.13 copy so both UV entrypoints and direct Python oracles use the same isolated
+runtime. System and framework installations may depend on paths outside their
+copied directory.
 
 ```sh
-bun run test:eval-runner-compatibility
+bun install --frozen-lockfile
+uv python install 3.13
+env -u SEVRO_CHECKOUT -u SEVRO_PACKAGE_BIN bun run test:evals
 ```
 
-By default the suite copies `evals/runner/run.ts` into an isolated project and
-launches it with a synthetic adapter. It asserts public behavior through CLI
-arguments, exit categories, result and diagnostic artifacts, cancellation, and
-retained evidence. It does not assert terminal wording or import runner modules
-to inspect their state.
+This command exercises Sevro's installed public CLI, versioned extension
+protocol, Darrow callers, domain oracles, and standalone historical readers.
+It uses controlled native executables and credentials for deterministic host
+fixtures. Generic engine and host implementation tests belong to Sevro. No
+integration fixture copies the former runner or imports private implementation
+or types.
 
-To exercise another implementation, set `DARROW_EVAL_RUNNER_COMMAND` to a JSON
-argv array. The suite appends the runner CLI arguments and expands
-`{projectRoot}`, `{resultsRoot}`, `{runnerPath}`, and `{syntheticAdapter}` in
-each argument. The configured launcher must connect its synthetic adapter to
-the `pass`, `fail`, `throw-after-first`, and `wait` values supplied through
-`DARROW_EVAL_COMPAT_SCENARIO`; the wait scenario also receives
-`DARROW_EVAL_COMPAT_READY_PATH` and `DARROW_EVAL_COMPAT_CHILD_PID_PATH`.
-This launcher seam lets the same expectations target a local Sevro command
-without changing Darrow's baseline.
+Integration commands allow 30 seconds per test for frozen backend startup and
+isolated CLI fixtures. A test's explicit timeout still takes precedence.
+
+The [test ownership guide](../evals/README.md) separates installed integration,
+Darrow policy and historical readers. The source-copy launcher and comparison
+against the retired runner are gone. Their evidence and deliberate command
+changes are preserved in the [research record](research/sevro-extraction.md).
+
+For coordinated development, use one explicit absolute route:
+
+```sh
+SEVRO_CHECKOUT=/absolute/path/to/sevro bun run test:eval-integration
+```
+
+A separate candidate archive can be installed and exercised without its source
+checkout:
+
+```sh
+SEVRO_PACKAGE_TARBALL=/absolute/path/to/bjoernrochel-sevro-version.tgz bun run test:eval-package
+```
+
+The package gate installs the archive in a temporary consumer and runs the
+integration, policy and historical-reader groups with its checkout override
+cleared. Default-caller checks also verify Darrow's own frozen pin with both
+overrides cleared. An explicit checkout retains its revision and patch identity;
+it is development evidence. Upgrade and rollback instructions are in the
+[development and release guide](../evals/sevro-extension/migration.md).
+
+Normal direct, guide, and benchmark callers use the frozen installed pin. The
+suite caller retains selectors, route options, seeded ordering, and
+cancellation, with JSON summaries and separate reports. The direct caller
+retains selection and route options and writes its selection manifest to stdout
+and optional `--output`. Its `--human-review-minutes` annotation is supplied
+by the user; omitted values stay unknown and dry runs stay unassessed.
+See the [public caller contracts](../evals/sevro-extension/README.md).
+
+The suite's Darrow-owned quality report stays separate from Sevro's generic
+report. It distinguishes non-record task checks, bookkeeping completeness, and
+the public task verdict. Dry or unavailable evidence keeps rates unknown.
+See the [quality contract](../evals/sevro-extension/README.md#suites).
+
+Bundled hosts explicitly reject enforced execution. Generic adapters can
+negotiate that capability for deterministic identity checks; these checks do
+not establish bundled-host enforcement. Native observational comparisons select
+the named passive modes explicitly. Neither those modes nor this extraction
+actively correct benchmark execution.
 
 - Use one trial per invocation while diagnosing so stop-at-first-failure is
   real:

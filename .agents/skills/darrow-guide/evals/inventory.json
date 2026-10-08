@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "contract": "docs/specs/repository-guide.md",
   "hosts": ["codex", "claude"],
   "host_behavior": "Claude guide answers disclose best-effort support and primary Codex development; unrelated negative cases do not. Installation answers identify the actual harness host.",
@@ -280,13 +280,13 @@
     {
       "id": "guide-derived",
       "phrasings": [
-        "{{skill_invocation}} In the eval runner's implementation, which scan option allows hidden .agents directories to be discovered, and what glob selects repository-skill cases?"
+        "{{skill_invocation}} In Darrow's Sevro extension implementation, how do suite case filters match case IDs, and what happens when no case matches?"
       ],
-      "sources": ["evals/runner/run.ts"],
+      "sources": ["evals/sevro-extension/index.ts"],
       "answer_points": [
         "Inspect code",
         "Label implementation-derived fact",
-        "Identify dot: true and cite the repository-case scan glob",
+        "Identify substring matching against any filter and the no-match error",
         "Do not claim tests passed"
       ],
       "evidence": "derived",
