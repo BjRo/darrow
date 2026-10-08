@@ -13,10 +13,6 @@ test("current implementation routes grade sourced Claude completions on both hos
   roots.push(root);
   for (const [id, types] of [
     [
-      "goal-preflight-high-risk-routine",
-      ["adaptive-goal-sonnet-5-5-low", "adaptive-goal-sonnet-5-5-medium"],
-    ],
-    [
       "goal-preflight-quality-sensitive-localized",
       ["adaptive-goal-sonnet-5-5-medium"],
     ],
@@ -360,7 +356,7 @@ test("native route grading refuses observations attributed to another host", asy
     cases: Array<{ id: string; extensionData: Record<string, unknown> }>;
   }>("resolve", {
     projectRoot: pathToFileURL(join(import.meta.dir, "../..")).href,
-    selectors: { caseIds: ["goal-preflight-high-risk-routine"] },
+    selectors: { caseIds: ["goal-preflight-quality-sensitive-localized"] },
     configuration: {},
   });
   const result = await fixtureExtensionRequest<{
@@ -370,13 +366,15 @@ test("native route grading refuses observations attributed to another host", asy
     extensionData: resolved.cases[0]!.extensionData,
     configuration: {},
     artifacts: [],
+    builtinChecks: [],
+    execution: { status: "completed" },
     observations: [
       {
         id: "sevro.codex.native-calls",
         source: "sevro.host.claude",
         completeness: "complete",
         data: {
-          acceptedSpawns: [{ model: "gpt-6-luna", reasoningEffort: "medium" }],
+          acceptedSpawns: [{ model: "gpt-6-luna", reasoningEffort: "high" }],
         },
       },
     ],
@@ -394,7 +392,7 @@ test("native route grading requires correlated acceptance and cites its observat
     cases: Array<{ id: string; extensionData: Record<string, unknown> }>;
   }>("resolve", {
     projectRoot: pathToFileURL(join(import.meta.dir, "../..")).href,
-    selectors: { caseIds: ["goal-preflight-high-risk-routine"] },
+    selectors: { caseIds: ["goal-preflight-quality-sensitive-localized"] },
     configuration: {},
   });
   const evaluate = (data: Record<string, unknown>) =>
@@ -405,6 +403,8 @@ test("native route grading requires correlated acceptance and cites its observat
       extensionData: resolved.cases[0]!.extensionData,
       configuration: {},
       artifacts: [],
+      builtinChecks: [],
+      execution: { status: "completed" },
       observations: [
         {
           id: "sevro.codex.native-calls",
@@ -421,7 +421,7 @@ test("native route grading requires correlated acceptance and cites its observat
     startedOrdinal: 2,
     acceptedOrdinal: 3,
     model: "gpt-6-luna",
-    reasoningEffort: "medium",
+    reasoningEffort: "high",
   };
   const data = {
     method: "native_session",

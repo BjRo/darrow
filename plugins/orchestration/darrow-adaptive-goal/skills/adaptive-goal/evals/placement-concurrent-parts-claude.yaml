@@ -91,8 +91,6 @@ output_checks:
   - name: verification evidence is returned
     expect_regex: "test\\.sh"
 transcript_checks:
-  - name: an implementation agent was accepted
-    expect_regex: '"type":"darrow\.codex_native_spawn","status":"accepted"|"type":"darrow\.goal_agent_completion"|"name":"Agent"'
   - name: no lifecycle ledger is used
     not_regex: adaptive-goal-preflight step|Protocol ledger
 semantic_output_checks:

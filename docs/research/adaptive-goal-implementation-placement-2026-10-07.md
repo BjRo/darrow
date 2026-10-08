@@ -172,6 +172,18 @@ needs an Astra/high main so that the selected route is `lower`. One earlier
 Astra trial passed but lost its checkpoint after I archived its live run record;
 the reported pass is the later persisted trial.
 
+## Sevro integration follow-up
+
+After the branch merged `main` with the Sevro evaluation integration (#245), CI
+showed that every transcript check must use a registered Sevro evidence pattern.
+The four delegation and concurrency cases dropped their unregistered "an
+implementation agent was accepted" marker; their semantic checks still require
+the reported placement. The Sevro route-grading tests used
+`goal-preflight-high-risk-routine` as their delegated-route fixture. That case
+now implements directly at the default route, so those tests now use
+`goal-preflight-quality-sensitive-localized`, which still delegates on
+Luna/high. No live trial was rerun for this assertion-only change.
+
 ## Limitations
 
 - One trial per cell. No efficiency or reliability claim is made.
