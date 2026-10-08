@@ -2,8 +2,9 @@ id: goal-placement-direct-same-route
 invariant: ADL-R3,ADL-L1,ADL-L5
 goal_report: forbidden
 goal_route_checks: false
-# The policy routine route equals the default eval candidate route on Codex
-# (gpt-6-luna/medium). Run Claude smoke trials with claude-sonnet-5-5/low.
+harnesses: [codex]
+candidate_routes:
+  codex: { model: gpt-6-luna, effort: medium }
 prompt: >-
   {{skill_invocation}} Add an exported clamp(value, min, max) function to src/range.js
   that returns min when value is below min, max when value is above max, and value

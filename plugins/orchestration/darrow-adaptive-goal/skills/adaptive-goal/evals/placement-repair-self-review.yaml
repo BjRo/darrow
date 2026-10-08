@@ -2,6 +2,7 @@ id: goal-placement-repair-self-review
 invariant: ADL-R3,ADL-V1
 goal_report: forbidden
 goal_route_checks: false
+harnesses: [codex]
 prompt: >-
   {{skill_invocation}} Advice only; do not launch or perform work. The retained goal
   uses the default repair allowance. Its first combined repair ran in a delegated

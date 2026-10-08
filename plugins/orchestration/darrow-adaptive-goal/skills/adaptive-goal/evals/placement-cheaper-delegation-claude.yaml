@@ -2,9 +2,9 @@ id: goal-placement-cheaper-delegation-claude
 invariant: ADL-R1,ADL-R3,ADL-L1,ADL-L5
 goal_report: forbidden
 goal_route_checks: false
-# Claude-native variant: headless Claude enters through native /goal. Run with
-# --harness claude and pin the main route per case: --case-routes
-# '{"goal-placement-cheaper-delegation-claude":{"model":"claude-opus-5-5","effort":"high"}}'.
+harnesses: [claude]
+candidate_routes:
+  claude: { model: claude-opus-5-5, effort: high }
 prompt: >-
   /goal {{skill_invocation}} Build an expense report module in src/expenses.js with focused
   tests in test/expenses.test.js covering every rule below. (1) parseExpenses(text)
@@ -92,9 +92,6 @@ checks:
 output_checks:
   - name: verification evidence is returned
     expect_regex: "test\\.sh"
-transcript_checks:
-  - name: no lifecycle ledger is used
-    not_regex: adaptive-goal-preflight step|Protocol ledger
 semantic_output_checks:
   - name: owner reports completion
     proposition:

@@ -2,10 +2,9 @@ id: goal-placement-concurrent-parts
 invariant: ADL-R3,ADL-L1,ADL-L5
 goal_report: forbidden
 goal_route_checks: false
-# Requires the recommended Codex coordinator. Pin it per case: --case-routes
-# '{"goal-placement-concurrent-parts":{"model":"gpt-6.1-sol","effort":"medium"}}'.
-# On a Luna/medium main these parts finish directly in about a minute, so not
-# splitting is a defensible judgment.
+harnesses: [codex]
+candidate_routes:
+  codex: { model: gpt-6.1-sol, effort: medium }
 prompt: >-
   {{skill_invocation}} Implement two independent modules; minimizing wall-clock time
   matters more than token cost. They share no files, code or interfaces, and each has

@@ -2,8 +2,9 @@ id: goal-placement-coupled-sequential
 invariant: ADL-R3,ADL-L1,ADL-L5
 goal_report: forbidden
 goal_route_checks: false
-# Same-route coupled work on the default Codex candidate (gpt-6-luna/medium).
-# Run Claude smoke trials with claude-sonnet-5-5/low.
+harnesses: [codex]
+candidate_routes:
+  codex: { model: gpt-6-luna, effort: medium }
 prompt: >-
   {{skill_invocation}} Change formatPrice in src/price.js to take a single options
   object { cents, currency } instead of positional (cents, currency) arguments, and

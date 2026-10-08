@@ -4,7 +4,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from hypothesis import given, settings
+from hypothesis import event, given, note, settings
 from hypothesis import strategies as st
 
 from darrow_adaptive_goal.common import PLUGIN, read_text
@@ -79,15 +79,18 @@ json_values = st.recursive(
     ),
     max_leaves=8,
 )
+route_models = st.sampled_from([*CODEX_MODELS, "claude-opus-5-5", "none"])
+route_model_values = route_models | json_values
+route_effort_values = st.sampled_from(EFFORT_ORDER) | json_values
 route_fields = st.fixed_dictionaries(
     {},
     optional={
         "type": st.sampled_from(["turn_context", "assistant", "user"]) | json_values,
         "payload": st.fixed_dictionaries(
-            {}, optional={"model": json_values, "effort": json_values}
+            {}, optional={"model": route_model_values, "effort": route_effort_values}
         )
         | json_values,
-        "message": st.fixed_dictionaries({}, optional={"model": json_values})
+        "message": st.fixed_dictionaries({}, optional={"model": route_model_values})
         | json_values,
     },
 )
@@ -102,6 +105,7 @@ route_fields = st.fixed_dictionaries(
 def test_observed_route_is_unknown_or_safe(
     host: str, items: list[dict[str, object]], effort: str
 ) -> None:
+    note(f"host={host}")
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         if host == "codex":
@@ -117,6 +121,7 @@ def test_observed_route_is_unknown_or_safe(
         path.parent.mkdir(parents=True)
         path.write_text("".join(json.dumps(item) + "\n" for item in items))
         route = observed(host, env)
+    event("observed" if route else "unknown")
     assert route is None or (
         SAFE_VALUE.fullmatch(route[2]) is not None
         and route[2] != "none"

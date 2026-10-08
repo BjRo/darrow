@@ -2,9 +2,9 @@ id: goal-placement-direct-same-route-claude
 invariant: ADL-R3,ADL-L1,ADL-L5
 goal_report: forbidden
 goal_route_checks: false
-# Claude-native variant: headless Claude enters through native /goal. Run with
-# --harness claude and pin the main route per case: --case-routes
-# '{"goal-placement-direct-same-route-claude":{"model":"claude-sonnet-5-5","effort":"low"}}'.
+harnesses: [claude]
+candidate_routes:
+  claude: { model: claude-sonnet-5-5, effort: low }
 prompt: >-
   /goal {{skill_invocation}} Add an exported clamp(value, min, max) function to src/range.js
   that returns min when value is below min, max when value is above max, and value
@@ -43,14 +43,13 @@ checks:
 output_checks:
   - name: verification evidence is returned
     expect_regex: "test\\.sh"
-transcript_checks:
-  - name: same-route sequential work launches no implementation agent
-    not_regex: '"tool":"spawn_agent"|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"|"name":"Agent"'
-  - name: no lifecycle ledger is used
-    not_regex: adaptive-goal-preflight step|Protocol ledger
 semantic_output_checks:
   - name: owner reports completion
     proposition:
       The response reports the requested outcome as complete, with no unresolved
       blocker or pending decision preventing completion.
+  - name: implementation ran directly in the main thread
+    proposition:
+      The response states that implementation was done directly rather than
+      delegated to another agent.
 native_goal: required

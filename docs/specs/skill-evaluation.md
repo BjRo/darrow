@@ -191,6 +191,22 @@ repeatable `--case` filters narrow the result to IDs matching any substring.
 Without either ownership filter, existing case selection is unchanged. An empty
 selection fails with `No cases matched.`
 
+A case may declare `harnesses`, a nonempty list of unique supported host names.
+Filtered and ownership selection omits a case whose declaration excludes the
+requested candidate host; an empty result after that omission still fails with
+`No cases matched.` Exact `--case-id` keeps refusing an excluded host before
+execution.
+
+A case may declare `candidate_routes`, mapping supported host names to a
+complete `{model, effort}` parent candidate route. Filtered and ownership
+selection applies it as that case's default route on the matching host, so a
+default skill or plugin run executes the case on its required route. An explicit
+`--case-routes` entry for the case takes precedence; hosts absent from the
+declaration keep the CLI or default route. Exact `--case-id` runs and suite
+cells keep their explicit routes. Malformed declarations fail case resolution.
+Grader routes stay independent, and retained evidence binds the effective route
+exactly as for `--case-routes`.
+
 Selection happens before fixture resolution and mounted-skill overrides.
 `--skill-dir` still overrides the skill mounted for the selected cases; it
 does not select cases or change their ownership. `--without-skill` likewise
@@ -1214,6 +1230,12 @@ not prove equivalence or savings.
   independently of case-ID naming and mounted-skill overrides. Case filters
   narrow that set, skill-less cases are excluded, and an empty selection
   fails explicitly.
+
+- **SE-C34 — Case-declared hosts and routes.** Filtered and ownership
+  selection omits cases whose `harnesses` exclude the requested host and
+  applies a case's `candidate_routes` as its default parent candidate route on
+  each declared host, below explicit per-case routes. Grader routes are
+  unaffected; malformed declarations fail resolution.
 
 - **SE-C26 — Select cases by owning plugin.** The direct runner's `--plugin`
   filter selects every discovered case colocated under all skills of the exact

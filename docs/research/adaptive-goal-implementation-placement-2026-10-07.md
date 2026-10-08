@@ -184,17 +184,31 @@ now implements directly at the default route, so those tests now use
 `goal-preflight-quality-sensitive-localized`, which still delegates on
 Luna/high. No live trial was rerun for this assertion-only change.
 
+## Advisory follow-up
+
+The remaining review advisories were addressed after the Sevro merge:
+
+- F2: cases now declare `harnesses` and `candidate_routes` (spec SE-C34).
+  A default `--skill adaptive-goal` run selects only the variants for the
+  requested host and runs each on its declared main route.
+- Claude variants: Sevro grades generic transcript checks only from Codex
+  native evidence, so the `-claude` variants carry placement in semantic checks
+  instead. The two repair-advice cases keep their no-agent transcript check and
+  are Codex-only, like the existing budgeted-repair cases; their earlier Claude
+  passes came from the retired runner.
+- F4: the observed-route property test now generates valid routes often enough
+  to exercise the observed branch, not only the unknown one.
+- regression:2: corrected the trial-to-skill-text wording (above).
+
 ## Limitations
 
 - One trial per cell. No efficiency or reliability claim is made.
 - Codex harness token totals omit native child usage when children run.
 - The cheaper and concurrency cases need a main thread stronger than the
   selected route: Codex Astra/high for cheaper and Sol/medium for concurrency,
-  Claude Opus/high for both. A default `--skill adaptive-goal` run uses
-  Luna/medium, where their delegation expectations do not apply. Each case
-  header gives the `--case-routes` value that pins its main route.
-- `--case` matches substrings, so selecting a Codex placement case also selects
-  its `-claude` variant. Grade `-claude` variants only on Claude.
+  Claude Opus/high for both. Their `candidate_routes` declarations apply these
+  routes in filtered and ownership runs; exact `--case-id` runs and suites must
+  pass them explicitly.
 - `bun test ./evals/runner/` passes except `main Bun test discovery ignores
 external eval corpus caches`. That test runs only in a temporary directory,
   and this change touches no TypeScript.

@@ -2,9 +2,9 @@ id: goal-placement-concurrent-parts-claude
 invariant: ADL-R3,ADL-L1,ADL-L5
 goal_report: forbidden
 goal_route_checks: false
-# Claude-native variant: headless Claude enters through native /goal. Run with
-# --harness claude and pin the main route per case: --case-routes
-# '{"goal-placement-concurrent-parts-claude":{"model":"claude-opus-5-5","effort":"high"}}'.
+harnesses: [claude]
+candidate_routes:
+  claude: { model: claude-opus-5-5, effort: high }
 prompt: >-
   /goal {{skill_invocation}} Implement two independent modules; minimizing wall-clock time
   matters more than token cost. They share no files, code or interfaces, and each has
@@ -90,9 +90,6 @@ checks:
 output_checks:
   - name: verification evidence is returned
     expect_regex: "test\\.sh"
-transcript_checks:
-  - name: no lifecycle ledger is used
-    not_regex: adaptive-goal-preflight step|Protocol ledger
 semantic_output_checks:
   - name: owner reports completion
     proposition:

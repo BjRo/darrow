@@ -2,10 +2,9 @@ id: goal-placement-cheaper-delegation
 invariant: ADL-R1,ADL-R3,ADL-L1,ADL-L5
 goal_report: forbidden
 goal_route_checks: false
-# Requires a main route stronger than the selected routine or scaled route. Pin
-# it per case: --case-routes '{"goal-placement-cheaper-delegation":{"model":
-# "gpt-6-astra","effort":"high"}}'. At an identical main route the delegation
-# expectation does not apply.
+harnesses: [codex]
+candidate_routes:
+  codex: { model: gpt-6-astra, effort: high }
 prompt: >-
   {{skill_invocation}} Build an expense report module in src/expenses.js with focused
   tests in test/expenses.test.js covering every rule below. (1) parseExpenses(text)
