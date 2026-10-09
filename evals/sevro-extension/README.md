@@ -55,6 +55,35 @@ identity. Unsupported or ambiguous cases fail explicitly.
 `bun test evals/domain/case-resolution.test.ts` verifies all canonical cases
 resolve. That check establishes neither host execution nor task success.
 
+## Runtime configuration
+
+Sevro reads the repository's [`sevro.json`](../../sevro.json) for every case in
+this project. It inherits `PATH` and `UV_PYTHON_INSTALL_DIR`, grants the
+uv-managed Python installations read-only, seeds a private UV cache, and enables
+native goals. Sevro discovers Homebrew and Apple developer support folders from
+the inherited `PATH`; the file names no machine-specific folders.
+
+Darrow's callers prepare that environment before launching Sevro:
+
+- They remove the repository's and Bun's injected `node_modules/.bin` and
+  temporary folders from `PATH`, because Sevro refuses read grants inside the
+  protected repository. They also drop `/usr/sbin` and `/sbin`, which Sevro cannot
+  scan on macOS (BjRo/sevro#12); Sevro's shell checks add them back.
+- They set `UV_PYTHON_INSTALL_DIR` from `uv python dir` when it is unset.
+- They build the public seed cache at `~/.darrow/cache/sevro-uv-cache` from the
+  registered Python packages' locks, and rebuild it only when a lock changes.
+
+Repository-skill guide trials need `--claude-project-settings`, which conflicts
+with native-goal hooks. The guide caller therefore selects
+[`runtime-repository-skills.json`](runtime-repository-skills.json): the same
+tools without hooks. An explicit `--runtime-config-file` replaces either default.
+With a runtime file selected, direct and benchmark callers no longer add
+`--claude-project-settings` automatically.
+
+Known limit: candidates cannot read their own session model and effort inside
+Sevro (BjRo/sevro#13), so Adaptive Goal placement reports an unknown main route
+and delegates.
+
 ## Separate configuration roots
 
 `--project-root` supplies cases and supporting assets. `--config-root` defaults

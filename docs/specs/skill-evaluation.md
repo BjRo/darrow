@@ -612,6 +612,15 @@ and effective-owner assertions. Relative project, configuration, result, active
 storage, skill, condition, and output paths resolve from the invocation directory.
 Result storage defaults to the evaluated project's `evals/results`.
 
+Repository evaluation runs use Sevro's runtime policy in the root `sevro.json`:
+inherited `PATH` and uv-managed Python, a private UV cache seeded from the
+registered packages' locks, and native goals. Callers launch Sevro with `PATH`
+free of repository and Bun-injected entries, set `UV_PYTHON_INSTALL_DIR` when
+unset, and rebuild the seed cache only when a registered lock changes.
+Repository-skill guide trials select a hook-free runtime file because Claude
+project settings conflict with native-goal hooks. An explicit
+`--runtime-config-file` replaces either default.
+
 The candidate defaults remain Codex `gpt-6-luna/medium` and Claude
 `claude-sonnet-5-5/medium`; the semantic default is Codex `gpt-5.6-luna/low`.
 An advisory judge is requested only by `--judge-harness`, with Codex

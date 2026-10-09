@@ -5,6 +5,7 @@ import { parse as parseYaml } from "yaml";
 import { callerHostOptions } from "./caller-host-options";
 import { CODEX_EVAL_ROLE_DEFAULTS } from "./model-defaults";
 import { sevroCommand } from "./sevro-command";
+import { prepareRepositoryRuntime } from "./uv-seed-cache";
 
 const repositoryRoot = resolve(import.meta.dir, "../..");
 const benchmarkOptions = {
@@ -79,7 +80,9 @@ function invocation(argv: string[]) {
 type Request = ReturnType<typeof invocation>;
 
 function hostArguments(host: string, request: Request) {
-  const args = callerHostOptions(request.forwarded, host);
+  const args = callerHostOptions(request.forwarded, host, [], {
+    projectRoot: request.projectRoot,
+  });
   return [
     "--host",
     host,
@@ -174,7 +177,9 @@ async function suiteArguments(request: Request) {
 export async function runSevroBenchmarkSuite(argv: string[]) {
   try {
     sevroCommand();
-    const args = await suiteArguments(invocation(argv));
+    const request = invocation(argv);
+    prepareRepositoryRuntime(request.projectRoot);
+    const args = await suiteArguments(request);
     const child = Bun.spawn(
       [process.execPath, join(import.meta.dir, "suite.ts"), ...args],
       {

@@ -6,6 +6,11 @@ import { pathToFileURL } from "node:url";
 import Ajv2020 from "ajv/dist/2020";
 import schema from "@bjoernrochel/sevro/schemas/cli-result-v1.schema.json";
 import { optionValue } from "./suite-routes";
+import { sevroEnvironment } from "./sevro-command";
+import {
+  prepareRepositoryRuntime,
+  repositorySkillRuntimeFile,
+} from "./uv-seed-cache";
 import { preflightCaseDetails } from "./index";
 import { activationGate, type ActivationExpectation } from "./activation";
 
@@ -98,9 +103,16 @@ function hostDefaults(host: string): Array<[string, () => string]> {
   ];
 }
 
-function hostArguments(host: string, forwarded: string[]) {
+function hostArguments(host: string, forwarded: string[], root: string) {
   const args = forwardedHostArguments(host, forwarded);
-  for (const [name, value] of hostDefaults(host))
+  const runtime = repositorySkillRuntimeFile(root);
+  const defaults: Array<[string, () => string]> = [
+    ...hostDefaults(host),
+    ...(runtime
+      ? [["--runtime-config-file", () => runtime] as [string, () => string]]
+      : []),
+  ];
+  for (const [name, value] of defaults)
     if (optionValue(args, name) === null) args.push(name, value());
   return [
     "--host",
@@ -180,7 +192,7 @@ function guideCells(
 ) {
   const routes = options.hosts.map((host) => ({
     host,
-    args: hostArguments(host, options.forwarded),
+    args: hostArguments(host, options.forwarded, options.root),
   }));
   return options.questions.flatMap(({ id }) =>
     routes.map(({ host, args }) => {
@@ -242,6 +254,7 @@ async function captureCell(
   state: Cancellation,
 ) {
   const child = Bun.spawn(guideCommand(options, cell), {
+    env: sevroEnvironment(),
     cwd: options.root,
     stdout: "pipe",
     stderr: "pipe",
@@ -347,6 +360,7 @@ async function runCell(
 
 /** Run guide cells sequentially through Darrow's public Sevro command binding. */
 export async function runSevroGuide(options: GuideOptions) {
+  prepareRepositoryRuntime(options.root);
   const expectations = await guideExpectations(options);
   const cells = guideCells(options, expectations);
   const control = cancellationControl();
