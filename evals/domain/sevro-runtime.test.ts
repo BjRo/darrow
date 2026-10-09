@@ -31,7 +31,7 @@ async function scratch() {
   return root;
 }
 
-test("Sevro environment drops repository, Bun and sbin PATH entries", () => {
+test("Sevro environment drops repository and Bun PATH entries", () => {
   const env = sevroEnvironment({
     PATH: [
       join(repository, "node_modules/.bin"),
@@ -47,7 +47,7 @@ test("Sevro environment drops repository, Bun and sbin PATH entries", () => {
     UV_PYTHON_INSTALL_DIR: "/uv/python",
     UNRELATED: "kept",
   });
-  expect(env.PATH).toBe("/tool/bin:/usr/bin");
+  expect(env.PATH).toBe("/tool/bin:/usr/sbin:/usr/bin:/sbin");
   expect(env.UV_PYTHON_INSTALL_DIR).toBe("/uv/python");
   expect(env.UNRELATED).toBe("kept");
 });

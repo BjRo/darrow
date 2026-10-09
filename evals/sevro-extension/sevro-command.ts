@@ -76,10 +76,7 @@ function excludedToolPath(entry: string): boolean {
     !isAbsolute(entry) ||
     inside(toolingRoot, entry) ||
     entry.endsWith(`${sep}node_modules${sep}.bin`) ||
-    /[\\/](?:bun-node-[^\\/]+|bunx-[^\\/]+)(?:$|[\\/])/.test(entry) ||
-    // Sevro rc.3 cannot scan macOS sbin directories; its checks add them itself.
-    entry === "/usr/sbin" ||
-    entry === "/sbin"
+    /[\\/](?:bun-node-[^\\/]+|bunx-[^\\/]+)(?:$|[\\/])/.test(entry)
   );
 }
 

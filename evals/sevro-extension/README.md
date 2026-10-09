@@ -67,8 +67,7 @@ Darrow's callers prepare that environment before launching Sevro:
 
 - They remove the repository's and Bun's injected `node_modules/.bin` and
   temporary folders from `PATH`, because Sevro refuses read grants inside the
-  protected repository. They also drop `/usr/sbin` and `/sbin`, which Sevro cannot
-  scan on macOS (BjRo/sevro#12); Sevro's shell checks add them back.
+  protected repository.
 - They set `UV_PYTHON_INSTALL_DIR` from `uv python dir` when it is unset.
 - They build the public seed cache at `~/.darrow/cache/sevro-uv-cache` from the
   registered Python packages' locks, and rebuild it only when a lock changes.
