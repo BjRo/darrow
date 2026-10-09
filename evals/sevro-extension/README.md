@@ -59,8 +59,8 @@ resolve. That check establishes neither host execution nor task success.
 
 Sevro reads the repository's [`sevro.json`](../../sevro.json) for every case in
 this project. It inherits `PATH` and `UV_PYTHON_INSTALL_DIR`, grants the
-uv-managed Python installations read-only, seeds a private UV cache, and enables
-native goals. Sevro discovers Homebrew and Apple developer support folders from
+uv-managed Python installations read-only, seeds a private UV cache, enables
+native goals, and exposes the trial's own native transcripts read-only. Sevro discovers Homebrew and Apple developer support folders from
 the inherited `PATH`; the file names no machine-specific folders.
 
 Darrow's callers prepare that environment before launching Sevro:
@@ -79,9 +79,8 @@ tools without hooks. An explicit `--runtime-config-file` replaces either default
 With a runtime file selected, direct and benchmark callers no longer add
 `--claude-project-settings` automatically.
 
-Known limit: candidates cannot read their own session model and effort inside
-Sevro (BjRo/sevro#13), so Adaptive Goal placement reports an unknown main route
-and delegates.
+Native transcripts are enabled so Adaptive Goal's placement helper can read
+the current session's model and effort, as it does outside Sevro.
 
 ## Separate configuration roots
 

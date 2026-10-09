@@ -7,7 +7,8 @@
     }
   },
   "filesystem": {
-    "readOnlyRoots": ["${UV_PYTHON_INSTALL_DIR}"]
+    "readOnlyRoots": ["${UV_PYTHON_INSTALL_DIR}"],
+    "optionalReadOnlyRoots": ["/System/Library/OpenSSL"]
   },
   "runtime": {
     "seedDirectories": [
@@ -19,5 +20,6 @@
   },
   "hooks": {
     "nativeGoal": true
-  }
+  },
+  "nativeTranscripts": true
 }

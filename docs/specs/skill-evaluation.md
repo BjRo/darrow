@@ -614,7 +614,8 @@ Result storage defaults to the evaluated project's `evals/results`.
 
 Repository evaluation runs use Sevro's runtime policy in the root `sevro.json`:
 inherited `PATH` and uv-managed Python, a private UV cache seeded from the
-registered packages' locks, and native goals. Callers launch Sevro with `PATH`
+registered packages' locks, native goals, and read-only access to the trial's
+own native transcripts, which Adaptive Goal uses to observe its session route. Callers launch Sevro with `PATH`
 free of repository and Bun-injected entries, set `UV_PYTHON_INSTALL_DIR` when
 unset, and rebuild the seed cache only when a registered lock changes.
 Repository-skill guide trials select a hook-free runtime file because Claude

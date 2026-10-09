@@ -100,6 +100,7 @@ semantic_output_checks:
       blocker or pending decision preventing completion.
   - name: independent parts ran concurrently
     proposition:
-      The response reports that the two independent parts were implemented in
-      parallel by separate agents or assignments, rather than one after another.
+      The response reports that the two independent parts were implemented
+      concurrently by separate workers, agents or assignments, rather than one after
+      another.
 native_goal: required

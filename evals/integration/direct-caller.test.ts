@@ -191,7 +191,7 @@ test("direct caller uses the frozen package without route overrides", async () =
   expect(evidence.runner).toMatchObject({
     source: "package",
     packageName: "@bjoernrochel/sevro",
-    version: "0.1.0-rc.3",
+    version: "0.1.0-rc.4",
   });
 }, 30_000);
 

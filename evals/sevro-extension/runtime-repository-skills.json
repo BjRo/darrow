@@ -7,11 +7,15 @@
     }
   },
   "filesystem": {
-    "readOnlyRoots": ["${UV_PYTHON_INSTALL_DIR}"]
+    "readOnlyRoots": ["${UV_PYTHON_INSTALL_DIR}"],
+    "optionalReadOnlyRoots": ["/System/Library/OpenSSL"]
   },
   "runtime": {
     "seedDirectories": [
-      { "source": "~/.darrow/cache/sevro-uv-cache", "target": "uv-cache" }
+      {
+        "source": "~/.darrow/cache/sevro-uv-cache",
+        "target": "uv-cache"
+      }
     ]
   }
 }

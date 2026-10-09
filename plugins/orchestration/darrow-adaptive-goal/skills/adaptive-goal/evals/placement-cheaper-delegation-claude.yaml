@@ -99,6 +99,7 @@ semantic_output_checks:
       blocker or pending decision preventing completion.
   - name: implementation was delegated to the cheaper route
     proposition:
-      The response reports that implementation was delegated to a separate agent on a
-      cheaper or lower route than the main thread's own route.
+      The response reports that implementation ran on the selected cheaper or lower
+      route, such as a named lower model or effort, rather than on the main thread's
+      own route.
 native_goal: required

@@ -200,6 +200,47 @@ The remaining review advisories were addressed after the Sevro merge:
   to exercise the observed branch, not only the unknown one.
 - regression:2: corrected the trial-to-skill-text wording (above).
 
+## Sevro 0.1.0-rc.4 validation
+
+The evals moved to Sevro `0.1.0-rc.4`, which isolates candidates and checks from
+developer tools. Darrow's root `sevro.json` inherits `PATH` and uv Python,
+seeds a private UV cache, grants `/System/Library/OpenSSL` when present,
+enables native goals, and exposes each trial's native transcripts so the
+placement helper can observe its own route. The Sevro work this needed is
+tracked in BjRo/sevro#7, #12, #13 and #14.
+
+Final live trials on the installed package (one each, passive):
+
+| Case                           | Host   | Main route     | Result |
+| ------------------------------ | ------ | -------------- | ------ |
+| direct same-route              | Codex  | Luna/medium    | pass   |
+| coupled sequential             | Codex  | Luna/medium    | pass   |
+| cheaper delegation             | Codex  | Astra/high     | pass   |
+| concurrent parts               | Codex  | Sol/medium     | pass   |
+| repair allowance               | Codex  | Luna/medium    | pass   |
+| repair self-review             | Codex  | Luna/medium    | pass   |
+| direct same-route (`-claude`)  | Claude | Sonnet 5.5/low | pass   |
+| coupled sequential (`-claude`) | Claude | Sonnet 5.5/low | pass   |
+| cheaper delegation (`-claude`) | Claude | Opus 5.5/high  | pass   |
+| concurrent parts (`-claude`)   | Claude | Opus 5.5/high  | pass   |
+
+Classified failures before these results:
+
+- Semantic propositions for cheaper and concurrent placement demanded literal
+  words ("separate agent", "assignments") although the responses and native
+  transcripts showed the delegation. They now grade the reported route and
+  concurrency.
+- Node could not read `/System/Library/OpenSSL/openssl.cnf`, so candidates ran
+  `OPENSSL_CONF=/dev/null`; the optional read root removed that workaround.
+- One Codex Astra trial stopped with `launch_required` after inferring from its
+  permission instructions that the plugin directory was denied, without trying
+  it. The plugin cache sits inside Sevro's private native namespace; helpers ran
+  normally in every other Codex trial, and the rerun passed.
+- One Claude concurrent trial listed open implementation choices and asked for
+  confirmation, which failed the completion proposition; the rerun passed.
+- Two Codex trials ended with Sevro grading errors (`shell grading did not
+complete`); reruns graded normally. The cause is not established.
+
 ## Limitations
 
 - One trial per cell. No efficiency or reliability claim is made.
