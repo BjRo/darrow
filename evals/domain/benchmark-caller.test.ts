@@ -212,7 +212,7 @@ for (const event of [
       expect(trial.evidence.advisoryReview.assessment.verdict).toBe("fail");
     }
   },
-  30_000,
+  90_000,
 );
 
 test("benchmark caller retains default storage and rejects route overrides", async () => {

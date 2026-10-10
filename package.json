@@ -37,7 +37,7 @@
     "ajv-formats": "3.0.1"
   },
   "devDependencies": {
-    "@bjoernrochel/sevro": "0.1.0-rc.2",
+    "@bjoernrochel/sevro": "0.1.0-rc.4",
     "@eslint/js": "^10.0.1",
     "@types/bun": "^1.2.0",
     "eslint": "^10.8.1",

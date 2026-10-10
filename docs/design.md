@@ -183,7 +183,7 @@ Adaptive Goal keeps the useful part and removes the duplicate runtime:
 
 ```text
 request + repository -> read-only preflight/readiness -> native goal in the main thread
-                                                        -> bounded implementation
+                                                        -> direct or bounded implementation
                                                         -> selected capabilities
 ```
 
@@ -192,9 +192,12 @@ request into observable acceptance criteria and scope, reuses or obtains a
 same-scope readiness result when required, binds matching advertised skills,
 selects a task workflow and risk gate, and chooses proportionate model and
 effort for bounded implementation. The main thread retains the native goal,
-acceptance criteria, user decisions and completion responsibility. It delegates
-implementation and selected verification as separate assignments, consumes their
-evidence, requests authorized repairs and arranges reassessment. Capabilities
+acceptance criteria, user decisions and completion responsibility. It implements
+directly when the selected route matches its own, and delegates implementation
+only when a cheaper route, a stronger or unknown route, or independent
+concurrent parts justify the handoff. Selected verification is always a separate
+assignment. The main thread consumes evidence, requests authorized repairs and
+arranges reassessment. Capabilities
 retain their own delegation and model selection; the implementor's route never
 overrides a reviewer route.
 

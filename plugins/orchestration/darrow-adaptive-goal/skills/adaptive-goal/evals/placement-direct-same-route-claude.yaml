@@ -1,0 +1,55 @@
+id: goal-placement-direct-same-route-claude
+invariant: ADL-R3,ADL-L1,ADL-L5
+goal_report: forbidden
+goal_route_checks: false
+harnesses: [claude]
+candidate_routes:
+  claude: { model: claude-sonnet-5-5, effort: low }
+prompt: >-
+  /goal {{skill_invocation}} Add an exported clamp(value, min, max) function to src/range.js
+  that returns min when value is below min, max when value is above max, and value
+  otherwise. Add focused tests for below, inside and above the range. Acceptance is
+  that bash test.sh passes. Select and apply the policy route rather than pinning a
+  model. Keep the result local.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Run `bash test.sh` for JavaScript changes.
+        package.json: '{"type":"module"}'
+        src/range.js: |
+          export const within = (value, min, max) => value >= min && value <= max;
+        test/range.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import { within } from "../src/range.js";
+          test("within", () => assert.equal(within(2, 1, 3), true));
+        test.sh: |
+          #!/usr/bin/env bash
+          node --test test/range.test.js
+checks:
+  - name: behavior is implemented
+    run: >-
+      node --input-type=module -e "import('./src/range.js').then(({clamp}) => { if
+      (clamp(-1, 0, 5) !== 0 || clamp(3, 0, 5) !== 3 || clamp(9, 0, 5) !== 5)
+      process.exit(1) })"
+  - name: focused tests pass
+    run: grep -F 'clamp(' test/range.test.js >/dev/null && bash test.sh >/dev/null
+  - name: no publication occurred
+    run: test "$(git rev-list --count HEAD)" -eq 1
+output_checks:
+  - name: verification evidence is returned
+    expect_regex: "test\\.sh"
+semantic_output_checks:
+  - name: owner reports completion
+    proposition:
+      The response reports the requested outcome as complete, with no unresolved
+      blocker or pending decision preventing completion.
+  - name: implementation ran directly in the main thread
+    proposition:
+      The response states that implementation was done directly rather than
+      delegated to another agent.
+native_goal: required

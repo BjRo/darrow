@@ -1,9 +1,11 @@
 # Capability: Adaptive Goal
 
 Darrow turns one bounded engineering request into a native goal in the main
-thread. That thread retains acceptance, user decisions and completion while
-delegating bounded implementation and selected verification. Capabilities own
-their assessment protocols and internal delegation.
+thread. That thread retains acceptance, user decisions and completion. It
+implements directly unless the selected route is stronger than its own or
+unknown, or a cheaper route or concurrent parts repay the handoff; then it
+delegates bounded implementation. It delegates selected verification.
+Capabilities own their assessment protocols and internal delegation.
 
 Plugin: `darrow-adaptive-goal`  
 Skill: `adaptive-goal`
@@ -33,7 +35,7 @@ The product therefore uses this shape:
 
 ```text
 request + repository -> read-only preflight -> native main-thread goal
-                                               -> bounded implementation
+                                               -> direct or bounded implementation
                                                -> selected capabilities
 ```
 
@@ -53,8 +55,11 @@ auditing belongs to evaluation and diagnostics, not the live workflow.
 3. Activate one native goal in the main thread, or continue its matching active
    goal. Keep the objective within 4,000 Unicode characters and coordination
    instructions in the skill.
-4. Delegate bounded implementation on the selected model and effort. The child
-   owns that assignment, never the delivery goal.
+4. Place implementation. Implement directly in the main thread unless a bounded
+   assignment has an expected cost or concurrency benefit, or the selected route
+   is stronger than or not comparable to the main thread's route. A delegated
+   child runs on the selected model and effort and owns that assignment, never
+   the delivery goal.
 5. Delegate selected verification separately, preserving its provider boundaries,
    internal delegation and explicit reviewer routes.
 6. Consume candidate-bound evidence, coordinate authorized repairs and fresh
@@ -101,6 +106,7 @@ reason: explicit-orchestration-entrypoint-required
 The contained Python package is `<plugin-root>/backend`. Invoke
 `uv run --quiet --no-project <absolute-backend>/scripts/run_locked.py` followed
 by `adaptive-goal-preflight`, `claude-agent-route`, or `host-config-doctor`.
+`adaptive-goal-preflight` provides `prepare`, `route` and `placement`.
 The wrapper runs the backend with frozen runtime dependencies. On Codex, the
 activated file `<plugin-root>/skills/adaptive-goal/SKILL.md` binds that
 plugin root;
@@ -118,7 +124,7 @@ Windows, with no Bash entrypoint adapters. Python 3.10 uses the locked `tomli`
 backport for host-configuration diagnosis; newer interpreters use `tomllib` from
 the standard library. Native paths and argument-vector subprocesses preserve
 spaces, Unicode, and linked-worktree identity. It retains the prepared-v2,
-route-v2, and Claude-agent-route-v1 records, record ordering, policy precedence,
+route-v2, placement-v1, and Claude-agent-route-v1 records, record ordering, policy precedence,
 refusal exit 2, and help exit 0. Commands emit
 UTF-8 stdout/stderr with LF records regardless of the host's redirected console
 encoding, including native Windows code pages. JSON uses
@@ -154,7 +160,7 @@ directories, and failed Git observations cannot produce prepared evidence.
 Before native goal activation, the main thread may inspect the request, repository
 state, applicable instructions, accepted decisions, manifests, CI
 configuration, and focused test surfaces. It may run the bundled
-`adaptive-goal-preflight prepare` and `adaptive-goal-preflight route`
+`adaptive-goal-preflight prepare`, `route` and `placement`
 commands and invoke selected read-only input
 gathering and implementation-readiness capabilities. Retrieve necessary
 authoritative input before classification; preserve the returned evidence.
@@ -215,13 +221,16 @@ Capacity conclusions derive from this topology, where the primary thread is
 not itself a spawned-agent slot:
 
 ```text
-main -> implementation (bounded assignment, settled before assessment)
+main -> implementation (direct, or bounded assignments settled before assessment)
 main -> verification coordinator -> review coordinator -> Standards reader
                                                        -> Spec reader
 ```
 
-The baseline implementation path needs one spawned-agent slot and one layer
-below the primary. With implementation settled before assessment, the full
+Direct main-thread implementation needs no spawned-agent slot. The baseline
+delegated implementation path needs one spawned-agent slot and one layer below
+the primary; concurrent implementation assignments need one slot each and stay
+within the effective concurrency limit. With implementation settled before
+assessment, the full
 required-assessment path needs four concurrently active spawned-agent slots and
 three layers of nesting. Host limits that also count retained inactive threads
 may require releasing completed assignments; the doctor cannot prove live
@@ -248,12 +257,14 @@ The skill and main-thread context retain:
 - originating authority, acceptance, scope, non-goals and preserved local work;
 - exact workflow identifier and its applicable implementation guidance;
 - consequence risk, implementation profile and concrete implementation route;
+- implementation placement, the observed or unknown main-thread route and the
+  placement basis;
 - focused and final checks, readiness evidence and selected capability bindings;
 - separate verification and review coordination routes and provider requirements;
 - user decisions, publication limits and any explicit stopping budgets;
 - the repair maximum, its authority, attempts consumed and complete assessment history.
 
-Each child receives a self-contained bounded assignment with the relevant
+Each delegated child receives a self-contained bounded assignment with the relevant
 acceptance, authority, candidate, checks, exact capability references and route.
 State that it owns its assignment, not the goal, and must return evidence or a
 concrete blocker. Do not copy parent orchestration or goal-creation instructions
@@ -261,13 +272,14 @@ into child tasks. A child return alone never proves overall completion.
 
 Workflow selection, ordering, assessment history, repair accounting and completion
 belong to the main thread. Translate applicable workflow requirements into concrete
-work and evidence requirements for the implementor; it need not track the workflow
+work and evidence requirements for direct work or a delegated implementor, which need not track the workflow
 identifier, delivery status or repair allowance. When the selected workflow requires
 a failing regression or acceptance check before an edit, the main thread must
 obtain that evidence or explicitly include it before mutation in the bounded
-assignment. A passing check after the edit cannot establish the earlier failure.
-The implementor returns changes, actual check results, relevant evidence and
-unresolved blockers; the main thread decides what those facts mean for delivery.
+assignment. Direct implementation follows the same requirement. A passing check after the edit cannot establish the earlier failure.
+A delegated implementor returns changes, actual check results, relevant evidence
+and unresolved blockers; the main thread decides what those facts mean for
+delivery.
 
 New user constraints become acceptance criteria before affected work resumes.
 Reusing an existing component means calling it; copying its algorithm does not
@@ -482,6 +494,86 @@ conflicting environment overrides, and omits a per-call model override. Host
 availability remains a launch-time check. A refusal stops the affected
 assignment; do not silently downgrade or invent a separate goal owner.
 
+## Implementation placement
+
+Implementation placement decides where implementation work runs. It does not
+change workflow, consequence risk, profile, assurance, bindings or authority.
+The main thread retains the native goal, acceptance, user decisions, repair
+accounting and completion under every placement.
+
+After resolving the implementation route, compare it with the main thread's
+effective route using the bundled helper:
+
+```text
+adaptive-goal-preflight placement --repo <path> --host <codex|claude> \
+  --selected-route <harness|provider|model|effort> [--main-route <tuple>]
+```
+
+Without `--main-route`, the helper observes only the active host session's
+current model and effort: on Codex, the latest `turn_context` route in the
+`CODEX_THREAD_ID` session file under `CODEX_HOME` (default `~/.codex`); on
+Claude, the latest assistant model in the `CLAUDE_CODE_SESSION_ID` transcript
+under `CLAUDE_CONFIG_DIR` (default `~/.claude`) and the `CLAUDE_EFFORT`
+environment value. It reads no message content into its output and is not
+transcript auditing. Pass `--main-route` only for a route the user or host
+states explicitly. Missing, unreadable, malformed or partial observations
+report `main_route_source unknown`; they never become a guessed route.
+
+The helper reports `route_relation` for the selected route relative to the
+main route: `same` for an identical tuple; `lower` or `higher` when the same
+model differs only in effort, or when the effective host policy ranks one model
+strictly below the other and effort does not move in the opposite direction;
+and `unknown` otherwise. A model's rank is the first profile in
+`routine`, `routine-plus`, `scaled`, `repo-wide`, `judgment` order whose
+effective policy route uses it. Off-catalog models are not ranked.
+
+Select placement from that relation and the work:
+
+| Relation              | Placement                                                                                                                                            |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `same`                | implement directly in the main thread, unless independent parts qualify for concurrent assignments                                                   |
+| `higher` or `unknown` | delegate on the selected route                                                                                                                       |
+| `lower`               | delegate only when the assignment is large enough that cheaper execution outweighs handoff, rereading and coordination; otherwise implement directly |
+
+Do not spawn an implementation child solely to preserve a coordinator and
+implementor role split. Direct work on a stronger main route than selected is
+permitted; an unknown or weaker main route never implements in place of a
+selected stronger route. An explicit user implementation route uses the same
+comparison. Retain a brief placement basis, including any unknown main route.
+
+Multiple bounded implementation assignments are permitted when they can make
+useful concurrent progress toward one candidate: each part is substantial enough
+that parallel progress saves more time than its handoff costs. Use them only when work splits
+into independent parts with disjoint file ownership, settled shared interfaces
+and separately runnable focused checks. Shared interfaces are settled
+before launch; that preliminary work follows the sequential placement rule, so a
+stronger or unknown relation settles it in a bounded assignment first. Each assignment
+owns only its listed files; an edit needed outside them returns to the main
+thread instead of being made. The main thread waits for every concurrent
+assignment, resolves conflicting edits before any further assignment, integrates
+the parts and runs final-tree checks. Concurrency stays within the effective
+host child limit; each assignment uses the selected route. Coupled work, such
+as a shared interface change across its callers, stays sequential. Concurrent
+assignments are parts of one candidate, never competing whole-task
+implementations or replacement goal owners.
+
+Direct and delegated paths preserve selected workflow requirements, readiness,
+bound capabilities, required checks, authority limits and user-owned local
+changes. Selected verification and independent review remain separate bounded
+capability assignments with their own routes and provider boundaries; direct
+implementation never permits direct or same-context assessment.
+
+Repairs stay within the same goal and its shared repair allowance. Choose repair
+placement with the same rule. Switching between direct and delegated work,
+reusing or replacing a worker, or splitting a repair across concurrent
+assignments consumes one attempt per combined repair and never resets or
+multiplies the allowance. Settle all implementation work, including conflicting
+concurrent edits, before candidate-bound checks and assessment.
+
+Placement is a proportionate per-assignment judgment, not a controller,
+lifecycle ledger or polling runtime. Expected cost or speed benefit is a
+hypothesis; matched evaluation evidence, not this policy, establishes it.
+
 ## Readiness
 
 Select implementation readiness separately:
@@ -612,22 +704,23 @@ thread. Never overwrite an unrelated active goal. Native activation evidence is
 required before implementation or assessment. A proposal or queued activation
 is not yet an active goal.
 
-Delegate bounded implementation on its selected route. Delegate selected
-verification as a separate capability assignment, after successful current
+Place implementation by the rules above: directly in the main thread, or as
+bounded assignments on the selected route. Delegate selected verification as a separate capability assignment, after successful current
 checks. Pass the complete relevant acceptance, candidate, evidence, provider
 bindings and explicit review-coordinator route. Verification owns its provider
 selection, internal delegation and result contract; review owns its readers.
 
-Reuse the retained implementor for subsequent work on its assignment, including
-repairs. Supply the concrete changes, findings, changed constraints and required
+When implementation is delegated, reuse the retained implementor for subsequent
+work on its assignment, including repairs, unless placement changes. Supply the concrete changes, findings, changed constraints and required
 checks, without transferring orchestration bookkeeping. Start a replacement only
 when the retained agent is unavailable or no longer fits the required route or
 scope, and state the reason. Supply a replacement with the necessary task context
 and prior work; replacement never resets the main thread's repair allowance.
 
-The main thread may inspect state, run required checks, consume results and
-coordinate authorized operations. It does not take over implementation from a
-refused child or perform a provider's internal assessment. Incomplete handoffs
+The main thread may inspect state, implement directly under the placement rules,
+run required checks, consume results and coordinate authorized operations. It
+does not bypass a child's refusal by taking over that refused work or perform a
+provider's internal assessment. Incomplete handoffs
 require bounded clarification or corrected evidence, not a completion claim.
 
 ### Human feedback and blockers
@@ -697,7 +790,8 @@ Before completing the native goal, the main thread verifies:
 - any authorized publication is bound to the verified candidate;
 - no unresolved blocker or required user decision remains.
 
-Return a self-contained summary with changed files, checks, selected assessment
+Return a self-contained summary with implementation placement and its basis,
+changed files, checks, selected assessment
 outcomes, repair use/maximum, performed effects and residual risks. Evidence
 files supplement the response; they do not replace its substantive conclusions.
 Every terminal response includes repair use and the authorized maximum, including
@@ -714,7 +808,8 @@ goal. Keep the objective within 4,000 characters and supply no invented budget.
 Use native `spawn_agent` with `fork_turns: none`, an explicit model and effort,
 and a valid lowercase/digit/underscore task name for a new bounded agent.
 Retain its host-returned identity; use native follow-up for continued implementation
-or repair when that implementor remains applicable. Children do not create goals.
+or repair when that implementor remains applicable. Direct placement launches no
+implementation agent. Children do not create goals.
 
 Use native goal continuation; an eval client must keep the main session alive
 through it. App-server is an evaluation entrypoint, not a separate production
@@ -768,43 +863,48 @@ owner, nested host process or runtime is authorized.
    per-call model override. Transcript auditing is evaluator-owned and never a
    parent workflow step.
 8. **ADL-L1 — One Darrow owner.** The main thread owns the native goal and complete
-   delivery. Bounded children own assignments, never that goal. Implementation,
+   delivery. Bounded children own assignments, never that goal. Delegated implementation,
    verification coordination, review coordination and reader routes are explicit
    and separate.
-9. **ADL-L2 — Semantic gates.** Required readiness completes before implementation; every
-   applicable current check succeeds before selected verification and every
-   dependent commit or publication effect. The owner invokes verification with
-   the candidate, originating criteria, constraints and existing evidence;
-   no assessment can waive a failed check. An explicit assessment-before-change
-   request starts with checks and verification of the unchanged existing
-   candidate; classifier inspection is not that independent assessment.
-   The gates are proven by capability results and observable
-   repository behavior, not bookkeeping transitions.
-10. **ADL-L3 — Same-owner feedback.** Questions, answers, steering, cancellation
+9. **ADL-R3 — Benefit-based placement.** Same-route sequential implementation
+   runs directly in the main thread. Delegation requires a stronger or unknown
+   relation, a justified cheaper assignment, or useful concurrency across
+   independent owned parts of one candidate. Placement never changes assurance,
+   authority, assessment routes or the shared repair allowance.
+10. **ADL-L2 — Semantic gates.** Required readiness completes before implementation; every
+    applicable current check succeeds before selected verification and every
+    dependent commit or publication effect. The owner invokes verification with
+    the candidate, originating criteria, constraints and existing evidence;
+    no assessment can waive a failed check. An explicit assessment-before-change
+    request starts with checks and verification of the unchanged existing
+    candidate; classifier inspection is not that independent assessment.
+    The gates are proven by capability results and observable
+    repository behavior, not bookkeeping transitions.
+11. **ADL-L3 — Same-owner feedback.** Questions, answers, steering, cancellation
     and status requests remain with the main thread's same goal. Preserve every
     affected instruction and constraint in child updates, confirm required
     acknowledgements, and do not reset acceptance or repair history.
-11. **ADL-L4 — Semantic blockage.** A blocker names its condition, evidence,
+12. **ADL-L4 — Semantic blockage.** A blocker names its condition, evidence,
     and next action without a Darrow retry state machine.
-12. **ADL-L5 — Evidence-supported completion.** The main thread validates and
+13. **ADL-L5 — Evidence-supported completion.** The main thread validates and
     reports changed files, combined verification, selected assessments, criterion
     coverage, repair accounting, publication and residual risks before completing
     the native goal. Child returns alone do not establish completion.
-13. **ADL-S1 — No inferred decisions.** Missing product, safety, destructive,
+14. **ADL-S1 — No inferred decisions.** Missing product, safety, destructive,
     privacy, or authority choices stop before the affected mutation.
-14. **ADL-S2 — No duplicate external effect.** An ambiguous external result is
+15. **ADL-S2 — No duplicate external effect.** An ambiguous external result is
     observed before another attempt. An observed existing publication is
     validated for reuse before claiming completion; further read-only
     verification does not authorize another creation request.
-15. **ADL-S3 — No derived publication.** Completion or review clearance adds no
+16. **ADL-S3 — No derived publication.** Completion or review clearance adds no
     commit, push, pull-request, merge, release, or deployment authority.
-16. **ADL-C2 — Intent-bound capabilities.** Every authorized operation with a
+17. **ADL-C2 — Intent-bound capabilities.** Every authorized operation with a
     matching advertised skill is bound before launch and must use that skill;
     direct tools are not a substitute.
-17. **ADL-X1 — No lifecycle ledger.** `adaptive-goal` ships no required run
+18. **ADL-X1 — No lifecycle ledger.** `adaptive-goal` ships no required run
     ledger, lifecycle hook, blocker protocol, canonical helper report, or
     model-operated transition sequence.
-18. **ADL-E1 — Evidence-appropriate evaluation.** `adaptive-goal` evals prove
+19. **ADL-E1 — Evidence-appropriate evaluation.** `adaptive-goal` evals prove
     repository and external effects with passive fixture event logs under
     `.git/fixture-state/`, exact public tokens with rigid output checks, and
     paraphrasable prose contracts with fail-closed semantic output checks.
@@ -818,12 +918,12 @@ owner, nested host process or runtime is authorized.
     passive observations distinguish main-thread goal activation from bounded
     child acceptance without imposing the former parent-work prohibition.
 
-19. **ADL-B1 — Token-correlated branch choice.** Before authorized ticket
+20. **ADL-B1 — Token-correlated branch choice.** Before authorized ticket
     branch creation, adaptive goal consumes complete exact-token Git
     capability evidence and applies the one/many/zero-match policy above. The
     recipe owns no branch choice; the Git capability owns deterministic
     discovery and preparation.
-20. **ADL-D1 — Separate read-only host diagnosis.** Host-configuration doctor
+21. **ADL-D1 — Separate read-only host diagnosis.** Host-configuration doctor
     intent selects `doctor-adaptive-goal`, never activates orchestration,
     and makes no configuration or repository mutation. Its result identifies
     every checked and contributing effective source plus host/version
@@ -1066,6 +1166,9 @@ reasoning or bookkeeping. At minimum, cover:
 - missing preflight decision that stops before launch;
 - each workflow tie-breaker and risk boundary;
 - native main-thread goal activation and bounded assignments on both hosts;
+- direct implementation at an identical route, justified cheaper delegation,
+  useful concurrent implementation, coupled work that stays sequential, and
+  preserved assessment routes and repair accounting under each placement;
 - one main-thread goal, no `adaptive-goal-preflight step` calls and no
   child goal for the same contract;
 - readiness selected, omitted, iterative non-ready, and unavailable behavior;
@@ -1099,6 +1202,7 @@ invariant.
 - Unbounded child-transcript inspection or reconstruction of child work; route
   observations belong to evaluation and diagnostics.
 - Nested Codex or Claude processes.
-- Parallel candidate implementations or replacement adaptive owners.
+- Competing whole-task candidate implementations or replacement adaptive owners.
+  Concurrent bounded assignments for one candidate follow implementation placement.
 - Review or readiness judgment inside adaptive-goal.
 - Publication authority derived from goal completion.

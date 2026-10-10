@@ -45,6 +45,22 @@ export function suiteCaseRoutes(value: unknown): CaseRoutes {
   );
 }
 
+/** Validate a case's own `candidate_routes` host map. */
+export function caseCandidateRoutes(
+  value: unknown,
+): Partial<Record<Harness, { model: string; effort: string }>> {
+  if (value === undefined) return {};
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("candidate_routes must be a host map");
+  return Object.fromEntries(
+    Object.entries(value).map(([harness, raw]) => {
+      if (harness !== "codex" && harness !== "claude")
+        throw new Error("candidate_routes must name codex or claude");
+      return [harness, caseRouteMap({ [harness]: raw })[harness]!];
+    }),
+  );
+}
+
 function routeValue(value: unknown, label: string): string {
   if (
     typeof value !== "string" ||

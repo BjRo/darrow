@@ -9,7 +9,7 @@ import {
   type ResolvedCorpusSource,
 } from "../corpus/orchestration/source";
 import { selectedCaseFixture } from "./index";
-import { sevroCommand } from "./sevro-command";
+import { sevroCommand, sevroEnvironment } from "./sevro-command";
 import {
   benchmarkConditionOptions,
   writeRunConfiguration,
@@ -315,6 +315,7 @@ if (import.meta.main) {
         selected.corpusManifest,
       );
       const child = Bun.spawn([...selected.command, ...sourceArgs], {
+        env: sevroEnvironment(),
         stdout: "inherit",
         stderr: "inherit",
         stdin: "inherit",

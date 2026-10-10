@@ -191,6 +191,22 @@ repeatable `--case` filters narrow the result to IDs matching any substring.
 Without either ownership filter, existing case selection is unchanged. An empty
 selection fails with `No cases matched.`
 
+A case may declare `harnesses`, a nonempty list of unique supported host names.
+Filtered and ownership selection omits a case whose declaration excludes the
+requested candidate host; an empty result after that omission still fails with
+`No cases matched.` Exact `--case-id` keeps refusing an excluded host before
+execution.
+
+A case may declare `candidate_routes`, mapping supported host names to a
+complete `{model, effort}` parent candidate route. Filtered and ownership
+selection applies it as that case's default route on the matching host, so a
+default skill or plugin run executes the case on its required route. An explicit
+`--case-routes` entry for the case takes precedence; hosts absent from the
+declaration keep the CLI or default route. Exact `--case-id` runs and suite
+cells keep their explicit routes. Malformed declarations fail case resolution.
+Grader routes stay independent, and retained evidence binds the effective route
+exactly as for `--case-routes`.
+
 Selection happens before fixture resolution and mounted-skill overrides.
 `--skill-dir` still overrides the skill mounted for the selected cases; it
 does not select cases or change their ownership. `--without-skill` likewise
@@ -595,6 +611,16 @@ skill overrides, unmounted controls, text conditions, evaluation-record checks,
 and effective-owner assertions. Relative project, configuration, result, active
 storage, skill, condition, and output paths resolve from the invocation directory.
 Result storage defaults to the evaluated project's `evals/results`.
+
+Repository evaluation runs use Sevro's runtime policy in the root `sevro.json`:
+inherited `PATH` and uv-managed Python, a private UV cache seeded from the
+registered packages' locks, native goals, and read-only access to the trial's
+own native transcripts, which Adaptive Goal uses to observe its session route. Callers launch Sevro with `PATH`
+free of repository and Bun-injected entries, set `UV_PYTHON_INSTALL_DIR` when
+unset, and rebuild the seed cache only when a registered lock changes.
+Repository-skill guide trials select a hook-free runtime file because Claude
+project settings conflict with native-goal hooks. An explicit
+`--runtime-config-file` replaces either default.
 
 The candidate defaults remain Codex `gpt-6-luna/medium` and Claude
 `claude-sonnet-5-5/medium`; the semantic default is Codex `gpt-5.6-luna/low`.
@@ -1214,6 +1240,12 @@ not prove equivalence or savings.
   independently of case-ID naming and mounted-skill overrides. Case filters
   narrow that set, skill-less cases are excluded, and an empty selection
   fails explicitly.
+
+- **SE-C34 — Case-declared hosts and routes.** Filtered and ownership
+  selection omits cases whose `harnesses` exclude the requested host and
+  applies a case's `candidate_routes` as its default parent candidate route on
+  each declared host, below explicit per-case routes. Grader routes are
+  unaffected; malformed declarations fail resolution.
 
 - **SE-C26 — Select cases by owning plugin.** The direct runner's `--plugin`
   filter selects every discovered case colocated under all skills of the exact

@@ -1,5 +1,5 @@
 id: goal-preflight-high-risk-routine
-invariant: ADL-C1,ADL-C2,ADL-R1,ADL-L2,ADL-L5,ADL-S3
+invariant: ADL-C1,ADL-C2,ADL-L2,ADL-L5,ADL-S3
 goal_report: forbidden
 goal_route_checks: false
 activation: positive
@@ -98,8 +98,6 @@ semantic_output_checks:
       The response reports that independent review passed or found no blocking findings
       for the completed change. It need not repeat the risk classification.
 transcript_checks:
-  - name: selected implementation policy route has accepted bounded-child evidence
-    expect_regex: (?:"type":"darrow\.codex_native_spawn","status":"accepted"[^\n]*"model":"gpt-6-luna","reasoning_effort":"medium"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-adaptive-goal:adaptive-goal-sonnet-5-5-(?:low|medium)")
   - name: no lifecycle ledger is used
     not_regex: adaptive-goal-preflight step|Protocol ledger
 native_goal: required

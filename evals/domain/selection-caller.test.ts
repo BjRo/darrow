@@ -22,12 +22,18 @@ async function fixture() {
   };
 }
 
-async function caseFile(project: string, source: string, id: string) {
+async function caseFile(
+  project: string,
+  source: string,
+  id: string,
+  extra: Record<string, unknown> = {},
+) {
   const path = join(project, source);
   await mkdir(join(path, ".."), { recursive: true });
   await writeFile(
     path,
     JSON.stringify({
+      ...extra,
       id,
       invariant: "SE-C29",
       prompt: "Return ready.",
@@ -730,4 +736,75 @@ test("Darrow selection rejects incomplete or contradictory public result frames"
     expect(reply.runs[0]).toMatchObject({ exitCode: 0, result: null });
     expect(reply.runs[0].resultError).toContain("CLI JSON");
   }
+});
+
+async function candidateRoute(resultPath: string) {
+  const evidence = JSON.parse(await readFile(resultPath, "utf8"));
+  return evidence.routes.find(
+    (route: { role: string }) => route.role === "candidate",
+  );
+}
+
+test("filtered selection applies case-declared routes and omits excluded hosts", async () => {
+  const { project, results } = await fixture();
+  const skill = "plugins/capability/example/skills/chosen/evals";
+  await caseFile(project, `${skill}/pinned.yaml`, "chosen-pinned", {
+    candidate_routes: {
+      codex: { model: "pinned-model", effort: "high" },
+      claude: { model: "claude-pinned", effort: "low" },
+    },
+  });
+  await caseFile(project, `${skill}/default.yaml`, "chosen-default");
+  await caseFile(project, `${skill}/claude.yaml`, "chosen-claude-only", {
+    harnesses: ["claude"],
+  });
+  const run = await drySelection(project, results, ["--skill", "chosen"]);
+  expect(run.code, run.stderr).toBe(0);
+  const reply = JSON.parse(run.stdout);
+  expect(reply.caseIds).toEqual(["chosen-default", "chosen-pinned"]);
+  const routes = await Promise.all(
+    reply.runs.map((entry: { result: { evidencePath: string } }) =>
+      candidateRoute(entry.result.evidencePath),
+    ),
+  );
+  expect(routes).toEqual([
+    {
+      role: "candidate",
+      host: "sevro.host.codex",
+      model: "synthetic-codex",
+      effort: "low",
+    },
+    {
+      role: "candidate",
+      host: "sevro.host.codex",
+      model: "pinned-model",
+      effort: "high",
+    },
+  ]);
+});
+
+test("selection fails when every match excludes the requested host", async () => {
+  const { project, results } = await fixture();
+  await caseFile(
+    project,
+    "plugins/capability/example/skills/chosen/evals/claude.yaml",
+    "chosen-claude-only",
+    { harnesses: ["claude"] },
+  );
+  const run = await drySelection(project, results, ["--skill", "chosen"]);
+  expect(run.code).toBe(64);
+  expect(run.stderr).toContain("No cases matched.");
+});
+
+test("malformed case-declared routes fail before execution", async () => {
+  const { project, results } = await fixture();
+  await caseFile(
+    project,
+    "plugins/capability/example/skills/chosen/evals/bad.yaml",
+    "chosen-bad",
+    { candidate_routes: { codex: { model: "only-model" } } },
+  );
+  const run = await drySelection(project, results, ["--skill", "chosen"]);
+  expect(run.code).toBe(64);
+  expect(run.stderr).toContain("invalid case route effort");
 });

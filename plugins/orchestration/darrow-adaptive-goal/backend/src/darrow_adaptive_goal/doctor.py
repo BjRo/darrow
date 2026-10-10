@@ -29,6 +29,8 @@ TOPOLOGY = (
     "-> parallel Standards/Spec readers\n"
     "required_spawned_slots: baseline=1 full=4 (primary excluded)\n"
     "required_nesting_layers: baseline=1 full=3\n"
+    "implementation_placement: direct=0 slots; delegated=1 slot per concurrent "
+    "assignment and 1 nesting layer in total, settled before assessment\n"
 )
 
 

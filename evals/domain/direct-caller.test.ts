@@ -127,6 +127,82 @@ function reviewArguments(
   ];
 }
 
+test("direct caller forwards an explicit runtime configuration", async () => {
+  const { root, binary, credential, output } = await fixture();
+  const runtime = join(root, "runtime.json");
+  await writeFile(
+    runtime,
+    JSON.stringify({
+      format: "sevro.runtime.v1",
+      environment: { set: { DARROW_RUNTIME_SAMPLE: "selected" } },
+    }),
+  );
+  const run = await invoke(root, [
+    ...reviewArguments(root, binary, credential, output),
+    "--runtime-config-file",
+    runtime,
+  ]);
+  expect(run.code, JSON.stringify(run)).toBe(0);
+  const selection = JSON.parse(
+    await readFile(join(output, "selection-run.json"), "utf8"),
+  );
+  const evidence = JSON.parse(
+    await readFile(selection.runs[0].result.evidencePath, "utf8"),
+  );
+  expect(
+    evidence.configuration.redacted.runtimePolicy.environment
+      .DARROW_RUNTIME_SAMPLE,
+  ).toBe("selected");
+}, 30000);
+
+test("direct Claude caller lets a runtime file control goal settings", async () => {
+  const { root, binary, credential, output } = await fixture();
+  const runtime = join(root, "runtime.json");
+  await writeFile(
+    runtime,
+    JSON.stringify({
+      format: "sevro.runtime.v1",
+      hooks: { nativeGoal: true },
+    }),
+  );
+  const caseFile = join(
+    root,
+    "evals/experiments/example/cases/direct-alpha.yaml",
+  );
+  const definition = JSON.parse(await readFile(caseFile, "utf8"));
+  definition.semantic_output_checks = [];
+  await writeFile(caseFile, JSON.stringify(definition));
+  await writeFile(
+    binary,
+    `#!/bin/sh\nprintf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"result":"ready"}'\n`,
+    { mode: 0o700 },
+  );
+  const run = await invoke(root, [
+    "--project-root",
+    root,
+    "--results-root",
+    output,
+    "--harness",
+    "claude",
+    "--owner-evaluation",
+    "passive",
+    "--case",
+    "alpha",
+    "--trials",
+    "1",
+    "--",
+    ...nativeArgs(binary, credential),
+    "--runtime-config-file",
+    runtime,
+  ]);
+  expect(run.code, JSON.stringify(run)).toBe(0);
+  const selection = JSON.parse(
+    await readFile(join(output, "selection-run.json"), "utf8"),
+  );
+  expect(selection.runs[0].exitCode).toBe(0);
+  expect(selection.runs[0].result.execution.status).toBe("completed");
+}, 30000);
+
 test("direct caller retains supplied review minutes as an annotation", async () => {
   const { root, binary, credential } = await fixture();
   const results = await realpath(

@@ -1,4 +1,5 @@
 import { homedir } from "node:os";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { optionValue } from "./suite-routes";
 
@@ -10,6 +11,7 @@ const nativeOptions = new Set([
   "--claude-uv-cache-dir",
   "--claude-project-settings",
   "--toolchain-bin-dir",
+  "--runtime-config-file",
   "--config-root",
   "--run-state-root",
   "--protected-root",
@@ -72,9 +74,14 @@ export function callerHostOptions(
   forwarded: string[],
   host: string,
   owned: string[] = [],
-  label = "Benchmark",
+  context: { label?: string; projectRoot?: string } = {},
 ) {
-  const args = nativeArguments(forwarded, host, owned, label);
+  const args = nativeArguments(
+    forwarded,
+    host,
+    owned,
+    context.label ?? "Benchmark",
+  );
   const defaults: Array<[string, () => string]> = [
     ["--codex-bin", () => binary("codex")],
     [
@@ -88,8 +95,27 @@ export function callerHostOptions(
   ];
   for (const [name, value] of defaults)
     if (optionValue(args, name) === null) args.push(name, value());
-  if (host === "claude" && !args.includes("--claude-project-settings"))
+  if (defaultProjectSettings(args, host, context.projectRoot))
     args.push("--claude-project-settings");
   if (!args.includes("--shell-isolation")) args.push("--shell-isolation");
   return args;
+}
+
+function defaultProjectSettings(
+  args: string[],
+  host: string,
+  projectRoot?: string,
+) {
+  return (
+    host === "claude" &&
+    !selectedRuntimeFile(args, projectRoot) &&
+    !args.includes("--claude-project-settings")
+  );
+}
+
+function selectedRuntimeFile(args: string[], projectRoot?: string) {
+  return (
+    optionValue(args, "--runtime-config-file") !== null ||
+    (projectRoot !== undefined && existsSync(join(projectRoot, "sevro.json")))
+  );
 }
