@@ -241,6 +241,16 @@ Classified failures before these results:
 - Two Codex trials ended with Sevro grading errors (`shell grading did not
 complete`); reruns graded normally. The cause is not established.
 
+## Sevro 0.1.0-rc.5 recheck
+
+On the installed `0.1.0-rc.5`, all six Codex placement cases passed on the
+first trial, with no grading errors or early stops. All four Claude placement
+cases passed; two needed one rerun because Sevro reported `semantic grading did
+not complete` (the Codex grader session never started), not because of a
+product check. The `guide-explicit` repository-skill case passed on Claude with
+the hook-free runtime file. Five caller tests now allow about twice their
+measured rc.5 durations because native startup is slower.
+
 ## Limitations
 
 - One trial per cell. No efficiency or reliability claim is made.
