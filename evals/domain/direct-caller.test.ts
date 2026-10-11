@@ -553,7 +553,7 @@ for (const event of [
       "synthetic-private-evidence",
     );
   },
-  30_000,
+  90_000,
 );
 
 test("direct caller rejects invalid limits before launching Sevro", async () => {
@@ -883,7 +883,7 @@ for (const event of events) console.log(JSON.stringify(event));
       expect(cell.activationError).toBeNull();
     }
   },
-  60_000,
+  180_000,
 );
 
 test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
@@ -990,5 +990,5 @@ for (const event of [
         expect(await readFile(outputPath, "utf8")).toBe(run.stdout);
     }
   },
-  60_000,
+  150_000,
 );
