@@ -331,6 +331,62 @@ def test_latest_malformed_claude_route_invalidates_previous_route(
 
 
 @pytest.mark.parametrize("host", ["codex", "claude"])
+def test_truncated_session_record_invalidates_previous_route(
+    repo: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    host: str,
+) -> None:
+    root = tmp_path / host
+    selected = LUNA_MEDIUM
+    if host == "codex":
+        codex_session(root, monkeypatch, turn("gpt-6-luna", "medium"))
+        tail = '{"type":"turn_context","payload":'
+    else:
+        selected = "claude|anthropic|claude-sonnet-5-5|low"
+        claude_session(root, assistant("claude-sonnet-5-5"))
+        monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(root))
+        monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", SESSION)
+        monkeypatch.setenv("CLAUDE_EFFORT", "low")
+        tail = '{"type":"assistant","message":'
+    with next(root.rglob("*.jsonl")).open("a") as stream:
+        stream.write(tail)
+    report = cli_place(repo, host, selected, monkeypatch, capsys)
+    assert report["main_route"] == "unknown"
+    assert report["main_route_source"] == "unknown"
+    assert report["route_relation"] == "unknown"
+
+
+@pytest.mark.parametrize("host", ["codex", "claude"])
+def test_valid_route_after_unparseable_record_establishes_new_observation(
+    repo: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    host: str,
+) -> None:
+    root = tmp_path / host
+    selected = LUNA_MEDIUM
+    if host == "codex":
+        codex_session(root, monkeypatch, turn("gpt-6-astra", "high"))
+        latest = turn("gpt-6-luna", "medium")
+    else:
+        selected = "claude|anthropic|claude-sonnet-5-5|low"
+        claude_session(root, assistant("claude-opus-5-5"))
+        monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(root))
+        monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", SESSION)
+        monkeypatch.setenv("CLAUDE_EFFORT", "low")
+        latest = assistant("claude-sonnet-5-5")
+    with next(root.rglob("*.jsonl")).open("a") as stream:
+        stream.write('not json\n{"type":"user"}\n' + json.dumps(latest) + "\n")
+    report = cli_place(repo, host, selected, monkeypatch, capsys)
+    assert report["main_route"] == selected.replace("|", "\t")
+    assert report["main_route_source"] == "session"
+    assert report["route_relation"] == "same"
+
+
+@pytest.mark.parametrize("host", ["codex", "claude"])
 def test_session_decode_failure_invalidates_previous_route(
     repo: Path,
     tmp_path: Path,

@@ -522,6 +522,10 @@ The latest route-bearing record replaces earlier route evidence even when its
 payload is malformed. Model and effort fields must be strings; coercion does
 not establish a route. Unrelated host records may be skipped, but a session
 read or decode failure invalidates any route already observed from that file.
+An unparseable JSON line, including a truncated final record, invalidates earlier
+route evidence because its route relevance cannot be established. A later valid
+route-bearing record may establish a new observation. A read or decode failure
+still leaves the session observation unknown.
 
 The helper reports `route_relation` for the selected route relative to the
 main route: `same` for an identical tuple; `lower` or `higher` when the same

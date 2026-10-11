@@ -15,13 +15,14 @@ PROFILE_ORDER = ("routine", "routine-plus", "scaled", "repo-wide", "judgment")
 
 
 def json_records(path: Path) -> Iterator[dict[str, object] | None]:
-    """Yield host objects; a read failure invalidates earlier observations."""
+    """Yield host objects; input failures invalidate earlier route evidence."""
     try:
         with path.open(encoding="utf-8") as lines:
             for line in lines:
                 try:
                     value = json.loads(line)
                 except ValueError:
+                    yield None
                     continue
                 if isinstance(value, dict):
                     yield value
@@ -53,9 +54,9 @@ def codex_route(env: Mapping[str, str]) -> tuple[str, str]:
     route = ("", "")
     for item in json_records(path) if path else ():
         if item is None:
-            return "", ""
-        payload = item.get("payload")
-        if item.get("type") == "turn_context":
+            route = ("", "")
+        elif item.get("type") == "turn_context":
+            payload = item.get("payload")
             route = (text_field(payload, "model"), text_field(payload, "effort"))
     return route
 
@@ -67,9 +68,9 @@ def claude_route(env: Mapping[str, str]) -> tuple[str, str]:
     model = ""
     for item in json_records(path) if path else ():
         if item is None:
-            return "", ""
-        message = item.get("message")
-        if item.get("type") == "assistant":
+            model = ""
+        elif item.get("type") == "assistant":
+            message = item.get("message")
             model = text_field(message, "model")
     return model, env.get("CLAUDE_EFFORT", "")
 
