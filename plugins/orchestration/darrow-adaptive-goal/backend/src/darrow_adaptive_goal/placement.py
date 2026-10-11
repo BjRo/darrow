@@ -14,8 +14,8 @@ PROVIDERS = {"codex": "openai", "claude": "anthropic"}
 PROFILE_ORDER = ("routine", "routine-plus", "scaled", "repo-wide", "judgment")
 
 
-def json_records(path: Path) -> Iterator[dict[str, object]]:
-    """Yield JSON objects from a host session file, skipping foreign lines."""
+def json_records(path: Path) -> Iterator[dict[str, object] | None]:
+    """Yield host objects; a read failure invalidates earlier observations."""
     try:
         with path.open(encoding="utf-8") as lines:
             for line in lines:
@@ -26,7 +26,7 @@ def json_records(path: Path) -> Iterator[dict[str, object]]:
                 if isinstance(value, dict):
                     yield value
     except (OSError, UnicodeError):
-        return
+        yield None
 
 
 def session_file(root: Path, pattern: str) -> Path | None:
@@ -41,15 +41,22 @@ def home(env: Mapping[str, str], variable: str, default: str) -> Path:
     return Path(env[variable]) if env.get(variable) else Path.home() / default
 
 
+def text_field(value: object, name: str) -> str:
+    field = value.get(name) if isinstance(value, dict) else None
+    return field if isinstance(field, str) else ""
+
+
 def codex_route(env: Mapping[str, str]) -> tuple[str, str]:
     thread = env.get("CODEX_THREAD_ID", "")
     root = home(env, "CODEX_HOME", ".codex") / "sessions"
     path = session_file(root, f"**/rollout-*-{thread}.jsonl") if thread else None
     route = ("", "")
     for item in json_records(path) if path else ():
+        if item is None:
+            return "", ""
         payload = item.get("payload")
-        if item.get("type") == "turn_context" and isinstance(payload, dict):
-            route = (str(payload.get("model", "")), str(payload.get("effort", "")))
+        if item.get("type") == "turn_context":
+            route = (text_field(payload, "model"), text_field(payload, "effort"))
     return route
 
 
@@ -59,9 +66,11 @@ def claude_route(env: Mapping[str, str]) -> tuple[str, str]:
     path = session_file(root, f"*/{session}.jsonl") if session else None
     model = ""
     for item in json_records(path) if path else ():
+        if item is None:
+            return "", ""
         message = item.get("message")
-        if item.get("type") == "assistant" and isinstance(message, dict):
-            model = str(message.get("model", ""))
+        if item.get("type") == "assistant":
+            model = text_field(message, "model")
     return model, env.get("CLAUDE_EFFORT", "")
 
 

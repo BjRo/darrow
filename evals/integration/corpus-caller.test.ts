@@ -12,6 +12,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
+import { captureTestCommand } from "../test-command";
 
 const direct = resolve(import.meta.dir, "../runner/run.ts");
 const migration = resolve(import.meta.dir, "../sevro-extension/run.ts");
@@ -29,16 +30,14 @@ async function temporary(name: string) {
 }
 
 async function git(root: string, ...args: string[]) {
-  const child = Bun.spawn(["git", ...args], {
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(["git", ...args], undefined, {
     cwd: root,
-    stdout: "pipe",
-    stderr: "pipe",
+    env: process.env,
   });
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ]);
   expect(code, stderr).toBe(0);
   return stdout.trim();
 }
@@ -122,16 +121,18 @@ async function fixture() {
 }
 
 async function invoke(command: string, cwd: string, args: string[]) {
-  const child = Bun.spawn([process.execPath, command, ...args], {
-    cwd,
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ]);
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(
+    [process.execPath, command, ...args],
+    undefined,
+    {
+      cwd,
+      env: process.env,
+    },
+  );
   return { stdout, stderr, code };
 }
 

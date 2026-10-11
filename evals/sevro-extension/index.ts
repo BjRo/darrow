@@ -2026,6 +2026,7 @@ async function projectSkillArtifacts(
       0,
     ),
   };
+  await appendProjectManifests(pluginRoot, artifacts, total);
   for (const name of ["backend", "references"]) {
     const directory = join(pluginRoot, name);
     if (await optionalPluginDirectory(directory))
@@ -2036,6 +2037,33 @@ async function projectSkillArtifacts(
       });
   }
   return artifacts;
+}
+
+async function appendProjectManifests(
+  pluginRoot: string,
+  artifacts: SkillArtifact[],
+  total: { bytes: number },
+): Promise<void> {
+  for (const name of [".claude-plugin", ".codex-plugin"]) {
+    const directory = join(pluginRoot, name);
+    if (!(await optionalPluginDirectory(directory)))
+      throw new Error("project plugin mount needs both manifests");
+    const path = join(directory, "plugin.json");
+    const entry = await lstat(path);
+    if (!entry.isFile() || entry.isSymbolicLink())
+      throw new Error("plugin manifest is not a regular file");
+    const bytes = await readFile(path);
+    total.bytes += bytes.byteLength;
+    checkSkillArtifactLimit(bytes, total.bytes, artifacts.length);
+    artifacts.push(
+      skillArtifact(
+        bytes,
+        `.agents/${name}/plugin.json`,
+        artifacts.length + 1,
+        false,
+      ),
+    );
+  }
 }
 
 async function optionalPluginDirectory(path: string): Promise<boolean> {

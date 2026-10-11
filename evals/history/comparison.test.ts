@@ -2,6 +2,7 @@ import { afterEach, expect, test } from "bun:test";
 import { copyFile, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { captureTestCommand } from "../test-command";
 
 const legacyCommand = resolve(import.meta.dir, "../runner/compare.ts");
 const standaloneDirectory = resolve(import.meta.dir, "../sevro-extension");
@@ -67,16 +68,17 @@ async function invoke(
   cand: string,
   args: string[] = [],
 ) {
-  const child = Bun.spawn([process.execPath, command, base, cand, ...args], {
-    env: { PATH: process.env.PATH },
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ]);
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(
+    [process.execPath, command, base, cand, ...args],
+    undefined,
+    {
+      env: { PATH: process.env.PATH },
+    },
+  );
   return { stdout, stderr, code };
 }
 

@@ -9,13 +9,30 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { selectCaseIds } from "../sevro-extension/index";
 import { analyzeAblations, planSuite } from "../sevro-extension/suite";
 import { sevroCommand } from "../sevro-extension/sevro-command";
+import { captureTestCommand, spawnTestCommand } from "../test-command";
 
 const roots: string[] = [];
 const suiteCommand = resolve(import.meta.dir, "../sevro-extension/suite.ts");
+
+async function skillPluginManifests(skill: string) {
+  const plugin = dirname(dirname(skill));
+  for (const host of ["claude", "codex"]) {
+    const directory = join(plugin, `.${host}-plugin`);
+    await mkdir(directory, { recursive: true });
+    await writeFile(
+      join(directory, "plugin.json"),
+      JSON.stringify({
+        name: basename(plugin),
+        version: "0.1.0",
+        ...(host === "codex" ? { skills: "./skills/" } : {}),
+      }),
+    );
+  }
+}
 
 afterEach(async () => {
   await Promise.all(
@@ -119,16 +136,17 @@ async function invoke(
   orderSeed: string | null = "existing-order-1",
 ) {
   args = withSeed(args, orderSeed);
-  const proc = Bun.spawn([process.execPath, suiteCommand, ...args], {
-    stdout: "pipe",
-    stderr: "pipe",
-    env: { ...process.env, ...environment },
-  });
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(
+    [process.execPath, suiteCommand, ...args],
+    undefined,
+    {
+      env: { ...process.env, ...environment },
+    },
+  );
   return { stdout, stderr, code };
 }
 
@@ -815,6 +833,7 @@ test("suite gates requested evaluation records independently of existing task ch
 test("suite preserves dry and adaptive-goal record exceptions", async () => {
   const { root, suite, adapter, results } = await fixture();
   const skillDir = "plugins/orchestration/example/skills/adaptive-goal";
+  await skillPluginManifests(join(root, skillDir));
   await mkdir(join(root, skillDir), { recursive: true });
   await writeFile(join(root, skillDir, "SKILL.md"), "Adaptive delivery body\n");
   await writeFile(
@@ -958,6 +977,7 @@ test("suite rejects malformed record policies before any cells start", async () 
 test("suite mounts candidate skill overrides without changing experiment selection", async () => {
   const { root, cases, adapter, results } = await fixture();
   const plugin = join(root, "plugins/capability/candidate");
+  await skillPluginManifests(join(plugin, "skills/probe"));
   for (const name of ["probe", "rival"]) {
     await mkdir(join(plugin, "skills", name, "evals"), { recursive: true });
     await writeFile(join(plugin, "skills", name, "SKILL.md"), `${name} body\n`);
@@ -1049,7 +1069,7 @@ test("suite mounts candidate skill overrides without changing experiment selecti
       skillDir: "plugins/capability/candidate/skills/probe",
       mountPluginSkills: true,
     });
-    expect(evidence.trials[0].artifactRefs).toHaveLength(index === 0 ? 2 : 0);
+    expect(evidence.trials[0].artifactRefs).toHaveLength(index === 0 ? 4 : 0);
   }
 }, 20_000);
 
@@ -1184,6 +1204,7 @@ test("suite compares a shared experiment with the same declared skill override",
   );
   roots.push(results);
   const directory = join(root, "plugins/capability/example/skills/probe");
+  await skillPluginManifests(directory);
   await mkdir(directory, { recursive: true });
   await writeFile(join(directory, "SKILL.md"), "Probe body\n");
   const mode = {
@@ -1935,6 +1956,7 @@ process.exitCode = code;
 async function activationFixture() {
   const { root, adapter, suite, results } = await fixture();
   const skill = join(root, "plugins/capability/example/skills/probe");
+  await skillPluginManifests(skill);
   await mkdir(join(skill, "evals"), { recursive: true });
   await writeFile(
     join(skill, "SKILL.md"),
@@ -3017,6 +3039,7 @@ test("suite compares a mounted skill with a no-skill baseline", async () => {
   const results = await mkdtemp(join(tmpdir(), "darrow-sevro-ablation-"));
   roots.push(results);
   const skillRoot = join(root, "plugins/capability/example/skills/probe");
+  await skillPluginManifests(skillRoot);
   await mkdir(join(skillRoot, "evals"), { recursive: true });
   await writeFile(
     join(skillRoot, "SKILL.md"),
@@ -3416,7 +3439,7 @@ test("suite quality remains unknown after semantic grading error", async () => {
 test("suite interruption cancels the active Sevro cell and stops selection", async () => {
   const { root, adapter, suite, results } = await fixture();
   const ready = join(root, "suite-ready");
-  const child = Bun.spawn(
+  const { child, result: captured } = await spawnTestCommand(
     [
       process.execPath,
       suiteCommand,
@@ -3437,10 +3460,9 @@ test("suite interruption cancels the active Sevro cell and stops selection", asy
       adapter,
       "--shell-isolation",
     ],
+    undefined,
     {
       env: { ...process.env, SEVRO_SUITE_READY_PATH: ready },
-      stdout: "pipe",
-      stderr: "pipe",
     },
   );
   try {
@@ -3458,10 +3480,7 @@ test("suite interruption cancels the active Sevro cell and stops selection", asy
       { index: 4, harness: "codex", mode: "passive", caseId: "suite-beta" },
     ]);
     child.kill("SIGTERM");
-    const [stdout, code] = await Promise.all([
-      new Response(child.stdout).text(),
-      child.exited,
-    ]);
+    const { stdout, exitCode: code } = await captured;
     expect(code).toBe(143);
     expect(JSON.parse(stdout)).toMatchObject({
       cells: 1,

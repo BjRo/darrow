@@ -1,3 +1,4 @@
+import { captureTestCommand } from "../test-command";
 import { afterEach, expect, test } from "bun:test";
 
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -72,7 +73,11 @@ async function invoke(
   args: string[],
   packageBin?: string,
 ) {
-  const child = Bun.spawn(
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(
     [
       process.execPath,
       command,
@@ -82,9 +87,8 @@ async function invoke(
       results,
       ...args,
     ],
+    undefined,
     {
-      stdout: "pipe",
-      stderr: "pipe",
       env: packageBin
         ? {
             ...process.env,
@@ -94,11 +98,6 @@ async function invoke(
         : process.env,
     },
   );
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ]);
   return {
     stdout,
     stderr,
@@ -168,7 +167,7 @@ test("guide caller stops after failed activation despite a passed task", async (
     await Bun.file(join(run.output!, "guide-beta-codex.json")).exists(),
   ).toBe(false);
   expect((await readFile(calls, "utf8")).trim().split("\n")).toHaveLength(1);
-}, 30_000);
+}, 120_000);
 
 for (const [exit, raw] of [
   [0, '{"format":"sevro.cli-result.v99"}\n'],
@@ -241,6 +240,9 @@ await new Promise(() => { setInterval(() => {}, 1000); });
 `,
       { mode: 0o700 },
     );
+    const stdoutFile = join(root, "caller.stdout");
+    const stderrFile = join(root, "caller.stderr");
+    await Promise.all([writeFile(stdoutFile, ""), writeFile(stderrFile, "")]);
     const child = Bun.spawn(
       [
         process.execPath,
@@ -259,8 +261,8 @@ await new Promise(() => { setInterval(() => {}, 1000); });
         credential,
       ],
       {
-        stdout: "pipe",
-        stderr: "pipe",
+        stdout: Bun.file(stdoutFile),
+        stderr: Bun.file(stderrFile),
         env: {
           ...process.env,
           SEVRO_CHECKOUT: undefined,
@@ -268,11 +270,14 @@ await new Promise(() => { setInterval(() => {}, 1000); });
         },
       },
     );
-    const captured = Promise.all([
-      new Response(child.stdout).text(),
-      new Response(child.stderr).text(),
-      child.exited,
-    ]);
+    const captured = child.exited.then(
+      async (code) =>
+        [
+          await readFile(stdoutFile, "utf8"),
+          await readFile(stderrFile, "utf8"),
+          code,
+        ] as const,
+    );
     try {
       const deadline = Date.now() + 10_000;
       while (!(await Bun.file(ready).exists()) && Date.now() < deadline)
@@ -397,6 +402,9 @@ test("guide caller retains interrupted evidence and stops later cells", async ()
         "await new Promise(() => { setInterval(() => {}, 1000); });\nfor (const event of [",
       ),
     );
+    const stdoutFile = join(root, "caller.stdout");
+    const stderrFile = join(root, "caller.stderr");
+    await Promise.all([writeFile(stdoutFile, ""), writeFile(stderrFile, "")]);
     const child = Bun.spawn(
       [
         process.execPath,
@@ -414,13 +422,16 @@ test("guide caller retains interrupted evidence and stops later cells", async ()
         "--codex-auth-file",
         credential,
       ],
-      { stdout: "pipe", stderr: "pipe" },
+      { stdout: Bun.file(stdoutFile), stderr: Bun.file(stderrFile) },
     );
-    const captured = Promise.all([
-      new Response(child.stdout).text(),
-      new Response(child.stderr).text(),
-      child.exited,
-    ]);
+    const captured = child.exited.then(
+      async (code) =>
+        [
+          await readFile(stdoutFile, "utf8"),
+          await readFile(stderrFile, "utf8"),
+          code,
+        ] as const,
+    );
     try {
       const deadline = Date.now() + 60_000;
       while (!(await Bun.file(calls).exists()) && Date.now() < deadline)

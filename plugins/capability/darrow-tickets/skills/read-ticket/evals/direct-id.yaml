@@ -11,15 +11,16 @@ fixture:
   bin:
     uv: |
       #!/bin/sh
-      d="$(git rev-parse --git-dir)"
+      d="$(git rev-parse --show-toplevel)/.fixture-state"
+      mkdir -p "$d"
       case " $* " in
         *" darrow-ticket "*) printf '%s\n' "$*" >>"$d/fixture-ticket-cli-calls" ;;
       esac
-      real_uv=$(awk '!/fixture-bin/ && !seen {print; seen=1}' "$d/fixture-uv-paths")
+      real_uv=$(awk '!/fixture-bin/ && !seen {print; seen=1}' "$(git rev-parse --git-dir)/fixture-uv-paths")
       exec "$real_uv" "$@"
     gh: |
       #!/bin/sh
-      d="$(git rev-parse --git-dir)/fixture-gh"
+      d="$(git rev-parse --show-toplevel)/.fixture-state/gh"
       mkdir -p "$d"
       echo "$*" >> "$d/calls"
       case "$1" in
@@ -66,37 +67,22 @@ fixture:
       esac
   setup: |
     which -a uv > .git/fixture-uv-paths
+    printf '/.fixture-state/\n' >> .git/info/exclude
     git remote add origin https://github.test/o/r.git
-checks:
-  - name: successful CLI output is relayed byte-for-byte
-    run: cat .git/last-message.md
-    expect_exact: |-
-      backend: github
-      ticket-token: 12
-      #12 open — Preserve exact ticket bodies
-      https://github.test/o/r/issues/12
-      labels: enhancement, area: tickets
-      parent: #7
-      depends-on: #3
-      ## body
-      ## Motivation
-
-      Callers need TOKEN-ALPHA verbatim.
-
-      ## Acceptance criteria
-
-      - Preserve TOKEN-BETA exactly.
+output_checks:
+  - name: complete CLI output is relayed
+    # Preserve the previous shell grader's optional final rendering newline.
+    expect_regex: "(?<![\\s\\S])backend: github\\nticket-token: 12\\n#12 open — Preserve exact ticket bodies\\nhttps://github\\.test/o/r/issues/12\\nlabels: enhancement, area: tickets\\nparent: #7\\ndepends-on: #3\\n## body\\n## Motivation\\n\\nCallers need TOKEN-ALPHA verbatim\\.\\n\\n## Acceptance criteria\\n\\n- Preserve TOKEN-BETA exactly\\.\\n?(?![\\s\\S])"
   - name: exact ticket metadata and body are returned
-    run: cat .git/last-message.md
     expect_regex: "ticket-token: 12[\\s\\S]*#12 open.*Preserve exact ticket bodies[\\s\\S]*https://github.test/o/r/issues/12[\\s\\S]*TOKEN-ALPHA[\\s\\S]*TOKEN-BETA"
   - name: native relations are returned
-    run: cat .git/last-message.md
     expect_regex: "parent: #7[\\s\\S]*depends-on: #3"
+checks:
   - name: bundled CLI owns the one retrieval
-    run: cat .git/fixture-ticket-cli-calls
+    run: cat .fixture-state/fixture-ticket-cli-calls
     expect_regex: "darrow-ticket get #?12( --provider github)?$"
   - name: retrieval uses only the bundled read protocol
-    run: cat .git/fixture-gh/protocol
+    run: cat .fixture-state/gh/protocol
     expect_exact: |-
       issue view 12 --json number,state,title,url,labels
       issue view 12 --json body

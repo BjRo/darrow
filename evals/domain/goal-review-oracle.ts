@@ -1,3 +1,4 @@
+import { captureTestCommand } from "../test-command";
 import { afterAll, afterEach, expect } from "bun:test";
 import {
   cp,
@@ -11,7 +12,7 @@ import {
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { OracleCheck } from "./fixture-command";
+import { type OracleCheck } from "./fixture-command";
 import { prepareUvFixtureRuntime } from "./fixture-runtime";
 
 type ProofAssets = {
@@ -41,20 +42,11 @@ afterAll(async () => {
 });
 
 async function execute(script: string, context: ProofContext) {
-  const command = Bun.spawn(["/bin/bash", "-e", "-c", script], {
+  return captureTestCommand(["/bin/bash", "-e", "-c", script], undefined, {
     cwd: context.root,
     env: context.environment,
-    stdin: "ignore",
-    stdout: "pipe",
-    stderr: "pipe",
     timeout: 30_000,
   });
-  const [stdout, stderr, exitCode] = await Promise.all([
-    new Response(command.stdout).text(),
-    new Response(command.stderr).text(),
-    command.exited,
-  ]);
-  return { stdout, stderr, exitCode };
 }
 
 function environment(

@@ -72,12 +72,11 @@ checks:
       (error.message !== 'invalid amount on line 2') process.exit(5) } })"
   - name: budget module is implemented
     run: >-
-      node --input-type=module -e "import('./src/budgets.js').then(({checkBudgets,
-      renderAlerts, reportFromCsv}) => { const alerts = checkBudgets({ food: 5000, travel:
-      1200, rent: 900, misc: 10 }, { food: 4000, travel: 200, rent: 900 }); if
-      (JSON.stringify(alerts) !== JSON.stringify([{ category: 'food', spent: 5000, limit:
-      4000, over: 1000 }, { category: 'travel', spent: 1200, limit: 200, over: 1000 }]))
-      process.exit(1); if (renderAlerts(alerts) !== 'food: over by 10.00 (spent 50.00 of
+      node --input-type=module -e "import('./src/budgets.js').then(async ({checkBudgets,
+      renderAlerts, reportFromCsv}) => { const { deepStrictEqual } = await import('node:assert/strict'); const alerts = checkBudgets({ food: 5000, travel:
+      1200, rent: 900, misc: 10 }, { food: 4000, travel: 200, rent: 900 });
+      deepStrictEqual(alerts, [{ category: 'food', spent: 5000, limit:
+      4000, over: 1000 }, { category: 'travel', spent: 1200, limit: 200, over: 1000 }]); if (renderAlerts(alerts) !== 'food: over by 10.00 (spent 50.00 of
       40.00)\ntravel: over by 10.00 (spent 12.00 of 2.00)' || renderAlerts([]) !== 'no
       budget overruns') process.exit(2); if
       (reportFromCsv('date,category,amount,note\n2026-01-01,food,3,x\n', { food: 100 }) !==

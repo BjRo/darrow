@@ -518,6 +518,10 @@ environment value. It reads no message content into its output and is not
 transcript auditing. Pass `--main-route` only for a route the user or host
 states explicitly. Missing, unreadable, malformed or partial observations
 report `main_route_source unknown`; they never become a guessed route.
+The latest route-bearing record replaces earlier route evidence even when its
+payload is malformed. Model and effort fields must be strings; coercion does
+not establish a route. Unrelated host records may be skipped, but a session
+read or decode failure invalidates any route already observed from that file.
 
 The helper reports `route_relation` for the selected route relative to the
 main route: `same` for an identical tuple; `lower` or `higher` when the same
@@ -1157,7 +1161,12 @@ stop without demanding a redundant explanatory sentence. An actual launch or
 contradictory launch claim does not satisfy that boundary.
 
 Behavior evals verify outcomes and public boundaries rather than private
-reasoning or bookkeeping. At minimum, cover:
+reasoning or bookkeeping. Placement checks accept alert objects regardless of
+property insertion order while preserving required fields, values and array
+ordering. Single-options-object call checks accept variables, whitespace and
+multiline literals, and reject positional calls through observable call behavior
+rather than a source-shape regex. Hidden probes exercise the fixture's known
+callers independently of participant-maintained test coverage. At minimum, cover:
 
 - direct explicit invocation;
 - delegation from an explicitly invoked orchestration entrypoint;

@@ -30,6 +30,33 @@ def fields(output: str) -> dict[str, str]:
     return dict(line.split("\t", 1) for line in output.splitlines())
 
 
+def cli_place(
+    repo: Path,
+    host: str,
+    selected: str,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> dict[str, str]:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "adaptive-goal-preflight",
+            "placement",
+            "--repo",
+            str(repo),
+            "--host",
+            host,
+            "--selected-route",
+            selected,
+        ],
+    )
+    assert cli.preflight() == 0
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    return fields(captured.out)
+
+
 def relation(repo: Path, selected: str, main: str, host: str = "codex") -> str:
     return fields(place(repo, host, selected, main))["route_relation"]
 
@@ -173,6 +200,29 @@ def test_codex_partial_route_is_unknown(
     assert fields(place(repo, "codex", LUNA_MEDIUM))["main_route"] == "unknown"
 
 
+@pytest.mark.parametrize(
+    "payload",
+    [None, [], "malformed", {}, {"model": 7, "effort": "medium"}],
+)
+def test_latest_malformed_codex_route_invalidates_previous_route(
+    repo: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    payload: object,
+) -> None:
+    codex_session(
+        tmp_path / "codex",
+        monkeypatch,
+        turn("gpt-6-luna", "medium"),
+        {"type": "turn_context", "payload": payload},
+    )
+    report = cli_place(repo, "codex", LUNA_MEDIUM, monkeypatch, capsys)
+    assert report["main_route"] == "unknown"
+    assert report["main_route_source"] == "unknown"
+    assert report["route_relation"] == "unknown"
+
+
 def test_ambiguous_or_unreadable_session_is_unknown(
     repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -202,7 +252,7 @@ def test_session_glob_error_is_unknown(
 def test_undecodable_session_is_unknown(tmp_path: Path) -> None:
     path = tmp_path / "session.jsonl"
     path.write_bytes(b"\xff\xfe\n")
-    assert list(placement.json_records(path)) == []
+    assert list(placement.json_records(path)) == [None]
 
 
 def test_default_codex_home(
@@ -253,6 +303,59 @@ def test_claude_session_model_and_effort(
         "main_route_source": "unknown",
         "route_relation": "unknown",
     }
+
+
+@pytest.mark.parametrize("message", [None, [], "malformed", {}, {"model": 7}])
+def test_latest_malformed_claude_route_invalidates_previous_route(
+    repo: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    message: object,
+) -> None:
+    root = tmp_path / "claude"
+    claude_session(
+        root,
+        assistant("claude-sonnet-5-5"),
+        {"type": "assistant", "message": message},
+    )
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(root))
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", SESSION)
+    monkeypatch.setenv("CLAUDE_EFFORT", "low")
+    report = cli_place(
+        repo, "claude", "claude|anthropic|claude-sonnet-5-5|low", monkeypatch, capsys
+    )
+    assert report["main_route"] == "unknown"
+    assert report["main_route_source"] == "unknown"
+    assert report["route_relation"] == "unknown"
+
+
+@pytest.mark.parametrize("host", ["codex", "claude"])
+def test_session_decode_failure_invalidates_previous_route(
+    repo: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    host: str,
+) -> None:
+    root = tmp_path / host
+    selected = LUNA_MEDIUM
+    if host == "codex":
+        codex_session(root, monkeypatch, turn("gpt-6-luna", "medium"))
+    else:
+        selected = "claude|anthropic|claude-sonnet-5-5|low"
+        claude_session(root, assistant("claude-sonnet-5-5"))
+        monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(root))
+        monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", SESSION)
+        monkeypatch.setenv("CLAUDE_EFFORT", "low")
+    path = next(root.rglob("*.jsonl"))
+    with path.open("ab") as stream:
+        # Put the decode failure after the first reader buffer's valid route.
+        stream.write(b'{"type":"user","message":"unrelated"}\n' * 1000 + b"\xff\n")
+    report = cli_place(repo, host, selected, monkeypatch, capsys)
+    assert report["main_route"] == "unknown"
+    assert report["main_route_source"] == "unknown"
+    assert report["route_relation"] == "unknown"
 
 
 @pytest.mark.parametrize(

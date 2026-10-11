@@ -1,19 +1,24 @@
 from __future__ import annotations
 
+import io
 import json
+import sys
 import tempfile
+from contextlib import redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
 from hypothesis import event, given, note, settings
 from hypothesis import strategies as st
 
+from darrow_adaptive_goal import cli
 from darrow_adaptive_goal.common import PLUGIN, read_text
 from darrow_adaptive_goal.fixtures.state import checksum
 from darrow_adaptive_goal.placement import json_records, observed, relation
 from darrow_adaptive_goal.routes import EFFORT_ORDER, FIELDS, SAFE_VALUE, parse_document
 
 
-@settings(max_examples=50, derandomize=True)
+@settings(max_examples=50, derandomize=True, deadline=None)
 @given(st.from_regex(r"[A-Za-z0-9][A-Za-z0-9._-]{0,30}", fullmatch=True))
 def test_route_json_round_trip(model: str) -> None:
     values = ("codex", "routine", "codex", "openai", model, "high", "none", "none")
@@ -64,11 +69,13 @@ def test_relation_is_same_only_for_equal_routes_and_mirrors(
 
 @settings(max_examples=100, derandomize=True)
 @given(st.binary(max_size=512))
-def test_session_parser_never_raises_and_yields_only_objects(data: bytes) -> None:
+def test_session_parser_never_raises_and_marks_read_failures(data: bytes) -> None:
     with tempfile.TemporaryDirectory() as directory:
         path = Path(directory) / "session.jsonl"
         path.write_bytes(data)
-        assert all(isinstance(item, dict) for item in json_records(path))
+        assert all(
+            item is None or isinstance(item, dict) for item in json_records(path)
+        )
 
 
 json_values = st.recursive(
@@ -127,3 +134,58 @@ def test_observed_route_is_unknown_or_safe(
         and route[2] != "none"
         and route[3] in EFFORT_ORDER
     )
+
+
+@settings(max_examples=50, derandomize=True)
+@given(
+    st.sampled_from(["codex", "claude"]),
+    json_values.filter(lambda value: not isinstance(value, dict)),
+)
+def test_latest_nonobject_route_is_unknown_through_placement_command(
+    host: str, malformed: object
+) -> None:
+    model = "gpt-6-luna" if host == "codex" else "claude-sonnet-5-5"
+    effort = "medium" if host == "codex" else "low"
+    provider = "openai" if host == "codex" else "anthropic"
+    kind = "turn_context" if host == "codex" else "assistant"
+    parent = "payload" if host == "codex" else "message"
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        path = (
+            root / "sessions/rollout-x-thread.jsonl"
+            if host == "codex"
+            else root / "projects/repo/session.jsonl"
+        )
+        path.parent.mkdir(parents=True)
+        records = [
+            {"type": kind, parent: {"model": model, "effort": effort}},
+            {"type": kind, parent: malformed},
+        ]
+        path.write_text("".join(json.dumps(record) + "\n" for record in records))
+        env = {
+            "CODEX_HOME": directory,
+            "CODEX_THREAD_ID": "thread",
+            "CLAUDE_CONFIG_DIR": directory,
+            "CLAUDE_CODE_SESSION_ID": "session",
+            "CLAUDE_EFFORT": effort,
+        }
+        args = [
+            "adaptive-goal-preflight",
+            "placement",
+            "--repo",
+            str(PLUGIN),
+            "--host",
+            host,
+            "--selected-route",
+            f"{host}|{provider}|{model}|{effort}",
+        ]
+        output = io.StringIO()
+        with (
+            patch.dict("os.environ", env),
+            patch.object(sys, "argv", args),
+            redirect_stdout(output),
+        ):
+            assert cli.preflight() == 0
+        assert output.getvalue().endswith(
+            "main_route\tunknown\nmain_route_source\tunknown\nroute_relation\tunknown\n"
+        )

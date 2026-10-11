@@ -1,4 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
+import { captureTestCommand } from "../test-command";
 
 import { createHash } from "node:crypto";
 
@@ -75,6 +76,22 @@ test("Darrow refuses override mounts that contradict preparation configuration",
   roots.push(root);
   const cases = join(root, "evals/experiments/example/cases");
   const skillDir = "plugins/capability/example/skills/probe";
+  for (const host of ["claude", "codex"]) {
+    const directory = join(
+      root,
+      "plugins/capability/example",
+      `.${host}-plugin`,
+    );
+    await mkdir(directory, { recursive: true });
+    await writeFile(
+      join(directory, "plugin.json"),
+      JSON.stringify({
+        name: "example",
+        version: "0.1.0",
+        ...(host === "codex" ? { skills: "./skills/" } : {}),
+      }),
+    );
+  }
   await mkdir(cases, { recursive: true });
   for (const name of ["probe", "rival"]) {
     const directory = join(root, "plugins/capability/example/skills", name);
@@ -126,7 +143,7 @@ test("Darrow refuses override mounts that contradict preparation configuration",
     }),
   );
   expect(prepared.code, prepared.stderr).toBe(0);
-  expect(prepared.value.result.artifacts).toHaveLength(2);
+  expect(prepared.value.result.artifacts).toHaveLength(4);
 });
 
 test("Darrow conditions preserve route rendering on the follow-up turn", async () => {
@@ -193,22 +210,15 @@ async function command<T>(
   stderr: string;
   value: T;
 }> {
-  const proc = Bun.spawn(argv, {
-    stdin: input === undefined ? "ignore" : "pipe",
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  if (input !== undefined) {
-    if (!proc.stdin || typeof proc.stdin === "number")
-      throw new Error("stdin unavailable");
-    await proc.stdin.write(JSON.stringify(input));
-    await proc.stdin.end();
-  }
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(
+    argv,
+    input === undefined ? undefined : JSON.stringify(input),
+    { env: process.env },
+  );
   return { code, stderr, value: JSON.parse(stdout) as T };
 }
 

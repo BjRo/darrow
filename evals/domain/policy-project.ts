@@ -1,3 +1,4 @@
+import { captureTestCommand } from "../test-command";
 import { afterEach } from "bun:test";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -251,22 +252,9 @@ export async function runPolicyPrompt(
     output_checks: [{ name: "emitted prompt", expect_exact: expected }],
   });
   const adapter = await promptAdapter(project.root, host);
-  const command = Bun.spawn(promptArguments(project, host, adapter), {
-    env: Object.fromEntries(
-      Object.entries(process.env).filter(
-        ([name, value]) =>
-          value !== undefined &&
-          !/(?:api[_-]?key|token|secret|password|credential)/i.test(name),
-      ),
-    ),
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const [stdout, stderr, exitCode] = await Promise.all([
-    new Response(command.stdout).text(),
-    new Response(command.stderr).text(),
-    command.exited,
-  ]);
+  const { stdout, stderr, exitCode } = await captureTestCommand(
+    promptArguments(project, host, adapter),
+  );
   return {
     exitCode,
     diagnostic: stderr || stdout,

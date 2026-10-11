@@ -1,8 +1,9 @@
+import { captureTestCommand } from "../test-command";
 import { expect, test } from "bun:test";
 import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { planSuite, runSuite } from "../sevro-extension/suite";
+import { planSuite } from "../sevro-extension/suite";
 import { policyProject } from "./policy-project";
 
 type Route = { model: string; effort: string };
@@ -347,7 +348,13 @@ test("canonical owner-route conditions reach installed Sevro without claiming dr
     routes,
     ["adaptive-policy", "adaptive-policy-passive"],
   );
-  const result = await runSuite(args);
+  const run = await captureTestCommand([
+    process.execPath,
+    resolve(import.meta.dir, "../sevro-extension/suite.ts"),
+    ...args,
+  ]);
+  expect(run.exitCode, run.stderr + run.stdout).toBe(0);
+  const result = JSON.parse(run.stdout);
   expect(result).toMatchObject({ cells: 2, failed: 0 });
   const manifest = JSON.parse(await readFile(result.manifest, "utf8"));
   const evidence = await Promise.all(

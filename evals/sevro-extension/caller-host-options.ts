@@ -6,6 +6,7 @@ import { optionValue } from "./suite-routes";
 const nativeOptions = new Set([
   "--codex-bin",
   "--codex-auth-file",
+  "--codex-timeout-ms",
   "--claude-bin",
   "--claude-credential-file",
   "--claude-uv-cache-dir",

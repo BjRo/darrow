@@ -631,6 +631,8 @@ default owner condition remains enforced and cannot become passive silently.
 Native host options follow `--` and cannot override caller-owned routes,
 conditions, roots, limits, or graders. Bundled-host enforcement and private goal
 assertions remain explicitly unsupported.
+The public Sevro `--codex-timeout-ms` option passes through unchanged, including
+for native app-server trials. Sevro owns its value validation and execution bound.
 
 The direct caller uses the existing public selection command and its
 `darrow-sevro-selection-v1` manifest. Stdout and optional `--output` contain that
@@ -886,7 +888,11 @@ boundary is an explicit error.
 Plugin-local skills prepared for project discovery retain the owning plugin's
 contained backend under `.agents/backend`, alongside `.agents/skills/`. This
 includes implicit Codex preparation and adapters that use the project skill
-surface. The backend's source bytes participate in fixture identity and its
+surface. Retain both owning plugin manifests at `.agents/.claude-plugin/plugin.json`
+and `.agents/.codex-plugin/plugin.json` with their original names and versions,
+so the locked backend launcher can establish its plugin identity. Copy only
+those manifest files, not plugin hooks or agent registrations.
+The backend and manifest source bytes participate in fixture identity and their
 artifacts remain Git-excluded and subject to the shared artifact limits. Native
 plugin preparation retains the backend inside its independent plugin package.
 Project discovery does not copy plugin hooks or agents into project settings.

@@ -1,3 +1,4 @@
+import { captureTestCommand } from "../test-command";
 import { afterEach, expect, test } from "bun:test";
 
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -21,7 +22,11 @@ afterEach(async () => {
 });
 
 test("guide caller retains a public unassessed dry result", async () => {
-  const child = Bun.spawn(
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(
     [
       process.execPath,
       command,
@@ -31,13 +36,9 @@ test("guide caller retains a public unassessed dry result", async () => {
       "codex",
       "--dry",
     ],
-    { cwd: repository, stdout: "pipe", stderr: "pipe" },
+    undefined,
+    { cwd: repository, env: process.env },
   );
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ]);
   const output = stdout.match(/^Guide evidence: (.+)$/m)?.[1];
   expect(output, stdout + stderr).toBeDefined();
   outputRoots.push(output!);
@@ -121,7 +122,11 @@ async function fixture() {
 
 test("guide caller uses the frozen package without route overrides", async () => {
   const { root, binary, credential, results } = await fixture();
-  const child = Bun.spawn(
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(
     [
       process.execPath,
       command,
@@ -140,6 +145,7 @@ test("guide caller uses the frozen package without route overrides", async () =>
       "--codex-auth-file",
       credential,
     ],
+    undefined,
     {
       cwd: root,
       env: {
@@ -147,15 +153,8 @@ test("guide caller uses the frozen package without route overrides", async () =>
         SEVRO_CHECKOUT: undefined,
         SEVRO_PACKAGE_BIN: undefined,
       },
-      stdout: "pipe",
-      stderr: "pipe",
     },
   );
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ]);
   expect(code, stderr + stdout).toBe(0);
   const output = stdout.match(/^Guide evidence: (.+)$/m)?.[1];
   expect(output, stderr + stdout).toBeDefined();
@@ -171,6 +170,6 @@ test("guide caller uses the frozen package without route overrides", async () =>
   expect(evidence.runner).toMatchObject({
     source: "package",
     packageName: "@bjoernrochel/sevro",
-    version: "0.1.0-rc.5",
+    version: "0.1.0-rc.7",
   });
 }, 30_000);

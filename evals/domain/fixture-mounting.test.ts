@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { mkdir, symlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
   preparePolicy,
@@ -58,6 +58,18 @@ test.each(["project", "claude", "codex"] as const)(
       createHash("sha256").update(contents).digest("hex"),
     );
     expect(resource!.gitExclude).toBe(true);
+    for (const host of ["claude", "codex"]) {
+      const relativePath = `.${host}-plugin/plugin.json`;
+      const manifest = artifacts.find(
+        (artifact) =>
+          artifact.relativePath === `${destination}/${relativePath}`,
+      );
+      expect(manifest).toBeDefined();
+      expect(Buffer.from(manifest!.contentBase64, "base64")).toEqual(
+        await readFile(join(plugin, relativePath)),
+      );
+      expect(manifest!.gitExclude).toBe(true);
+    }
     expect(
       artifacts.some((artifact) =>
         /\/(?:evals|\.venv)\//.test(artifact.relativePath),

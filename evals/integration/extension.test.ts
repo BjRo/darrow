@@ -1,3 +1,4 @@
+import { captureTestCommand } from "../test-command";
 import { afterEach, expect, test } from "bun:test";
 
 import { createHash } from "node:crypto";
@@ -28,6 +29,22 @@ const extension = resolve(import.meta.dir, "../sevro-extension/index.ts");
 const projectRoot = resolve(import.meta.dir, "../..");
 
 const roots: string[] = [];
+
+async function examplePluginManifests(root: string) {
+  const plugin = join(root, "plugins/capability/example");
+  for (const host of ["claude", "codex"]) {
+    const directory = join(plugin, `.${host}-plugin`);
+    await mkdir(directory, { recursive: true });
+    await writeFile(
+      join(directory, "plugin.json"),
+      JSON.stringify({
+        name: "example",
+        version: "0.1.0",
+        ...(host === "codex" ? { skills: "./skills/" } : {}),
+      }),
+    );
+  }
+}
 
 test("Darrow separates case discovery from imported Codex configuration", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-project-root-"));
@@ -143,7 +160,11 @@ test("Darrow condition files render the actual candidate route through Sevro", a
     };`,
     );
     const results = join(root, `results-${harness}`);
-    const proc = Bun.spawn(
+    const {
+      stdout,
+      stderr,
+      exitCode: code,
+    } = await captureTestCommand(
       [
         process.execPath,
         runCommand,
@@ -169,13 +190,9 @@ test("Darrow condition files render the actual candidate route through Sevro", a
         "1",
         "--shell-isolation",
       ],
-      { stdout: "pipe", stderr: "pipe" },
+      undefined,
+      { env: process.env },
     );
-    const [stdout, stderr, code] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]);
     expect(code, stderr + stdout).toBe(0);
     const result = JSON.parse(stdout);
     expect(result.task.verdict).toBe("passed");
@@ -237,7 +254,11 @@ test("Darrow condition routes resolve after corpus preflight", async () => {
     async run({ prompt, followUpPrompt }) { return { finalMessage: prompt + "|" + followUpPrompt, complete: true }; }
   };`,
   );
-  const proc = Bun.spawn(
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(
     [
       process.execPath,
       resolve(import.meta.dir, "../sevro-extension/run.ts"),
@@ -260,13 +281,9 @@ test("Darrow condition routes resolve after corpus preflight", async () => {
       "1",
       "--shell-isolation",
     ],
-    { stdout: "pipe", stderr: "pipe" },
+    undefined,
+    { env: process.env },
   );
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
   expect(code, stderr + stdout).toBe(0);
   const result = JSON.parse(stdout);
   expect(result.task.verdict).toBe("passed");
@@ -313,7 +330,11 @@ test("Darrow rejects invalid condition inputs before candidate execution", async
   for (const [name, text, expectedCode] of invalid) {
     const path = join(root, name);
     await writeFile(path, text);
-    const proc = Bun.spawn(
+    const {
+      stdout,
+      stderr,
+      exitCode: code,
+    } = await captureTestCommand(
       [
         process.execPath,
         resolve(import.meta.dir, "../sevro-extension/run.ts"),
@@ -336,13 +357,9 @@ test("Darrow rejects invalid condition inputs before candidate execution", async
         "1",
         "--shell-isolation",
       ],
-      { stdout: "pipe", stderr: "pipe" },
+      undefined,
+      { env: process.env },
     );
-    const [stdout, stderr, code] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]);
     expect(code, stderr + stdout).toBe(expectedCode);
     expect(await Bun.file(marker).exists()).toBe(false);
   }
@@ -514,22 +531,15 @@ async function command<T>(
   stderr: string;
   value: T;
 }> {
-  const proc = Bun.spawn(argv, {
-    stdin: input === undefined ? "ignore" : "pipe",
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  if (input !== undefined) {
-    if (!proc.stdin || typeof proc.stdin === "number")
-      throw new Error("stdin unavailable");
-    await proc.stdin.write(JSON.stringify(input));
-    await proc.stdin.end();
-  }
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(
+    argv,
+    input === undefined ? undefined : JSON.stringify(input),
+    { env: process.env },
+  );
   return { code, stderr, value: JSON.parse(stdout) as T };
 }
 
@@ -595,16 +605,14 @@ function request(method: string, params: Record<string, unknown>) {
 }
 
 async function git(cwd: string, ...args: string[]): Promise<string> {
-  const proc = Bun.spawn(["git", ...args], {
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(["git", ...args], undefined, {
     cwd,
-    stdout: "pipe",
-    stderr: "pipe",
+    env: process.env,
   });
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
   if (code !== 0) throw new Error(stderr);
   return stdout.trim();
 }
@@ -613,6 +621,7 @@ test("Sevro grades no-agent evidence through the public CLI", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-no-agent-"));
   roots.push(root);
   const skill = join(root, "plugins/capability/example/skills/probe");
+  await examplePluginManifests(root);
   await mkdir(join(skill, "evals"), { recursive: true });
   await writeFile(
     join(skill, "SKILL.md"),
@@ -717,6 +726,7 @@ test("Darrow mounts sibling skills for a competition activation case", async () 
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-siblings-"));
   roots.push(root);
   const skills = join(root, "plugins/capability/example/skills");
+  await examplePluginManifests(root);
   await mkdir(join(skills, "primary/evals"), { recursive: true });
   await mkdir(join(skills, "rival/evals"), { recursive: true });
   await mkdir(join(skills, "spare/evals"), { recursive: true });
@@ -779,6 +789,11 @@ test("Darrow mounts sibling skills for a competition activation case", async () 
     { id: "darrow.skill.1", relativePath: ".agents/skills/primary/SKILL.md" },
     { id: "darrow.skill.2", relativePath: ".agents/skills/rival/SKILL.md" },
     { id: "darrow.skill.3", relativePath: ".agents/skills/spare/SKILL.md" },
+    {
+      id: "darrow.skill.4",
+      relativePath: ".agents/.claude-plugin/plugin.json",
+    },
+    { id: "darrow.skill.5", relativePath: ".agents/.codex-plugin/plugin.json" },
   ]);
   const adapter = join(root, "candidate.ts");
   await writeFile(
@@ -817,7 +832,7 @@ test("Darrow mounts sibling skills for a competition activation case", async () 
     { id: "darrow.evals.activation", status: "passed" },
   ]);
   const evidence = JSON.parse(await readFile(run.value.evidencePath, "utf8"));
-  expect(evidence.trials[0].artifactRefs).toHaveLength(3);
+  expect(evidence.trials[0].artifactRefs).toHaveLength(5);
   expect(evidence.trials[0].domainOutcomes[0].data).toMatchObject({
     expectedSkills: ["primary", "rival"],
     requiredSkills: ["rival"],
@@ -887,6 +902,7 @@ test("Darrow extension mounts a plugin skill without exposing its evals", async 
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-skill-"));
   roots.push(root);
   const skillDir = join(root, "plugins/capability/example/skills/example");
+  await examplePluginManifests(root);
   await mkdir(join(skillDir, "references"), { recursive: true });
   await mkdir(join(skillDir, "scripts"), { recursive: true });
   await mkdir(join(skillDir, "evals"), { recursive: true });
@@ -965,6 +981,8 @@ test("Darrow extension mounts a plugin skill without exposing its evals", async 
     ".agents/skills/example/SKILL.md",
     ".agents/skills/example/references/guide.md",
     ".agents/skills/example/scripts/run.sh",
+    ".agents/.claude-plugin/plugin.json",
+    ".agents/.codex-plugin/plugin.json",
   ]);
   expect(prepared.value.result.artifacts.every((item) => item.gitExclude)).toBe(
     true,
@@ -1091,7 +1109,7 @@ export default {
     evidence.trials[0].artifactRefs.filter(
       (item: { gitExclude?: boolean }) => item.gitExclude,
     ),
-  ).toHaveLength(3);
+  ).toHaveLength(5);
   expect(
     evidence.trials[0].artifactRefs.filter(
       (item: { executable?: boolean }) => item.executable,
@@ -1966,12 +1984,11 @@ test("Darrow runs a pinned corpus repository with committed overlay and setup", 
     run.value.cases[0]!.trials[0]!.checks.map((check) => check.status),
   ).toEqual(["passed", "passed", "passed", "passed"]);
   await writeFile(join(repository, "DRIFT.txt"), "not pinned\n");
-  const rejected = Bun.spawn(runArgs, { stdout: "pipe", stderr: "pipe" });
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(rejected.stdout).text(),
-    new Response(rejected.stderr).text(),
-    rejected.exited,
-  ]);
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(runArgs, undefined, { env: process.env });
   expect(code).toBe(64);
   expect(stderr).toContain("not clean");
   expect(stdout).toBe("");

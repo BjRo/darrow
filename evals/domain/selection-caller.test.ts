@@ -2,6 +2,7 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { captureTestCommand, spawnTestCommand } from "../test-command";
 
 const roots: string[] = [];
 const runCommand = resolve(import.meta.dir, "../sevro-extension/run.ts");
@@ -54,7 +55,11 @@ async function drySelection(
   selectors: string[],
   env: Record<string, string | undefined> = process.env,
 ) {
-  const child = Bun.spawn(
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(
     [
       process.execPath,
       runCommand,
@@ -83,13 +88,9 @@ async function drySelection(
       "1",
       "--dry",
     ],
-    { stdout: "pipe", stderr: "pipe", env },
+    undefined,
+    { env },
   );
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ]);
   return { stdout, stderr, code };
 }
 
@@ -425,7 +426,7 @@ export default {
   },
 };\n`,
   );
-  const child = Bun.spawn(
+  const { child, result } = await spawnTestCommand(
     [
       process.execPath,
       runCommand,
@@ -445,10 +446,9 @@ export default {
       "--threshold",
       "1",
     ],
-    { stdout: "pipe", stderr: "pipe" },
+    undefined,
+    { env: process.env },
   );
-  const output = new Response(child.stdout).text();
-  const errors = new Response(child.stderr).text();
   let candidatePid: number | undefined;
   try {
     const deadline = Date.now() + 5000;
@@ -459,11 +459,7 @@ export default {
     }
     candidatePid = JSON.parse(await readFile(ready, "utf8")).pid;
     child.kill(signal);
-    const [stdout, stderr, code] = await Promise.all([
-      output,
-      errors,
-      child.exited,
-    ]);
+    const { stdout, stderr, exitCode: code } = await result;
     expect(code, stderr).toBe(expectedCode);
     const manifest = JSON.parse(
       await readFile(join(results, "selection-run.json"), "utf8"),
@@ -608,7 +604,11 @@ export default {
   },
 };\n`,
   );
-  const child = Bun.spawn(
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(
     [
       process.execPath,
       runCommand,
@@ -628,13 +628,9 @@ export default {
       "--threshold",
       "1",
     ],
-    { stdout: "pipe", stderr: "pipe" },
+    undefined,
+    { env: process.env },
   );
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ]);
   expect(code, stderr).toBe(1);
   const reply = JSON.parse(stdout);
   expect(reply.interrupted).toBe(false);

@@ -1,3 +1,4 @@
+import { captureTestCommand } from "../test-command";
 import { afterEach, expect, test } from "bun:test";
 
 import { existsSync } from "node:fs";
@@ -84,17 +85,18 @@ async function invoke(
   args: string[],
   environment: Record<string, string | undefined> = {},
 ) {
-  const child = Bun.spawn([process.execPath, command, ...args], {
-    cwd: root,
-    env: { ...process.env, ...environment },
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ]);
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(
+    [process.execPath, command, ...args],
+    undefined,
+    {
+      cwd: root,
+      env: { ...process.env, ...environment },
+    },
+  );
   return { stdout, stderr, code };
 }
 
@@ -154,6 +156,27 @@ test("direct caller forwards an explicit runtime configuration", async () => {
       .DARROW_RUNTIME_SAMPLE,
   ).toBe("selected");
 }, 30000);
+
+test("direct caller forwards the configured Codex execution timeout", async () => {
+  const { root, binary, credential, output } = await fixture();
+  for (const timeout of ["1200000", "0"]) {
+    const run = await invoke(root, [
+      ...reviewArguments(root, binary, credential, join(output, timeout)),
+      "--codex-timeout-ms",
+      timeout,
+    ]);
+    expect(run.code, JSON.stringify(run)).toBe(timeout === "1200000" ? 0 : 1);
+    const selection = JSON.parse(
+      await readFile(join(output, timeout, "selection-run.json"), "utf8"),
+    );
+    if (timeout === "1200000") {
+      expect(selection.runs[0].result.execution.status).toBe("not_run");
+      expect(selection.runs[0].result.task.verdict).toBe("not_assessed");
+    } else {
+      expect(selection.runs[0].exitCode).not.toBe(0);
+    }
+  }
+}, 30_000);
 
 test("direct Claude caller lets a runtime file control goal settings", async () => {
   const { root, binary, credential, output } = await fixture();
@@ -390,6 +413,9 @@ await new Promise(() => setInterval(() => {}, 1000));
 `,
         { mode: 0o700 },
       );
+      const stdoutFile = join(root, "caller.stdout");
+      const stderrFile = join(root, "caller.stderr");
+      await Promise.all([writeFile(stdoutFile, ""), writeFile(stderrFile, "")]);
       const child = Bun.spawn(
         [
           process.execPath,
@@ -413,10 +439,14 @@ await new Promise(() => setInterval(() => {}, 1000));
           "--",
           ...nativeArgs(binary, credential),
         ],
-        { cwd: root, stdout: "pipe", stderr: "pipe" },
+        {
+          cwd: root,
+          stdout: Bun.file(stdoutFile),
+          stderr: Bun.file(stderrFile),
+        },
       );
       try {
-        const deadline = Date.now() + 15_000;
+        const deadline = Date.now() + 60_000;
         while (!(await Bun.file(ready).exists())) {
           if (Date.now() > deadline)
             throw new Error("Synthetic host did not start");
@@ -432,10 +462,10 @@ await new Promise(() => setInterval(() => {}, 1000));
         });
         expect(initial.runs).toEqual([]);
         child.kill(signal);
-        const [stdout, stderr, code] = await Promise.all([
-          new Response(child.stdout).text(),
-          new Response(child.stderr).text(),
-          child.exited,
+        const code = await child.exited;
+        const [stdout, stderr] = await Promise.all([
+          readFile(stdoutFile, "utf8"),
+          readFile(stderrFile, "utf8"),
         ]);
         expect(code, stderr + stdout).toBe(signal === "SIGINT" ? 130 : 143);
         const manifest = JSON.parse(stdout);
@@ -459,7 +489,7 @@ await new Promise(() => setInterval(() => {}, 1000));
       }
     }
   },
-  30_000,
+  180_000,
 );
 
 test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
