@@ -2,8 +2,9 @@ id: code-review-repair-guidance
 activation: positive
 invariant: CR-C9,CR-E2,CR-E4,CR-E7,CR-E8,CR-E15
 prompt: >-
-  Use {{skill_invocation}} to review my uncommitted changes against this originating requirement:
-  parseAge must return null for non-numeric input. Do not repair the code.
+  Use {{skill_invocation}} to review my uncommitted changes against this
+  originating requirement: parseAge must return null for non-numeric input. Do
+  not repair the code.
 fixture:
   commits:
     - message: "chore: init"
@@ -27,45 +28,49 @@ fixture:
         return Number(value);
       }
   setup: |
+    bash "{{case_dir}}/fixtures/prepare-grading.sh" "{{case_dir}}"
     git status --porcelain --untracked-files=all >.git/status-before
-    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
-    cp "{{case_dir}}/../../../backend/tests/evals/assert_guidance.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: human response excludes machine JSON
-    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py
+      .git/last-message.md human-response
   - name: each finding retains guidance from its originating reader
     run: |
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n 1)
       test -n "$record" || exit 1
       python3 .git/eval-checks/review/tests/evals/assert_guidance.py "$record" finding
   - name: review is read-only
-    run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
+    run: git status --porcelain --untracked-files=all >.git/status-after; cmp
+      .git/status-before .git/status-after
   - name: canonical JSON is retained beneath the review scope artifact
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
-      test -n "$tool" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record"
+      tool=.git/eval-checks/review/src/darrow_review/result.py; test -n "$tool"
+      && uv run --quiet --frozen --no-dev --project
+      "${tool%/src/darrow_review/result.py}" review-result validate "$record"
     expect_regex: "^valid: darrow-review-result-v3$"
   - name: canonical Markdown handoff is materialized beside the JSON
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
-      test -n "$record" || exit 1;
-      report=$(dirname "$record")/review.md;
-      tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n '1');
-      test -r "$report" && test -s "$report" && test -n "$tool" &&
-      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render "$record" >.git/expected-review.md &&
-      cmp .git/expected-review.md "$report"
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
+      test -n "$record" || exit 1; report=$(dirname "$record")/review.md;
+      tool=.git/eval-checks/review/src/darrow_review/report.py; test -r
+      "$report" && test -s "$report" && test -n "$tool" && uv run --quiet
+      --frozen --no-dev --project "${tool%/src/darrow_review/report.py}"
+      review-report render "$record" >.git/expected-review.md && cmp
+      .git/expected-review.md "$report"
 semantic_output_checks:
   - name: both blocking defects are understandable inline
     proposition: >-
       The response reports a failed review and explains both blocking issues:
-      parseAge writes console output although library standards prohibit it,
-      and nonnumeric input produces NaN although the originating requirement
-      calls for null. Both issues must be understandable in the response.
-      Stating these actual and required behaviors conveys the corrections;
-      separate repair, rationale, advisory-label, or test sentences are not
-      required. Naming Number is not required. Any implementation advice must
-      be consistent with returning numbers for numeric input and keeping the
+      parseAge writes console output although library standards prohibit it, and
+      nonnumeric input produces NaN although the originating requirement calls
+      for null. Both issues must be understandable in the response. Stating
+      these actual and required behaviors conveys the corrections; separate
+      repair, rationale, advisory-label, or test sentences are not required.
+      Naming Number is not required. Any implementation advice must be
+      consistent with returning numbers for numeric input and keeping the
       library silent. Reject a missing issue, a false pass or nonblocking
       characterization, the wrong required behavior, or contradictory advice.

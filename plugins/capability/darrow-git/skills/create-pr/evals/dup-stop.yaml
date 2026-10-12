@@ -12,15 +12,15 @@ fixture:
   bin:
     gh: |
       #!/bin/sh
-      d="$(git rev-parse --git-dir)/fixture-gh"
+      d="$(git rev-parse --show-toplevel)/.fixture-state/gh"
       case "$1 $2" in
         "pr list")
-          if [ -f "$(git rev-parse --git-dir)/fixture-gh-fail" ]; then
+          if [ -f "$(git rev-parse --show-toplevel)/.fixture-state/gh-fail" ]; then
             echo "HTTP 502: bad gateway" >&2
             exit 1
           fi
-          if [ -f "$(git rev-parse --git-dir)/fixture-gh-existing" ]; then
-            cat "$(git rev-parse --git-dir)/fixture-gh-existing"
+          if [ -f "$(git rev-parse --show-toplevel)/.fixture-state/gh-existing" ]; then
+            cat "$(git rev-parse --show-toplevel)/.fixture-state/gh-existing"
           fi
           ;;
         "pr create")
@@ -45,21 +45,21 @@ fixture:
           ;;
       esac
   setup: |
-    git init -q --bare .git/remote.git
-    git remote add origin "$PWD/.git/remote.git"
+    git init -q --bare .fixture-state/remote.git
+    git remote add origin "$PWD/.fixture-state/remote.git"
     git push -qu origin main
     git remote set-head origin main
     git switch -qc fix/session-expiry
     printf 'export function login() { return true; }\n' > src/auth.ts
     git add src/auth.ts
     git commit -qm "fix: renew session before expiry"
-    printf '#42\tfix: renew session before expiry\tfix/session-expiry\n' > .git/fixture-gh-existing
+    printf '#42\tfix: renew session before expiry\tfix/session-expiry\n' > .fixture-state/gh-existing
 checks:
   - name: no second PR created
-    run: test ! -f .git/fixture-gh/title && echo none
+    run: test ! -f .fixture-state/gh/title && echo none
     expect_regex: "^none$"
   - name: branch not pushed
-    run: git -C .git/remote.git for-each-ref refs/heads | wc -l
+    run: git -C .fixture-state/remote.git for-each-ref refs/heads | wc -l
     expect_regex: "^\\s*1$"
   - name: still on the branch
     run: git rev-parse --abbrev-ref HEAD

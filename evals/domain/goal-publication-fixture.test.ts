@@ -41,7 +41,7 @@ import { existsSync } from "node:fs";
 import { lstat, readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 async function publicationState() {
-  const directory = ".git/fixture-state";
+  const directory = ".fixture-state";
   const entries = (await readdir(directory, { recursive: true })).sort();
   const fixtureState = await Promise.all(entries.map(async (name) => {
     const path = join(directory, name);
@@ -51,11 +51,11 @@ async function publicationState() {
   return {
     worktree: checked(["git", "status", "--porcelain", "--untracked-files=all"]),
     localRefs: checked(["git", "for-each-ref", "--format=%(refname) %(objectname)"]),
-    remoteRefs: checked(["git", "--git-dir=.git/fixture-remote.git", "for-each-ref", "--format=%(refname) %(objectname)"]),
+    remoteRefs: checked(["git", "--git-dir=.fixture-state/remote.git", "for-each-ref", "--format=%(refname) %(objectname)"]),
     fixtureState,
   };
 }
-const log = ".git/fixture-state/gh-pr-calls";
+const log = ".fixture-state/gh-pr-calls";
 for (const flag of ["--help", "-h"]) {
   const before = await publicationState();
   assert.equal(before.worktree, "");

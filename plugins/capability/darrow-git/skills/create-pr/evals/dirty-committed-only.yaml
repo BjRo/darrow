@@ -12,23 +12,23 @@ fixture:
   bin:
     gh: |
       #!/bin/sh
-      d="$(git rev-parse --git-dir)/fixture-gh"
+      d="$(git rev-parse --show-toplevel)/.fixture-state/gh"
       case "$1 $2" in
         "pr list")
-          if [ -f "$(git rev-parse --git-dir)/fixture-gh-created" ]; then
+          if [ -f "$(git rev-parse --show-toplevel)/.fixture-state/gh-created" ]; then
             tip=$(git rev-parse HEAD)
             base=$(cat "$d/base")
             draft=false; [ ! -f "$d/draft" ] || draft=true
             printf '1\thttps://github.com/fixture/repo/pull/1\tOPEN\t%s\t%s\t%s\t%s\tfalse\n' "$(cat "$d/head")" "$tip" "$base" "$draft"
-            rm -f "$(git rev-parse --git-dir)/fixture-gh-created"
+            rm -f "$(git rev-parse --show-toplevel)/.fixture-state/gh-created"
             exit 0
           fi
-          if [ -f "$(git rev-parse --git-dir)/fixture-gh-fail" ]; then
+          if [ -f "$(git rev-parse --show-toplevel)/.fixture-state/gh-fail" ]; then
             echo "HTTP 502: bad gateway" >&2
             exit 1
           fi
-          if [ -f "$(git rev-parse --git-dir)/fixture-gh-existing" ]; then
-            cat "$(git rev-parse --git-dir)/fixture-gh-existing"
+          if [ -f "$(git rev-parse --show-toplevel)/.fixture-state/gh-existing" ]; then
+            cat "$(git rev-parse --show-toplevel)/.fixture-state/gh-existing"
           fi
           ;;
         "pr create")
@@ -46,7 +46,7 @@ fixture:
             esac
           done
           echo "https://github.com/fixture/repo/pull/1"
-          : > "$(git rev-parse --git-dir)/fixture-gh-created"
+          : > "$(git rev-parse --show-toplevel)/.fixture-state/gh-created"
           ;;
         "repo view")
           printf '%s\n' fixture/repo
@@ -57,9 +57,9 @@ fixture:
           ;;
       esac
   setup: |
-    git init -q --bare .git/remote.git
-    git --git-dir=.git/remote.git symbolic-ref HEAD refs/heads/main
-    git remote add origin "$PWD/.git/remote.git"
+    git init -q --bare .fixture-state/remote.git
+    git --git-dir=.fixture-state/remote.git symbolic-ref HEAD refs/heads/main
+    git remote add origin "$PWD/.fixture-state/remote.git"
     git push -qu origin main
     git remote set-head origin main
     git switch -qc fix/request-timeout
@@ -70,7 +70,7 @@ fixture:
     printf 'scratch notes\n' > notes.txt
 checks:
   - name: PR created
-    run: test -f .git/fixture-gh/title && echo created
+    run: test -f .fixture-state/gh/title && echo created
     expect_regex: "^created$"
   - name: modified file still dirty
     run: git status --porcelain

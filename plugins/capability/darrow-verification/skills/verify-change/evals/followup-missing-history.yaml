@@ -46,7 +46,7 @@ checks:
   - name: no extra commit
     run: test "$(git rev-list --count HEAD)" -eq 1
   - name: no replacement review report
-    run: test ! -e .git/inspect-candidate-report.md
+    run: test ! -e .fixture-state/inspect-candidate-report.md
 semantic_output_checks:
   - name: missing lineage blocks
     proposition: The overall verification result is blocked because the original

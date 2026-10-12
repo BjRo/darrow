@@ -901,7 +901,9 @@ test("Darrow doctor controls require intact negative evidence", async () => {
       observedSkills: [],
     },
   };
-  const clean = await events("turn.completed\n");
+  const start = '{"type":"turn.started"}\n';
+  const cleanContent = start + '{"type":"turn.completed"}\n';
+  const clean = await events(cleanContent);
   const evaluate = async (
     selectedCase: ExtensionReply["result"]["cases"][number],
     observations: unknown[],
@@ -992,16 +994,58 @@ test("Darrow doctor controls require intact negative evidence", async () => {
     await evaluate(
       selectedCase,
       [native, skills],
-      [await events("adaptive-goal-preflight\n")],
+      [
+        await events(
+          start +
+            JSON.stringify({
+              type: "item.completed",
+              item: {
+                type: "command_execution",
+                command: "uv run --frozen adaptive-goal-preflight prepare",
+                aggregated_output: "",
+              },
+            }) +
+            '\n{"type":"turn.completed"}\n',
+        ),
+      ],
     ),
   ).toBe("failed");
   expect(
     await evaluate(
       selectedCase,
       [native, skills],
-      [await events('{"skill":"adaptive-goal"}\n')],
+      [
+        await events(
+          start +
+            JSON.stringify({
+              type: "item.completed",
+              item: {
+                type: "command_execution",
+                command: "cat .agents/skills/doctor-adaptive-goal/SKILL.md",
+                aggregated_output:
+                  'Documentation: adaptive-goal-preflight and {"skill":"adaptive-goal"}',
+              },
+            }) +
+            '\n{"type":"turn.completed"}\n',
+        ),
+      ],
     ),
-  ).toBe("failed");
+  ).toBe("passed");
+  for (const incomplete of [
+    "not JSON\n",
+    start,
+    cleanContent + start,
+    start +
+      '{"type":"item.completed","item":{"type":"command_execution"}}\n{"type":"turn.completed"}\n',
+  ]) {
+    expect(
+      await evaluate(
+        selectedCase,
+        [native, skills],
+        [await events(incomplete)],
+      ),
+    ).toBe("unavailable");
+  }
   expect(
     await evaluate(
       selectedCase,
@@ -1025,7 +1069,7 @@ test("Darrow doctor controls require intact negative evidence", async () => {
         },
         skills,
       ],
-      [await events("turn.completed\n")],
+      [await events(cleanContent)],
     ),
   ).toBe("failed");
   expect(
@@ -1041,7 +1085,7 @@ test("Darrow doctor controls require intact negative evidence", async () => {
         },
         skills,
       ],
-      [await events("turn.completed\n")],
+      [await events(cleanContent)],
     ),
   ).toBe("failed");
 });

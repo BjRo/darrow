@@ -15,36 +15,37 @@ fixture:
     gh: |
       #!/bin/sh
       backend="$(git rev-parse --absolute-git-dir)/tickets-fixture"
-      exec uv run --quiet --frozen --no-dev --project "$backend" python "$backend/tests/eval_gh.py" "$@"
+      UV_PROJECT_ENVIRONMENT="$HOME/.darrow/cache/ticket-fixture-environment" \
+        exec uv run --quiet --frozen --no-dev --project "$backend" python "$backend/tests/eval_gh.py" "$@"
   setup: |
     mkdir -p .git/tickets-fixture/tests
     cp "{{case_dir}}/../../../backend/pyproject.toml" "{{case_dir}}/../../../backend/uv.lock" .git/tickets-fixture/
     cp -R "{{case_dir}}/../../../backend/src" .git/tickets-fixture/
     cp "{{case_dir}}/../../../backend/tests/eval_gh.py" .git/tickets-fixture/tests/
     git remote add origin https://github.test/o/r.git
-    mkdir -p .git/fixture-gh
-    printf 'bug\nenhancement\ndocumentation\n' > .git/fixture-gh/labels
-    : > .git/fixture-gh/list
-    printf 'open' > .git/fixture-gh/issue-12-state
-    printf 'ticket list crashes with SIGPIPE on large repos' > .git/fixture-gh/issue-12-title
-    printf 'Reported by CI.\n' > .git/fixture-gh/issue-12-body
+    mkdir -p .fixture-state/gh
+    printf 'bug\nenhancement\ndocumentation\n' > .fixture-state/gh/labels
+    : > .fixture-state/gh/list
+    printf 'open' > .fixture-state/gh/issue-12-state
+    printf 'ticket list crashes with SIGPIPE on large repos' > .fixture-state/gh/issue-12-title
+    printf 'Reported by CI.\n' > .fixture-state/gh/issue-12-body
 checks:
   - name: findings landed as a comment
-    run: cat .git/fixture-gh/comment-body-12
+    run: cat .fixture-state/gh/comment-body-12
     expect_regex: "grep -q.*pipefail|pipefail.*grep -q"
   - name: comment preserves the reported symptom and fix
-    run: cat .git/fixture-gh/comment-body-12
+    run: cat .fixture-state/gh/comment-body-12
     expect_regex: "SIGPIPE[\\s\\S]*here-?strings?|here-?strings?[\\s\\S]*SIGPIPE"
     flags: i
   - name: no status change smuggled in
-    run: test ! -f .git/fixture-gh/transitions && echo none
+    run: test ! -f .fixture-state/gh/transitions && echo none
     expect_regex: "^none$"
   - name: description untouched
-    run: test ! -f .git/fixture-gh/edited-body-12 && echo none
+    run: test ! -f .fixture-state/gh/edited-body-12 && echo none
     expect_regex: "^none$"
   - name: comment is the requested tracker mutation
-    run: cat .git/fixture-gh/calls
+    run: cat .fixture-state/gh/calls
     expect_regex: "^issue comment 12 "
   - name: no other tracker mutation occurs
-    run: cat .git/fixture-gh/calls
+    run: cat .fixture-state/gh/calls
     not_regex: "(^| )issue (create|edit|close|reopen)( |$)|(^| )api (-X|--method) (POST|PUT|PATCH|DELETE)( |$)"

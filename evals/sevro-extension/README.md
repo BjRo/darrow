@@ -71,16 +71,26 @@ Darrow's callers prepare that environment before launching Sevro:
 - They set `UV_PYTHON_INSTALL_DIR` from `uv python dir` when it is unset.
 - They build the public seed cache at `~/.darrow/cache/sevro-uv-cache` from the
   registered Python packages' locks, and rebuild it only when a lock changes.
+- With this repository's default goal-enabled policy, they select Codex's
+  app-server entrypoint unless an entrypoint or replacement runtime file is
+  supplied. The compiled command records that selection.
 
 Repository-skill guide trials need `--claude-project-settings`, which conflicts
 with native-goal hooks. The guide caller therefore selects
 [`runtime-repository-skills.json`](runtime-repository-skills.json): the same
-tools without hooks. An explicit `--runtime-config-file` replaces either default.
+tools and native transcripts without hooks. An explicit `--runtime-config-file` replaces either default.
 With a runtime file selected, direct and benchmark callers no longer add
 `--claude-project-settings` automatically.
 
 Native transcripts are enabled so Adaptive Goal's placement helper can read
-the current session's model and effort, as it does outside Sevro.
+the current session's model and effort, as it does outside Sevro. Hook-free
+guide trials retain them for native control observations and skill-read recovery.
+
+Fixture setup prepares `.fixture-state/` and excludes it from Git. Candidate
+fixture tools keep mutable tracker state, receipts, and test traces there.
+Immutable fixture inputs and hidden graders remain in Git metadata. Graders
+use declared host tools or portable system commands; a tool inside a protected
+Codex installation does not become available through inherited `PATH`.
 
 ## Separate configuration roots
 

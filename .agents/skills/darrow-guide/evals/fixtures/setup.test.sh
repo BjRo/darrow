@@ -24,14 +24,14 @@ test ! -e .agents/skills/darrow-guide/evals/inventory.json
 grep -F 'Complex work starts adaptive-goal automatically' plugins/orchestration/darrow-adaptive-goal/README.md >/dev/null
 test "$(git rev-parse HEAD)" = "$(cat .git/guide-base)"
 test -z "$(git status --porcelain --untracked-files=all)"
-test ! -s .git/guide-effects
+test ! -s .fixture-state/guide-effects
 cmp .git/config .git/guide-config
 global_modules=$(".git/fixture-bin/npm" root -g)
 case "$global_modules" in
   "$test_dir"/*) test -d "$global_modules" ;;
   *) printf 'npm root returned a directory outside the fixture\n' >&2; exit 1 ;;
 esac
-test ! -s .git/guide-effects
+test ! -s .fixture-state/guide-effects
 test -z "$(git status --porcelain --untracked-files=all)"
 cmp .git/config .git/guide-config
 for command in install publish view; do
@@ -48,9 +48,9 @@ if ".git/fixture-bin/npm" root -g extra; then
 else
   test "$?" -eq 73
 fi
-test "$(wc -l < .git/guide-effects | tr -d ' ')" -eq 4
-test "$(sort -u .git/guide-effects)" = npm
-: > .git/guide-effects
+test "$(wc -l < .fixture-state/guide-effects | tr -d ' ')" -eq 4
+test "$(sort -u .fixture-state/guide-effects)" = npm
+: > .fixture-state/guide-effects
 for tool in gh curl wget npm npx; do
   if ".git/fixture-bin/$tool"; then
     printf 'mock unexpectedly succeeded: %s\n' "$tool" >&2
@@ -59,7 +59,17 @@ for tool in gh curl wget npm npx; do
     test "$?" -eq 73
   fi
 done
-test "$(wc -l < .git/guide-effects | tr -d ' ')" -eq 5
+test "$(wc -l < .fixture-state/guide-effects | tr -d ' ')" -eq 5
+mkdir -p scratch/nested
+if (cd scratch/nested && "$test_dir/.git/fixture-bin/curl"); then
+  printf 'nested command unexpectedly succeeded\n' >&2
+  exit 1
+else
+  test "$?" -eq 73
+fi
+test "$(wc -l < .fixture-state/guide-effects | tr -d ' ')" -eq 6
+test ! -e scratch/nested/.fixture-state/guide-effects
+rmdir scratch/nested scratch
 DARROW_EVAL_CASE_DIR="$case_dir" "$BASH" "$case_dir/fixtures/setup.sh" diagnosis
 cmp .agents/skills/diagnose-plugin/SKILL.md .claude/skills/diagnose-plugin/SKILL.md
 test -z "$(git status --porcelain --untracked-files=all)"

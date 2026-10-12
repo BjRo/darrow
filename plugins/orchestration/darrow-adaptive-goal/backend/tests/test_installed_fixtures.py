@@ -102,7 +102,7 @@ def test_installed_readiness(repo: Path, verdict: str, expected: list[str]) -> N
         if outcome == "blocked":
             assert "**Type:** `dependency`" in out
             assert "**Type:** `unblock`" in out
-    assert rows(repo / ".git/fixture-state/implementation-readiness-invocations") == [
+    assert rows(repo / ".fixture-state/implementation-readiness-invocations") == [
         [verdict] for _ in expected
     ]
 
@@ -110,7 +110,7 @@ def test_installed_readiness(repo: Path, verdict: str, expected: list[str]) -> N
 def test_claude_readiness_prerender_is_passive(repo: Path) -> None:
     (repo / ".readiness-verdict").write_text("needs-discovery\n")
     install.install("readiness", repo, FIXTURES, "claude")
-    state = repo / ".git/fixture-state"
+    state = repo / ".fixture-state"
     assert not (state / "implementation-readiness-invocations").exists()
     result = (state / "implementation-readiness-result").read_text()
     for field in (
@@ -125,7 +125,7 @@ def test_claude_readiness_prerender_is_passive(repo: Path) -> None:
 
 def test_installed_review_detects_mutation_outside_subject(repo: Path) -> None:
     install.install("review", repo, FIXTURES, "codex")
-    state = repo / ".git/fixture-state"
+    state = repo / ".fixture-state"
     (repo / ".git/fixture-review-event-path").write_text("value.txt\n")
     target = invoke(repo, "review", str(repo), "fingerprint").strip()
     result = invoke(repo, "review", str(repo), "comprehensive", CONTRACT)
@@ -169,7 +169,7 @@ def write_candidate(repo: Path, retries: int, cache: int) -> Path:
 
 
 def record_check(repo: Path, subject: Path) -> None:
-    (repo / ".git/fixture-state/check-target").write_text(
+    (repo / ".fixture-state/check-target").write_text(
         checksum(subject.read_bytes()) + "\n"
     )
 
@@ -177,7 +177,7 @@ def record_check(repo: Path, subject: Path) -> None:
 def test_installed_combined_lifecycle_and_mutation(repo: Path) -> None:
     install.install("verification", repo, FIXTURES, "both")
     subject = write_candidate(repo, 0, 0)
-    state = repo / ".git/fixture-state"
+    state = repo / ".fixture-state"
     history = state / "verification-invocations"
     (repo / ".git/fixture-review-reject-pattern").write_text("RETRY_COUNT = 0\n")
     assert "current checks" in invoke(

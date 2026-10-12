@@ -1,11 +1,12 @@
 id: ticket-pipeline-rework-review-finding
 invariant: TP-P1,TP-S1,TP-E1
 prompt: >-
-  Explicitly invoke $rework-ticket in review mode for run eval-rework, phase
+  Explicitly invoke {{skill_invocation}} in review mode for run eval-rework, phase
   rework, iteration 1, agent repairer-eval. Use the current repository as the
-  local write boundary, read .ticket-pipeline-input/ticket.md, preserve unrelated
-  work, repair only the recorded finding, and write the artifact to the
-  absolute path {{repo_dir}}/.git/rework-artifact.tsv. Do not publish.
+  local write boundary. Read the complete packet at .git/rework-packet.md and its
+  named ticket, approved artifacts, review and baseline. Preserve unrelated
+  work, repair only the recorded finding in value.js, and write the artifact to the
+  absolute path {{repo_dir}}/.fixture-state/rework-artifact.tsv. Do not publish.
 fixture:
   commits:
     - message: "chore: init"
@@ -19,11 +20,85 @@ fixture:
 
           clampPositive returns zero for negative values and the original value otherwise.
 
+          ## Ticket Pipeline Artifact — refine — Iteration 1
+
+          Approved plan: .ticket-pipeline-input/refine.tsv
+
+          ## Ticket Pipeline Artifact — challenge — Iteration 1
+
+          Approved challenge: .ticket-pipeline-input/challenge.tsv
+
+          ## Ticket Pipeline Artifact — implement — Iteration 1
+
+          Failed partial implementation: .ticket-pipeline-input/implement.tsv
+
           ## Ticket Pipeline Artifact — review — Iteration 1
+
+          Latest changes_requested review: .ticket-pipeline-input/review.tsv
 
           ### New findings
 
           WARNING at value.js: clampPositive only handles -1; acceptance requires every negative value, including -8.
+        .ticket-pipeline-input/refine.tsv: |
+          format	darrow-ticket-pipeline-phase-v1
+          run_id	eval-rework
+          phase	refine
+          iteration	1
+          agent	refiner-eval
+          status	complete
+          summary	Approved negative-value behavior plan
+          ---
+          ### Implementation plan
+
+          Change clampPositive to return zero for every negative value and preserve every nonnegative value. Only value.js needs repair; test.sh already reproduces the -8 defect and positive-value preservation.
+
+          ### Verification
+
+          Run bash test.sh and inspect -1, -8, 0 and 3 results.
+        .ticket-pipeline-input/challenge.tsv: |
+          format	darrow-ticket-pipeline-phase-v1
+          run_id	eval-rework
+          phase	challenge
+          iteration	1
+          agent	challenger-eval
+          status	approved
+          summary	Plan is bounded and verifiable
+          ---
+          ### Verdict evidence
+
+          The plan matches the ticket and preserves nonnegative inputs. Existing bash test.sh covers the reported defect. No unresolved decision or new behavior is required.
+        .ticket-pipeline-input/implement.tsv: |
+          format	darrow-ticket-pipeline-phase-v1
+          run_id	eval-rework
+          phase	implement
+          iteration	1
+          agent	implementer-eval
+          status	failed
+          summary	Candidate handles only minus one and fails the gate
+          ---
+          ### Changed files
+
+          value.js changed from the committed identity function to an incomplete clamp implementation. This is pipeline-owned work, not a pre-existing user change.
+
+          ### Gates
+
+          The current bash test.sh fails because clampPositive(-8) remains -8. The candidate is retained for bounded review and repair.
+        .ticket-pipeline-input/review.tsv: |
+          format	darrow-ticket-pipeline-phase-v1
+          run_id	eval-rework
+          phase	review
+          iteration	1
+          agent	reviewer-eval
+          status	changes_requested
+          summary	Blocking negative input defect requires repair
+          ---
+          ### New findings
+
+          Blocking finding R1 at value.js: clampPositive handles only -1; the ticket requires zero for every negative input, including -8. Repair the negative-input condition while preserving nonnegative values.
+
+          ### Gates
+
+          bash test.sh reproduces the failure. The review applies to the supplied current full diff and value.js content recorded in the packet. No unrelated findings or advisories are selected.
         package.json: '{"type":"module"}'
         value.js: |
           export const clampPositive = (value) => value;
@@ -35,6 +110,37 @@ fixture:
   files:
     value.js: |
       export const clampPositive = (value) => value === -1 ? 0 : value;
+  setup: |
+    git diff --binary HEAD -- value.js >.git/rework-current-diff.patch
+    base=$(git rev-parse HEAD)
+    printf 'Start revision: %s\nInitial porcelain-v1 -z bytes (hex): empty\nProtected pre-existing user paths: none\nThe supplied value.js diff is the prior pipeline implementation, not user-owned work.\n' "$base" >.git/rework-baseline.txt
+    current=$(git hash-object value.js)
+    cat >.git/rework-packet.md <<EOF
+    - run_id: eval-rework
+    - phase: rework
+    - iteration: 1
+    - agent: repairer-eval
+    - repository: $PWD
+    - ticket_id: fixture-clamp
+    - ticket_snapshot: $PWD/.ticket-pipeline-input/ticket.md
+    - required_skill: rework-ticket
+    - rework_mode: review
+    - write_boundary: local_worktree
+    - base_revision: $base
+    - baseline: $PWD/.git/rework-baseline.txt
+    - current_full_diff: $PWD/.git/rework-current-diff.patch
+    - current_reviewed_value_js_blob: $current
+    - approved_refine: $PWD/.ticket-pipeline-input/refine.tsv
+    - approved_challenge: $PWD/.ticket-pipeline-input/challenge.tsv
+    - prior_implementation: $PWD/.ticket-pipeline-input/implement.tsv
+    - latest_review: $PWD/.ticket-pipeline-input/review.tsv
+    - artifact_output: $PWD/.fixture-state/rework-artifact.tsv
+    - stopping_budget: one phase invocation; no retry or downstream phase
+    - accepted_decisions: none applicable
+    - permitted_product_write: value.js only, closing blocking finding R1
+    - protected_inputs: test.sh, AGENTS.md, unrelated.txt and the ticket/artifacts
+    - artifact_permission: the explicitly supplied excluded fixture receipt path is authorized for this evaluation
+    EOF
 checks:
   - name: review defect is repaired
     run: >-
@@ -50,9 +156,9 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
   - name: repair artifact records evidence
     run: >-
-      awk -F '\t' '$1=="phase" && $2=="rework" {f=1} END {exit !f}' .git/rework-artifact.tsv &&
-      awk -F '\t' '$1=="status" && $2=="complete" {f=1} END {exit !f}' .git/rework-artifact.tsv &&
-      grep -F 'bash test.sh' .git/rework-artifact.tsv >/dev/null
+      awk -F '\t' '$1=="phase" && $2=="rework" {f=1} END {exit !f}' .fixture-state/rework-artifact.tsv &&
+      awk -F '\t' '$1=="status" && $2=="complete" {f=1} END {exit !f}' .fixture-state/rework-artifact.tsv &&
+      grep -F 'bash test.sh' .fixture-state/rework-artifact.tsv >/dev/null
 output_checks:
   - name: repair reports its artifact
     expect_regex: "rework-artifact\\.tsv"

@@ -17,8 +17,8 @@ fixture:
           base
         check.sh: |
           #!/usr/bin/env bash
-          printf '%s\n' 'base' 'Delegated request completed.' >.git/expected-readme
-          cmp -s .git/expected-readme README.md
+          printf '%s\n' 'base' 'Delegated request completed.' >.fixture-state/expected-readme
+          cmp -s .fixture-state/expected-readme README.md
 checks:
   - name: delegated bounded request is implemented
     run: bash check.sh

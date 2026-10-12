@@ -40,7 +40,7 @@ fixture:
       #!/usr/bin/env bash
       set -eu
       git diff --exit-code HEAD -- src
-      state_file=.git/fixture-state/window
+      state_file=.fixture-state/window
       if test -e "$state_file"; then
         current_state=$(tail -n 1 "$state_file")
       else
@@ -79,7 +79,7 @@ checks:
   - name: source mutation waits for the implementation window
     run:
       printf 'inspect\nopen\n' >.git/expected-window && cmp -s .git/expected-window
-      .git/fixture-state/window
+      .fixture-state/window
 transcript_checks:
   - name: host records the actual feedback boundary
     expect_regex: '"type":"darrow\.eval\.follow_up_turn"'

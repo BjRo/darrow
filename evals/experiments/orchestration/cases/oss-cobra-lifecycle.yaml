@@ -14,7 +14,17 @@ fixture:
       Work only on the requested command lifecycle refactor. Dependencies are preinstalled.
       Before editing, inspect `(*Command).execute` in `command.go`, lifecycle tests in `command_test.go`, required-flag validation, and the command execution helpers. Preserve Go 1.12 compatibility and run `gofmt` on changed Go files.
   commit_files: true
-  setup: go mod download
+  bin:
+    go: |
+      #!/usr/bin/env bash
+      set -eu
+      repo=$(git rev-parse --show-toplevel)
+      exec bash "$repo/.git/fixture-tools/go-cache.sh" "$@"
+  setup: |
+    mkdir -p .git/fixture-tools
+    cp "{{case_dir}}/go-cache.fixture.sh" .git/fixture-tools/go-cache.sh
+    repo=$(git rev-parse --show-toplevel)
+    bash "$repo/.git/fixture-tools/go-cache.sh" mod download
   ticket:
     id: "1"
     title: Decompose command lifecycle execution without behavior changes
@@ -22,9 +32,9 @@ fixture:
 checks:
   - name: lifecycle phases are structurally separated
     run: |-
-      rg -q 'func \(c \*Command\) executePreRun\(' command.go &&
-      rg -q 'func \(c \*Command\) executeRun\(' command.go &&
-      rg -q 'func \(c \*Command\) executePostRun\(' command.go
+      grep -Eq 'func \(c \*Command\) executePreRun\(' command.go &&
+      grep -Eq 'func \(c \*Command\) executeRun\(' command.go &&
+      grep -Eq 'func \(c \*Command\) executePostRun\(' command.go
   - name: hidden lifecycle compatibility contract
     metric: escaped_defect
     run: |-

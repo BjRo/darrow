@@ -44,7 +44,7 @@ for (const scenario of [
         },
         {
           name: "review record matches acceptance",
-          run: `${scenario === "correct" ? "test -e" : "test ! -e"} .git/fixture-state/independent-review-invocations`,
+          run: `${scenario === "correct" ? "test -e" : "test ! -e"} .fixture-state/independent-review-invocations`,
         },
       ],
     });
@@ -70,7 +70,7 @@ for (const scenario of ["current", "missing", "duplicate", "stale"] as const) {
     );
     if (!check)
       throw new Error("canonical review composition oracle is missing");
-    const record = ".git/fixture-state/independent-review-invocations";
+    const record = ".fixture-state/independent-review-invocations";
     const alteration = {
       current: "true",
       missing: `: >${record}`,

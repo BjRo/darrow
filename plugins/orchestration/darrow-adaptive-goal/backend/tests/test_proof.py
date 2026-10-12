@@ -23,7 +23,16 @@ def write(path: Path, text: str = "provider fixture\n") -> Path:
 
 
 def provider(repo: Path, name: str = "review-plugin") -> Path:
-    backend = repo / ".git" / name / "backend"
+    root = repo / ".sevro-marketplace"
+    package = root / name
+    backend = package / "backend"
+    manifest = json.dumps({"name": "darrow-review", "version": "1.0.0"})
+    for folder in (".claude-plugin", ".codex-plugin"):
+        write(package / folder / "plugin.json", manifest)
+    catalog = root / ".claude-plugin/marketplace.json"
+    plugins = json.loads(catalog.read_text())["plugins"] if catalog.is_file() else []
+    plugins.append({"name": "darrow-review", "source": f"./{name}"})
+    write(catalog, json.dumps({"plugins": plugins}))
     for filename in ("result.py", "scope.py", "report.py"):
         write(backend / "src/darrow_review" / filename)
     return backend
@@ -84,7 +93,20 @@ def test_completion_accepts_current_external_review_state(
     )
     monkeypatch.setenv("DARROW_REVIEW_STATE_DIR", str(state))
     assert proof.validate(repo, "complete", str(record)).endswith(str(record) + "\n")
-    assert (repo / ".git/goal-complete").read_text() == "complete\n"
+    assert (repo / ".fixture-state/goal-complete").read_text() == "complete\n"
+    assert (repo / ".fixture-state/high-risk-review-state-root").read_text() == str(
+        state
+    ) + "\n"
+
+
+def test_repository_review_state_cannot_clear_completion(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    state = repo / ".fixture-state/reviews"
+    monkeypatch.setenv("DARROW_REVIEW_STATE_DIR", str(state))
+    with pytest.raises(proof.InvalidProofError, match="outside the repository"):
+        proof.validate(repo, "complete", str(state / "darrow-review.fake/result.json"))
+    assert not (repo / ".fixture-state/goal-complete").exists()
 
 
 @pytest.mark.parametrize("value", ["", "relative-state"])
@@ -108,7 +130,7 @@ def test_clear_proof_delegates_and_binds_current_candidate(
         proof.validate(repo, "complete", str(record))
         == f"valid clear review: {record}\n"
     )
-    assert (repo / ".git/goal-complete").read_text() == "complete\n"
+    assert (repo / ".fixture-state/goal-complete").read_text() == "complete\n"
     assert calls[0] == ("review-result", "validate", str(record))
     assert calls[1] == (
         "review-scope",
@@ -149,15 +171,76 @@ def test_human_reports_are_canonical(
         proof.validate(repo, "complete", str(report))
 
 
-def test_provider_discovery_and_conflicts(repo: Path) -> None:
-    with pytest.raises(proof.InvalidProofError, match="tool is missing"):
-        proof.provider(repo / ".git")
+def test_provider_uses_only_the_declared_marketplace(repo: Path) -> None:
+    with pytest.raises(proof.InvalidProofError, match="unreadable provider metadata"):
+        proof.provider(repo)
     first = provider(repo, "a")
-    second = provider(repo, "b")
-    assert proof.provider(repo / ".git") == first
-    write(second / "src/darrow_review/scope.py", "different\n")
-    with pytest.raises(proof.InvalidProofError, match="conflicting"):
-        proof.provider(repo / ".git")
+    write(repo / ".git/cache/backend/src/darrow_review/result.py", "different\n")
+    assert proof.provider(repo) == first
+    provider(repo, "b")
+    with pytest.raises(proof.InvalidProofError, match="exactly one declared"):
+        proof.provider(repo)
+
+
+@pytest.mark.parametrize(
+    "catalog,error",
+    [
+        ("[]", "invalid provider metadata"),
+        ("{", "unreadable provider metadata"),
+        ('{"plugins":[] ,"plugins":[]}', "duplicate provider JSON"),
+        ('{"plugins":{}}', "invalid provider catalog plugins"),
+        ('{"plugins":[null]}', "invalid provider catalog entry"),
+        ('{"plugins":[]}', "exactly one declared"),
+        ('{"plugins":[{"name":"other","source":"./other"}]}', "exactly one declared"),
+        ('{"plugins":[{"name":"darrow-review","source":{}}]}', "local source"),
+        ('{"plugins":[{"name":"darrow-review","source":"/absolute"}]}', "unsafe"),
+        ('{"plugins":[{"name":"darrow-review","source":"./../outside"}]}', "escaping"),
+        ('{"plugins":[{"name":"darrow-review","source":"./bad\\\\path"}]}', "unsafe"),
+    ],
+)
+def test_provider_catalog_refusals(repo: Path, catalog: str, error: str) -> None:
+    write(repo / ".sevro-marketplace/.claude-plugin/marketplace.json", catalog)
+    with pytest.raises(proof.InvalidProofError, match=error):
+        proof.provider(repo)
+
+
+@pytest.mark.parametrize("nested", [False, True])
+def test_provider_source_links_are_refused(repo: Path, nested: bool) -> None:
+    backend = provider(repo)
+    root = repo / ".sevro-marketplace"
+    (root / "alias").symlink_to(backend.parent, target_is_directory=True)
+    source = "./alias/child" if nested else "./alias"
+    write(
+        root / ".claude-plugin/marketplace.json",
+        json.dumps({"plugins": [{"name": "darrow-review", "source": source}]}),
+    )
+    with pytest.raises(proof.InvalidProofError, match="linked"):
+        proof.provider(repo)
+
+
+@pytest.mark.parametrize(
+    "manifest,error",
+    [
+        ({"name": "another", "version": "1.0.0"}, "identity differs"),
+        ({"name": "darrow-review", "version": "2.0.0"}, "versions differ"),
+        ({"name": "darrow-review", "version": ""}, "versions differ"),
+        ({"name": "darrow-review", "version": 1}, "versions differ"),
+    ],
+)
+def test_provider_identity_refusals(
+    repo: Path, manifest: dict[str, object], error: str
+) -> None:
+    backend = provider(repo)
+    write(backend.parent / ".claude-plugin/plugin.json", json.dumps(manifest))
+    with pytest.raises(proof.InvalidProofError, match=error):
+        proof.provider(repo)
+
+
+def test_declared_provider_requires_result_tool(repo: Path) -> None:
+    backend = provider(repo)
+    (backend / "src/darrow_review/result.py").unlink()
+    with pytest.raises(proof.InvalidProofError, match="tool is missing"):
+        proof.provider(repo)
 
 
 @pytest.mark.parametrize(
@@ -174,7 +257,7 @@ def test_proof_path_refusals(repo: Path, relative: str, error: str) -> None:
         write(path)
     with pytest.raises(proof.InvalidProofError, match=error):
         proof.validate(repo, "complete", str(path))
-    assert not (repo / ".git/goal-complete").exists()
+    assert not (repo / ".fixture-state/goal-complete").exists()
 
 
 def test_bad_modes_and_missing_saved_evidence(repo: Path) -> None:
@@ -210,7 +293,7 @@ def test_comprehensive_refusals(
     path.write_text(path.read_text().replace(*replacement))
     with pytest.raises(proof.InvalidProofError, match=error):
         proof.validate(repo, "complete", str(path))
-    assert not (repo / ".git/goal-complete").exists()
+    assert not (repo / ".fixture-state/goal-complete").exists()
 
 
 def test_proof_rejects_legacy_array_record(repo: Path) -> None:
@@ -294,13 +377,13 @@ def test_verification_binds_findings_among_reports_for_one_target(
         assert proof.validate(repo, "complete", str(repaired)).startswith(
             "valid clear review"
         )
-        assert (repo / ".git/goal-complete").is_file()
+        assert (repo / ".fixture-state/goal-complete").is_file()
     else:
         with pytest.raises(
             proof.InvalidProofError, match=r"original.*missing|original.*match"
         ):
             proof.validate(repo, "complete", str(repaired))
-        assert not (repo / ".git/goal-complete").exists()
+        assert not (repo / ".fixture-state/goal-complete").exists()
 
 
 @pytest.mark.parametrize(

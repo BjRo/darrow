@@ -11,7 +11,7 @@ fixture:
   bin:
     gh: |
       #!/bin/sh
-      d="$(git rev-parse --git-dir)/fixture-gh"
+      d="$(git rev-parse --show-toplevel)/.fixture-state/gh"
       mkdir -p "$d"
       echo "$*" >> "$d/calls"
       find_flag() {
@@ -48,9 +48,7 @@ fixture:
     git remote add origin https://github.test/o/r.git
 checks:
   - name: list operation is not used
-    run: test ! -f .git/fixture-gh/calls || ! grep -Eq 'issue list' .git/fixture-gh/calls
+    run: test ! -f .fixture-state/gh/calls || ! grep -Eq 'issue list' .fixture-state/gh/calls
   - name: exact-ticket retrieval remains read-only
     run: >-
-      test ! -f .git/fixture-gh/calls ||
-      ! grep -Eq '(^| )(create|edit|comment|close|reopen|delete|transfer|fork)( |$)|(^| )(-X|--method) (POST|PUT|PATCH|DELETE)( |$)'
-      .git/fixture-gh/calls
+      test ! -f .fixture-state/gh/calls || ! grep -Eq '(^| )(create|edit|comment|close|reopen|delete|transfer|fork)( |$)|(^| )(-X|--method) (POST|PUT|PATCH|DELETE)( |$)' .fixture-state/gh/calls

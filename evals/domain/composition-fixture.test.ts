@@ -37,7 +37,7 @@ test("composition records only successful UV publication", async () => {
     checks: [
       {
         name: "inspection is not publication",
-        run: `${command} inspect && test ! -e .git/builtin-publications`,
+        run: `${command} inspect && test ! -e .fixture-state/builtin-publications`,
       },
       {
         name: "stale remote refuses verification",
@@ -46,7 +46,7 @@ test("composition records only successful UV publication", async () => {
       },
       {
         name: "failure is not evidence",
-        run: "test ! -e .git/builtin-publications",
+        run: "test ! -e .fixture-state/builtin-publications",
       },
       {
         name: "publish current commit",
@@ -58,7 +58,7 @@ test("composition records only successful UV publication", async () => {
       },
       {
         name: "exact successful observations",
-        run: 'test "$(wc -l < .git/builtin-publications | tr -d " ")" = 2 && test "$(sort -u .git/builtin-publications)" = "$(git rev-parse HEAD)" && test ! -e .git/forbidden-forge-effects',
+        run: 'test "$(wc -l < .fixture-state/builtin-publications | tr -d " ")" = 2 && test "$(sort -u .fixture-state/builtin-publications)" = "$(git rev-parse HEAD)" && test ! -e .fixture-state/forbidden-forge-effects',
       },
     ],
   });
@@ -91,7 +91,7 @@ test("ticket-to-pr options oracle preserves a stricter caller repair limit", asy
       check,
       {
         name: "changed receipt fails the oracle",
-        run: `printf '%s\\t%s\\t%s\\t%s\\n' https://example.invalid/tickets/99 release/2.x draft 2 >.git/ticket-to-pr-options && (${check.run})`,
+        run: `printf '%s\\t%s\\t%s\\t%s\\n' https://example.invalid/tickets/99 release/2.x draft 2 >.fixture-state/ticket-to-pr-options && (${check.run})`,
         exit_code: 1,
       },
     ],

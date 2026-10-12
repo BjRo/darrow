@@ -34,9 +34,9 @@ fixture:
           #!/usr/bin/env bash
           set -eu
           git_dir=$(git rev-parse --git-dir)
-          printf '%s\n' '# Notes' 'Real commit capability composes.' >"$git_dir/expected-notes"
-          cmp -s "$git_dir/expected-notes" NOTES.md
-          printf '%s\n' 'check pass' >>"$git_dir/fixture-state/composition-events"
+          printf '%s\n' '# Notes' 'Real commit capability composes.' >"$(git rev-parse --show-toplevel)/.fixture-state/expected-notes"
+          cmp -s "$(git rev-parse --show-toplevel)/.fixture-state/expected-notes" NOTES.md
+          printf '%s\n' 'check pass' >>"$(git rev-parse --show-toplevel)/.fixture-state/composition-events"
   files:
     .agents/skills/independent-code-review/SKILL.md: |
       ---
@@ -61,8 +61,8 @@ fixture:
       case "${1-}" in -h|--help) printf '%s\n' 'Usage: independent-review-protocol'; exit 0 ;; esac
       test "$#" -eq 0 || { printf '%s\n' 'Usage: independent-review-protocol' >&2; exit 2; }
       git_dir=$(git rev-parse --git-dir)
-      printf '%s\n' '# Notes' 'Real commit capability composes.' >"$git_dir/review-expected-notes"
-      cmp -s "$git_dir/review-expected-notes" NOTES.md || {
+      printf '%s\n' '# Notes' 'Real commit capability composes.' >.fixture-state/review-expected-notes
+      cmp -s .fixture-state/review-expected-notes NOTES.md || {
         printf '%s\n' 'Independent review blocked: NOTES.md does not match the originating request.' >&2
         exit 1
       }
@@ -81,7 +81,7 @@ fixture:
       notes_digest=$(shasum -a 256 NOTES.md)
       notes_digest=${notes_digest%% *}
       target="WORKTREE@$head+$notes_digest"
-      printf 'review\t%s\n' "$target" >>"$git_dir/fixture-state/composition-events"
+      printf 'review\t%s\n' "$target" >>"$(git rev-parse --show-toplevel)/.fixture-state/composition-events"
       printf '%s\n' 'Independent review outcome: no blocking findings'
       printf 'Reviewed target: %s\n' "$target"
       printf '%s\n' 'Acceptance evidence: NOTES.md exactly contains the original heading followed by the requested line; byte comparison passed.'
@@ -92,14 +92,14 @@ fixture:
       #!/usr/bin/env bash
       set -eu
       git_dir=$(git rev-parse --git-dir)
-      printf '%s\n' "$*" >>"$git_dir/fixture-state/forge-calls"
+      printf '%s\n' "$*" >>"$(git rev-parse --show-toplevel)/.fixture-state/forge-calls"
       case "$1 $2" in
         "pr list")
-          if test -s "$git_dir/fixture-state/pull-requests"; then
-            branch=$(cut -f1 "$git_dir/fixture-state/pull-requests")
-            url=$(cut -f2 "$git_dir/fixture-state/pull-requests")
-            base=$(cut -f3 "$git_dir/fixture-state/pull-requests")
-            head=$(cut -f4 "$git_dir/fixture-state/pull-requests")
+          if test -s "$(git rev-parse --show-toplevel)/.fixture-state/pull-requests"; then
+            branch=$(cut -f1 "$(git rev-parse --show-toplevel)/.fixture-state/pull-requests")
+            url=$(cut -f2 "$(git rev-parse --show-toplevel)/.fixture-state/pull-requests")
+            base=$(cut -f3 "$(git rev-parse --show-toplevel)/.fixture-state/pull-requests")
+            head=$(cut -f4 "$(git rev-parse --show-toplevel)/.fixture-state/pull-requests")
             printf '1\t%s\tOPEN\t%s\t%s\t%s\tfalse\tfalse\n' "$url" "$branch" "$head" "$base"
           fi
           exit 0
@@ -128,10 +128,10 @@ fixture:
           test -n "$branch"
           test "$draft" = false
           head=$(git rev-parse HEAD)
-          remote_head=$(git --git-dir="$git_dir/fixture-remote.git" rev-parse "refs/heads/$branch")
+          remote_head=$(git --git-dir=.fixture-state/remote.git rev-parse "refs/heads/$branch")
           test "$remote_head" = "$head"
-          printf 'publication\t%s\t%s\n' "$branch" "$head" >>"$git_dir/fixture-state/composition-events"
-          printf '%s\t%s\t%s\t%s\n' "$branch" 'https://example.invalid/pull/1' "$base" "$head" >>"$git_dir/fixture-state/pull-requests"
+          printf 'publication\t%s\t%s\n' "$branch" "$head" >>"$(git rev-parse --show-toplevel)/.fixture-state/composition-events"
+          printf '%s\t%s\t%s\t%s\n' "$branch" 'https://example.invalid/pull/1' "$base" "$head" >>"$(git rev-parse --show-toplevel)/.fixture-state/pull-requests"
           printf '%s\n' 'https://example.invalid/pull/1'
           ;;
         "repo view")
@@ -147,7 +147,7 @@ fixture:
       #!/bin/sh
       set -eu
       git_dir=$(git rev-parse --git-dir)
-      marker="$git_dir/fixture-state/commit-hook-attempted"
+      marker="$(git rev-parse --show-toplevel)/.fixture-state/commit-hook-attempted"
       if test ! -e "$marker"; then
         : >"$marker"
         printf '%s\n' "run: grep -Fx 'Real commit capability composes.' NOTES.md >/dev/null" >&2
@@ -155,9 +155,9 @@ fixture:
       fi
   setup: |
     printf '%s\n' '/.agents/' >>.git/info/exclude
-    git init --bare .git/fixture-remote.git >/dev/null
-    git --git-dir=.git/fixture-remote.git symbolic-ref HEAD refs/heads/main
-    git remote add origin "$PWD/.git/fixture-remote.git"
+    git init --bare .fixture-state/remote.git >/dev/null
+    git --git-dir=.fixture-state/remote.git symbolic-ref HEAD refs/heads/main
+    git remote add origin "$PWD/.fixture-state/remote.git"
     git push -u origin main >/dev/null
     git remote set-head origin main
     git switch -c fix/real-create-commit-composition >/dev/null
@@ -167,7 +167,7 @@ checks:
   - name: review clears the final uncommitted candidate before commit
     run: |
       set -eu
-      log=.git/fixture-state/composition-events
+      log=.fixture-state/composition-events
       test -s "$log" || { printf '%s\n' 'Missing composition evidence'; exit 1; }
       printf '%s\n' 'Observed review records:'
       awk -F '\t' '$1 == "review" { print }' "$log"
@@ -194,18 +194,18 @@ checks:
       >/dev/null
   - name: one pull request publishes the exact committed branch
     run: >-
-      test "$(wc -l <.git/fixture-state/pull-requests | tr -d ' ')" -eq 1 &&
+      test "$(wc -l <.fixture-state/pull-requests | tr -d ' ')" -eq 1 &&
       branch=$(git branch --show-current) && test "$(cut -f1
-      .git/fixture-state/pull-requests)" = "$branch" && test "$(cut -f2
-      .git/fixture-state/pull-requests)" = 'https://example.invalid/pull/1' && test
-      "$(cut -f3 .git/fixture-state/pull-requests)" = main && test "$(cut -f4
-      .git/fixture-state/pull-requests)" = "$(git rev-parse HEAD)" && test "$(git
-      --git-dir=.git/fixture-remote.git rev-parse "refs/heads/$branch")" = "$(git
+      .fixture-state/pull-requests)" = "$branch" && test "$(cut -f2
+      .fixture-state/pull-requests)" = 'https://example.invalid/pull/1' && test
+      "$(cut -f3 .fixture-state/pull-requests)" = main && test "$(cut -f4
+      .fixture-state/pull-requests)" = "$(git rev-parse HEAD)" && test "$(git
+      --git-dir=.fixture-state/remote.git rev-parse "refs/heads/$branch")" = "$(git
       rev-parse HEAD)"
   - name: publication verification observes the published commit
     run: >-
-      grep -F 'repo view ' .git/fixture-state/forge-calls >/dev/null && grep -F 'pr list
-      --repo ' .git/fixture-state/forge-calls >/dev/null
+      grep -F 'repo view ' .fixture-state/forge-calls >/dev/null && grep -F 'pr list
+      --repo ' .fixture-state/forge-calls >/dev/null
   - name: checks and review precede publication
     run: >-
       awk -F '\t' '
@@ -213,7 +213,7 @@ checks:
         $1 == "review" { review = NR }
         $1 == "publication" { publication = NR }
         END { exit !(check && review && publication && check < review && review < publication) }
-      ' .git/fixture-state/composition-events
+      ' .fixture-state/composition-events
   - name: published tree is clean
     run: git status --porcelain --untracked-files=all
     expect_exact: ""

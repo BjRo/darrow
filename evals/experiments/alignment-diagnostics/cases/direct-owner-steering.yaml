@@ -42,7 +42,7 @@ fixture:
       #!/usr/bin/env bash
       set -eu
       git diff --exit-code HEAD -- src
-      state_file=.git/fixture-state/window
+      state_file=.fixture-state/window
       if test -e "$state_file"; then
         current_state=$(tail -n 1 "$state_file")
       else
@@ -51,7 +51,7 @@ fixture:
       case "$1" in
         inspect)
           cat src/parser.js
-          printf 'parser body supplied\n' >.git/fixture-state/parser-presented
+          printf 'parser body supplied\n' >.fixture-state/parser-presented
           if test "$current_state" = closed; then
             printf 'inspect\n' >>"$state_file"
             current_state=inspect
@@ -67,7 +67,7 @@ fixture:
       printf 'window state: %s\n' "$current_state"
 checks:
   - name: inspection supplied the existing parser body
-    run: test -s .git/fixture-state/parser-presented
+    run: test -s .fixture-state/parser-presented
   - name: normalization handles existing parser inputs
     run: bash check.sh
   - name: normalization delegates to the existing parser
@@ -78,7 +78,7 @@ checks:
   - name: steering grants no publication
     run: test "$(git rev-list --count HEAD)" -eq 1
   - name: source mutation waits for the implementation window
-    run: printf 'inspect\nopen\n' >.git/expected-window && cmp -s .git/expected-window .git/fixture-state/window
+    run: printf 'inspect\nopen\n' >.git/expected-window && cmp -s .git/expected-window .fixture-state/window
 transcript_checks:
   - name: host records the actual feedback boundary
     expect_regex: '"type":"darrow\.eval\.follow_up_turn"'

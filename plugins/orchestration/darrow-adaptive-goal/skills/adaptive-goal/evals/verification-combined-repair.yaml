@@ -25,7 +25,7 @@ fixture:
           #!/usr/bin/env bash
           set -eu
           grep -Fx 'export const TIMEOUT_MS = 2500;' src/config.js >/dev/null
-          cksum <src/config.js >.git/fixture-state/check-target
+          cksum <src/config.js >.fixture-state/check-target
   files:
     src/config.js: |
       export const TIMEOUT_MS = 2500;
@@ -40,8 +40,8 @@ checks:
     run: |
       printf '%s\n' 'export const TIMEOUT_MS = 2500;' 'export const RETRY_COUNT = 3;' 'export const CACHE_SIZE = 5;' >.git/expected-config
       cmp .git/expected-config src/config.js
-      test "$(cut -f1 .git/fixture-state/verification-invocations | tr '\n' ' ')" = 'initial follow-up '
-      test "$(cut -f3 .git/fixture-state/verification-invocations | tr '\n' ' ')" = 'progress clear '
+      test "$(cut -f1 .fixture-state/verification-invocations | tr '\n' ' ')" = 'initial follow-up '
+      test "$(cut -f3 .fixture-state/verification-invocations | tr '\n' ' ')" = 'progress clear '
   - name: later selected result returns before one combined repair
     run: |
       awk -F '\t' '
@@ -50,8 +50,8 @@ checks:
         $1 == "qa-returned" && review && $3 == start { qa=1 }
         $1 == "assessment-returned" && qa && $3 == start { complete++; active=0 }
         END { exit complete == 2 && !active ? 0 : 1 }
-      ' .git/fixture-state/verification-events
-      test "$(tail -n 1 .git/fixture-state/verification-invocations | cut -f2)" = "$(cksum <src/config.js)"
+      ' .fixture-state/verification-events
+      test "$(tail -n 1 .fixture-state/verification-invocations | cut -f2)" = "$(cksum <src/config.js)"
   - name: shared assessment stays local
     run: test "$(git rev-list --count HEAD)" -eq 1
 semantic_output_checks:

@@ -51,14 +51,14 @@ fixture:
         unspecified) ;;
         ''|*[!0-9]*) exit 1 ;;
       esac
-      printf '%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4" >.git/ticket-to-pr-options
+      printf '%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4" >.fixture-state/ticket-to-pr-options
 checks:
   - name: explicit options reach adaptive goal unchanged
     run: >-
-      test "$(cut -f1 .git/ticket-to-pr-options)" = https://example.invalid/tickets/99 &&
-      test "$(cut -f2 .git/ticket-to-pr-options)" = release/2.x &&
-      test "$(cut -f3 .git/ticket-to-pr-options)" = draft &&
-      test "$(cut -f4 .git/ticket-to-pr-options)" = 1
+      test "$(cut -f1 .fixture-state/ticket-to-pr-options)" = https://example.invalid/tickets/99 &&
+      test "$(cut -f2 .fixture-state/ticket-to-pr-options)" = release/2.x &&
+      test "$(cut -f3 .fixture-state/ticket-to-pr-options)" = draft &&
+      test "$(cut -f4 .fixture-state/ticket-to-pr-options)" = 1
   - name: recipe parent stays read-only
     run: >-
       test "$(git branch --show-current)" = main &&

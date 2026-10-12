@@ -38,7 +38,7 @@ checks:
   - name: unavailable review does not create a commit
     run: test "$(git rev-list --count HEAD)" -eq 1
   - name: no matching reviewer was invoked
-    run: test ! -e .git/fixture-state/independent-review-invocations
+    run: test ! -e .fixture-state/independent-review-invocations
 semantic_output_checks:
   - name: unavailable review stops launch
     proposition:

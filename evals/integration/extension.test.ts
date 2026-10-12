@@ -2181,12 +2181,13 @@ test("Darrow local ticket works through Sevro and binds its source", async () =>
         title: "Owner's note",
         body: "Original's {{note}}\n",
       },
-      setup: "test -L .git/ticketctl.log && test -f .git/fixture-ticket.md",
+      setup:
+        'test -f .fixture-state/ticketctl.log && test -f .fixture-state/fixture-ticket.md && test ! -e .git/ticketctl.log && test "$(cat .git/fixture-host)" = unavailable',
     },
     checks: [
       {
         name: "ticket updated",
-        run: "grep -Fx 'Updated note' .git/fixture-ticket.md && grep -Fx 'get 17' .git/ticketctl.log && grep -Fx 'describe 17' .git/ticketctl.log",
+        run: "grep -Fx 'Updated note' .fixture-state/fixture-ticket.md && grep -Fx 'get 17' .fixture-state/ticketctl.log && grep -Fx 'describe 17' .fixture-state/ticketctl.log",
       },
     ],
     output_checks: [{ name: "response", expect_exact: "ready" }],

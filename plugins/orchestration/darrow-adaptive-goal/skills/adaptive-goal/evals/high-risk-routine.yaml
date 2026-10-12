@@ -46,22 +46,19 @@ fixture:
           set -eu
           node auth-config.test.js
           git_dir=$(git rev-parse --git-dir)
-          mkdir -p "$git_dir/fixture-state"
+          mkdir -p "$(git rev-parse --show-toplevel)/.fixture-state"
           scope_count=0
-          if test -d "$DARROW_REVIEW_STATE_DIR"; then
-            find "$DARROW_REVIEW_STATE_DIR" -maxdepth 3 -name scope.json -path '*/darrow-review.*/*' >"$git_dir/fixture-state/review-scopes"
-            scope_count=$(wc -l <"$git_dir/fixture-state/review-scopes" | tr -d ' ')
+          review_state=${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}
+          if test -d "$review_state"; then
+            find "$review_state" -maxdepth 3 -name scope.json -path '*/darrow-review.*/*' >"$(git rev-parse --show-toplevel)/.fixture-state/review-scopes"
+            scope_count=$(wc -l <"$(git rev-parse --show-toplevel)/.fixture-state/review-scopes" | tr -d ' ')
           fi
-          printf 'check\t%s\n' "$scope_count" >>"$git_dir/fixture-state/high-risk-review-events"
+          printf 'check\t%s\n' "$scope_count" >>"$(git rev-parse --show-toplevel)/.fixture-state/high-risk-review-events"
         mark-complete.sh: |
           #!/usr/bin/env bash
           set -eu
-          git_dir=$(git rev-parse --git-dir)
-          uv run --quiet --frozen --no-dev --project "$git_dir/fixture-backend" adaptive-goal-fixture proof complete "${1:?Supply the returned canonical review artifact path}"
-  setup: |
-    mkdir -p .git/fixture-backend
-    cp "{{case_dir}}/../../../backend/pyproject.toml" "{{case_dir}}/../../../backend/uv.lock" .git/fixture-backend/
-    cp -R "{{case_dir}}/../../../backend/src" .git/fixture-backend/
+          export DARROW_REVIEW_STATE_DIR="${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}"
+          uv run --quiet --no-project "$PWD/.sevro-marketplace/plugin/backend/scripts/run_locked.py" adaptive-goal-fixture proof complete "${1:?Supply the returned canonical review artifact path}"
 checks:
   - name: cookie behavior is changed and preserved
     run: >-
@@ -74,16 +71,32 @@ checks:
   - name: no publication occurred
     run: test "$(git rev-list --count HEAD)" -eq 1
   - name: clear independent review returns control to the goal
-    run: test "$(cat .git/goal-complete)" = complete
+    run: test "$(cat .fixture-state/goal-complete)" = complete
   - name: final check precedes review scope
     run: >-
       awk -F '\t' 'NR == 1 && $1 == "check" && $2 == 0 { ok=1 } END { exit ok ? 0 : 1 }'
-      .git/fixture-state/high-risk-review-events
+      .fixture-state/high-risk-review-events
   - name: independent review artifact is canonical and clear
-    run: uv run --quiet --frozen --no-dev --project .git/fixture-backend
+    run: |
+      test -r .fixture-state/high-risk-review-state-root || exit 71
+      test -r .fixture-state/high-risk-review-proof || exit 72
+      artifact=$(cat .fixture-state/high-risk-review-proof)
+      test -r "$artifact" || exit 73
+      launcher="$PWD/.sevro-marketplace/plugin/backend/scripts/run_locked.py"
+      test -r "$launcher" || exit 74
+      export DARROW_REVIEW_STATE_DIR="$(cat .fixture-state/high-risk-review-state-root)"
+      uv run --quiet --no-project "$launcher" \
       adaptive-goal-fixture proof artifact
   - name: independent review covers the exact final worktree
-    run: uv run --quiet --frozen --no-dev --project .git/fixture-backend
+    run: |
+      test -r .fixture-state/high-risk-review-state-root || exit 71
+      test -r .fixture-state/high-risk-review-proof || exit 72
+      artifact=$(cat .fixture-state/high-risk-review-proof)
+      test -r "$artifact" || exit 73
+      launcher="$PWD/.sevro-marketplace/plugin/backend/scripts/run_locked.py"
+      test -r "$launcher" || exit 74
+      export DARROW_REVIEW_STATE_DIR="$(cat .fixture-state/high-risk-review-state-root)"
+      uv run --quiet --no-project "$launcher" \
       adaptive-goal-fixture proof current
 output_checks:
   - name: no lifecycle protocol is reported

@@ -69,7 +69,7 @@ for (const scenario of [
         name: "read-only help before implementation",
         run: "independent-review-protocol --help",
       });
-    const log = ".git/fixture-state/composition-events";
+    const log = ".fixture-state/composition-events";
     const alteration = {
       normal: "true",
       help: "true",
@@ -137,7 +137,7 @@ for (const [arg, exitCode] of [
         },
         {
           name: "no assessment or mutation",
-          run: 'test ! -e .git/fixture-state/composition-events && test ! -e .git/fixture-state/pull-requests && test "$(git rev-list --count HEAD)" -eq 1 && test -z "$(git status --porcelain)"',
+          run: 'test ! -e .fixture-state/composition-events && test ! -e .fixture-state/pull-requests && test "$(git rev-list --count HEAD)" -eq 1 && test -z "$(git status --porcelain)"',
         },
       ],
     });
@@ -167,7 +167,7 @@ for (const scenario of [
     }
     const contents =
       scenario === "wrong-content" ? "# Notes\nWrong line.\n" : notes;
-    const recorded = `awk -F '\\t' '$1 == "review" { found = 1 } END { exit !found }' .git/fixture-state/composition-events`;
+    const recorded = `awk -F '\\t' '$1 == "review" { found = 1 } END { exit !found }' .fixture-state/composition-events`;
     const result = await runFixtureChecks({
       source,
       fixture: canonical.fixture,
@@ -191,7 +191,7 @@ for (const scenario of [
           run:
             scenario === "correct"
               ? recorded
-              : `if test -f .git/fixture-state/composition-events; then ! ${recorded}; fi`,
+              : `if test -f .fixture-state/composition-events; then ! ${recorded}; fi`,
         },
       ],
     });

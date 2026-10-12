@@ -1,10 +1,10 @@
 id: ticket-pipeline-qa-honest-acceptance-failure
 invariant: TP-P1,TP-E1,TP-V1
 prompt: >-
-  Explicitly invoke $qa-ticket for run eval-qa, phase qa, iteration 1, agent
+  Explicitly invoke {{skill_invocation}} for run eval-qa, phase qa, iteration 1, agent
   qa-eval. Verify the current tree against .ticket-pipeline-input/ticket.md, remain
   read-only, and write the artifact to the absolute path
-  {{repo_dir}}/.git/qa-artifact.tsv.
+  {{repo_dir}}/.fixture-state/qa-artifact.tsv.
 fixture:
   commits:
     - message: "chore: init"
@@ -39,10 +39,10 @@ checks:
     run: git diff --exit-code && test -z "$(git status --porcelain --untracked-files=all)"
   - name: QA reports the failed criterion honestly
     run: >-
-      awk -F '\t' '$1=="phase" && $2=="qa" {f=1} END {exit !f}' .git/qa-artifact.tsv &&
-      awk -F '\t' '$1=="status" && $2=="failed" {f=1} END {exit !f}' .git/qa-artifact.tsv &&
-      grep -F 'bash test.sh' .git/qa-artifact.tsv >/dev/null &&
-      grep -E 'old|new|exit' .git/qa-artifact.tsv >/dev/null
+      awk -F '\t' '$1=="phase" && $2=="qa" {f=1} END {exit !f}' .fixture-state/qa-artifact.tsv &&
+      awk -F '\t' '$1=="status" && $2=="failed" {f=1} END {exit !f}' .fixture-state/qa-artifact.tsv &&
+      grep -F 'bash test.sh' .fixture-state/qa-artifact.tsv >/dev/null &&
+      grep -E 'old|new|exit' .fixture-state/qa-artifact.tsv >/dev/null
 output_checks:
   - name: QA reports its artifact
     expect_regex: "qa-artifact\\.tsv"

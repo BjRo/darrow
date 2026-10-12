@@ -1,4 +1,5 @@
 id: goal-review-high-selected-claude
+harnesses: [claude]
 invariant: ADL-C1,ADL-C2,ADL-R2,ADL-L1,ADL-L2,ADL-L5,ADL-X1
 goal_report: forbidden
 goal_route_checks: false
@@ -40,7 +41,7 @@ fixture:
           set -eu
           node auth-config.test.js
           review_target=$(uv run --quiet --no-project .claude/backend/scripts/run_locked.py adaptive-goal-fixture review "$PWD" fingerprint)
-          printf 'check\t%s\n' "$review_target" >>.git/fixture-state/independent-review-events
+          printf 'check\t%s\n' "$review_target" >>.fixture-state/independent-review-events
   setup: >-
     uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend"
     adaptive-goal-fixture install review "$PWD" "{{case_dir}}/fixtures" claude
@@ -57,7 +58,7 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
   - name: high risk invokes one matching independent review
     run:
-      test "$(wc -l <.git/fixture-state/independent-review-invocations | tr -d ' ')" -eq
+      test "$(wc -l <.fixture-state/independent-review-invocations | tr -d ' ')" -eq
       1
   - name: review token exists only in the advertised skill instruction
     run: >-
@@ -66,13 +67,13 @@ checks:
       'independent-review-skill-contract-v1' .claude/backend >/dev/null
   - name: independent review clears the final changed target
     run: >-
-      test "$(cut -f1 .git/fixture-state/independent-review-invocations)" = "$(uv run
+      test "$(cut -f1 .fixture-state/independent-review-invocations)" = "$(uv run
       --quiet --no-project .claude/backend/scripts/run_locked.py
       adaptive-goal-fixture review "$PWD" fingerprint)" && awk -F '\t' '$1 ==
       "check" { checked[$2]=1 } $1 == "review_start" && checked[$2] { ok=1 } END { exit
-      ok ? 0 : 1 }' .git/fixture-state/independent-review-events && awk -F '\t' 'NF == 3
+      ok ? 0 : 1 }' .fixture-state/independent-review-events && awk -F '\t' 'NF == 3
       && $2 == "clear" && $3 == "comprehensive" { ok=1 } END { exit ok ? 0 : 1 }'
-      .git/fixture-state/independent-review-invocations
+      .fixture-state/independent-review-invocations
 semantic_output_checks:
   - name: owner reports completion
     proposition:

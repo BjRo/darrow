@@ -1,4 +1,5 @@
 id: claude-readiness-nonready-stops
+harnesses: [claude]
 invariant: ADL-P2,ADL-L2,ADL-X1
 goal_report: forbidden
 goal_route_checks: false

@@ -20,14 +20,16 @@ checks:
     run: git diff --exit-code && test -z "$(git ls-files --others --exclude-standard)"
   - name: undefined capability creates no user-level skill
     run: |
-      state_root=".git/darrow-eval/state/$DARROW_EVAL_HARNESS"
-      if test -d "$state_root"; then
-        find "$state_root" \
-          -path "$state_root/config/plugins/cache" -prune -o \
-          -path "$state_root/config/skills/.system" -prune -o \
-          -path "$state_root/.codex/skills/.system" -prune -o \
-          -type f -name SKILL.md -print
-      fi
+      state_root=".git/darrow-eval/state/$(cat .git/fixture-host)"
+      test -d "$state_root" || {
+        printf '%s\n' 'Candidate user-skill state is unavailable to the isolated grader; the retired state tree is absent.' >&2
+        exit 2
+      }
+      find "$state_root" \
+        -path "$state_root/config/plugins/cache" -prune -o \
+        -path "$state_root/config/skills/.system" -prune -o \
+        -path "$state_root/.codex/skills/.system" -prune -o \
+        -type f -name SKILL.md -print
     expect_exact: ""
   - name: authoring creates no commit
     run: git rev-list --all --reflog --count

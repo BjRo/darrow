@@ -21,9 +21,9 @@ const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 const state =
   'export DARROW_REVIEW_STATE_DIR="$(cat .git/oracle-review-state)" DARROW_CACHE_DIR="$PWD/.git/fixture-runtime-cache"';
 const proof =
-  "uv run --quiet --frozen --no-dev --project .git/fixture-backend adaptive-goal-fixture proof";
+  'uv run --quiet --no-project "$PWD/.sevro-marketplace/plugin/backend/scripts/run_locked.py" adaptive-goal-fixture proof';
 const review =
-  "uv run --quiet --frozen --no-dev --project .git/review-plugin/backend";
+  "uv run --quiet --frozen --no-dev --project .sevro-marketplace/plugins/0-darrow-review/backend";
 
 type RepairScenario = {
   name: string;
@@ -76,18 +76,37 @@ async function reviewFiles(prefix = ".fixture-review-plugin") {
   return files;
 }
 
+function providerCatalog(conflict: boolean) {
+  return JSON.stringify({
+    name: "darrow-eval",
+    plugins: [
+      { name: "darrow-adaptive-goal", source: "./plugin" },
+      { name: "darrow-review", source: "./plugins/0-darrow-review" },
+      ...(conflict
+        ? [{ name: "darrow-review", source: "./plugins/1-darrow-review" }]
+        : []),
+    ],
+  });
+}
+
 async function proofFixture(scenario: RepairScenario | undefined = undefined) {
+  const { duplicate = false, conflict = false } = scenario ?? {};
   const runtime = await prepareUvFixtureRuntime();
   const files = {
     ...(await reviewFiles()),
-    ...(scenario?.duplicate ? await reviewFiles(".fixture-review-cache") : {}),
+    ...(duplicate ? await reviewFiles(".fixture-review-cache") : {}),
   };
-  if (scenario?.conflict)
+  if (conflict)
     files[".fixture-review-cache/backend/src/darrow_review/scope.py"] =
       "raise RuntimeError('conflicting copy')\n";
+  files[".sevro-marketplace/.claude-plugin/marketplace.json"] =
+    providerCatalog(conflict);
+  const extra = conflict
+    ? ".sevro-marketplace/plugins/1-darrow-review"
+    : ".git/plugin-cache";
   const providerBackends = [
-    ".git/review-plugin/backend",
-    ...(scenario?.duplicate ? [".git/plugin-cache/backend"] : []),
+    ".sevro-marketplace/plugins/0-darrow-review/backend",
+    ...(duplicate ? [`${extra}/backend`] : []),
   ];
   const prepareProviders = providerBackends
     .map(
@@ -98,7 +117,7 @@ async function proofFixture(scenario: RepairScenario | undefined = undefined) {
   return {
     files,
     bin: runtime.bin,
-    setup: `${runtime.setupPrefix}\nmv .fixture-review-plugin .git/review-plugin\n${scenario?.duplicate ? "mv .fixture-review-cache .git/plugin-cache\n" : ""}uv sync --quiet --frozen --no-dev --project .git/review-plugin/backend\nexport DARROW_CACHE_DIR="$PWD/.git/fixture-runtime-cache"\n${prepareProviders}`,
+    setup: `${runtime.setupPrefix}\nmkdir -p .sevro-marketplace/plugins\nmv .fixture-review-plugin .sevro-marketplace/plugins/0-darrow-review\n${duplicate ? `mv .fixture-review-cache ${extra}\n` : ""}uv sync --quiet --frozen --no-dev --project .sevro-marketplace/plugins/0-darrow-review/backend\nexport DARROW_CACHE_DIR="$PWD/.git/fixture-runtime-cache"\n${prepareProviders}`,
   };
 }
 
@@ -340,7 +359,7 @@ test("high-risk review oracle: valid and invalid artifacts", async () => {
       selectArtifact(record, scenario),
       {
         name: "retain the selected proof",
-        run: "cp .git/selected-review-artifact .git/fixture-state/high-risk-review-proof",
+        run: "cp .git/selected-review-artifact .fixture-state/high-risk-review-proof && printf '%s\\n' \"$DARROW_REVIEW_STATE_DIR\" >.fixture-state/high-risk-review-state-root",
       },
       {
         ...check,
@@ -564,7 +583,7 @@ const repairScenarios: RepairScenario[] = [
     passes: true,
   },
   {
-    name: "conflicting installed tools",
+    name: "conflicting declared providers",
     duplicate: true,
     conflict: true,
     passes: false,
@@ -583,8 +602,8 @@ for (const scenario of repairScenarios) {
       {
         name: "completion marker matches the verification gate",
         run: scenario.passes
-          ? 'test "$(cat .git/goal-complete)" = complete'
-          : "test ! -e .git/goal-complete",
+          ? 'test "$(cat .fixture-state/goal-complete)" = complete'
+          : "test ! -e .fixture-state/goal-complete",
       },
       ...(scenario.passes
         ? [

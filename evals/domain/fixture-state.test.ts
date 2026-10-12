@@ -7,10 +7,8 @@ test("Darrow prepares fixture state before canonical setup", async () => {
       "../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/evals/failed-check-blocks-publication.yaml",
       import.meta.url,
     ),
-    setupPrefix: "test -d .git/fixture-state || exit 9",
-    checks: [
-      { name: "fixture state exists", run: "test -d .git/fixture-state" },
-    ],
+    setupPrefix: "test -d .fixture-state || exit 9",
+    checks: [{ name: "fixture state exists", run: "test -d .fixture-state" }],
   });
   expect(result.exitCode, result.diagnostic).toBe(0);
   expect(result.value.execution.status).toBe("completed");
@@ -58,7 +56,7 @@ test("Darrow prepares state for a canonical fixture without setup", async () => 
       import.meta.url,
     ),
     checks: [
-      { name: "fixture state exists", run: "test -d .git/fixture-state" },
+      { name: "fixture state exists", run: "test -d .fixture-state" },
       {
         name: "history is unchanged",
         run: 'test "$(git rev-list --count HEAD)" -eq 1',

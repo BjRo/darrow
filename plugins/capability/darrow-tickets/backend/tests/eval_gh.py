@@ -266,11 +266,11 @@ def dispatch(directory: Path, arguments: list[str]) -> Any:
 
 
 def main() -> None:
-    git_dir = subprocess.check_output(
-        ["git", "rev-parse", "--absolute-git-dir"], text=True
+    root = subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"], text=True
     ).strip()
-    directory = Path(git_dir) / "fixture-gh"
-    directory.mkdir(exist_ok=True)
+    directory = Path(root) / ".fixture-state/gh"
+    directory.mkdir(parents=True, exist_ok=True)
     arguments = sys.argv[1:]
     append(directory / "calls", " ".join(arguments))
     try:

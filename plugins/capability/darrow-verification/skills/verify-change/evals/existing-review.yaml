@@ -42,6 +42,7 @@ fixture:
     config.json: |
       {"timeoutMs":2000,"retries":3}
   setup: |
+    bash "{{case_dir}}/fixtures/prepare-review-grading.sh" "{{case_dir}}/../../../../darrow-review/backend"
     cksum config.json > CANDIDATE.txt
 checks:
   - name: product candidate remains unchanged
@@ -66,13 +67,11 @@ checks:
     run: >
       record=$(find "$DARROW_REVIEW_STATE_DIR" -name result.json -type f)
 
-      result_tool=$(find .git/eval-marketplace .git/eval-plugins -path
-      '*/backend/src/darrow_review/result.py' -type f 2>/dev/null | sort | tail -n 1)
+      result_tool=.git/eval-checks/review/src/darrow_review/result.py
 
-      report_tool=$(find .git/eval-marketplace .git/eval-plugins -path
-      '*/backend/src/darrow_review/report.py' -type f 2>/dev/null | sort | tail -n 1)
+      report_tool=.git/eval-checks/review/src/darrow_review/report.py
 
-      test -f "$record" && test -n "$result_tool" && test -n "$report_tool" ||
+      test -f "$record" && test -r "$result_tool" && test -r "$report_tool" ||
       exit 1
 
       uv run --quiet --frozen --no-dev --project "${result_tool%/src/darrow_review/result.py}" review-result validate "$record" && uv run --quiet --frozen --no-dev --project "${report_tool%/src/darrow_review/report.py}" review-report render

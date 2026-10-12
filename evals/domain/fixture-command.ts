@@ -242,6 +242,7 @@ function oracleCommand(
     root,
     "--results-root",
     join(root, "results"),
+    "--without-skill",
     "--",
     "--adapter-module",
     adapter,

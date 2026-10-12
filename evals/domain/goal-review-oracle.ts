@@ -69,6 +69,22 @@ function environment(
   };
 }
 
+async function copyProofManifests(root: string) {
+  const plugin = fileURLToPath(
+    new URL(
+      "../../plugins/orchestration/darrow-adaptive-goal/",
+      import.meta.url,
+    ),
+  );
+  for (const folder of [".claude-plugin", ".codex-plugin"]) {
+    await mkdir(join(root, folder));
+    await cp(
+      join(plugin, folder, "plugin.json"),
+      join(root, folder, "plugin.json"),
+    );
+  }
+}
+
 async function prepareProofPackage() {
   const root = await realpath(
     await mkdtemp(join(tmpdir(), "darrow-goal-proof-tools-")),
@@ -94,6 +110,7 @@ async function prepareProofPackage() {
     backend,
     { recursive: true, filter: (path) => !excluded.has(basename(path)) },
   );
+  await copyProofManifests(root);
   const context = {
     root,
     environment: environment(root, "", join(root, "review-state")),
@@ -123,10 +140,14 @@ async function prepareRepository(context: ProofContext, assets: ProofAssets) {
   await Promise.all(
     [
       ".git/fixture-bin",
-      ".git/fixture-state",
+      ".fixture-state",
       ".git/oracle-home",
       ".git/oracle-tmp",
     ].map((path) => mkdir(join(root, path), { recursive: true })),
+  );
+  await writeFile(
+    join(root, ".git/info/exclude"),
+    "/.fixture-state/\n/.sevro-marketplace/\n",
   );
   await writeFile(join(root, "value.txt"), "before\n");
   const commit = await execute(
@@ -164,7 +185,10 @@ export async function goalReviewOracle(assets: ProofAssets) {
   };
   await prepareRepository(context, assets);
   proofPackage ??= prepareProofPackage();
-  await symlink(await proofPackage, join(root, ".git/fixture-backend"));
+  const backend = await proofPackage;
+  context.environment.UV_CACHE_DIR = join(dirname(backend), ".git/uv-cache");
+  await mkdir(join(root, ".sevro-marketplace"), { recursive: true });
+  await symlink(dirname(backend), join(root, ".sevro-marketplace/plugin"));
   const uv = Bun.which("uv");
   if (!uv) throw new Error("fixture tool is unavailable: uv");
   const setup = await execute(

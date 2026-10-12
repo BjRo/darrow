@@ -1,0 +1,30 @@
+{
+  "format": "darrow-review-result-v3",
+  "standards": "pass",
+  "standards_sources": ["{{repo}}/AGENTS.md"],
+  "spec": "fail",
+  "spec_source": "{{repo}}/requirements.md",
+  "findings": [
+    {
+      "axis": "spec",
+      "severity": "high",
+      "disposition": "blocking",
+      "location": "{{repo}}/src/name.js:2",
+      "source": "{{repo}}/requirements.md",
+      "evidence": "Direct trim returns an empty string for whitespace-only input instead of Anonymous",
+      "repair_guidance": "Advisory: store value.trim() in a local variable and return the variable or Anonymous; this supplies the missing fallback while preserving trimming",
+      "resolution_evidence": "Whitespace-only and empty input return Anonymous; padded Ada returns Ada"
+    }
+  ],
+  "checks": [
+    {
+      "command": "none",
+      "applicability": "not_applicable",
+      "status": "not_applicable",
+      "evidence": "No configured command"
+    }
+  ],
+  "verdict": "fail",
+  "risks": ["none"],
+  "next_action": "return findings"
+}

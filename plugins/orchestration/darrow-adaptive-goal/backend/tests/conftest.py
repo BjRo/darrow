@@ -32,5 +32,7 @@ def repo(tmp_path: Path) -> Path:
     (path / "value.txt").write_bytes(b"before\n")
     git(path, "add", ".")
     git(path, "commit", "-qm", "fixture")
-    (path / ".git/fixture-state").mkdir()
+    (path / ".fixture-state").mkdir()
+    with (path / ".git/info/exclude").open("a") as stream:
+        stream.write("/.fixture-state/\n")
     return path.resolve()

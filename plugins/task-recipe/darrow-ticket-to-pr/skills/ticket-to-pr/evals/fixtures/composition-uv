@@ -16,7 +16,7 @@ done
 "$real_uv" "$@"
 result=$?
 if [[ "$result" == 0 && "$publication" == true ]]; then
-  dir=$(git rev-parse --absolute-git-dir) || exit 1
+  dir=$(git rev-parse --show-toplevel)/.fixture-state || exit 1
   printf '%s\n' "$intended" >>"$dir/builtin-publications"
 fi
 exit "$result"

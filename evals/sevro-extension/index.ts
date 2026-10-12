@@ -203,15 +203,56 @@ function fixtureSetupScript(fixture: RecordValue): string | null {
   return script;
 }
 
+function fixtureSkills(fixture: RecordValue) {
+  const files =
+    fixture.files === undefined ? {} : record(fixture.files, "fixture files");
+  return Object.entries(files)
+    .flatMap(([path, body]) => {
+      const match =
+        /^\.(agents|claude)\/skills\/([a-z][a-z0-9-]*)\/SKILL\.md$/.exec(path);
+      if (!match) return [];
+      return [
+        {
+          path,
+          host: match[1] === "agents" ? "codex" : "claude",
+          skillName: match[2]!,
+          body: string(body, "fixture skill body"),
+        },
+      ];
+    })
+    .sort((left, right) => left.path.localeCompare(right.path));
+}
+
+function fixtureSkillsDigest(fixture: RecordValue) {
+  const skills = fixtureSkills(fixture);
+  return skills.length
+    ? createHash("sha256").update(JSON.stringify(skills)).digest("hex")
+    : undefined;
+}
+
 function caseFixture(value: unknown) {
   const fixture = record(value, "fixture");
   const setup = fixtureSetupScript(fixture);
   const ticket = fixtureTicket(fixture);
+  const skills = fixtureSkills(fixture);
+  const ordinary = skills.length
+    ? {
+        ...fixture,
+        files: Object.fromEntries(
+          Object.entries(record(fixture.files, "fixture files")).filter(
+            ([path]) => !skills.some((skill) => skill.path === path),
+          ),
+        ),
+      }
+    : fixture;
   return {
     fixture:
       fixture.source === undefined
-        ? generatedFixture(fixture, ticket)
-        : repositoryFixture(fixture, ticket),
+        ? generatedFixture(ordinary, ticket)
+        : repositoryFixture(ordinary, ticket),
+    ...(skills.length
+      ? { fixtureSkillsDigest: fixtureSkillsDigest(fixture) }
+      : {}),
     ...(setup
       ? { setupDigest: createHash("sha256").update(setup).digest("hex") }
       : {}),
@@ -588,7 +629,8 @@ function caseActivation(
       supporting:
         mountPluginSkills ||
         selected.additional_plugins !== undefined ||
-        selected.additional_skills !== undefined,
+        selected.additional_skills !== undefined ||
+        fixtureSkills(record(selected.fixture, "fixture")).length > 0,
     },
     lists.sequence,
   );
@@ -923,6 +965,7 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     max?: number;
     forbidNativeSkillCall?: boolean;
     forbiddenEventTerms?: string[];
+    forbiddenCommandTerms?: string[];
     forbiddenEventPattern?: string;
     forbidAgentTool?: boolean;
   }
@@ -966,10 +1009,7 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     {
       kind: "inactive-controls",
       forbiddenSkills: ["adaptive-goal"],
-      forbiddenEventTerms: [
-        '"skill":"adaptive-goal"',
-        "adaptive-goal-preflight",
-      ],
+      forbiddenCommandTerms: ["adaptive-goal-preflight"],
       forbidSpawn: true,
     },
   ],
@@ -978,10 +1018,7 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     {
       kind: "inactive-controls",
       forbiddenSkills: ["adaptive-goal"],
-      forbiddenEventTerms: [
-        '"skill":"adaptive-goal"',
-        "adaptive-goal-preflight",
-      ],
+      forbiddenCommandTerms: ["adaptive-goal-preflight"],
       forbidSpawn: true,
       forbidAgentTool: true,
     },
@@ -990,7 +1027,7 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     DOCTOR_NO_PREFLIGHT_AGENT_PATTERN,
     {
       kind: "inactive-controls",
-      forbiddenEventTerms: ["adaptive-goal-preflight"],
+      forbiddenCommandTerms: ["adaptive-goal-preflight"],
       forbidSpawn: true,
       forbidAgentTool: true,
     },
@@ -999,7 +1036,7 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     DOCTOR_NO_HOST_CHOICE_PATTERN,
     {
       kind: "inactive-controls",
-      forbiddenEventTerms: ["host-config-doctor", "adaptive-goal-preflight"],
+      forbiddenCommandTerms: ["host-config-doctor", "adaptive-goal-preflight"],
       forbidSpawn: true,
       forbidAgentTool: true,
     },
@@ -1009,10 +1046,7 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     {
       kind: "inactive-controls",
       forbiddenSkills: ["doctor-adaptive-goal"],
-      forbiddenEventTerms: [
-        '"skill":"doctor-adaptive-goal"',
-        "host-config-doctor",
-      ],
+      forbiddenCommandTerms: ["host-config-doctor"],
     },
   ],
   [
@@ -1293,6 +1327,7 @@ function caseOwnership(selected: RecordValue, skillDir: string | null) {
 
 const TRANSCRIPT_EVIDENCE = new Map([
   ["guide-no-owner-or-goal-control", ["sevro.host.native-controls"]],
+  ["review-no-agent-spawn", ["sevro.host.native-controls"]],
   ["no-agent-spawn", ["sevro.codex.native-calls"]],
   ["one-owner-accepted", ["sevro.codex.native-calls"]],
   ["owner-route", ["sevro.codex.native-calls"]],
@@ -1323,17 +1358,21 @@ const TRANSCRIPT_EVIDENCE = new Map([
   ["skill-absent-after-continuation", ["sevro.codex.follow-up-skill-reads"]],
 ]);
 
+function requiresCommandEvents(check: RecordValue): boolean {
+  return (
+    [check.forbiddenEventTerms, check.forbiddenCommandTerms].some(
+      (value) => Array.isArray(value) && value.length > 0,
+    ) || typeof check.forbiddenEventPattern === "string"
+  );
+}
+
 function inactiveControlEvidence(check: RecordValue): string[] {
   if (check.kind !== "inactive-controls") return [];
   return [
     ...(Array.isArray(check.forbiddenSkills) && check.forbiddenSkills.length
       ? ["sevro.codex.skill-reads"]
       : []),
-    ...((Array.isArray(check.forbiddenEventTerms) &&
-      check.forbiddenEventTerms.length) ||
-    typeof check.forbiddenEventPattern === "string"
-      ? ["sevro.codex.events"]
-      : []),
+    ...(requiresCommandEvents(check) ? ["sevro.codex.events"] : []),
     ...(check.forbidSpawn === true || check.forbidAgentTool === true
       ? ["sevro.codex.native-calls"]
       : []),
@@ -1436,8 +1475,16 @@ function claudeSelectedOwnerCasePolicy(transcript: unknown) {
   };
 }
 
-function guideTranscriptChecks(value: unknown, skillDir: string | null) {
+function scopedTranscriptChecks(value: unknown, skillDir: string | null) {
   const checks = caseTranscriptChecks(value);
+  if (skillDir === "plugins/capability/darrow-review/skills/code-review")
+    return (
+      checks?.map((check) =>
+        check.kind === "no-agent-spawn"
+          ? { ...check, kind: "review-no-agent-spawn" }
+          : check,
+      ) ?? null
+    );
   if (skillDir !== ".agents/skills/darrow-guide") return checks;
   return (
     checks?.map((check) =>
@@ -1515,7 +1562,7 @@ function legacyCasePolicy(selected: RecordValue, skillDir: string | null) {
   if (selected.id === "goal-review-high-selected-claude")
     return claudeSelectedOwnerCasePolicy(selected.transcript_checks);
   const ownership = caseOwnership(selected, skillDir);
-  const transcriptChecks = guideTranscriptChecks(
+  const transcriptChecks = scopedTranscriptChecks(
     selected.transcript_checks,
     skillDir,
   );
@@ -2027,7 +2074,7 @@ async function projectSkillArtifacts(
     ),
   };
   await appendProjectManifests(pluginRoot, artifacts, total);
-  for (const name of ["backend", "references"]) {
+  for (const name of ["backend", "config", "references"]) {
     const directory = join(pluginRoot, name);
     if (await optionalPluginDirectory(directory))
       await collectPluginDirectory(pluginRoot, directory, [name], {
@@ -2246,12 +2293,11 @@ function ticketProvision(
 ) {
   return `(
 set -e
-mkdir -p .git/fixture-bin .git/fixture-state
+mkdir -p .git/fixture-bin .fixture-state
 printf '%s\\n' ${shellQuote(ticket.id)} > .git/fixture-ticket-id
 printf '%s\\n' ${shellQuote(ticket.title)} > .git/fixture-ticket-title
-printf '%s' ${shellQuote(ticket.body)} > .git/fixture-ticket.md
-: > .git/fixture-state/ticketctl.log
-ln -s fixture-state/ticketctl.log .git/ticketctl.log
+printf '%s' ${shellQuote(ticket.body)} > .fixture-state/fixture-ticket.md
+: > .fixture-state/ticketctl.log
 ) || exit $?`;
 }
 
@@ -2291,10 +2337,24 @@ function verifyFixturePreparation(details: RecordValue, fixture: RecordValue) {
   return { script, ticket };
 }
 
-async function caseSetup(details: RecordValue, caseId: string) {
+async function caseSetup(
+  details: RecordValue,
+  caseId: string,
+  hostValue: unknown,
+) {
+  const host = record(hostValue, "candidate host");
+  const label =
+    host.id === "sevro.host.codex"
+      ? "codex"
+      : host.id === "sevro.host.claude"
+        ? "claude"
+        : "unavailable";
+  const stateSetup =
+    "mkdir -p .fixture-state\nprintf '/.fixture-state/\\n' >>.git/info/exclude\n" +
+    `printf '%s\\n' ${shellQuote(label)} >.git/fixture-host`;
   if (details.setupDigest === undefined && details.ticketDigest === undefined)
     return {
-      command: ["/bin/bash", "-c", "mkdir -p .git/fixture-state"],
+      command: ["/bin/bash", "-c", stateSetup],
       environment: {},
     };
   const { fixture, source } = await readBoundCase(details, caseId);
@@ -2305,7 +2365,7 @@ async function caseSetup(details: RecordValue, caseId: string) {
       "-c",
       [
         'case "${PATH%%:*}" in */.git/fixture-bin) PATH=${PATH#*:}; export PATH ;; esac',
-        "mkdir -p .git/fixture-state",
+        stateSetup,
         ...(ticket ? [ticketProvision(ticket)] : []),
         ...(script
           ? [script.replaceAll("{{case_dir}}", "$DARROW_EVAL_CASE_DIR")]
@@ -2322,7 +2382,7 @@ async function caseSetup(details: RecordValue, caseId: string) {
 
 function requireActivationSkills(
   details: RecordValue,
-  sources: { skillRoot: string; skillName: string }[],
+  sources: { skillName: string }[],
 ): void {
   if (details.activation === undefined) return;
   const expected = activationExpectation(details.activation);
@@ -2527,6 +2587,7 @@ async function repositorySkillMounts(
   details: RecordValue,
   sources: { skillRoot: string; skillName: string }[],
   hostValue: unknown,
+  fixtureMounts: Awaited<ReturnType<typeof fixtureSkillMounts>>,
 ) {
   const claude = claudeRepositoryHost(hostValue);
   const { owner, additional } = mergeAdditionalSkills(
@@ -2535,20 +2596,23 @@ async function repositorySkillMounts(
     await additionalSkillSources(details),
   );
   const mounted = [...owner, ...additional.flatMap((item) => item.sources)];
-  if (new Set(mounted.map((item) => item.skillName)).size !== mounted.length)
+  const combined = [...mounted, ...fixtureMounts];
+  if (new Set(combined.map((item) => item.skillName)).size !== combined.length)
     throw new Error("mounted skill names must be unique");
-  requireActivationSkills(details, mounted);
+  requireActivationSkills(details, combined);
   const codexPackages = codexPackageHost(
     hostValue,
     additional.length > 0,
     false,
   );
   const claudePackages = claudePackageHost(hostValue, additional.length > 0);
+  const artifacts = await repositoryArtifacts(owner, additional, {
+    packaged: codexPackages || claudePackages,
+    destination: claude ? ".claude/skills" : ".agents/skills",
+  });
+  appendFixtureSkillArtifacts(artifacts, fixtureMounts);
   return {
-    artifacts: await repositoryArtifacts(owner, additional, {
-      packaged: codexPackages || claudePackages,
-      destination: claude ? ".claude/skills" : ".agents/skills",
-    }),
+    artifacts,
     ...packageDeclarations({
       codexPackages,
       claudePackages,
@@ -2560,26 +2624,76 @@ async function repositorySkillMounts(
   };
 }
 
+async function fixtureSkillMounts(
+  details: RecordValue,
+  hostValue: unknown,
+  caseId: string,
+) {
+  if (details.fixtureSkillsDigest === undefined) return [];
+  const { fixture } = await readBoundCase(details, caseId);
+  if (fixtureSkillsDigest(fixture) !== details.fixtureSkillsDigest)
+    throw new Error("fixture skills changed after resolution");
+  const host = record(hostValue, "candidate host");
+  const label =
+    host.id === "sevro.host.codex"
+      ? "codex"
+      : host.id === "sevro.host.claude"
+        ? "claude"
+        : null;
+  if (!label)
+    throw new Error("fixture repository skills require a supported host");
+  const skills = fixtureSkills(fixture);
+  const mounted = skills.filter((skill) => skill.host === label);
+  if (
+    new Set(mounted.map((skill) => skill.skillName)).size !==
+    new Set(skills.map((skill) => skill.skillName)).size
+  )
+    throw new Error("fixture repository skill host mirror is missing");
+  return mounted;
+}
+
+function appendFixtureSkillArtifacts(
+  artifacts: SkillArtifact[],
+  skills: Awaited<ReturnType<typeof fixtureSkillMounts>>,
+) {
+  let total = artifacts.reduce(
+    (size, artifact) =>
+      size + Buffer.from(artifact.contentBase64, "base64").byteLength,
+    0,
+  );
+  for (const skill of skills) {
+    const bytes = Buffer.from(skill.body, "utf8");
+    total += bytes.byteLength;
+    checkSkillArtifactLimit(bytes, total, artifacts.length);
+    artifacts.push(
+      skillArtifact(bytes, skill.path, artifacts.length + 1, false),
+    );
+  }
+}
+
 async function preparedMounts(
   details: RecordValue,
   hostValue: unknown,
   configuration: unknown,
+  caseId: string,
 ) {
+  const fixtureMounts = await fixtureSkillMounts(details, hostValue, caseId);
   const sources =
     details.mount === undefined
       ? []
       : await skillMountSource(details, configuration);
   if (repositoryMount(details))
-    return repositorySkillMounts(details, sources, hostValue);
+    return repositorySkillMounts(details, sources, hostValue, fixtureMounts);
   const { owner, additional } = mergeAdditionalSkills(
     sources,
     await additionalPluginSources(details),
     await additionalSkillSources(details),
   );
   const mounted = [...owner, ...additional.flatMap((item) => item.sources)];
-  if (new Set(mounted.map((item) => item.skillName)).size !== mounted.length)
+  const combined = [...mounted, ...fixtureMounts];
+  if (new Set(combined.map((item) => item.skillName)).size !== combined.length)
     throw new Error("mounted skill names must be unique");
-  requireActivationSkills(details, mounted);
+  requireActivationSkills(details, combined);
   const invocation = requiredInvocation(details, mounted, hostValue);
   const codexPackages = codexPackageHost(
     hostValue,
@@ -2595,6 +2709,7 @@ async function preparedMounts(
   const artifacts = packagePlugins
     ? await codexPluginArtifacts(owner, ownerName!, additional)
     : await projectSkillArtifacts(mounted, owner[0]?.skillRoot);
+  appendFixtureSkillArtifacts(artifacts, fixtureMounts);
   return {
     artifacts,
     ...packageDeclarations({
@@ -2638,9 +2753,10 @@ function requiredNativeRoute(details: RecordValue) {
     details.ownership === undefined &&
     Array.isArray(details.transcriptChecks) &&
     details.transcriptChecks.length > 0 &&
-    details.transcriptChecks.every(
-      (check) =>
-        activationData(check)?.kind === "guide-no-owner-or-goal-control",
+    details.transcriptChecks.every((check) =>
+      ["guide-no-owner-or-goal-control", "review-no-agent-spawn"].includes(
+        String(activationData(check)?.kind),
+      ),
     );
   if (portable)
     return {
@@ -2685,11 +2801,20 @@ async function prepareCase(params: RecordValue) {
   if (omitSkills && details.invocation !== undefined)
     throw new Error("explicit skill invocation cannot run without skills");
   requireNativeEvidence(details, params.host);
-  const setup = await caseSetup(details, string(selected.id, "case ID"));
+  const setup = await caseSetup(
+    details,
+    string(selected.id, "case ID"),
+    params.host,
+  );
   return {
     ...(omitSkills
       ? { artifacts: [] }
-      : await preparedMounts(details, params.host, params.configuration)),
+      : await preparedMounts(
+          details,
+          params.host,
+          params.configuration,
+          string(selected.id, "case ID"),
+        )),
     requestedInstrumentation: [],
     ...(setup ? { fixtureSetup: setup } : {}),
     extensionData: {},
@@ -3844,23 +3969,39 @@ function noParentWorkAfterHandoffOutcome(
   };
 }
 
+function forbiddenControlTerms(value: unknown): string[] {
+  const terms = skillSequence(value ?? []);
+  if (!terms)
+    throw new Error("inactive control check configuration is invalid");
+  return terms;
+}
+
 function inactiveControlsOutcome(
   selected: RecordValue,
   native: ReturnType<typeof nativeControlEvidence>,
   observed: ReturnType<typeof observedActivation>,
   events: string | null,
 ) {
-  const forbiddenSkills = skillSequence(selected.forbiddenSkills ?? []);
-  const forbiddenEventTerms = skillSequence(selected.forbiddenEventTerms ?? []);
+  const forbiddenSkills = forbiddenControlTerms(selected.forbiddenSkills);
+  const forbiddenEventTerms = forbiddenControlTerms(
+    selected.forbiddenEventTerms,
+  );
+  const forbiddenCommandTerms = forbiddenControlTerms(
+    selected.forbiddenCommandTerms,
+  );
+  const commands = forbiddenCommandTerms.length
+    ? codexCommandRecords(events)
+    : [];
   if (
-    !forbiddenSkills ||
-    !forbiddenEventTerms ||
-    (selected.forbiddenEventPattern !== undefined &&
-      !FORBIDDEN_EVENT_REGEX.has(String(selected.forbiddenEventPattern)))
+    selected.forbiddenEventPattern !== undefined &&
+    !FORBIDDEN_EVENT_REGEX.has(String(selected.forbiddenEventPattern))
   )
     throw new Error("inactive control check configuration is invalid");
   const required = inactiveControlEvidence(selected);
-  if (!inactiveControlEvidenceAvailable(required, native, observed, events))
+  if (
+    commands === null ||
+    !inactiveControlEvidenceAvailable(required, native, observed, events)
+  )
     return {
       status: "unavailable",
       detail: "Required skill, event, or native control evidence unavailable",
@@ -3869,6 +4010,8 @@ function inactiveControlsOutcome(
   const violated = inactiveControlViolation(selected, {
     forbiddenSkills,
     forbiddenEventTerms,
+    forbiddenCommandTerms,
+    commands,
     native,
     observed,
     events,
@@ -3878,6 +4021,41 @@ function inactiveControlsOutcome(
     detail: "Graded from complete Codex skill, event, and native controls",
     evidenceRefs: required,
   };
+}
+
+function codexCommandEvent(value: unknown) {
+  const event = activationData(value);
+  if (!event || typeof event.type !== "string" || event.type === "turn.failed")
+    throw new Error("invalid command event");
+  let command: string | undefined;
+  if (["item.started", "item.updated", "item.completed"].includes(event.type)) {
+    const item = activationData(event.item);
+    if (!item) throw new Error("missing command item");
+    if (item.type === "command_execution") {
+      if (typeof item.command !== "string" || !item.command.trim())
+        throw new Error("missing command text");
+      command = item.command;
+    }
+  }
+  return { type: event.type, command };
+}
+
+function codexCommandRecords(events: string | null): string[] | null {
+  if (events === null) return null;
+  const commands: string[] = [];
+  let started = 0;
+  let completed = 0;
+  try {
+    for (const line of events.split("\n").filter((line) => line.trim())) {
+      const event = codexCommandEvent(JSON.parse(line));
+      if (event.type === "turn.started") started++;
+      if (event.type === "turn.completed") completed++;
+      if (event.command !== undefined) commands.push(event.command);
+    }
+  } catch {
+    return null;
+  }
+  return started > 0 && started === completed ? commands : null;
 }
 
 function inactiveControlEvidenceAvailable(
@@ -3898,16 +4076,28 @@ function inactiveControlViolation(
   context: {
     forbiddenSkills: string[];
     forbiddenEventTerms: string[];
+    forbiddenCommandTerms: string[];
+    commands: string[];
     native: ReturnType<typeof nativeControlEvidence>;
     observed: ReturnType<typeof observedActivation>;
     events: string | null;
   },
 ): boolean {
-  const { forbiddenSkills, forbiddenEventTerms, native, observed, events } =
-    context;
+  const {
+    forbiddenSkills,
+    forbiddenEventTerms,
+    forbiddenCommandTerms,
+    commands,
+    native,
+    observed,
+    events,
+  } = context;
   return (
     forbiddenSkills.some((skill) => observed!.observedSkills.includes(skill)) ||
     forbiddenEventTerms.some((term) => events!.includes(term)) ||
+    forbiddenCommandTerms.some((term) =>
+      commands.some((command) => command.includes(term)),
+    ) ||
     (typeof selected.forbiddenEventPattern === "string" &&
       FORBIDDEN_EVENT_REGEX.get(selected.forbiddenEventPattern)!.test(
         events!,
@@ -4768,8 +4958,13 @@ async function nativeTranscriptChecks(
   };
   return selected.map((entry) => ({
     id: string(entry.id, "native transcript check ID"),
-    ...(entry.kind === "guide-no-owner-or-goal-control"
-      ? guideNativeControlOutcome(observations)
+    ...(["guide-no-owner-or-goal-control", "review-no-agent-spawn"].includes(
+      String(entry.kind),
+    )
+      ? portableNativeControlOutcome(
+          observations,
+          entry.kind === "guide-no-owner-or-goal-control",
+        )
       : transcriptOutcome(entry, context)),
   }));
 }
@@ -4900,7 +5095,10 @@ function legacyControlConsistency(
     : codexControlConsistency(common, observations);
 }
 
-function guideNativeControlOutcome(observations: unknown) {
+function portableNativeControlOutcome(
+  observations: unknown,
+  forbidGoals: boolean,
+) {
   const common = portableControlRecord(observations);
   const available =
     common !== null && legacyControlConsistency(common, observations);
@@ -4910,13 +5108,16 @@ function guideNativeControlOutcome(observations: unknown) {
       (call) =>
         ["Agent", "Task"].includes(String(call.name)) ||
         (call.namespace === "collaboration" && call.name === "spawn_agent") ||
-        (["functions", "claude"].includes(String(call.namespace)) &&
+        (forbidGoals &&
+          ["functions", "claude"].includes(String(call.namespace)) &&
           ["create_goal", "update_goal"].includes(String(call.name))),
     );
   return {
     status: !available ? "unavailable" : prohibited ? "failed" : "passed",
     detail: available
-      ? "Graded owner and goal-control absence from complete native labels"
+      ? forbidGoals
+        ? "Graded owner and goal-control absence from complete native labels"
+        : "Graded reviewer absence from complete native labels"
       : "Native control evidence unavailable, incomplete, or contradictory",
     evidenceRefs: available ? ["sevro.host.native-controls"] : [],
   };

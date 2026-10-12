@@ -72,7 +72,9 @@ def install(
             "install requires readiness|review|verification REPO FIXTURE_DIR codex|claude|both"
         )
     git_dir = metadata(repo)
-    (git_dir / "fixture-state").mkdir(exist_ok=True)
+    state = repo / ".fixture-state"
+    state.mkdir(exist_ok=True)
+    append(git_dir / "info/exclude", "/.fixture-state/\n")
     kinds = ("review", "verification") if kind == "verification" else (kind,)
     for root in HOSTS[host]:
         backend = repo / root / "backend"
@@ -80,7 +82,7 @@ def install(
         install_skills(repo, root, fixtures, kinds)
         append(git_dir / "info/exclude", f"/{root}/\n")
     if kind == "readiness" and host in {"claude", "both"}:
-        (git_dir / "fixture-state/implementation-readiness-result").write_text(
+        (state / "implementation-readiness-result").write_text(
             readiness.assess(repo, "render-only"), encoding="utf-8", newline="\n"
         )
     return ""

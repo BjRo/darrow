@@ -100,6 +100,25 @@ name uniqueness and activation membership over the combined set. An ordered
 activation sequence can use these explicit providers without mounting plugin
 siblings. Apply the shared artifact count and byte bounds across all mounts.
 
+Inline fixture repository skills under `.agents/skills/<name>/SKILL.md` or
+`.claude/skills/<name>/SKILL.md` are supporting mounts, not ordinary product
+files. Bind their bytes at resolution, mount only the selected host's entrypoint
+as a Git-excluded public artifact, and include it in activation membership.
+Reject changed source bytes, duplicate mounted names, and a missing host mirror.
+An unmounted control omits these supporting skills as well as the owning skill.
+
+Feedback fixtures distinguish mutable receipts from product state. A visible
+workspace fingerprint includes receipts and cannot prove that product files
+changed. Bind an immutable Git-state baseline during setup and require the
+feedback fixture to compare product state before discovery and acknowledgement.
+Grade the actual same-thread continuation separately from that state evidence.
+
+Negative CLI checks inspect command records rather than captured command output.
+Reading a skill body that names a diagnostic is not a diagnostic invocation.
+Missing, malformed, or incomplete command evidence remains unavailable.
+Terminal Review checks use bound native control labels for reviewer absence.
+A missing retired harness file cannot establish that no reviewer launched.
+
 Repository guide fixtures exercise implementation-derived explanations against
 Darrow-owned evaluation code, such as its Sevro extension. Their snapshots must
 not copy generic runner implementation. Keep the question, source inventory,
@@ -123,10 +142,18 @@ A setup-only generated fixture starts with an empty Git history. Its setup may
 create the initial snapshot; no placeholder commit may be synthesized before
 that setup runs.
 
-The Darrow extension prepares `.git/fixture-state` before running a case's
-fixture setup or tools. Existing fixture protocols and acceptance oracles may
-write there without creating the directory themselves. This repository-owned
-state convention belongs in extension preparation, not the generic engine.
+The Darrow extension prepares `.fixture-state/` and excludes it from Git before
+running a case's fixture setup or tools. Candidate-run fixture tools write their
+receipts, mutable mock state, and test traces there. They do not require writes
+inside `.git`, which Codex protects. Git metadata, immutable setup inputs, and
+hidden grading assets remain separate; hidden oracles stay in `.git/eval-checks/`.
+This repository-owned state convention belongs in extension preparation, not
+the generic engine.
+Dependencies required after setup must survive destruction of the temporary
+setup home. Go corpus cases place module, build, and workspace caches in this
+excluded state and use the same declared Go launcher during setup, candidate
+execution, and grading. They must not depend on a cache in the discarded setup
+home or require candidate writes to Git metadata.
 Canonical Darrow fixture setup resolves ambient tools before declared fixture
 wrappers. A setup command that records system Git must not bind its own Git
 wrapper and recurse. Declared fixture tools remain first on `PATH` for candidate
@@ -615,11 +642,19 @@ Result storage defaults to the evaluated project's `evals/results`.
 Repository evaluation runs use Sevro's runtime policy in the root `sevro.json`:
 inherited `PATH` and uv-managed Python, a private UV cache seeded from the
 registered packages' locks, native goals, and read-only access to the trial's
-own native transcripts, which Adaptive Goal uses to observe its session route. Callers launch Sevro with `PATH`
+own native transcripts, which Adaptive Goal uses to observe its session route.
+Sevro owns each role's private temporary storage and its temporary-directory
+environment variables; repository policy cannot override them. A fixture recorder must reject empty input
+before consuming a receipt slot; a failed upstream command cannot establish a
+returned assessment. Callers launch Sevro with `PATH`
 free of repository and Bun-injected entries, set `UV_PYTHON_INSTALL_DIR` when
 unset, and rebuild the seed cache only when a registered lock changes.
 Repository-skill guide trials select a hook-free runtime file because Claude
-project settings conflict with native-goal hooks. An explicit
+project settings conflict with native-goal hooks. It retains native transcripts
+for complete control observations and skill-read recovery. With the repository's
+default goal-enabled policy, Darrow compiles Codex runs with the `app-server`
+entrypoint when no entrypoint was supplied. Explicit entrypoints and replacement
+runtime files remain authoritative. An explicit
 `--runtime-config-file` replaces either default.
 
 The candidate defaults remain Codex `gpt-6-luna/medium` and Claude
@@ -872,12 +907,30 @@ the cell unsuccessful without changing Sevro's raw task verdict or exit code.
 
 Sevro does not supply `DARROW_CACHE_DIR` to candidates or shell checks. Darrow's
 locked launchers select their documented cache beneath the isolated `HOME`.
-With a curated Claude UV cache, candidate and check homes remain under the
-trial's Git metadata, outside assessed worktree contents. The homes and Darrow
-caches are separate; the curated UV cache remains shared within the trial.
+With a selected Sevro runtime policy, each execution role receives a private
+home and writable runtime outside the Git fixture. Candidate and checker homes
+and Darrow caches are separate. Prepared UV dependency seeds are copied into
+each selected role's private runtime; their writable state is not shared.
 Caller cache overrides and credentials are not inherited. This deliberately
 replaces the legacy shared Darrow cache environment contract without changing
 the plugin launcher's public default or introducing Darrow policy into Sevro.
+
+The `.fixture-state/` receipt convention does not relocate a plugin's public
+state when its contract requires state outside the repository. A grader must
+use retained evidence bound to the candidate's actual state, not the checker's
+private home or a retired candidate-home path. Missing or inaccessible state
+cannot establish either artifact presence or artifact absence.
+
+Fixture setup uses a temporary home that is removed before host execution.
+Candidate-required private state must be initialized in the candidate runtime
+from the fixture's authoritative inputs. Setup-home paths cannot serve as live
+prior Review evidence. Fixture input receipts may use `.fixture-state/`, while
+generated canonical scopes and reports remain in the private Review state root.
+
+Trusted fixture preparation records the selected bundled host as `codex` or
+`claude` in `.git/fixture-host`. Other adapters record `unavailable`. Shell
+oracles use this prepared fact rather than an undeclared ambient host variable;
+it identifies preparation and does not prove a native child route.
 
 Shell checks execute candidate-controlled code inside the runner's outer
 isolation boundary, including during dry runs. Grading uses a private,
@@ -886,13 +939,15 @@ harness credentials, or modify retained evidence. An unavailable isolation
 boundary is an explicit error.
 
 Plugin-local skills prepared for project discovery retain the owning plugin's
-contained backend under `.agents/backend`, alongside `.agents/skills/`. This
+contained backend under `.agents/backend`, alongside `.agents/skills/`. Plugin
+configuration and shared references retain their plugin-relative paths below
+`.agents/` so an implicit mount has the same mechanics inputs as its package. This
 includes implicit Codex preparation and adapters that use the project skill
 surface. Retain both owning plugin manifests at `.agents/.claude-plugin/plugin.json`
 and `.agents/.codex-plugin/plugin.json` with their original names and versions,
 so the locked backend launcher can establish its plugin identity. Copy only
 those manifest files, not plugin hooks or agent registrations.
-The backend and manifest source bytes participate in fixture identity and their
+The backend, configuration, references, and manifest source bytes participate in fixture identity and their
 artifacts remain Git-excluded and subject to the shared artifact limits. Native
 plugin preparation retains the backend inside its independent plugin package.
 Project discovery does not copy plugin hooks or agents into project settings.
@@ -902,6 +957,34 @@ excludes every nested `evals/` directory, including `backend/tests/evals/`.
 Fixture setup may copy grading helpers to `.git/eval-checks/`; the outer agent
 sandbox denies reading and writing that subtree, while isolated grading may
 execute it. Declared external isolation must preserve this boundary too.
+
+Review route checks select the declared aggregate kind: `result.json` for
+comprehensive review or `verification.json` for fix verification. Exactly one
+finalized scope of that kind must exist. The original comprehensive scope may
+coexist with a follow-up verification scope; it neither makes the follow-up
+ambiguous nor supplies its reader identities. Missing or multiple selected
+scopes remain unavailable, and selecting an artifact does not replace native
+launch evidence or canonical result validation.
+
+Codex Review route graders read the trial-bound public native transcript view
+from `SEVRO_CANDIDATE_TRANSCRIPTS`. They require a complete candidate capture,
+verify each indexed file digest, and correlate the requested spawn, native
+start, accepted result, child session and completed reader turn. Both selected
+axes must belong to one coordinator turn and be accepted before its first wait.
+Retired `retained-harness.jsonl` labels cannot establish current native routes.
+Missing, partial, mismatched or uncorrelated evidence fails closed.
+
+Adaptive Goal's real-Review completion fixture resolves its validation provider
+from the prepared `.sevro-marketplace/.claude-plugin/marketplace.json` catalog.
+It requires exactly one declared `darrow-review` package with matching Codex
+and Claude plugin identities. Undeclared copies in Git metadata are not
+providers. Missing, duplicate, malformed, or escaping catalog sources refuse
+completion; the fixture must not search unrelated packages or private caches.
+Its completion launcher uses the owning mounted package's frozen bootstrap and
+the provider's documented private state root. After successful validation it
+records that absolute root alongside the selected artifact receipt. Grading
+must read that same artifact; a separate grader home or a receipt by itself
+cannot prove a review. State inside the repository cannot clear completion.
 
 Codex trials may import the repository's explicit agent-concurrency limit into
 their isolated configuration. They must not inherit unrelated repository or

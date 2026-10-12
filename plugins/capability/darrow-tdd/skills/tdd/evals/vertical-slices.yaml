@@ -30,16 +30,16 @@ fixture:
         test.sh: |
           #!/usr/bin/env bash
           set +e
-          node --test test/username.test.js >.git/test-output 2>&1
+          node --test test/username.test.js >.fixture-state/test-output 2>&1
           status=$?
-          cat .git/test-output
+          cat .fixture-state/test-output
           if grep -Fq 'normalizes a username' test/username.test.js; then normalize=1; else normalize=0; fi
           if grep -Fq 'truncates a normalized username' test/username.test.js; then truncate=1; else truncate=0; fi
           if git diff --quiet -- src/username.js; then implementation=unchanged; else implementation=changed; fi
           if node --input-type=module -e "import('./src/username.js').then(({formatUsername}) => process.exit(formatUsername('Grace Hopper Extended', 15) === 'grace-hopper' ? 0 : 1))" >/dev/null 2>&1; then truncation_behavior=1; else truncation_behavior=0; fi
           if [ "$status" -eq 0 ]; then result=pass; else result=fail; fi
           printf '%s|normalize=%s|truncate=%s|implementation=%s|truncation_behavior=%s\n' \
-            "$result" "$normalize" "$truncate" "$implementation" "$truncation_behavior" >>.git/tdd-trace
+            "$result" "$normalize" "$truncate" "$implementation" "$truncation_behavior" >>.fixture-state/tdd-trace
           exit "$status"
 checks:
   - name: both public behaviors are implemented
@@ -55,7 +55,7 @@ checks:
       state==1 && $1=="pass" && $2=="normalize=1" && $3=="truncate=0" && $4=="implementation=changed" && $5=="truncation_behavior=0" { state=2; next }
       state==2 && $1=="fail" && $2=="normalize=1" && $3=="truncate=1" && $4=="implementation=changed" && $5=="truncation_behavior=0" { state=3; next }
       state==3 && $1=="pass" && $2=="normalize=1" && $3=="truncate=1" && $4=="implementation=changed" && $5=="truncation_behavior=1" { state=4; next }
-      END { exit !(state==4) }' .git/tdd-trace
+      END { exit !(state==4) }' .fixture-state/tdd-trace
   - name: retained tests detect normalization and truncation regressions
     run: >-
       node --test test/username.test.js >/dev/null || exit 1;

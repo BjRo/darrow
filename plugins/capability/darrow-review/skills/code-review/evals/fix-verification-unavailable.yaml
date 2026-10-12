@@ -2,10 +2,12 @@ id: code-review-fix-verification-unavailable
 activation: positive
 invariant: CR-C17,CR-C18,CR-C20,CR-E13
 prompt: >-
+  First run `fixture-review-input` to initialize the fixture's prior evidence
+  in your private Review state.
   Verify my uncommitted repair against the prior code-review findings recorded
-  in `.git/verification-input`. Run the repository's prescribed checks and
-  report whether the repair is verified or what evidence is missing. Remain read-only,
-  and do not widen this into another comprehensive review.
+  in `.fixture-state/verification-input`. Run the repository's prescribed checks and
+  report whether the repair is verified or what evidence is missing. Remain
+  read-only, and do not widen this into another comprehensive review.
 fixture:
   commits:
     - message: "chore: base"
@@ -25,6 +27,10 @@ fixture:
   files:
     endpoint.txt: "https://example.invalid/v2\n"
   setup: |
+    bash "{{case_dir}}/fixtures/prepare-grading.sh" "{{case_dir}}"
+    mkdir -p .git/fixture-bin
+    cp "{{case_dir}}/fixtures/initialize-prior-input.sh" .git/fixture-bin/fixture-review-input
+    chmod +x .git/fixture-bin/fixture-review-input
     set -eu
     backend=$(cd "{{case_dir}}/../../../backend" && pwd -P)
     prior_output=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
@@ -52,21 +58,20 @@ fixture:
     git status --porcelain --untracked-files=all >.git/status-before
     git hash-object endpoint.txt >.git/endpoint-before
     printf '%s\n' "$backend" >.git/review-backend
-    mkdir -p .git/eval-checks/review/tests/evals
-    cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: human response excludes machine JSON
-    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py
+      .git/last-message.md human-response
   - name: unavailable verification remains read only
     run: >-
-      git hash-object endpoint.txt >.git/endpoint-after &&
-      cmp .git/endpoint-before .git/endpoint-after &&
-      git status --porcelain --untracked-files=all >.git/status-after &&
-      cmp .git/status-before .git/status-after
+      git hash-object endpoint.txt >.git/endpoint-after && cmp
+      .git/endpoint-before .git/endpoint-after && git status --porcelain
+      --untracked-files=all >.git/status-after && cmp .git/status-before
+      .git/status-after
   - name: unavailable evidence produces a valid blocked artifact
     run: |
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
-      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n 1)
+      tool=.git/eval-checks/review/src/darrow_review/result.py
       test -n "$tool" && test -n "$record" || exit 1
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-verification "$record" || exit 1
       python3 - "$record" <<'PY'
@@ -84,19 +89,22 @@ checks:
       PY
   - name: retained verification report preserves the complete canonical evidence
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
-      test -n "$record" &&
-      report=$(dirname "$record")/verification.md &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
+      && test -n "$record" && report=$(dirname "$record")/verification.md &&
       test -r "$report" && test -s "$report" &&
-      tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n 1) &&
-      test -n "$tool" &&
-      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render-verification "$record" >.git/expected-verification.md &&
-      awk 'NF' .git/expected-verification.md >.git/expected-verification-normalized.md &&
-      awk 'NF' "$report" >.git/retained-verification-normalized.md &&
-      cmp .git/expected-verification-normalized.md .git/retained-verification-normalized.md
+      tool=.git/eval-checks/review/src/darrow_review/report.py && test -n
+      "$tool" && uv run --quiet --frozen --no-dev --project
+      "${tool%/src/darrow_review/report.py}" review-report render-verification
+      "$record" >.git/expected-verification.md && awk 'NF'
+      .git/expected-verification.md >.git/expected-verification-normalized.md &&
+      awk 'NF' "$report" >.git/retained-verification-normalized.md && cmp
+      .git/expected-verification-normalized.md
+      .git/retained-verification-normalized.md
 semantic_output_checks:
   - name: review outcome and issues are understandable inline
     proposition: >-
-      The response reports blocked fix verification because the required external
-      check cannot run. It explains inline that changing the endpoint to v2 does
-      not establish completion without successful external verification.
+      The response reports blocked fix verification because the required
+      external check cannot run. It explains inline that changing the endpoint
+      to v2 does not establish completion without successful external
+      verification.

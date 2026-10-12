@@ -17,7 +17,7 @@ fixture:
       #!/usr/bin/env bash
       set -eu
       repo_top=${DARROW_EVIDENCE_REPOSITORY:-$(git rev-parse --show-toplevel)}
-      d=$(git -C "$repo_top" rev-parse --absolute-git-dir)
+      d="$repo_top/.fixture-state"
       case "$1 $2" in
         'repo view') printf 'fixture/repo\thttps://github.com/fixture/repo\n' ;;
         'pr list') printf '42\thttps://github.com/fixture/repo/pull/42\t%s\tfalse\n' "$(git -C "$repo_top" rev-parse HEAD)" ;;
@@ -46,7 +46,7 @@ fixture:
     git commit -qm 'feat: candidate evidence'
 checks:
   - name: exactly one top-level comment invocation occurs
-    run: test "$(wc -l <.git/comment-calls | tr -d ' ')" -eq 1
+    run: test "$(wc -l <.fixture-state/comment-calls | tr -d ' ')" -eq 1
   - name: repository content and index remain unchanged
     run: git diff --exit-code && git diff --cached --exit-code
 output_checks:

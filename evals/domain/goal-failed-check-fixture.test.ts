@@ -36,7 +36,7 @@ for (const protocol of [
           },
           {
             name: "usage has no effects",
-            run: 'test ! -e .git/fixture-state/gate-events && test ! -e .git/fixture-state/pull-requests && test "$(git rev-list --count HEAD)" -eq 1 && test -z "$(git --git-dir=.git/fixture-remote.git for-each-ref --format=\'%(refname)\' refs/heads)"',
+            run: 'test ! -e .fixture-state/gate-events && test ! -e .fixture-state/pull-requests && test "$(git rev-list --count HEAD)" -eq 1 && test -z "$(git --git-dir=.fixture-state/remote.git for-each-ref --format=\'%(refname)\' refs/heads)"',
           },
         ],
       });

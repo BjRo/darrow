@@ -55,7 +55,7 @@ test("Darrow commits case scaffolding and preserves exact local ticket round tri
         run: "printf 'prepared\\n' >.git/expected-marker.txt && cmp .git/setup-marker.txt .git/expected-marker.txt",
       },
       {
-        name: "ticket body, alias, and ordered events remain exact",
+        name: "ticket body and ordered events remain exact outside Git metadata",
         run: `set -eu
 ticketctl get 17 --body-file .git/ticket-body.md >.git/ticket-get.txt
 printf 'id: 17\\nstate: open\\ntitle: Implement the benchmark task\\n' >.git/expected-get.txt
@@ -66,11 +66,12 @@ printf 'Updated ticket body\\n' >.git/replacement.md
 ticketctl describe 17 --body-file .git/replacement.md
 ticketctl get 17 --body-file .git/ticket-body.md >/dev/null
 cmp .git/ticket-body.md .git/replacement.md
-test -L .git/ticketctl.log
-test "$(readlink .git/ticketctl.log)" = fixture-state/ticketctl.log
+test ! -e .git/ticketctl.log
+test ! -e .git/fixture-ticket.md
 printf 'get 17\\ndescribe 17\\nget 17\\n' >.git/expected-ticket.log
-cmp .git/fixture-state/ticketctl.log .git/expected-ticket.log
-cmp .git/ticketctl.log .git/expected-ticket.log`,
+cmp .fixture-state/ticketctl.log .git/expected-ticket.log
+cmp .fixture-state/fixture-ticket.md .git/replacement.md
+test -z "$(git status --porcelain --untracked-files=all)"`,
       },
     ],
   });

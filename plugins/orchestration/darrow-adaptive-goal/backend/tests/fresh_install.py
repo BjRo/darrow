@@ -176,7 +176,7 @@ def fixtures(plugin: Path, repo: Path) -> None:
         "-c",
         "from pathlib import Path; from darrow_adaptive_goal.fixtures.state import checksum; print(checksum(Path('src/config.js').read_bytes()))",
     )
-    (repo / ".git/fixture-state/check-target").write_text(
+    (repo / ".fixture-state/check-target").write_text(
         checksum, encoding="utf-8", newline="\n"
     )
     assert "Conclusion: clear\n" in runtime(

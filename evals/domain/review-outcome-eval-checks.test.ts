@@ -13,7 +13,7 @@ const plugin = new URL(
 );
 const cases = new URL("skills/code-review/evals/", plugin);
 const artifacts = "review-state/darrow-review.fixture";
-const backend = ".git/eval-tools/backend";
+const backend = ".git/eval-checks/review";
 const renderCommand = `uv run --quiet --frozen --no-dev --project ${backend} review-report render-verification`;
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 const state =
@@ -291,7 +291,7 @@ for (const shell of ["bash", "/bin/bash"]) {
               ),
               {
                 name: "bind the exact prior artifact",
-                run: `${state}\npython3 -c 'import json,sys; json.dump({"previous_verification":{"checksum":"prior-checksum","path":sys.argv[1]}},sys.stdout)' ${artifactPath(previous)} >.git/verification-input`,
+                run: `${state}\nmkdir -p .fixture-state\npython3 -c 'import json,sys; json.dump({"previous_verification":{"checksum":"prior-checksum","path":sys.argv[1]}},sys.stdout)' ${artifactPath(previous)} >.fixture-state/verification-input`,
               },
             );
           }

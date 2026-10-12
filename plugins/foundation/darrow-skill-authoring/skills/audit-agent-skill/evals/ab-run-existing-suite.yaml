@@ -19,11 +19,11 @@ fixture:
         scripts/check.sh: |
           #!/usr/bin/env bash
           set -eu
-          touch .git/skill-eval-smoke-ran
+          touch .fixture-state/skill-eval-smoke-ran
           printf 'skill eval smoke: 2 passed\n'
 checks:
   - name: requested suite actually ran
-    run: test -f .git/skill-eval-smoke-ran
+    run: test -f .fixture-state/skill-eval-smoke-ran
   - name: suite execution leaves repository unchanged
     run: git diff --exit-code HEAD && test -z "$(git ls-files --others --exclude-standard)"
   - name: suite execution creates no commit

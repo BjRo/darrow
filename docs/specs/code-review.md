@@ -709,6 +709,21 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
     scope. An abandoned preparation directory cannot replace that scope through
     arbitrary filename ordering; missing or multiple finalized scopes remain
     invalid evidence.
+    Codex route checks inspect the captured coordinator history, including
+    earlier turns. Prior reviewers are eligible only through validated prior
+    assessment scope and route bindings; unrelated implementation children in
+    composed goals do not count as review readers.
+    Unidentified unbound launches fail closed. Explicit implementation intent
+    remains distinguishable from axis words in a task label. A task label alone
+    cannot establish implementation intent or override a read-only review
+    assignment; an explicit implementation assignment does not require a
+    particular task-name prefix. Separate validated
+    assessment batches may share one host turn; each batch still rejects extra
+    launches and accepts all required readers before its first wait.
+    Repair fixtures construct and validate prior records through the owning
+    Review Python package. Setup inputs remain immutable, runtime receipts use
+    excluded fixture state, and canonical assessment records remain in private
+    Review state after the setup home disappears.
     Separately, at least one live passing route-mechanism case preserves and
     cross-binds distinct native accepted-launch evidence for every applicable
     axis. Codex evidence binds a native axis marker and places both accepted

@@ -30,10 +30,12 @@ fixture:
     capture-readiness: |
       #!/usr/bin/env bash
       set -eu
-      if test -e .git/readiness-first.json; then stage=resolved; else stage=first; fi
-      test ! -e ".git/readiness-$stage.json"
-      cat >".git/readiness-$stage.json"
-      cp config.json ".git/config-at-$stage.json"
+      assessment=$(cat)
+      test -n "$assessment" || { printf 'error: assessment input is empty\n' >&2; exit 2; }
+      if test -e .fixture-state/readiness-first.json; then stage=resolved; else stage=first; fi
+      test ! -e ".fixture-state/readiness-$stage.json"
+      printf '%s\n' "$assessment" >".fixture-state/readiness-$stage.json"
+      cp config.json ".fixture-state/config-at-$stage.json"
 checks:
   - name: same caller continues to the resolved outcome
     run: bash check.sh 2500
@@ -43,7 +45,7 @@ checks:
     run: test "$(git rev-list --count HEAD)" = 1
   - name: full nonready and ready assessments survive the caller handoff
     run: >-
-      bun -e 'const load=async stage=>{const text=await Bun.file(`.git/readiness-${stage}.json`).text();
+      bun -e 'const load=async stage=>{const text=await Bun.file(`.fixture-state/readiness-${stage}.json`).text();
       try{return JSON.parse(text)}catch{console.error(`${stage} assessment is not JSON`);process.exit(1)}};
       const a=await load("first"); const b=await load("resolved");
       if(a.format!=="darrow-implementation-readiness-v1" || a.verdict!=="needs-decision" ||
@@ -52,8 +54,8 @@ checks:
       b.findings.length || b.required_next_action.type!=="none") process.exit(1);'
   - name: implementation waits for both assessment returns
     run: >-
-      test "$(cat .git/config-at-first.json)" = '{"timeoutMs":1000}' &&
-      test "$(cat .git/config-at-resolved.json)" = '{"timeoutMs":1000}'
+      test "$(cat .fixture-state/config-at-first.json)" = '{"timeoutMs":1000}' &&
+      test "$(cat .fixture-state/config-at-resolved.json)" = '{"timeoutMs":1000}'
 transcript_checks:
   - name: resolution resumes the same host conversation
     expect_regex: '"type":"darrow.eval.follow_up_turn","thread_id":"[^"]+"'

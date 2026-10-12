@@ -10,6 +10,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { sevroEnvironment } from "../sevro-extension/sevro-command";
+import { invocation } from "../sevro-extension/run";
 import {
   prepareUvSeedCache,
   repositorySkillRuntimeFile,
@@ -18,6 +19,45 @@ import {
 
 const repository = resolve(import.meta.dir, "../..");
 const roots: string[] = [];
+
+test("repository goal policy selects app-server without changing explicit routes", async () => {
+  const results = await scratch();
+  const command = (project: string, options: string[] = []) =>
+    invocation([
+      "--case-id",
+      "example",
+      "--project-root",
+      project,
+      "--results-root",
+      results,
+      "--",
+      "--host",
+      "codex",
+      ...options,
+    ]).command;
+  expect(command(repository).slice(-2)).toEqual([
+    "--codex-entrypoint",
+    "app-server",
+  ]);
+  expect(command(repository, ["--codex-entrypoint", "exec"]).slice(-2)).toEqual(
+    ["--codex-entrypoint", "exec"],
+  );
+  expect(
+    command(repository, [
+      "--runtime-config-file",
+      repositorySkillRuntimeFile(repository)!,
+    ]),
+  ).not.toContain("--codex-entrypoint");
+  expect(command(await scratch())).not.toContain("--codex-entrypoint");
+});
+
+test("hook-free guide policy retains native transcripts for complete observations", async () => {
+  const runtime = JSON.parse(
+    await readFile(repositorySkillRuntimeFile(repository)!, "utf8"),
+  ) as Record<string, unknown>;
+  expect(runtime.nativeTranscripts).toBe(true);
+  expect(runtime.hooks).toBeUndefined();
+});
 
 afterEach(async () => {
   await Promise.all(

@@ -61,11 +61,32 @@ constraints for producing and interpreting that evidence.
 - When a case's expectation holds only on one host or candidate route, declare
   `harnesses` and `candidate_routes` in the case instead of a comment. Filtered
   and ownership runs then skip excluded hosts and apply the declared route.
+- Keep represented host configuration beneath a named fixture subdirectory.
+  Identify its project root, working directory, user-config path, and trust in
+  the prompt. Sevro rejects a fixture's top-level `.codex` directory; a nested
+  represented configuration diagnoses that input, not the eval host itself.
+  Cases that require the real isolated host configuration must retain that
+  distinction and remain unavailable if the host cannot expose it.
 - Keep packaged Python oracles under `backend/tests/evals/` so participant mounts
   omit them. Copy them into `.git/eval-checks/` during fixture setup for hidden
   grading; agents cannot read or write that reserved subtree.
 - Keep authoritative fixture input and its executable acceptance oracle aligned,
   including whether representation details such as trailing newlines matter.
+- Put candidate-written fixture receipts, mutable mock state, and test traces
+  under the prepared, Git-excluded `.fixture-state/`. Codex protects `.git`.
+  Keep immutable setup inputs and hidden grading assets in their protected
+  locations. Fixture backends remain immutable; give their `uv` child a private
+  project environment when it would otherwise create a `.venv` in Git metadata.
+- Setup uses a temporary home that disappears before candidate execution.
+  Dependencies needed later must live in declared persistent fixture state.
+  Go corpus launchers share `.fixture-state/go/` caches across setup, candidate
+  commands, and grading instead of downloading into that discarded home.
+- Graders use declared host tools or portable system commands. Tools injected
+  from a Codex credential directory are removed from the inherited runtime
+  `PATH` and must not become an undeclared grading dependency.
+  Review's independent route oracle uses only the Python standard library and
+  runs directly with `python3`; it does not bootstrap the Review runtime.
+  Canonical result validation still uses the owning frozen backend.
 - Keep fixture skills inert in the source tree: never name an eval fixture
   `SKILL.md`. Use a non-discoverable template filename and materialize it as
   `SKILL.md` only inside the isolated eval repository during setup.
@@ -433,6 +454,8 @@ or types.
 
 Integration commands allow 30 seconds per test for frozen backend startup and
 isolated CLI fixtures. A test's explicit timeout still takes precedence.
+Pass explicit `./evals/...` directory paths to Bun. Bare paths are substring
+filters and can scan retained fixture trees outside the intended test scope.
 
 The [test ownership guide](../evals/README.md) separates installed integration,
 Darrow policy and historical readers. The source-copy launcher and comparison

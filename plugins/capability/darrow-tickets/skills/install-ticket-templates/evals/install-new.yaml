@@ -16,8 +16,8 @@ checks:
       test -f .github/ISSUE_TEMPLATE/bug-fix-regression.md
   - name: upgrade and regression criteria are present
     run: >-
-      rg -q 'compatibility evidence' .github/ISSUE_TEMPLATE/dependency-upgrade.md &&
-      rg -q 'before/after evidence' .github/ISSUE_TEMPLATE/bug-fix-regression.md
+      grep -q 'compatibility evidence' .github/ISSUE_TEMPLATE/dependency-upgrade.md &&
+      grep -q 'before/after evidence' .github/ISSUE_TEMPLATE/bug-fix-regression.md
   - name: installation does not start delivery
     run: test "$(git branch --show-current)" = main && test "$(git rev-list --count HEAD)" -eq 1
 output_checks:

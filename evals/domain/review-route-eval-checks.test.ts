@@ -91,9 +91,28 @@ async function copyOracle(root: string) {
     "pyproject.toml",
     "uv.lock",
     "tests/evals/eval_routes.py",
+    "tests/evals/native_codex_routes.py",
+    "tests/evals/prior_codex_routes.py",
+    "tests/evals/native_fixture.py",
   ]) {
     await cp(join(backend, name), join(copied, name), { recursive: true });
   }
+}
+
+async function finalizedScope(root: string, file: string) {
+  const artifacts = join(root, ".git", "darrow-review.fixture");
+  await mkdir(artifacts, { recursive: true });
+  const verification = file.startsWith("fix-verification-");
+  await writeFile(
+    join(artifacts, verification ? "verification.json" : "result.json"),
+    "{}\n",
+  );
+  if (verification) {
+    const original = join(root, ".git", "darrow-review.original");
+    await mkdir(original);
+    await writeFile(join(original, "result.json"), "{}\n");
+  }
+  return artifacts;
 }
 
 async function runGate(
@@ -103,10 +122,8 @@ async function runGate(
 ) {
   const root = await mkdtemp(join(tmpdir(), "darrow-review-gate-"));
   roots.push(root);
-  const artifacts = join(root, ".git", "darrow-review.fixture");
-  await mkdir(artifacts, { recursive: true });
-  // This oracle consumes route evidence only from a finalized scope.
-  await writeFile(join(artifacts, "result.json"), "{}\n");
+  const artifacts = await finalizedScope(root, entry.file);
+  await writeFile(join(root, ".git", "fixture-host"), `${host}\n`);
   await copyOracle(root);
   const [model, effort] = entry[host];
   const route = {
@@ -153,6 +170,7 @@ async function runGate(
     join(root, ".git", "retained-harness.jsonl"),
     transcript.map((event) => JSON.stringify(event)).join("\n") + "\n",
   );
+  await retainNative(root, host, transcript);
   const evalCase = parseYaml(
     await readFile(
       resolve(
@@ -171,9 +189,33 @@ async function runGate(
       ...process.env,
       DARROW_EVAL_HARNESS: host,
       DARROW_REVIEW_STATE_DIR: join(root, ".git"),
+      SEVRO_CANDIDATE_TRANSCRIPTS: join(root, ".git/native-view"),
     },
     encoding: "utf8",
   });
+}
+
+async function retainNative(
+  root: string,
+  host: "claude" | "codex",
+  transcript: Record<string, unknown>[],
+) {
+  if (host !== "codex") return;
+  const seed = join(root, ".git", "native-fixture-events.json");
+  await writeFile(seed, JSON.stringify(transcript));
+  const prepared = spawnSync(
+    "python3",
+    [
+      "-c",
+      "import json,sys; from pathlib import Path; sys.path.insert(0,sys.argv[1]); from native_fixture import retain_native; retain_native(Path(sys.argv[2]),json.loads(Path(sys.argv[3]).read_text()))",
+      join(root, ".git/eval-checks/review/tests/evals"),
+      join(root, ".git/native-view"),
+      seed,
+    ],
+    { encoding: "utf8" },
+  );
+  if (prepared.status !== 0)
+    throw new Error(prepared.stderr || "native fixture preparation failed");
 }
 
 describe("reviewer route eval identity gates", () => {

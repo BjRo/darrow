@@ -21,7 +21,7 @@ def current_clear(repo: Path, backend: Path, state: Path, path: Path) -> bool:
 
 def select(repo: Path) -> Path:
     state = proof.review_state_root()
-    backend = proof.provider(repo / ".git")
+    backend = proof.provider(repo)
     matches = [
         path
         for path in state.rglob("verification.json")

@@ -19,7 +19,7 @@ fixture:
           }
         test.sh: |
           #!/usr/bin/env bash
-          printf '%s\n' "${1:-none}" >>.git/preflight-trace
+          printf '%s\n' "${1:-none}" >>.fixture-state/preflight-trace
           case "${1:-}" in
             syntax)
               node -e 'const broken = ;'
@@ -40,9 +40,9 @@ fixture:
 checks:
   - name: all invalid red causes were diagnosed
     run: >-
-      grep -Fx syntax .git/preflight-trace >/dev/null;
-      grep -Fx fixture .git/preflight-trace >/dev/null;
-      grep -Fx environment .git/preflight-trace >/dev/null
+      grep -Fx syntax .fixture-state/preflight-trace >/dev/null;
+      grep -Fx fixture .fixture-state/preflight-trace >/dev/null;
+      grep -Fx environment .fixture-state/preflight-trace >/dev/null
   - name: invalid red evidence causes no product or harness mutation
     run: git status --porcelain --untracked-files=all
     expect_exact: ""

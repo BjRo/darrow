@@ -2,17 +2,17 @@ id: code-review-goal-contract-pass
 activation: positive
 invariant: CR-C13,CR-C14,CR-E9,CR-E11
 prompt: >-
-  Execute this bounded goal contract. The candidate change is already present
-  in the working tree. Before declaring the goal complete, use the available
+  Execute this bounded goal contract. The candidate change is already present in
+  the working tree. Before declaring the goal complete, use the available
   capability matching this intent: independently review the exact current code
   change against the originating requirement and repository standards. Require
-  its normal review report. A response with no blocking findings returns
-  control to this goal; blocking findings or unavailable review stop it. After
-  and only after a clear review, run `bash mark-complete.sh`. Originating
-  requirement: exported RATE_LIMIT must equal 2.
-  Acceptance: `bash check.sh` passes. Not authorized: product edits, commits,
-  pushes, pull requests, or any publication action. At the end, report the
-  final goal outcome and the independent-review outcome.
+  its normal review report. A response with no blocking findings returns control
+  to this goal; blocking findings or unavailable review stop it. After and only
+  after a clear review, run `bash mark-complete.sh`. Originating requirement:
+  exported RATE_LIMIT must equal 2. Acceptance: `bash check.sh` passes. Not
+  authorized: product edits, commits, pushes, pull requests, or any publication
+  action. At the end, report the final goal outcome and the independent-review
+  outcome.
 fixture:
   commits:
     - message: "chore: init"
@@ -39,32 +39,39 @@ fixture:
           assert record["verdict"] == "pass"
           assert record["next_action"] == "return control to enclosing goal"
           PY
-          printf '%s\n' complete >"$git_dir/goal-complete"
+          printf '%s\n' complete >.fixture-state/goal-complete
   files:
     src/rate.js: "export const RATE_LIMIT = 2;\n"
   setup: |
-    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
+    bash "{{case_dir}}/fixtures/prepare-grading.sh" "{{case_dir}}"
 checks:
   - name: human response excludes machine JSON
-    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py
+      .git/last-message.md human-response
   - name: passing review returns control to the enclosing goal
-    run: test "$(cat .git/goal-complete)" = complete
+    run: test "$(cat .fixture-state/goal-complete)" = complete
   - name: candidate content remains unchanged
     run: bash check.sh
   - name: composed review pins one target
-    run: test "$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -maxdepth 3 -name scope.json -path '*/darrow-review.*/*' | wc -l | tr -d ' ')" -ge 1
+    run:
+      test "$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -maxdepth
+      3 -name scope.json -path '*/darrow-review.*/*' | wc -l | tr -d ' ')" -ge 1
   - name: composed review creates no commit
     run: test "$(git rev-list --count HEAD)" -eq 1
   - name: composed review artifact is canonical and returns control
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
-      test -n "$tool" || exit 1;
-      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record" &&
-      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has verdict pass &&
-      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has next_action 'return control to enclosing goal' &&
-      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks-key findings
+      tool=.git/eval-checks/review/src/darrow_review/result.py; test -n "$tool"
+      || exit 1; uv run --quiet --frozen --no-dev --project
+      "${tool%/src/darrow_review/result.py}" review-result validate "$record" &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record"
+      has verdict pass && python3
+      .git/eval-checks/review/tests/evals/assert_records.py "$record" has
+      next_action 'return control to enclosing goal' && python3
+      .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks-key
+      findings
     expect_regex: "^valid: darrow-review-result-v3$"
 semantic_output_checks:
   - name: enclosing goal reports completion

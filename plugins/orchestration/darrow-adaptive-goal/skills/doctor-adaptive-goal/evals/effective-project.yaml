@@ -3,16 +3,17 @@ invariant: ADL-D1
 activation: positive
 prompt: >-
   {{skill_invocation}} Diagnose the represented Codex V2 host configuration,
-  not this eval runner's own configuration. The current fixture checkout is
-  explicitly trusted and is its project root. Its user configuration is
-  ./user-config.toml. Check whether the effective configuration supports the
+  not this eval runner's own configuration. The represented project at
+  ./represented-project is explicitly trusted and is its project root. Change
+  into that directory for the diagnosis. Its user configuration is the fixture
+  checkout's ./user-config.toml. Check whether the effective configuration supports the
   full Adaptive Goal path. Diagnose only; do not edit anything.
 fixture:
   commits:
     - message: "chore: init"
       files:
         user-config.toml: "[agents]\nenabled = true\n"
-        .codex/config.toml: "[agents]\nmax_concurrent_threads_per_session = 5\n"
+        represented-project/.codex/config.toml: "[agents]\nmax_concurrent_threads_per_session = 5\n"
 checks:
   - name: diagnosis is read-only
     run: test -z "$(git status --porcelain)"
