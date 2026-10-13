@@ -81,6 +81,7 @@ checks:
       .git/last-message.md human-response
   - name: new repair regression carries verifier-authored guidance
     run: |
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}"
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
       test -n "$record" || exit 1
       python3 .git/eval-checks/review/tests/evals/assert_guidance.py "$record" regression
@@ -91,6 +92,7 @@ checks:
       >.git/math-after && cmp .git/math-before .git/math-after
   - name: direct regression enters the closed convergence set
     run: >-
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
       '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
       && tool=.git/eval-checks/review/src/darrow_review/result.py && test -n
@@ -110,12 +112,14 @@ checks:
       outcome continue
   - name: unrelated observation is excluded
     run: >-
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
       '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
       && python3 .git/eval-checks/review/tests/evals/assert_records.py "$record"
       not-contains 'renaming scale'
   - name: retained verification report preserves the complete canonical evidence
     run: >-
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
       '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
       && test -n "$record" && report=$(dirname "$record")/verification.md &&

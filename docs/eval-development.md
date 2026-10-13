@@ -81,6 +81,19 @@ constraints for producing and interpreting that evidence.
   Dependencies needed later must live in declared persistent fixture state.
   Go corpus launchers share `.fixture-state/go/` caches across setup, candidate
   commands, and grading instead of downloading into that discarded home.
+- Review artifact cases select `evals/sevro-extension/runtime-review-artifacts.json`
+  explicitly. With Sevro rc.8 or later, graders read the original candidate
+  `~/.darrow/reviews` subtree through `SEVRO_CANDIDATE_ARTIFACT_REVIEWS`, then
+  bind that path to the owning oracle's `DARROW_REVIEW_STATE_DIR`. Preserve
+  configured runtime and dependency-cache paths. Missing declared directories
+  fail grading; negative cases must prepare real empty state before testing
+  absence. The grant is read-only and lasts only through grading.
+  Its path and tree have already passed Sevro's canonical-path and alias checks.
+  Use that bound root and `dirname` for artifact paths; `cd` followed by
+  `pwd -P` may require access to private ancestors outside the read grant.
+  Read existing canonical records from the grant. A current-worktree comparison
+  creates its new scope only in separate private temporary state, then compares
+  the owning backend's exact target fingerprint without changing the granted tree.
 - Graders use declared host tools or portable system commands. Tools injected
   from a Codex credential directory are removed from the inherited runtime
   `PATH` and must not become an undeclared grading dependency.
@@ -232,6 +245,11 @@ completion feedback. The normal result array is published atomically only after
 the entire run finishes.
 
 On error or interruption, inspect the printed diagnostic and evidence paths.
+With Sevro rc.10 or later, forward `--retain-host-diagnostics` after `--` to
+retain bounded native stage, error, and subprocess receipts, including failures
+before a session exists. Resolve `sevro.host.diagnostics` through the trial's
+artifact references. Keep these private files out of Git. The flag changes run
+identity; a diagnostic rerun is not an exact repeat of a run without it.
 Completed trials remain available even if another worker fails. If checkpoint
 storage fails, the diagnostic's `unpersistedTrials` retains the full results
 when the diagnostic destination is writable, and the error names the retained

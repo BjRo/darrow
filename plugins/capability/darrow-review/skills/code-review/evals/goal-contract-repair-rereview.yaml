@@ -62,6 +62,7 @@ checks:
       .git/last-message.md human-response
   - name: original guidance survives the real review and repair chain
     run: |
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}"
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
       original=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n 1)
       tool=.git/eval-checks/review/src/darrow_review/result.py
@@ -74,10 +75,11 @@ checks:
     run: test "$(cat .fixture-state/goal-complete)" = complete
   - name: repair causes an initial scope and a fix-verification scope
     run:
-      test "$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -maxdepth
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" && test "$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -maxdepth
       3 -name scope.json -path '*/darrow-review.*/*' | wc -l | tr -d ' ')" -ge 2
   - name: fix verification uses a new target fingerprint
     run: >-
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
       find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -maxdepth 3 -name
       scope.json -path '*/darrow-review.*/*' -exec python3
       .git/eval-checks/review/tests/evals/assert_records.py {} value target \; |
@@ -85,6 +87,7 @@ checks:
       ' ')" -ge 2
   - name: additive verification artifact validates beside the repaired scope
     run: >-
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}"
       -maxdepth 3 -name verification.json -path '*/darrow-review.*/*' | sort |
       tail -n 1) && tool=.git/eval-checks/review/src/darrow_review/result.py &&

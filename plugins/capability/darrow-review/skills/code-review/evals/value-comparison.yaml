@@ -38,6 +38,7 @@ checks:
   - name: seeded trailing-character defect is detected
     metric: defect_detection
     run: >-
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
       '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1; python3 -c 'import json,re,sys;
@@ -48,6 +49,7 @@ checks:
   - name: no seeded defect escapes
     metric: escaped_defect
     run: >-
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
       '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1; python3 -c 'import json,re,sys;
@@ -58,6 +60,7 @@ checks:
   - name: accepted inline design does not create a false positive
     metric: false_positive
     run: >-
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
       '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1; python3 -c 'import json,re,sys;
@@ -70,6 +73,7 @@ checks:
       diff -u .git/status-before .git/status-after
   - name: canonical JSON is retained beneath the review scope artifact
     run: >-
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
       tool=.git/eval-checks/review/src/darrow_review/result.py; test -n "$tool"
       || exit 1; record=$(find
       "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
@@ -81,6 +85,7 @@ checks:
       canonical result preserves the seeded Spec defect without a design false
       positive
     run: >-
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
       '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1; python3 -c 'import json,re,sys;
@@ -91,6 +96,7 @@ checks:
       any(item["axis"]=="standards" for item in record["findings"])' "$record"
   - name: canonical Markdown handoff is materialized beside the JSON
     run: >-
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
       '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1; report=$(dirname "$record")/review.md;

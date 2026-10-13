@@ -100,6 +100,12 @@ name uniqueness and activation membership over the combined set. An ordered
 activation sequence can use these explicit providers without mounting plugin
 siblings. Apply the shared artifact count and byte bounds across all mounts.
 
+A completed candidate trial with one definitive `darrow.evals.activation`
+outcome retains that activation measurement when an unrelated task grader is
+unavailable. Task grading remains unavailable. Failed or incomplete execution,
+grading errors, missing or ambiguous activation outcomes, and incomplete
+activation observations remain unmeasured; no unknown trial enters a pass rate.
+
 Inline fixture repository skills under `.agents/skills/<name>/SKILL.md` or
 `.claude/skills/<name>/SKILL.md` are supporting mounts, not ordinary product
 files. Bind their bytes at resolution, mount only the selected host's entrypoint
@@ -539,7 +545,11 @@ handoff or private message delivery.
 ### Semantic output checks
 
 An eval case may declare one or more gating semantic output checks when the
-public contract is a proposition that permits faithful paraphrase. Each check
+public contract is a proposition that permits faithful paraphrase. Assertions
+must accept the representations allowed by that contract. A compact mapping
+table can satisfy a visual explanation; grading still requires its material
+relationships and authority boundaries, without requiring exact policy words.
+Each check
 has a stable name and a plain-language proposition. The runner grades all such
 checks against the candidate's final response in a separate, hidden grader
 call and requires every proposition to pass.
@@ -668,6 +678,9 @@ conditions, roots, limits, or graders. Bundled-host enforcement and private goal
 assertions remain explicitly unsupported.
 The public Sevro `--codex-timeout-ms` option passes through unchanged, including
 for native app-server trials. Sevro owns its value validation and execution bound.
+The opt-in `--retain-host-diagnostics` flag also passes through unchanged to
+selected native roles. Retention changes configuration identity, preserves
+failure outcomes, and does not authorize publishing private diagnostic contents.
 
 The direct caller uses the existing public selection command and its
 `darrow-sevro-selection-v1` manifest. Stdout and optional `--output` contain that
@@ -920,6 +933,16 @@ state when its contract requires state outside the repository. A grader must
 use retained evidence bound to the candidate's actual state, not the checker's
 private home or a retired candidate-home path. Missing or inaccessible state
 cannot establish either artifact presence or artifact absence.
+
+Review artifact evals explicitly select Sevro's bounded
+`runtime.artifactDirectories` grant for `.darrow/reviews` beneath the candidate
+home. Graders use its candidate-bound `SEVRO_CANDIDATE_ARTIFACT_REVIEWS` path and
+read the original files without relocating them. Access stays read-only through
+grading; candidate runtime cleanup follows grading and evidence persistence.
+The grant does not archive those files. Missing or unsafe declared directories
+are grading errors; a negative case prepares an actual empty directory before
+checking absence. The selected Review profile may explicitly configure Darrow
+state and cache paths without inheriting the caller's overrides.
 
 Fixture setup uses a temporary home that is removed before host execution.
 Candidate-required private state must be initialized in the candidate runtime

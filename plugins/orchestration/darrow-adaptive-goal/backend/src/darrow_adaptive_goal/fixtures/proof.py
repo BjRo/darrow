@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import cast
 
 from ..common import RefusalError
@@ -102,7 +103,14 @@ def provider(repo: Path) -> Path:
     return backend
 
 
-def invoke(backend: Path, repo: Path, *args: str) -> str:
+def invoke(
+    backend: Path, repo: Path, *args: str, state_root: Path | None = None
+) -> str:
+    environment = (
+        None
+        if state_root is None
+        else {**os.environ, "DARROW_REVIEW_STATE_DIR": str(state_root)}
+    )
     result = subprocess.run(
         [
             "uv",
@@ -113,6 +121,7 @@ def invoke(backend: Path, repo: Path, *args: str) -> str:
             *args,
         ],
         cwd=repo,
+        env=environment,
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -228,18 +237,20 @@ def verification_target(backend: Path, repo: Path, state: Path, path: Path) -> s
 def current(backend: Path, repo: Path, target: str) -> None:
     if not (backend / "src/darrow_review/scope.py").is_file():
         raise InvalidProofError("installed review-scope tool is missing")
-    scope = invoke(
-        backend,
-        repo,
-        "review-scope",
-        "prepare",
-        "--repo",
-        str(repo),
-        "--base",
-        "HEAD",
-        "--target",
-        "WORKTREE",
-    )
+    with TemporaryDirectory(prefix="darrow-fixture-current-") as scratch:
+        scope = invoke(
+            backend,
+            repo,
+            "review-scope",
+            "prepare",
+            "--repo",
+            str(repo),
+            "--base",
+            "HEAD",
+            "--target",
+            "WORKTREE",
+            state_root=Path(scratch),
+        )
     try:
         value = json.loads(scope)
         actual = value["target"]

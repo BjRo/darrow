@@ -31,6 +31,7 @@ checks:
       .git/last-message.md human-response
   - name: unavailable repository policy is retained without fallback
     run: >-
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
       selection=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
       '*/darrow-review.*/*' -name reviewer-route.json -type f | sort | tail -n
       '1'); test -n "$selection" && case "$(cat .git/fixture-host)" in codex)
@@ -41,6 +42,7 @@ checks:
       esac
   - name: no reader accepts inherited or substituted route evidence
     run: >-
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
       selection=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
       '*/darrow-review.*/*' -name reviewer-route.json -type f | sort | tail -n
       '1'); test -n "$selection" || exit 1; artifact_dir=$(dirname
@@ -52,6 +54,7 @@ checks:
       route_bound true || exit 1; fi; done
   - name: blocked aggregate remains canonical and read only
     run: >-
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
       '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
@@ -64,6 +67,7 @@ checks:
     expect_regex: "^valid: darrow-review-result-v3$"
   - name: retained Markdown preserves every canonical rendered line
     run: >-
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
       '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;

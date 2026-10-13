@@ -1001,7 +1001,12 @@ Synthetic review providers preserve stable finding identity, severity,
 disposition, evidence, original target, and subsequent target history. Repeating
 a clear assessment is not failed convergence; repeated unresolved findings are.
 Installed fixture helpers are excluded from the product candidate and fingerprint
-checks use the same immutable runtime launcher as the provider. Forge mocks
+checks use the same immutable runtime launcher as the provider.
+Current-worktree proof creates its comparison scope in separate temporary state
+outside the reviewed repository.
+It reads the original canonical Review artifacts without modifying their tree,
+including when grading grants only read access; changed worktree content still fails.
+Forge mocks
 accept the current public command contract, including file-backed PR bodies.
 Publication counts record accepted creation invocations independently of free-form
 argument text. A multiline PR body must not count as additional creations;

@@ -42,7 +42,7 @@ def provider(repo: Path, name: str = "review-plugin") -> Path:
 def calls(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, ...]]:
     result: list[tuple[str, ...]] = []
 
-    def invoke(_backend: Path, _repo: Path, *args: str) -> str:
+    def invoke(_backend: Path, _repo: Path, *args: str, **_options: object) -> str:
         result.append(args)
         if args[0] == "review-report":
             return "Canonical human report\n"
@@ -365,7 +365,7 @@ def test_verification_binds_findings_among_reports_for_one_target(
     )
     repaired = verification(repo)
 
-    def invoke(_backend: Path, _repo: Path, *args: str) -> str:
+    def invoke(_backend: Path, _repo: Path, *args: str, **_options: object) -> str:
         if args[1] == "validate-original" and (
             not matching or args[2] != str(original)
         ):
@@ -390,10 +390,18 @@ def test_verification_binds_findings_among_reports_for_one_target(
     "status,stdout,stderr",
     [(0, "valid\n", ""), (2, "", "invalid\n"), (2, "invalid\n", "")],
 )
+@pytest.mark.parametrize("separate_state", [False, True])
 def test_provider_subprocess_arguments(
-    repo: Path, monkeypatch: pytest.MonkeyPatch, status: int, stdout: str, stderr: str
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    status: int,
+    stdout: str,
+    stderr: str,
+    separate_state: bool,
 ) -> None:
     backend = provider(repo)
+    state_root = repo.parent / "comparison-state" if separate_state else None
+    monkeypatch.setenv("DARROW_PROOF_CONTEXT", "preserved")
 
     def run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
         assert args == [
@@ -407,18 +415,35 @@ def test_provider_subprocess_arguments(
             "artifact with spaces",
         ]
         assert kwargs["cwd"] == repo
+        environment = kwargs["env"]
+        if state_root is None:
+            assert environment is None
+        else:
+            assert isinstance(environment, dict)
+            assert environment["DARROW_REVIEW_STATE_DIR"] == str(state_root)
+            assert environment["DARROW_PROOF_CONTEXT"] == "preserved"
         return subprocess.CompletedProcess(args, status, stdout, stderr)
 
     monkeypatch.setattr(subprocess, "run", run)
     if status:
         with pytest.raises(proof.InvalidProofError, match="invalid"):
             proof.invoke(
-                backend, repo, "review-result", "validate", "artifact with spaces"
+                backend,
+                repo,
+                "review-result",
+                "validate",
+                "artifact with spaces",
+                state_root=state_root,
             )
     else:
         assert (
             proof.invoke(
-                backend, repo, "review-result", "validate", "artifact with spaces"
+                backend,
+                repo,
+                "review-result",
+                "validate",
+                "artifact with spaces",
+                state_root=state_root,
             )
             == "valid\n"
         )

@@ -307,6 +307,61 @@ describe("public skill activation policy", () => {
     });
   });
 
+  test("retains definitive activation when only unrelated task grading is unavailable", async () => {
+    const selected = await (
+      await policyProject({ activation: "positive" })
+    ).resolve();
+    const passed = await evaluateActivation(selected, [
+      activationReceipt(["grilling"]),
+    ]);
+    const failed = await evaluateActivation(selected, [
+      activationReceipt(["discover-feature"]),
+    ]);
+    const unknown = await evaluateActivation(selected, []);
+    const expected = { class: "positive", targetSkill: "grilling" } as const;
+    const gate = (
+      outcome: ActivationOutcome,
+      grading: string,
+      execution = "completed",
+    ) => {
+      const result = selectedTrials([outcome]);
+      result.trials[0]!.grading.status = grading;
+      result.trials[0]!.execution.status = execution;
+      const measurement = activationGate(
+        expected,
+        { trials: 1, threshold: 1 },
+        result,
+      );
+      expect(result.trials[0]!.grading.status).toBe(grading);
+      return measurement;
+    };
+    expect(gate(passed, "unavailable")).toMatchObject({
+      status: "passed",
+      measured: 1,
+      passRate: 1,
+    });
+    expect(gate(failed, "unavailable")).toMatchObject({
+      status: "failed",
+      measured: 1,
+      passRate: 0,
+    });
+    expect(gate(unknown, "unavailable")).toMatchObject({
+      status: "unavailable",
+      measured: 0,
+      passRate: null,
+    });
+    for (const grading of ["error", "not_requested", "unknown"]) {
+      expect(gate(passed, grading)).toMatchObject({
+        status: "unavailable",
+        measured: 0,
+      });
+    }
+    expect(gate(passed, "unavailable", "failed")).toMatchObject({
+      status: "unavailable",
+      measured: 0,
+    });
+  });
+
   test("gates declared activation independently while leaving undeclared cases alone", async () => {
     const selected = await (
       await policyProject({ activation: "positive" })

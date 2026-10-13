@@ -86,6 +86,37 @@ Native transcripts are enabled so Adaptive Goal's placement helper can read
 the current session's model and effort, as it does outside Sevro. Hook-free
 guide trials retain them for native control observations and skill-read recovery.
 
+Review artifact cases require Sevro rc.8 or later and the explicit
+[`runtime-review-artifacts.json`](runtime-review-artifacts.json) profile. It retains
+the candidate's actual `~/.darrow/reviews` directory through grading and grants
+only read access to it. Shell checks bind `DARROW_REVIEW_STATE_DIR` to the
+candidate-bound `SEVRO_CANDIDATE_ARTIFACT_REVIEWS` path; the grader's own `HOME`
+does not locate candidate evidence. The profile also configures the candidate's
+Review state and cache paths outside its repository. For example:
+
+```sh
+bun eval --harness codex --owner-evaluation passive --codex-entrypoint app-server \
+  --skill code-review --case code-review-fix-verification-resolved \
+  --trials 1 --jobs 1 --threshold 1 -- \
+  --runtime-config-file "$PWD/evals/sevro-extension/runtime-review-artifacts.json"
+```
+
+Use this profile for the `code-review` cases, `verification-existing-review`,
+`goal-verification-existing-review`, and `goal-preflight-high-risk-routine`.
+Negative Review cases first prepare an
+empty candidate state directory so their absence checks inspect real accessible
+state. A missing or unsafe declared directory is a grading error, never evidence
+of absence. Artifacts remain temporary and are removed after grading; the grant
+does not persist their contents in the run archive. Do not select this profile
+for cases that do not create the declared directory.
+
+For startup diagnosis on Sevro rc.10 or later, add `--retain-host-diagnostics`
+after the caller's `--` separator. The flag applies to selected native roles
+and retains `sevro.host.diagnostics` even when no session starts. Its private
+artifact contains bounded stage, error, and subprocess evidence. Keep it out of
+Git; enabling retention changes configuration identity and preserves failure
+outcomes.
+
 Fixture setup prepares `.fixture-state/` and excludes it from Git. Candidate
 fixture tools keep mutable tracker state, receipts, and test traces there.
 Immutable fixture inputs and hidden graders remain in Git metadata. Graders

@@ -7,6 +7,7 @@ const nativeOptions = new Set([
   "--codex-bin",
   "--codex-auth-file",
   "--codex-timeout-ms",
+  "--retain-host-diagnostics",
   "--claude-bin",
   "--claude-credential-file",
   "--claude-uv-cache-dir",
@@ -38,6 +39,7 @@ function nativeOption(
     throw new Error(`${label} option cannot be forwarded: ${name}`);
   const takesValue = ![
     "--shell-isolation",
+    "--retain-host-diagnostics",
     "--claude-project-settings",
   ].includes(name);
   if (!takesValue || token.includes("="))

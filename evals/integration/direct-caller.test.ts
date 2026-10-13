@@ -122,6 +122,7 @@ test("direct caller routes a filtered dry evaluation through Sevro", async () =>
     "--no-progress",
     "--",
     ...nativeArgs(binary, credential),
+    "--retain-host-diagnostics",
   ]);
   expect(run.code, run.stderr + run.stdout).toBe(0);
   const manifest = JSON.parse(run.stdout);
@@ -153,6 +154,10 @@ test("direct caller routes a filtered dry evaluation through Sevro", async () =>
     trialCount: 2,
     jobs: 1,
     passThreshold: 0.5,
+  });
+  expect(evidence.configuration.redacted.hostConfiguration).toMatchObject({
+    candidate: { "sevro.host.retain-diagnostics": true },
+    semantic: { "sevro.host.retain-diagnostics": true },
   });
   expect(evidence.routes).toEqual([
     {
@@ -193,7 +198,7 @@ test("direct caller uses the frozen package without route overrides", async () =
   expect(evidence.runner).toMatchObject({
     source: "package",
     packageName: "@bjoernrochel/sevro",
-    version: "0.1.0-rc.7",
+    version: "0.1.0-rc.11",
   });
 }, 30_000);
 

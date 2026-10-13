@@ -189,6 +189,7 @@ async function runGate(
       ...process.env,
       DARROW_EVAL_HARNESS: host,
       DARROW_REVIEW_STATE_DIR: join(root, ".git"),
+      SEVRO_CANDIDATE_ARTIFACT_REVIEWS: join(root, ".git"),
       SEVRO_CANDIDATE_TRANSCRIPTS: join(root, ".git/native-view"),
     },
     encoding: "utf8",

@@ -2,6 +2,9 @@ id: code-review-empty-diff
 activation: positive
 invariant: CR-E3,CR-C2
 prompt: >-
+  Keep the configured UV_CACHE_DIR, DARROW_CACHE_DIR, and DARROW_REVIEW_STATE_DIR
+  values when running the backend; they identify this fixture's prepared cache
+  and private Review state.
   Review my uncommitted changes. Report only and do not make a change just to
   create something to review.
 fixture:
@@ -19,7 +22,7 @@ checks:
     run: test -z "$(git status --porcelain --untracked-files=all)"
   - name: canonical JSON is retained beneath the review scope artifact
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      record=$(find "${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" -path
       '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       tool=.git/eval-checks/review/src/darrow_review/result.py; test -n "$tool"
@@ -28,7 +31,7 @@ checks:
     expect_regex: "^valid: darrow-review-result-v3$"
   - name: empty scope blocks without changed files or findings
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      record=$(find "${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" -path
       '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1; python3
       .git/eval-checks/review/tests/evals/assert_records.py "$record" has
@@ -43,7 +46,7 @@ checks:
       findings
   - name: retained Markdown preserves every canonical rendered line
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      record=$(find "${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" -path
       '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
       tool=.git/eval-checks/review/src/darrow_review/report.py; test -n "$tool"

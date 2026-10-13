@@ -52,19 +52,21 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
   - name: retained report handoff is rendered last
     run: |
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}"
       record=$(find "$DARROW_REVIEW_STATE_DIR" -name result.json -type f)
       test -f "$record" || exit 1
-      report=$(cd "$(dirname "$record")" && pwd -P)/review.md
+      report=$(dirname "$record")/review.md
       last=$(awk 'NF { line=$0 } END { print line }' .git/last-message.md)
       test "$last" = "Complete provider result: [report](<$report>)"
   - name: existing provider retains a canonical failing current review
     run:
-      record=$(find "$DARROW_REVIEW_STATE_DIR" -name result.json -type f) && test
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" && record=$(find "$DARROW_REVIEW_STATE_DIR" -name result.json -type f) && test
       -f "$record" && python3 -c
       'import json, sys; assert json.load(open(sys.argv[1]))["verdict"] == "fail"' "$record" && test -s "$(dirname
       "$record")/review.md"
   - name: existing result and complete provider report validate
     run: >
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
       record=$(find "$DARROW_REVIEW_STATE_DIR" -name result.json -type f)
 
       result_tool=.git/eval-checks/review/src/darrow_review/result.py
@@ -79,9 +81,9 @@ checks:
       "$(dirname "$record")/review.md"
   - name: complete existing report remains accessible to caller
     run:
-      record=$(find "$DARROW_REVIEW_STATE_DIR" -name result.json -type f) && test
-      -f "$record" && report=$(cd "$(dirname
-      "$record")" && pwd -P)/review.md && grep -F "$report" .git/last-message.md
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" && record=$(find "$DARROW_REVIEW_STATE_DIR" -name result.json -type f) && test
+      -f "$record" && report=$(dirname
+      "$record")/review.md && grep -F "$report" .git/last-message.md
 semantic_output_checks:
   - name: consume actual provider finding
     proposition:

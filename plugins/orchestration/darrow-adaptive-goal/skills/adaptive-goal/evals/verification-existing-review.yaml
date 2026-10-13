@@ -48,6 +48,7 @@ checks:
       test "$(git rev-list --count HEAD)" -eq 1
   - name: real provider retains a unique closed clear assessment of current content
     run: |
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}"
       uv run --quiet --no-project "$PWD/.sevro-marketplace/plugin/backend/scripts/run_locked.py" python .git/eval-checks/clear_repair.py
       uv run --quiet --no-project "$PWD/.sevro-marketplace/plugin/backend/scripts/run_locked.py" adaptive-goal-fixture proof current
 semantic_output_checks:

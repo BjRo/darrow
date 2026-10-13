@@ -2,6 +2,8 @@ id: code-review-no-trigger-implementation
 activation: negative
 invariant: CR-E1
 prompt: >-
+  First prepare an empty `$HOME/.darrow/reviews` directory for this fixture's
+  read-only state check. Then perform the task:
   Change DEFAULT_TIMEOUT_MS from 1000 to 2500 and summarize the change.
 fixture:
   commits:
@@ -15,6 +17,7 @@ checks:
     run: grep -F 'DEFAULT_TIMEOUT_MS = 2500' src/config.js
   - name: no coordinated review artifact is created
     run: |
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}"
       test -n "${DARROW_REVIEW_STATE_DIR:-}" && test -d "$DARROW_REVIEW_STATE_DIR" || {
         printf '%s\n' 'Candidate review-state view is unavailable to the isolated grader.' >&2
         exit 2

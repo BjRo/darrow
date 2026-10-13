@@ -53,6 +53,7 @@ checks:
       >.git/status-after && cmp .git/status-before .git/status-after
   - name: carried regression keeps its stable identity and resolves
     run: >-
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
       tool=.git/eval-checks/review/src/darrow_review/result.py && test -n
       "$tool" && regression_key=$(python3 -c 'import json;
       print(json.load(open(".fixture-state/verification-input"))["regression_key"])') &&
@@ -72,6 +73,7 @@ checks:
       outcome clear
   - name: verification binds the previous artifact
     run: >-
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
       previous_path=$(python3 -c 'import json;
       print(json.load(open(".fixture-state/verification-input"))["previous_verification"]["path"])')
       && previous_relative=${previous_path#"$PWD"/} && record=$(find
@@ -83,6 +85,7 @@ checks:
       expected==actual' .fixture-state/verification-input "$record"
   - name: retained verification report preserves the complete canonical evidence
     run: >-
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
       previous_path=$(python3 -c 'import json;
       print(json.load(open(".fixture-state/verification-input"))["previous_verification"]["path"])')
       && previous_relative=${previous_path#"$PWD"/} && record=$(find

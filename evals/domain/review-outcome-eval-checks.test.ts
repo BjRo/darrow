@@ -17,7 +17,7 @@ const backend = ".git/eval-checks/review";
 const renderCommand = `uv run --quiet --frozen --no-dev --project ${backend} review-report render-verification`;
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 const state =
-  'export DARROW_REVIEW_STATE_DIR="$(cat .git/oracle-review-state)"';
+  'export DARROW_REVIEW_STATE_DIR="$(cat .git/oracle-review-state)" SEVRO_CANDIDATE_ARTIFACT_REVIEWS="$(cat .git/oracle-review-state)"';
 
 function assertResult(
   result: Awaited<ReturnType<typeof runFixtureChecks>>,

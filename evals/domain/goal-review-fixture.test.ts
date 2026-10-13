@@ -19,7 +19,7 @@ const reviewPlugin = new URL(
 );
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 const state =
-  'export DARROW_REVIEW_STATE_DIR="$(cat .git/oracle-review-state)" DARROW_CACHE_DIR="$PWD/.git/fixture-runtime-cache"';
+  'export DARROW_REVIEW_STATE_DIR="$(cat .git/oracle-review-state)" SEVRO_CANDIDATE_ARTIFACT_REVIEWS="$(cat .git/oracle-review-state)" DARROW_CACHE_DIR="$PWD/.git/fixture-runtime-cache"';
 const proof =
   'uv run --quiet --no-project "$PWD/.sevro-marketplace/plugin/backend/scripts/run_locked.py" adaptive-goal-fixture proof';
 const review =
@@ -635,3 +635,43 @@ for (const scenario of repairScenarios) {
     );
   }, 30_000);
 }
+
+test("high-risk current proof accepts read-only artifacts and rejects changed content", async () => {
+  const scenario = { name: "read-only artifacts", passes: true };
+  const context = await goalReviewOracle(await proofFixture(scenario));
+  await assertGoalReviewChecks(context, [
+    ...repairActions(scenario),
+    {
+      name: "complete with the canonical current provider result",
+      run: `${state}\n${proof} complete "$(cat .git/selected-review-artifact)"`,
+    },
+    {
+      name: "make the actual provider artifact tree read only",
+      run: `${state}\nfind "$DARROW_REVIEW_STATE_DIR" -type f | sort > .git/provider-files-before\nchmod -R a-w "$DARROW_REVIEW_STATE_DIR"`,
+    },
+  ]);
+  try {
+    await assertGoalReviewChecks(context, [
+      {
+        name: "current proof reads the unchanged canonical artifact tree",
+        run: `${state}\n${proof} current\nfind "$DARROW_REVIEW_STATE_DIR" -type f | sort > .git/provider-files-after\ncmp .git/provider-files-before .git/provider-files-after`,
+      },
+      {
+        name: "change the reviewed candidate",
+        run: "printf '%s\\n' 'changed after completion' >value.txt",
+      },
+      {
+        name: "read-only artifact grant cannot hide a stale worktree",
+        run: `${state}\n${proof} current`,
+        exit_code: 1,
+      },
+    ]);
+  } finally {
+    await assertGoalReviewChecks(context, [
+      {
+        name: "restore owned fixture permissions for cleanup",
+        run: `${state}\nchmod -R u+rwX "$DARROW_REVIEW_STATE_DIR"`,
+      },
+    ]);
+  }
+}, 30_000);

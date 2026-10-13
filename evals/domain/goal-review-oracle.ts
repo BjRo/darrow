@@ -53,11 +53,12 @@ function environment(
   root: string,
   bin: string,
   reviewState: string,
+  temporary: string,
 ): Record<string, string> {
   return {
     PATH: [bin, "/usr/bin:/bin:/usr/sbin:/sbin"].filter(Boolean).join(":"),
     HOME: join(root, ".git/oracle-home"),
-    TMPDIR: join(root, ".git/oracle-tmp"),
+    TMPDIR: temporary,
     LANG: "C",
     UV_CACHE_DIR: process.env.UV_CACHE_DIR ?? join(root, ".git/uv-cache"),
     UV_PYTHON_DOWNLOADS: "never",
@@ -113,7 +114,12 @@ async function prepareProofPackage() {
   await copyProofManifests(root);
   const context = {
     root,
-    environment: environment(root, "", join(root, "review-state")),
+    environment: environment(
+      root,
+      "",
+      join(root, "review-state"),
+      join(root, ".git/oracle-tmp"),
+    ),
   };
   await Promise.all(
     [context.environment.HOME!, context.environment.TMPDIR!].map((path) =>
@@ -138,12 +144,9 @@ async function prepareRepository(context: ProofContext, assets: ProofAssets) {
   const result = await execute(`${quote(git)} init --quiet .\n`, context);
   expect(result.exitCode, result.stderr || result.stdout).toBe(0);
   await Promise.all(
-    [
-      ".git/fixture-bin",
-      ".fixture-state",
-      ".git/oracle-home",
-      ".git/oracle-tmp",
-    ].map((path) => mkdir(join(root, path), { recursive: true })),
+    [".git/fixture-bin", ".fixture-state", ".git/oracle-home"].map((path) =>
+      mkdir(join(root, path), { recursive: true }),
+    ),
   );
   await writeFile(
     join(root, ".git/info/exclude"),
@@ -179,9 +182,18 @@ export async function goalReviewOracle(assets: ProofAssets) {
     await mkdtemp(join(tmpdir(), "darrow-goal-review-state-")),
   );
   cases.push(reviewState);
+  const temporary = await realpath(
+    await mkdtemp(join(tmpdir(), "darrow-goal-review-tmp-")),
+  );
+  cases.push(temporary);
   const context = {
     root,
-    environment: environment(root, join(root, ".git/fixture-bin"), reviewState),
+    environment: environment(
+      root,
+      join(root, ".git/fixture-bin"),
+      reviewState,
+      temporary,
+    ),
   };
   await prepareRepository(context, assets);
   proofPackage ??= prepareProofPackage();

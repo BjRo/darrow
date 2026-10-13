@@ -38,6 +38,7 @@ checks:
       .git/last-message.md human-response
   - name: supported signing finding survives uncertainty
     run: |
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}"
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n 1)
       test -n "$record" || exit 1
       tool=.git/eval-checks/review/src/darrow_review/result.py

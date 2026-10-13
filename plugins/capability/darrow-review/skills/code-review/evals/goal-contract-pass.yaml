@@ -54,12 +54,13 @@ checks:
     run: bash check.sh
   - name: composed review pins one target
     run:
-      test "$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -maxdepth
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" && test "$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -maxdepth
       3 -name scope.json -path '*/darrow-review.*/*' | wc -l | tr -d ' ')" -ge 1
   - name: composed review creates no commit
     run: test "$(git rev-list --count HEAD)" -eq 1
   - name: composed review artifact is canonical and returns control
     run: >-
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
       '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
