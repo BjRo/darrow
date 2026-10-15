@@ -202,7 +202,12 @@ decompose a broad request into tickets on its own.
   says so. Milestones and assignees stay opt-in: only when the user asks,
   and only to existing values.
 - **TM-C7 — No tool attribution.** No "Generated with ..." lines, no AI
-  co-author credits, no tool emoji in title or body.
+  co-author credits, no tool emoji in title or body. Omit requested attribution
+  while preserving the substantive ticket request. If creation rejects local
+  title/body attribution with exit 6 before provider access, correct the same
+  draft and retry that item. This is not a provider refusal and that rejected
+  attempt created no ticket. Provider failures and uncertain creation effects
+  still stop pending mutations; report the policy omission in the final result.
 - **TM-C8 — Traceable report.** The report states the external ticket id and
   canonical URL, the type, the labels applied, and anything omitted under
   TM-C1/TM-C6.

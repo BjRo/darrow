@@ -59,7 +59,16 @@ backend relation syntax, and rejects tool attribution. Never use raw tracker
 commands or another plugin's files.
 
 Correct and retry a CLI input error caused by your title/body/arguments before
-that item has been created. Relay a backend refusal—missing backend, remote,
+that item has been created.
+
+For `create`, `error: AI attribution is not allowed in tickets` (exit 6) is
+local title/body validation, not a backend refusal. It happens before provider
+resolution, so that attempt created no ticket. Remove the prohibited attribution
+from the same draft and retry the same item, even when the caller requested the
+note. Preserve the substantive ticket request and report the policy omission
+after creation as described in section 5.
+
+Relay a backend refusal—missing backend, remote,
 ticket target, milestone, assignee, or tracker operation—verbatim. End the
 entire batch immediately: do not create any later requested ticket. Retain
 completed effects and account for every remaining item; do not invent a
