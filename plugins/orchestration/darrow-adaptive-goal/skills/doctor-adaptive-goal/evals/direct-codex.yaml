@@ -15,22 +15,25 @@ fixture:
 checks:
   - name: diagnosis is read-only
     run: test -z "$(git status --porcelain)"
+output_checks:
+  - name: checked and used source records identify the isolated config
+    expect_regex: "^(?=[\\s\\S]*\\bconfiguration_sources_checked:[ \\t]+(?<source>(?:/|[A-Za-z]:[\\\\/])[^\\r\\n|\\x60]*[\\\\/]codex-home[\\\\/]config\\.toml)(?=[ \\t\\x60]*(?:\\r?\\n|$)))(?=[\\s\\S]*\\bconfiguration_sources_used:[ \\t]+\\k<source>(?=[ \\t\\x60]*(?:\\r?\\n|$)))"
+  - name: checkout config is excluded
+    expect_regex: "\\bcheckout_config_used:[ \\t]+no[ \\t\\x60]*(?:\\r?$)"
+  - name: concurrency control is named verbatim
+    expect_regex: "\\bconcurrency_control:[ \\t]+agents\\.max_concurrent_threads_per_session\\b"
+  - name: nesting control retains its separate V1-only applicability
+    expect_regex: "\\bnesting_control:[ \\t]+agents\\.max_depth \\(V1 only; ignored by V2\\)"
 semantic_output_checks:
-  - name: effective isolated config is diagnosed
+  - name: configured concurrency is distinct from live capacity
     proposition: >-
-      The response names the absolute isolated CODEX_HOME config.toml as its
-      checked and used configuration source, excludes the checkout config
-      containing 99, and reports the effective concurrency capacity or an
-      explicitly unknown or unset capacity. Source records may bind a preceding
-      numeric summary; the value and path need not occur in the same sentence.
-      An absolute isolated codex-home/config.toml path in the checked and used
-      records identifies CODEX_HOME without spelling that variable literally.
-      checkout_config_used: no excludes the fixture's checkout config without
-      needing to repeat its value 99.
-      A checkout value, a guessed capacity, or merely a recommendation without
-      the current capacity does not satisfy this check.
-  - name: concurrency and nesting stay distinct
-    proposition: The response explains that max_concurrent_threads_per_session is the relevant V2 concurrency control and that agents.max_depth is a separate V1-only control ignored by V2.
+      The completed diagnosis reports a current configured concurrency limit
+      or reports that setting as unknown or unset, and preserves that
+      configuration alone does not establish currently free spawned-agent slots.
+      A recommendation without a completed diagnosis, a value attributed to
+      the checkout config, or a claim that a configured limit proves current
+      free capacity fails. Judge the whole response. Backend and nesting
+      conclusions are not requirements of this check.
 transcript_checks:
   - name: orchestration does not activate
     not_regex: '"skill":"adaptive-goal"|adaptive-goal-preflight|"tool":"spawn_agent"|"name":"Agent"'

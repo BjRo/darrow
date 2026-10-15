@@ -598,6 +598,15 @@ does not make it a completion gate.
 Reporting the changed state and a passing acceptance check conveys successful
 verification. A prohibition on claiming permanent termination does not require
 repeating an earlier non-ready finding in the final response.
+The actual-state Codex Doctor case grades its required verbatim source records
+deterministically: checked and used records name the same absolute isolated
+configuration, and `checkout_config_used` is `no`. Keep the concurrency
+and nesting control names in deterministic checks too; their verbatim records
+already state which control governs concurrency and that nesting is V1-only.
+Keep the configured concurrency and unknown live free-capacity distinction in
+a separate, small semantic check without requiring a backend conclusion there.
+A valid configured limit does not prove current free slots or resolve an unknown
+backend. A recommendation alone does not report the diagnosed current setting.
 Each check
 has a stable name and a plain-language proposition. The runner grades all such
 checks against the candidate's final response in a separate, hidden grader
