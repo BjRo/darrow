@@ -113,7 +113,10 @@ test("Darrow separates case discovery from imported Codex configuration", async 
   expect(run.value.cases[0]!.caseId).toBe("separate-configuration");
   const evidence = JSON.parse(await readFile(run.value.evidencePath, "utf8"));
   expect(evidence.configuration.redacted.hostConfiguration).toEqual({
-    candidate: { "sevro.codex.agent-concurrency-limit": 7 },
+    candidate: {
+      "sevro.codex.agent-concurrency-limit": 7,
+      "sevro.host.executable": process.execPath,
+    },
   });
   expect(evidence.routes[0]).toMatchObject({
     model: "synthetic-codex",

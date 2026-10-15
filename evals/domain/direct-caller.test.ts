@@ -729,6 +729,7 @@ test("direct caller preserves skill controls and writes the selection output", a
   });
   expect(evidence.configuration.redacted.hostConfiguration.candidate).toEqual({
     "sevro.codex.agent-concurrency-limit": 7,
+    "sevro.host.executable": binary,
   });
   expect(cell.result.task.verdict).toBe("not_assessed");
 }, 30_000);

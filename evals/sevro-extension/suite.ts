@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { createHash } from "node:crypto";
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { isDeepStrictEqual, parseArgs } from "node:util";
 import { parse as parseYaml } from "yaml";
@@ -659,8 +659,11 @@ async function runCell(
   } catch {
     // A failed invocation can return only stderr; retain that failure in the manifest.
   }
-  const resultPath = result ? join(cellRoot, "result.json") : null;
-  if (resultPath) await writeFile(resultPath, JSON.stringify(result, null, 2));
+  let resultPath = result ? join(cellRoot, "result.json") : null;
+  if (resultPath) {
+    await writeFile(resultPath, JSON.stringify(result, null, 2));
+    resultPath = await realpath(resultPath);
+  }
   const { provenance, activation, evidenceError } = await cellProvenance(
     result,
     expected,

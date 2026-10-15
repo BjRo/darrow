@@ -155,9 +155,9 @@ test("current implementation routes grade sourced Claude completions on both hos
     expect(resolved.cases[0]!.requiredEvidence).not.toContain(
       "sevro.codex.native-calls",
     );
-    expect(resolved.cases[0]!.requiredEvidence).toContain(
-      "sevro.host.native-controls",
-    );
+    expect(resolved.cases[0]!.requiredEvidence).toEqual([
+      "sevro.host.native-goal",
+    ]);
   }
 });
 
@@ -336,7 +336,7 @@ test("current native transcript checks declare required host facts", async () =>
       "goal-ordinary-engineering-does-not-activate",
       ["sevro.codex.skill-reads", "sevro.codex.events"],
     ],
-    ["goal-preflight-high-risk-routine", ["sevro.host.native-controls"]],
+    ["goal-preflight-high-risk-routine", ["sevro.host.native-goal"]],
     ["claude-readiness-nonready-stops", ["sevro.claude.tool-calls"]],
   ] as const) {
     const result = await fixtureExtensionRequest<{

@@ -856,6 +856,12 @@ report preserves public execution, grading, task, and exit states and names
 each input result and retained evidence path. It preserves task verdicts and
 the existing task and activation gate semantics.
 
+Persisted suite cell result paths use canonical absolute file identities,
+matching Sevro's public report input and row paths. A symlink alias to that
+same result must not create a missing-report or unmatched-ablation outcome.
+Retain exact input count, order, case and provenance checks; canonicalization
+does not permit a missing, additional, duplicate or foreign result.
+
 A quality rate requires completed execution and grading, an executed trial,
 and assessed non-record checks under the default task policy. A selected custom
 task policy remains explicit and leaves this default quality metric unavailable.

@@ -240,6 +240,8 @@ Codex-specific and unsupported Claude cells are rejected before execution.
 `suite.ts` resolves the selected modes and cases before starting cells. It
 retains the suite digest, seed, complete cell plan, executed prefix, routes,
 conditions, source identities and public result paths in `suite-run.json`.
+Persisted cell result paths are canonical absolute paths, so Sevro's report
+inputs and matched-ablation rows retain the same file identity through aliases.
 `--seed` replays the selected host/mode block ordering.
 
 Mode options include `owner_evaluation`, `model_by_harness`, `effort`,

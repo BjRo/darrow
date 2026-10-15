@@ -4,6 +4,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  realpath,
   rm,
   symlink,
   writeFile,
@@ -149,6 +150,51 @@ async function invoke(
   );
   return { stdout, stderr, code };
 }
+
+test("suite reports canonical result identities through an output alias", async () => {
+  const { root, suite, adapter } = await fixture();
+  const storage = await mkdtemp(join(tmpdir(), "darrow-suite-output-alias-"));
+  roots.push(storage);
+  const target = join(storage, "canonical-results");
+  const alias = join(storage, "results-alias");
+  await mkdir(target);
+  await symlink(target, alias, "dir");
+  const run = await invoke([
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    alias,
+    "--case",
+    "suite-alpha",
+    "--mode",
+    "passive",
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+  ]);
+  expect(run.code, run.stderr + run.stdout).toBe(0);
+  const manifest = JSON.parse(
+    await readFile(join(alias, "suite-run.json"), "utf8"),
+  );
+  const cell = manifest.cells[0];
+  expect(manifest.cells).toHaveLength(1);
+  expect(cell.result).toBe(
+    await realpath(join(target, `cell-${cell.index}/result.json`)),
+  );
+  const report = JSON.parse(await readFile(manifest.report.jsonPath, "utf8"));
+  expect(report.inputs).toHaveLength(1);
+  expect(report.inputs[0].resultFile).toBe(cell.result);
+  expect(report.rows).toHaveLength(1);
+  expect(report.rows[0].resultFile).toBe(cell.result);
+  expect(report.rows[0].task).toBe("passed");
+});
 
 test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
   "suite applies enabled case routes before mode candidate defaults",
