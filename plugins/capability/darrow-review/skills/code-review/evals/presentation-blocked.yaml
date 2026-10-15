@@ -1,9 +1,7 @@
 id: code-review-presentation-blocked
 activation: positive
 invariant: CR-C15,CR-E12
-prompt: >-
-  Review my uncommitted changes. Report only and do not create a change just to
-  make a review scope.
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Review my uncommitted changes. Report only and do not create a change just to make a review scope."
 fixture:
   commits:
     - message: "chore: init"

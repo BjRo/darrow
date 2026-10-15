@@ -1,10 +1,7 @@
 id: code-review-presentation-default
 activation: positive
 invariant: CR-C15,CR-C16,CR-E12,CR-E16
-prompt: >-
-  Use {{skill_invocation}} to review my uncommitted changes against this
-  originating requirement: token values must be positive integers. Report only;
-  do not request machine format.
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Use {{skill_invocation}} to review my uncommitted changes against this originating requirement: token values must be positive integers. Report only; do not request machine format."
 fixture:
   commits:
     - message: "chore: init"

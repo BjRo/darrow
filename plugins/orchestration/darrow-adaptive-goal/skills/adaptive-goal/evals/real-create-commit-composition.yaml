@@ -78,8 +78,7 @@ fixture:
       }
       git diff --check
       head=$(git rev-parse HEAD)
-      notes_digest=$(shasum -a 256 NOTES.md)
-      notes_digest=${notes_digest%% *}
+      notes_digest=$(python3 -c 'import hashlib, pathlib; print(hashlib.sha256(pathlib.Path("NOTES.md").read_bytes()).hexdigest())')
       target="WORKTREE@$head+$notes_digest"
       printf 'review\t%s\n' "$target" >>"$(git rev-parse --show-toplevel)/.fixture-state/composition-events"
       printf '%s\n' 'Independent review outcome: no blocking findings'
@@ -175,8 +174,7 @@ checks:
       test "$count" -eq 1 || { printf 'Expected one review record; observed %s\n' "$count"; exit 1; }
       review_target=$(awk -F '\t' '$1 == "review" { print $2 }' "$log")
       review_base=$(git rev-parse HEAD^)
-      review_digest=$(git show HEAD:NOTES.md | shasum -a 256)
-      review_digest=${review_digest%% *}
+      review_digest=$(git show HEAD:NOTES.md | python3 -c 'import hashlib, sys; print(hashlib.sha256(sys.stdin.buffer.read()).hexdigest())')
       expected="WORKTREE@$review_base+$review_digest"
       printf 'Expected reviewed target: %s\n' "$expected"
       test "$review_target" = "$expected"

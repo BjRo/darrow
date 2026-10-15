@@ -85,15 +85,21 @@ semantic_output_checks:
     proposition:
       The response explicitly concludes progress. It preserves F1 as the
       original Spec finding, with original blocking disposition and current
-      resolved state because timeoutMs is now 2500. A1 remains explicitly
+      resolved state because timeoutMs is now 2500. A labelled table identifying
+      F1's original axis as Spec and original disposition as a blocker explicitly
+      preserves that provenance; a repeated prose sentence is not required.
+      A1 remains explicitly
       visible as an unattempted or unresolved nonblocking advisory. Current candidate/check
       evidence is preserved. The response identifies retries=0 versus required 3
       as a new direct consequence of the repair, explicitly caused by F1, and
       does not clear while that regression remains.
   - name: original blocker provenance is explicit
-    proposition:
+    proposition: >
       The final response explicitly identifies F1 as originally a Spec
       finding with blocking disposition, even though F1 is now resolved.
+      Evaluate the whole response, including labelled tables: an F1 row under
+      an original-axis-and-disposition heading containing Spec and high blocker
+      explicitly states both facts, even when its current-state cell says resolved.
       Calling F1 resolved or identifying its acceptance criterion alone is
       insufficient to preserve its original blocking disposition.
   - name: regression cause identity is explicit

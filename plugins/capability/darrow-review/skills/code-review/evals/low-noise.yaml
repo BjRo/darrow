@@ -1,10 +1,7 @@
 id: code-review-low-noise
 activation: positive
 invariant: CR-E5,CR-C6,CR-C7
-prompt: >-
-  Review my uncommitted changes against this originating requirement: add an
-  admin health handler that repeats the local two-line auth guard and returns
-  status 204. Report only.
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Review my uncommitted changes against this originating requirement: add an admin health handler that repeats the local two-line auth guard and returns status 204. Report only."
 fixture:
   commits:
     - message: "chore: init"

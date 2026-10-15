@@ -110,6 +110,15 @@ of absence. Artifacts remain temporary and are removed after grading; the grant
 does not persist their contents in the run archive. Do not select this profile
 for cases that do not create the declared directory.
 
+Feedback cases that assert an unchanged whole-workspace boundary select
+[`runtime-feedback-receipts.json`](runtime-feedback-receipts.json) with Codex's
+app-server entrypoint. Use it for `goal-cross-turn-feedback-answer`,
+`goal-steering-without-question`, and `diagnostic-direct-owner-parser-presented`.
+Their fixture tools write authentic bookkeeping to `DARROW_FIXTURE_RECEIPTS_DIR`
+outside the repository. Graders read those original files through the read-only
+`SEVRO_CANDIDATE_ARTIFACT_RECEIPTS` grant. The source-preservation, exact answer,
+receipt ordering, and actual continuation-boundary checks still apply.
+
 For startup diagnosis on Sevro rc.10 or later, add `--retain-host-diagnostics`
 after the caller's `--` separator. The flag applies to selected native roles
 and retains `sevro.host.diagnostics` even when no session starts. Its private
@@ -298,3 +307,17 @@ bun evals/sevro-extension/legacy-claude-review-proof.ts \
 All paths are absolute. Valid evidence atomically writes the original JSON proof
 and exits zero; invalid invocation or evidence exits one without a new proof.
 These readers do not establish current host behavior or evaluator equivalence.
+
+On Sevro rc.12, use [`runtime-codex-state.json`](runtime-codex-state.json) for
+`doctor-adaptive-goal-direct-codex` and
+`create-agent-skill-refuse-undefined-skill`. The profile exposes the actual isolated
+configuration and grants graders read-only access to all four original candidate
+user-skill roots. Preserve the seeded UV cache. Fixture config is represented
+input, not the effective host config.
+
+Use [`runtime-local-http.json`](runtime-local-http.json) for
+`orchestration-oss-express-links` and `orchestration-oss-requests-proxy`. It opts
+candidate and shell grading into local HTTP socket access. Other runs keep the
+default network policy. Pass either profile after `--` with
+`--runtime-config-file "$PWD/evals/sevro-extension/<profile>.json"` and select
+Codex's app-server entrypoint before `--`.

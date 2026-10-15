@@ -63,7 +63,8 @@ constraints for producing and interpreting that evidence.
   and ownership runs then skip excluded hosts and apply the declared route.
 - Keep represented host configuration beneath a named fixture subdirectory.
   Identify its project root, working directory, user-config path, and trust in
-  the prompt. Sevro rejects a fixture's top-level `.codex` directory; a nested
+  the prompt. Sevro rejects a fixture's top-level `.codex` directory unless the runtime
+  explicitly opts into `codexState`; a nested
   represented configuration diagnoses that input, not the eval host itself.
   Cases that require the real isolated host configuration must retain that
   distinction and remain unavailable if the host cannot expose it.
@@ -72,8 +73,19 @@ constraints for producing and interpreting that evidence.
   grading; agents cannot read or write that reserved subtree.
 - Keep authoritative fixture input and its executable acceptance oracle aligned,
   including whether representation details such as trailing newlines matter.
+  Fixture content digests must remain SHA-256 when replacing an unavailable
+  host utility. Use Python's standard-library hashing when macOS `shasum` cannot
+  load Perl inside the isolated runtime; update the producer and checker together.
+  Size deterministic test timeouts for every isolated fixture preparation in a
+  batched control. Increasing that budget does not relax the acceptance checks.
 - Put candidate-written fixture receipts, mutable mock state, and test traces
-  under the prepared, Git-excluded `.fixture-state/`. Codex protects `.git`.
+  under the prepared, Git-excluded `.fixture-state/`. Sevro permits legitimate
+  writes to trial Git metadata while protecting hidden grading assets.
+  For an unchanged whole-workspace feedback-boundary assertion, use
+  `evals/sevro-extension/runtime-feedback-receipts.json` instead: fixture tools
+  write to `DARROW_FIXTURE_RECEIPTS_DIR`, and graders read the original files
+  through `SEVRO_CANDIDATE_ARTIFACT_RECEIPTS`. Preserve the configured directory
+  and retain source-preservation and exact acknowledgement checks.
   Keep immutable setup inputs and hidden grading assets in their protected
   locations. Fixture backends remain immutable; give their `uv` child a private
   project environment when it would otherwise create a `.venv` in Git metadata.
@@ -81,11 +93,23 @@ constraints for producing and interpreting that evidence.
   Dependencies needed later must live in declared persistent fixture state.
   Go corpus launchers share `.fixture-state/go/` caches across setup, candidate
   commands, and grading instead of downloading into that discarded home.
+- On Sevro rc.12, actual host-state cases select
+  `evals/sevro-extension/runtime-codex-state.json`. Doctor diagnoses the absolute
+  isolated CODEX_HOME config, preserving the seeded UV cache. User-skill absence
+  checks require all four candidate-bound skill directory grants, excluding only
+  the native CODEX_HOME/skills/.system tree; missing evidence stays unavailable.
+  These two cases declare `harnesses: [codex]` because those actual-state grants
+  are Codex-specific. They do not establish native Claude user-state coverage.
+- Express and Requests socket corpus cases select
+  `evals/sevro-extension/runtime-local-http.json` on rc.12. Local HTTP access
+  remains an explicit per-run opt-in; retain the original tests and assertions.
 - Review artifact cases select `evals/sevro-extension/runtime-review-artifacts.json`
   explicitly. With Sevro rc.8 or later, graders read the original candidate
   `~/.darrow/reviews` subtree through `SEVRO_CANDIDATE_ARTIFACT_REVIEWS`, then
   bind that path to the owning oracle's `DARROW_REVIEW_STATE_DIR`. Preserve
-  configured runtime and dependency-cache paths. Missing declared directories
+  configured runtime and dependency-cache paths. The participant prompt states
+  that prerequisite because another valid private state root is outside the
+  declared grant. Missing declared directories
   fail grading; negative cases must prepare real empty state before testing
   absence. The grant is read-only and lasts only through grading.
   Its path and tree have already passed Sevro's canonical-path and alias checks.

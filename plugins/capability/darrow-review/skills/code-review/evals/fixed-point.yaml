@@ -2,6 +2,8 @@ id: code-review-fixed-point
 activation: positive
 invariant: CR-E1,CR-C2
 prompt: >-
+  Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and
+  UV_CACHE_DIR paths; use the existing Review state configuration.
   Review the committed change from HEAD~1 to HEAD. There is no originating
   product spec. Report only.
 fixture:

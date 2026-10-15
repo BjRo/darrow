@@ -1,9 +1,7 @@
 id: code-review-invalid-base
 activation: positive
 invariant: CR-E3,CR-C2
-prompt: >-
-  Review the current changes since release/does-not-exist. Do not guess a
-  different base and do not modify files.
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Review the current changes since release/does-not-exist. Do not guess a different base and do not modify files."
 fixture:
   commits:
     - message: "chore: init"

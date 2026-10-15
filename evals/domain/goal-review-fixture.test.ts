@@ -163,6 +163,16 @@ test("high-risk composition requires verification and supporting review reads", 
             observedSkills: [...skills],
           },
         },
+        {
+          id: "sevro.codex.skill-reads",
+          source: "sevro.host.codex",
+          completeness: "complete",
+          data: {
+            method: "skill_file_read_probe",
+            primarySkill: "adaptive-goal",
+            observedSkills: [...skills],
+          },
+        },
       ],
     });
     expect(

@@ -1,12 +1,7 @@
 id: code-review-reviewer-route-unavailable
 activation: positive
 invariant: CR-C4,CR-C10,CR-C21,CR-E7,CR-E14
-prompt: >-
-  Explicitly use {{skill_invocation}} to review my uncommitted changes against
-  this originating requirement: exported mode must equal "safe". The native host
-  reports that the selected configured reviewer route is unavailable for this
-  run. Do not repair the code, inherit another reviewer route, retry with a
-  fallback, or substitute another model.
+prompt: 'Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Explicitly use {{skill_invocation}} to review my uncommitted changes against this originating requirement: exported mode must equal "safe". The native host reports that the selected configured reviewer route is unavailable for this run. Do not repair the code, inherit another reviewer route, retry with a fallback, or substitute another model.'
 fixture:
   commits:
     - message: "chore: init"

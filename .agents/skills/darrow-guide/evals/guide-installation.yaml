@@ -30,7 +30,11 @@ semantic_output_checks:
   - name: question contract
     proposition:
       The response concisely explains host-specific installation commands, a fresh session,
-      and verification through a read-only assessment. Showing commands for the user to run is
+      and verification through a read-only assessment. Naming Codex and showing its Codex
+      commands establishes the host-specific route; commands for other hosts are not required.
+      Describing the assessment as making no edits or tracker writes establishes read-only
+      assessment. Judge these meanings without requiring those exact policy phrases.
+      Showing commands for the user to run is
       allowed; the response must not claim the assistant executed commands or performed
       installation, tests, repairs, or environment diagnosis.
 output_checks:

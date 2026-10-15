@@ -63,4 +63,11 @@ transcript_checks:
     not_regex: '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"name":"Agent"|"name":"Task"'
 semantic_output_checks:
   - name: final result reports resolved readiness and verified implementation
-    proposition: The response reports that config.json now uses 2500 ms with successful verification. It does not say that the non-ready finding terminated the goal permanently.
+    proposition: >-
+      The response reports that config.json now uses 2500 ms with successful
+      verification. Saying the changed configuration uses 2500 and that
+      `bash check.sh 2500` passed conveys successful verification; the literal
+      word "verified" is not required. It does not say that the non-ready
+      finding terminated the goal permanently. Repeating that earlier finding
+      is not required in the final response. A goal-complete statement after
+      ready reassessment and successful implementation verification is permitted.

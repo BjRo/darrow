@@ -1,9 +1,11 @@
 id: doctor-adaptive-goal-direct-codex
+harnesses: [codex]
 invariant: ADL-D1
 activation: positive
 prompt: >-
   {{skill_invocation}} Check whether this isolated Codex environment is
-  configured for Adaptive Goal's full verification and review path.
+  configured for Adaptive Goal's full verification and review path. Preserve the
+  configured UV_CACHE_DIR so the frozen diagnostic uses its seeded dependencies.
 fixture:
   commits:
     - message: "chore: init"
@@ -15,7 +17,18 @@ checks:
     run: test -z "$(git status --porcelain)"
 semantic_output_checks:
   - name: effective isolated config is diagnosed
-    proposition: The response identifies the absolute isolated CODEX_HOME config.toml as the checked source, does not treat the checkout .codex/config.toml containing 99 as effective, and reports the effective configured capacity instead of the checkout value.
+    proposition: >-
+      The response names the absolute isolated CODEX_HOME config.toml as its
+      checked and used configuration source, excludes the checkout config
+      containing 99, and reports the effective concurrency capacity or an
+      explicitly unknown or unset capacity. Source records may bind a preceding
+      numeric summary; the value and path need not occur in the same sentence.
+      An absolute isolated codex-home/config.toml path in the checked and used
+      records identifies CODEX_HOME without spelling that variable literally.
+      checkout_config_used: no excludes the fixture's checkout config without
+      needing to repeat its value 99.
+      A checkout value, a guessed capacity, or merely a recommendation without
+      the current capacity does not satisfy this check.
   - name: concurrency and nesting stay distinct
     proposition: The response explains that max_concurrent_threads_per_session is the relevant V2 concurrency control and that agents.max_depth is a separate V1-only control ignored by V2.
 transcript_checks:

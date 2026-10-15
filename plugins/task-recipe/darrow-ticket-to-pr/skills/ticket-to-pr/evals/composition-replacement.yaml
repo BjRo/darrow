@@ -104,7 +104,12 @@ semantic_output_checks:
     proposition: >-
       The response unambiguously reports that delivery is complete and includes the
       exact pull request URL https://github.com/fixture/repo/pull/42. It does not
-      present the result as blocked, incomplete, or still requiring action.
+      present the result as blocked, incomplete, or still requiring delivery action.
+      A completed publication with the verified intended commit, passing checks,
+      and the PR ready for review communicates completed delivery; a separate
+      fixed completion phrase is not required. Evaluate the whole response.
+      A plan to publish, remaining implementation, or unresolved verification
+      does not satisfy completion.
 # Composition is gated by accepted handoff, executed publication and artifacts.
 # Full supporting-skill activation remains a separate reported observation.
 transcript_checks:

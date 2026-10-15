@@ -1,18 +1,7 @@
 id: code-review-goal-contract-pass
 activation: positive
 invariant: CR-C13,CR-C14,CR-E9,CR-E11
-prompt: >-
-  Execute this bounded goal contract. The candidate change is already present in
-  the working tree. Before declaring the goal complete, use the available
-  capability matching this intent: independently review the exact current code
-  change against the originating requirement and repository standards. Require
-  its normal review report. A response with no blocking findings returns control
-  to this goal; blocking findings or unavailable review stop it. After and only
-  after a clear review, run `bash mark-complete.sh`. Originating requirement:
-  exported RATE_LIMIT must equal 2. Acceptance: `bash check.sh` passes. Not
-  authorized: product edits, commits, pushes, pull requests, or any publication
-  action. At the end, report the final goal outcome and the independent-review
-  outcome.
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Execute this bounded goal contract. The candidate change is already present in the working tree. Before declaring the goal complete, use the available capability matching this intent: independently review the exact current code change against the originating requirement and repository standards. Require its normal review report. A response with no blocking findings returns control to this goal; blocking findings or unavailable review stop it. After and only after a clear review, run `bash mark-complete.sh`. Originating requirement: exported RATE_LIMIT must equal 2. Acceptance: `bash check.sh` passes. Not authorized: product edits, commits, pushes, pull requests, or any publication action. At the end, report the final goal outcome and the independent-review outcome."
 fixture:
   commits:
     - message: "chore: init"

@@ -171,8 +171,7 @@ fixture:
       }
       DARROW_CAPABILITY_PROTOCOL=independent-review git diff --check
       head=$(DARROW_CAPABILITY_PROTOCOL=independent-review git rev-parse HEAD)
-      notes_digest=$(shasum -a 256 NOTES.md)
-      notes_digest=${notes_digest%% *}
+      notes_digest=$(python3 -c 'import hashlib, pathlib; print(hashlib.sha256(pathlib.Path("NOTES.md").read_bytes()).hexdigest())')
       target="WORKTREE@$head+$notes_digest"
       printf '%s\tclear\tcomprehensive\n' "$target" >>"$(git rev-parse --show-toplevel)/.fixture-state/independent-review-invocations"
       printf '%s\n' 'Independent review outcome: no blocking findings'
@@ -266,8 +265,7 @@ checks:
       grep -F $'\tclear\tcomprehensive' "$review_log" >/dev/null || { printf '%s\n' 'Missing clear comprehensive result'; exit 1; }
       review_target=$(cut -f1 "$review_log")
       review_base=$(git rev-parse HEAD^)
-      review_notes_digest=$(git show HEAD:NOTES.md | shasum -a 256)
-      review_notes_digest=${review_notes_digest%% *}
+      review_notes_digest=$(git show HEAD:NOTES.md | python3 -c 'import hashlib, sys; print(hashlib.sha256(sys.stdin.buffer.read()).hexdigest())')
       expected="WORKTREE@$review_base+$review_notes_digest"
       printf 'Expected reviewed target: %s\n' "$expected"
       test "$review_target" = "$expected"

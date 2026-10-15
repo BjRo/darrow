@@ -1,12 +1,7 @@
 id: code-review-fix-verification-progress-advisory
 activation: positive
 invariant: CR-C17,CR-C18,CR-C19,CR-C21,CR-E13,CR-E14
-prompt: >-
-  First run `fixture-review-input` to initialize the fixture's prior evidence
-  in your private Review state.
-  Verify my uncommitted repair against only the prior code-review findings in
-  `.fixture-state/verification-input`. Use `bash check.sh` as current check evidence.
-  Remain read-only and do not widen this into another comprehensive review.
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. First run `fixture-review-input` to initialize the fixture's prior evidence in your private Review state. Verify my uncommitted repair against only the prior code-review findings in `.fixture-state/verification-input`. Use `bash check.sh` as current check evidence. Remain read-only and do not widen this into another comprehensive review."
 fixture:
   commits:
     - message: "chore: base"
@@ -120,5 +115,11 @@ semantic_output_checks:
       The response explains that value 1 still violates the required minimum of
       2, so verification must continue or further repair is needed. It
       identifies the remaining comment as advisory and does not claim that the
-      comment blocks completion. Repeating the original nonnumeric value or
+      comment blocks completion. The value blocker and comment advisory are
+      distinct findings. A label such as "Advisory, unchanged" identifies the
+      comment as nonblocking; another finding labelled blocking and unresolved
+      does not change that disposition. Suggested removal or a resolution
+      condition for the advisory is allowed without making it a completion gate.
+      Reject an explicit claim that the comment itself blocks completion, even
+      if it is also labelled advisory. Repeating the original nonnumeric value or
       defining the word advisory is not required.

@@ -2526,7 +2526,10 @@ test("additional plugins and selected skills remain independent Codex packages",
       for (const path of [".agents/skills/owner/SKILL.md", ".sevro-marketplace/plugins/0-provider/skills/provider/SKILL.md", ".sevro-marketplace/plugins/1-selective/skills/selective/SKILL.md"]) {
         if (!(await Bun.file(workspace + "/" + path).exists())) throw new Error("composed mount missing");
       }
-      return { finalMessage: "ready", complete: true, observations: [{ id: "sevro.codex.explicit-invocation", source: "sevro.host.codex", completeness: "complete", data: { method: "explicit_invocation", primarySkill: "owner", observedSkills: ["owner", "provider", "selective"] } }] };
+      return { finalMessage: "ready", complete: true, observations: [
+        { id: "sevro.codex.explicit-invocation", source: "sevro.host.codex", completeness: "complete", data: { method: "explicit_invocation", primarySkill: "owner", observedSkills: ["owner", "provider", "selective"] } },
+        { id: "sevro.codex.skill-reads", source: "sevro.host.codex", completeness: "complete", data: { method: "skill_file_read_probe", primarySkill: "provider", observedSkills: ["provider", "selective"] } },
+      ] };
     }
   };`,
   );

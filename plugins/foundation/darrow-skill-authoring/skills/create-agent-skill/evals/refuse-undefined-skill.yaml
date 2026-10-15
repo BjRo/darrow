@@ -1,4 +1,5 @@
 id: create-agent-skill-refuse-undefined-skill
+harnesses: [codex]
 invariant: SA-C1,SA-C3
 activation: positive
 mount_plugin_skills: true
@@ -20,16 +21,19 @@ checks:
     run: git diff --exit-code && test -z "$(git ls-files --others --exclude-standard)"
   - name: undefined capability creates no user-level skill
     run: |
-      state_root=".git/darrow-eval/state/$(cat .git/fixture-host)"
-      test -d "$state_root" || {
-        printf '%s\n' 'Candidate user-skill state is unavailable to the isolated grader; the retired state tree is absent.' >&2
-        exit 2
-      }
-      find "$state_root" \
-        -path "$state_root/config/plugins/cache" -prune -o \
-        -path "$state_root/config/skills/.system" -prune -o \
-        -path "$state_root/.codex/skills/.system" -prune -o \
-        -type f -name SKILL.md -print
+      for root in \
+        "${SEVRO_CANDIDATE_ARTIFACT_CODEX_SKILLS-}" \
+        "${SEVRO_CANDIDATE_ARTIFACT_AGENT_SKILLS-}" \
+        "${SEVRO_CANDIDATE_ARTIFACT_COMMAND_AGENT_SKILLS-}" \
+        "${SEVRO_CANDIDATE_ARTIFACT_COMMAND_CODEX_SKILLS-}"; do
+        test -n "$root" && test -d "$root" || {
+          printf '%s\n' 'Candidate-bound user-skill evidence is unavailable; select the codexState runtime opt-in.' >&2
+          exit 2
+        }
+        find "$root" \
+          -path "$SEVRO_CANDIDATE_ARTIFACT_CODEX_SKILLS/.system" -prune -o \
+          -type f -name SKILL.md -print || exit 2
+      done
     expect_exact: ""
   - name: authoring creates no commit
     run: git rev-list --all --reflog --count
@@ -39,4 +43,7 @@ semantic_output_checks:
     proposition: >-
       The response asks the user to supply or approve the reusable skill's goal
       or capability, destination, and supported runtimes, and it does not claim
-      that a skill or repository change was created.
+      that a skill or repository change was created. These are required topics,
+      not a limit on the number of questions. Asking an additional relevant
+      clarification, such as edit authority, is allowed. Suggested defaults
+      still require user approval before creation.

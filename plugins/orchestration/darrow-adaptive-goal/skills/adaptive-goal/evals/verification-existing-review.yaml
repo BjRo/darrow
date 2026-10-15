@@ -8,15 +8,7 @@ additional_plugins:
   - plugins/capability/darrow-review
 goal_report: forbidden
 goal_route_checks: false
-prompt: >-
-  Use {{skill_invocation}} to continue the existing src/config.js candidate. Run bash
-  check.sh, then independently assess the candidate before any change. Use verification
-  with the installed darrow-review:code-review provider. Independent review is the only
-  selected assessment. Originating criteria: TIMEOUT_MS must equal 2500 and RETRY_COUNT
-  must remain 3. Repair only src/config.js within those criteria, refresh invalidated
-  checks and obtain closed follow-up assurance. Complete locally only when current
-  verification clears. No commits, publication, new product behavior or replacement
-  owner is authorized. Report the initial finding and final verification outcome.
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Use {{skill_invocation}} to continue the existing src/config.js candidate. Run bash check.sh, then independently assess the candidate before any change. Use verification with the installed darrow-review:code-review provider. Independent review is the only selected assessment. Originating criteria: TIMEOUT_MS must equal 2500 and RETRY_COUNT must remain 3. Repair only src/config.js within those criteria, refresh invalidated checks and obtain closed follow-up assurance. Complete locally only when current verification clears. No commits, publication, new product behavior or replacement owner is authorized. Report the initial finding and final verification outcome."
 fixture:
   commits:
     - message: "chore: baseline"

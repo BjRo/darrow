@@ -1143,7 +1143,7 @@ function ticketTranscriptSelection(pattern: unknown) {
   if (pattern === ADAPTIVE_SUPPORTING_READ_PATTERN)
     return { kind: "supporting-skill-read", skill: "adaptive-goal" };
   const publisher = PUBLISHER_READ_PATTERNS.get(pattern as string);
-  if (publisher) return { kind: "bound-child-skill", skill: publisher };
+  if (publisher) return { kind: "supporting-skill-read", skill: publisher };
   return null;
 }
 
@@ -1336,7 +1336,6 @@ const TRANSCRIPT_EVIDENCE = new Map([
   ["accepted-child-session", ["sevro.codex.native-calls"]],
   ["event-term", ["sevro.codex.events"]],
   ["supporting-skill-read", ["sevro.codex.skill-reads"]],
-  ["bound-child-skill", ["sevro.codex.native-calls"]],
   ["no-parent-work-after-handoff", ["sevro.codex.native-calls"]],
   ["no-lifecycle-ledger", ["sevro.codex.native-calls", "sevro.codex.events"]],
   ["owner-after-continuation", ["sevro.codex.native-calls"]],
@@ -1539,7 +1538,6 @@ function nativeGoalCasePolicy(selected: RecordValue) {
     requiredEvidence: [
       ...new Set([
         ...policy.requiredEvidence,
-        "sevro.host.native-controls",
         ...nativeTranscriptEvidence(transcriptChecks.current),
         ...policyEvidence(null, transcriptChecks.legacy),
       ]),
@@ -3191,6 +3189,40 @@ function implicitClaudeActivation(
   };
 }
 
+function explicitCodexActivation(
+  selected: RecordValue,
+  observations: unknown,
+  details: RecordValue,
+): RecordValue {
+  const expected = activationExpectation(details.activation);
+  const supporting =
+    [...(expected.sequence ?? []), ...(expected.includes ?? [])].some(
+      (skill) => skill !== expected.targetSkill,
+    ) || !!expected.excludes?.length;
+  if (!supporting) return selected;
+  const reads = uniqueObservation(observations, "sevro.codex.skill-reads");
+  const observed = observedActivation(reads, false);
+  const dispatched = observedActivation(selected, true);
+  if (!observed || !dispatched) return { ...selected, completeness: "partial" };
+  const sequence = [
+    expected.targetSkill,
+    ...observed.observedSkills.filter(
+      (skill) => skill !== expected.targetSkill,
+    ),
+  ];
+  if (JSON.stringify(sequence) !== JSON.stringify(dispatched.observedSkills))
+    return { ...selected, completeness: "partial" };
+  return { ...selected, supportingReadEvidence: "sevro.codex.skill-reads" };
+}
+
+function activationEvidenceRefs(observation: RecordValue | null) {
+  if (!observation) return [];
+  const refs = [string(observation.id, "activation evidence ID")];
+  if (observation.supportingReadEvidence)
+    refs.push(String(observation.supportingReadEvidence));
+  return refs;
+}
+
 function caseActivationObservation(
   observations: unknown,
   details: RecordValue,
@@ -3198,6 +3230,8 @@ function caseActivationObservation(
   const explicit = details.invocation !== undefined;
   const selected = activationObservation(observations, explicit);
   if (!selected) return null;
+  if (selected.id === "sevro.codex.explicit-invocation")
+    return explicitCodexActivation(selected, observations, details);
   if (selected.id === "sevro.claude.repository-invocation") {
     const invocation = record(details.invocation, "repository invocation");
     const data = activationData(selected.data);
@@ -3537,21 +3571,47 @@ function nativeControlEvidence(observations: unknown) {
     !matched("functions", "update_goal")
   )
     return null;
+  const inspection = nativeControlInspection(data!, evidence.calls);
   return {
-    attemptedSpawn:
-      controlOrdinals(calls, "collaboration", "spawn_agent").length > 0,
-    attemptedGoal:
-      controlOrdinals(calls, "functions", "create_goal").length > 0,
-    attemptedGoalControl: calls.some(
-      (call) =>
-        call.namespace === "functions" &&
-        ["create_goal", "update_goal"].includes(String(call.name)),
-    ),
-    attemptedSkillTool: evidence.calls.some((call) => call.name === "Skill"),
+    controlsComplete: inspection.complete,
+    controlData: data!,
+    ...controlAttemptFlags(inspection.labels),
+    submittedSpawnAttempt: inspection.submittedSpawn,
+    controlLabels: inspection.labels,
     spawnCount: controlOrdinals(calls, "collaboration", "spawn_agent").length,
     acceptedSpawnCount: evidence.spawns.length,
     acceptedSpawns: evidence.spawns,
     toolCalls: evidence.calls,
+  };
+}
+
+function nativeControlInspection(data: RecordValue, calls: RecordValue[]) {
+  const submitted = submittedControlCalls(data, calls, -1);
+  return {
+    complete: submitted !== null,
+    labels: [...calls, ...(submitted ?? [])],
+    submittedSpawn: (submitted ?? []).some(
+      (call) =>
+        call.namespace === "collaboration" && call.name === "spawn_agent",
+    ),
+  };
+}
+
+function controlAttemptFlags(controls: RecordValue[]) {
+  return {
+    attemptedSpawn: controls.some(
+      (call) =>
+        call.namespace === "collaboration" && call.name === "spawn_agent",
+    ),
+    attemptedGoal: controls.some(
+      (call) => call.namespace === "functions" && call.name === "create_goal",
+    ),
+    attemptedGoalControl: controls.some(
+      (call) =>
+        call.namespace === "functions" &&
+        ["create_goal", "update_goal"].includes(String(call.name)),
+    ),
+    attemptedSkillTool: controls.some((call) => call.name === "Skill"),
   };
 }
 
@@ -3781,7 +3841,29 @@ async function codexEventText(
   }
 }
 
+function completeNativeControls(
+  native: ReturnType<typeof nativeControlEvidence>,
+) {
+  return native?.controlsComplete ? native : null;
+}
+
+function completeNativeOwnerControls(
+  native: ReturnType<typeof nativeControlEvidence>,
+) {
+  const complete = completeNativeControls(native);
+  return complete?.submittedSpawnAttempt ? null : complete;
+}
+
+function submittedAfterBoundary(
+  native: ReturnType<typeof nativeControlEvidence>,
+  boundary: number | null | undefined,
+) {
+  if (!native || typeof boundary !== "number") return null;
+  return submittedControlCalls(native.controlData, native.toolCalls, boundary);
+}
+
 function noAgentOutcome(native: ReturnType<typeof nativeControlEvidence>) {
+  native = completeNativeControls(native);
   return {
     status: native
       ? native.attemptedSpawn
@@ -3798,6 +3880,7 @@ function noAgentOutcome(native: ReturnType<typeof nativeControlEvidence>) {
 function noNativeGoalControlOutcome(
   native: ReturnType<typeof nativeControlEvidence>,
 ) {
+  native = completeNativeControls(native);
   return {
     status: native
       ? native.attemptedGoalControl
@@ -3814,6 +3897,7 @@ function noNativeGoalControlOutcome(
 function noOwnerOrGoalControlOutcome(
   native: ReturnType<typeof nativeControlEvidence>,
 ) {
+  native = completeNativeControls(native);
   return {
     status: !native
       ? "unavailable"
@@ -3837,6 +3921,7 @@ const NATIVE_CONTROL_GRADERS = new Map([
 function noSecondOwnerOutcome(
   native: ReturnType<typeof nativeControlEvidence>,
 ) {
+  native = completeNativeOwnerControls(native);
   if (!native)
     return {
       status: "unavailable",
@@ -3865,6 +3950,7 @@ function skillsInactiveOutcome(
   native: ReturnType<typeof nativeControlEvidence>,
   observed: ReturnType<typeof observedActivation>,
 ) {
+  native = completeNativeControls(native);
   const forbiddenSkills = skillSequence(selected.forbiddenSkills);
   if (
     !forbiddenSkills ||
@@ -3897,7 +3983,10 @@ function supportingSkillOutcome(
   selected: RecordValue,
   observed: ReturnType<typeof observedActivation>,
 ) {
-  if (selected.skill !== "adaptive-goal")
+  if (
+    typeof selected.skill !== "string" ||
+    !["adaptive-goal", "create-pr", "ship-proposal"].includes(selected.skill)
+  )
     throw new Error("supporting skill check configuration is invalid");
   return {
     status: observed
@@ -3907,44 +3996,6 @@ function supportingSkillOutcome(
       : "unavailable",
     detail: "Graded from complete supporting skill reads",
     evidenceRefs: observed ? ["sevro.codex.skill-reads"] : [],
-  };
-}
-
-function completeBoundChildSkills(
-  bound: ReturnType<typeof boundChildSessions>,
-): string[] | null {
-  if (!bound || bound.truncated || bound.children.length !== 1) return null;
-  const child = bound.children[0];
-  const diagnostic = child ? activationData(child.readDiagnostics) : null;
-  return child?.status === "available" ? completeReadSkills(diagnostic) : null;
-}
-
-function completeReadSkills(diagnostic: RecordValue | null): string[] | null {
-  if (diagnostic?.completeness !== "complete" || diagnostic.truncated !== false)
-    return null;
-  const skills = skillSequence(diagnostic.observedSkills);
-  return skills && new Set(skills).size === skills.length ? skills : null;
-}
-
-function boundChildSkillOutcome(
-  selected: RecordValue,
-  native: ReturnType<typeof nativeControlEvidence>,
-  bound: ReturnType<typeof boundChildSessions>,
-) {
-  if (selected.skill !== "create-pr" && selected.skill !== "ship-proposal")
-    throw new Error("bound child skill check configuration is invalid");
-  const skills =
-    native?.acceptedSpawnCount === 1 ? completeBoundChildSkills(bound) : null;
-  if (!skills)
-    return {
-      status: "unavailable",
-      detail: "Bound child skill-read evidence unavailable or incomplete",
-      evidenceRefs: [],
-    };
-  return {
-    status: skills.includes(selected.skill) ? "passed" : "failed",
-    detail: "Graded from the accepted child's complete skill reads",
-    evidenceRefs: ["sevro.codex.native-calls"],
   };
 }
 
@@ -4067,7 +4118,7 @@ function inactiveControlEvidenceAvailable(
   return !(
     (required.includes("sevro.codex.skill-reads") && !observed) ||
     (required.includes("sevro.codex.events") && events === null) ||
-    (required.includes("sevro.codex.native-calls") && !native)
+    (required.includes("sevro.codex.native-calls") && !native?.controlsComplete)
   );
 }
 
@@ -4104,11 +4155,12 @@ function inactiveControlViolation(
       )) ||
     (selected.forbidSpawn === true && native!.attemptedSpawn) ||
     (selected.forbidAgentTool === true &&
-      native!.toolCalls.some((call) => call.name === "Agent"))
+      native!.controlLabels.some((call) => call.name === "Agent"))
   );
 }
 
 function oneOwnerOutcome(native: ReturnType<typeof nativeControlEvidence>) {
+  native = completeNativeOwnerControls(native);
   return {
     status: native
       ? native.spawnCount === 1 && native.acceptedSpawnCount === 1
@@ -4323,6 +4375,7 @@ function noLedgerOutcome(
     throw new Error("ledger terms are invalid");
   if (typeof forbidGoal !== "boolean")
     throw new Error("ledger goal policy is invalid");
+  if (forbidGoal) native = completeNativeControls(native);
   if (!native || events === null)
     return {
       status: "unavailable",
@@ -4398,6 +4451,8 @@ function ownerBoundaryOutcome(
   native: ReturnType<typeof nativeControlEvidence>,
   continuation: ReturnType<typeof continuationEvidence>,
 ) {
+  if (kind === "no-owner-before-continuation")
+    native = completeNativeOwnerControls(native);
   const boundary = continuation?.nativeAfterOrdinal;
   if (!native || boundary === null || boundary === undefined)
     return {
@@ -4495,11 +4550,13 @@ function noReplacementAfterContinuationOutcome(
   followUpEvents: string | null,
 ) {
   const boundary = continuation?.nativeAfterOrdinal;
+  const submitted = submittedAfterBoundary(native, boundary);
   if (
     !native ||
     boundary === null ||
     boundary === undefined ||
-    followUpEvents === null
+    followUpEvents === null ||
+    submitted === null
   )
     return {
       status: "unavailable",
@@ -4507,11 +4564,13 @@ function noReplacementAfterContinuationOutcome(
         "Complete native follow-up calls and verified follow-up events required",
       evidenceRefs: [],
     };
-  const prohibitedCall = native.toolCalls.some(
+  const direct = native.toolCalls.filter(
+    (call) => (call.ordinal as number) > boundary,
+  );
+  const prohibitedCall = [...direct, ...submitted].some(
     (call) =>
-      (call.ordinal as number) > boundary &&
-      ((call.namespace === "collaboration" && call.name === "spawn_agent") ||
-        (call.namespace === "functions" && call.name === "create_goal")),
+      (call.namespace === "collaboration" && call.name === "spawn_agent") ||
+      (call.namespace === "functions" && call.name === "create_goal"),
   );
   const prohibitedEvent = [
     '"type":"darrow.parent_spawn_after_goal"',
@@ -4618,10 +4677,12 @@ function laterNativeSkillCall(
 ): boolean | null {
   if (selected.forbidNativeSkillCall !== true) return false;
   const boundary = continuation?.nativeAfterOrdinal;
-  if (!native || boundary === null || boundary === undefined) return null;
-  return native.toolCalls.some(
-    (call) => call.name === "Skill" && (call.ordinal as number) > boundary,
+  const submitted = submittedAfterBoundary(native, boundary);
+  if (!native || submitted === null) return null;
+  const direct = native.toolCalls.filter(
+    (call) => (call.ordinal as number) > boundary!,
   );
+  return [...direct, ...submitted].some((call) => call.name === "Skill");
 }
 
 function turnSkillOutcome(
@@ -4737,8 +4798,6 @@ function policyTranscriptOutcome(
     return freshProviderContextOutcome(context.native);
   if (selected.kind === "accepted-child-session")
     return acceptedChildSessionOutcome(context.children);
-  if (selected.kind === "bound-child-skill")
-    return boundChildSkillOutcome(selected, context.native, context.children);
   if (selected.kind === "event-term")
     return eventTermOutcome(selected, context.events);
   if (selected.kind === "inactive-controls")
@@ -4848,9 +4907,7 @@ function readerObservationContext(
   native: ReturnType<typeof nativeControlEvidence>,
 ) {
   const children =
-    kinds.has("nested-readers") ||
-    kinds.has("accepted-child-session") ||
-    kinds.has("bound-child-skill")
+    kinds.has("nested-readers") || kinds.has("accepted-child-session")
       ? boundChildSessions(observations, native)
       : null;
   const nested = kinds.has("nested-readers")
@@ -5003,8 +5060,70 @@ function portableControlCounts(
     Number.isSafeInteger(data.acceptedAgentCount) &&
     (data.acceptedAgentCount as number) >= 0 &&
     (data.acceptedAgentCount as number) <= attempts &&
-    data.submittedExecCalls === 0 &&
+    submittedControlCalls(data, calls, -1) !== null &&
     calls.every(validNativeToolCall)
+  );
+}
+
+// Submitted labels have local indices, never fabricated native ordinals.
+function submittedControlCalls(
+  data: RecordValue,
+  direct: RecordValue[],
+  afterOrdinal: number,
+): RecordValue[] | null {
+  const submissions = direct.filter((call) => call.name === "exec");
+  if (
+    !Number.isSafeInteger(data.submittedExecCalls) ||
+    data.submittedExecCalls !== submissions.length
+  )
+    return null;
+  if (data.execCalls === undefined && submissions.length === 0) return [];
+  if (
+    !Array.isArray(data.execCalls) ||
+    data.execCalls.length !== submissions.length ||
+    data.execCalls.length > 128
+  )
+    return null;
+  const labels: RecordValue[] = [];
+  for (const [index, value] of data.execCalls.entries()) {
+    const calls = submittedReceiptCalls(
+      value,
+      submissions[index]!.ordinal,
+      afterOrdinal,
+    );
+    if (!calls) return null;
+    labels.push(...calls);
+  }
+  return labels;
+}
+
+function submittedReceiptCalls(
+  value: unknown,
+  ordinal: unknown,
+  afterOrdinal: number,
+): RecordValue[] | null {
+  const receipt = activationData(value);
+  if (
+    !receipt ||
+    receipt.ordinal !== ordinal ||
+    !["complete", "partial"].includes(String(receipt.completeness)) ||
+    !Array.isArray(receipt.calls) ||
+    receipt.calls.length > 128
+  )
+    return null;
+  const calls = receipt.calls.map(activationData);
+  if (!calls.every(validSubmittedCall)) return null;
+  if ((ordinal as number) <= afterOrdinal) return [];
+  return receipt.completeness === "complete" ? (calls as RecordValue[]) : null;
+}
+
+function validSubmittedCall(call: RecordValue | null, index: number) {
+  return (
+    !!call &&
+    call.index === index &&
+    ["functions", "collaboration", "other"].includes(String(call.namespace)) &&
+    typeof call.name === "string" &&
+    /^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(call.name)
   );
 }
 
@@ -5041,7 +5160,15 @@ function portableControlRecord(observations: unknown) {
     !portableControlCounts(data, String(observation.source), labels)
   )
     return null;
-  return { source: String(observation.source), data, calls: labels };
+  return {
+    source: String(observation.source),
+    data,
+    calls: labels,
+    submitted:
+      observation.source === "sevro.host.codex"
+        ? submittedControlCalls(data, labels, -1)!
+        : [],
+  };
 }
 
 function sameNativeLabels(left: RecordValue[], right: RecordValue[]) {
@@ -5055,8 +5182,18 @@ function codexControlConsistency(
   observations: unknown,
 ) {
   const native = nativeControlEvidence(observations);
+  const observation = uniqueObservation(
+    observations,
+    "sevro.codex.native-calls",
+  );
+  const data = observation ? activationData(observation.data) : null;
   return (
     native !== null &&
+    data !== null &&
+    submittedControlCalls(data, native.toolCalls, -1) !== null &&
+    data.submittedExecCalls === common.data.submittedExecCalls &&
+    JSON.stringify(data.execCalls ?? []) ===
+      JSON.stringify(common.data.execCalls ?? []) &&
     common.data.acceptedAgentCount === native.acceptedSpawnCount &&
     sameNativeLabels(native.toolCalls, common.calls)
   );
@@ -5104,7 +5241,7 @@ function portableNativeControlOutcome(
     common !== null && legacyControlConsistency(common, observations);
   const prohibited =
     available &&
-    common.calls.some(
+    [...common.calls, ...common.submitted].some(
       (call) =>
         ["Agent", "Task"].includes(String(call.name)) ||
         (call.namespace === "collaboration" && call.name === "spawn_agent") ||
@@ -5885,9 +6022,7 @@ async function evaluateCase(params: RecordValue) {
       {
         id: "darrow.evals.activation",
         status,
-        evidenceRefs: observation
-          ? [string(observation.id, "activation evidence ID")]
-          : [],
+        evidenceRefs: activationEvidenceRefs(observation),
         detail: observed
           ? "Activation graded from complete host observation"
           : "Activation observation unavailable or incomplete",

@@ -143,6 +143,28 @@ Agent-launch or goal-mutation attempts fail it even when no agent was accepted.
 Missing, duplicate, partial, malformed, foreign, or contradictory records remain
 unavailable. Submitted Codex code that has not been inspected cannot establish
 control absence. Claude's unknown acceptance count cannot establish acceptance.
+All native control absence assertions, including inactive-skill and doctor
+checks, require inspected submitted-code evidence. Direct session capture alone
+cannot prove absence. Direct acceptance and routing receipts remain distinct.
+Complete Code Mode receipts must match every direct exec ordinal and submission
+count. Inspect their ordered submitted labels for prohibited attempts independently
+of direct agent acceptance; malformed or incomplete receipts remain unavailable.
+For after-continuation absence checks, validate all receipt bindings and inspect
+every submission after the native boundary. A partial earlier submission does
+not by itself invalidate complete evidence for the later interval. Submitted
+labels cannot substitute for correlated owner acceptance.
+
+Explicit Codex owner dispatch can establish owner activation independently of
+supporting reads. Composition order, supporting-skill inclusion, and exclusions
+also require unique complete skill-read evidence consistent with the dispatch.
+Partial supporting reads cannot establish those assertions.
+
+Host-state cases explicitly opt into Sevro's `codexState` runtime interface.
+Grade user-skill absence across all four original candidate-bound skill roots,
+excluding only the native CODEX_HOME/skills/.system directory. Missing bindings
+remain unavailable. Diagnose the actual isolated config, not fixture config.
+Local HTTP corpus cases explicitly select `network.localHttp`; keep their
+original socket tests and assertions.
 
 A setup-only generated fixture starts with an empty Git history. Its setup may
 create the initial snapshot; no placeholder commit may be synthesized before
@@ -151,8 +173,14 @@ that setup runs.
 The Darrow extension prepares `.fixture-state/` and excludes it from Git before
 running a case's fixture setup or tools. Candidate-run fixture tools write their
 receipts, mutable mock state, and test traces there. They do not require writes
-inside `.git`, which Codex protects. Git metadata, immutable setup inputs, and
+inside `.git`. Sevro permits legitimate writes to the isolated trial's Git
+metadata while protecting hidden grading assets. Git metadata, immutable setup inputs, and
 hidden grading assets remain separate; hidden oracles stay in `.git/eval-checks/`.
+Cases that assert an unchanged whole-workspace fingerprint at a feedback boundary
+keep mutable fixture receipts in a declared private runtime home subtree instead.
+Their explicit runtime profile grants graders read-only access to those original
+files. Source-preservation and exact acknowledgement checks remain required;
+receipts must not be reconstructed or copied into substitute grading artifacts.
 This repository-owned state convention belongs in extension preparation, not
 the generic engine.
 Dependencies required after setup must survive destruction of the temporary
@@ -387,6 +415,18 @@ the contract. Required membership is validated against the mounted skill set,
 retained in results and evaluation identity, and remains unknown when observation
 is incomplete.
 
+Ticket-to-PR publisher-read checks use the main thread's complete supporting
+skill observations. Adaptive Goal owns publication in that thread; an overall
+owner child is not required. A missing publisher read fails; partial, missing,
+duplicate, or foreign-host observations remain unavailable. Separate effect
+checks must still prove actual publication and the intended commit.
+
+Positive implementation-route checks consume the owning host's validated
+accepted-child facts. They must not require a complete common-control receipt
+that they do not inspect. A missing or incomplete host-specific route remains
+unavailable, and an observed wrong route fails. This does not relax absence
+checks, which still require complete control inspection.
+
 A colocated eval case may declare one activation class:
 
 - `positive` — the owning skill should be the primary selected capability;
@@ -549,6 +589,15 @@ public contract is a proposition that permits faithful paraphrase. Assertions
 must accept the representations allowed by that contract. A compact mapping
 table can satisfy a visual explanation; grading still requires its material
 relationships and authority boundaries, without requiring exact policy words.
+When a contract permits either a documented route or a separate request,
+either satisfies that alternative. A prohibition on configuration changes
+states a repair limit without requiring the literal word "repair".
+Assess each finding's own disposition. An unresolved blocker does not make a
+separate advisory blocking, and describing that advisory's resolution condition
+does not make it a completion gate.
+Reporting the changed state and a passing acceptance check conveys successful
+verification. A prohibition on claiming permanent termination does not require
+repeating an earlier non-ready finding in the final response.
 Each check
 has a stable name and a plain-language proposition. The runner grades all such
 checks against the candidate's final response in a separate, hidden grader
@@ -942,7 +991,10 @@ grading; candidate runtime cleanup follows grading and evidence persistence.
 The grant does not archive those files. Missing or unsafe declared directories
 are grading errors; a negative case prepares an actual empty directory before
 checking absence. The selected Review profile may explicitly configure Darrow
-state and cache paths without inheriting the caller's overrides.
+state and cache paths without inheriting the caller's overrides. Cases that
+depend on a declared state-directory grant state that configured state and
+cache paths must be preserved. A different valid private state root remains
+outside that grant; do not claim artifact presence or absence from it.
 
 Fixture setup uses a temporary home that is removed before host execution.
 Candidate-required private state must be initialized in the candidate runtime
@@ -1469,6 +1521,11 @@ not prove equivalence or savings.
   A check requiring a specific host observation declares that identifier as
   required evidence. A conditionally consumed observation is validated when
   used. Missing, incomplete or contradictory evidence remains unavailable.
+  Native goal history and ledger-only checks do not require a complete control
+  receipt merely because the host emits one. Declare control receipts only for
+  checks that consume them; unrelated partial inspection must not make otherwise
+  complete goal and ledger assessments unavailable. Genuine control-absence and
+  implementation-route requirements remain mandatory.
   Dual-host implementation-route checks require the shared native control
   receipt and validate the applicable host's facts when grading. Codex routes
   use correlated accepted spawns. Claude routes bind the normalized Agent call

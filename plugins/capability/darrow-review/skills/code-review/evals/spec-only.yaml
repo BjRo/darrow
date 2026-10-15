@@ -1,10 +1,7 @@
 id: code-review-spec-only
 activation: positive
 invariant: CR-E2,CR-E4,CR-E7,CR-E8,CR-E14
-prompt: >-
-  Review my uncommitted changes against this originating requirement: formatName
-  must trim outer whitespace and return exactly "Anonymous" when the trimmed
-  name is empty. Report only and do not modify files.
+prompt: 'Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Review my uncommitted changes against this originating requirement: formatName must trim outer whitespace and return exactly "Anonymous" when the trimmed name is empty. Report only and do not modify files.'
 fixture:
   commits:
     - message: "chore: init"

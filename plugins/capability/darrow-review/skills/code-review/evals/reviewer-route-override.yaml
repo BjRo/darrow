@@ -1,10 +1,7 @@
 id: code-review-reviewer-route-override
 activation: positive
 invariant: CR-C4,CR-C21,CR-P8,CR-E14
-prompt: >-
-  Explicitly use {{skill_invocation}} to review my uncommitted changes against
-  this originating requirement: exported mode must equal "safe". Do not repair
-  the code.
+prompt: 'Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Explicitly use {{skill_invocation}} to review my uncommitted changes against this originating requirement: exported mode must equal "safe". Do not repair the code.'
 fixture:
   commits:
     - message: "chore: init"

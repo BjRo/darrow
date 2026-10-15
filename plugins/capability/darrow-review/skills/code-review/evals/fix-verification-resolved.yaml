@@ -1,13 +1,7 @@
 id: code-review-fix-verification-resolved
 activation: positive
 invariant: CR-C13,CR-C14,CR-C17,CR-C18,CR-C21,CR-E12,CR-E13,CR-E14
-prompt: >-
-  First run `fixture-review-input` to initialize the fixture's prior evidence
-  in your private Review state.
-  Verify whether my uncommitted repair resolved the prior code-review findings
-  recorded in `.fixture-state/verification-input`. Use `bash check.sh` as current check
-  evidence. Remain read-only and do not widen this into another comprehensive
-  review.
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. First run `fixture-review-input` to initialize the fixture's prior evidence in your private Review state. Verify whether my uncommitted repair resolved the prior code-review findings recorded in `.fixture-state/verification-input`. Use `bash check.sh` as current check evidence. Remain read-only and do not widen this into another comprehensive review."
 fixture:
   commits:
     - message: "chore: base"

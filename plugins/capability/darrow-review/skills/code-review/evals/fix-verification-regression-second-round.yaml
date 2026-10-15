@@ -1,13 +1,7 @@
 id: code-review-fix-verification-regression-second-round
 activation: positive
 invariant: CR-C17,CR-C18,CR-C19,CR-C20,CR-E13
-prompt: >-
-  First run `fixture-review-input` to initialize the fixture's prior evidence
-  in your private Review state.
-  Verify only the carried repair-caused regression from the prior code review
-  recorded in `.fixture-state/verification-input`. This is a follow-up repair
-  verification, not a comprehensive review. Use `bash check.sh` as current check
-  evidence and remain read-only.
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. First run `fixture-review-input` to initialize the fixture's prior evidence in your private Review state. Verify only the carried repair-caused regression from the prior code review recorded in `.fixture-state/verification-input`. This is a follow-up repair verification, not a comprehensive review. Use `bash check.sh` as current check evidence and remain read-only."
 fixture:
   commits:
     - message: "chore: init"

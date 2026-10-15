@@ -1,9 +1,7 @@
 id: code-review-guidance-uncertain
 activation: positive
 invariant: CR-C9,CR-E15
-prompt: >-
-  Use {{skill_invocation}} to review the uncommitted migration against
-  requirements.md. Report only and keep the change read-only.
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Use {{skill_invocation}} to review the uncommitted migration against requirements.md. Report only and keep the change read-only."
 fixture:
   commits:
     - message: "chore: old transport"
@@ -54,6 +52,18 @@ semantic_output_checks:
       new send path bypasses signing. It explicitly limits repair advice because
       the vendor signing and tenant-key contracts are unavailable, without
       inventing a supported SDK method or prescribing restoration of the removed
-      legacy dependency. It identifies an observable signed-transmission or
-      tenant-isolation test that would demonstrate resolution. Any suggestion
-      remains advisory rather than a new requirement.
+      legacy dependency. Saying that sends must be rejected until the supported
+      signing SDK and tenant-key contract arrive expresses that limitation.
+      Any suggestion remains advisory rather than a new requirement.
+  - name: proposed verification is observable within the stated contract limits
+    proposition: >-
+      The report proposes observable verification that would demonstrate
+      resolution: signed-transmission or tenant-isolation checks, or fail-closed
+      checks showing unsigned payloads do not reach the transport and unavailable
+      signing fails before transmission. Read the report as a whole. A preceding
+      explanation that the SDK and tenant-key contracts are missing and must
+      arrive before integration also qualifies the later proposed verification;
+      it need not repeat that condition for each test. Proposing future
+      verification does not claim that the SDK exists or that those tests have
+      already run. The report must not falsely claim completed verification
+      using an unavailable signing integration.

@@ -1,13 +1,7 @@
 id: code-review-fix-verification-regression-scope
 activation: positive
 invariant: CR-C9,CR-C17,CR-C18,CR-C20,CR-E13,CR-E15
-prompt: >-
-  First run `fixture-review-input` to initialize the fixture's prior evidence
-  in your private Review state.
-  Verify my uncommitted repair against the prior code-review findings in
-  `.fixture-state/verification-input`, limited to those findings and direct repair
-  consequences. Use `bash check.sh` as current check evidence and remain
-  read-only. Do not widen this into another comprehensive review.
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. First run `fixture-review-input` to initialize the fixture's prior evidence in your private Review state. Verify my uncommitted repair against the prior code-review findings in `.fixture-state/verification-input`, limited to those findings and direct repair consequences. Use `bash check.sh` as current check evidence and remain read-only. Do not widen this into another comprehensive review."
 fixture:
   commits:
     - message: "chore: base"

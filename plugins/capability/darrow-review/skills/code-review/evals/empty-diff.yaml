@@ -1,12 +1,7 @@
 id: code-review-empty-diff
 activation: positive
 invariant: CR-E3,CR-C2
-prompt: >-
-  Keep the configured UV_CACHE_DIR, DARROW_CACHE_DIR, and DARROW_REVIEW_STATE_DIR
-  values when running the backend; they identify this fixture's prepared cache
-  and private Review state.
-  Review my uncommitted changes. Report only and do not make a change just to
-  create something to review.
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Keep the configured UV_CACHE_DIR, DARROW_CACHE_DIR, and DARROW_REVIEW_STATE_DIR values when running the backend; they identify this fixture's prepared cache and private Review state. Review my uncommitted changes. Report only and do not make a change just to create something to review."
 fixture:
   commits:
     - message: "chore: init"

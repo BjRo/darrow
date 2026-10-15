@@ -7,15 +7,7 @@ additional_plugins:
 activation_sequence:
   - verify-change
   - code-review
-prompt: Use {{skill_invocation}} Verify the implementation candidate in this
-  repository, HEAD to WORKTREE, against the objective and every criterion in
-  SPEC.md. CANDIDATE.txt contains the output of `cksum config.json` for this
-  current candidate. Required
-  check bash check.sh passed on this content. Independent review is the only
-  selected assessment. Bind it to the separately advertised
-  darrow-review:code-review capability installed for this request. Return one
-  assessment; the implementation owner retains
-  all repair and completion decisions.
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Use {{skill_invocation}} Verify the implementation candidate in this repository, HEAD to WORKTREE, against the objective and every criterion in SPEC.md. CANDIDATE.txt contains the output of `cksum config.json` for this current candidate. Required check bash check.sh passed on this content. Independent review is the only selected assessment. Bind it to the separately advertised darrow-review:code-review capability installed for this request. Return one assessment; the implementation owner retains all repair and completion decisions."
 fixture:
   commits:
     - message: "chore: baseline"
