@@ -38,10 +38,15 @@ def prepare(repo: Path, prior: str = "") -> str:
     ).value("manifest")
 
 
-def capture(repo: Path, manifest: str, monkeypatch: pytest.MonkeyPatch) -> str:
+def capture(
+    repo: Path,
+    manifest: str,
+    monkeypatch: pytest.MonkeyPatch,
+    command: str = "echo checked",
+) -> str:
     monkeypatch.chdir(repo)
     path = str(Path(manifest).parent / "check.json")
-    cli.check_command(["run", "--output", path, "--command", "echo checked"])
+    cli.check_command(["run", "--output", path, "--command", command])
     return path
 
 
@@ -173,6 +178,66 @@ def test_assessment_correction_clears_same_candidate_and_retains_prior_result(
     rendered = str(cli.report_command(["render-verification", output]))
     assert reason in rendered
     assert previous in html.unescape(rendered)
+
+
+def test_assessment_correction_clears_empty_findings_and_preserves_failed_history(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (repo / "file.txt").write_text("reviewed\n", encoding="utf-8")
+    original_scope = prepare(repo)
+    original_draft = {**result_record(), "spec": "pass", "findings": []}
+    original = finalize(
+        original_scope,
+        write(Path(original_scope).parent / "draft.json", original_draft),
+        capture(repo, original_scope, monkeypatch, "exit 1"),
+    )
+    original_bytes = Path(original).read_bytes()
+    prior_scope = prepare(repo, original_scope)
+    blocked = {
+        "format": "darrow-review-verification-v3",
+        "attempts": [],
+        "evidence_gaps": ["The correction workflow could not validate empty findings."],
+        "next_action": "Repair the correction workflow without changing reviewed code.",
+    }
+    previous = finalize(
+        prior_scope,
+        write(Path(prior_scope).parent / "draft.json", blocked),
+        capture(repo, prior_scope, monkeypatch),
+        original,
+    )
+    previous_bytes = Path(previous).read_bytes()
+    manifest = prepare(repo, prior_scope)
+    correction = {
+        "format": "darrow-review-verification-v3",
+        "assessment_correction": (
+            "The correction workflow is repaired and the corrected command passes; "
+            "the reviewed candidate and empty independent finding set are unchanged."
+        ),
+        "attempts": [],
+        "next_action": "Return the corrected assessment to the same owner.",
+    }
+    output = finalize(
+        manifest,
+        write(Path(manifest).parent / "draft.json", correction),
+        capture(repo, manifest, monkeypatch),
+        previous,
+    )
+    final = Records(Path(output).read_text(encoding="utf-8"))
+    assert final.value("outcome") == "clear"
+    assert final.value("current_target") == final.value("prior_target")
+    assert final.items("original_findings") == final.items("attempts") == []
+    assert final.strings("evidence_gaps") == []
+    assert final.object("previous_verification") == {
+        "path": previous,
+        "checksum": blob_hash(previous_bytes),
+    }
+    assert final.strings("history_targets") == [final.value("original_target")]
+    assert final.items("checks")[0]["status"] == "pass"
+    assert Records(original_bytes.decode("utf-8")).value("verdict") == "fail"
+    assert Path(original).read_bytes() == original_bytes
+    assert Path(previous).read_bytes() == previous_bytes
+    assert "preserved" in cli.result_command(["validate-original", original, output])
+    assert "clear" in cli.report_command(["render-verification", output])
 
 
 def prior_with_regression(repo: Path) -> tuple[str, str]:

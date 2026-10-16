@@ -278,6 +278,9 @@ the reason and new evidence. Bind the latest completed result, preserve its
 checksum and full finding/target history, and supply fresh judgments and checks.
 Only fully resolved current evidence can clear. The previous artifact remains
 unchanged; repeated unresolved conclusions remain blocked or no-progress.
+An empty original finding set can clear through this correction after a retained
+blocked verification, without inventing a finding or evidence gap. The same
+candidate, checksum-bound history and successful current checks remain required.
 This correction neither consumes nor resets an enclosing implementation repair
 allowance.
 
