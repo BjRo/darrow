@@ -6,112 +6,91 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { resolveCase } from "../sevro-extension/index";
 import { fixtureExtensionRequest } from "./fixture-command";
+import { policyHostCapabilities } from "./policy-project";
 
-test("Native goal evidence requirements follow the checks that consume them", async () => {
-  const projectRoot = pathToFileURL(resolve(import.meta.dir, "../..")).href;
-  for (const [id, required] of [
-    ["goal-preflight-high-risk-routine", false],
-    ["goal-preflight-quality-sensitive-localized", false],
-    ["goal-preflight-routing-difficult-routine-diagnosis", false],
-    ["guide-mutation", true],
-  ] as const) {
+type Call = { ordinal: number; namespace: string; name: string };
+const projectRoot = pathToFileURL(resolve(import.meta.dir, "../..")).href;
+
+for (const name of [
+  "empty-diff",
+  "invalid-base",
+  "reviewer-route-unavailable",
+]) {
+  test(`Review terminal ${name} requires current bound native controls`, async () => {
     const { cases } = await resolveCase({
       projectRoot,
-      selectors: { caseIds: [id] },
-    });
-    expect(
-      cases[0]!.requiredEvidence.includes("sevro.host.native-controls"),
-    ).toBe(required);
-    if (!required)
-      expect(cases[0]!.requiredEvidence).toEqual(["sevro.host.native-goal"]);
-  }
-  for (const id of [
-    "doctor-adaptive-goal-direct-codex",
-    "create-agent-skill-refuse-undefined-skill",
-  ]) {
-    const { cases } = await resolveCase({
-      projectRoot,
-      selectors: { caseIds: [id] },
-    });
-    await expect(
-      fixtureExtensionRequest("prepare", {
-        case: cases[0],
-        host: { id: "sevro.host.claude", capabilities: [] },
-        condition: "passive",
-        configuration: {},
-      }),
-    ).rejects.toThrow("excludes the candidate host");
-  }
-});
-
-test("Ticket publication reads belong to the retained main thread", async () => {
-  for (const id of [
-    "ticket-to-pr-composition-existing-pr",
-    "ticket-to-pr-composition-replacement",
-  ]) {
-    const { cases } = await resolveCase({
-      projectRoot: pathToFileURL(resolve(import.meta.dir, "../..")).href,
-      selectors: { caseIds: [id] },
+      selectors: { caseIds: [`code-review-${name}`] },
+      configuration: {},
     });
     const selected = cases[0]!;
-    const details = selected.extensionData["darrow.case"] as {
-      transcriptChecks: { kind: string; skill?: string }[];
-    };
-    const check = details.transcriptChecks.find(
-      (x) => x.skill === "create-pr" || x.skill === "ship-proposal",
-    );
-    expect(check?.kind).toBe("supporting-skill-read");
-    const observation = {
-      id: "sevro.codex.skill-reads",
-      source: "sevro.host.codex",
-      completeness: "complete",
-      data: {
-        method: "skill_file_read_probe",
-        primarySkill: check!.skill,
-        observedSkills: [check!.skill],
-      },
-    };
-    const grade = async (observations: unknown[]) => {
-      const result = await fixtureExtensionRequest<{
-        checks: { status: string }[];
-      }>("evaluate", {
-        extensionData: {
-          "darrow.case": { transcriptChecks: [{ ...check, id: "publisher" }] },
+    expect(selected.requiredEvidence).toContain("sevro.host.native-controls");
+    expect(JSON.stringify(selected)).not.toContain("retained-harness.jsonl");
+    for (const host of ["codex", "claude"] as const) {
+      await fixtureExtensionRequest("prepare", {
+        case: selected,
+        configuration: {},
+        host: {
+          id: `sevro.host.${host}`,
+          capabilities: [
+            ...policyHostCapabilities(host),
+            "sevro.host.native-controls",
+          ],
         },
-        observations,
       });
-      return result.checks[0]!.status;
-    };
-    expect(await grade([observation])).toBe("passed");
-    expect(
-      await grade([
-        {
-          ...observation,
-          data: { ...observation.data, primarySkill: null, observedSkills: [] },
+      const observation = (calls: Call[] = [], exec = 0) => ({
+        id: "sevro.host.native-controls",
+        source: `sevro.host.${host}`,
+        completeness: "complete",
+        data: {
+          method: "native_control_calls",
+          truncated: false,
+          acceptedAgentCount: host === "codex" ? 0 : null,
+          submittedExecCalls: host === "codex" ? exec : null,
+          calls,
         },
-      ]),
-    ).toBe("failed");
-    expect(
-      await grade([
-        {
-          ...observation,
-          data: {
-            ...observation.data,
-            primarySkill: "unrelated",
-            observedSkills: ["unrelated"],
-          },
-        },
-      ]),
-    ).toBe("failed");
-    for (const observations of [
-      [],
-      [observation, observation],
-      [{ ...observation, completeness: "partial" }],
-      [{ ...observation, source: "other" }],
-    ])
-      expect(await grade(observations)).toBe("unavailable");
-  }
-}, 30_000);
+      });
+      const grade = async (observations: unknown[]) => {
+        const result = await fixtureExtensionRequest<{
+          checks: { id: string; status: string }[];
+        }>("evaluate", {
+          extensionData: selected.extensionData,
+          observations,
+          artifacts: [],
+        });
+        return result.checks.find(
+          (check) => check.id === "darrow.evals.transcript.1",
+        )?.status;
+      };
+      expect(await grade([observation()])).toBe("passed");
+      expect(await grade([])).toBe("unavailable");
+      expect(await grade([observation(), observation()])).toBe("unavailable");
+      expect(await grade([{ ...observation(), completeness: "partial" }])).toBe(
+        "unavailable",
+      );
+      expect(await grade([{ ...observation(), source: "another.host" }])).toBe(
+        "unavailable",
+      );
+      const namespace = host === "codex" ? "collaboration" : "claude";
+      const spawn = host === "codex" ? "spawn_agent" : "Agent";
+      expect(
+        await grade([observation([{ ordinal: 1, namespace, name: spawn }])]),
+      ).toBe("failed");
+      expect(
+        await grade([
+          observation([
+            {
+              ordinal: 1,
+              namespace: host === "codex" ? "functions" : "claude",
+              name: "update_goal",
+            },
+          ]),
+        ]),
+      ).toBe("passed");
+      if (host === "codex")
+        expect(await grade([observation([], 1)])).toBe("unavailable");
+    }
+  }, 30_000);
+}
 
 test("Ledger text checks inspect control receipts only when goal absence is required", async () => {
   const root = await mkdtemp(resolve(tmpdir(), "darrow-ledger-controls-"));
@@ -417,89 +396,4 @@ test("Code Mode absence requires complete receipts and checks submitted attempts
       data: { ...legacy.data, execCalls: [{ ...receipt, calls: [] }] },
     }),
   ).toBe("unavailable");
-}, 30_000);
-
-test("Explicit owner dispatch does not establish complete supporting reads", async () => {
-  const dispatch = {
-    id: "sevro.codex.explicit-invocation",
-    source: "sevro.host.codex",
-    completeness: "complete",
-    data: {
-      method: "explicit_invocation",
-      primarySkill: "verify-change",
-      observedSkills: ["verify-change", "code-review"],
-    },
-  };
-  const reads = {
-    id: "sevro.codex.skill-reads",
-    source: "sevro.host.codex",
-    completeness: "complete",
-    data: {
-      method: "skill_file_read_probe",
-      primarySkill: "code-review",
-      observedSkills: ["code-review"],
-    },
-  };
-  const grade = async (
-    observations: unknown[],
-    expectation: Record<string, unknown>,
-  ) => {
-    const result = await fixtureExtensionRequest<{
-      domainOutcomes: { status: string; evidenceRefs: string[] }[];
-    }>("evaluate", {
-      extensionData: {
-        "darrow.case": {
-          activation: {
-            class: "positive",
-            targetSkill: "verify-change",
-            ...expectation,
-          },
-          invocation: { pluginName: "probe", skillName: "verify-change" },
-        },
-      },
-      observations,
-    });
-    return result.domainOutcomes[0]!;
-  };
-  expect(
-    (await grade([dispatch, { ...reads, completeness: "partial" }], {})).status,
-  ).toBe("passed");
-  for (const expectation of [
-    { includes: ["code-review"] },
-    { sequence: ["verify-change", "code-review"] },
-    { excludes: ["adaptive-goal"] },
-  ]) {
-    expect(await grade([dispatch, reads], expectation)).toMatchObject({
-      status: "passed",
-      evidenceRefs: [dispatch.id, reads.id],
-    });
-    for (const observations of [
-      [dispatch],
-      [dispatch, { ...reads, completeness: "partial" }],
-      [dispatch, reads, reads],
-      [dispatch, { ...reads, source: "other" }],
-      [
-        dispatch,
-        {
-          ...reads,
-          data: { ...reads.data, primarySkill: null, observedSkills: [] },
-        },
-      ],
-    ]) {
-      expect((await grade(observations, expectation)).status).toBe(
-        "unavailable",
-      );
-    }
-  }
-  const ownerOnly = {
-    ...dispatch,
-    data: { ...dispatch.data, observedSkills: ["verify-change"] },
-  };
-  const noSupport = {
-    ...reads,
-    data: { ...reads.data, primarySkill: null, observedSkills: [] },
-  };
-  expect(
-    (await grade([ownerOnly, noSupport], { includes: ["code-review"] })).status,
-  ).toBe("failed");
 }, 30_000);

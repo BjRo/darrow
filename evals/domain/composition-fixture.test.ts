@@ -1,5 +1,12 @@
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { resolveCase } from "../sevro-extension/index";
 import { expect, test } from "bun:test";
-import { readFixtureCase, runFixtureChecks } from "./fixture-command";
+import {
+  fixtureExtensionRequest,
+  readFixtureCase,
+  runFixtureChecks,
+} from "./fixture-command";
 import { gitPluginFixtureFiles } from "./fixture-git-plugin";
 import { prepareUvFixtureRuntime } from "./fixture-runtime";
 
@@ -135,3 +142,72 @@ for (const variant of ["existing-pr", "replacement"]) {
     assertPassed(result);
   }, 20_000);
 }
+
+test("Ticket publication reads belong to the retained main thread", async () => {
+  for (const id of [
+    "ticket-to-pr-composition-existing-pr",
+    "ticket-to-pr-composition-replacement",
+  ]) {
+    const { cases } = await resolveCase({
+      projectRoot: pathToFileURL(resolve(import.meta.dir, "../..")).href,
+      selectors: { caseIds: [id] },
+    });
+    const selected = cases[0]!;
+    const details = selected.extensionData["darrow.case"] as {
+      transcriptChecks: { kind: string; skill?: string }[];
+    };
+    const check = details.transcriptChecks.find(
+      (x) => x.skill === "create-pr" || x.skill === "ship-proposal",
+    );
+    expect(check?.kind).toBe("supporting-skill-read");
+    const observation = {
+      id: "sevro.codex.skill-reads",
+      source: "sevro.host.codex",
+      completeness: "complete",
+      data: {
+        method: "skill_file_read_probe",
+        primarySkill: check!.skill,
+        observedSkills: [check!.skill],
+      },
+    };
+    const grade = async (observations: unknown[]) => {
+      const result = await fixtureExtensionRequest<{
+        checks: { status: string }[];
+      }>("evaluate", {
+        extensionData: {
+          "darrow.case": { transcriptChecks: [{ ...check, id: "publisher" }] },
+        },
+        observations,
+      });
+      return result.checks[0]!.status;
+    };
+    expect(await grade([observation])).toBe("passed");
+    expect(
+      await grade([
+        {
+          ...observation,
+          data: { ...observation.data, primarySkill: null, observedSkills: [] },
+        },
+      ]),
+    ).toBe("failed");
+    expect(
+      await grade([
+        {
+          ...observation,
+          data: {
+            ...observation.data,
+            primarySkill: "unrelated",
+            observedSkills: ["unrelated"],
+          },
+        },
+      ]),
+    ).toBe("failed");
+    for (const observations of [
+      [],
+      [observation, observation],
+      [{ ...observation, completeness: "partial" }],
+      [{ ...observation, source: "other" }],
+    ])
+      expect(await grade(observations)).toBe("unavailable");
+  }
+}, 30_000);

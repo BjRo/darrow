@@ -1,3 +1,4 @@
+import { fixtureExtensionRequest } from "./fixture-command";
 import { describe, expect, test } from "bun:test";
 import { activationGate } from "../sevro-extension/activation";
 import {
@@ -397,3 +398,88 @@ describe("public skill activation policy", () => {
     ).toMatchObject({ status: "passed", passRate: 2 / 3 });
   });
 });
+
+test("Explicit owner dispatch does not establish complete supporting reads", async () => {
+  const dispatch = {
+    id: "sevro.codex.explicit-invocation",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "explicit_invocation",
+      primarySkill: "verify-change",
+      observedSkills: ["verify-change", "code-review"],
+    },
+  };
+  const reads = {
+    id: "sevro.codex.skill-reads",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "skill_file_read_probe",
+      primarySkill: "code-review",
+      observedSkills: ["code-review"],
+    },
+  };
+  const grade = async (
+    observations: unknown[],
+    expectation: Record<string, unknown>,
+  ) => {
+    const result = await fixtureExtensionRequest<{
+      domainOutcomes: { status: string; evidenceRefs: string[] }[];
+    }>("evaluate", {
+      extensionData: {
+        "darrow.case": {
+          activation: {
+            class: "positive",
+            targetSkill: "verify-change",
+            ...expectation,
+          },
+          invocation: { pluginName: "probe", skillName: "verify-change" },
+        },
+      },
+      observations,
+    });
+    return result.domainOutcomes[0]!;
+  };
+  expect(
+    (await grade([dispatch, { ...reads, completeness: "partial" }], {})).status,
+  ).toBe("passed");
+  for (const expectation of [
+    { includes: ["code-review"] },
+    { sequence: ["verify-change", "code-review"] },
+    { excludes: ["adaptive-goal"] },
+  ]) {
+    expect(await grade([dispatch, reads], expectation)).toMatchObject({
+      status: "passed",
+      evidenceRefs: [dispatch.id, reads.id],
+    });
+    for (const observations of [
+      [dispatch],
+      [dispatch, { ...reads, completeness: "partial" }],
+      [dispatch, reads, reads],
+      [dispatch, { ...reads, source: "other" }],
+      [
+        dispatch,
+        {
+          ...reads,
+          data: { ...reads.data, primarySkill: null, observedSkills: [] },
+        },
+      ],
+    ]) {
+      expect((await grade(observations, expectation)).status).toBe(
+        "unavailable",
+      );
+    }
+  }
+  const ownerOnly = {
+    ...dispatch,
+    data: { ...dispatch.data, observedSkills: ["verify-change"] },
+  };
+  const noSupport = {
+    ...reads,
+    data: { ...reads.data, primarySkill: null, observedSkills: [] },
+  };
+  expect(
+    (await grade([ownerOnly, noSupport], { includes: ["code-review"] })).status,
+  ).toBe("failed");
+}, 30_000);

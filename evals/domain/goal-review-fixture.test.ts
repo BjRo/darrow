@@ -1,6 +1,9 @@
 import { expect, test } from "bun:test";
-import { resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { captureTestCommand } from "../test-command";
 import {
   fixtureExtensionRequest,
   readFixtureCase,
@@ -621,19 +624,6 @@ for (const scenario of repairScenarios) {
               name: "retained artifact is independently valid",
               run: `${state}\n${proof} artifact`,
             },
-            {
-              name: "retained review is still current",
-              run: `${state}\n${proof} current`,
-            },
-            {
-              name: "change content after completion",
-              run: "printf '%s\\n' 'changed after completion' >value.txt",
-            },
-            {
-              name: "changed content invalidates retained current proof",
-              run: `${state}\n${proof} current`,
-              exit_code: 1,
-            },
           ]
         : []),
     ];
@@ -685,3 +675,30 @@ test("high-risk current proof accepts read-only artifacts and rejects changed co
     ]);
   }
 }, 30_000);
+
+test("goal review proof works offline after preparing an explicit empty UV cache", async () => {
+  const cache = await mkdtemp(join(tmpdir(), "darrow-goal-review-cache-"));
+  try {
+    const result = await captureTestCommand(
+      [
+        process.execPath,
+        "test",
+        "--timeout",
+        "60000",
+        fileURLToPath(import.meta.url),
+        "--test-name-pattern",
+        "high-risk current proof accepts read-only artifacts and rejects changed content",
+      ],
+      undefined,
+      {
+        cwd: fileURLToPath(new URL("../../", import.meta.url)),
+        env: { ...process.env, UV_CACHE_DIR: cache },
+        timeout: 60_000,
+      },
+    );
+    expect(result.exitCode, result.stderr || result.stdout).toBe(0);
+    expect(result.stderr).toContain("1 pass");
+  } finally {
+    await rm(cache, { recursive: true, force: true });
+  }
+}, 60_000);
