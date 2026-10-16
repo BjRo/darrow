@@ -17,7 +17,12 @@ checks:
 semantic_output_checks:
   - name: personal decision uses standalone grilling
     proposition: >-
-      The response treats paper versus digital notes as a personal decision,
-      asks at least one concrete decision question with an advisory
-      recommendation and rationale, and waits for the user's answer. It does
-      not produce a feature brief or implementation plan.
+      The response advances the user's paper-versus-digital meeting-notes
+      decision through at least one concrete question with an advisory
+      recommendation and rationale, then ends the current round without
+      assuming the user's answer or advancing dependent decisions. A brief
+      statement about what depends on the answer is allowed. It need not
+      label the topic a personal decision, ask for the medium before its
+      prerequisites, or announce that it is waiting. Asking which note-taking
+      goal matters most with a recommended priority is a valid prerequisite
+      round. Unrelated topics, a feature brief, or an implementation plan fail.

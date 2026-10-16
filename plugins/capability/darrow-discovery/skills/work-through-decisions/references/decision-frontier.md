@@ -85,6 +85,12 @@ sources. Cite or point to the evidence compactly. If a required fact cannot be
 established, expose the exact evidence gap rather than converting it into a
 user decision or assumption.
 
+Before reporting a material fact as unavailable, inspect the relevant sources
+you can access. If no narrower source is identified, check the repository's
+entry documentation for the needed context. Do not infer that customer,
+product, or technical facts are absent merely because the prompt omits them.
+An uninspected source is not evidence of an unavailable fact.
+
 Keep unavailable facts outside the numbered decision frontier. Report the
 missing source or access needed and defer only the branches that depend on it;
 do not disguise an evidence request as a user decision with “Recommendation:
@@ -99,6 +105,11 @@ The frontier is every unresolved human decision whose prerequisites are now
 settled. Ask all material, independent frontier questions in the current
 round. Defer a question when its choices or useful wording depend on an answer
 still open in this round.
+
+Account for every known material decision, including each independent choice
+the user names. Every deferred decision needs a named unanswered prerequisite.
+If a choice is independent, ask it in this round; do not put it under
+`Deferred:` to shorten the response or accommodate a request to skip questions.
 
 Before writing the round, compare every candidate question with the other open
 nodes. If another answer can change whether a question matters, who or what it
@@ -138,6 +149,9 @@ Immediately before sending the round, perform this final dependency preflight:
    allowed regions itself has an earlier prerequisite, state both deferrals.
    Do not shorten the chain to “provider after the current root,” because that
    falsely implies the intermediate decision will be settled too.
+6. Match every known independent decision to a question in the current round.
+   If a deferred item has no unanswered prerequisite, move it into the round.
+   Never describe an item as both independent and deferred.
 
 Do not send the round until this preflight passes. It applies even when the
 user demands one exhaustive questionnaire or asks you to assume later answers.

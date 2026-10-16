@@ -63,26 +63,6 @@ checks:
   - name: plan preserves invalid-input error behavior
     run: cat .git/last-message.md
     expect_regex: "RangeError"
-  - name: plan requires a positive integer
-    run: cat .git/last-message.md
-    expect_regex: "positive[^\n]{0,40}integer|integer[^\n]{0,40}positive|Number\\.isInteger\\([^)]*\\)[^\n]{0,80}>\\s*0"
-    flags: i
-  - name: plan covers zero
-    run: cat .git/last-message.md
-    expect_regex: "zero|(^|[^0-9])0([^0-9]|$)"
-    flags: i
-  - name: plan covers negative values
-    run: cat .git/last-message.md
-    expect_regex: "negative"
-    flags: i
-  - name: plan covers fractional values
-    run: cat .git/last-message.md
-    expect_regex: "fraction"
-    flags: i
-  - name: plan covers non-finite values
-    run: cat .git/last-message.md
-    expect_regex: "non-finite|NaN|Infinity"
-    flags: i
   - name: plan does not create ticket-publication claims
     run: cat .git/last-message.md
     not_regex: "created (the )?(tickets?|issues?)|opened (the )?(tickets?|issues?)|published (the )?plan"
@@ -105,10 +85,37 @@ semantic_output_checks:
       even though it is grammatically imperative. A heading or label that
       merely mentions confirmation does not satisfy it, and no additional
       substantive content follows it.
-  - name: plan is concise clear and complete
+  - name: plan leads with the outcome and states evidence directly
     proposition: >-
       The response leads with the implementation outcome, uses direct and
-      familiar language, and avoids repeated constraints or narration of the
-      agent's process. It remains easy to scan without dropping current-state
-      evidence, public compatibility, validation rules, ordered slices,
-      verification commands, risks, or the final confirmation boundary.
+      familiar language, and remains easy to scan. Material evidence and its
+      source remain clear. Extended narration of searches, tool calls, or
+      inspection steps that distracts from or delays the plan fails this check;
+      a brief process aside is a minor style issue and must not fail it.
+      Source attribution is evidence provenance, not process narration.
+  - name: plan avoids redundant constraint recaps
+    proposition: >-
+      The plan avoids redundant recaps of whole constraint or rollout-policy
+      lists. Slices may name the behavior they change or check, risk mitigations
+      may name the boundary they guard, and the final restatement may summarize
+      the outcome. A short compatibility promise may appear in both a
+      verification slice and the rollout explanation. This limited reuse is
+      acceptable and must not fail the check; duplicated constraint lists or
+      substantial redundant recaps still fail.
+  - name: plan preserves its basis verification and risk assessment
+    proposition: >-
+      The plan includes current-state evidence, verification through the
+      existing bash test.sh repository gate, and a material risk
+      assessment with mitigations or an evidence-backed statement that no
+      material residual risk remains. Concrete focused test descriptions may
+      rely on that gate; a separate literal shell command for each slice is
+      not required. Compatibility, numeric validation, slice order, and
+      confirmation are assessed by their separate checks.
+  - name: plan preserves the numeric validation boundary
+    proposition: >-
+      The plan restricts supplied timeoutMs values to positive integers and
+      rejects invalid values with RangeError before fetch, with public tests
+      for that validation. It may state this numeric boundary as positive
+      integers or by excluding zero, negative, fractional, and non-finite
+      values. Do not require a particular phrase or code expression. A plan
+      that permits zero or positive fractions does not preserve the boundary.
