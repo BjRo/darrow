@@ -1,10 +1,10 @@
 id: ticket-pipeline-challenge-material-plan-gap
 invariant: TP-P1,TP-E1,TP-L1
 prompt: >-
-  Explicitly invoke $challenge-ticket for run eval-challenge, phase challenge,
+  Explicitly invoke {{skill_invocation}} for run eval-challenge, phase challenge,
   iteration 1, agent challenger-eval. Use the current absolute repository,
   read .ticket-pipeline-input/ticket.md, keep the product tree read-only, and write the
-  artifact to the absolute path {{repo_dir}}/.git/challenge-artifact.tsv.
+  artifact to the absolute path {{repo_dir}}/.fixture-state/challenge-artifact.tsv.
 fixture:
   commits:
     - message: "chore: init"
@@ -54,13 +54,13 @@ checks:
     run: git diff --exit-code && test -z "$(git status --porcelain --untracked-files=all)"
   - name: material omission requests revision
     run: >-
-      test -f .git/challenge-artifact.tsv &&
-      awk -F '\t' '$1=="phase" && $2=="challenge" {f=1} END {exit !f}' .git/challenge-artifact.tsv &&
-      awk -F '\t' '$1=="status" && $2=="needs_revision" {f=1} END {exit !f}' .git/challenge-artifact.tsv
+      test -f .fixture-state/challenge-artifact.tsv &&
+      awk -F '\t' '$1=="phase" && $2=="challenge" {f=1} END {exit !f}' .fixture-state/challenge-artifact.tsv &&
+      awk -F '\t' '$1=="status" && $2=="needs_revision" {f=1} END {exit !f}' .fixture-state/challenge-artifact.tsv
   - name: evidence names default and required gate
     run: >-
-      grep -E 'default|omitt' .git/challenge-artifact.tsv >/dev/null &&
-      grep -F 'bash check.sh' .git/challenge-artifact.tsv >/dev/null
+      grep -E 'default|omitt' .fixture-state/challenge-artifact.tsv >/dev/null &&
+      grep -F 'bash check.sh' .fixture-state/challenge-artifact.tsv >/dev/null
 output_checks:
   - name: challenge reports the artifact
     expect_regex: "challenge-artifact\\.tsv"

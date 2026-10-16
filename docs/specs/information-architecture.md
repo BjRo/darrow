@@ -21,7 +21,9 @@ Plugin: `darrow-information-architecture`. Skills: `setup-information-architectu
   repository paths, including Windows drives and UNC paths. Interpret portable
   guidance routes with forward slashes; accept Windows separators on Windows.
   Match instruction names with their documented case even on case-insensitive
-  filesystems. Recognize CRLF, LF, and UTF-8 BOM guidance without changing bytes.
+  filesystems. Case validation stays within the resolved repository root and
+  does not require directory-listing access to its ancestors. Recognize CRLF,
+  LF, and UTF-8 BOM guidance without changing bytes.
   Emit UTF-8 records even when a native pipe defaults to a legacy code page,
   so non-Latin repository paths remain reportable.
   Follow file adapters only within the repository; report broken, looping,
@@ -275,6 +277,8 @@ decisions, then rerun the audit.
   graph through diagnosed corrections select doctoring. Requests to create,
   set up, or reorganize the guidance graph select setup unless the user
   explicitly asks for doctoring, even when instruction files already exist.
+  Naming an installed doctor skill in a proposed file graph or a future audit
+  route does not itself claim that doctoring was selected or used.
 
 ### Non-goals
 

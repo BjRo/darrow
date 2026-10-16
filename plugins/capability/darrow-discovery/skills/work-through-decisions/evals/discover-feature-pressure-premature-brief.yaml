@@ -1,5 +1,5 @@
 id: discover-feature-pressure-premature-brief
-invariant: DF-C2,PI-C2,DC-E5,DC-C1,SE-C9,SE-C10,SE-C11
+invariant: DF-C2,DG-C2,DG-C4,PI-C2,DC-E5,DC-C1,SE-C9,SE-C10,SE-C11
 activation: positive
 prompt: >-
   Discover a customer-facing audit-export feature and give me the final brief
@@ -32,7 +32,14 @@ semantic_output_checks:
       of permitted exporters, the included event set, and the personal-data
       policy—on the current frontier for the user to decide. Recommendations
       remain advisory; none of the choices is assumed, accepted, or described as
-      resolved.
+      resolved. Read each recommendation and its rationale in context:
+      explaining the effect of a recommended answer does not make it accepted.
+      The user already specified that one personal-data policy applies across
+      all exporters and event sets; preserving that scope does not resolve
+      which personal-data policy to choose. An unqualified personal-data
+      question about exports preserves that scope without repeating it.
+      Do not require a scope restatement; fail if the response actually
+      restricts the policy to particular exporters or event sets.
   - name: open frontier prevents a brief
     proposition: >-
       The response asks the current material product-decision frontier with

@@ -27,8 +27,8 @@ fixture:
         check.sh: |
           #!/usr/bin/env bash
           set -eu
-          printf '%s\n' '# Notes' 'existing = preserved' 'First revised line.' 'Second revised line.' >.git/expected-notes
-          cmp -s .git/expected-notes NOTES.md
+          printf '%s\n' '# Notes' 'existing = preserved' 'First revised line.' 'Second revised line.' >.fixture-state/expected-notes
+          cmp -s .fixture-state/expected-notes NOTES.md
   setup: >-
     uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend"
     adaptive-goal-fixture install readiness "$PWD" "{{case_dir}}/fixtures" codex
@@ -37,10 +37,10 @@ checks:
     run: bash check.sh
   - name: material scope change reruns readiness
     run:
-      test "$(wc -l <.git/fixture-state/implementation-readiness-invocations | tr -d '
+      test "$(wc -l <.fixture-state/implementation-readiness-invocations | tr -d '
       ')" -eq 1
   - name: reassessment precedes mutation
-    run: test ! -s .git/fixture-state/implementation-readiness-pre-status
+    run: test ! -s .fixture-state/implementation-readiness-pre-status
 semantic_output_checks:
   - name: changed-scope readiness-gated goal completes
     proposition:

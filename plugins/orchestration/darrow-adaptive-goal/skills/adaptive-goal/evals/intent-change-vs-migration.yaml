@@ -44,7 +44,7 @@ fixture:
           set -eu
           node config.test.js
           review_target=$(uv run --quiet --no-project .agents/backend/scripts/run_locked.py adaptive-goal-fixture review "$PWD" fingerprint)
-          printf 'check\t%s\n' "$review_target" >>.git/fixture-state/independent-review-events
+          printf 'check\t%s\n' "$review_target" >>.fixture-state/independent-review-events
   setup: >-
     uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend"
     adaptive-goal-fixture install review "$PWD" "{{case_dir}}/fixtures" codex
@@ -63,32 +63,72 @@ checks:
       (a.connectTarget(JSON.stringify({url:endpoint})) !== endpoint ||
       b.healthTarget(JSON.stringify({endpoint})) !== endpoint) process.exit(1) })"
   - name: focused tests pass
-    run: bash test.sh
+    run: |
+      test -r .agents/backend/scripts/run_locked.py || exit 71
+      test -r .agents/.claude-plugin/plugin.json || exit 72
+      test -r .agents/.codex-plugin/plugin.json || exit 73
+      if ! uv run --quiet --no-project .agents/backend/scripts/run_locked.py python -c pass 2>.fixture-state/grader-bootstrap-error; then
+        case "$(cat .fixture-state/grader-bootstrap-error)" in
+          *'cache root is unavailable or not writable'*) exit 76 ;;
+          *'cannot create Darrow environment directory'*) exit 77 ;;
+          *'manifest'*) exit 78 ;;
+          *'hatchling'*) exit 79 ;;
+          *'Network connectivity is disabled'*|*'network connectivity is disabled'*|*'offline'*) exit 80 ;;
+          *'No such file or directory'*) exit 81 ;;
+          *'Operation not permitted'*|*'operation not permitted'*) exit 82 ;;
+          *'Permission denied'*|*'permission denied'*) exit 83 ;;
+          *'Python interpreter'*|*'python interpreter'*) exit 84 ;;
+          *'Failed to spawn'*|*'failed to spawn'*) exit 85 ;;
+          *) exit 74 ;;
+        esac
+      fi
+      bash test.sh
   - name: migration compatibility receives one independent review
     run:
-      test "$(wc -l <.git/fixture-state/independent-review-invocations | tr -d ' ')" -eq
+      test "$(wc -l <.fixture-state/independent-review-invocations | tr -d ' ')" -eq
       1
   - name: independent review covers the migrated final target
-    run: >-
-      test "$(cut -f1 .git/fixture-state/independent-review-invocations)" = "$(uv run
-      --quiet --no-project .agents/backend/scripts/run_locked.py
-      adaptive-goal-fixture review "$PWD" fingerprint)"
+    run: |
+      test -r .agents/backend/scripts/run_locked.py || exit 71
+      test -r .agents/.claude-plugin/plugin.json || exit 72
+      test -r .agents/.codex-plugin/plugin.json || exit 73
+      if ! uv run --quiet --no-project .agents/backend/scripts/run_locked.py python -c pass 2>.fixture-state/grader-bootstrap-error; then
+        case "$(cat .fixture-state/grader-bootstrap-error)" in
+          *'cache root is unavailable or not writable'*) exit 76 ;;
+          *'cannot create Darrow environment directory'*) exit 77 ;;
+          *'manifest'*) exit 78 ;;
+          *'hatchling'*) exit 79 ;;
+          *'Network connectivity is disabled'*|*'network connectivity is disabled'*|*'offline'*) exit 80 ;;
+          *'No such file or directory'*) exit 81 ;;
+          *'Operation not permitted'*|*'operation not permitted'*) exit 82 ;;
+          *'Permission denied'*|*'permission denied'*) exit 83 ;;
+          *'Python interpreter'*|*'python interpreter'*) exit 84 ;;
+          *'Failed to spawn'*|*'failed to spawn'*) exit 85 ;;
+          *) exit 74 ;;
+        esac
+      fi
+      review_target=$(uv run --quiet --no-project .agents/backend/scripts/run_locked.py adaptive-goal-fixture review "$PWD" fingerprint) || exit 75
+      test "$(cut -f1 .fixture-state/independent-review-invocations)" = "$review_target"
   - name: independent review starts after a matching current check
     run: >-
       awk -F '\t' '$1 == "check" { checked[$2]=1 } $1 == "review_start" && checked[$2] {
-      ok=1 } END { exit ok ? 0 : 1 }' .git/fixture-state/independent-review-events
+      ok=1 } END { exit ok ? 0 : 1 }' .fixture-state/independent-review-events
   - name: independent review reports a clear comprehensive outcome
     run: >-
       awk -F '\t' 'NF == 3 && $2 == "clear" && $3 == "comprehensive" { ok=1 } END { exit
-      ok ? 0 : 1 }' .git/fixture-state/independent-review-invocations
+      ok ? 0 : 1 }' .fixture-state/independent-review-invocations
 output_checks:
   - name: no lifecycle protocol is reported
     not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
 semantic_output_checks:
   - name: sequenced transition is classified as migration
-    proposition:
-      The response reports the requested outcome as complete, with no unresolved
-      blocker or pending decision preventing completion.
+    proposition: >-
+      The response reports the requested local implementation as complete with
+      passing checks and no unresolved implementation blocker. The request is
+      for compatible code and rollout documentation, not a production rollout
+      or conversion of live records. Leaving deployment or live migration
+      unexecuted is allowed. Reject a plan-only response, an unfinished local
+      implementation, or remaining failing checks.
   - name: completion reports the semantic review outcome
     proposition:
       The response says an independent review of the completed change found no

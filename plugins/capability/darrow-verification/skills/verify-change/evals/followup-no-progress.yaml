@@ -67,12 +67,13 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
   - name: retained report handoff is rendered last
     run: |
-      test -e .git/inspect-candidate-report.md || exit 0
-      report=$(cd .git && pwd -P)/inspect-candidate-report.md
+      test -e .fixture-state/inspect-candidate-report.md || exit 0
+      report=$(cd .fixture-state && pwd -P)/inspect-candidate-report.md
       last=$(awk 'NF { line=$0 } END { print line }' .git/last-message.md)
       test "$last" = "Complete provider result: [report](<$report>)"
   - name: complete replacement evidence retained and referenced
-    run: test -s .git/inspect-candidate-report.md && report=$(cd .git && pwd
+    run:
+      test -s .fixture-state/inspect-candidate-report.md && report=$(cd .fixture-state && pwd
       -P)/inspect-candidate-report.md && grep -F "$report" .git/last-message.md
   - name: original advisory remains in outward handoff
     run: grep -F A1 .git/last-message.md
@@ -82,6 +83,8 @@ semantic_output_checks:
       acceptable), preserving F1 as the original Spec blocker and A1 as a
       nonblocking unresolved advisory, with current candidate/check evidence. It
       identifies unchanged timeout=1000 failure and returns that stop evidence.
+      This is the unchanged C1 acceptance failure; the required shape-only
+      bash check.sh passes, so do not require a failed deterministic check.
       It does not authorize, perform, prescribe or suggest another repair,
       including conditional advice such as "if another attempt is authorized,
       set timeoutMs to 2500". Identifying needed investigation or returning

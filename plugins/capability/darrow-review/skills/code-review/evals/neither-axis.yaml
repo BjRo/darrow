@@ -1,9 +1,7 @@
 id: code-review-neither-axis
 activation: positive
 invariant: CR-E2,CR-E5
-prompt: >-
-  Review my uncommitted changes against this originating requirement:
-  parseAge must return null for non-numeric input. Report only.
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Review my uncommitted changes against this originating requirement: parseAge must return null for non-numeric input. Report only."
 fixture:
   commits:
     - message: "chore: init"
@@ -28,42 +26,58 @@ fixture:
         return Number.isFinite(parsed) ? parsed : null;
       }
   setup: |
+    bash "{{case_dir}}/fixtures/prepare-grading.sh" "{{case_dir}}"
     git status --porcelain --untracked-files=all >.git/status-before
-    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: human response excludes machine JSON
-    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py
+      .git/last-message.md human-response
   - name: review is read-only
-    run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
+    run: git status --porcelain --untracked-files=all >.git/status-after; cmp
+      .git/status-before .git/status-after
   - name: canonical JSON is retained beneath the review scope artifact
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
-      test -n "$tool" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record"
+      tool=.git/eval-checks/review/src/darrow_review/result.py; test -n "$tool"
+      && uv run --quiet --frozen --no-dev --project
+      "${tool%/src/darrow_review/result.py}" review-result validate "$record"
     expect_regex: "^valid: darrow-review-result-v3$"
   - name: both axes pass without findings
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
-      test -n "$record" || exit 1;
-      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has standards pass &&
-      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has spec pass &&
-      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has verdict pass &&
-      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks-key findings
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
+      test -n "$record" || exit 1; python3
+      .git/eval-checks/review/tests/evals/assert_records.py "$record" has
+      standards pass && python3
+      .git/eval-checks/review/tests/evals/assert_records.py "$record" has spec
+      pass && python3 .git/eval-checks/review/tests/evals/assert_records.py
+      "$record" has verdict pass && python3
+      .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks-key
+      findings
   - name: retained Markdown preserves every canonical rendered line
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n '1');
-      test -n "$tool" || exit 1;
-      expected=.git/expected-review.md;
-      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render "$record" >"$expected" &&
-      awk 'NF' "$expected" >.git/expected-review-normalized.md &&
-      awk 'NF' "$(dirname "$record")/review.md" >.git/actual-review-normalized.md &&
-      cmp .git/expected-review-normalized.md .git/actual-review-normalized.md
+      tool=.git/eval-checks/review/src/darrow_review/report.py; test -n "$tool"
+      || exit 1; expected=.git/expected-review.md; uv run --quiet --frozen
+      --no-dev --project "${tool%/src/darrow_review/report.py}" review-report
+      render "$record" >"$expected" && awk 'NF' "$expected"
+      >.git/expected-review-normalized.md && awk 'NF' "$(dirname
+      "$record")/review.md" >.git/actual-review-normalized.md && cmp
+      .git/expected-review-normalized.md .git/actual-review-normalized.md
 semantic_output_checks:
   - name: review outcome and issues are understandable inline
     proposition: >-
-      The response reports a passing review with no blocking findings and passing
-      checks for the parseAge change. It does not claim a product defect requiring
-      repair.
+      The response conveys that the parseAge change satisfies the originating
+      requirement and boundary policy, has no findings requiring repair, and
+      passed the required bash test.sh check. "No findings" conveys the absence
+      of blocking findings; an exact verdict word is not required. Reject a
+      claimed product defect, a failed or missing required check, or a stated
+      unresolved review blocker. Acknowledging the check's limited input coverage
+      is allowed.

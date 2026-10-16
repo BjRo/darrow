@@ -17,7 +17,7 @@ fixture:
     from pathlib import Path
     root = Path.cwd().resolve()
     state = root / '.fixture-state'
-    state.mkdir()
+    state.mkdir(exist_ok=True)
     grant = dict(id='11111111-1111-4111-8111-111111111111', repository='fixture/repo',
         checkout=str(root), common_git=str(root / '.git'), grantor='maintainer',
         codex='/bin/false', gh='/bin/false', git='/usr/bin/git', model='gpt-5.6-terra',

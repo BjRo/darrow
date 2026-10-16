@@ -1,6 +1,9 @@
 import { expect, test } from "bun:test";
-import { resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { captureTestCommand } from "../test-command";
 import {
   fixtureExtensionRequest,
   readFixtureCase,
@@ -19,11 +22,11 @@ const reviewPlugin = new URL(
 );
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 const state =
-  'export DARROW_REVIEW_STATE_DIR="$(cat .git/oracle-review-state)" DARROW_CACHE_DIR="$PWD/.git/fixture-runtime-cache"';
+  'export DARROW_REVIEW_STATE_DIR="$(cat .git/oracle-review-state)" SEVRO_CANDIDATE_ARTIFACT_REVIEWS="$(cat .git/oracle-review-state)" DARROW_CACHE_DIR="$PWD/.git/fixture-runtime-cache"';
 const proof =
-  "uv run --quiet --frozen --no-dev --project .git/fixture-backend adaptive-goal-fixture proof";
+  'uv run --quiet --no-project "$PWD/.sevro-marketplace/plugin/backend/scripts/run_locked.py" adaptive-goal-fixture proof';
 const review =
-  "uv run --quiet --frozen --no-dev --project .git/review-plugin/backend";
+  "uv run --quiet --frozen --no-dev --project .sevro-marketplace/plugins/0-darrow-review/backend";
 
 type RepairScenario = {
   name: string;
@@ -76,18 +79,37 @@ async function reviewFiles(prefix = ".fixture-review-plugin") {
   return files;
 }
 
+function providerCatalog(conflict: boolean) {
+  return JSON.stringify({
+    name: "darrow-eval",
+    plugins: [
+      { name: "darrow-adaptive-goal", source: "./plugin" },
+      { name: "darrow-review", source: "./plugins/0-darrow-review" },
+      ...(conflict
+        ? [{ name: "darrow-review", source: "./plugins/1-darrow-review" }]
+        : []),
+    ],
+  });
+}
+
 async function proofFixture(scenario: RepairScenario | undefined = undefined) {
+  const { duplicate = false, conflict = false } = scenario ?? {};
   const runtime = await prepareUvFixtureRuntime();
   const files = {
     ...(await reviewFiles()),
-    ...(scenario?.duplicate ? await reviewFiles(".fixture-review-cache") : {}),
+    ...(duplicate ? await reviewFiles(".fixture-review-cache") : {}),
   };
-  if (scenario?.conflict)
+  if (conflict)
     files[".fixture-review-cache/backend/src/darrow_review/scope.py"] =
       "raise RuntimeError('conflicting copy')\n";
+  files[".sevro-marketplace/.claude-plugin/marketplace.json"] =
+    providerCatalog(conflict);
+  const extra = conflict
+    ? ".sevro-marketplace/plugins/1-darrow-review"
+    : ".git/plugin-cache";
   const providerBackends = [
-    ".git/review-plugin/backend",
-    ...(scenario?.duplicate ? [".git/plugin-cache/backend"] : []),
+    ".sevro-marketplace/plugins/0-darrow-review/backend",
+    ...(duplicate ? [`${extra}/backend`] : []),
   ];
   const prepareProviders = providerBackends
     .map(
@@ -98,7 +120,7 @@ async function proofFixture(scenario: RepairScenario | undefined = undefined) {
   return {
     files,
     bin: runtime.bin,
-    setup: `${runtime.setupPrefix}\nmv .fixture-review-plugin .git/review-plugin\n${scenario?.duplicate ? "mv .fixture-review-cache .git/plugin-cache\n" : ""}uv sync --quiet --frozen --no-dev --project .git/review-plugin/backend\nexport DARROW_CACHE_DIR="$PWD/.git/fixture-runtime-cache"\n${prepareProviders}`,
+    setup: `${runtime.setupPrefix}\nmkdir -p .sevro-marketplace/plugins\nmv .fixture-review-plugin .sevro-marketplace/plugins/0-darrow-review\n${duplicate ? `mv .fixture-review-cache ${extra}\n` : ""}uv sync --quiet --frozen --no-dev --project .sevro-marketplace/plugins/0-darrow-review/backend\nexport DARROW_CACHE_DIR="$PWD/.git/fixture-runtime-cache"\n${prepareProviders}`,
   };
 }
 
@@ -141,6 +163,22 @@ test("high-risk composition requires verification and supporting review reads", 
           data: {
             method: "explicit_invocation",
             primarySkill: "adaptive-goal",
+            observedSkills: [...skills],
+          },
+        },
+        {
+          id: "sevro.host.skill-activations",
+          source: "sevro.host.codex",
+          completeness: "complete",
+          data: {
+            method: "tool_result_body_match",
+            visibility: "tool_result",
+            scope: "prepared_skill_bodies",
+            catalogComplete: true,
+            partialSkills: [],
+            ambiguousSkills: [],
+            calls: [],
+            truncated: false,
             observedSkills: [...skills],
           },
         },
@@ -340,7 +378,7 @@ test("high-risk review oracle: valid and invalid artifacts", async () => {
       selectArtifact(record, scenario),
       {
         name: "retain the selected proof",
-        run: "cp .git/selected-review-artifact .git/fixture-state/high-risk-review-proof",
+        run: "cp .git/selected-review-artifact .fixture-state/high-risk-review-proof && printf '%s\\n' \"$DARROW_REVIEW_STATE_DIR\" >.fixture-state/high-risk-review-state-root",
       },
       {
         ...check,
@@ -564,7 +602,7 @@ const repairScenarios: RepairScenario[] = [
     passes: true,
   },
   {
-    name: "conflicting installed tools",
+    name: "conflicting declared providers",
     duplicate: true,
     conflict: true,
     passes: false,
@@ -583,27 +621,14 @@ for (const scenario of repairScenarios) {
       {
         name: "completion marker matches the verification gate",
         run: scenario.passes
-          ? 'test "$(cat .git/goal-complete)" = complete'
-          : "test ! -e .git/goal-complete",
+          ? 'test "$(cat .fixture-state/goal-complete)" = complete'
+          : "test ! -e .fixture-state/goal-complete",
       },
       ...(scenario.passes
         ? [
             {
               name: "retained artifact is independently valid",
               run: `${state}\n${proof} artifact`,
-            },
-            {
-              name: "retained review is still current",
-              run: `${state}\n${proof} current`,
-            },
-            {
-              name: "change content after completion",
-              run: "printf '%s\\n' 'changed after completion' >value.txt",
-            },
-            {
-              name: "changed content invalidates retained current proof",
-              run: `${state}\n${proof} current`,
-              exit_code: 1,
             },
           ]
         : []),
@@ -616,3 +641,70 @@ for (const scenario of repairScenarios) {
     );
   }, 30_000);
 }
+
+test("high-risk current proof accepts read-only artifacts and rejects changed content", async () => {
+  const scenario = { name: "read-only artifacts", passes: true };
+  const context = await goalReviewOracle(await proofFixture(scenario));
+  await assertGoalReviewChecks(context, [
+    ...repairActions(scenario),
+    {
+      name: "complete with the canonical current provider result",
+      run: `${state}\n${proof} complete "$(cat .git/selected-review-artifact)"`,
+    },
+    {
+      name: "make the actual provider artifact tree read only",
+      run: `${state}\nfind "$DARROW_REVIEW_STATE_DIR" -type f | sort > .git/provider-files-before\nchmod -R a-w "$DARROW_REVIEW_STATE_DIR"`,
+    },
+  ]);
+  try {
+    await assertGoalReviewChecks(context, [
+      {
+        name: "current proof reads the unchanged canonical artifact tree",
+        run: `${state}\n${proof} current\nfind "$DARROW_REVIEW_STATE_DIR" -type f | sort > .git/provider-files-after\ncmp .git/provider-files-before .git/provider-files-after`,
+      },
+      {
+        name: "change the reviewed candidate",
+        run: "printf '%s\\n' 'changed after completion' >value.txt",
+      },
+      {
+        name: "read-only artifact grant cannot hide a stale worktree",
+        run: `${state}\n${proof} current`,
+        exit_code: 1,
+      },
+    ]);
+  } finally {
+    await assertGoalReviewChecks(context, [
+      {
+        name: "restore owned fixture permissions for cleanup",
+        run: `${state}\nchmod -R u+rwX "$DARROW_REVIEW_STATE_DIR"`,
+      },
+    ]);
+  }
+}, 30_000);
+
+test("goal review proof works offline after preparing an explicit empty UV cache", async () => {
+  const cache = await mkdtemp(join(tmpdir(), "darrow-goal-review-cache-"));
+  try {
+    const result = await captureTestCommand(
+      [
+        process.execPath,
+        "test",
+        "--timeout",
+        "60000",
+        fileURLToPath(import.meta.url),
+        "--test-name-pattern",
+        "high-risk current proof accepts read-only artifacts and rejects changed content",
+      ],
+      undefined,
+      {
+        cwd: fileURLToPath(new URL("../../", import.meta.url)),
+        env: { ...process.env, UV_CACHE_DIR: cache },
+        timeout: 60_000,
+      },
+    );
+    expect(result.exitCode, result.stderr || result.stdout).toBe(0);
+    expect(result.stderr).toContain("1 pass");
+  } finally {
+    await rm(cache, { recursive: true, force: true });
+  }
+}, 60_000);

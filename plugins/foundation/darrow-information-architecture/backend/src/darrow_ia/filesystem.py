@@ -46,9 +46,11 @@ def absolute_reference(ref: str) -> bool:
     return Path(ref).is_absolute() or bool(PureWindowsPath(ref).drive)
 
 
-def exact_path(path: Path) -> bool:
+def exact_path(path: Path, root: Path) -> bool:
     """Require portable spelling even when the underlying filesystem folds case."""
-    while path != path.parent:
+    while path != root:
+        if not inside(path, root):
+            return False
         if path.name != ".." and path.name not in os.listdir(path.parent):
             return False
         path = path.parent
@@ -57,7 +59,7 @@ def exact_path(path: Path) -> bool:
 
 def existing(path: Path, root: Path) -> Path | None:
     try:
-        if not path.is_file() or not exact_path(path):
+        if not path.is_file() or not exact_path(path, root):
             return None
         # Preserve a file adapter's spelling for runtime metrics, but validate
         # its actual destination. Resolve directory components for containment.

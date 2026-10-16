@@ -6,6 +6,8 @@ import json
 import os
 import subprocess
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from typing import cast
 
 from ..common import RefusalError
 from .state import metadata
@@ -26,21 +28,89 @@ def field(path: Path, name: str) -> str:
     return value
 
 
-def provider(git_dir: Path) -> Path:
-    candidates = sorted(git_dir.rglob("backend/src/darrow_review/result.py"))
-    if not candidates:
+def unique_json(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    value: dict[str, object] = {}
+    for name, item in pairs:
+        if name in value:
+            raise InvalidProofError(f"duplicate provider JSON field: {name}")
+        value[name] = item
+    return value
+
+
+def provider_json(path: Path) -> dict[str, object]:
+    try:
+        value: object = json.loads(
+            path.read_text(encoding="utf-8"), object_pairs_hook=unique_json
+        )
+    except (OSError, UnicodeError, ValueError, RecursionError) as error:
+        raise InvalidProofError(f"unreadable provider metadata: {path}") from error
+    if not isinstance(value, dict):
+        raise InvalidProofError(f"invalid provider metadata: {path}")
+    return cast(dict[str, object], value)
+
+
+def review_source(root: Path) -> str:
+    plugins = provider_json(root / ".claude-plugin/marketplace.json").get("plugins")
+    if not isinstance(plugins, list):
+        raise InvalidProofError("invalid provider catalog plugins")
+    if any(not isinstance(plugin, dict) for plugin in plugins):
+        raise InvalidProofError("invalid provider catalog entry")
+    matching = [plugin for plugin in plugins if plugin.get("name") == "darrow-review"]
+    if len(matching) != 1:
+        raise InvalidProofError("exactly one declared review provider is required")
+    source = matching[0].get("source")
+    if not isinstance(source, str):
+        raise InvalidProofError("review provider requires a local source")
+    return source
+
+
+def provider_package(root: Path, source: str) -> Path:
+    if not source.startswith("./") or "\\" in source:
+        raise InvalidProofError("unsafe review provider source")
+    selected = root / source
+    if not selected.resolve().is_relative_to(root.resolve()):
+        raise InvalidProofError("escaping review provider source")
+    if any((root / part).is_symlink() for part in selected.relative_to(root).parents):
+        raise InvalidProofError("linked review provider source")
+    if selected.is_symlink():
+        raise InvalidProofError("linked review provider source")
+    return selected
+
+
+def provider_identity(package: Path) -> None:
+    manifests = [
+        provider_json(package / folder / "plugin.json")
+        for folder in (".claude-plugin", ".codex-plugin")
+    ]
+    if any(manifest.get("name") != "darrow-review" for manifest in manifests):
+        raise InvalidProofError("review provider plugin identity differs")
+    version = manifests[0].get("version")
+    if (
+        not isinstance(version, str)
+        or not version
+        or manifests[1].get("version") != version
+    ):
+        raise InvalidProofError("review provider plugin versions differ")
+
+
+def provider(repo: Path) -> Path:
+    root = repo / ".sevro-marketplace"
+    package = provider_package(root, review_source(root))
+    provider_identity(package)
+    backend = package / "backend"
+    if not (backend / "src/darrow_review/result.py").is_file():
         raise InvalidProofError("installed review-result tool is missing")
-    first = candidates[0]
-    for candidate in candidates[1:]:
-        for name in ("result.py", "scope.py"):
-            if (first.parent / name).read_bytes() != (
-                candidate.parent / name
-            ).read_bytes():
-                raise InvalidProofError("conflicting fixture review-tool copies")
-    return first.parents[2]
+    return backend
 
 
-def invoke(backend: Path, repo: Path, *args: str) -> str:
+def invoke(
+    backend: Path, repo: Path, *args: str, state_root: Path | None = None
+) -> str:
+    environment = (
+        None
+        if state_root is None
+        else {**os.environ, "DARROW_REVIEW_STATE_DIR": str(state_root)}
+    )
     result = subprocess.run(
         [
             "uv",
@@ -51,6 +121,7 @@ def invoke(backend: Path, repo: Path, *args: str) -> str:
             *args,
         ],
         cwd=repo,
+        env=environment,
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -166,18 +237,20 @@ def verification_target(backend: Path, repo: Path, state: Path, path: Path) -> s
 def current(backend: Path, repo: Path, target: str) -> None:
     if not (backend / "src/darrow_review/scope.py").is_file():
         raise InvalidProofError("installed review-scope tool is missing")
-    scope = invoke(
-        backend,
-        repo,
-        "review-scope",
-        "prepare",
-        "--repo",
-        str(repo),
-        "--base",
-        "HEAD",
-        "--target",
-        "WORKTREE",
-    )
+    with TemporaryDirectory(prefix="darrow-fixture-current-") as scratch:
+        scope = invoke(
+            backend,
+            repo,
+            "review-scope",
+            "prepare",
+            "--repo",
+            str(repo),
+            "--base",
+            "HEAD",
+            "--target",
+            "WORKTREE",
+            state_root=Path(scratch),
+        )
     try:
         value = json.loads(scope)
         actual = value["target"]
@@ -199,13 +272,15 @@ def validate(repo: Path, mode: str, selected: str = "") -> str:
 
 
 def validate_selected(repo: Path, mode: str, selected: str) -> str:
-    git_dir = metadata(repo)
-    proof = git_dir / "fixture-state/high-risk-review-proof"
+    metadata(repo)
+    proof = repo / ".fixture-state/high-risk-review-proof"
     if mode != "complete":
         selected = proof.read_text(encoding="utf-8").strip()
     state = review_state_root()
+    if state.is_relative_to(repo.resolve()):
+        raise InvalidProofError("review state must be outside the repository")
     path = canonical_record(state, selected)
-    backend = provider(git_dir)
+    backend = provider(repo)
     path = machine_record(backend, repo, path)
     target = reviewed_target(backend, repo, state, path)
     if mode != "artifact":
@@ -213,7 +288,10 @@ def validate_selected(repo: Path, mode: str, selected: str) -> str:
     if mode == "complete":
         proof.parent.mkdir(exist_ok=True)
         proof.write_text(str(path) + "\n", encoding="utf-8", newline="\n")
-        (git_dir / "goal-complete").write_text(
+        (repo / ".fixture-state/high-risk-review-state-root").write_text(
+            str(state) + "\n", encoding="utf-8", newline="\n"
+        )
+        (repo / ".fixture-state/goal-complete").write_text(
             "complete\n", encoding="utf-8", newline="\n"
         )
     return f"valid clear review: {path}\n"

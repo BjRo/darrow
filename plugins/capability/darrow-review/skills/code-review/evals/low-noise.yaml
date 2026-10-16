@@ -1,10 +1,7 @@
 id: code-review-low-noise
 activation: positive
 invariant: CR-E5,CR-C6,CR-C7
-prompt: >-
-  Review my uncommitted changes against this originating requirement: add an
-  admin health handler that repeats the local two-line auth guard and returns
-  status 204. Report only.
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Review my uncommitted changes against this originating requirement: add an admin health handler that repeats the local two-line auth guard and returns status 204. Report only."
 fixture:
   commits:
     - message: "chore: init"
@@ -35,40 +32,54 @@ fixture:
         return 204;
       }
   setup: |
+    bash "{{case_dir}}/fixtures/prepare-grading.sh" "{{case_dir}}"
     git status --porcelain --untracked-files=all >.git/status-before
-    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: human response excludes machine JSON
-    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py
+      .git/last-message.md human-response
   - name: review remains read-only despite failed check
-    run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
+    run: git status --porcelain --untracked-files=all >.git/status-after; cmp
+      .git/status-before .git/status-after
   - name: canonical JSON is retained beneath the review scope artifact
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
-      test -n "$tool" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record"
+      tool=.git/eval-checks/review/src/darrow_review/result.py; test -n "$tool"
+      && uv run --quiet --frozen --no-dev --project
+      "${tool%/src/darrow_review/result.py}" review-result validate "$record"
     expect_regex: "^valid: darrow-review-result-v3$"
   - name: failed formatter remains check evidence without prose findings
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
-      test -n "$record" || exit 1;
-      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has standards pass &&
-      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has spec pass &&
-      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has verdict fail &&
-      python3 -c 'import json,sys; record=json.load(open(sys.argv[1])); assert any(check["command"]=="bash format-check.sh" and check["applicability"]=="applicable" and check["status"]=="fail" for check in record["checks"])' "$record" &&
-      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks-key findings
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
+      test -n "$record" || exit 1; python3
+      .git/eval-checks/review/tests/evals/assert_records.py "$record" has
+      standards pass && python3
+      .git/eval-checks/review/tests/evals/assert_records.py "$record" has spec
+      pass && python3 .git/eval-checks/review/tests/evals/assert_records.py
+      "$record" has verdict fail && python3 -c 'import json,sys;
+      record=json.load(open(sys.argv[1])); assert any(check["command"]=="bash
+      format-check.sh" and check["applicability"]=="applicable" and
+      check["status"]=="fail" for check in record["checks"])' "$record" &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record"
+      lacks-key findings
   - name: retained Markdown preserves every canonical rendered line
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n '1');
-      test -n "$tool" || exit 1;
-      expected=.git/expected-review.md;
-      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render "$record" >"$expected" &&
-      awk 'NF' "$expected" >.git/expected-review-normalized.md &&
-      awk 'NF' "$(dirname "$record")/review.md" >.git/actual-review-normalized.md &&
-      cmp .git/expected-review-normalized.md .git/actual-review-normalized.md
+      tool=.git/eval-checks/review/src/darrow_review/report.py; test -n "$tool"
+      || exit 1; expected=.git/expected-review.md; uv run --quiet --frozen
+      --no-dev --project "${tool%/src/darrow_review/report.py}" review-report
+      render "$record" >"$expected" && awk 'NF' "$expected"
+      >.git/expected-review-normalized.md && awk 'NF' "$(dirname
+      "$record")/review.md" >.git/actual-review-normalized.md && cmp
+      .git/expected-review-normalized.md .git/actual-review-normalized.md
 semantic_output_checks:
   - name: review outcome and issues are understandable inline
     proposition: >-
@@ -77,8 +88,8 @@ semantic_output_checks:
       Standards and Spec axes are consistent with an overall failed verdict:
       deterministic check results separately control that verdict. A failed
       verdict, failed format check, and no reader findings stated together
-      establish this distinction without an additional causal sentence.
-      The response must not demand centralizing the deliberately duplicated
-      auth guard; silence about that guard satisfies this exclusion. Reject an
+      establish this distinction without an additional causal sentence. The
+      response must not demand centralizing the deliberately duplicated auth
+      guard; silence about that guard satisfies this exclusion. Reject an
       overall pass, omission of the failed check, a separate model finding
       duplicating the formatting failure, or an auth-guard refactoring demand.

@@ -34,7 +34,7 @@ def test_review_retains_original_finding_and_cleared_history(repo: Path) -> None
         in original
     )
     assert f"Original target: {original_target}\n" in original
-    saved = repo / ".git/fixture-state/review-result-0.md"
+    saved = repo / ".fixture-state/review-result-0.md"
     assert saved.read_text(encoding="utf-8") == original
 
     assert "Fix verification: no_progress." in review.assess(repo, "verify", CONTRACT)

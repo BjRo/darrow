@@ -1,4 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
+import { captureTestCommand } from "../test-command";
 
 import { createHash } from "node:crypto";
 
@@ -11,6 +12,7 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { invocation } from "../sevro-extension/run";
+import { activationReceipt } from "./policy-project";
 
 const extension = resolve(import.meta.dir, "../sevro-extension/index.ts");
 
@@ -75,6 +77,22 @@ test("Darrow refuses override mounts that contradict preparation configuration",
   roots.push(root);
   const cases = join(root, "evals/experiments/example/cases");
   const skillDir = "plugins/capability/example/skills/probe";
+  for (const host of ["claude", "codex"]) {
+    const directory = join(
+      root,
+      "plugins/capability/example",
+      `.${host}-plugin`,
+    );
+    await mkdir(directory, { recursive: true });
+    await writeFile(
+      join(directory, "plugin.json"),
+      JSON.stringify({
+        name: "example",
+        version: "0.1.0",
+        ...(host === "codex" ? { skills: "./skills/" } : {}),
+      }),
+    );
+  }
   await mkdir(cases, { recursive: true });
   for (const name of ["probe", "rival"]) {
     const directory = join(root, "plugins/capability/example/skills", name);
@@ -126,7 +144,7 @@ test("Darrow refuses override mounts that contradict preparation configuration",
     }),
   );
   expect(prepared.code, prepared.stderr).toBe(0);
-  expect(prepared.value.result.artifacts).toHaveLength(2);
+  expect(prepared.value.result.artifacts).toHaveLength(4);
 });
 
 test("Darrow conditions preserve route rendering on the follow-up turn", async () => {
@@ -193,22 +211,15 @@ async function command<T>(
   stderr: string;
   value: T;
 }> {
-  const proc = Bun.spawn(argv, {
-    stdin: input === undefined ? "ignore" : "pipe",
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  if (input !== undefined) {
-    if (!proc.stdin || typeof proc.stdin === "number")
-      throw new Error("stdin unavailable");
-    await proc.stdin.write(JSON.stringify(input));
-    await proc.stdin.end();
-  }
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(
+    argv,
+    input === undefined ? undefined : JSON.stringify(input),
+    { env: process.env },
+  );
   return { code, stderr, value: JSON.parse(stdout) as T };
 }
 
@@ -496,15 +507,10 @@ test("Darrow activation needs a complete and consistent host observation", async
   expect(passed.value.result.domainOutcomes).toMatchObject([
     { status: "passed", evidenceRefs: ["darrow.activation"] },
   ]);
-  const native = {
-    ...observation,
-    id: "sevro.codex.skill-reads",
-    source: "sevro.host.codex",
-    data: { ...observation.data, method: "skill_file_read_probe" },
-  };
+  const native = activationReceipt(["verify-change"]);
   const nativePassed = await evaluate([native]);
   expect(nativePassed.value.result.domainOutcomes).toMatchObject([
-    { status: "passed", evidenceRefs: ["sevro.codex.skill-reads"] },
+    { status: "passed", evidenceRefs: ["sevro.host.skill-activations"] },
   ]);
   const explicitData = {
     "darrow.case": {
@@ -517,7 +523,7 @@ test("Darrow activation needs a complete and consistent host observation", async
   const dispatch = {
     ...native,
     id: "sevro.codex.explicit-invocation",
-    data: { ...native.data, method: "explicit_invocation" },
+    data: { method: "explicit_invocation", primarySkill: "verify-change" },
   };
   const dispatched = await evaluate([native, dispatch], explicitData);
   expect(dispatched.value.result.domainOutcomes).toMatchObject([
@@ -538,7 +544,7 @@ test("Darrow activation needs a complete and consistent host observation", async
     "unavailable",
   );
   const ambiguous = await evaluate([observation, native]);
-  expect(ambiguous.value.result.domainOutcomes[0]!.status).toBe("unavailable");
+  expect(ambiguous.value.result.domainOutcomes[0]!.status).toBe("passed");
   const missed = await evaluate([]);
   expect(missed.value.result.domainOutcomes[0]!.status).toBe("unavailable");
   const partial = await evaluate([{ ...observation, completeness: "partial" }]);
@@ -891,7 +897,9 @@ test("Darrow doctor controls require intact negative evidence", async () => {
       observedSkills: [],
     },
   };
-  const clean = await events("turn.completed\n");
+  const start = '{"type":"turn.started"}\n';
+  const cleanContent = start + '{"type":"turn.completed"}\n';
+  const clean = await events(cleanContent);
   const evaluate = async (
     selectedCase: ExtensionReply["result"]["cases"][number],
     observations: unknown[],
@@ -982,16 +990,58 @@ test("Darrow doctor controls require intact negative evidence", async () => {
     await evaluate(
       selectedCase,
       [native, skills],
-      [await events("adaptive-goal-preflight\n")],
+      [
+        await events(
+          start +
+            JSON.stringify({
+              type: "item.completed",
+              item: {
+                type: "command_execution",
+                command: "uv run --frozen adaptive-goal-preflight prepare",
+                aggregated_output: "",
+              },
+            }) +
+            '\n{"type":"turn.completed"}\n',
+        ),
+      ],
     ),
   ).toBe("failed");
   expect(
     await evaluate(
       selectedCase,
       [native, skills],
-      [await events('{"skill":"adaptive-goal"}\n')],
+      [
+        await events(
+          start +
+            JSON.stringify({
+              type: "item.completed",
+              item: {
+                type: "command_execution",
+                command: "cat .agents/skills/doctor-adaptive-goal/SKILL.md",
+                aggregated_output:
+                  'Documentation: adaptive-goal-preflight and {"skill":"adaptive-goal"}',
+              },
+            }) +
+            '\n{"type":"turn.completed"}\n',
+        ),
+      ],
     ),
-  ).toBe("failed");
+  ).toBe("passed");
+  for (const incomplete of [
+    "not JSON\n",
+    start,
+    cleanContent + start,
+    start +
+      '{"type":"item.completed","item":{"type":"command_execution"}}\n{"type":"turn.completed"}\n',
+  ]) {
+    expect(
+      await evaluate(
+        selectedCase,
+        [native, skills],
+        [await events(incomplete)],
+      ),
+    ).toBe("unavailable");
+  }
   expect(
     await evaluate(
       selectedCase,
@@ -1015,7 +1065,7 @@ test("Darrow doctor controls require intact negative evidence", async () => {
         },
         skills,
       ],
-      [await events("turn.completed\n")],
+      [await events(cleanContent)],
     ),
   ).toBe("failed");
   expect(
@@ -1031,7 +1081,7 @@ test("Darrow doctor controls require intact negative evidence", async () => {
         },
         skills,
       ],
-      [await events("turn.completed\n")],
+      [await events(cleanContent)],
     ),
   ).toBe("failed");
 });
@@ -2437,16 +2487,17 @@ test("Claude repository activation requires its complete bound command receipt",
       method: "native_repository_command",
       accepted: true,
       skill: "probe",
-      primarySkill: "probe",
-      observedSkills: ["probe"],
+      reason: "native command and complete mounted body matched",
     },
   };
   const tools = {
-    id: "sevro.claude.tool-calls",
+    id: "sevro.host.skill-activations",
     source: "sevro.host.claude",
     completeness: "complete",
     data: {
-      method: "stream_tool_calls",
+      method: "skill_tool_result",
+      visibility: "skill_tool",
+      observedSkills: ["probe"],
       truncated: false,
       calls: [
         {
@@ -2491,7 +2542,7 @@ test("Claude repository activation requires its complete bound command receipt",
     ...tools,
     data: {
       ...tools.data,
-      calls: [{ ...tools.data.calls[0], invocation: "foreign:probe" }],
+      observedSkills: ["foreign:probe"],
     },
   };
   expect(await status([foreign], false)).toBe("unavailable");

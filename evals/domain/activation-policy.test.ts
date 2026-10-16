@@ -1,3 +1,4 @@
+import { fixtureExtensionRequest } from "./fixture-command";
 import { describe, expect, test } from "bun:test";
 import { activationGate } from "../sevro-extension/activation";
 import {
@@ -16,6 +17,216 @@ const selectedTrials = (outcomes: ActivationOutcome[]) => ({
     grading: { status: "completed" },
     domainOutcomes: [outcome],
   })),
+});
+
+function commonActivation(skills: string[]) {
+  return {
+    id: "sevro.host.skill-activations",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "tool_result_body_match",
+      visibility: "tool_result",
+      scope: "prepared_skill_bodies",
+      catalogComplete: true,
+      observedSkills: skills,
+      partialSkills: [],
+      ambiguousSkills: [],
+      calls: [],
+      truncated: false,
+    },
+  };
+}
+
+test("rc15 common activation preserves qualified identity and fails closed without healthy collection", async () => {
+  const selected = await (
+    await policyProject({ activation: "positive" })
+  ).resolve();
+  const receipt = commonActivation(["sample:grilling"]);
+  expect(await evaluateActivation(selected, [receipt])).toMatchObject({
+    status: "passed",
+    data: { primarySkill: "grilling", observedSkills: ["grilling"] },
+  });
+  expect(
+    (await evaluateActivation(selected, [commonActivation([])])).status,
+  ).toBe("failed");
+  for (const observations of [
+    [receipt, receipt],
+    [{ ...receipt, completeness: "partial" }],
+    [{ ...receipt, source: "foreign" }],
+    [commonActivation(["foreign:grilling"])],
+    [commonActivation(["sample:grilling", "grilling"])],
+    ...[
+      { truncated: true },
+      { catalogComplete: false },
+      { partialSkills: ["sample:grilling"] },
+      { ambiguousSkills: ["sample:grilling"] },
+      { method: "unverified" },
+      { calls: null },
+      { observedSkills: [12] },
+    ].map((data) => [{ ...receipt, data: { ...receipt.data, ...data } }]),
+  ])
+    expect((await evaluateActivation(selected, observations)).status).toBe(
+      "unavailable",
+    );
+  const partial = { ...receipt, completeness: "partial" };
+  expect(
+    (
+      await evaluateActivation(selected, [
+        partial,
+        activationReceipt(["grilling"]),
+      ])
+    ).status,
+  ).toBe("unavailable");
+  const negative = await (
+    await policyProject({ activation: "negative" })
+  ).resolve();
+  expect(
+    (await evaluateActivation(negative, [commonActivation([])])).status,
+  ).toBe("passed");
+  expect(
+    (
+      await evaluateActivation(negative, [
+        { ...commonActivation([]), completeness: "partial" },
+      ])
+    ).status,
+  ).toBe("unavailable");
+});
+
+test("rc15 Claude activation uses successful Skill collection and retains repository namespace boundaries", async () => {
+  const project = await policyProject({ activation: "positive" });
+  const receipt = {
+    id: "sevro.host.skill-activations",
+    source: "sevro.host.claude",
+    completeness: "complete",
+    data: {
+      method: "skill_tool_result",
+      visibility: "skill_tool",
+      observedSkills: ["sample:grilling"],
+      calls: [],
+      truncated: false,
+    },
+  };
+  expect(
+    (await evaluateActivation(await project.resolve(), [receipt])).status,
+  ).toBe("passed");
+  const repository = await (
+    await policyProject({ activation: "positive" }, { repository: true })
+  ).resolve();
+  expect((await evaluateActivation(repository, [receipt])).status).toBe(
+    "unavailable",
+  );
+  expect(
+    (
+      await evaluateActivation(repository, [
+        { ...receipt, data: { ...receipt.data, observedSkills: ["grilling"] } },
+      ])
+    ).status,
+  ).toBe("passed");
+});
+
+test("rc15 explicit dispatch remains separate from complete supporting activations", async () => {
+  const selected = await (
+    await policyProject({
+      activation: "positive",
+      prompt: "Use {{skill_invocation}}.",
+      additional_plugins: ["plugins/capability/provider"],
+      activation_includes: ["code-review"],
+    })
+  ).resolve();
+  const dispatch = {
+    id: "sevro.codex.explicit-invocation",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: { method: "explicit_invocation", primarySkill: "grilling" },
+  };
+  const receipt = commonActivation(["provider:code-review"]);
+  expect(await evaluateActivation(selected, [dispatch, receipt])).toMatchObject(
+    { status: "passed" },
+  );
+  expect(
+    await evaluateActivation(selected, [
+      { ...dispatch, data: { ...dispatch.data, primarySkill: "wrong-owner" } },
+      receipt,
+    ]),
+  ).toMatchObject({
+    status: "failed",
+    data: {
+      primarySkill: "wrong-owner",
+      observedSkills: ["wrong-owner", "code-review"],
+    },
+  });
+  expect((await evaluateActivation(selected, [dispatch])).status).toBe(
+    "unavailable",
+  );
+  expect((await evaluateActivation(selected, [receipt])).status).toBe(
+    "unavailable",
+  );
+  expect(
+    (
+      await evaluateActivation(selected, [
+        dispatch,
+        { ...receipt, completeness: "partial" },
+      ])
+    ).status,
+  ).toBe("unavailable");
+  expect(
+    (await evaluateActivation(selected, [dispatch, commonActivation([])]))
+      .status,
+  ).toBe("failed");
+});
+
+test("rc15 Claude explicit supporting assertions require a bound dispatch and complete common collection", async () => {
+  const project = await policyProject(
+    {
+      activation: "positive",
+      prompt: "{{skill_invocation}} Help.",
+      additional_plugins: ["plugins/capability/provider"],
+      activation_includes: ["code-review"],
+    },
+    { repository: true },
+  );
+  const selected = await project.resolve();
+  const dispatch = {
+    id: "sevro.claude.repository-invocation",
+    source: "sevro.host.claude",
+    completeness: "complete",
+    data: {
+      method: "native_repository_command",
+      accepted: true,
+      skill: "grilling",
+      reason: "native command and complete mounted body matched",
+    },
+  };
+  const collection = {
+    id: "sevro.host.skill-activations",
+    source: "sevro.host.claude",
+    completeness: "complete",
+    data: {
+      method: "skill_tool_result",
+      visibility: "skill_tool",
+      observedSkills: ["provider:code-review"],
+      calls: [],
+      truncated: false,
+    },
+  };
+  expect(
+    (await evaluateActivation(selected, [dispatch, collection])).status,
+  ).toBe("passed");
+  for (const observations of [
+    [dispatch],
+    [collection],
+    [dispatch, { ...collection, completeness: "partial" }],
+    [{ ...dispatch, completeness: "partial" }, collection],
+    [{ ...dispatch, data: { ...dispatch.data, accepted: false } }, collection],
+    [
+      { ...dispatch, data: { ...dispatch.data, skill: "wrong-owner" } },
+      collection,
+    ],
+  ])
+    expect((await evaluateActivation(selected, observations)).status).toBe(
+      "unavailable",
+    );
 });
 
 describe("public skill activation policy", () => {
@@ -307,6 +518,61 @@ describe("public skill activation policy", () => {
     });
   });
 
+  test("retains definitive activation when only unrelated task grading is unavailable", async () => {
+    const selected = await (
+      await policyProject({ activation: "positive" })
+    ).resolve();
+    const passed = await evaluateActivation(selected, [
+      activationReceipt(["grilling"]),
+    ]);
+    const failed = await evaluateActivation(selected, [
+      activationReceipt(["discover-feature"]),
+    ]);
+    const unknown = await evaluateActivation(selected, []);
+    const expected = { class: "positive", targetSkill: "grilling" } as const;
+    const gate = (
+      outcome: ActivationOutcome,
+      grading: string,
+      execution = "completed",
+    ) => {
+      const result = selectedTrials([outcome]);
+      result.trials[0]!.grading.status = grading;
+      result.trials[0]!.execution.status = execution;
+      const measurement = activationGate(
+        expected,
+        { trials: 1, threshold: 1 },
+        result,
+      );
+      expect(result.trials[0]!.grading.status).toBe(grading);
+      return measurement;
+    };
+    expect(gate(passed, "unavailable")).toMatchObject({
+      status: "passed",
+      measured: 1,
+      passRate: 1,
+    });
+    expect(gate(failed, "unavailable")).toMatchObject({
+      status: "failed",
+      measured: 1,
+      passRate: 0,
+    });
+    expect(gate(unknown, "unavailable")).toMatchObject({
+      status: "unavailable",
+      measured: 0,
+      passRate: null,
+    });
+    for (const grading of ["error", "not_requested", "unknown"]) {
+      expect(gate(passed, grading)).toMatchObject({
+        status: "unavailable",
+        measured: 0,
+      });
+    }
+    expect(gate(passed, "unavailable", "failed")).toMatchObject({
+      status: "unavailable",
+      measured: 0,
+    });
+  });
+
   test("gates declared activation independently while leaving undeclared cases alone", async () => {
     const selected = await (
       await policyProject({ activation: "positive" })
@@ -342,3 +608,72 @@ describe("public skill activation policy", () => {
     ).toMatchObject({ status: "passed", passRate: 2 / 3 });
   });
 });
+
+test("Explicit owner dispatch does not establish complete supporting reads", async () => {
+  const dispatch = {
+    id: "sevro.codex.explicit-invocation",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "explicit_invocation",
+      primarySkill: "verify-change",
+      observedSkills: ["verify-change", "code-review"],
+    },
+  };
+  const reads = commonActivation(["code-review"]);
+  const grade = async (
+    observations: unknown[],
+    expectation: Record<string, unknown>,
+  ) => {
+    const result = await fixtureExtensionRequest<{
+      domainOutcomes: { status: string; evidenceRefs: string[] }[];
+    }>("evaluate", {
+      extensionData: {
+        "darrow.case": {
+          activation: {
+            class: "positive",
+            targetSkill: "verify-change",
+            ...expectation,
+          },
+          invocation: { pluginName: "probe", skillName: "verify-change" },
+        },
+      },
+      observations,
+    });
+    return result.domainOutcomes[0]!;
+  };
+  expect(
+    (await grade([dispatch, { ...reads, completeness: "partial" }], {})).status,
+  ).toBe("passed");
+  for (const expectation of [
+    { includes: ["code-review"] },
+    { sequence: ["verify-change", "code-review"] },
+    { excludes: ["adaptive-goal"] },
+  ]) {
+    expect(await grade([dispatch, reads], expectation)).toMatchObject({
+      status: "passed",
+      evidenceRefs: [dispatch.id, reads.id],
+    });
+    for (const observations of [
+      [dispatch],
+      [dispatch, { ...reads, completeness: "partial" }],
+      [dispatch, reads, reads],
+      [dispatch, { ...reads, source: "other" }],
+    ]) {
+      expect((await grade(observations, expectation)).status).toBe(
+        "unavailable",
+      );
+    }
+  }
+  const ownerOnly = {
+    ...dispatch,
+    data: { ...dispatch.data, observedSkills: ["verify-change"] },
+  };
+  const noSupport = {
+    ...reads,
+    data: { ...reads.data, primarySkill: null, observedSkills: [] },
+  };
+  expect(
+    (await grade([ownerOnly, noSupport], { includes: ["code-review"] })).status,
+  ).toBe("failed");
+}, 30_000);

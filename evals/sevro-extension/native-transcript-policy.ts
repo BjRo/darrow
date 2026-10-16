@@ -146,9 +146,10 @@ export function nativeTranscriptEvidence(checks: NativeTranscript[]): string[] {
         if (check.kind === "ledger") return [];
         if (check.kind === "inactive")
           return ["sevro.codex.skill-reads", "sevro.codex.events"];
-        // Both hosts expose the common control receipt. Host-specific facts are
-        // validated by the check; requiring both would make every trial unknown.
-        if (check.kind === "route") return ["sevro.host.native-controls"];
+        // The check validates the selected host's accepted-child facts itself.
+        // Requiring both host receipts, or an unused complete common receipt,
+        // would make valid positive route evidence unavailable.
+        if (check.kind === "route") return [];
         if (check.kind === "no-goal-before-feedback")
           return ["sevro.codex.continuation"];
         if (check.kind === "no-child-before-feedback")

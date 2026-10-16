@@ -8,7 +8,7 @@ from pathlib import Path
 
 from ..common import CheckRequiredError, RefusalError
 from . import review
-from .state import append, checksum, lines, metadata
+from .state import append, checksum, lines
 
 
 def prerequisites(state: Path, target: str, mode: str) -> str:
@@ -96,7 +96,7 @@ def report(
 
 def assess(repo: Path, mode: str) -> str:
     repo = repo.resolve()
-    state = metadata(repo) / "fixture-state"
+    state = repo / ".fixture-state"
     subject = repo / "src/config.js"
     target = checksum(subject.read_bytes())
     review_mode = prerequisites(state, target, mode)

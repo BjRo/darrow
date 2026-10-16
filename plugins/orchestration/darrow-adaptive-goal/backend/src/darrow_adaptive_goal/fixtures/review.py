@@ -21,7 +21,7 @@ def start_observation(repo: Path, git_dir: Path, target: str) -> tuple[str, str]
         raise RefusalError("review subject is unavailable")
     subject_oid = git_text(repo, "hash-object", "--", subject)
     append(
-        git_dir / "fixture-state/review-events",
+        repo / ".fixture-state/review-events",
         f"review_start\t{target}\t{subject_oid}\n",
     )
     delay = git_dir / "fixture-review-delay-seconds"
@@ -43,7 +43,7 @@ def finish_observation(
     end_oid = git_text(repo, "hash-object", "--", subject)
     end_target = capture(repo).target
     append(
-        git_dir / "fixture-state/review-events",
+        repo / ".fixture-state/review-events",
         f"review_end\t{end_target}\t{end_oid}\n",
     )
     if end_target != target:
@@ -83,7 +83,7 @@ def assess(repo_path: Path, mode: str, contract: str = "") -> str:
 
 def review_candidate(repo: Path, mode: str, candidate: Candidate) -> str:
     git_dir = metadata(repo)
-    state = git_dir / "fixture-state"
+    state = repo / ".fixture-state"
     invocations = state / "independent-review-invocations"
     require_history(mode, invocations)
     history = lines(invocations)

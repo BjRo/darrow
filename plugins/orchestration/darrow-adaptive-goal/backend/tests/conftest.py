@@ -11,7 +11,11 @@ from darrow_adaptive_goal.common import git
 @pytest.fixture(autouse=True)
 def environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     for key in tuple(os.environ):
-        if key.startswith(("GIT_", "CLAUDE_CODE_")) or key == "ANTHROPIC_BASE_URL":
+        if key.startswith(("GIT_", "CLAUDE_CODE_", "CODEX_")) or key in {
+            "ANTHROPIC_BASE_URL",
+            "CLAUDE_CONFIG_DIR",
+            "CLAUDE_EFFORT",
+        }:
             monkeypatch.delenv(key)
     monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
@@ -28,5 +32,7 @@ def repo(tmp_path: Path) -> Path:
     (path / "value.txt").write_bytes(b"before\n")
     git(path, "add", ".")
     git(path, "commit", "-qm", "fixture")
-    (path / ".git/fixture-state").mkdir()
+    (path / ".fixture-state").mkdir()
+    with (path / ".git/info/exclude").open("a") as stream:
+        stream.write("/.fixture-state/\n")
     return path.resolve()

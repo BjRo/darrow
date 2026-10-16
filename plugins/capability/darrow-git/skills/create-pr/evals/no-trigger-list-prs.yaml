@@ -15,7 +15,7 @@ fixture:
   bin:
     gh: |
       #!/bin/sh
-      d="$(git rev-parse --git-dir)/fixture-gh"
+      d="$(git rev-parse --show-toplevel)/.fixture-state/gh"
       case "$1 $2" in
         "pr list")
           mkdir -p "$d"
@@ -33,8 +33,8 @@ fixture:
           ;;
       esac
   setup: |
-    git init -q --bare .git/remote.git
-    git remote add origin "$PWD/.git/remote.git"
+    git init -q --bare .fixture-state/remote.git
+    git remote add origin "$PWD/.fixture-state/remote.git"
     git push -qu origin main
     git remote set-head origin main
     git switch -qc fix/timeout-retry
@@ -43,11 +43,11 @@ fixture:
     git commit -qm "fix: retry request timeouts"
 checks:
   - name: open PRs were listed
-    run: test -f .git/fixture-gh/listed
+    run: test -f .fixture-state/gh/listed
   - name: no PR was created
-    run: test ! -f .git/fixture-gh/created
+    run: test ! -f .fixture-state/gh/created
   - name: branch was not pushed
-    run: test -z "$(git -C .git/remote.git for-each-ref refs/heads/fix/timeout-retry)"
+    run: test -z "$(git -C .fixture-state/remote.git for-each-ref refs/heads/fix/timeout-retry)"
 output_checks:
   - name: response includes the existing PR
     expect_regex: "#7|Retry request timeouts"

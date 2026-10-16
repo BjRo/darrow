@@ -11,7 +11,7 @@ forge=$(gh pr list --repo fixture/repo --head fix/GH-42-timeout --state open \
   --json headRefOid --jq '.[] | .headRefOid' | awk -F '\t' '{print $5}')
 test "$remote" = "$1"
 test "$forge" = "$1"
-printf '%s\n' "$1" >>.git/replacement-publications
+printf '%s\n' "$1" >>.fixture-state/replacement-publications
 printf '%s\n' 'publication: verified' \
   'url: https://github.com/fixture/repo/pull/42' 'repository: fixture/repo' \
   'head: fix/GH-42-timeout' 'base: main' 'draft: false' \

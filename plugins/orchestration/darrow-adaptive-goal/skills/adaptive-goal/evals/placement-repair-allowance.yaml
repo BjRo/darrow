@@ -1,0 +1,32 @@
+id: goal-placement-repair-allowance
+invariant: ADL-R3,ADL-A4
+goal_report: forbidden
+goal_route_checks: false
+harnesses: [codex]
+prompt: >-
+  {{skill_invocation}} Advice only; do not launch or perform work. The retained goal
+  uses the default repair allowance. Its first combined repair ran in a delegated
+  implementor on a cheaper route, and fresh verification shows material progress but
+  one original blocker remains. The main thread now runs on the same route as the
+  selected implementation route and plans to make the next repair directly instead
+  of resuming the implementor. Does this placement switch give the goal a fresh repair
+  allowance?
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        NOTES.md: "preserved\n"
+checks:
+  - name: advice leaves repository unchanged
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: placement switch keeps the shared allowance
+    proposition:
+      The response says switching to direct main-thread repair does not reset or add
+      repair attempts; the direct repair counts against the same shared allowance. It
+      need not restate the budget arithmetic. Do not pass advice that grants a fresh
+      allowance or more than two attempts in total.
+transcript_checks:
+  - name: advice launches no agent
+    not_regex: '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"type":"darrow.goal_agent_completion"'
+native_goal: forbidden

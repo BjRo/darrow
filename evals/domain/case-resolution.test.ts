@@ -1,3 +1,4 @@
+import { fixtureExtensionRequest } from "./fixture-command";
 import { afterEach, expect, test } from "bun:test";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -133,6 +134,18 @@ test("case inventory includes repository invocation and composition", async () =
   roots.push(root);
   const cases = join(root, ".agents/skills/probe/evals");
   await mkdir(cases, { recursive: true });
+  const provider = join(root, "plugins/capability/provider");
+  for (const host of ["claude", "codex"]) {
+    await mkdir(join(provider, `.${host}-plugin`), { recursive: true });
+    await writeFile(
+      join(provider, `.${host}-plugin/plugin.json`),
+      JSON.stringify({
+        name: "provider",
+        version: "0.1.0",
+        ...(host === "codex" ? { skills: "./skills/" } : {}),
+      }),
+    );
+  }
   const source = join(cases, "probe.yaml");
   await writeFile(
     source,
@@ -177,4 +190,41 @@ test("all canonical Darrow cases resolve through the current extension", async (
   expect(inventory.total).toBeGreaterThan(0);
   expect(inventory.failures).toEqual([]);
   expect(inventory.valid).toBe(true);
+});
+
+test("Native goal evidence requirements follow the checks that consume them", async () => {
+  const projectRoot = pathToFileURL(resolve(import.meta.dir, "../..")).href;
+  for (const [id, required] of [
+    ["goal-preflight-high-risk-routine", false],
+    ["goal-preflight-quality-sensitive-localized", false],
+    ["goal-preflight-routing-difficult-routine-diagnosis", false],
+    ["guide-mutation", true],
+  ] as const) {
+    const { cases } = await resolveCase({
+      projectRoot,
+      selectors: { caseIds: [id] },
+    });
+    expect(
+      cases[0]!.requiredEvidence.includes("sevro.host.native-controls"),
+    ).toBe(required);
+    if (!required)
+      expect(cases[0]!.requiredEvidence).toEqual(["sevro.host.native-goal"]);
+  }
+  for (const id of [
+    "doctor-adaptive-goal-direct-codex",
+    "create-agent-skill-refuse-undefined-skill",
+  ]) {
+    const { cases } = await resolveCase({
+      projectRoot,
+      selectors: { caseIds: [id] },
+    });
+    await expect(
+      fixtureExtensionRequest("prepare", {
+        case: cases[0],
+        host: { id: "sevro.host.claude", capabilities: [] },
+        condition: "passive",
+        configuration: {},
+      }),
+    ).rejects.toThrow("excludes the candidate host");
+  }
 });

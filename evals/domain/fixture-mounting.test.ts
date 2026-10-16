@@ -1,12 +1,14 @@
 import { expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { mkdir, symlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   preparePolicy,
   policyProject,
   runPolicyPrompt,
 } from "./policy-project";
+import { fixtureExtensionRequest } from "./fixture-command";
 
 type Artifact = {
   relativePath: string;
@@ -14,6 +16,173 @@ type Artifact = {
   sha256: string;
   gitExclude: boolean;
 };
+
+const supportingBody =
+  "---\nname: supporting\ndescription: Fixture provider\n---\n\nRecord the delegated request.\n";
+const supportingFixture = {
+  commits: [{ message: "Initial", files: { "README.md": "fixture\n" } }],
+  files: {
+    ".agents/skills/supporting/SKILL.md": supportingBody,
+    ".claude/skills/supporting/SKILL.md": supportingBody,
+    "input.txt": "ordinary fixture input\n",
+  },
+};
+
+test.each(["codex", "claude"] as const)(
+  "Darrow declares inline supporting skills as byte-bound %s mounts",
+  async (host) => {
+    const project = await policyProject(
+      {
+        activation: "positive",
+        activation_sequence: ["primary", "supporting"],
+        prompt: "Run {{skill_invocation}}.",
+        fixture: supportingFixture,
+      },
+      { skill: "primary" },
+    );
+    const selected = await project.resolve();
+    const prepared = await preparePolicy(selected, host);
+    const artifacts = prepared.artifacts as Artifact[];
+    const path = `.${host === "codex" ? "agents" : "claude"}/skills/supporting/SKILL.md`;
+    const supporting = artifacts.find(
+      (artifact) => artifact.relativePath === path,
+    );
+    expect(supporting).toBeDefined();
+    expect(Buffer.from(supporting!.contentBase64, "base64").toString()).toBe(
+      supportingBody,
+    );
+    expect(supporting!.sha256).toBe(
+      createHash("sha256").update(supportingBody).digest("hex"),
+    );
+    expect(supporting!.gitExclude).toBe(true);
+    expect(
+      artifacts.filter((artifact) =>
+        artifact.relativePath.endsWith("/supporting/SKILL.md"),
+      ),
+    ).toHaveLength(1);
+    const fixture = (
+      selected as unknown as { fixture: { files: Record<string, string> } }
+    ).fixture;
+    expect(JSON.stringify(fixture)).not.toContain("supporting/SKILL.md");
+    expect(JSON.stringify(fixture)).toContain("ordinary fixture input");
+  },
+);
+
+test("Darrow refuses mutated, duplicate, or missing inline supporting mounts", async () => {
+  const project = await policyProject(
+    { fixture: supportingFixture },
+    { skill: "primary" },
+  );
+  const selected = await project.resolve();
+  await project.write({
+    fixture: {
+      ...supportingFixture,
+      files: {
+        ...supportingFixture.files,
+        ".agents/skills/supporting/SKILL.md": supportingBody + "changed\n",
+      },
+    },
+  });
+  await expect(preparePolicy(selected)).rejects.toThrow(
+    "fixture skills changed",
+  );
+  await project.write({
+    fixture: {
+      ...supportingFixture,
+      files: { ".agents/skills/supporting/SKILL.md": supportingBody },
+    },
+  });
+  await expect(
+    preparePolicy(await project.resolve(), "claude"),
+  ).rejects.toThrow("host mirror is missing");
+  await project.write({
+    fixture: {
+      ...supportingFixture,
+      files: {
+        ".agents/skills/primary/SKILL.md": supportingBody,
+        ".claude/skills/primary/SKILL.md": supportingBody,
+      },
+    },
+  });
+  await expect(preparePolicy(await project.resolve())).rejects.toThrow(
+    "mounted skill names must be unique",
+  );
+});
+
+test("Darrow omits fixture supporting skills from an unmounted control", async () => {
+  const project = await policyProject(
+    { fixture: supportingFixture },
+    { skill: "primary" },
+  );
+  const { cases } = await fixtureExtensionRequest<{ cases: unknown[] }>(
+    "resolve",
+    {
+      projectRoot: pathToFileURL(project.root).href,
+      selectors: { caseIds: ["activation-case"] },
+      configuration: { withoutSkill: true },
+    },
+  );
+  const prepared = await fixtureExtensionRequest<{ artifacts: unknown[] }>(
+    "prepare",
+    {
+      case: cases[0],
+      host: { id: "sevro.host.codex", capabilities: [] },
+      configuration: { withoutSkill: true },
+    },
+  );
+  expect(prepared.artifacts).toEqual([]);
+  expect(JSON.stringify(cases[0])).not.toContain(supportingBody);
+});
+
+test.each(["codex", "claude"] as const)(
+  "Darrow binds the %s fixture host through public preparation",
+  async (host) => {
+    const project = await policyProject({
+      prompt: "Return ready.",
+      checks: [
+        {
+          name: "host fact comes from trusted preparation",
+          run: "cat .git/fixture-host",
+          expect_exact: host,
+        },
+        {
+          name: "host metadata is outside product contents",
+          run: "git status --porcelain --untracked-files=all",
+          expect_exact: "",
+        },
+      ],
+    });
+    const result = await runPolicyPrompt(project, host, "Return ready.");
+    expect(result.exitCode, result.diagnostic).toBe(0);
+    expect(result.value.task.verdict).toBe("passed");
+  },
+  30_000,
+);
+
+test("Darrow prepares writable fixture state without changing Git status", async () => {
+  const project = await policyProject({
+    prompt: "Return ready.",
+    fixture: {
+      commits: [{ message: "Initial", files: { "README.md": "fixture\n" } }],
+      setup: "printf 'prepared\\n' >.fixture-state/setup-receipt",
+    },
+    checks: [
+      {
+        name: "setup and tools share the excluded workspace state",
+        run: "test -d .fixture-state && test \"$(cat .fixture-state/setup-receipt)\" = prepared && printf 'checked\\n' >.fixture-state/tool-receipt && git check-ignore .fixture-state/tool-receipt",
+        expect_exact: ".fixture-state/tool-receipt",
+      },
+      {
+        name: "fixture receipts do not appear as product changes",
+        run: "git status --porcelain --untracked-files=all",
+        expect_exact: "",
+      },
+    ],
+  });
+  const result = await runPolicyPrompt(project, "codex", "Return ready.");
+  expect(result.exitCode, result.diagnostic).toBe(0);
+  expect(result.value.task.verdict).toBe("passed");
+}, 30_000);
 
 test.each(["project", "claude", "codex"] as const)(
   "Darrow preserves the owning plugin backend through public %s preparation",
@@ -27,6 +196,9 @@ test.each(["project", "claude", "codex"] as const)(
     );
     const plugin = join(project.root, "plugins/capability/sample");
     const backend = join(plugin, "backend");
+    const configuration = '{"implementation":{"model":"fixture-model"}}\n';
+    await mkdir(join(plugin, "config"));
+    await writeFile(join(plugin, "config/routes.json"), configuration);
     for (const directory of [".venv", "evals", "tests/evals"])
       await mkdir(join(backend, directory), { recursive: true });
     const contents = "[project]\nname = 'fixture-backend'\n";
@@ -58,6 +230,27 @@ test.each(["project", "claude", "codex"] as const)(
       createHash("sha256").update(contents).digest("hex"),
     );
     expect(resource!.gitExclude).toBe(true);
+    const routes = artifacts.find(
+      (artifact) =>
+        artifact.relativePath === `${destination}/config/routes.json`,
+    );
+    expect(routes).toBeDefined();
+    expect(Buffer.from(routes!.contentBase64, "base64").toString()).toBe(
+      configuration,
+    );
+    expect(routes!.gitExclude).toBe(true);
+    for (const host of ["claude", "codex"]) {
+      const relativePath = `.${host}-plugin/plugin.json`;
+      const manifest = artifacts.find(
+        (artifact) =>
+          artifact.relativePath === `${destination}/${relativePath}`,
+      );
+      expect(manifest).toBeDefined();
+      expect(Buffer.from(manifest!.contentBase64, "base64")).toEqual(
+        await readFile(join(plugin, relativePath)),
+      );
+      expect(manifest!.gitExclude).toBe(true);
+    }
     expect(
       artifacts.some((artifact) =>
         /\/(?:evals|\.venv)\//.test(artifact.relativePath),
@@ -80,11 +273,17 @@ test("Darrow mounts the implicit Codex backend through the installed command", a
   await writeFile(join(backend, "pyproject.toml"), "[project]\n");
   await writeFile(join(backend, "tests/evals/oracle.py"), "hidden\n");
   await writeFile(join(backend, ".venv/generated"), "private\n");
+  const plugin = join(project.root, "plugins/capability/sample");
+  await mkdir(join(plugin, "config"));
+  await writeFile(
+    join(plugin, "config/routes.json"),
+    '{"model":"fixture-model"}\n',
+  );
   await project.write({
     checks: [
       {
         name: "owning backend is mounted and excluded from Git",
-        run: 'test -f .agents/backend/pyproject.toml && test -z "$(git status --porcelain)"',
+        run: 'test -f .agents/backend/pyproject.toml && test "$(cat .agents/config/routes.json)" = \'{"model":"fixture-model"}\' && test -z "$(git status --porcelain)"',
       },
       {
         name: "hidden backend evals and generated environments stay absent",
@@ -102,18 +301,21 @@ test("Darrow mounts the implicit Codex backend through the installed command", a
   ).toEqual(["passed", "passed", "passed"]);
 }, 20_000);
 
-test("Darrow rejects external links in an implicit plugin backend", async () => {
-  const project = await policyProject({ prompt: "Return ready." });
-  const backend = join(project.root, "plugins/capability/sample/backend");
-  await mkdir(backend, { recursive: true });
-  const external = join(project.root, "external.txt");
-  await writeFile(external, "outside the plugin\n");
-  await symlink(external, join(backend, "external.txt"));
-  const selected = await project.resolve();
-  await expect(preparePolicy(selected)).rejects.toThrow(
-    /plugin package contains an unsafe entry/,
-  );
-});
+test.each(["backend", "config", "references"])(
+  "Darrow rejects external links in an implicit plugin %s directory",
+  async (directory) => {
+    const project = await policyProject({ prompt: "Return ready." });
+    const resource = join(project.root, "plugins/capability/sample", directory);
+    await mkdir(resource, { recursive: true });
+    const external = join(project.root, "external.txt");
+    await writeFile(external, "outside the plugin\n");
+    await symlink(external, join(resource, "external.txt"));
+    const selected = await project.resolve();
+    await expect(preparePolicy(selected)).rejects.toThrow(
+      /plugin package contains an unsafe entry/,
+    );
+  },
+);
 
 test("Darrow excludes mounted artifacts while keeping unrelated setup files visible", async () => {
   const project = await policyProject({

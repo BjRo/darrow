@@ -1,7 +1,7 @@
 {
   "name": "darrow-tickets",
   "description": "Ticket operations and reusable GitHub issue templates with a bundled GitHub Issues adapter",
-  "version": "0.7.0",
+  "version": "0.7.3",
   "hooks": "./.claude-plugin/hooks.json",
   "license": "BUSL-1.1",
   "author": {

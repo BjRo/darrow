@@ -53,12 +53,12 @@ fixture:
       set -eu
       test "$#" -eq 1
       test "$1" = https://example.invalid/tickets/42
-      printf '%s\n' "$1" >>.git/ticket-to-pr-delegations
+      printf '%s\n' "$1" >>.fixture-state/ticket-to-pr-delegations
 checks:
   - name: recipe delegates the exact shortcut once
     run: >-
-      test "$(wc -l <.git/ticket-to-pr-delegations | tr -d ' ')" -eq 1 &&
-      test "$(cat .git/ticket-to-pr-delegations)" =
+      test "$(wc -l <.fixture-state/ticket-to-pr-delegations | tr -d ' ')" -eq 1 &&
+      test "$(cat .fixture-state/ticket-to-pr-delegations)" =
       https://example.invalid/tickets/42
   - name: recipe parent performs no delivery mutation
     run: >-

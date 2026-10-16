@@ -1,5 +1,12 @@
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { resolveCase } from "../sevro-extension/index";
 import { expect, test } from "bun:test";
-import { readFixtureCase, runFixtureChecks } from "./fixture-command";
+import {
+  fixtureExtensionRequest,
+  readFixtureCase,
+  runFixtureChecks,
+} from "./fixture-command";
 import { gitPluginFixtureFiles } from "./fixture-git-plugin";
 import { prepareUvFixtureRuntime } from "./fixture-runtime";
 
@@ -37,7 +44,7 @@ test("composition records only successful UV publication", async () => {
     checks: [
       {
         name: "inspection is not publication",
-        run: `${command} inspect && test ! -e .git/builtin-publications`,
+        run: `${command} inspect && test ! -e .fixture-state/builtin-publications`,
       },
       {
         name: "stale remote refuses verification",
@@ -46,7 +53,7 @@ test("composition records only successful UV publication", async () => {
       },
       {
         name: "failure is not evidence",
-        run: "test ! -e .git/builtin-publications",
+        run: "test ! -e .fixture-state/builtin-publications",
       },
       {
         name: "publish current commit",
@@ -58,7 +65,7 @@ test("composition records only successful UV publication", async () => {
       },
       {
         name: "exact successful observations",
-        run: 'test "$(wc -l < .git/builtin-publications | tr -d " ")" = 2 && test "$(sort -u .git/builtin-publications)" = "$(git rev-parse HEAD)" && test ! -e .git/forbidden-forge-effects',
+        run: 'test "$(wc -l < .fixture-state/builtin-publications | tr -d " ")" = 2 && test "$(sort -u .fixture-state/builtin-publications)" = "$(git rev-parse HEAD)" && test ! -e .fixture-state/forbidden-forge-effects',
       },
     ],
   });
@@ -91,7 +98,7 @@ test("ticket-to-pr options oracle preserves a stricter caller repair limit", asy
       check,
       {
         name: "changed receipt fails the oracle",
-        run: `printf '%s\\t%s\\t%s\\t%s\\n' https://example.invalid/tickets/99 release/2.x draft 2 >.git/ticket-to-pr-options && (${check.run})`,
+        run: `printf '%s\\t%s\\t%s\\t%s\\n' https://example.invalid/tickets/99 release/2.x draft 2 >.fixture-state/ticket-to-pr-options && (${check.run})`,
         exit_code: 1,
       },
     ],
@@ -135,3 +142,72 @@ for (const variant of ["existing-pr", "replacement"]) {
     assertPassed(result);
   }, 20_000);
 }
+
+test("Ticket publication reads belong to the retained main thread", async () => {
+  for (const id of [
+    "ticket-to-pr-composition-existing-pr",
+    "ticket-to-pr-composition-replacement",
+  ]) {
+    const { cases } = await resolveCase({
+      projectRoot: pathToFileURL(resolve(import.meta.dir, "../..")).href,
+      selectors: { caseIds: [id] },
+    });
+    const selected = cases[0]!;
+    const details = selected.extensionData["darrow.case"] as {
+      transcriptChecks: { kind: string; skill?: string }[];
+    };
+    const check = details.transcriptChecks.find(
+      (x) => x.skill === "create-pr" || x.skill === "ship-proposal",
+    );
+    expect(check?.kind).toBe("supporting-skill-read");
+    const observation = {
+      id: "sevro.codex.skill-reads",
+      source: "sevro.host.codex",
+      completeness: "complete",
+      data: {
+        method: "skill_file_read_probe",
+        primarySkill: check!.skill,
+        observedSkills: [check!.skill],
+      },
+    };
+    const grade = async (observations: unknown[]) => {
+      const result = await fixtureExtensionRequest<{
+        checks: { status: string }[];
+      }>("evaluate", {
+        extensionData: {
+          "darrow.case": { transcriptChecks: [{ ...check, id: "publisher" }] },
+        },
+        observations,
+      });
+      return result.checks[0]!.status;
+    };
+    expect(await grade([observation])).toBe("passed");
+    expect(
+      await grade([
+        {
+          ...observation,
+          data: { ...observation.data, primarySkill: null, observedSkills: [] },
+        },
+      ]),
+    ).toBe("failed");
+    expect(
+      await grade([
+        {
+          ...observation,
+          data: {
+            ...observation.data,
+            primarySkill: "unrelated",
+            observedSkills: ["unrelated"],
+          },
+        },
+      ]),
+    ).toBe("failed");
+    for (const observations of [
+      [],
+      [observation, observation],
+      [{ ...observation, completeness: "partial" }],
+      [{ ...observation, source: "other" }],
+    ])
+      expect(await grade(observations)).toBe("unavailable");
+  }
+}, 30_000);

@@ -16,7 +16,7 @@ fixture:
   bin:
     gh: |
       #!/bin/sh
-      printf '%s\n' "$*" >> .git/gh-calls
+      printf '%s\n' "$*" >> .fixture-state/gh-calls
       echo 'tracker unavailable' >&2
       exit 1
 checks:
@@ -25,8 +25,8 @@ checks:
     not_regex: "\\S"
   - name: ticket owner integration was attempted
     run: >-
-      test -s .git/gh-calls;
-      calls=$(cat .git/gh-calls);
+      test -s .fixture-state/gh-calls;
+      calls=$(cat .fixture-state/gh-calls);
       printf '%s\n' "$calls";
       printf '%s\n' "$calls" | grep -Ei 'issue (view|comment|edit) (#?42)( |$)|api .*(issue|issues|42)' >/dev/null;
       printf '%s\n' "$calls" | grep -Ei -- '--repo[ =]+acme/service|repos/acme/service|github\.com/acme/service' >/dev/null

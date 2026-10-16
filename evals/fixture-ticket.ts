@@ -1,12 +1,13 @@
-/** Darrow's local ticket capability, shared while the legacy eval runner remains. */
+/** Darrow's local ticket fixture capability. */
 export const TICKETCTL = `#!/bin/bash
 set -euo pipefail
 git_dir=$(git rev-parse --git-dir)
 case "$git_dir" in /*) ;; *) git_dir="$PWD/$git_dir" ;; esac
 ticket_id=$(<"$git_dir/fixture-ticket-id")
 ticket_title=$(<"$git_dir/fixture-ticket-title")
-ticket_body="$git_dir/fixture-ticket.md"
-log="$git_dir/fixture-state/ticketctl.log"
+repo_dir=$(git rev-parse --show-toplevel)
+ticket_body="$repo_dir/.fixture-state/fixture-ticket.md"
+log="$repo_dir/.fixture-state/ticketctl.log"
 
 usage() {
   echo "usage: ticketctl get <id> --body-file <path> | describe <id> --body-file <path>" >&2

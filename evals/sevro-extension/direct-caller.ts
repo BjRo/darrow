@@ -9,6 +9,7 @@ import { activationGate, type ActivationExpectation } from "./activation";
 import { preflightCaseDetails } from "./index";
 import { invocation } from "./run";
 import { sevroCommand } from "./sevro-command";
+import { prepareRepositoryRuntime } from "./uv-seed-cache";
 import { suiteCaseRoutes } from "./suite-routes";
 import { readCorpusManifest } from "../corpus/orchestration/source";
 
@@ -233,7 +234,7 @@ async function nativeArguments(request: Request) {
     request.forwarded,
     request.host,
     ["--config-root", "--run-state-root", "--jobs"],
-    "Direct caller",
+    { label: "Direct caller", projectRoot: request.projectRoot },
   );
   for (const name of ["config-root", "run-state-root"] as const)
     if (request.values[name] !== undefined)
@@ -285,6 +286,7 @@ export async function runSevroDirect(argv: string[]) {
   try {
     sevroCommand();
     const request = requestOptions(argv);
+    prepareRepositoryRuntime(request.projectRoot);
     if (request.values["corpus-manifest"] !== undefined)
       await readCorpusManifest(resolve(request.values["corpus-manifest"]));
     const args = [

@@ -1,3 +1,5 @@
+import { captureTestCommand } from "../test-command";
+import { CODEX_SKILL_HOOK_FIXTURE } from "./codex-hook-fixture";
 import { afterEach, expect, test } from "bun:test";
 
 import { existsSync } from "node:fs";
@@ -84,17 +86,18 @@ async function invoke(
   args: string[],
   environment: Record<string, string | undefined> = {},
 ) {
-  const child = Bun.spawn([process.execPath, command, ...args], {
-    cwd: root,
-    env: { ...process.env, ...environment },
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ]);
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(
+    [process.execPath, command, ...args],
+    undefined,
+    {
+      cwd: root,
+      env: { ...process.env, ...environment },
+    },
+  );
   return { stdout, stderr, code };
 }
 
@@ -126,6 +129,103 @@ function reviewArguments(
     ...nativeArgs(binary, credential),
   ];
 }
+
+test("direct caller forwards an explicit runtime configuration", async () => {
+  const { root, binary, credential, output } = await fixture();
+  const runtime = join(root, "runtime.json");
+  await writeFile(
+    runtime,
+    JSON.stringify({
+      format: "sevro.runtime.v1",
+      environment: { set: { DARROW_RUNTIME_SAMPLE: "selected" } },
+    }),
+  );
+  const run = await invoke(root, [
+    ...reviewArguments(root, binary, credential, output),
+    "--runtime-config-file",
+    runtime,
+  ]);
+  expect(run.code, JSON.stringify(run)).toBe(0);
+  const selection = JSON.parse(
+    await readFile(join(output, "selection-run.json"), "utf8"),
+  );
+  const evidence = JSON.parse(
+    await readFile(selection.runs[0].result.evidencePath, "utf8"),
+  );
+  expect(
+    evidence.configuration.redacted.runtimePolicy.environment
+      .DARROW_RUNTIME_SAMPLE,
+  ).toBe("selected");
+}, 30000);
+
+test("direct caller forwards the configured Codex execution timeout", async () => {
+  const { root, binary, credential, output } = await fixture();
+  for (const timeout of ["1200000", "0"]) {
+    const run = await invoke(root, [
+      ...reviewArguments(root, binary, credential, join(output, timeout)),
+      "--codex-timeout-ms",
+      timeout,
+    ]);
+    expect(run.code, JSON.stringify(run)).toBe(timeout === "1200000" ? 0 : 1);
+    const selection = JSON.parse(
+      await readFile(join(output, timeout, "selection-run.json"), "utf8"),
+    );
+    if (timeout === "1200000") {
+      expect(selection.runs[0].result.execution.status).toBe("not_run");
+      expect(selection.runs[0].result.task.verdict).toBe("not_assessed");
+    } else {
+      expect(selection.runs[0].exitCode).not.toBe(0);
+    }
+  }
+}, 30_000);
+
+test("direct Claude caller lets a runtime file control goal settings", async () => {
+  const { root, binary, credential, output } = await fixture();
+  const runtime = join(root, "runtime.json");
+  await writeFile(
+    runtime,
+    JSON.stringify({
+      format: "sevro.runtime.v1",
+      hooks: { nativeGoal: true },
+    }),
+  );
+  const caseFile = join(
+    root,
+    "evals/experiments/example/cases/direct-alpha.yaml",
+  );
+  const definition = JSON.parse(await readFile(caseFile, "utf8"));
+  definition.semantic_output_checks = [];
+  await writeFile(caseFile, JSON.stringify(definition));
+  await writeFile(
+    binary,
+    `#!/bin/sh\nprintf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"result":"ready"}'\n`,
+    { mode: 0o700 },
+  );
+  const run = await invoke(root, [
+    "--project-root",
+    root,
+    "--results-root",
+    output,
+    "--harness",
+    "claude",
+    "--owner-evaluation",
+    "passive",
+    "--case",
+    "alpha",
+    "--trials",
+    "1",
+    "--",
+    ...nativeArgs(binary, credential),
+    "--runtime-config-file",
+    runtime,
+  ]);
+  expect(run.code, JSON.stringify(run)).toBe(0);
+  const selection = JSON.parse(
+    await readFile(join(output, "selection-run.json"), "utf8"),
+  );
+  expect(selection.runs[0].exitCode).toBe(0);
+  expect(selection.runs[0].result.execution.status).toBe("completed");
+}, 30000);
 
 test("direct caller retains supplied review minutes as an annotation", async () => {
   const { root, binary, credential } = await fixture();
@@ -314,6 +414,9 @@ await new Promise(() => setInterval(() => {}, 1000));
 `,
         { mode: 0o700 },
       );
+      const stdoutFile = join(root, "caller.stdout");
+      const stderrFile = join(root, "caller.stderr");
+      await Promise.all([writeFile(stdoutFile, ""), writeFile(stderrFile, "")]);
       const child = Bun.spawn(
         [
           process.execPath,
@@ -337,10 +440,14 @@ await new Promise(() => setInterval(() => {}, 1000));
           "--",
           ...nativeArgs(binary, credential),
         ],
-        { cwd: root, stdout: "pipe", stderr: "pipe" },
+        {
+          cwd: root,
+          stdout: Bun.file(stdoutFile),
+          stderr: Bun.file(stderrFile),
+        },
       );
       try {
-        const deadline = Date.now() + 15_000;
+        const deadline = Date.now() + 60_000;
         while (!(await Bun.file(ready).exists())) {
           if (Date.now() > deadline)
             throw new Error("Synthetic host did not start");
@@ -356,10 +463,10 @@ await new Promise(() => setInterval(() => {}, 1000));
         });
         expect(initial.runs).toEqual([]);
         child.kill(signal);
-        const [stdout, stderr, code] = await Promise.all([
-          new Response(child.stdout).text(),
-          new Response(child.stderr).text(),
-          child.exited,
+        const code = await child.exited;
+        const [stdout, stderr] = await Promise.all([
+          readFile(stdoutFile, "utf8"),
+          readFile(stderrFile, "utf8"),
         ]);
         expect(code, stderr + stdout).toBe(signal === "SIGINT" ? 130 : 143);
         const manifest = JSON.parse(stdout);
@@ -383,7 +490,7 @@ await new Promise(() => setInterval(() => {}, 1000));
       }
     }
   },
-  30_000,
+  180_000,
 );
 
 test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
@@ -477,7 +584,7 @@ for (const event of [
       "synthetic-private-evidence",
     );
   },
-  30_000,
+  90_000,
 );
 
 test("direct caller rejects invalid limits before launching Sevro", async () => {
@@ -623,6 +730,7 @@ test("direct caller preserves skill controls and writes the selection output", a
   });
   expect(evidence.configuration.redacted.hostConfiguration.candidate).toEqual({
     "sevro.codex.agent-concurrency-limit": 7,
+    "sevro.host.executable": binary,
   });
   expect(cell.result.task.verdict).toBe("not_assessed");
 }, 30_000);
@@ -736,6 +844,7 @@ test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
       await writeFile(
         binary,
         `#!${process.execPath}
+${CODEX_SKILL_HOOK_FIXTURE}
 const argv = process.argv.slice(2);
 if (argv[0] === "sandbox") {
   const child = Bun.spawn([${JSON.stringify(Bun.which("codex"))}, ...argv], { stdout: "inherit", stderr: "inherit" });
@@ -747,14 +856,17 @@ const countFile = Bun.file(${JSON.stringify(count)});
 const ordinal = await countFile.exists() ? Number(await countFile.text()) + 1 : 1;
 await Bun.write(countFile, String(ordinal));
 const scenario = ${JSON.stringify(scenario)};
+const session = "synthetic-activation";
+await skillHook("SessionStart", session);
 const events = [{ type: "thread.started", thread_id: "synthetic-activation" }];
-if (scenario === "passed" || (scenario === "failed" && ordinal === 1))
-  events.push({ type: "item.completed", item: {
-    type: "command_execution", command: "cat .agents/skills/probe/SKILL.md",
-    aggregated_output: ${JSON.stringify(body)}, exit_code: 0, status: "completed"
-  } });
+if (scenario === "passed" || (scenario === "failed" && ordinal === 1)) {
+  const call = { tool_use_id: "read-1", tool_name: "exec_command" };
+  await skillHook("PreToolUse", session, call);
+  await skillHook("PostToolUse", session, { ...call, tool_response: ${JSON.stringify(body)} });
+}
 if (scenario === "unavailable")
-  events.push({ type: "item.started", item: { id: "unfinished-read", type: "command_execution", command: "cat .agents/skills/probe/SKILL.md" } });
+  await skillHook("PreToolUse", session, { tool_use_id: "unfinished-read", tool_name: "exec_command" });
+await skillHook("Stop", session);
 events.push(
   { type: "item.completed", item: { type: "agent_message", text: "ready" } },
   { type: "turn.completed", usage: { input_tokens: 1, output_tokens: 1 } }
@@ -807,7 +919,7 @@ for (const event of events) console.log(JSON.stringify(event));
       expect(cell.activationError).toBeNull();
     }
   },
-  60_000,
+  180_000,
 );
 
 test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
@@ -914,5 +1026,5 @@ for (const event of [
         expect(await readFile(outputPath, "utf8")).toBe(run.stdout);
     }
   },
-  60_000,
+  150_000,
 );

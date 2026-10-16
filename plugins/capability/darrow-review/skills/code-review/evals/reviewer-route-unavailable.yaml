@@ -1,12 +1,7 @@
 id: code-review-reviewer-route-unavailable
 activation: positive
 invariant: CR-C4,CR-C10,CR-C21,CR-E7,CR-E14
-prompt: >-
-  Explicitly use {{skill_invocation}} to review my uncommitted
-  changes against this originating requirement: exported mode must equal
-  "safe". The native host reports that the selected configured reviewer route
-  is unavailable for this run. Do not repair the code, inherit another reviewer
-  route, retry with a fallback, or substitute another model.
+prompt: 'Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Explicitly use {{skill_invocation}} to review my uncommitted changes against this originating requirement: exported mode must equal "safe". The native host reports that the selected configured reviewer route is unavailable for this run. Do not repair the code, inherit another reviewer route, retry with a fallback, or substitute another model.'
 fixture:
   commits:
     - message: "chore: init"
@@ -24,56 +19,60 @@ fixture:
     src/config.js: |
       export const mode = "unsafe";
   setup: |
-    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
+    bash "{{case_dir}}/fixtures/prepare-grading.sh" "{{case_dir}}"
 checks:
   - name: human response excludes machine JSON
-    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py
+      .git/last-message.md human-response
   - name: unavailable repository policy is retained without fallback
     run: >-
-      selection=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name reviewer-route.json -type f | sort | tail -n '1');
-      test -n "$selection" && case "$DARROW_EVAL_HARNESS" in
-      codex) python3 .git/eval-checks/review/tests/evals/assert_records.py "$selection" has selected_route codex openai gpt-5.5 xhigh ;;
-      claude) python3 .git/eval-checks/review/tests/evals/assert_records.py "$selection" has selected_route claude anthropic claude-sonnet-5-5 high ;;
-      *) exit 2 ;; esac
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
+      selection=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      '*/darrow-review.*/*' -name reviewer-route.json -type f | sort | tail -n
+      '1'); test -n "$selection" && case "$(cat .git/fixture-host)" in codex)
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$selection"
+      has selected_route codex openai gpt-5.5 xhigh ;; claude) python3
+      .git/eval-checks/review/tests/evals/assert_records.py "$selection" has
+      selected_route claude anthropic claude-sonnet-5-5 high ;; *) exit 2 ;;
+      esac
   - name: no reader accepts inherited or substituted route evidence
     run: >-
-      selection=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name reviewer-route.json -type f | sort | tail -n '1');
-      test -n "$selection" || exit 1; artifact_dir=$(dirname "$selection");
-      for axis in standards spec; do record="$artifact_dir/$axis-route.json";
-      if test -e "$record"; then
-      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks route_verified true || exit 1;
-      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks route_bound true || exit 1; fi; done
-  - name: unavailable route retains zero native reader launch attempts
-    run: >-
-      case "$DARROW_EVAL_HARNESS" in codex)
-      awk 'index($0, "\"tool\":\"spawn_agent\"") ||
-      index($0, "\"type\":\"darrow.codex_native_spawn\"") { found = 1 }
-      END { exit found }' .git/retained-harness.jsonl ;;
-      claude) awk 'index($0, "\"name\":\"Agent\"") ||
-      index($0, "\"type\":\"darrow.review_agent_launch\"") { found = 1 }
-      END { exit found }' .git/retained-harness.jsonl ;;
-      *) exit 2 ;; esac
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
+      selection=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      '*/darrow-review.*/*' -name reviewer-route.json -type f | sort | tail -n
+      '1'); test -n "$selection" || exit 1; artifact_dir=$(dirname
+      "$selection"); for axis in standards spec; do
+      record="$artifact_dir/$axis-route.json"; if test -e "$record"; then
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record"
+      lacks route_verified true || exit 1; python3
+      .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks
+      route_bound true || exit 1; fi; done
   - name: blocked aggregate remains canonical and read only
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
-      test -n "$tool" || exit 1;
-      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record" &&
-      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has verdict blocked &&
-      test "$(git status --porcelain --untracked-files=all)" = ' M src/config.js'
+      tool=.git/eval-checks/review/src/darrow_review/result.py; test -n "$tool"
+      || exit 1; uv run --quiet --frozen --no-dev --project
+      "${tool%/src/darrow_review/result.py}" review-result validate "$record" &&
+      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record"
+      has verdict blocked && test "$(git status --porcelain
+      --untracked-files=all)" = ' M src/config.js'
     expect_regex: "^valid: darrow-review-result-v3$"
   - name: retained Markdown preserves every canonical rendered line
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n '1');
-      test -n "$tool" || exit 1;
-      expected=.git/expected-review.md;
-      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render "$record" >"$expected" &&
-      awk 'NF' "$expected" >.git/expected-review-normalized.md &&
-      awk 'NF' "$(dirname "$record")/review.md" >.git/actual-review-normalized.md &&
-      cmp .git/expected-review-normalized.md .git/actual-review-normalized.md
+      tool=.git/eval-checks/review/src/darrow_review/report.py; test -n "$tool"
+      || exit 1; expected=.git/expected-review.md; uv run --quiet --frozen
+      --no-dev --project "${tool%/src/darrow_review/report.py}" review-report
+      render "$record" >"$expected" && awk 'NF' "$expected"
+      >.git/expected-review-normalized.md && awk 'NF' "$(dirname
+      "$record")/review.md" >.git/actual-review-normalized.md && cmp
+      .git/expected-review-normalized.md .git/actual-review-normalized.md
 semantic_output_checks:
   - name: review outcome and issues are understandable inline
     proposition: >-
@@ -81,3 +80,6 @@ semantic_output_checks:
       native reviewer route is unavailable. It does not present coordinator
       judgment as an independent review or claim that a fallback reviewer
       completed it.
+transcript_checks:
+  - name: unavailable route retains zero native reader launch attempts
+    not_regex: '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"name":"Agent"'

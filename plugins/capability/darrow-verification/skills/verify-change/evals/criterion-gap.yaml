@@ -50,11 +50,12 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
   - name: retained report handoff is rendered last
     run: |
-      report=$(cd .git && pwd -P)/inspect-candidate-report.md
+      report=$(cd .fixture-state && pwd -P)/inspect-candidate-report.md
       last=$(awk 'NF { line=$0 } END { print line }' .git/last-message.md)
       test "$last" = "Complete provider result: [report](<$report>)"
   - name: complete replacement evidence retained and referenced
-    run: test -s .git/inspect-candidate-report.md && report=$(cd .git && pwd
+    run:
+      test -s .fixture-state/inspect-candidate-report.md && report=$(cd .fixture-state && pwd
       -P)/inspect-candidate-report.md && grep -F "$report" .git/last-message.md
 semantic_output_checks:
   - name: unobserved acceptance remains unsupported
@@ -64,12 +65,14 @@ semantic_output_checks:
       staging evidence gap without inventing QA or deployment.
   - name: assessment is result first concise and complete
     proposition: >-
-      The response puts the non-clear conclusion and smallest evidence-gathering
-      next action before detailed criterion and provider evidence. It uses
-      direct and familiar language, compact sections or a table, and no
-      step-by-step chronology or substantial duplicated passages. A brief
-      provider-compatibility rationale is required evidence, not process
-      narration. A short restatement of the disposition or the retained report
-      path alongside its final link is acceptable. The response preserves the
-      candidate identity, C1/C2 support, C3 gap, provider outcome, limitations,
-      and final complete-report link.
+      The response starts with its non-clear conclusion and the need to obtain
+      staging-health evidence, then gives a concise assessment rather than a
+      step-by-step chronology. It identifies the supplied config.json candidate
+      using the CANDIDATE.txt checksum, accounts for C1/C2 support and the C3
+      evidence gap, and preserves the provider's native outcome, check coverage
+      limitation and complete-report link. The file checksum is the caller's
+      candidate identity for this case; it need not identify a staging deployment
+      or be repeated in the final link label. A brief provider-compatibility
+      rationale, compact table and one checksum in the scope description satisfy
+      these requirements. Substantial repetition or an omitted criterion,
+      candidate checksum, provider outcome, limitation or report link does not.

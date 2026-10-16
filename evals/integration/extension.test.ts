@@ -1,3 +1,4 @@
+import { captureTestCommand } from "../test-command";
 import { afterEach, expect, test } from "bun:test";
 
 import { createHash } from "node:crypto";
@@ -28,6 +29,22 @@ const extension = resolve(import.meta.dir, "../sevro-extension/index.ts");
 const projectRoot = resolve(import.meta.dir, "../..");
 
 const roots: string[] = [];
+
+async function examplePluginManifests(root: string) {
+  const plugin = join(root, "plugins/capability/example");
+  for (const host of ["claude", "codex"]) {
+    const directory = join(plugin, `.${host}-plugin`);
+    await mkdir(directory, { recursive: true });
+    await writeFile(
+      join(directory, "plugin.json"),
+      JSON.stringify({
+        name: "example",
+        version: "0.1.0",
+        ...(host === "codex" ? { skills: "./skills/" } : {}),
+      }),
+    );
+  }
+}
 
 test("Darrow separates case discovery from imported Codex configuration", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-project-root-"));
@@ -96,7 +113,10 @@ test("Darrow separates case discovery from imported Codex configuration", async 
   expect(run.value.cases[0]!.caseId).toBe("separate-configuration");
   const evidence = JSON.parse(await readFile(run.value.evidencePath, "utf8"));
   expect(evidence.configuration.redacted.hostConfiguration).toEqual({
-    candidate: { "sevro.codex.agent-concurrency-limit": 7 },
+    candidate: {
+      "sevro.codex.agent-concurrency-limit": 7,
+      "sevro.host.executable": process.execPath,
+    },
   });
   expect(evidence.routes[0]).toMatchObject({
     model: "synthetic-codex",
@@ -143,7 +163,11 @@ test("Darrow condition files render the actual candidate route through Sevro", a
     };`,
     );
     const results = join(root, `results-${harness}`);
-    const proc = Bun.spawn(
+    const {
+      stdout,
+      stderr,
+      exitCode: code,
+    } = await captureTestCommand(
       [
         process.execPath,
         runCommand,
@@ -169,13 +193,9 @@ test("Darrow condition files render the actual candidate route through Sevro", a
         "1",
         "--shell-isolation",
       ],
-      { stdout: "pipe", stderr: "pipe" },
+      undefined,
+      { env: process.env },
     );
-    const [stdout, stderr, code] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]);
     expect(code, stderr + stdout).toBe(0);
     const result = JSON.parse(stdout);
     expect(result.task.verdict).toBe("passed");
@@ -237,7 +257,11 @@ test("Darrow condition routes resolve after corpus preflight", async () => {
     async run({ prompt, followUpPrompt }) { return { finalMessage: prompt + "|" + followUpPrompt, complete: true }; }
   };`,
   );
-  const proc = Bun.spawn(
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(
     [
       process.execPath,
       resolve(import.meta.dir, "../sevro-extension/run.ts"),
@@ -260,13 +284,9 @@ test("Darrow condition routes resolve after corpus preflight", async () => {
       "1",
       "--shell-isolation",
     ],
-    { stdout: "pipe", stderr: "pipe" },
+    undefined,
+    { env: process.env },
   );
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
   expect(code, stderr + stdout).toBe(0);
   const result = JSON.parse(stdout);
   expect(result.task.verdict).toBe("passed");
@@ -313,7 +333,11 @@ test("Darrow rejects invalid condition inputs before candidate execution", async
   for (const [name, text, expectedCode] of invalid) {
     const path = join(root, name);
     await writeFile(path, text);
-    const proc = Bun.spawn(
+    const {
+      stdout,
+      stderr,
+      exitCode: code,
+    } = await captureTestCommand(
       [
         process.execPath,
         resolve(import.meta.dir, "../sevro-extension/run.ts"),
@@ -336,13 +360,9 @@ test("Darrow rejects invalid condition inputs before candidate execution", async
         "1",
         "--shell-isolation",
       ],
-      { stdout: "pipe", stderr: "pipe" },
+      undefined,
+      { env: process.env },
     );
-    const [stdout, stderr, code] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]);
     expect(code, stderr + stdout).toBe(expectedCode);
     expect(await Bun.file(marker).exists()).toBe(false);
   }
@@ -514,22 +534,15 @@ async function command<T>(
   stderr: string;
   value: T;
 }> {
-  const proc = Bun.spawn(argv, {
-    stdin: input === undefined ? "ignore" : "pipe",
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  if (input !== undefined) {
-    if (!proc.stdin || typeof proc.stdin === "number")
-      throw new Error("stdin unavailable");
-    await proc.stdin.write(JSON.stringify(input));
-    await proc.stdin.end();
-  }
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(
+    argv,
+    input === undefined ? undefined : JSON.stringify(input),
+    { env: process.env },
+  );
   return { code, stderr, value: JSON.parse(stdout) as T };
 }
 
@@ -595,16 +608,14 @@ function request(method: string, params: Record<string, unknown>) {
 }
 
 async function git(cwd: string, ...args: string[]): Promise<string> {
-  const proc = Bun.spawn(["git", ...args], {
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(["git", ...args], undefined, {
     cwd,
-    stdout: "pipe",
-    stderr: "pipe",
+    env: process.env,
   });
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
   if (code !== 0) throw new Error(stderr);
   return stdout.trim();
 }
@@ -613,6 +624,7 @@ test("Sevro grades no-agent evidence through the public CLI", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-no-agent-"));
   roots.push(root);
   const skill = join(root, "plugins/capability/example/skills/probe");
+  await examplePluginManifests(root);
   await mkdir(join(skill, "evals"), { recursive: true });
   await writeFile(
     join(skill, "SKILL.md"),
@@ -717,6 +729,7 @@ test("Darrow mounts sibling skills for a competition activation case", async () 
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-siblings-"));
   roots.push(root);
   const skills = join(root, "plugins/capability/example/skills");
+  await examplePluginManifests(root);
   await mkdir(join(skills, "primary/evals"), { recursive: true });
   await mkdir(join(skills, "rival/evals"), { recursive: true });
   await mkdir(join(skills, "spare/evals"), { recursive: true });
@@ -779,6 +792,11 @@ test("Darrow mounts sibling skills for a competition activation case", async () 
     { id: "darrow.skill.1", relativePath: ".agents/skills/primary/SKILL.md" },
     { id: "darrow.skill.2", relativePath: ".agents/skills/rival/SKILL.md" },
     { id: "darrow.skill.3", relativePath: ".agents/skills/spare/SKILL.md" },
+    {
+      id: "darrow.skill.4",
+      relativePath: ".agents/.claude-plugin/plugin.json",
+    },
+    { id: "darrow.skill.5", relativePath: ".agents/.codex-plugin/plugin.json" },
   ]);
   const adapter = join(root, "candidate.ts");
   await writeFile(
@@ -817,7 +835,7 @@ test("Darrow mounts sibling skills for a competition activation case", async () 
     { id: "darrow.evals.activation", status: "passed" },
   ]);
   const evidence = JSON.parse(await readFile(run.value.evidencePath, "utf8"));
-  expect(evidence.trials[0].artifactRefs).toHaveLength(3);
+  expect(evidence.trials[0].artifactRefs).toHaveLength(5);
   expect(evidence.trials[0].domainOutcomes[0].data).toMatchObject({
     expectedSkills: ["primary", "rival"],
     requiredSkills: ["rival"],
@@ -887,6 +905,7 @@ test("Darrow extension mounts a plugin skill without exposing its evals", async 
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-skill-"));
   roots.push(root);
   const skillDir = join(root, "plugins/capability/example/skills/example");
+  await examplePluginManifests(root);
   await mkdir(join(skillDir, "references"), { recursive: true });
   await mkdir(join(skillDir, "scripts"), { recursive: true });
   await mkdir(join(skillDir, "evals"), { recursive: true });
@@ -965,6 +984,8 @@ test("Darrow extension mounts a plugin skill without exposing its evals", async 
     ".agents/skills/example/SKILL.md",
     ".agents/skills/example/references/guide.md",
     ".agents/skills/example/scripts/run.sh",
+    ".agents/.claude-plugin/plugin.json",
+    ".agents/.codex-plugin/plugin.json",
   ]);
   expect(prepared.value.result.artifacts.every((item) => item.gitExclude)).toBe(
     true,
@@ -1064,10 +1085,10 @@ export default {
     nativeAdapter,
     (await readFile(adapter, "utf8"))
       .replace('id: "darrow.host.synthetic"', 'id: "sevro.host.codex"')
-      .replace('id: "darrow.activation"', 'id: "sevro.codex.skill-reads"')
+      .replace('id: "darrow.activation"', 'id: "sevro.host.skill-activations"')
       .replace(
         'data: { primarySkill: "example"',
-        'data: { method: "skill_file_read_probe", primarySkill: "example"',
+        'data: { method: "tool_result_body_match", visibility: "tool_result", scope: "prepared_skill_bodies", catalogComplete: true, partialSkills: [], ambiguousSkills: [], calls: [], truncated: false, primarySkill: "example"',
       ),
   );
   const native = await command<CliReply>([
@@ -1083,7 +1104,7 @@ export default {
     {
       id: "darrow.evals.activation",
       status: "passed",
-      evidenceRefs: ["sevro.codex.skill-reads"],
+      evidenceRefs: ["sevro.host.skill-activations"],
     },
   ]);
   const evidence = JSON.parse(await readFile(run.value.evidencePath, "utf8"));
@@ -1091,7 +1112,7 @@ export default {
     evidence.trials[0].artifactRefs.filter(
       (item: { gitExclude?: boolean }) => item.gitExclude,
     ),
-  ).toHaveLength(3);
+  ).toHaveLength(5);
   expect(
     evidence.trials[0].artifactRefs.filter(
       (item: { executable?: boolean }) => item.executable,
@@ -1417,19 +1438,20 @@ SEVRO_EVENTS
     data: {
       method: "explicit_invocation",
       primarySkill: "probe",
-      observedSkills: ["probe"],
     },
   });
-  expect(liveEvidence.trials[0].observations).toContainEqual({
-    id: "sevro.codex.skill-reads",
-    source: "sevro.host.codex",
-    completeness: "complete",
-    data: {
-      method: "skill_file_read_probe",
-      primarySkill: null,
-      observedSkills: [],
-    },
-  });
+  // This packaging-only host emits no hook lifecycle; dispatch cannot repair it.
+  expect(liveEvidence.trials[0].observations).toContainEqual(
+    expect.objectContaining({
+      id: "sevro.host.skill-activations",
+      source: "sevro.host.codex",
+      completeness: "partial",
+      data: expect.objectContaining({
+        method: "tool_result_body_match",
+        observedSkills: [],
+      }),
+    }),
+  );
 });
 
 test("Darrow fixture setup runs through Sevro and rejects changed source", async () => {
@@ -1692,7 +1714,7 @@ test("Darrow runs implicit and explicit repository skills without a plugin wrapp
     if ((await new Response(child.stdout).text()).trim() !== "fixture-bin-ready" || await child.exited !== 0) throw new Error("fixture tool unavailable");
     return {
       finalMessage: "ready", complete: true,
-      observations: [{ id: explicitSkillInvocation ? "sevro.codex.explicit-invocation" : "sevro.codex.skill-reads", source: "sevro.host.codex", completeness: "complete", data: { method: explicitSkillInvocation ? "explicit_invocation" : "skill_file_read_probe", primarySkill: "probe", observedSkills: ["probe"] } }],
+      observations: [{ id: explicitSkillInvocation ? "sevro.codex.explicit-invocation" : "sevro.host.skill-activations", source: "sevro.host.codex", completeness: "complete", data: { method: explicitSkillInvocation ? "explicit_invocation" : "tool_result_body_match", visibility: "tool_result", scope: "prepared_skill_bodies", catalogComplete: true, partialSkills: [], ambiguousSkills: [], calls: [], truncated: false, primarySkill: "probe", observedSkills: ["probe"] } }],
     };
   },
 };
@@ -1797,8 +1819,8 @@ test("Darrow runs native Claude repository skills using their required mirror", 
       if (await Bun.file(workspace + "/.agents/skills/probe/SKILL.md").exists() || claudePluginDirs) throw new Error("repository scope changed");
       if (explicitSkillInvocation && (prompt !== "/probe Return ready." || explicitSkillInvocation.scope !== "repository" || explicitSkillInvocation.token !== "/probe")) throw new Error("native invocation differs");
       return { finalMessage: "ready", complete: true, observations: [
-        { id: "sevro.claude.tool-calls", completeness: "complete", data: { method: "stream_tool_calls", truncated: false, calls: [{ ordinal: 1, actor: "parent", parentToolUseId: null, name: "Skill", skill: "probe", invocation: "probe" }] } },
-        ...(explicitSkillInvocation ? [{ id: "sevro.claude.repository-invocation", completeness: "complete", data: { method: "native_repository_command", accepted: true, skill: "probe", primarySkill: "probe", observedSkills: ["probe"] } }] : [])
+        { id: "sevro.host.skill-activations", completeness: "complete", data: { method: "skill_tool_result", visibility: "skill_tool", observedSkills: ["probe"], truncated: false, calls: [{ sessionId: "probe-session", toolUseId: "skill-1", parentToolUseId: null, invocation: "probe", status: "succeeded" }] } },
+        ...(explicitSkillInvocation ? [{ id: "sevro.claude.repository-invocation", completeness: "complete", data: { method: "native_repository_command", accepted: true, skill: "probe", reason: "native command and complete mounted body matched" } }] : [])
       ] };
     }
   };`,
@@ -1829,7 +1851,7 @@ test("Darrow runs native Claude repository skills using their required mirror", 
     {
       id: "darrow.evals.activation",
       status: "passed",
-      evidenceRefs: ["sevro.claude.tool-calls"],
+      evidenceRefs: ["sevro.host.skill-activations"],
     },
   ]);
   await writeFile(
@@ -1966,12 +1988,11 @@ test("Darrow runs a pinned corpus repository with committed overlay and setup", 
     run.value.cases[0]!.trials[0]!.checks.map((check) => check.status),
   ).toEqual(["passed", "passed", "passed", "passed"]);
   await writeFile(join(repository, "DRIFT.txt"), "not pinned\n");
-  const rejected = Bun.spawn(runArgs, { stdout: "pipe", stderr: "pipe" });
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(rejected.stdout).text(),
-    new Response(rejected.stderr).text(),
-    rejected.exited,
-  ]);
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(runArgs, undefined, { env: process.env });
   expect(code).toBe(64);
   expect(stderr).toContain("not clean");
   expect(stdout).toBe("");
@@ -2164,12 +2185,13 @@ test("Darrow local ticket works through Sevro and binds its source", async () =>
         title: "Owner's note",
         body: "Original's {{note}}\n",
       },
-      setup: "test -L .git/ticketctl.log && test -f .git/fixture-ticket.md",
+      setup:
+        'test -f .fixture-state/ticketctl.log && test -f .fixture-state/fixture-ticket.md && test ! -e .git/ticketctl.log && test "$(cat .git/fixture-host)" = unavailable',
     },
     checks: [
       {
         name: "ticket updated",
-        run: "grep -Fx 'Updated note' .git/fixture-ticket.md && grep -Fx 'get 17' .git/ticketctl.log && grep -Fx 'describe 17' .git/ticketctl.log",
+        run: "grep -Fx 'Updated note' .fixture-state/fixture-ticket.md && grep -Fx 'get 17' .fixture-state/ticketctl.log && grep -Fx 'describe 17' .fixture-state/ticketctl.log",
       },
     ],
     output_checks: [{ name: "response", expect_exact: "ready" }],
@@ -2508,7 +2530,10 @@ test("additional plugins and selected skills remain independent Codex packages",
       for (const path of [".agents/skills/owner/SKILL.md", ".sevro-marketplace/plugins/0-provider/skills/provider/SKILL.md", ".sevro-marketplace/plugins/1-selective/skills/selective/SKILL.md"]) {
         if (!(await Bun.file(workspace + "/" + path).exists())) throw new Error("composed mount missing");
       }
-      return { finalMessage: "ready", complete: true, observations: [{ id: "sevro.codex.explicit-invocation", source: "sevro.host.codex", completeness: "complete", data: { method: "explicit_invocation", primarySkill: "owner", observedSkills: ["owner", "provider", "selective"] } }] };
+      return { finalMessage: "ready", complete: true, observations: [
+        { id: "sevro.codex.explicit-invocation", source: "sevro.host.codex", completeness: "complete", data: { method: "explicit_invocation", primarySkill: "owner", observedSkills: ["owner", "provider", "selective"] } },
+        { id: "sevro.host.skill-activations", source: "sevro.host.codex", completeness: "complete", data: { method: "tool_result_body_match", visibility: "tool_result", scope: "prepared_skill_bodies", catalogComplete: true, partialSkills: [], ambiguousSkills: [], calls: [], truncated: false, observedSkills: ["provider:provider", "selective:selective"] } },
+      ] };
     }
   };`,
   );

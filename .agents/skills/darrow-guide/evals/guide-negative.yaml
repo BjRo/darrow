@@ -19,7 +19,7 @@ checks:
       .git/guide-base)"
     expect_exact: ""
   - name: no intercepted external-command attempts
-    run: cat .git/guide-effects
+    run: cat .fixture-state/guide-effects
     expect_exact: ""
 semantic_output_checks:
   - name: unrelated answer

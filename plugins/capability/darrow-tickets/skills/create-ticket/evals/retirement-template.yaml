@@ -17,24 +17,25 @@ fixture:
     gh: |
       #!/bin/sh
       backend="$(git rev-parse --absolute-git-dir)/tickets-fixture"
-      exec uv run --quiet --frozen --no-dev --project "$backend" python "$backend/tests/eval_gh.py" "$@"
+      UV_PROJECT_ENVIRONMENT="$HOME/.darrow/cache/ticket-fixture-environment" \
+        exec uv run --quiet --frozen --no-dev --project "$backend" python "$backend/tests/eval_gh.py" "$@"
   setup: |
-    mkdir -p .git/tickets-fixture/tests .github/ISSUE_TEMPLATE .git/fixture-gh
+    mkdir -p .git/tickets-fixture/tests .github/ISSUE_TEMPLATE .fixture-state/gh
     cp "{{case_dir}}/../../../backend/pyproject.toml" "{{case_dir}}/../../../backend/uv.lock" .git/tickets-fixture/
     cp -R "{{case_dir}}/../../../backend/src" .git/tickets-fixture/
     cp "{{case_dir}}/../../../backend/tests/eval_gh.py" .git/tickets-fixture/tests/
     cp "{{case_dir}}/../../../backend/src/darrow_tickets/template_assets/retirement.md" .github/ISSUE_TEMPLATE/
     git remote add origin https://github.test/o/r.git
-    printf 'enhancement\n' > .git/fixture-gh/labels
-    : > .git/fixture-gh/list
+    printf 'enhancement\n' > .fixture-state/gh/labels
+    : > .fixture-state/gh/list
 checks:
   - name: one issue is created
-    run: test "$(wc -l < .git/fixture-gh/created-ids | tr -d ' ')" -eq 1
+    run: test "$(wc -l < .fixture-state/gh/created-ids | tr -d ' ')" -eq 1
   - name: named retirement target is present
-    run: rg -q 'LEGACY_READER' .git/fixture-gh/created-body
+    run: grep -Eq 'LEGACY_READER' .fixture-state/gh/created-body
   - name: removal scope covers implementation and configuration
-    run: rg -qi 'implementation|old reader' .git/fixture-gh/created-body && rg -qi 'config' .git/fixture-gh/created-body
+    run: grep -Eqi 'implementation|old reader' .fixture-state/gh/created-body && grep -Eqi 'config' .fixture-state/gh/created-body
   - name: retained behavior and completion evidence remain required
-    run: rg -qi 'modern reader|retained behavior' .git/fixture-gh/created-body && rg -qi 'complete|evidence' .git/fixture-gh/created-body
+    run: grep -Eqi 'modern reader|retained behavior' .fixture-state/gh/created-body && grep -Eqi 'complete|evidence' .fixture-state/gh/created-body
   - name: migration uncertainty is explicit
-    run: rg -qi 'migration' .git/fixture-gh/created-body && rg -qi 'open questions|undecided|unknown|not decided' .git/fixture-gh/created-body
+    run: grep -Eqi 'migration' .fixture-state/gh/created-body && grep -Eqi 'open questions|undecided|unknown|not decided' .fixture-state/gh/created-body

@@ -1,15 +1,14 @@
 id: code-review-merge-base-branch
 activation: positive
 invariant: CR-E1,CR-E3
-prompt: >-
-  Review the current feature branch against main. Use the branch merge base and
-  do not review changes that exist only on main. There is no product spec.
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Review the current feature branch against main. Use the branch merge base and do not review changes that exist only on main. There is no product spec."
 fixture:
   commits:
     - message: "chore: init"
       files:
         README.md: "# Fixture\n"
   setup: |
+    bash "{{case_dir}}/fixtures/prepare-grading.sh" "{{case_dir}}"
     git checkout -qb feature
     printf 'feature\n' >feature.txt
     git add feature.txt
@@ -19,40 +18,51 @@ fixture:
     git add main-only.txt
     git commit -qm 'feat: main side'
     git checkout -q feature
-    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: human response excludes machine JSON
-    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py
+      .git/last-message.md human-response
   - name: branch review remains read-only
     run: test -z "$(git status --porcelain --untracked-files=all)"
   - name: canonical JSON is retained beneath the review scope artifact
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
-      test -n "$tool" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record"
+      tool=.git/eval-checks/review/src/darrow_review/result.py; test -n "$tool"
+      && uv run --quiet --frozen --no-dev --project
+      "${tool%/src/darrow_review/result.py}" review-result validate "$record"
     expect_regex: "^valid: darrow-review-result-v3$"
   - name: scope uses the branch merge base and excludes main-only changes
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
-      test -n "$record" || exit 1;
-      base=$(git merge-base main HEAD) && target=$(git rev-parse HEAD) &&
-      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has "base" "$base" &&
-      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has "target" "$target" &&
-      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has spec not_available &&
-      python3 -c 'import json,sys; files=json.load(open(sys.argv[1]))["changed_files"]; assert len(files)==1 and files[0].endswith("/feature.txt")' "$record" &&
-      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" not-contains main-only.txt
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
+      test -n "$record" || exit 1; base=$(git merge-base main HEAD) &&
+      target=$(git rev-parse HEAD) && python3
+      .git/eval-checks/review/tests/evals/assert_records.py "$record" has "base"
+      "$base" && python3 .git/eval-checks/review/tests/evals/assert_records.py
+      "$record" has "target" "$target" && python3
+      .git/eval-checks/review/tests/evals/assert_records.py "$record" has spec
+      not_available && python3 -c 'import json,sys;
+      files=json.load(open(sys.argv[1]))["changed_files"]; assert len(files)==1
+      and files[0].endswith("/feature.txt")' "$record" && python3
+      .git/eval-checks/review/tests/evals/assert_records.py "$record"
+      not-contains main-only.txt
   - name: retained Markdown preserves every canonical rendered line
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n '1');
-      test -n "$tool" || exit 1;
-      expected=.git/expected-review.md;
-      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render "$record" >"$expected" &&
-      awk 'NF' "$expected" >.git/expected-review-normalized.md &&
-      awk 'NF' "$(dirname "$record")/review.md" >.git/actual-review-normalized.md &&
-      cmp .git/expected-review-normalized.md .git/actual-review-normalized.md
+      tool=.git/eval-checks/review/src/darrow_review/report.py; test -n "$tool"
+      || exit 1; expected=.git/expected-review.md; uv run --quiet --frozen
+      --no-dev --project "${tool%/src/darrow_review/report.py}" review-report
+      render "$record" >"$expected" && awk 'NF' "$expected"
+      >.git/expected-review-normalized.md && awk 'NF' "$(dirname
+      "$record")/review.md" >.git/actual-review-normalized.md && cmp
+      .git/expected-review-normalized.md .git/actual-review-normalized.md
 semantic_output_checks:
   - name: review outcome and issues are understandable inline
     proposition: >-

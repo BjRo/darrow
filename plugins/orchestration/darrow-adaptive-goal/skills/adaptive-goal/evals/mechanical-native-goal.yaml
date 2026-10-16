@@ -22,8 +22,8 @@ fixture:
           - maple
         check.sh: |
           #!/usr/bin/env bash
-          printf '%s\n' '# Notes' '' '- alpha' '- maple' '- zebra' >.git/expected-notes
-          cmp -s .git/expected-notes NOTES.md
+          printf '%s\n' '# Notes' '' '- alpha' '- maple' '- zebra' >.fixture-state/expected-notes
+          cmp -s .fixture-state/expected-notes NOTES.md
 checks:
   - name: deterministic prose transformation is correct
     run: bash check.sh

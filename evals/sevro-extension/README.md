@@ -55,6 +55,83 @@ identity. Unsupported or ambiguous cases fail explicitly.
 `bun test evals/domain/case-resolution.test.ts` verifies all canonical cases
 resolve. That check establishes neither host execution nor task success.
 
+## Runtime configuration
+
+Sevro reads the repository's [`sevro.json`](../../sevro.json) for every case in
+this project. It inherits `PATH` and `UV_PYTHON_INSTALL_DIR`, grants the
+uv-managed Python installations read-only, seeds a private UV cache, enables
+native goals, and exposes the trial's own native transcripts read-only. Sevro discovers Homebrew and Apple developer support folders from
+the inherited `PATH`; the file names no machine-specific folders.
+
+Darrow's callers prepare that environment before launching Sevro:
+
+- They remove the repository's and Bun's injected `node_modules/.bin` and
+  temporary folders from `PATH`, because Sevro refuses read grants inside the
+  protected repository.
+- They set `UV_PYTHON_INSTALL_DIR` from `uv python dir` when it is unset.
+- They build the public seed cache at `~/.darrow/cache/sevro-uv-cache` from the
+  registered Python packages' locks, and rebuild it only when a lock changes.
+- With this repository's default goal-enabled policy, they select Codex's
+  app-server entrypoint unless an entrypoint or replacement runtime file is
+  supplied. The compiled command records that selection.
+
+Repository-skill guide trials need `--claude-project-settings`, which conflicts
+with native-goal hooks. The guide caller therefore selects
+[`runtime-repository-skills.json`](runtime-repository-skills.json): the same
+tools and native transcripts without hooks. An explicit `--runtime-config-file` replaces either default.
+With a runtime file selected, direct and benchmark callers no longer add
+`--claude-project-settings` automatically.
+
+Native transcripts are enabled so Adaptive Goal's placement helper can read
+the current session's model and effort, as it does outside Sevro. Hook-free
+guide trials retain them for native control observations and skill-read recovery.
+
+Review artifact cases require Sevro rc.8 or later and the explicit
+[`runtime-review-artifacts.json`](runtime-review-artifacts.json) profile. It retains
+the candidate's actual `~/.darrow/reviews` directory through grading and grants
+only read access to it. Shell checks bind `DARROW_REVIEW_STATE_DIR` to the
+candidate-bound `SEVRO_CANDIDATE_ARTIFACT_REVIEWS` path; the grader's own `HOME`
+does not locate candidate evidence. The profile also configures the candidate's
+Review state and cache paths outside its repository. For example:
+
+```sh
+bun eval --harness codex --owner-evaluation passive --codex-entrypoint app-server \
+  --skill code-review --case code-review-fix-verification-resolved \
+  --trials 1 --jobs 1 --threshold 1 -- \
+  --runtime-config-file "$PWD/evals/sevro-extension/runtime-review-artifacts.json"
+```
+
+Use this profile for the `code-review` cases, `verification-existing-review`,
+`goal-verification-existing-review`, and `goal-preflight-high-risk-routine`.
+Negative Review cases first prepare an
+empty candidate state directory so their absence checks inspect real accessible
+state. A missing or unsafe declared directory is a grading error, never evidence
+of absence. Artifacts remain temporary and are removed after grading; the grant
+does not persist their contents in the run archive. Do not select this profile
+for cases that do not create the declared directory.
+
+Feedback cases that assert an unchanged whole-workspace boundary select
+[`runtime-feedback-receipts.json`](runtime-feedback-receipts.json) with Codex's
+app-server entrypoint. Use it for `goal-cross-turn-feedback-answer`,
+`goal-steering-without-question`, and `diagnostic-direct-owner-parser-presented`.
+Their fixture tools write authentic bookkeeping to `DARROW_FIXTURE_RECEIPTS_DIR`
+outside the repository. Graders read those original files through the read-only
+`SEVRO_CANDIDATE_ARTIFACT_RECEIPTS` grant. The source-preservation, exact answer,
+receipt ordering, and actual continuation-boundary checks still apply.
+
+For startup diagnosis on Sevro rc.10 or later, add `--retain-host-diagnostics`
+after the caller's `--` separator. The flag applies to selected native roles
+and retains `sevro.host.diagnostics` even when no session starts. Its private
+artifact contains bounded stage, error, and subprocess evidence. Keep it out of
+Git; enabling retention changes configuration identity and preserves failure
+outcomes.
+
+Fixture setup prepares `.fixture-state/` and excludes it from Git. Candidate
+fixture tools keep mutable tracker state, receipts, and test traces there.
+Immutable fixture inputs and hidden graders remain in Git metadata. Graders
+use declared host tools or portable system commands; a tool inside a protected
+Codex installation does not become available through inherited `PATH`.
+
 ## Separate configuration roots
 
 `--project-root` supplies cases and supporting assets. `--config-root` defaults
@@ -106,7 +183,7 @@ threshold of one. It stops at the first task, activation, execution or grading
 failure. `--dry` prepares fixtures; `--without-skill` supplies an unmounted
 control. Repeat `--only` to select questions. The default runs both hosts.
 
-The semantic grader is Codex `gpt-6-luna/medium`. Optional host options follow
+The semantic grader is Codex `gpt-6-luna/high`. Optional host options follow
 `--`. Public result JSON, raw evidence and activation outcomes are retained
 separately. A single passing trial is not a reliability claim.
 
@@ -163,6 +240,8 @@ Codex-specific and unsupported Claude cells are rejected before execution.
 `suite.ts` resolves the selected modes and cases before starting cells. It
 retains the suite digest, seed, complete cell plan, executed prefix, routes,
 conditions, source identities and public result paths in `suite-run.json`.
+Persisted cell result paths are canonical absolute paths, so Sevro's report
+inputs and matched-ablation rows retain the same file identity through aliases.
 `--seed` replays the selected host/mode block ordering.
 
 Mode options include `owner_evaluation`, `model_by_harness`, `effort`,
@@ -230,3 +309,17 @@ bun evals/sevro-extension/legacy-claude-review-proof.ts \
 All paths are absolute. Valid evidence atomically writes the original JSON proof
 and exits zero; invalid invocation or evidence exits one without a new proof.
 These readers do not establish current host behavior or evaluator equivalence.
+
+On Sevro rc.12, use [`runtime-codex-state.json`](runtime-codex-state.json) for
+`doctor-adaptive-goal-direct-codex` and
+`create-agent-skill-refuse-undefined-skill`. The profile exposes the actual isolated
+configuration and grants graders read-only access to all four original candidate
+user-skill roots. Preserve the seeded UV cache. Fixture config is represented
+input, not the effective host config.
+
+Use [`runtime-local-http.json`](runtime-local-http.json) for
+`orchestration-oss-express-links` and `orchestration-oss-requests-proxy`. It opts
+candidate and shell grading into local HTTP socket access. Other runs keep the
+default network policy. Pass either profile after `--` with
+`--runtime-config-file "$PWD/evals/sevro-extension/<profile>.json"` and select
+Codex's app-server entrypoint before `--`.

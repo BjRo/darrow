@@ -73,6 +73,8 @@ establish prerequisites.
 If no subject can be identified, make the user-facing final answer exactly
 `What subject would you like me to grill?` and stop. Do not add an explanation,
 topic menu, second question, or numbered frontier to that answer.
+A bare explicit invocation of `work-through-decisions` selects this
+missing-subject path; it does not ask the user to choose between the three modes.
 
 ### Method
 
@@ -172,6 +174,13 @@ feature outcome.
    brief in the conversation.
 5. End with a one-sentence goal restatement and ask the user to confirm it.
 
+The listed brief contents are conceptual coverage, not mandatory separate
+headings. Combine behavior and acceptance when that states a decision once
+and makes its observable result clear. Condensing a settled choice must preserve
+its limits, including exclusive formats, permission scope, retry counts, and
+time bounds. Evidence provenance identifies actual sources; do not describe a
+repository as consulted unless it was inspected.
+
 The brief contains:
 
 - desired outcome and affected users;
@@ -237,6 +246,13 @@ The plan contains:
 - risks, assumptions, and intentionally deferred work; and
 - the one-sentence plan restatement.
 
+These are conceptual contents rather than mandatory separate headings. Combine
+related contents when that avoids redundant constraints. Report repository
+facts relevant to the plan directly, with source pointers; narrating searches
+or listing absent instructions adds no plan evidence unless the absence is a
+material constraint or evidence gap. Slice checks preserve concrete boundary
+cases named by the user rather than compressing them into generic test labels.
+
 Do not require predetermined files or tactical detail that repository
 inspection can establish during implementation. Do not force a wide mechanical
 migration into artificial vertical slices; name an expand-migrate-contract
@@ -255,12 +271,22 @@ skill.
    planning intent select their respective mode instead. Ordinary advice,
    implementation, and a single clarification do not select the skill. A
    negated mention such as “do not grill me” does not cancel a feature or plan
-   mode's required shared method. When a standalone grilling request has no
+   mode's required shared method. A preference against interviews or a demand
+   for an immediate plan does not cancel planning intent or its unresolved-choice
+   boundary. A request for a concise technical plan is planning intent, not
+   ordinary advice. When a standalone grilling request has no
    identifiable subject, its user-facing final answer is exactly `What
-subject would you like me to grill?`, and it stops.
+subject would you like me to grill?`, and it stops. A bare explicit invocation
+   selects that missing-subject path before the general mode-selection rules.
+   Selection follows the requested deliverable. Reading an existing specification
+   while implementing a settled change is not discovery or planning intent.
 2. **DG-C2 — Dependency-aware frontier.** Each round asks all material
    independent questions whose prerequisites are settled and defers dependent
-   questions until a later round. A node is dependent when another open answer
+   questions until a later round. An independent decision cannot be deferred
+   merely to shorten the round or accommodate pressure to avoid questions.
+   Each deferred decision has a named unanswered prerequisite; a statement
+   that a deferred choice is independent exposes a missing current question.
+   A node is dependent when another open answer
    can change its relevance, subject, concrete options, or recommendation;
    deferred nodes are neither phrased as additional questions nor selected
    inside the current root's recommendation. Immediately before sending, the
@@ -273,7 +299,10 @@ subject would you like me to grill?`, and it stops.
    remain.
 3. **DG-C3 — Facts are investigated.** The agent discovers available
    repository and external facts instead of delegating lookup to the user;
-   evidence does not silently decide product intent.
+   evidence does not silently decide product intent. Before reporting a material
+   fact as unavailable, inspect relevant available sources, including repository
+   entry documentation when no narrower source is identified. An uninspected
+   source is not evidence of an unavailable fact.
 4. **DG-C4 — Recommendations preserve authority.** Every material question has
    a concrete, non-empty recommendation and rationale, clearly distinguished
    from the user's decision. If the agent cannot recommend an answer, the node
@@ -291,7 +320,8 @@ subject would you like me to grill?`, and it stops.
    requested outcome is an implementation plan, even if unresolved choices
    must be discussed before that plan can be produced. Ordinary requests to
    spec out or work through what a product feature should do select feature
-   discovery even without naming a discovery brief. Personal decisions and
+   discovery even without naming a discovery brief. Drafting a discovery brief
+   from settled feature decisions also selects this mode. Personal decisions and
    generic requests for grilling or stress-testing without a product-feature
    outcome do not select feature discovery.
 8. **DF-C2 — Honest brief.** A discovery brief exposes evidence provenance,
@@ -332,7 +362,9 @@ subject would you like me to grill?`, and it stops.
     familiar words, active voice, and short sentences and paragraphs, explain
     necessary Darrow terms, and omit repeated points and process narration.
     They still preserve material choices, provenance, constraints, acceptance
-    evidence, and confirmation boundaries.
+    evidence, and confirmation boundaries. Briefs and plans may combine conceptual
+    sections to avoid repeating decisions; compression preserves limiting
+    qualifiers and does not turn an exclusive choice into one example.
 
 ## Packaging and portability
 
@@ -341,7 +373,10 @@ subject would you like me to grill?`, and it stops.
 2. **DC-P2 — Cross-host discovery.** The public skill carries concrete trigger
    and exclusion metadata usable by Claude Code and Codex. Its entry file
    chooses one mode by requested outcome and reads only that mode's complete
-   instructions before acting.
+   instructions before acting. Feature discovery loads its brief-writing
+   resource only after the material decision and required fact frontiers are
+   empty; an open frontier uses the question workflow without loading the
+   final-brief instructions.
 3. **DC-P3 — One canonical method.** All modes read and reuse the installed
    skill's shared grilling reference when material unknowns need a decision
    frontier. They do not reproduce competing interview protocols or invoke a
@@ -408,7 +443,19 @@ subject would you like me to grill?`, and it stops.
 9. **DC-E9 — Communication quality.** Focused cases assess whether each skill
    is clear and concise while preserving every material decision, evidence
    source, safety boundary, and next action. Semantic assertions grade meaning,
-   not one preferred wording.
+   not one preferred wording. Direct attribution of a repository fact or user
+   decision is provenance, not narration of the agent's inspection process.
+   Acceptance criteria may reuse settled behavior to state observable effects,
+   plan slices may state the behavior they change or check, risk mitigations
+   may name the boundary they guard, and the final restatement may summarize
+   the outcome. Isolated repetition of a single constraint and brief process
+   asides are minor style issues, not blocking communication failures.
+   Material evidence and its source must remain clear. A short compatibility promise
+   may appear in both a verification slice and the rollout explanation. Grade
+   substantial redundant recaps and repeated whole
+   decision lists separately from this purpose-specific reuse; reject extended
+   tool-use chronology and redundant recaps without requiring deletion of evidence or
+   verification coverage.
 
 ## Non-goals
 

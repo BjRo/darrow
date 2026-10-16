@@ -74,7 +74,7 @@ async function runRecordCommand(
 export async function runReviewRecordChecks(checks: OracleCheck[]) {
   const root = await mkdtemp(join(tmpdir(), "darrow-review-record-oracle-"));
   roots.push(root);
-  const project = join(root, ".git/eval-tools/backend");
+  const project = join(root, ".git/eval-checks/review");
   const bin = join(root, ".git/fixture-bin");
   const home = join(root, ".git/oracle-home");
   const temporary = join(root, ".git/oracle-tmp");

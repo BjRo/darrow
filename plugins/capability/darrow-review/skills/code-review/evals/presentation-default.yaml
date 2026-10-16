@@ -1,10 +1,7 @@
 id: code-review-presentation-default
 activation: positive
 invariant: CR-C15,CR-C16,CR-E12,CR-E16
-prompt: >-
-  Use {{skill_invocation}} to review my uncommitted changes against this
-  originating requirement: token values must be positive integers. Report
-  only; do not request machine format.
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Use {{skill_invocation}} to review my uncommitted changes against this originating requirement: token values must be positive integers. Report only; do not request machine format."
 fixture:
   commits:
     - message: "chore: init"
@@ -24,31 +21,38 @@ fixture:
         return Number(value);
       }
   setup: |
-    mkdir -p .git/eval-checks/review/tests/evals
-    cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
+    bash "{{case_dir}}/fixtures/prepare-grading.sh" "{{case_dir}}"
 checks:
   - name: human response excludes machine JSON
-    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py
+      .git/last-message.md human-response
   - name: raw JSON stays beneath the review artifact
-    run: test "$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name '*.json' | wc -l | tr -d ' ')" -ge 1
+    run:
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" && test "$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      '*/darrow-review.*/*' -name '*.json' | wc -l | tr -d ' ')" -ge 1
   - name: canonical JSON is valid
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1');
-      test -n "$tool" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate "$record"
+      tool=.git/eval-checks/review/src/darrow_review/result.py; test -n "$tool"
+      && uv run --quiet --frozen --no-dev --project
+      "${tool%/src/darrow_review/result.py}" review-result validate "$record"
     expect_regex: "^valid: darrow-review-result-v3$"
   - name: retained Markdown preserves every canonical rendered line
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      '*/darrow-review.*/*' -name result.json -type f | sort | tail -n '1');
       test -n "$record" || exit 1;
-      tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n '1');
-      test -n "$tool" || exit 1;
-      expected=.git/expected-review.md;
-      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render "$record" >"$expected" &&
-      awk 'NF' "$expected" >.git/expected-review-normalized.md &&
-      awk 'NF' "$(dirname "$record")/review.md" >.git/actual-review-normalized.md &&
-      cmp .git/expected-review-normalized.md .git/actual-review-normalized.md
+      tool=.git/eval-checks/review/src/darrow_review/report.py; test -n "$tool"
+      || exit 1; expected=.git/expected-review.md; uv run --quiet --frozen
+      --no-dev --project "${tool%/src/darrow_review/report.py}" review-report
+      render "$record" >"$expected" && awk 'NF' "$expected"
+      >.git/expected-review-normalized.md && awk 'NF' "$(dirname
+      "$record")/review.md" >.git/actual-review-normalized.md && cmp
+      .git/expected-review-normalized.md .git/actual-review-normalized.md
 semantic_output_checks:
   - name: both token defects are actionable inline
     proposition: >-
@@ -61,7 +65,8 @@ semantic_output_checks:
       opening a report file to understand it.
   - name: review leads with the decision and remains concise
     proposition: >-
-      The response leads with the failed review outcome and indicates that repair
-      is needed. It uses concise Markdown, with no substantial repetition or
-      narration of the review procedure. Findings remain understandable inline;
-      fixed headings, verbatim wording, metadata, and report links are optional.
+      The response leads with the failed review outcome and indicates that
+      repair is needed. It uses concise Markdown, with no substantial repetition
+      or narration of the review procedure. Findings remain understandable
+      inline; fixed headings, verbatim wording, metadata, and report links are
+      optional.

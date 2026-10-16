@@ -11,6 +11,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { captureTestCommand } from "../test-command";
 
 const command = resolve(import.meta.dir, "../runner/ablation.ts");
 const ownerDirectory = resolve(import.meta.dir, "../sevro-extension");
@@ -134,16 +135,18 @@ async function invoke(
   args: string[] = [],
   entrypoint = command,
 ) {
-  const child = Bun.spawn([process.execPath, entrypoint, input, ...args], {
-    cwd: tmpdir(),
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ]);
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(
+    [process.execPath, entrypoint, input, ...args],
+    undefined,
+    {
+      cwd: tmpdir(),
+      env: process.env,
+    },
+  );
   return { stdout, stderr, code };
 }
 

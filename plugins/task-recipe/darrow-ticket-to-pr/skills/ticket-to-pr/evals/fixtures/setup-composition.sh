@@ -2,12 +2,13 @@
 set -euo pipefail
 fixtures=$(cd "$1" && pwd -P)
 variant=$2
-mkdir -p .git/fixture-bin
+mkdir -p .git/fixture-bin .fixture-state
+printf '/.fixture-state/\n' >>.git/info/exclude
 cp "$fixtures/composition-gh" .git/fixture-bin/gh
 chmod +x .git/fixture-bin/gh
-git init -q --bare .git/remote.git
-git --git-dir=.git/remote.git symbolic-ref HEAD refs/heads/main
-git remote add origin "$PWD/.git/remote.git"
+git init -q --bare .fixture-state/remote.git
+git --git-dir=.fixture-state/remote.git symbolic-ref HEAD refs/heads/main
+git remote add origin "$PWD/.fixture-state/remote.git"
 git push -qu origin main
 git remote set-head origin main
 git switch -qc fix/GH-42-timeout

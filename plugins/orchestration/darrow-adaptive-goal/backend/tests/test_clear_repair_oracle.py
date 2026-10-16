@@ -48,4 +48,4 @@ def test_plausible_but_unbound_clear_evidence_cannot_pass(
         )
     with pytest.raises(proof.InvalidProofError, match="expected one valid"):
         select(repo)
-    assert not (repo / ".git/goal-complete").exists()
+    assert not (repo / ".fixture-state/goal-complete").exists()

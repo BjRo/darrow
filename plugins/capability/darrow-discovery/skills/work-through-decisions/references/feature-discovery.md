@@ -20,7 +20,8 @@ Before resolving a material unknown, read the shared
 skill. Follow the link as a direct resource read; do not ask the host
 to select or invoke another skill. This is mandatory even when the user
 asks not to be interviewed or to skip questions. If the material frontier is
-already empty, proceed directly to the brief.
+already empty, establish the available facts in Section 2 and continue to Section 4
+without loading the shared method.
 
 Read the method file in a standalone tool call, not inside a combined search
 or multi-file command. Confirm that the returned content includes its
@@ -103,56 +104,14 @@ every current-frontier decision, then stop and wait. A refusal, evidence
 summary, unlabeled question list, proposed defaults, or draft brief is not a
 substitute for the round.
 
-## 4. Draft the discovery brief
+## 4. Continue only after frontier closure
 
-Enter this section only when the grilling frontier and required fact frontier
-are empty. Before writing a brief heading, audit every planned material
-conclusion: each must trace to a user choice, explicit delegation, or stated
-evidence. If any would instead be labeled an assumption, sensible default, or
-unaccepted recommendation, return to Section 3, ask that frontier, and stop.
+If any material choice remains open, Section 3 owns this turn: ask the
+current frontier and stop. Do not load the brief-writing resource or produce
+a proposed brief based on defaults; labeling it a draft or unconfirmed does
+not authorize unresolved choices.
 
-When that entry condition passes, produce a compact draft brief in the
-conversation with exactly these conceptual sections, using names appropriate
-to the subject. Lead with the outcome. Use familiar words, active voice, and
-short sentences and paragraphs. Explain a necessary Darrow term once. State
-each settled decision in one natural place instead of repeating the complete
-decision list across sections; the final goal restatement summarizes the
-outcome without restating every detail.
-
-- **Outcome and users** — the change in observable behavior and who benefits;
-- **Resolved behavior** — the product decisions the user actually made;
-- **Scope and non-goals** — boundaries and excluded adjacent behavior without
-  repeating the included behavior above;
-- **Constraints and evidence** — relevant repository or external facts with
-  provenance;
-- **Acceptance and verification** — observable criteria, an independent oracle
-  or expected effect, and a feasible way to check each material behavior;
-- **Assumptions and deferred questions** — visible, explicitly non-blocking
-  items that cannot change product behavior, authority, scope, privacy, or
-  acceptance; and
-- **Goal restatement** — one sentence describing the feature outcome.
-
-Before sending, assign each settled detail to one section and remove duplicate
-detail from the outcome, scope, evidence, and restatement. State evidence and
-its source directly; do not narrate the inspection process or that decisions
-were already settled. Keep the goal restatement at outcome level instead of
-repeating the operational rules.
-
-Do not add implementation phases, predetermined files, technical architecture,
-or ticket slices unless one is itself a settled product constraint needed to
-understand the feature.
-
-## 5. Confirm and stop
-
-Ask the user to confirm or correct the one-sentence goal restatement. Until
-they do, label the brief as a draft and do not claim shared understanding or
-completion.
-
-After explicit confirmation, label the conversational brief confirmed and
-stop. Do not persist it or automatically hand it to planning, readiness,
-ticketing, or implementation. If the user separately asks for one of those
-outcomes, the matching capability can consume the confirmed brief by intent.
-
-The skill is complete only when the brief traces every material conclusion to
-user authority or stated evidence, contains an observable quality bar, exposes
-assumptions and deferrals, and its one-sentence outcome has been confirmed.
+Only when the material decision and required fact frontiers are empty, read
+[Draft and confirm a discovery brief](discovery-brief.md) completely from this
+installed skill. That resource owns brief content and confirmation. If it is
+unavailable or incomplete, report the exact resource and stop.

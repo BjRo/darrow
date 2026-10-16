@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from ..common import RefusalError, git, read_text
-from .state import append, lines, metadata
+from .state import append, lines
 
 
 def assess(repo: Path, mode: str = "record") -> str:
@@ -16,7 +16,7 @@ def assess(repo: Path, mode: str = "record") -> str:
         "implementation-readiness-fixture: missing .readiness-verdict",
     ).splitlines()
     configured = configured_lines[0] if configured_lines else ""
-    state = metadata(repo) / "fixture-state"
+    state = repo / ".fixture-state"
     count = 1
     if mode == "record":
         (state / "implementation-readiness-pre-status").write_bytes(

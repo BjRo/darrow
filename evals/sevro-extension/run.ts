@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
 import { lstat, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -9,13 +10,14 @@ import {
   type ResolvedCorpusSource,
 } from "../corpus/orchestration/source";
 import { selectedCaseFixture } from "./index";
-import { sevroCommand } from "./sevro-command";
+import { sevroCommand, sevroEnvironment } from "./sevro-command";
 import {
   benchmarkConditionOptions,
   writeRunConfiguration,
 } from "./benchmark-condition";
 import { skillOverrideOptions } from "./skill-mount";
 import { runBenchmarkPolicy } from "./benchmark-policy";
+import { optionValue } from "./suite-routes";
 
 const repositoryRoot = resolve(import.meta.dir, "../..");
 const extension = join(import.meta.dir, "index.ts");
@@ -26,6 +28,7 @@ const sourceFiles = [
   join(repositoryRoot, "evals/fixture-ticket.ts"),
   join(import.meta.dir, "run.ts"),
   join(import.meta.dir, "selection.ts"),
+  join(import.meta.dir, "suite-routes.ts"),
   Bun.resolveSync(
     "@bjoernrochel/sevro/schemas/cli-result-v1.schema.json",
     import.meta.dir,
@@ -62,6 +65,24 @@ function validateForwarded(forwarded: string[]): void {
     if (token === "--" || reserved.has(token.split("=", 1)[0]!))
       throw new Error(`Sevro option is owned by Darrow: ${token}`);
   }
+}
+
+function repositoryEntrypoint(projectRoot: string, forwarded: string[]) {
+  if (
+    resolve(projectRoot) !== repositoryRoot ||
+    optionValue(forwarded, "--host") !== "codex" ||
+    optionValue(forwarded, "--codex-entrypoint") !== null ||
+    optionValue(forwarded, "--runtime-config-file") !== null
+  )
+    return [];
+  const path = join(repositoryRoot, "sevro.json");
+  if (!existsSync(path)) return [];
+  const runtime = JSON.parse(readFileSync(path, "utf8")) as {
+    hooks?: { nativeGoal?: unknown };
+  };
+  return runtime.hooks?.nativeGoal === true
+    ? ["--codex-entrypoint", "app-server"]
+    : [];
 }
 
 function sevroArgs(options: {
@@ -107,6 +128,7 @@ function sevroArgs(options: {
         ]
       : []),
     ...forwarded,
+    ...repositoryEntrypoint(projectRoot, forwarded),
   ];
 }
 
@@ -315,6 +337,7 @@ if (import.meta.main) {
         selected.corpusManifest,
       );
       const child = Bun.spawn([...selected.command, ...sourceArgs], {
+        env: sevroEnvironment(),
         stdout: "inherit",
         stderr: "inherit",
         stdin: "inherit",

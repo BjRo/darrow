@@ -1,25 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
-printf '/.agents/\n/.claude/\n' >> .git/info/exclude
+printf '/.agents/\n/.claude/\n/.fixture-state/\n' >> .git/info/exclude
+mkdir -p .fixture-state
 source_root=$(cd "$DARROW_EVAL_CASE_DIR/../../../.." && pwd -P)
 mkdir -p .git/fixture-bin
 mkdir -p .git/fixture-global-node-modules
 for tool in gh curl wget npm npx; do
   printf '%s\n' '#!/bin/sh' > ".git/fixture-bin/$tool"
+  # Resolve receipts from the executable, even when called in a subdirectory.
+  # shellcheck disable=SC2016
+  printf '%s\n' 'fixture_root=$(cd "$(dirname "$0")/../.." && pwd -P)' >> ".git/fixture-bin/$tool"
   if [ "$tool" = npm ]; then
     # Claude probes its global installation during startup. Supply only this
     # read-only query from fixture state; other npm calls stay intercepted.
     # shellcheck disable=SC2016
     printf '%s\n' \
       'if [ "$#" -eq 2 ] && [ "$1" = root ] && [ "$2" = -g ]; then' \
-      '  fixture_root=$(cd "$(dirname "$0")/../.." && pwd -P)' \
       '  printf "%s\n" "$fixture_root/.git/fixture-global-node-modules"' \
       '  exit 0' \
       'fi' >> ".git/fixture-bin/$tool"
   fi
   # The generated mock expands $0 at invocation, not during fixture setup.
   # shellcheck disable=SC2016
-  printf '%s\n' 'printf "%s\n" "${0##*/}" >> .git/guide-effects' 'exit 73' >> ".git/fixture-bin/$tool"
+  printf '%s\n' 'printf "%s\n" "${0##*/}" >> "$fixture_root/.fixture-state/guide-effects"' 'exit 73' >> ".git/fixture-bin/$tool"
   chmod +x ".git/fixture-bin/$tool"
 done
 for file in README.md CONTRIBUTING.md LICENSE package.json; do
@@ -64,7 +67,7 @@ if [ "${1:-}" = diagnosis ]; then
   cp "$DARROW_EVAL_CASE_DIR/fixtures/diagnose-plugin.template.md" .agents/skills/diagnose-plugin/SKILL.md
   cp "$DARROW_EVAL_CASE_DIR/fixtures/diagnose-plugin.template.md" .claude/skills/diagnose-plugin/SKILL.md
 fi
-: > .git/guide-effects
+: > .fixture-state/guide-effects
 git add README.md CONTRIBUTING.md LICENSE package.json docs evals/sevro-extension .claude-plugin plugins
 git -c user.name=Fixture -c user.email=fixture@example.invalid commit -qm "chore: snapshot guide sources"
 git rev-parse HEAD > .git/guide-base

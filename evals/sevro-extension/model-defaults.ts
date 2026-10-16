@@ -17,8 +17,8 @@ export const CODEX_EVAL_ROLE_DEFAULTS: Readonly<
   candidate: Object.freeze({ model: "gpt-6-luna", effort: "medium" }),
   qualityJudge: Object.freeze({ model: "gpt-5.6-sol", effort: "low" }),
   semanticOutputGrader: Object.freeze({
-    model: "gpt-5.6-luna",
-    effort: "low",
+    model: "gpt-6-luna",
+    effort: "high",
   }),
 });
 

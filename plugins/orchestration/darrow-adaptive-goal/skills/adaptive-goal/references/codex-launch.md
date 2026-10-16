@@ -1,6 +1,7 @@
 # Codex native goal and bounded assignments
 
-Use after read-only preflight, readiness, binding and implementation route selection.
+Use after read-only preflight, readiness, binding, implementation route and
+placement selection.
 
 ## Main-thread goal
 
@@ -18,7 +19,8 @@ main thread working.
 
 ## Bounded delegation
 
-For a new bounded agent, use `spawn_agent` with:
+Direct placement implements in this thread and spawns no implementor. For a
+new bounded agent, use `spawn_agent` with:
 
 - `fork_turns: none`;
 - a `task_name` containing only lowercase letters, digits and underscores;
@@ -27,7 +29,10 @@ For a new bounded agent, use `spawn_agent` with:
   scope, preserved work, required checks and exact public skill references;
 - a clear statement that the child owns its assignment, not the delivery goal.
 
-Implementation and repair use the preflight-selected implementation route.
+Delegated implementation and repair use the preflight-selected implementation
+route. For concurrent implementation, spawn one agent per independent part,
+each with a distinct `task_name`, its owned files and the shared interface, then
+wait for all of them before integration or further assignment.
 Verification coordination uses `gpt-6.1-sol/medium` or a stronger authorized route.
 Pass `gpt-6-luna/medium` explicitly for review coordination through verification;
 review's independent readers retain their own `gpt-6.1-sol/xhigh` route. Do not
@@ -43,12 +48,13 @@ before assigning more work. Children do not invoke Adaptive Goal, create
 overall goals, expand authority or decide overall completion. A rejected route
 does not authorize silently switching models.
 
-Reuse the accepted implementor for subsequent implementation and repairs. Use
+While delegation remains the chosen placement, reuse the accepted implementor
+for subsequent implementation and repairs. Use
 `followup_task` for an idle child or steer active work through `send_message`,
 targeting its retained identity. Supply concrete changes, findings, constraints
 and checks; keep workflow ordering and repair accounting in the main thread.
 Replace the implementor only for a concrete availability, route or scope mismatch,
-with the necessary context and prior work. Replacement grants no extra attempts.
+with the necessary context and prior work. Replacement or a placement switch grants no extra attempts.
 
 ## Coordination and feedback
 

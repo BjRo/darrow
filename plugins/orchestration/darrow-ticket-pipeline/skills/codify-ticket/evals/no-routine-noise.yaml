@@ -1,10 +1,10 @@
 id: ticket-pipeline-codify-no-routine-noise
 invariant: TP-P1,TP-E1,TP-V1
 prompt: >-
-  Explicitly invoke $codify-ticket for run eval-codify, phase codify,
+  Explicitly invoke {{skill_invocation}} for run eval-codify, phase codify,
   iteration 1, agent codifier-eval. Inspect .ticket-pipeline-input/ticket.md and the
   final diff, keep repository guidance and product files read-only, and write
-  the artifact to the absolute path {{repo_dir}}/.git/codify-artifact.tsv.
+  the artifact to the absolute path {{repo_dir}}/.fixture-state/codify-artifact.tsv.
 fixture:
   commits:
     - message: "chore: init"
@@ -41,9 +41,9 @@ checks:
       test -z "$(git diff --summary)"
   - name: routine fix produces no codification noise
     run: >-
-      awk -F '\t' '$1=="phase" && $2=="codify" {f=1} END {exit !f}' .git/codify-artifact.tsv &&
-      awk -F '\t' '$1=="status" && $2=="no_change" {f=1} END {exit !f}' .git/codify-artifact.tsv &&
-      grep -F 'No new patterns to codify' .git/codify-artifact.tsv >/dev/null
+      awk -F '\t' '$1=="phase" && $2=="codify" {f=1} END {exit !f}' .fixture-state/codify-artifact.tsv &&
+      awk -F '\t' '$1=="status" && $2=="no_change" {f=1} END {exit !f}' .fixture-state/codify-artifact.tsv &&
+      grep -F 'No new patterns to codify' .fixture-state/codify-artifact.tsv >/dev/null
 output_checks:
   - name: codify reports its artifact
     expect_regex: "codify-artifact\\.tsv"

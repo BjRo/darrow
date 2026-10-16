@@ -14,6 +14,17 @@ fixture:
       Work only on the requested go-git behavior. Use `go test ./config` for the focused suite.
       Before changing configuration semantics, inspect the public model, marshal/unmarshal path, validation, and URL rewriting callers under `config/`. Follow existing table-test and exported-comment conventions.
   commit_files: true
+  bin:
+    go: |
+      #!/usr/bin/env bash
+      set -eu
+      repo=$(git rev-parse --show-toplevel)
+      exec bash "$repo/.git/fixture-tools/go-cache.sh" "$@"
+  setup: |
+    mkdir -p .git/fixture-tools
+    cp "{{case_dir}}/go-cache.fixture.sh" .git/fixture-tools/go-cache.sh
+    repo=$(git rev-parse --show-toplevel)
+    bash "$repo/.git/fixture-tools/go-cache.sh" mod download
   ticket:
     id: "1"
     title: Preserve multiple insteadOf entries

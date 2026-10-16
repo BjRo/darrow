@@ -33,7 +33,7 @@ def test_readiness_reports_and_iterations(repo: Path) -> None:
             f"## Implementation readiness\n\n**Verdict:** `{name}`\n"
         )
         assert "### Required next action" in output
-    state = repo / ".git/fixture-state"
+    state = repo / ".fixture-state"
     invocations = state / "implementation-readiness-invocations"
     assert (
         invocations.read_text() == "ready\nneeds-decision\nneeds-discovery\nblocked\n"
@@ -157,7 +157,7 @@ def test_review_closed_sequence_and_history(repo: Path, final: str) -> None:
     assert "Fix verification: continue." in review.assess(repo, "verify", CONTRACT)
     (repo / "value.txt").write_text("repaired twice\n")
     assert f"Fix verification: {final}." in review.assess(repo, "verify", CONTRACT)
-    history = (git_dir / "fixture-state/independent-review-invocations").read_text()
+    history = (repo / ".fixture-state/independent-review-invocations").read_text()
     rows = [row.split("\t") for row in history.splitlines()]
     assert [row[2] for row in rows] == ["comprehensive", "verify", "verify"]
     assert len({row[0] for row in rows}) == 3
@@ -203,7 +203,7 @@ def test_review_subject_and_mutation(
 
     monkeypatch.setattr("darrow_adaptive_goal.fixtures.review.time.sleep", mutate)
     assert "outcome: inconclusive" in review.assess(repo, "comprehensive", CONTRACT)
-    events = (git_dir / "fixture-state/review-events").read_text().splitlines()
+    events = (repo / ".fixture-state/review-events").read_text().splitlines()
     assert events[0].split("\t")[1] != events[1].split("\t")[1]
     assert events[2].startswith("review\tinconclusive\t")
 
@@ -249,7 +249,7 @@ def test_combined_assessment_requires_current_checks(
         lambda _seconds: None,
     )
     subject = write_candidate(repo)
-    state = repo / ".git/fixture-state"
+    state = repo / ".fixture-state"
     (repo / ".git/fixture-review-reject-pattern").write_text("RETRY_COUNT = 0\n")
     with pytest.raises(CheckRequiredError, match="current checks"):
         verification.assess(repo, "initial")

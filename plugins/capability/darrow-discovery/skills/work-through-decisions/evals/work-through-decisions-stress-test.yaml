@@ -18,7 +18,18 @@ checks:
 semantic_output_checks:
   - name: API subject uses standalone grilling
     proposition: >-
-      The response treats the bulk-delete API as a design to stress-test in
-      decision rounds. It asks one or more material current-frontier questions
-      with concrete advisory recommendations, waits for the user's answers,
-      and does not create a feature brief or implementation plan.
+      The response asks one or more concrete design questions about the
+      proposed bulk-delete endpoint with advisory recommendations and rationale.
+      Authorization behavior or maximum batch size are relevant subjects.
+      The subject may be apparent from references to records, deletions, or
+      the endpoint; an explicit bulk-delete or stress-test label is not
+      required. Generic advice without a recommended question, or questions
+      about an unrelated subject, fail.
+  - name: stress-test round stops for user decisions
+    proposition: >-
+      After its questions and recommendations, the response ends the turn
+      without assuming the user's answers, advancing into dependent decisions,
+      claiming confirmation, or producing a feature brief or implementation
+      plan. A statement deferring later decisions is allowed. The end of the
+      response establishes stopping; no announcement of waiting, round mode,
+      or absence of a brief or plan is required.

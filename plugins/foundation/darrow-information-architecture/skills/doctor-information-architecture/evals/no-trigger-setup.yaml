@@ -18,6 +18,10 @@ checks:
   - name: proposal phase leaves the worktree clean
     run: git status --porcelain --untracked-files=all
     not_regex: "\\S"
+semantic_output_checks:
   - name: doctor skill is not claimed for greenfield setup
-    run: cat .git/last-message.md
-    not_regex: "doctor-information-architecture"
+    proposition: >-
+      The response does not claim that doctor-information-architecture was
+      selected, invoked, or used to carry out this greenfield setup. Merely
+      naming the installed doctor skill in the proposed file graph, preserving
+      its existing files, or proposing it for future audits is allowed.

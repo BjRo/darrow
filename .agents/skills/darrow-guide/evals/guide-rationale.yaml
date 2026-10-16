@@ -19,7 +19,7 @@ checks:
       .git/guide-base)"
     expect_exact: ""
   - name: no intercepted external-command attempts
-    run: cat .git/guide-effects
+    run: cat .fixture-state/guide-effects
     expect_exact: ""
   - name: Claude host disclosure
     run:
@@ -28,11 +28,16 @@ checks:
       .git/last-message.md >/dev/null; fi
 semantic_output_checks:
   - name: question contract
-    proposition:
-      "The response directly answers the question, remains concise, and establishes these
-      points: Native ownership; Explicit orchestration; Pipeline is reference and benchmark
-      baseline. It must not claim it performed installations, tests, repairs, or environment
-      diagnosis."
+    proposition: >-
+      The response explains that the host supplies execution, recovery, delegation,
+      or continuation, so Darrow does not add a second execution runtime. It explains
+      that the ticket pipeline remains an executable reference and benchmark baseline
+      for comparisons. A cited conflict between main-thread and subagent ownership
+      does not invalidate that shared host-ownership rationale; the response must not
+      invent which conflicting source prevails. A separate explanation of how to
+      activate orchestration is not required by this rationale question. It stays
+      concise and does not claim to have performed installations, tests, repairs, or
+      environment diagnosis.
 output_checks:
   - name: nearby repository evidence
     expect_regex: docs/design\.md|docs/decisions/ADR-0004-use-native-goal-ownership-for-core-orchestration\.md|docs/specs/ticket-pipeline\.md

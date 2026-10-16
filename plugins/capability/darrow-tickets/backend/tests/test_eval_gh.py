@@ -246,5 +246,6 @@ def test_cli_records_calls_and_reports_failure(tmp_path: Path) -> None:
     assert result.returncode == 1
     assert "Could not resolve" in result.stderr
     assert (
-        tmp_path / ".git/fixture-gh/calls"
+        tmp_path / ".fixture-state/gh/calls"
     ).read_text() == "issue list\nissue view 9\n"
+    assert not (tmp_path / ".git/fixture-gh").exists()

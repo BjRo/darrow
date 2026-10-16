@@ -77,10 +77,12 @@ for (const scenario of [
     const quoted = `'${trace.replaceAll("'", "'\\''")}'`;
     const result = await runFixtureChecks({
       source,
+      // This seam grades trace order; focused-test setup has separate coverage.
+      fixture: { ...canonical.fixture, setup: undefined },
       checks: [
         {
           name: "record synthetic cadence trace",
-          run: `printf '%s' ${quoted} >.git/fixture-state/verification-trace`,
+          run: `printf '%s' ${quoted} >.fixture-state/verification-trace`,
         },
         check,
       ],

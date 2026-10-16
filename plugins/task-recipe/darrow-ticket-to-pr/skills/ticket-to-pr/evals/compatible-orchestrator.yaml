@@ -44,12 +44,12 @@ fixture:
       set -eu
       test "$#" -eq 1
       test "$1" = https://example.invalid/tickets/42
-      printf '%s\n' "$1" >>.git/compatible-delegations
+      printf '%s\n' "$1" >>.fixture-state/compatible-delegations
 checks:
   - name: compatible provider receives the exact ticket once
     run: >-
-      test "$(wc -l <.git/compatible-delegations | tr -d ' ')" -eq 1 &&
-      test "$(cat .git/compatible-delegations)" = https://example.invalid/tickets/42
+      test "$(wc -l <.fixture-state/compatible-delegations | tr -d ' ')" -eq 1 &&
+      test "$(cat .fixture-state/compatible-delegations)" = https://example.invalid/tickets/42
   - name: recipe does not take over delivery
     run: >-
       test "$(git branch --show-current)" = main &&

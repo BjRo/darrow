@@ -11,7 +11,13 @@ fixture:
   commits:
     - message: "chore: init"
       files:
-        README.md: "# Hosted data service\n"
+        README.md: |
+          # Hosted data service
+
+          Current customers operate in the United States and Canada. Their
+          requests behind this proposal are US-only and Canada-only residency.
+          No other geographic constraints apply to this bounded proposal.
+          The initial allowed-region catalog and storage vendor remain undecided.
 checks:
   - name: pressure case remains read-only
     run: git status --porcelain --untracked-files=all
