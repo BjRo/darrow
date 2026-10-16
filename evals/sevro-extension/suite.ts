@@ -6,7 +6,7 @@ import { isDeepStrictEqual, parseArgs } from "node:util";
 import { parse as parseYaml } from "yaml";
 import { preflightCaseDetails, selectCaseIds } from "./index";
 import { pathToFileURL } from "node:url";
-import { sevroCommand } from "./sevro-command";
+import { sevroCommand, sevroEnvironment } from "./sevro-command";
 import { activationGate, type ActivationExpectation } from "./activation";
 import { activationReports } from "./activation-report";
 import { qualityReports } from "./quality-report";
@@ -645,6 +645,7 @@ async function runCell(
   const { mode, caseId, harness, index } = selected;
   const cellRoot = join(request.resultsRoot, `cell-${index}`);
   const child = Bun.spawn(command, {
+    env: sevroEnvironment(),
     stdout: "pipe",
     stderr: "pipe",
     stdin: "inherit",

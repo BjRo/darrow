@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { isAbsolute, join, resolve } from "node:path";
+import { delimiter, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 function installedCommand(): string {
   const toolingRoot = resolve(import.meta.dir, "../..");
@@ -57,5 +57,51 @@ export function sevroCommand(): {
     launch: [process.execPath, join(checkout, "src/cli.ts")],
     extraArgs: ["--runner-checkout-root", checkout],
     source: "checkout",
+  };
+}
+
+const toolingRoot = resolve(import.meta.dir, "../..");
+
+function inside(root: string, path: string): boolean {
+  const child = relative(root, path);
+  return (
+    child === "" ||
+    (!child.startsWith(`..${sep}`) && child !== ".." && !isAbsolute(child))
+  );
+}
+
+/** Entries that must not become Sevro read grants for inherited host tools. */
+function excludedToolPath(entry: string): boolean {
+  return (
+    !isAbsolute(entry) ||
+    inside(toolingRoot, entry) ||
+    entry.endsWith(`${sep}node_modules${sep}.bin`) ||
+    /[\\/](?:bun-node-[^\\/]+|bunx-[^\\/]+)(?:$|[\\/])/.test(entry)
+  );
+}
+
+function uvPythonInstallDir(): string | undefined {
+  const uv = Bun.which("uv");
+  if (!uv) return undefined;
+  const result = Bun.spawnSync([uv, "python", "dir"], {
+    stdout: "pipe",
+    stderr: "ignore",
+  });
+  const path = result.stdout.toString().trim();
+  return result.exitCode === 0 && isAbsolute(path) ? path : undefined;
+}
+
+/** Host tool environment Darrow hands to Sevro's runtime policy. */
+export function sevroEnvironment(
+  environment: Record<string, string | undefined> = process.env,
+): Record<string, string | undefined> {
+  const path = (environment.PATH ?? "")
+    .split(delimiter)
+    .filter((entry) => entry && !excludedToolPath(entry));
+  const uvPython = environment.UV_PYTHON_INSTALL_DIR ?? uvPythonInstallDir();
+  return {
+    ...environment,
+    PATH: [...new Set(path)].join(delimiter),
+    ...(uvPython ? { UV_PYTHON_INSTALL_DIR: uvPython } : {}),
   };
 }

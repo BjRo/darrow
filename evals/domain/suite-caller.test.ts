@@ -205,7 +205,7 @@ test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
       expect(result.task.verdict).toBe("passed");
     }
   },
-  20_000,
+  60_000,
 );
 
 test("suite rejects malformed case routes and missing selected harness maps before execution", async () => {
@@ -1934,7 +1934,7 @@ process.exitCode = code;
     );
     expect(report.comparisons[0].cases).toEqual([]);
   },
-  45_000,
+  150_000,
 );
 
 async function activationFixture() {

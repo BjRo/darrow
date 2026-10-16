@@ -19,6 +19,7 @@ import {
 } from "./benchmark-policy";
 import { parse as parseYaml } from "yaml";
 import { TICKETCTL } from "../fixture-ticket";
+import { caseCandidateRoutes } from "./suite-routes";
 import {
   caseWithCondition,
   conditionedCase,
@@ -760,6 +761,7 @@ const CASE_FIELDS = [
   "prompt",
   "follow_up_prompt",
   "harnesses",
+  "candidate_routes",
   "fixture",
   "checks",
   "expect_head_change",
@@ -1682,6 +1684,7 @@ function caseFacts(
   mountPluginSkills: boolean,
 ) {
   const hostIds = caseHostIds(selected.harnesses);
+  caseCandidateRoutes(selected.candidate_routes);
   return {
     invariant: string(selected.invariant, "case invariant"),
     ...(hostIds ? { hostIds } : {}),
@@ -2758,20 +2761,50 @@ export async function selectRunCaseIds(
   filters: string[],
   ownership: RunOwnership,
 ) {
+  return (await selectRunCases(root, filters, ownership)).ids;
+}
+
+function excludesHost(value: RecordValue, host: string | undefined) {
+  if (host === undefined) return false;
+  const hostIds = caseHostIds(value.harnesses);
+  return hostIds !== null && !hostIds.includes(`sevro.host.${host}`);
+}
+
+function matchesFilters(id: string, filters: string[]) {
+  return !filters.length || filters.some((filter) => id.includes(filter));
+}
+
+function declaredCaseRoute(value: RecordValue, host: string | undefined) {
+  return host === "codex" || host === "claude"
+    ? caseCandidateRoutes(value.candidate_routes)[host]
+    : undefined;
+}
+
+/** Select cases for a host and collect their declared default candidate routes. */
+export async function selectRunCases(
+  root: string,
+  filters: string[],
+  ownership: RunOwnership,
+  host?: string,
+) {
   validateRunSelectors(filters, ownership);
   const projectRoot = await realpath(root);
   const ids = new Set<string>();
   const selected: string[] = [];
+  const routes: Record<string, { model: string; effort: string }> = {};
   for (const entry of await caseEntries(projectRoot)) {
-    const id = string(record(entry.value, "case").id, "case ID");
+    const value = record(entry.value, "case");
+    const id = string(value.id, "case ID");
     if (ids.has(id)) throw new Error(`duplicate case ID: ${id}`);
     ids.add(id);
     if (!matchesRunOwnership(entry.source, ownership)) continue;
-    if (!filters.length || filters.some((filter) => id.includes(filter)))
-      selected.push(id);
+    if (!matchesFilters(id, filters) || excludesHost(value, host)) continue;
+    selected.push(id);
+    const route = declaredCaseRoute(value, host);
+    if (route) routes[id] = route;
   }
   if (!selected.length) throw new Error("No cases matched.");
-  return selected.sort();
+  return { ids: selected.sort(), routes };
 }
 
 /** Validate every canonical Darrow case against the current extension. */

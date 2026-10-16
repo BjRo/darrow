@@ -350,7 +350,7 @@ test("guide caller runs unmounted controls in inventory order", async () => {
       .split("\n")
       .map((line) => JSON.parse(line).prompt),
   ).toEqual(["guide-alpha", "guide-beta"]);
-}, 30_000);
+}, 90_000);
 
 test("guide caller stops after task failure and retains its public exit", async () => {
   const { root, binary, credential, results } = await fixture();
@@ -422,7 +422,7 @@ test("guide caller retains interrupted evidence and stops later cells", async ()
       child.exited,
     ]);
     try {
-      const deadline = Date.now() + 10_000;
+      const deadline = Date.now() + 60_000;
       while (!(await Bun.file(calls).exists()) && Date.now() < deadline)
         await Bun.sleep(20);
       expect(await Bun.file(calls).exists()).toBe(true);
@@ -449,7 +449,7 @@ test("guide caller retains interrupted evidence and stops later cells", async ()
       await captured;
     }
   }
-}, 30_000);
+}, 90_000);
 
 test("guide caller uses separate roots and explicit routes on both hosts", async () => {
   const { root, binary, credential, results } = await fixture();

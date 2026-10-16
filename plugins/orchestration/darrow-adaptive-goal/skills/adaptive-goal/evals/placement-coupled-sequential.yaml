@@ -1,0 +1,78 @@
+id: goal-placement-coupled-sequential
+invariant: ADL-R3,ADL-L1,ADL-L5
+goal_report: forbidden
+goal_route_checks: false
+harnesses: [codex]
+candidate_routes:
+  codex: { model: gpt-6-luna, effort: medium }
+prompt: >-
+  {{skill_invocation}} Change formatPrice in src/price.js to take a single options
+  object { cents, currency } instead of positional (cents, currency) arguments, and
+  update every caller in src/cart.js and src/invoice.js plus their tests so observable
+  output is unchanged. Acceptance is that bash test.sh passes and no caller uses the
+  positional form. This is one coupled interface change across its callers; minimizing
+  wall-clock time matters. These modules are private to this repository with no other
+  consumers, and the existing tests cover every caller, so the change is localized
+  and reversible. Select and apply the policy route rather than pinning a
+  model. Keep the result local.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Run `bash test.sh` for JavaScript changes.
+        package.json: '{"type":"module"}'
+        src/price.js: |
+          export const formatPrice = (cents, currency) =>
+            `${(cents / 100).toFixed(2)} ${currency}`;
+        src/cart.js: |
+          import { formatPrice } from "./price.js";
+          export const cartTotal = (items) =>
+            formatPrice(items.reduce((sum, item) => sum + item.cents, 0), "EUR");
+        src/invoice.js: |
+          import { formatPrice } from "./price.js";
+          export const invoiceLine = (label, cents, currency) =>
+            `${label}: ${formatPrice(cents, currency)}`;
+        test/price.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import { formatPrice } from "../src/price.js";
+          import { cartTotal } from "../src/cart.js";
+          import { invoiceLine } from "../src/invoice.js";
+          test("price", () => assert.equal(formatPrice(1234, "USD"), "12.34 USD"));
+          test("cart", () => assert.equal(cartTotal([{ cents: 100 }, { cents: 250 }]), "3.50 EUR"));
+          test("invoice", () => assert.equal(invoiceLine("Tea", 399, "GBP"), "Tea: 3.99 GBP"));
+        test.sh: |
+          #!/usr/bin/env bash
+          node --test test/price.test.js
+checks:
+  - name: options interface replaces positional arguments
+    run: >-
+      node --input-type=module -e "import('./src/price.js').then(({formatPrice}) => { if
+      (formatPrice({ cents: 1234, currency: 'USD' }) !== '12.34 USD') process.exit(1) })"
+  - name: callers keep observable output
+    run: >-
+      node --input-type=module -e "Promise.all([import('./src/cart.js'),
+      import('./src/invoice.js')]).then(([{cartTotal}, {invoiceLine}]) => { if
+      (cartTotal([{ cents: 100 }, { cents: 250 }]) !== '3.50 EUR' || invoiceLine('Tea',
+      399, 'GBP') !== 'Tea: 3.99 GBP') process.exit(1) })"
+  - name: no positional caller remains
+    run: "! grep -E 'formatPrice\\([^{)]' src/cart.js src/invoice.js test/price.test.js"
+  - name: focused tests pass
+    run: bash test.sh >/dev/null
+output_checks:
+  - name: verification evidence is returned
+    expect_regex: "test\\.sh"
+transcript_checks:
+  - name: coupled same-route work launches no implementation agent
+    not_regex: '"tool":"spawn_agent"|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"|"name":"Agent"'
+  - name: no lifecycle ledger is used
+    not_regex: adaptive-goal-preflight step|Protocol ledger
+semantic_output_checks:
+  - name: owner reports completion
+    proposition:
+      The response reports the requested outcome as complete, with no unresolved
+      blocker or pending decision preventing completion.
+native_goal: required

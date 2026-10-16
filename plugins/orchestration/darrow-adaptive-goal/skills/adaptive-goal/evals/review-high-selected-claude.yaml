@@ -9,8 +9,8 @@ prompt: >-
   sameSite is exactly "strict" instead of "lax". This security boundary has high
   consequence risk, but the implementation is clear, localized and fully specified.
   Preserve the other options, add focused evidence and run bash test.sh. Select the
-  implementation policy route, retain the native goal in this main thread and delegate
-  bounded implementation and selected verification. Use the advertised
+  implementation policy route, retain the native goal in this main thread, place
+  implementation by policy and delegate selected verification. Use the advertised
   independent-review capability through verification. Keep the result local; no commits
   or publication are authorized.
 fixture:

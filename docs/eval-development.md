@@ -58,6 +58,9 @@ constraints for producing and interpreting that evidence.
   require one exact tool sequence when several safe implementations yield the
   same observable result.
 - Keep participant prompts visible and pass criteria hidden.
+- When a case's expectation holds only on one host or candidate route, declare
+  `harnesses` and `candidate_routes` in the case instead of a comment. Filtered
+  and ownership runs then skip excluded hosts and apply the declared route.
 - Keep packaged Python oracles under `backend/tests/evals/` so participant mounts
   omit them. Copy them into `.git/eval-checks/` during fixture setup for hidden
   grading; agents cannot read or write that reserved subtree.
