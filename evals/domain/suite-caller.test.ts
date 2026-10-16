@@ -1950,8 +1950,8 @@ export default {
   async run({ condition }) {
     const skills = ++runs === 1 ? ["probe"] : [];
     return { finalMessage: "ready", complete: true, actualCondition: condition,
-      observations: [{ id: "sevro.codex.skill-reads", completeness: "complete",
-        data: { method: "skill_file_read_probe", primarySkill: skills[0] ?? null,
+      observations: [{ id: "sevro.host.skill-activations", completeness: "complete",
+        data: { method: "tool_result_body_match", visibility: "tool_result", scope: "prepared_skill_bodies", catalogComplete: true, partialSkills: [], ambiguousSkills: [], calls: [], truncated: false,
           observedSkills: skills } }] };
   },
 };\n`,
@@ -2376,8 +2376,8 @@ export default {
     const primary = prompt === "negative" ? (first ? "rival" : "probe")
       : first ? "probe" : prompt === "competition" ? "rival" : null;
     return { finalMessage: "ready", complete: true, actualCondition: condition,
-      observations: [{ id: "sevro.codex.skill-reads", completeness: "complete",
-        data: { method: "skill_file_read_probe", primarySkill: primary,
+      observations: [{ id: "sevro.host.skill-activations", completeness: "complete",
+        data: { method: "tool_result_body_match", visibility: "tool_result", scope: "prepared_skill_bodies", catalogComplete: true, partialSkills: [], ambiguousSkills: [], calls: [], truncated: false,
           observedSkills: primary ? [primary] : [] } }] };
   },
 };\n`,

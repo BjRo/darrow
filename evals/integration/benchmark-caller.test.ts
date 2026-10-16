@@ -166,8 +166,8 @@ test("benchmark caller routes a filtered dry suite through Sevro", async () => {
       {
         role: "semantic",
         host: "sevro.host.codex",
-        model: "gpt-5.6-luna",
-        effort: "low",
+        model: "gpt-6-luna",
+        effort: "high",
       },
     ],
     [
@@ -180,8 +180,8 @@ test("benchmark caller routes a filtered dry suite through Sevro", async () => {
       {
         role: "semantic",
         host: "sevro.host.codex",
-        model: "gpt-5.6-luna",
-        effort: "low",
+        model: "gpt-6-luna",
+        effort: "high",
       },
     ],
     [
@@ -194,8 +194,8 @@ test("benchmark caller routes a filtered dry suite through Sevro", async () => {
       {
         role: "semantic",
         host: "sevro.host.codex",
-        model: "gpt-5.6-luna",
-        effort: "low",
+        model: "gpt-6-luna",
+        effort: "high",
       },
     ],
     [
@@ -208,8 +208,8 @@ test("benchmark caller routes a filtered dry suite through Sevro", async () => {
       {
         role: "semantic",
         host: "sevro.host.codex",
-        model: "gpt-5.6-luna",
-        effort: "low",
+        model: "gpt-6-luna",
+        effort: "high",
       },
     ],
   ]);
@@ -260,7 +260,7 @@ test("benchmark caller uses the frozen package without route overrides", async (
   expect(manifest.cells[0].provenance.runner).toMatchObject({
     source: "package",
     packageName: "@bjoernrochel/sevro",
-    version: "0.1.0-rc.14",
+    version: "0.1.0-rc.15",
   });
   const result = JSON.parse(await readFile(manifest.cells[0].result, "utf8"));
   expect(result.task.verdict).toBe("not_assessed");

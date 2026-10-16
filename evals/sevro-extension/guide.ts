@@ -13,6 +13,7 @@ import {
 } from "./uv-seed-cache";
 import { preflightCaseDetails } from "./index";
 import { activationGate, type ActivationExpectation } from "./activation";
+import { CODEX_EVAL_ROLE_DEFAULTS } from "./model-defaults";
 
 const validate = new Ajv2020({ strict: false }).compile(schema);
 type GuideOptions = {
@@ -95,8 +96,14 @@ function hostDefaults(host: string): Array<[string, () => string]> {
         join(process.env.CODEX_HOME ?? join(homedir(), ".codex"), "auth.json"),
     ],
     ["--semantic-host", () => "codex"],
-    ["--semantic-model", () => "gpt-6-luna"],
-    ["--semantic-effort", () => "medium"],
+    [
+      "--semantic-model",
+      () => CODEX_EVAL_ROLE_DEFAULTS.semanticOutputGrader.model,
+    ],
+    [
+      "--semantic-effort",
+      () => CODEX_EVAL_ROLE_DEFAULTS.semanticOutputGrader.effort,
+    ],
     ...(host === "claude"
       ? [["--claude-bin", () => binary("claude")] as [string, () => string]]
       : []),

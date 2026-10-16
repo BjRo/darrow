@@ -157,19 +157,19 @@ constraints for producing and interpreting that evidence.
   token delivered once to a successfully completed turn. It does not require a
   transcript-visible `SKILL.md` load.
 - A Codex case without the placeholder remains an implicit-discovery probe and
-  requires a completed mounted-skill body read. Do not use the explicit path to
-  make implicit selection pass.
-  A complete read of the byte-identical marketplace staging copy of an
-  installed plugin skill also counts: the staging path must come from that
-  eval's installed marketplace catalog, and the observed output must match
-  the installed body. Prepared target skill drafts elsewhere in the fixture
-  never count as activation.
-- Missing, repeated, malformed, or unverified observation evidence stays
-  unknown. A failed compound shell command may still prove an earlier skill
-  read only when the command names a mounted skill path and its output contains
-  that mounted skill's frontmatter; a later clause's failure does not erase the
-  completed read. Retain the source, primary skill, and ordered observed skills
-  separately from the task outcome.
+  requires complete prepared-body exposure in the unique
+  `sevro.host.skill-activations` observation on Sevro rc.15. Do not use explicit
+  dispatch to make implicit selection pass. The `tool_result_body_match`
+  collector matches tool results independently of shell syntax and can combine
+  exact pages within one session and turn. Identical copies can match; this
+  proves body exposure to the tool caller, not which file was opened or whether
+  Code Mode forwarded the result to the model. Changed, short, transformed, and
+  unanchored text lies outside the prepared matching scope.
+- Missing, repeated, malformed, partial, truncated, or ambiguous collection stays
+  unknown, including in negative cases. Retain qualified host identities and
+  normalize only declared plugin namespaces to Darrow's unique mounted skill
+  names. Do not recover missing common collection from retired observations or
+  native transcripts. Keep task and activation outcomes separate.
 - A composed `activation_sequence` requires the primary owner first and a
   complete mounted body read for every supporting skill. Use
   `activation_includes` when supporting skills must be read but their order is
@@ -180,42 +180,16 @@ constraints for producing and interpreting that evidence.
   Excluded skills must actually be available in the case's mounted skill set;
   that includes independently installed `additional_plugins` and explicitly
   selected `additional_skills`, not just siblings of the owning skill.
-  Claude's reduced Skill events also retain a bounded exact invocation identifier
-  separately from the normalized activation name. This distinguishes namespaced
-  plugin dispatch from a same-named command without retaining skill arguments;
-  an invocation identifier alone does not prove provider execution or compliance.
-  Adaptive-goal observations recover deeper Skill dispatch from the native
-  session's completed Agent result graph when the outer stream omits it. Recovery
-  binds session and child identities, preserves chronological skill order and
-  retains only invocation metadata. Missing or inconsistent graph evidence
-  leaves activation incomplete; unrelated transcript files are never evidence.
+  Claude uses the common collector's `skill_tool_result` method: only successful
+  structured Skill calls establish selection. Direct Read calls and explicit
+  native command expansion do not add observed skills. Repository skill names
+  remain unqualified; a foreign plugin with the same skill name cannot substitute.
 - Explicit Codex probes retain the invoked owner first, then verified supporting
-  reads. Every supporting read must contain the complete mounted body, including
-  the first supporting read. Consecutive pages from the same actor may establish
-  that complete body when their accumulated output contains it exactly. The raw
-  read probes and activation summary use the same completeness requirement.
-  Overlapping exact source pages from that same actor also establish the read
-  when their coverage includes the whole body; repeated pages cannot fill a
-  gap, and altered or ambiguously located fragments do not prove coverage.
-  For compound output, locate unique source anchors and extend only through
-  byte-for-byte matching text; unrelated output contributes no source coverage.
-  If the native session recovers a complete read missing from CLI output,
-  recompute read completeness from that recovered evidence. Never retain a
-  stale incomplete flag, and never let read recovery repair failed or ambiguous
-  explicit dispatch. A partial read visible only natively remains incomplete.
-  Insert recovered reads according to shared ordering anchors rather than
-  appending an earlier skill after later ones. Conflicting source orders remain
-  incomplete instead of silently selecting one sequence.
-  Claude's explicit plugin commands may be expanded before the first assistant
-  turn without a Skill event. The observer accepts only a native command bound
-  to the mounted plugin namespace, exact arguments, and session, followed by
-  the complete mounted body in that same session. This proves dispatch without
-  requiring a redundant model-side Skill call; implicit discovery still needs
-  its observed invocation.
-  Do not infer cross-child read order from launch-list order: multiple children
-  contributing unanchored new reads keep the observation incomplete.
-  Truncated evidence cannot establish an exclusion;
-  the observation stays unknown until a complete read verifies that skill.
+  activations from the common collector. The dispatch receipt contains only the
+  invoked owner; it cannot establish supporting inclusion, exclusion, or order.
+  Incomplete collection cannot establish an exclusion. Retired per-turn read
+  observations remain unavailable for policies that still require that distinct
+  evidence; a whole-run collector cannot silently acquire per-turn meaning.
 
 - Recipe composition evidence must positively establish the accepted agent and
   the bound supporting capability. Absence of a prohibited action alone cannot
@@ -367,8 +341,8 @@ evaluation that stops at the first failure. `--only <question-id>` and
 before continuing. Fixtures snapshot current public documentation, manifests,
 and relevant code while excluding inventory, hidden checks, and delivery
 conclusions from the participant repository.
-The guide driver pins semantic grading to Codex `gpt-6-luna` / medium;
-the shared runner's default lightweight grader remains unchanged.
+The guide driver pins semantic grading to Codex `gpt-6-luna` / high;
+the shared runner uses the same gating grader default.
 
 That same command uses Darrow's exact installed Sevro dependency and retains
 separate task and activation outcomes. `SEVRO_CHECKOUT` or `SEVRO_PACKAGE_BIN`
@@ -443,7 +417,7 @@ Codex runs use independent defaults for each eval role:
 
 - candidate: `gpt-6-luna` at `medium` effort;
 - advisory quality judge: `gpt-5.6-sol` at `low` effort;
-- gating semantic-output grader: `gpt-5.6-luna` at `low` effort.
+- gating semantic-output grader: `gpt-6-luna` at `high` effort.
 
 Use `--model` and `--effort`, `--judge-model` and `--judge-effort`, or
 `--semantic-check-model` and `--semantic-check-effort` to override the

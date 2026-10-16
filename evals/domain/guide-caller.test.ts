@@ -1,4 +1,5 @@
 import { captureTestCommand } from "../test-command";
+import { CODEX_SKILL_HOOK_FIXTURE } from "./codex-hook-fixture";
 import { afterEach, expect, test } from "bun:test";
 
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -112,6 +113,7 @@ async function successfulTaskHost(root: string, binary: string) {
   await writeFile(
     binary,
     `#!${process.execPath}
+${CODEX_SKILL_HOOK_FIXTURE}
 import { appendFile } from "node:fs/promises";
 const argv = process.argv.slice(2);
 if (argv[0] === "sandbox") {
@@ -123,6 +125,8 @@ const prompt = await Bun.stdin.text();
 const propositions = prompt.match(/<propositions-json>\\n([\\s\\S]*?)\\n<\\/propositions-json>/);
 const text = propositions ? JSON.stringify({ checks: JSON.parse(propositions[1]).map(({ id }) => ({ id, verdict: "pass", reason: "Synthetic fixture supports the proposition." })) }) : "ready";
 if (!propositions) await appendFile(${JSON.stringify(calls)}, JSON.stringify({ prompt }) + "\\n");
+await skillHook("SessionStart", "synthetic-guide");
+await skillHook("Stop", "synthetic-guide");
 for (const event of [
   { type: "thread.started", thread_id: "synthetic-guide" },
   { type: "item.completed", item: { type: "agent_message", text } },

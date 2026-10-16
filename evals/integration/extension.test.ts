@@ -1085,10 +1085,10 @@ export default {
     nativeAdapter,
     (await readFile(adapter, "utf8"))
       .replace('id: "darrow.host.synthetic"', 'id: "sevro.host.codex"')
-      .replace('id: "darrow.activation"', 'id: "sevro.codex.skill-reads"')
+      .replace('id: "darrow.activation"', 'id: "sevro.host.skill-activations"')
       .replace(
         'data: { primarySkill: "example"',
-        'data: { method: "skill_file_read_probe", primarySkill: "example"',
+        'data: { method: "tool_result_body_match", visibility: "tool_result", scope: "prepared_skill_bodies", catalogComplete: true, partialSkills: [], ambiguousSkills: [], calls: [], truncated: false, primarySkill: "example"',
       ),
   );
   const native = await command<CliReply>([
@@ -1104,7 +1104,7 @@ export default {
     {
       id: "darrow.evals.activation",
       status: "passed",
-      evidenceRefs: ["sevro.codex.skill-reads"],
+      evidenceRefs: ["sevro.host.skill-activations"],
     },
   ]);
   const evidence = JSON.parse(await readFile(run.value.evidencePath, "utf8"));
@@ -1438,19 +1438,20 @@ SEVRO_EVENTS
     data: {
       method: "explicit_invocation",
       primarySkill: "probe",
-      observedSkills: ["probe"],
     },
   });
-  expect(liveEvidence.trials[0].observations).toContainEqual({
-    id: "sevro.codex.skill-reads",
-    source: "sevro.host.codex",
-    completeness: "complete",
-    data: {
-      method: "skill_file_read_probe",
-      primarySkill: null,
-      observedSkills: [],
-    },
-  });
+  // This packaging-only host emits no hook lifecycle; dispatch cannot repair it.
+  expect(liveEvidence.trials[0].observations).toContainEqual(
+    expect.objectContaining({
+      id: "sevro.host.skill-activations",
+      source: "sevro.host.codex",
+      completeness: "partial",
+      data: expect.objectContaining({
+        method: "tool_result_body_match",
+        observedSkills: [],
+      }),
+    }),
+  );
 });
 
 test("Darrow fixture setup runs through Sevro and rejects changed source", async () => {
@@ -1713,7 +1714,7 @@ test("Darrow runs implicit and explicit repository skills without a plugin wrapp
     if ((await new Response(child.stdout).text()).trim() !== "fixture-bin-ready" || await child.exited !== 0) throw new Error("fixture tool unavailable");
     return {
       finalMessage: "ready", complete: true,
-      observations: [{ id: explicitSkillInvocation ? "sevro.codex.explicit-invocation" : "sevro.codex.skill-reads", source: "sevro.host.codex", completeness: "complete", data: { method: explicitSkillInvocation ? "explicit_invocation" : "skill_file_read_probe", primarySkill: "probe", observedSkills: ["probe"] } }],
+      observations: [{ id: explicitSkillInvocation ? "sevro.codex.explicit-invocation" : "sevro.host.skill-activations", source: "sevro.host.codex", completeness: "complete", data: { method: explicitSkillInvocation ? "explicit_invocation" : "tool_result_body_match", visibility: "tool_result", scope: "prepared_skill_bodies", catalogComplete: true, partialSkills: [], ambiguousSkills: [], calls: [], truncated: false, primarySkill: "probe", observedSkills: ["probe"] } }],
     };
   },
 };
@@ -1818,8 +1819,8 @@ test("Darrow runs native Claude repository skills using their required mirror", 
       if (await Bun.file(workspace + "/.agents/skills/probe/SKILL.md").exists() || claudePluginDirs) throw new Error("repository scope changed");
       if (explicitSkillInvocation && (prompt !== "/probe Return ready." || explicitSkillInvocation.scope !== "repository" || explicitSkillInvocation.token !== "/probe")) throw new Error("native invocation differs");
       return { finalMessage: "ready", complete: true, observations: [
-        { id: "sevro.claude.tool-calls", completeness: "complete", data: { method: "stream_tool_calls", truncated: false, calls: [{ ordinal: 1, actor: "parent", parentToolUseId: null, name: "Skill", skill: "probe", invocation: "probe" }] } },
-        ...(explicitSkillInvocation ? [{ id: "sevro.claude.repository-invocation", completeness: "complete", data: { method: "native_repository_command", accepted: true, skill: "probe", primarySkill: "probe", observedSkills: ["probe"] } }] : [])
+        { id: "sevro.host.skill-activations", completeness: "complete", data: { method: "skill_tool_result", visibility: "skill_tool", observedSkills: ["probe"], truncated: false, calls: [{ sessionId: "probe-session", toolUseId: "skill-1", parentToolUseId: null, invocation: "probe", status: "succeeded" }] } },
+        ...(explicitSkillInvocation ? [{ id: "sevro.claude.repository-invocation", completeness: "complete", data: { method: "native_repository_command", accepted: true, skill: "probe", reason: "native command and complete mounted body matched" } }] : [])
       ] };
     }
   };`,
@@ -1850,7 +1851,7 @@ test("Darrow runs native Claude repository skills using their required mirror", 
     {
       id: "darrow.evals.activation",
       status: "passed",
-      evidenceRefs: ["sevro.claude.tool-calls"],
+      evidenceRefs: ["sevro.host.skill-activations"],
     },
   ]);
   await writeFile(
@@ -2531,7 +2532,7 @@ test("additional plugins and selected skills remain independent Codex packages",
       }
       return { finalMessage: "ready", complete: true, observations: [
         { id: "sevro.codex.explicit-invocation", source: "sevro.host.codex", completeness: "complete", data: { method: "explicit_invocation", primarySkill: "owner", observedSkills: ["owner", "provider", "selective"] } },
-        { id: "sevro.codex.skill-reads", source: "sevro.host.codex", completeness: "complete", data: { method: "skill_file_read_probe", primarySkill: "provider", observedSkills: ["provider", "selective"] } },
+        { id: "sevro.host.skill-activations", source: "sevro.host.codex", completeness: "complete", data: { method: "tool_result_body_match", visibility: "tool_result", scope: "prepared_skill_bodies", catalogComplete: true, partialSkills: [], ambiguousSkills: [], calls: [], truncated: false, observedSkills: ["provider:provider", "selective:selective"] } },
       ] };
     }
   };`,

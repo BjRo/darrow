@@ -21,6 +21,11 @@ import { parse as parseYaml } from "yaml";
 import { TICKETCTL } from "../fixture-ticket";
 import { caseCandidateRoutes } from "./suite-routes";
 import {
+  commonSkillActivation,
+  commonSkillSource,
+  SKILL_ACTIVATIONS,
+} from "./skill-activation";
+import {
   caseWithCondition,
   conditionedCase,
   extensionConfiguration,
@@ -1682,13 +1687,12 @@ async function neutralCase(
   const { fixture, ...setup } = caseFixture(selected.fixture);
   if (options.skillDir)
     await loadSkillOverride(root, join(root, options.skillDir));
-  const { skillDir, mountPluginSkills, ...mount } = caseMount(
-    selected.mount_plugin_skills,
+  const { skillDir, mountPluginSkills, ...mount } = await caseMountDetails(
+    selected,
     source,
     root,
     options,
   );
-  const additionalMounts = caseAdditionalMounts(selected, skillDir);
   const { invocation, prompt, ...followUp } = await casePrompts(
     selected,
     root,
@@ -1714,12 +1718,40 @@ async function neutralCase(
         projectRoot: pathToFileURL(root).href,
         ...setup,
         ...mount,
-        ...additionalMounts,
         ...(invocation ? { invocation } : {}),
         ...policy.details,
         ...disclosureDetails(checks),
       },
     },
+  };
+}
+
+async function caseMountDetails(
+  selected: RecordValue,
+  source: string,
+  root: string,
+  options: CaseConfiguration,
+) {
+  const mount = caseMount(selected.mount_plugin_skills, source, root, options);
+  return {
+    ...mount,
+    ...(await caseAdditionalDetails(root, selected, mount.skillDir)),
+  };
+}
+
+async function caseAdditionalDetails(
+  root: string,
+  selected: RecordValue,
+  skillDir: string | null,
+) {
+  const additional = caseAdditionalMounts(selected, skillDir);
+  const activationNamespaces =
+    selected.activation === undefined
+      ? []
+      : await caseActivationNamespaces(root, skillDir, additional);
+  return {
+    ...additional,
+    ...(activationNamespaces.length ? { activationNamespaces } : {}),
   };
 }
 
@@ -1738,6 +1770,29 @@ function caseFacts(
     checkNames: checkNames(selected),
     ...caseMetricDetails(selected),
   };
+}
+
+async function caseActivationNamespaces(
+  root: string,
+  skillDir: string | null,
+  additional: ReturnType<typeof caseAdditionalMounts>,
+) {
+  const paths = [
+    ...(skillDir?.startsWith("plugins/")
+      ? [skillDir.split("/").slice(0, 3).join("/")]
+      : []),
+    ...(additional.additionalPlugins ?? []),
+    ...(additional.additionalSkills ?? []).map((path) =>
+      path.split("/").slice(0, 3).join("/"),
+    ),
+  ];
+  return [
+    ...new Set(
+      await Promise.all(
+        [...new Set(paths)].map((path) => pluginName(join(root, path))),
+      ),
+    ),
+  ];
 }
 
 const OMITTED_SKILL_ENTRIES = new Set([
@@ -3086,9 +3141,7 @@ function activationObservation(
             "sevro.codex.explicit-invocation",
             "sevro.claude.repository-invocation",
           ].includes(item.id)
-        : item.id === "darrow.activation" ||
-          item.id === "sevro.codex.skill-reads" ||
-          item.id === "sevro.claude.tool-calls"),
+        : item.id === "darrow.activation"),
   );
   return matches.length === 1
     ? record(matches[0], "activation observation")
@@ -3131,6 +3184,8 @@ function supportedActivationSource(
   explicit: boolean,
 ): boolean {
   if (explicit) return supportedExplicitActivation(observation, data);
+  if (observation.id === SKILL_ACTIVATIONS)
+    return commonSkillSource(observation.source, data.method);
   if (observation.id === "darrow.activation") return true;
   if (observation.id === "sevro.claude.tool-calls")
     return (
@@ -3164,32 +3219,7 @@ function nonemptyString(value: unknown): value is string {
   return typeof value === "string" && value.length > 0;
 }
 
-function implicitClaudeActivation(
-  selected: RecordValue,
-  observations: unknown,
-  details: RecordValue,
-): RecordValue {
-  const calls = claudeCalls(observations);
-  if (!calls) return { ...selected, completeness: "partial" };
-  const target = activationExpectation(details.activation).targetSkill;
-  const skills = calls.filter((call) => call.name === "Skill");
-  const repository = String(details.source).startsWith(".agents/");
-  const foreignOwner =
-    repository &&
-    skills.some((call) => call.skill === target && call.invocation !== target);
-  const observedSkills = [...new Set(skills.map((call) => String(call.skill)))];
-  return {
-    ...selected,
-    completeness: foreignOwner ? "partial" : "complete",
-    data: {
-      ...record(selected.data, "Claude calls"),
-      primarySkill: observedSkills[0] ?? null,
-      observedSkills,
-    },
-  };
-}
-
-function explicitCodexActivation(
+function explicitSupportingActivation(
   selected: RecordValue,
   observations: unknown,
   details: RecordValue,
@@ -3200,19 +3230,52 @@ function explicitCodexActivation(
       (skill) => skill !== expected.targetSkill,
     ) || !!expected.excludes?.length;
   if (!supporting) return selected;
-  const reads = uniqueObservation(observations, "sevro.codex.skill-reads");
+  const common = commonCaseActivation(observations, details);
+  const reads = common.observation;
   const observed = observedActivation(reads, false);
   const dispatched = observedActivation(selected, true);
   if (!observed || !dispatched) return { ...selected, completeness: "partial" };
   const sequence = [
-    expected.targetSkill,
+    dispatched.primarySkill!,
     ...observed.observedSkills.filter(
-      (skill) => skill !== expected.targetSkill,
+      (skill) => skill !== dispatched.primarySkill,
     ),
   ];
-  if (JSON.stringify(sequence) !== JSON.stringify(dispatched.observedSkills))
-    return { ...selected, completeness: "partial" };
-  return { ...selected, supportingReadEvidence: "sevro.codex.skill-reads" };
+  return {
+    ...selected,
+    data: {
+      ...record(selected.data, "explicit dispatch"),
+      primarySkill: sequence[0],
+      observedSkills: sequence,
+    },
+    supportingReadEvidence: SKILL_ACTIVATIONS,
+  };
+}
+
+function commonCaseActivation(observations: unknown, details: RecordValue) {
+  if (!Array.isArray(observations))
+    throw new Error("evaluation observations must be an array");
+  const matches = observations.filter(
+    (item) => item && typeof item === "object" && item.id === SKILL_ACTIVATIONS,
+  );
+  const namespaces = Array.isArray(details.activationNamespaces)
+    ? details.activationNamespaces.filter(
+        (item): item is string => typeof item === "string",
+      )
+    : [];
+  const invocation = activationData(details.invocation);
+  if (typeof invocation?.pluginName === "string")
+    namespaces.push(invocation.pluginName);
+  return {
+    present: matches.length > 0,
+    observation:
+      matches.length === 1
+        ? commonSkillActivation(
+            record(matches[0], "skill activations"),
+            namespaces,
+          )
+        : null,
+  };
 }
 
 function activationEvidenceRefs(observation: RecordValue | null) {
@@ -3228,20 +3291,45 @@ function caseActivationObservation(
   details: RecordValue,
 ) {
   const explicit = details.invocation !== undefined;
-  const selected = activationObservation(observations, explicit);
+  const common = commonCaseActivation(observations, details);
+  if (!explicit && common.present) return common.observation;
+  const selected = explicitDispatchObservation(
+    activationObservation(observations, explicit),
+  );
   if (!selected) return null;
   if (selected.id === "sevro.codex.explicit-invocation")
-    return explicitCodexActivation(selected, observations, details);
+    return explicitSupportingActivation(selected, observations, details);
   if (selected.id === "sevro.claude.repository-invocation") {
     const invocation = record(details.invocation, "repository invocation");
     const data = activationData(selected.data);
     return invocation.scope === "repository" &&
       data?.skill === invocation.skillName
-      ? selected
+      ? explicitSupportingActivation(selected, observations, details)
       : null;
   }
-  if (selected.id !== "sevro.claude.tool-calls") return selected;
-  return implicitClaudeActivation(selected, observations, details);
+  return selected;
+}
+
+function explicitDispatchObservation(selected: RecordValue | null) {
+  if (
+    !selected ||
+    ![
+      "sevro.codex.explicit-invocation",
+      "sevro.claude.repository-invocation",
+    ].includes(String(selected.id))
+  )
+    return selected;
+  const data = activationData(selected.data);
+  const primarySkill =
+    selected.id === "sevro.codex.explicit-invocation"
+      ? data?.primarySkill
+      : data?.skill;
+  if (!data || !nonemptyString(primarySkill))
+    return { ...selected, completeness: "partial" };
+  return {
+    ...selected,
+    data: { ...data, primarySkill, observedSkills: [primarySkill] },
+  };
 }
 
 function matchesSkillExpectations(
@@ -6071,6 +6159,7 @@ if (import.meta.main) {
               "sevro.fixture.setup",
               "sevro.host.continuation",
               "sevro.host.native-controls",
+              SKILL_ACTIVATIONS,
               "sevro.codex.plugin-marketplace",
               "sevro.codex.explicit-invocation",
               "sevro.codex.repository-invocation",

@@ -12,6 +12,7 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { invocation } from "../sevro-extension/run";
+import { activationReceipt } from "./policy-project";
 
 const extension = resolve(import.meta.dir, "../sevro-extension/index.ts");
 
@@ -506,15 +507,10 @@ test("Darrow activation needs a complete and consistent host observation", async
   expect(passed.value.result.domainOutcomes).toMatchObject([
     { status: "passed", evidenceRefs: ["darrow.activation"] },
   ]);
-  const native = {
-    ...observation,
-    id: "sevro.codex.skill-reads",
-    source: "sevro.host.codex",
-    data: { ...observation.data, method: "skill_file_read_probe" },
-  };
+  const native = activationReceipt(["verify-change"]);
   const nativePassed = await evaluate([native]);
   expect(nativePassed.value.result.domainOutcomes).toMatchObject([
-    { status: "passed", evidenceRefs: ["sevro.codex.skill-reads"] },
+    { status: "passed", evidenceRefs: ["sevro.host.skill-activations"] },
   ]);
   const explicitData = {
     "darrow.case": {
@@ -527,7 +523,7 @@ test("Darrow activation needs a complete and consistent host observation", async
   const dispatch = {
     ...native,
     id: "sevro.codex.explicit-invocation",
-    data: { ...native.data, method: "explicit_invocation" },
+    data: { method: "explicit_invocation", primarySkill: "verify-change" },
   };
   const dispatched = await evaluate([native, dispatch], explicitData);
   expect(dispatched.value.result.domainOutcomes).toMatchObject([
@@ -548,7 +544,7 @@ test("Darrow activation needs a complete and consistent host observation", async
     "unavailable",
   );
   const ambiguous = await evaluate([observation, native]);
-  expect(ambiguous.value.result.domainOutcomes[0]!.status).toBe("unavailable");
+  expect(ambiguous.value.result.domainOutcomes[0]!.status).toBe("passed");
   const missed = await evaluate([]);
   expect(missed.value.result.domainOutcomes[0]!.status).toBe("unavailable");
   const partial = await evaluate([{ ...observation, completeness: "partial" }]);
@@ -2491,16 +2487,17 @@ test("Claude repository activation requires its complete bound command receipt",
       method: "native_repository_command",
       accepted: true,
       skill: "probe",
-      primarySkill: "probe",
-      observedSkills: ["probe"],
+      reason: "native command and complete mounted body matched",
     },
   };
   const tools = {
-    id: "sevro.claude.tool-calls",
+    id: "sevro.host.skill-activations",
     source: "sevro.host.claude",
     completeness: "complete",
     data: {
-      method: "stream_tool_calls",
+      method: "skill_tool_result",
+      visibility: "skill_tool",
+      observedSkills: ["probe"],
       truncated: false,
       calls: [
         {
@@ -2545,7 +2542,7 @@ test("Claude repository activation requires its complete bound command receipt",
     ...tools,
     data: {
       ...tools.data,
-      calls: [{ ...tools.data.calls[0], invocation: "foreign:probe" }],
+      observedSkills: ["foreign:probe"],
     },
   };
   expect(await status([foreign], false)).toBe("unavailable");

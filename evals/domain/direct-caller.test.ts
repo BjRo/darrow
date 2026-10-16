@@ -1,4 +1,5 @@
 import { captureTestCommand } from "../test-command";
+import { CODEX_SKILL_HOOK_FIXTURE } from "./codex-hook-fixture";
 import { afterEach, expect, test } from "bun:test";
 
 import { existsSync } from "node:fs";
@@ -843,6 +844,7 @@ test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
       await writeFile(
         binary,
         `#!${process.execPath}
+${CODEX_SKILL_HOOK_FIXTURE}
 const argv = process.argv.slice(2);
 if (argv[0] === "sandbox") {
   const child = Bun.spawn([${JSON.stringify(Bun.which("codex"))}, ...argv], { stdout: "inherit", stderr: "inherit" });
@@ -854,14 +856,17 @@ const countFile = Bun.file(${JSON.stringify(count)});
 const ordinal = await countFile.exists() ? Number(await countFile.text()) + 1 : 1;
 await Bun.write(countFile, String(ordinal));
 const scenario = ${JSON.stringify(scenario)};
+const session = "synthetic-activation";
+await skillHook("SessionStart", session);
 const events = [{ type: "thread.started", thread_id: "synthetic-activation" }];
-if (scenario === "passed" || (scenario === "failed" && ordinal === 1))
-  events.push({ type: "item.completed", item: {
-    type: "command_execution", command: "cat .agents/skills/probe/SKILL.md",
-    aggregated_output: ${JSON.stringify(body)}, exit_code: 0, status: "completed"
-  } });
+if (scenario === "passed" || (scenario === "failed" && ordinal === 1)) {
+  const call = { tool_use_id: "read-1", tool_name: "exec_command" };
+  await skillHook("PreToolUse", session, call);
+  await skillHook("PostToolUse", session, { ...call, tool_response: ${JSON.stringify(body)} });
+}
 if (scenario === "unavailable")
-  events.push({ type: "item.started", item: { id: "unfinished-read", type: "command_execution", command: "cat .agents/skills/probe/SKILL.md" } });
+  await skillHook("PreToolUse", session, { tool_use_id: "unfinished-read", tool_name: "exec_command" });
+await skillHook("Stop", session);
 events.push(
   { type: "item.completed", item: { type: "agent_message", text: "ready" } },
   { type: "turn.completed", usage: { input_tokens: 1, output_tokens: 1 } }

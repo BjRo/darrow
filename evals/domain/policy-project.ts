@@ -174,13 +174,19 @@ export function preparePolicy(
 
 export function activationReceipt(skills: string[], complete = true) {
   return {
-    id: "sevro.codex.skill-reads",
+    id: "sevro.host.skill-activations",
     source: "sevro.host.codex",
     completeness: complete ? "complete" : "partial",
     data: {
-      method: "skill_file_read_probe",
-      primarySkill: skills[0] ?? null,
+      method: "tool_result_body_match",
+      visibility: "tool_result",
+      scope: "prepared_skill_bodies",
+      catalogComplete: true,
       observedSkills: skills,
+      partialSkills: [],
+      ambiguousSkills: [],
+      calls: [],
+      truncated: false,
     },
   };
 }

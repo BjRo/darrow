@@ -68,7 +68,7 @@ test("guide caller retains a public unassessed dry result", async () => {
         role: "semantic",
         host: "sevro.host.codex",
         model: "gpt-6-luna",
-        effort: "medium",
+        effort: "high",
       }),
     ]),
   );
@@ -170,6 +170,6 @@ test("guide caller uses the frozen package without route overrides", async () =>
   expect(evidence.runner).toMatchObject({
     source: "package",
     packageName: "@bjoernrochel/sevro",
-    version: "0.1.0-rc.14",
+    version: "0.1.0-rc.15",
   });
 }, 30_000);

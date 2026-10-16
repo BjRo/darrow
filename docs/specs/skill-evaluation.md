@@ -62,6 +62,16 @@ yet fail to activate for intended wording, activate for adjacent intent, or
 lose to a neighboring capability. Activation evidence must therefore remain
 distinct from task outcomes and skill-value ablation.
 
+On Sevro rc.15, implicit activation uses the unique complete
+`sevro.host.skill-activations` observation. Codex's `tool_result_body_match`
+reports exposure of prepared skill bodies; Claude's `skill_tool_result` reports
+successful Skill calls. Preserve qualified identities while matching the mounted
+skill names. Partial, duplicate, malformed, truncated, or ambiguous collection
+stays unavailable, including for negative cases. A current common observation
+must never fall back to retired read or transcript evidence. Explicit dispatch
+remains sufficient for the invoked owner; supporting inclusion, exclusion, and
+order require the separate complete activation collection.
+
 ## Public contract
 
 ### Repository-owned model routes
@@ -69,7 +79,9 @@ distinct from task outcomes and skill-value ablation.
 Darrow owns its candidate, semantic-grader, and advisory-grader model and
 effort defaults in the evaluation extension. Repository callers use that
 policy without importing generic runner types or implementation. Moving the
-policy does not change the configured defaults or explicit route overrides.
+policy preserves explicit route overrides. Codex candidates default to
+`gpt-6-luna/medium`; the gating semantic grader defaults to Codex
+`gpt-6-luna/high` across direct, suite, benchmark, and repository-guide callers.
 
 ### Repository-owned fixture sources
 
@@ -343,9 +355,9 @@ forwards supported public Sevro options after `--`. Candidate and semantic
 adapter modules are refused because this caller assesses native hosts with the
 Codex semantic judge. Caller-owned case, storage, host,
 condition, trial, job, threshold, and dry options cannot be overridden there.
-Candidate defaults preserve Codex `gpt-5.6-terra/medium` and Claude
-`claude-sonnet-5/medium`; the semantic judge remains Codex
-`gpt-5.6-terra/medium`. Explicit model and effort overrides enter retained routes.
+Candidate defaults use Codex `gpt-6-luna/medium` and Claude
+`claude-sonnet-5-5/medium`; the semantic grader uses Codex
+`gpt-6-luna/high`. Explicit model and effort overrides enter retained routes.
 Claude repository trials enable project skill settings. The default auth and
 binary paths use the local host configuration, with explicit public overrides
 available for deterministic tests and coordinated development.

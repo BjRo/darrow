@@ -169,8 +169,8 @@ test("direct caller routes a filtered dry evaluation through Sevro", async () =>
     {
       role: "semantic",
       host: "sevro.host.codex",
-      model: "gpt-5.6-luna",
-      effort: "low",
+      model: "gpt-6-luna",
+      effort: "high",
     },
   ]);
   expect(evidence.runner.source).toBe(
@@ -198,7 +198,7 @@ test("direct caller uses the frozen package without route overrides", async () =
   expect(evidence.runner).toMatchObject({
     source: "package",
     packageName: "@bjoernrochel/sevro",
-    version: "0.1.0-rc.14",
+    version: "0.1.0-rc.15",
   });
 }, 30_000);
 

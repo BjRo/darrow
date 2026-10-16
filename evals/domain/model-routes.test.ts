@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import {
-  CODEX_EVAL_ROLE_DEFAULTS,
   defaultEvalRoute,
   resolveEvalRoute,
   type EvalModelRole,
@@ -26,14 +25,9 @@ describe("evaluation role defaults", () => {
       effort: "low",
     });
     expect(defaultEvalRoute(codex, "semanticOutputGrader")).toEqual({
-      model: "gpt-5.6-luna",
-      effort: "low",
+      model: "gpt-6-luna",
+      effort: "high",
     });
-    expect(
-      new Set(
-        Object.values(CODEX_EVAL_ROLE_DEFAULTS).map(({ model }) => model),
-      ),
-    ).toHaveLength(3);
   });
 
   test.each<EvalModelRole>([

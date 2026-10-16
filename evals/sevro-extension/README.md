@@ -183,7 +183,7 @@ threshold of one. It stops at the first task, activation, execution or grading
 failure. `--dry` prepares fixtures; `--without-skill` supplies an unmounted
 control. Repeat `--only` to select questions. The default runs both hosts.
 
-The semantic grader is Codex `gpt-6-luna/medium`. Optional host options follow
+The semantic grader is Codex `gpt-6-luna/high`. Optional host options follow
 `--`. Public result JSON, raw evidence and activation outcomes are retained
 separately. A single passing trial is not a reliability claim.
 

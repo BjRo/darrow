@@ -134,6 +134,18 @@ test("case inventory includes repository invocation and composition", async () =
   roots.push(root);
   const cases = join(root, ".agents/skills/probe/evals");
   await mkdir(cases, { recursive: true });
+  const provider = join(root, "plugins/capability/provider");
+  for (const host of ["claude", "codex"]) {
+    await mkdir(join(provider, `.${host}-plugin`), { recursive: true });
+    await writeFile(
+      join(provider, `.${host}-plugin/plugin.json`),
+      JSON.stringify({
+        name: "provider",
+        version: "0.1.0",
+        ...(host === "codex" ? { skills: "./skills/" } : {}),
+      }),
+    );
+  }
   const source = join(cases, "probe.yaml");
   await writeFile(
     source,
