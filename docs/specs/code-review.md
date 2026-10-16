@@ -391,6 +391,10 @@ axis and report `not_available`. Do not invent requirements.
     cannot turn unchanged failure into progress, permit oscillation, or bypass
     a failed check. Corrections require a real previous assessment at the same
     current target; they are not first follow-ups or implementation repairs.
+    A correction may clear a retained blocked verification whose original
+    finding set is empty. An empty finding set does not require an invented
+    finding or evidence gap; the same-candidate, checksum-bound history and
+    successful current-check requirements still apply.
 21. **CR-C21 — Explicit reviewer route.** This capability explicitly requests
     independent readers through a direct delegation instruction before the
     workflow and at its native launch boundary, including fix verification.

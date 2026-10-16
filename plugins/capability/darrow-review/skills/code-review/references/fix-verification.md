@@ -20,6 +20,9 @@ judgment: corrections do not inherit previously resolved states mechanically.
 
 The finalizer can return clear at the unchanged candidate only when all blockers
 and regressions are resolved, current checks succeed and no evidence gap remains.
+A retained blocked verification may have no original findings. Its correction
+can preserve that empty set and clear without inventing a finding or gap; the
+previous verification and current successful checks are still required.
 Unchanged unresolved evidence remains no-progress. Return the correction reason
 and retained prior-result reference visibly. Never discard a completed result,
 label it a first follow-up, rewrite its outcome or delete its artifact to obtain
