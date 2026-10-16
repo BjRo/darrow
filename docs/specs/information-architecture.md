@@ -21,7 +21,9 @@ Plugin: `darrow-information-architecture`. Skills: `setup-information-architectu
   repository paths, including Windows drives and UNC paths. Interpret portable
   guidance routes with forward slashes; accept Windows separators on Windows.
   Match instruction names with their documented case even on case-insensitive
-  filesystems. Recognize CRLF, LF, and UTF-8 BOM guidance without changing bytes.
+  filesystems. Case validation stays within the resolved repository root and
+  does not require directory-listing access to its ancestors. Recognize CRLF,
+  LF, and UTF-8 BOM guidance without changing bytes.
   Emit UTF-8 records even when a native pipe defaults to a legacy code page,
   so non-Latin repository paths remain reportable.
   Follow file adapters only within the repository; report broken, looping,

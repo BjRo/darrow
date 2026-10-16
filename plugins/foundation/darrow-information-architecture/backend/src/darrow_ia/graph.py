@@ -48,18 +48,20 @@ def choose_runtime(root: Path, runtime: str) -> str:
     if runtime != "auto":
         return runtime
     codex = any(
-        named_entrypoint(root / name) for name in ("AGENTS.md", "AGENTS.override.md")
+        named_entrypoint(root / name, root)
+        for name in ("AGENTS.md", "AGENTS.override.md")
     )
     claude = any(
-        named_entrypoint(root / name) for name in ("CLAUDE.md", ".claude/CLAUDE.md")
+        named_entrypoint(root / name, root)
+        for name in ("CLAUDE.md", ".claude/CLAUDE.md")
     )
     if claude:
         return "both" if codex else "claude"
     return "codex"
 
 
-def named_entrypoint(path: Path) -> bool:
-    return path.is_file() and exact_path(path)
+def named_entrypoint(path: Path, root: Path) -> bool:
+    return path.is_file() and exact_path(path, root)
 
 
 def inventory(audit: Audit) -> None:
@@ -98,7 +100,7 @@ def missing_entrypoints(audit: Audit) -> None:
     present = {
         "codex": bool(audit.seeds["codex"]),
         "claude": any(
-            named_entrypoint(audit.root / name)
+            named_entrypoint(audit.root / name, audit.root)
             for name in ("CLAUDE.md", ".claude/CLAUDE.md")
         ),
     }
