@@ -21,9 +21,10 @@ type ProofAssets = {
   setup: string;
 };
 type ProofContext = { root: string; environment: Record<string, string> };
+type ProofPackage = { backend: string; uvCacheDir: string };
 const cases: string[] = [];
 const packages: string[] = [];
-let proofPackage: Promise<string> | undefined;
+let proofPackage: Promise<ProofPackage> | undefined;
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 
 afterEach(async () => {
@@ -134,7 +135,7 @@ async function prepareProofPackage() {
     context,
   );
   expect(result.exitCode, result.stderr || result.stdout).toBe(0);
-  return backend;
+  return { backend, uvCacheDir: context.environment.UV_CACHE_DIR! };
 }
 
 async function prepareRepository(context: ProofContext, assets: ProofAssets) {
@@ -197,8 +198,8 @@ export async function goalReviewOracle(assets: ProofAssets) {
   };
   await prepareRepository(context, assets);
   proofPackage ??= prepareProofPackage();
-  const backend = await proofPackage;
-  context.environment.UV_CACHE_DIR = join(dirname(backend), ".git/uv-cache");
+  const { backend, uvCacheDir } = await proofPackage;
+  context.environment.UV_CACHE_DIR = uvCacheDir;
   await mkdir(join(root, ".sevro-marketplace"), { recursive: true });
   await symlink(dirname(backend), join(root, ".sevro-marketplace/plugin"));
   const uv = Bun.which("uv");
