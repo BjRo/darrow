@@ -299,7 +299,9 @@ Derive the outcome mechanically in this order:
    carried regression has fresh resolved evidence and current checks succeed.
    The optional `assessment_correction` string explains the assessment error or
    gap and new evidence. It requires a checksum-bound previous verification at
-   the same candidate. Preserve the entire history; never reset to `none`;
+   the same candidate. An empty original finding set is valid for this correction
+   and does not require an invented finding or evidence gap. Preserve the entire
+   history; never reset to `none`;
 3. `no_progress` when the current target equals the original, prior, or any
    earlier target, or when any unresolved blocker or regression has unchanged
    evidence;
