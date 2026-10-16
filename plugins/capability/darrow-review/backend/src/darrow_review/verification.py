@@ -139,8 +139,10 @@ def validate_verification(text: str, path: str = "-", depth: int = 0) -> Records
     check_records(result)
     result.unique_strings("history_targets", "history target")
     result.check(
-        result.items("original_findings") or result.strings("evidence_gaps"),
-        "at least one original_finding or evidence_gap is required",
+        result.items("original_findings")
+        or result.strings("evidence_gaps")
+        or result.value("assessment_correction"),
+        "at least one original_finding or evidence_gap is required outside an assessment correction",
     )
     findings = originals(result)
     actions = attempts(result, findings)

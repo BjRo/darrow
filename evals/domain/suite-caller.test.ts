@@ -72,9 +72,14 @@ export default {
   id: "sevro.host.codex", model: "synthetic", effort: "none",
   async run({ condition, signal }) {
     if (process.env.SEVRO_SUITE_READY_PATH) {
-      await writeFile(process.env.SEVRO_SUITE_READY_PATH, "ready");
       await new Promise((_resolve, reject) => {
-        signal.addEventListener("abort", () => reject(new Error("cancelled")), { once: true });
+        const cancel = () => reject(new Error("cancelled"));
+        if (signal.aborted) {
+          cancel();
+          return;
+        }
+        signal.addEventListener("abort", cancel, { once: true });
+        void writeFile(process.env.SEVRO_SUITE_READY_PATH, "ready").catch(reject);
       });
     }
     return { finalMessage: "ready", complete: true, actualCondition: condition,
