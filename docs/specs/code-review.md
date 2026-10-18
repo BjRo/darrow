@@ -888,6 +888,14 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
     authorize tests, select review for unrelated intent, or replace independent
     readers. Preserve hook-disabled cohorts as a distinct historical condition.
 
+19. **CR-E19 — Private fixture environments.** Repair-fixture preparation uses
+    the bundled frozen launcher for backend commands. Concurrent trials must
+    keep project environments in their own private Darrow caches and leave the
+    source plugin's environment untouched. A trial's Python installation must
+    not become another trial's interpreter through a shared source `.venv`.
+    Exercise concurrent preparation without model execution before interpreting
+    a repeated model cohort after a setup repair.
+
 Representative issue-32 control/candidate evidence and its N=1 limitations are
 recorded in
 [`review-convergence-issue-32.md`](../research/review-convergence-issue-32.md).

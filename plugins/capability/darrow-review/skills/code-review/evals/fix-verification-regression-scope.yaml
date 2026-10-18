@@ -1,7 +1,7 @@
 id: code-review-fix-verification-regression-scope
 required_plugin_hook: darrow-review
 activation: positive
-invariant: CR-C9,CR-C17,CR-C18,CR-C20,CR-E13,CR-E15,CR-E18
+invariant: CR-C9,CR-C17,CR-C18,CR-C20,CR-E13,CR-E15,CR-E18,CR-E19
 prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Verify my uncommitted repair against the prior code-review findings in `.fixture-state/verification-input`, limited to those findings and direct repair consequences. Use `bash check.sh` as current check evidence and remain read-only. Do not widen this into another comprehensive review."
 fixture:
   commits:
@@ -41,7 +41,7 @@ fixture:
     bash "{{case_dir}}/fixtures/prepare-grading.sh" "{{case_dir}}"
     set -eu
     backend=$(cd "{{case_dir}}/../../../backend" && pwd -P)
-    prior_output=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
+    prior_output=$(uv run --quiet --no-project "$backend/scripts/run_locked.py" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
     prior_manifest=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' manifest)
     original_target=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' target)
     python3 - "$original_target" "$prior_manifest" <<'PY' >.git/verification-input

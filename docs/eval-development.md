@@ -118,6 +118,9 @@ constraints for producing and interpreting that evidence.
 - On Sevro rc.16 or later, setup shares the candidate commands' private home; its
   temporary directory remains disposable. Initialize candidate-home state in
   setup instead of asking the candidate to prepare grading prerequisites.
+  Review repair fixtures invoke their bundled frozen launcher during setup;
+  direct `uv run --project` against the source plugin would share its `.venv`
+  across workers with different temporary homes and interpreter installations.
   Go corpus launchers share `.fixture-state/go/` caches across setup, candidate
   commands, and grading instead of downloading into that discarded home.
 - On Sevro rc.12, actual host-state cases select

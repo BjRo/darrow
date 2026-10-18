@@ -58,7 +58,7 @@ for (const name of [
     const { fixture } = await readFixtureCase(source);
     const runtime = await prepareUvFixtureRuntime();
     fixture.bin = { ...fixture.bin, ...runtime.bin };
-    fixture.setup = `${runtime.setupPrefix}\nuv sync --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend"\n${fixture.setup ?? ""}\ncp "{{case_dir}}/../../../backend/pyproject.toml" .git/expected-review-pyproject.toml`;
+    fixture.setup = `${runtime.setupPrefix}\n${fixture.setup ?? ""}\ntest ! -e "{{case_dir}}/../../../backend/.venv"\ncp "{{case_dir}}/../../../backend/pyproject.toml" .git/expected-review-pyproject.toml`;
     if (!name.startsWith("goal-contract-")) {
       const axes =
         name === "fix-verification-resolved" ||
@@ -71,12 +71,12 @@ for (const name of [
       fixture.setup += `
 set -eu
 prior=$(python3 -c 'import json; print(json.load(open(".fixture-state/verification-input"))["prior_manifest"])')
-current=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --target WORKTREE --allow-empty --prior-manifest "$prior")
+current=$(uv run --quiet --no-project "$backend/scripts/run_locked.py" review-scope prepare --repo "$PWD" --target WORKTREE --allow-empty --prior-manifest "$prior")
 manifest=$(printf '%s' "$current" | python3 -c 'import json,sys; print(json.load(sys.stdin)["manifest"])')
 ${axes
   .map(
     (axis) =>
-      `uv run --quiet --frozen --no-dev --project "$backend" review-result prepare-reader --manifest "$manifest" --axis ${axis} --original "$PWD/.fixture-state/verification-input" --attempted-from-input --no-checks-reason 'Input-binding oracle only; no assessment or repository-check outcome is asserted.'`,
+      `uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result prepare-reader --manifest "$manifest" --axis ${axis} --original "$PWD/.fixture-state/verification-input" --attempted-from-input --no-checks-reason 'Input-binding oracle only; no assessment or repository-check outcome is asserted.'`,
   )
   .join("\n")}
 `;

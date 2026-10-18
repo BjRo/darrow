@@ -1,7 +1,7 @@
 id: code-review-guidance-unresolved
 required_plugin_hook: darrow-review
 activation: positive
-invariant: CR-C9,CR-C18,CR-C19,CR-E15,CR-E18
+invariant: CR-C9,CR-C18,CR-C19,CR-E15,CR-E18,CR-E19
 prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Use {{skill_invocation}} to verify my uncommitted repair against the original review and binding records in .fixture-state/verification-input. The originating requirement is in requirements.md. Remain read-only and report the fix-verification outcome."
 fixture:
   commits:
@@ -36,11 +36,11 @@ fixture:
     cp "{{case_dir}}/fixtures/name-trim-review.fixture.json" .git/fixture-name-trim-template.json
     set -eu
     backend=$(cd "{{case_dir}}/../../../backend" && pwd -P)
-    prior_output=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
+    prior_output=$(uv run --quiet --no-project "$backend/scripts/run_locked.py" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
     prior_manifest=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' manifest)
     original_target=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' target)
     original_result=$(dirname "$prior_manifest")/result.json
-    scope_json=$(uv run --quiet --frozen --no-dev --project "$backend" review-result scope-records "$prior_manifest")
+    scope_json=$(uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result scope-records "$prior_manifest")
     python3 - "$PWD" "$scope_json" <<'PY' >"$original_result"
     import json, sys
     repo, scope_json = sys.argv[1:]
@@ -68,7 +68,7 @@ fixture:
         "next_action": "return findings",
     }, sys.stdout)
     PY
-    finding_json=$(uv run --quiet --frozen --no-dev --project "$backend" review-result original-findings "$original_result")
+    finding_json=$(uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result original-findings "$original_result")
     python3 - "$original_target" "$prior_manifest" "$original_result" "$finding_json" <<'PY' >.git/verification-input
     import json, sys
     target, manifest, result, finding_json = sys.argv[1:]
