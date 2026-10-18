@@ -1,5 +1,6 @@
 id: goal-preflight-high-risk-routine
-invariant: ADL-C1,ADL-C2,ADL-L2,ADL-L5,ADL-S3
+required_plugin_hook: darrow-review
+invariant: ADL-C1,ADL-C2,ADL-L2,ADL-L5,ADL-S3,CR-E18
 goal_report: forbidden
 goal_route_checks: false
 activation: positive

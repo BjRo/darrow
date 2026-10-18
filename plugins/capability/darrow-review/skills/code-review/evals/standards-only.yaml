@@ -1,6 +1,7 @@
 id: code-review-standards-only
+required_plugin_hook: darrow-review
 activation: positive
-invariant: CR-E1,CR-E2,CR-E4,CR-C21,CR-E14
+invariant: CR-E1,CR-E2,CR-E4,CR-C21,CR-E14,CR-E18
 prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Review my uncommitted changes. Report only; do not modify any files. There is no originating product specification for this cleanup."
 fixture:
   commits:

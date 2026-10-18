@@ -3,7 +3,8 @@
   "environment": {
     "inherit": ["PATH", "UV_PYTHON_INSTALL_DIR"],
     "set": {
-      "UV_CACHE_DIR": "{{sevro.runtime}}/uv-cache"
+      "UV_CACHE_DIR": "{{sevro.runtime}}/uv-cache",
+      "UV_PYTHON_DOWNLOADS": "never"
     }
   },
   "filesystem": {
@@ -11,10 +12,11 @@
     "optionalReadOnlyRoots": ["/System/Library/OpenSSL"]
   },
   "runtime": {
-    "seedDirectories": [
+    "sharedCacheDirectories": [
       {
         "source": "~/.darrow/cache/sevro-uv-cache",
-        "target": "uv-cache"
+        "target": "uv-cache",
+        "roles": ["candidate", "checks"]
       }
     ]
   },

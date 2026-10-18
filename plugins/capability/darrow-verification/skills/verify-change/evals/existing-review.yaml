@@ -1,5 +1,6 @@
 id: verification-existing-review
-invariant: VF-C2,VF-C3,VF-C4,VF-C6,VF-C7
+required_plugin_hook: darrow-review
+invariant: VF-C2,VF-C3,VF-C4,VF-C6,VF-C7,CR-E18
 activation: positive
 mount_plugin_skills: true
 additional_plugins:

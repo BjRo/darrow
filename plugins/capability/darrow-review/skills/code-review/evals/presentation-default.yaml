@@ -1,6 +1,7 @@
 id: code-review-presentation-default
+required_plugin_hook: darrow-review
 activation: positive
-invariant: CR-C15,CR-C16,CR-E12,CR-E16
+invariant: CR-C15,CR-C16,CR-E12,CR-E16,CR-E18
 prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Use {{skill_invocation}} to review my uncommitted changes against this originating requirement: token values must be positive integers. Report only; do not request machine format."
 fixture:
   commits:

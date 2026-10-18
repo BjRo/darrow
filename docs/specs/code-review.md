@@ -879,6 +879,15 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
     immutable finding/regression guidance, exact route/input/scope binding,
     missing or contradictory evidence, and saved terminal reports.
 
+18. **CR-E18 — Installed hook setup.** Current code-review and its real-provider
+    composition evals install the Review plugin and explicitly allow its
+    SessionStart hook. Implicit requests remain implicit, including negative
+    selection cases. Require observed successful hook execution and verify the
+    installed skill-path reminder reaches the candidate before interpreting
+    selection results. The reminder advertises the capability; it does not
+    authorize tests, select review for unrelated intent, or replace independent
+    readers. Preserve hook-disabled cohorts as a distinct historical condition.
+
 Representative issue-32 control/candidate evidence and its N=1 limitations are
 recorded in
 [`review-convergence-issue-32.md`](../research/review-convergence-issue-32.md).

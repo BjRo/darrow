@@ -1,6 +1,7 @@
 id: code-review-value-comparison
+required_plugin_hook: darrow-review
 activation: positive
-invariant: CR-E8
+invariant: CR-E8,CR-E18
 prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Review my uncommitted changes against this originating requirement: the public parsePort function must accept decimal integer strings from 1 through 65535 and return null for every other input. Run `bash test.sh` to verify the implementation as part of this review. The repository deliberately keeps this small boundary parser inline; do not request an abstraction. Report only."
 fixture:
   commits:

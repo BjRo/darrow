@@ -5,7 +5,8 @@
     "set": {
       "UV_CACHE_DIR": "{{sevro.runtime}}/uv-cache",
       "DARROW_CACHE_DIR": "{{sevro.runtime}}/darrow-cache",
-      "DARROW_FIXTURE_RECEIPTS_DIR": "{{sevro.runtime}}/home/.darrow/fixture-receipts"
+      "DARROW_FIXTURE_RECEIPTS_DIR": "{{sevro.runtime}}/home/.darrow/fixture-receipts",
+      "UV_PYTHON_DOWNLOADS": "never"
     }
   },
   "filesystem": {
@@ -13,16 +14,17 @@
     "optionalReadOnlyRoots": ["/System/Library/OpenSSL"]
   },
   "runtime": {
-    "seedDirectories": [
-      {
-        "source": "~/.darrow/cache/sevro-uv-cache",
-        "target": "uv-cache"
-      }
-    ],
     "artifactDirectories": [
       {
         "name": "receipts",
         "path": ".darrow/fixture-receipts"
+      }
+    ],
+    "sharedCacheDirectories": [
+      {
+        "source": "~/.darrow/cache/sevro-uv-cache",
+        "target": "uv-cache",
+        "roles": ["candidate", "checks"]
       }
     ]
   },

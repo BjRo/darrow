@@ -1,6 +1,7 @@
 id: code-review-no-trigger-implementation
+required_plugin_hook: darrow-review
 activation: negative
-invariant: CR-E1
+invariant: CR-E1,CR-E18
 prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Change DEFAULT_TIMEOUT_MS from 1000 to 2500 and summarize the change."
 fixture:
   commits:

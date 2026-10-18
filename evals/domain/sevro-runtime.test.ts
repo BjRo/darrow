@@ -104,6 +104,49 @@ test("seed cache preparation is skipped while its inputs are unchanged", async (
   expect((await stat(marker)).mtimeMs).toBe(first);
 });
 
+test("cache warm-up preserves shared entries and directory identity", async () => {
+  const root = await scratch();
+  await writeFile(join(root, "python-packages.txt"), "# none\n");
+  const target = join(root, "cache");
+  prepareUvSeedCache({ root, target });
+  const before = await stat(target);
+  await writeFile(join(target, "concurrent-entry"), "keep me\n");
+  await writeFile(join(target, ".darrow-seed-digest"), "stale");
+  prepareUvSeedCache({ root, target });
+  expect(await readFile(join(target, "concurrent-entry"), "utf8")).toBe(
+    "keep me\n",
+  );
+  expect((await stat(target)).ino).toBe(before.ino);
+  expect(await readFile(join(target, ".darrow-seed-digest"), "utf8")).toBe(
+    uvSeedDigest(root),
+  );
+});
+
+test("repository runtime profiles share UV only with its users", async () => {
+  const profiles = [
+    "sevro.json",
+    ...[
+      "codex-state",
+      "feedback-receipts",
+      "local-http",
+      "repository-skills",
+      "review-artifacts",
+    ].map((name) => `evals/sevro-extension/runtime-${name}.json`),
+  ];
+  for (const file of profiles) {
+    const profile = JSON.parse(await readFile(join(repository, file), "utf8"));
+    expect(profile.runtime.seedDirectories).toBeUndefined();
+    expect(profile.runtime.sharedCacheDirectories).toEqual([
+      {
+        source: "~/.darrow/cache/sevro-uv-cache",
+        target: "uv-cache",
+        roles: ["candidate", "checks"],
+      },
+    ]);
+    expect(profile.environment.set.UV_PYTHON_DOWNLOADS).toBe("never");
+  }
+});
+
 test("seed digest changes with a registered package lock", async () => {
   const root = await scratch();
   await mkdir(join(root, "pkg"));

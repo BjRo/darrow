@@ -1,6 +1,7 @@
 id: code-review-fix-verification-unavailable
+required_plugin_hook: darrow-review
 activation: positive
-invariant: CR-C17,CR-C18,CR-C20,CR-E13
+invariant: CR-C17,CR-C18,CR-C20,CR-E13,CR-E18
 prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Verify my uncommitted repair against the prior code-review findings recorded in `.fixture-state/verification-input`. Run the repository's prescribed checks and report whether the repair is verified or what evidence is missing. Remain read-only, and do not widen this into another comprehensive review."
 fixture:
   commits:

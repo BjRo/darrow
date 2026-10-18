@@ -208,7 +208,11 @@ test("Native goal evidence requirements follow the checks that consume them", as
       cases[0]!.requiredEvidence.includes("sevro.host.native-controls"),
     ).toBe(required);
     if (!required)
-      expect(cases[0]!.requiredEvidence).toEqual(["sevro.host.native-goal"]);
+      expect(
+        cases[0]!.requiredEvidence.filter(
+          (item) => item !== "sevro.host.hooks",
+        ),
+      ).toEqual(["sevro.host.native-goal"]);
   }
   for (const id of [
     "doctor-adaptive-goal-direct-codex",

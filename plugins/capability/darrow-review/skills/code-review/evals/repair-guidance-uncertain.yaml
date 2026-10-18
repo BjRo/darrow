@@ -1,6 +1,7 @@
 id: code-review-guidance-uncertain
+required_plugin_hook: darrow-review
 activation: positive
-invariant: CR-C9,CR-E15
+invariant: CR-C9,CR-E15,CR-E18
 prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Use {{skill_invocation}} to review the uncommitted migration against requirements.md. Report only and keep the change read-only."
 fixture:
   commits:

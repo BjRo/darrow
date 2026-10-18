@@ -24,6 +24,7 @@ const extension = join(import.meta.dir, "index.ts");
 const sourceFiles = [
   extension,
   join(import.meta.dir, "native-goal-policy.ts"),
+  join(import.meta.dir, "plugin-hook.ts"),
   join(import.meta.dir, "native-transcript-policy.ts"),
   join(repositoryRoot, "evals/fixture-ticket.ts"),
   join(import.meta.dir, "run.ts"),

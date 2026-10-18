@@ -1,6 +1,7 @@
 id: code-review-guidance-alternative
+required_plugin_hook: darrow-review
 activation: positive
-invariant: CR-C9,CR-C18,CR-C19,CR-E15
+invariant: CR-C9,CR-C18,CR-C19,CR-E15,CR-E18
 prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Use {{skill_invocation}} to verify my uncommitted repair against the original review and binding records in .fixture-state/verification-input. The originating requirement is in requirements.md. Remain read-only and report the fix-verification outcome."
 fixture:
   commits:

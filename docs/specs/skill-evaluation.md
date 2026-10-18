@@ -739,15 +739,20 @@ storage, skill, condition, and output paths resolve from the invocation director
 Result storage defaults to the evaluated project's `evals/results`.
 
 Repository evaluation runs use Sevro's runtime policy in the root `sevro.json`:
-inherited `PATH` and uv-managed Python, a private UV cache seeded from the
-registered packages' locks, native goals, and read-only access to the trial's
+inherited `PATH` and uv-managed Python, a prepared public UV cache shared by
+explicitly selected candidate and shell-check roles, native goals, and read-only access to the trial's
 own native transcripts, which Adaptive Goal uses to observe its session route.
 Sevro owns each role's private temporary storage and its temporary-directory
 environment variables; repository policy cannot override them. A fixture recorder must reject empty input
 before consuming a receipt slot; a failed upstream command cannot establish a
 returned assessment. Callers launch Sevro with `PATH`
 free of repository and Bun-injected entries, set `UV_PYTHON_INSTALL_DIR` when
-unset, and rebuild the seed cache only when a registered lock changes.
+unset, and warm the shared cache in place only when a registered lock changes.
+Warming preserves existing cache entries and directory identity; it must not
+delete or replace a cache that another evaluation may be using. Runtime profiles
+select `runtime.sharedCacheDirectories` rather than copying the UV cache into
+per-role seeds, and set `UV_PYTHON_DOWNLOADS=never`. Hooks and semantic/advisory
+graders receive no cache grant unless their declared work actually needs UV.
 Repository-skill guide trials select a hook-free runtime file because Claude
 project settings conflict with native-goal hooks. It retains native transcripts
 for complete control observations and skill-read recovery. With the repository's
@@ -1017,8 +1022,14 @@ Sevro does not supply `DARROW_CACHE_DIR` to candidates or shell checks. Darrow's
 locked launchers select their documented cache beneath the isolated `HOME`.
 With a selected Sevro runtime policy, each execution role receives a private
 home and writable runtime outside the Git fixture. Candidate and checker homes
-and Darrow caches are separate. Prepared UV dependency seeds are copied into
-each selected role's private runtime; their writable state is not shared.
+and Darrow caches are separate. On Sevro rc.18 or later, only the explicitly
+declared public UV dependency cache is shared across selected roles and runs;
+project environments, homes, temporary files, and Review state remain private.
+Shared-cache identity binds its source, target and roles, not mutable contents;
+equal identities cannot establish identical dependency-cache bytes. Isolated
+fingerprinted seeds remain appropriate when dependency independence is required.
+Disposable checker state, including copied seeds, is removed after grading even
+on failed or retained fixtures, while shared sources and result evidence survive.
 Caller cache overrides and credentials are not inherited. This deliberately
 replaces the legacy shared Darrow cache environment contract without changing
 the plugin launcher's public default or introducing Darrow policy into Sevro.
@@ -1073,6 +1084,20 @@ The backend, configuration, references, and manifest source bytes participate in
 artifacts remain Git-excluded and subject to the shared artifact limits. Native
 plugin preparation retains the backend inside its independent plugin package.
 Project discovery does not copy plugin hooks or agents into project settings.
+
+Plugin cases may declare `required_plugin_hook: <plugin-name>` to evaluate an
+installed plugin hook. Preserve implicit prompts: this declaration installs the
+native plugin package without adding a skill invocation. It requires the public
+`sevro.host.hooks` observation and a matching runtime `hooks.plugins` allowlist.
+One complete receipt must identify the declared plugin as the sole allowed
+plugin and retain at least one completed successful hook execution. A disabled
+hook, no execution, or a failed execution fails the check. Missing, duplicate,
+partial or malformed receipts remain unavailable. Do not infer hook execution
+from packaged files, hook configuration, native-goal hooks or skill activation.
+The current receipt does not attribute executions among multiple allowed
+plugins; such evidence remains unavailable. Hook output delivery is a separate
+native check and does not establish skill activation. Hook-free controls retain
+their original runtime profile and evidence rather than being relabeled.
 
 Packaged Python eval oracles remain hidden from participants. Plugin mounting
 excludes every nested `evals/` directory, including `backend/tests/evals/`.

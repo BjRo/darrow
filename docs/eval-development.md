@@ -103,7 +103,19 @@ constraints for producing and interpreting that evidence.
   Bind an ignore-preservation baseline to that declared list; preserve the
   original user configuration and reject missing, repeated, or undeclared rules.
   Do not infer permitted additions from candidate files or exempt a whole directory.
-- On Sevro rc.16, setup shares the candidate commands' private home; its
+- On Sevro rc.18 or later, repository profiles share the prepared public UV cache
+  through `runtime.sharedCacheDirectories` with only `candidate` and `checks`
+  roles. Shell graders using UV require explicit `checks` selection. Do not seed
+  a copy per role or grant the cache to current hooks and semantic/advisory hosts.
+  Keep `UV_CACHE_DIR={{sevro.runtime}}/uv-cache` and
+  `UV_PYTHON_DOWNLOADS=never`; warm registered dependencies before evaluation.
+  Warm-up preserves the shared source directory and entries instead of replacing
+  a live cache. Shared content is mutable and excluded from cache-content identity;
+  use fingerprinted private seeds when dependency independence is contractual.
+  Sevro cleans disposable checker state after passed and failed grading, without
+  deleting shared sources or retained evidence. Prune public caches only between
+  evaluations; upgrading does not clean old retained result directories.
+- On Sevro rc.16 or later, setup shares the candidate commands' private home; its
   temporary directory remains disposable. Initialize candidate-home state in
   setup instead of asking the candidate to prepare grading prerequisites.
   Go corpus launchers share `.fixture-state/go/` caches across setup, candidate
@@ -119,7 +131,14 @@ constraints for producing and interpreting that evidence.
   `evals/sevro-extension/runtime-local-http.json` on rc.12. Local HTTP access
   remains an explicit per-run opt-in; retain the original tests and assertions.
 - Review artifact cases select `evals/sevro-extension/runtime-review-artifacts.json`
-  explicitly. With Sevro rc.8 or later, graders read the original candidate
+  explicitly. Current code-review and real-provider composition cases declare
+  `required_plugin_hook: darrow-review`; the profile allowlists that plugin's
+  hooks. Codex installs the complete package even for implicit requests, without
+  inserting a skill token. Require a successful public hook execution receipt
+  and check reminder delivery in the native candidate context before launching
+  a threshold run. Hook execution and skill activation remain separate, and
+  negative selection cases retain the same installed hook. Preserve earlier
+  hook-disabled cohorts. With Sevro rc.8 or later, graders read the original candidate
   `~/.darrow/reviews` subtree through `SEVRO_CANDIDATE_ARTIFACT_REVIEWS`, then
   bind that path to the owning oracle's `DARROW_REVIEW_STATE_DIR`. Preserve
   configured runtime and dependency-cache paths. The participant prompt states

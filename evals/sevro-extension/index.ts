@@ -20,6 +20,7 @@ import {
 import { parse as parseYaml } from "yaml";
 import { TICKETCTL } from "../fixture-ticket";
 import { caseCandidateRoutes } from "./suite-routes";
+import { pluginHookPolicy, pluginHookChecks } from "./plugin-hook";
 import {
   commonSkillActivation,
   commonSkillSource,
@@ -821,6 +822,7 @@ const CASE_FIELDS = [
   "activation_includes",
   "activation_excludes",
   "mount_plugin_skills",
+  "required_plugin_hook",
   "additional_plugins",
   "additional_skills",
   "goal_report",
@@ -1651,31 +1653,45 @@ async function caseAssessment(
   selected: RecordValue,
   root: string,
   skillDir: string | null,
-  configuration: SkillMountConfiguration & BenchmarkPolicyConfiguration,
+  configuration: SkillMountConfiguration &
+    BenchmarkPolicyConfiguration & { withoutSkill?: boolean },
 ) {
   const policy = casePolicy(selected, skillDir);
   const benchmark = benchmarkCasePolicy(
     configuration,
     configuration.skillDir ?? skillDir,
   );
+  const hooks = pluginHookPolicy(
+    selected.required_plugin_hook,
+    skillDir,
+    configuration.withoutSkill,
+  );
   return {
     policy: {
       ...policy,
       requiredEvidence: [
-        ...new Set([...policy.requiredEvidence, ...benchmark.requiredEvidence]),
+        ...new Set([
+          ...policy.requiredEvidence,
+          ...benchmark.requiredEvidence,
+          ...hooks.requiredEvidence,
+        ]),
       ],
-      details: { ...policy.details, ...benchmark.details },
+      details: { ...policy.details, ...benchmark.details, ...hooks.details },
     },
     checks: [
       ...(await caseChecks(selected, root, skillDir)),
       ...policy.checks,
       ...benchmark.checks,
+      ...hooks.checks,
     ],
   };
 }
 
 type CaseConfiguration = SkillMountConfiguration &
-  BenchmarkPolicyConfiguration & { deferRoute?: boolean };
+  BenchmarkPolicyConfiguration & {
+    deferRoute?: boolean;
+    withoutSkill?: boolean;
+  };
 
 async function neutralCase(
   value: unknown,
@@ -2524,10 +2540,12 @@ function codexPackageHost(
   hostValue: unknown,
   hasAdditional: boolean,
   hasInvocation: boolean,
+  requiredHook = false,
 ): boolean {
   const host = record(hostValue, "candidate host");
   const selected =
-    host.id === "sevro.host.codex" && (hasInvocation || hasAdditional);
+    host.id === "sevro.host.codex" &&
+    (hasInvocation || hasAdditional || requiredHook);
   if (
     selected &&
     (!Array.isArray(host.capabilities) ||
@@ -2682,9 +2700,7 @@ async function repositorySkillMounts(
   );
   const mounted = [...owner, ...additional.flatMap((item) => item.sources)];
   const combined = [...mounted, ...fixtureMounts];
-  if (new Set(combined.map((item) => item.skillName)).size !== combined.length)
-    throw new Error("mounted skill names must be unique");
-  requireActivationSkills(details, combined);
+  validatePreparedSkills(details, combined);
   const codexPackages = codexPackageHost(
     hostValue,
     additional.length > 0,
@@ -2756,6 +2772,19 @@ function appendFixtureSkillArtifacts(
   }
 }
 
+function validatePreparedSkills(
+  details: RecordValue,
+  skills: { skillName: string }[],
+) {
+  if (new Set(skills.map((item) => item.skillName)).size !== skills.length)
+    throw new Error("mounted skill names must be unique");
+  requireActivationSkills(details, skills);
+}
+
+function requiresHookPackage(details: RecordValue, owner: unknown[]) {
+  return details.requiredPluginHook !== undefined && owner.length > 0;
+}
+
 async function preparedMounts(
   details: RecordValue,
   hostValue: unknown,
@@ -2776,14 +2805,13 @@ async function preparedMounts(
   );
   const mounted = [...owner, ...additional.flatMap((item) => item.sources)];
   const combined = [...mounted, ...fixtureMounts];
-  if (new Set(combined.map((item) => item.skillName)).size !== combined.length)
-    throw new Error("mounted skill names must be unique");
-  requireActivationSkills(details, combined);
+  validatePreparedSkills(details, combined);
   const invocation = requiredInvocation(details, mounted, hostValue);
   const codexPackages = codexPackageHost(
     hostValue,
     additional.length > 0,
     invocation !== null,
+    requiresHookPackage(details, owner),
   );
   const claudePackages = claudePackageHost(hostValue, owner.length > 0);
   const packagePlugins = codexPackages || claudePackages;
@@ -6130,6 +6158,7 @@ async function evaluateCase(params: RecordValue) {
   const metrics = caseMetrics(details, params);
   const ownership = await caseOwnershipChecks(details, params);
   const checks = [
+    ...pluginHookChecks(details.requiredPluginHook, params.observations),
     ...nativeGoalOutcomes(details.nativeGoal, params.observations),
     ...(await currentNativeTranscriptChecks(details, params)),
     ...guideDisclosureOutcomes(details.disclosureChecks, params.observations),
@@ -6206,6 +6235,7 @@ if (import.meta.main) {
               "sevro.fixture.setup",
               "sevro.host.continuation",
               "sevro.host.native-controls",
+              "sevro.host.hooks",
               SKILL_ACTIVATIONS,
               "sevro.codex.plugin-marketplace",
               "sevro.codex.explicit-invocation",
@@ -6221,6 +6251,7 @@ if (import.meta.main) {
               "darrow.evals.transcript",
               "darrow.evals.disclosure",
               "darrow.evals.benchmark",
+              "darrow.evals.plugin-hook",
             ],
             taskVerdictPolicies: [],
           }

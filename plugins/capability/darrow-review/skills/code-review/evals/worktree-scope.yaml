@@ -1,6 +1,7 @@
 id: code-review-worktree-scope
+required_plugin_hook: darrow-review
 activation: positive
-invariant: CR-E1,CR-E3,CR-C3
+invariant: CR-E1,CR-E3,CR-C3,CR-E18
 prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Review all work in progress on this feature branch against main, including committed, staged, unstaged, and untracked changes. No originating product specification exists. Do not modify anything."
 fixture:
   commits:

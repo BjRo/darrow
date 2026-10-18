@@ -1,6 +1,7 @@
 id: code-review-goal-contract-repair-verification
+required_plugin_hook: darrow-review
 activation: positive
-invariant: CR-C9,CR-C13,CR-C14,CR-C17,CR-C18,CR-E9,CR-E10,CR-E11,CR-E13,CR-E15
+invariant: CR-C9,CR-C13,CR-C14,CR-C17,CR-C18,CR-E9,CR-E10,CR-E11,CR-E13,CR-E15,CR-E18
 prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Execute this bounded goal contract. The candidate change is already present and must receive independent review before any repair or completion. Use the available capability matching this intent: independently review the exact current code change against the originating requirement and repository standards. Use its normal review report. With no blocking findings, return control to this goal. With blocking findings, repair only those findings under the existing authorization below, rerun invalidated checks, and independently verify only the attempted findings and their direct repair consequences against the changed target fingerprint. If verification is unavailable or inconclusive, stop. After and only after clear exact-target verification, run `bash mark-complete.sh`. Originating requirement: exported TIMEOUT_MS must equal 2500 and RETRY_COUNT must remain 3. Run `bash check.sh` to verify acceptance. Authorized repair: edit src/config.js only. Not authorized: commits, pushes, pull requests, or other publication. At the end, report the final goal outcome, the initial independent-review outcome, and the fix-verification outcome."
 fixture:
   commits:

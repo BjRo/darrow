@@ -1,6 +1,7 @@
 id: code-review-empty-diff
+required_plugin_hook: darrow-review
 activation: positive
-invariant: CR-E3,CR-C2,CR-C15,CR-E12
+invariant: CR-E3,CR-C2,CR-C15,CR-E12,CR-E18
 prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Review my uncommitted changes. Report only and do not make a change just to create something to review."
 fixture:
   commits:

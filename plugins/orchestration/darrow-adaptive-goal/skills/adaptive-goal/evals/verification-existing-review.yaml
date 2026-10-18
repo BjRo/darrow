@@ -1,5 +1,6 @@
 id: goal-verification-existing-review
-invariant: ADL-V1,ADL-A4,ADL-C2,ADL-L1,ADL-L2,ADL-L5,LC-C5,CR-C19
+required_plugin_hook: darrow-review
+invariant: ADL-V1,ADL-A4,ADL-C2,ADL-L1,ADL-L2,ADL-L5,LC-C5,CR-C19,CR-E18
 activation: positive
 mount_plugin_skills: true
 activation_includes: [verify-change, code-review]

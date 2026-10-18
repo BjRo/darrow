@@ -1,6 +1,7 @@
 id: code-review-merge-base-branch
+required_plugin_hook: darrow-review
 activation: positive
-invariant: CR-E1,CR-E3
+invariant: CR-E1,CR-E3,CR-E18
 prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Review the current feature branch against main. Use the branch merge base and do not review changes that exist only on main. There is no product spec."
 fixture:
   commits:

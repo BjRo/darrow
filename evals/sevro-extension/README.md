@@ -69,8 +69,24 @@ Darrow's callers prepare that environment before launching Sevro:
   temporary folders from `PATH`, because Sevro refuses read grants inside the
   protected repository.
 - They set `UV_PYTHON_INSTALL_DIR` from `uv python dir` when it is unset.
-- They build the public seed cache at `~/.darrow/cache/sevro-uv-cache` from the
-  registered Python packages' locks, and rebuild it only when a lock changes.
+- They warm the public UV cache at `~/.darrow/cache/sevro-uv-cache` from the
+  registered Python packages' locks, and warm it again only when inputs change.
+  Warm-up preserves existing entries and the directory while other runs use it.
+- On Sevro rc.18 or later, all repository runtime profiles use
+  `runtime.sharedCacheDirectories` with `roles: ["candidate", "checks"]`.
+  Candidates and UV shell graders use the same persistent cache without per-role
+  cache copies. Current hooks and semantic/advisory graders need no UV grant.
+  `UV_PYTHON_DOWNLOADS=never` requires the declared Python installation;
+  Sevro keeps dependency installation offline during trials.
+- Shared cache contents are mutable across evaluations and excluded from content
+  identity. Use public dependencies only; use isolated seeds for comparisons that
+  require independent dependency contents. Manage cache size between evaluations
+  with `uv cache prune --cache-dir ~/.darrow/cache/sevro-uv-cache`.
+  After manual pruning or clearing, remove `.darrow-seed-digest` from that cache
+  so the next caller warms the registered dependencies again.
+  Sevro removes disposable checker state after grading, including failed retained
+  fixtures, while keeping the shared source and evidence. This does not clean old
+  result directories created by earlier releases.
 - With this repository's default goal-enabled policy, they select Codex's
   app-server entrypoint unless an entrypoint or replacement runtime file is
   supplied. The compiled command records that selection.
@@ -103,6 +119,15 @@ bun eval --harness codex --owner-evaluation passive --codex-entrypoint app-serve
 
 Use this profile for the `code-review` cases, `verification-existing-review`,
 `goal-verification-existing-review`, and `goal-preflight-high-risk-routine`.
+These cases declare `required_plugin_hook: darrow-review`. The profile allows
+that plugin's SessionStart hook, and implicit Codex cases install its complete
+native package without adding an invocation token. The task includes a hook
+execution check using Sevro's public `sevro.host.hooks` receipt. A packaged or
+configured hook without a successful execution cannot pass; incomplete evidence
+remains unavailable. Native reminder delivery is checked separately before live
+threshold runs. Keep earlier hook-disabled results as their own condition.
+Hook-free or without-skill controls need a corresponding hook-free runtime
+profile; do not allowlist a plugin absent from that control.
 Review fixture setup prepares an empty candidate state directory on Sevro
 rc.16, so missing reports fail task checks and negative cases inspect real
 accessible state. A missing or unsafe declared directory is a grading error, never evidence

@@ -4,17 +4,16 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
-  renameSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 
 const toolingRoot = resolve(import.meta.dir, "../..");
 const MARKER = ".darrow-seed-digest";
 
-/** Matches the `runtime.seedDirectories` source in the repository `sevro.json`. */
+/** Matches the shared public UV cache source in the repository `sevro.json`. */
 export function uvSeedCacheDir(home = homedir()): string {
   return join(home, ".darrow", "cache", "sevro-uv-cache");
 }
@@ -26,7 +25,7 @@ function registeredPackages(root: string): string[] {
     .filter(Boolean);
 }
 
-/** Digest of every input that decides the cache contents. */
+/** Digest of registered package inputs that require another cache warm-up. */
 export function uvSeedDigest(root = toolingRoot): string {
   const hash = createHash("sha256");
   for (const relativePath of registeredPackages(root)) {
@@ -58,8 +57,8 @@ function syncPackage(uv: string, cache: string, env: string, project: string) {
 }
 
 /**
- * Build the public UV cache Sevro seeds into each trial, rebuilding only when a
- * registered package's project metadata or lock changes.
+ * Warm Sevro's shared public UV cache when registered package inputs change.
+ * Preserve its directory and existing entries while other runs may be using it.
  */
 export function prepareUvSeedCache(
   options: { root?: string; target?: string } = {},
@@ -72,30 +71,24 @@ export function prepareUvSeedCache(
     return target;
   const uv = Bun.which("uv");
   if (!uv) throw new Error("uv is required to prepare the UV seed cache");
-  mkdirSync(dirname(target), { recursive: true });
-  const staging = mkdtempSync(`${target}.staging-`);
+  mkdirSync(target, { recursive: true });
   const environments = mkdtempSync(`${target}.environments-`);
   try {
-    const cache = join(staging, "cache");
-    mkdirSync(cache);
     for (const [index, project] of registeredPackages(root).entries())
       syncPackage(
         uv,
-        cache,
+        target,
         join(environments, String(index)),
         join(root, project),
       );
-    writeFileSync(join(cache, MARKER), digest);
-    rmSync(target, { recursive: true, force: true });
-    renameSync(cache, target);
+    writeFileSync(marker, digest);
   } finally {
-    rmSync(staging, { recursive: true, force: true });
     rmSync(environments, { recursive: true, force: true });
   }
   return target;
 }
 
-/** Prepare the seed only when this repository's runtime file will be used. */
+/** Warm the shared cache only for this repository's runtime. */
 export function prepareRepositoryRuntime(projectRoot: string): void {
   if (
     resolve(projectRoot) === toolingRoot &&

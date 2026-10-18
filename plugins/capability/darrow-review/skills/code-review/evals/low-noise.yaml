@@ -1,6 +1,7 @@
 id: code-review-low-noise
+required_plugin_hook: darrow-review
 activation: positive
-invariant: CR-E5,CR-C6,CR-C7
+invariant: CR-E5,CR-C6,CR-C7,CR-E18
 prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Review my uncommitted changes against this originating requirement: add an admin health handler that repeats the local two-line auth guard and returns status 204. Run `bash format-check.sh` as the formatting check. Report only."
 fixture:
   commits:
