@@ -1,7 +1,7 @@
 id: code-review-both-axes
 activation: positive
-invariant: CR-C9,CR-E2,CR-E4,CR-E7,CR-E8,CR-E15
-prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Review my uncommitted changes against this originating requirement: parseAge must return null for non-numeric input. Do not repair the code."
+invariant: CR-C9,CR-C21,CR-E2,CR-E4,CR-E7,CR-E8,CR-E14,CR-E15,CR-E17
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Review my uncommitted changes against this originating requirement: parseAge must return null for non-numeric input. Run `bash test.sh` to verify the implementation as part of this review. Do not repair the code."
 fixture:
   commits:
     - message: "chore: init"
@@ -13,7 +13,8 @@ fixture:
           Run `bash test.sh` for JavaScript changes.
         src/age.js: |
           export function parseAge(value) {
-            return Number(value);
+            const parsed = Number(value);
+            return Number.isNaN(parsed) ? null : parsed;
           }
         test.sh: |
           #!/usr/bin/env bash
@@ -61,6 +62,11 @@ checks:
       --frozen --no-dev --project "${tool%/src/darrow_review/report.py}"
       review-report render "$record" >.git/expected-review.md && cmp
       .git/expected-review.md "$report"
+  - name: both configured independent reviewer routes are observed
+    run: >-
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
+      python3 .git/eval-checks/review/tests/evals/eval_routes.py --host "$(cat
+      .git/fixture-host)" --profile default --axes standards spec
 semantic_output_checks:
   - name: both blocking defects are understandable inline
     proposition: >-

@@ -1,11 +1,12 @@
 id: setup-information-architecture-preserve-settled-migration
-invariant: IA-S9,IA-S11
+invariant: IA-S2,IA-S8,IA-S9,IA-S11
 activation: competition
 mount_plugin_skills: true
 prompt: >-
   Set up a lean dual-runtime information architecture and record the settled
-  persistence direction from canonical repository evidence. I approve the
-  proposed file-level changes.
+  persistence direction from canonical repository evidence in
+  .agent-shared/rules/persistence.md. Make that shared guidance reachable for
+  persistence work in both runtimes. I approve the proposed file-level changes.
 fixture:
   commits:
     - message: "chore: init"
@@ -32,11 +33,25 @@ checks:
   - name: setup creates no commit
     run: git rev-list --all --reflog --count
     expect_regex: "^1$"
+  - name: canonical accepted decision remains unchanged
+    run: git diff --exit-code HEAD -- docs/decisions/004-storage.md
+semantic_artifact:
+  path: .agent-shared/rules/persistence.md
+  checks:
+    - name: settled persistence direction is retained and not reopened
+      proposition: >-
+        This persistence guidance preserves the accepted ADR 004 policy: new
+        persistence work uses raw SQL, and ORM is legacy migration surface
+        only, with no new ORM repositories. It may state that policy inline
+        or require reading docs/decisions/004-storage.md before persistence
+        work; that accepted source is preserved by a separate check.
+        An explicit persistence-work route to that ADR retains both policy
+        points without repeating them. The guidance does not reopen the
+        SQL-versus-ORM choice or replace the accepted direction with a guess.
 semantic_output_checks:
-  - name: settled persistence direction is retained and not reopened
+  - name: final response does not reopen the settled policy
     proposition: >-
-      The response says the accepted raw-SQL direction and the legacy-only ORM
-      restriction were retained in resident guidance or through an explicit
-      reachable route, identifies where that guidance now lives, and treats it
-      as settled repository policy rather than asking the user to choose
-      between the ORM and SQL patterns again.
+      The response does not ask the user to choose ORM versus SQL for new
+      persistence work as an unresolved decision. It need not repeat the ADR's
+      policy details when reporting that the guidance was saved. Questions
+      about structural file actions do not by themselves reopen that policy.

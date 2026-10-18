@@ -25,6 +25,14 @@ fixture:
         "pr list")
           ;;
         "pr create")
+          for argument in "$@"; do
+            case "$argument" in
+              --help|-h)
+                printf 'Usage: gh pr create [flags]\n'
+                exit 0
+                ;;
+            esac
+          done
           mkdir -p "$d"
           : > "$d/created"
           echo "https://github.com/fixture/repo/pull/1"

@@ -2127,6 +2127,7 @@ async function projectSkillArtifacts(
     ),
   };
   await appendProjectManifests(pluginRoot, artifacts, total);
+  await appendPluginReadme(pluginRoot, ".agents", artifacts, total);
   for (const name of ["backend", "config", "references"]) {
     const directory = join(pluginRoot, name);
     if (await optionalPluginDirectory(directory))
@@ -2179,6 +2180,36 @@ async function optionalPluginDirectory(path: string): Promise<boolean> {
   }
 }
 
+async function appendPluginReadme(
+  pluginRoot: string,
+  destination: string,
+  artifacts: SkillArtifact[],
+  total: { bytes: number },
+): Promise<void> {
+  const path = join(pluginRoot, "README.md");
+  let entry;
+  try {
+    entry = await lstat(path);
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT")
+      return;
+    throw error;
+  }
+  if (!entry.isFile() || entry.isSymbolicLink())
+    throw new Error("plugin README is not a regular file");
+  const bytes = await readFile(path);
+  total.bytes += bytes.byteLength;
+  checkSkillArtifactLimit(bytes, total.bytes, artifacts.length);
+  artifacts.push(
+    skillArtifact(
+      bytes,
+      `${destination}/README.md`,
+      artifacts.length + 1,
+      false,
+    ),
+  );
+}
+
 async function collectPluginDirectory(
   pluginRoot: string,
   directory: string,
@@ -2226,6 +2257,7 @@ async function appendPluginMechanics(
   artifacts: SkillArtifact[],
   total: { bytes: number },
 ): Promise<void> {
+  await appendPluginReadme(pluginRoot, destination, artifacts, total);
   for (const name of [
     ".claude-plugin",
     ".codex-plugin",
@@ -2859,17 +2891,32 @@ async function prepareCase(params: RecordValue) {
     string(selected.id, "case ID"),
     params.host,
   );
+  const mounts = omitSkills
+    ? { artifacts: [] }
+    : await preparedMounts(
+        details,
+        params.host,
+        params.configuration,
+        string(selected.id, "case ID"),
+      );
   return {
-    ...(omitSkills
-      ? { artifacts: [] }
-      : await preparedMounts(
-          details,
-          params.host,
-          params.configuration,
-          string(selected.id, "case ID"),
-        )),
+    ...mounts,
     requestedInstrumentation: [],
-    ...(setup ? { fixtureSetup: setup } : {}),
+    ...(setup
+      ? {
+          fixtureSetup: {
+            ...setup,
+            environment: {
+              ...setup.environment,
+              DARROW_EVAL_MOUNT_EXCLUDES: JSON.stringify(
+                mounts.artifacts
+                  .filter((artifact) => artifact.gitExclude)
+                  .map((artifact) => artifact.relativePath),
+              ),
+            },
+          },
+        }
+      : {}),
     extensionData: {},
   };
 }

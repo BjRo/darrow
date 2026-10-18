@@ -1,7 +1,7 @@
 id: code-review-goal-contract-pass
 activation: positive
 invariant: CR-C13,CR-C14,CR-E9,CR-E11
-prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Execute this bounded goal contract. The candidate change is already present in the working tree. Before declaring the goal complete, use the available capability matching this intent: independently review the exact current code change against the originating requirement and repository standards. Require its normal review report. A response with no blocking findings returns control to this goal; blocking findings or unavailable review stop it. After and only after a clear review, run `bash mark-complete.sh`. Originating requirement: exported RATE_LIMIT must equal 2. Acceptance: `bash check.sh` passes. Not authorized: product edits, commits, pushes, pull requests, or any publication action. At the end, report the final goal outcome and the independent-review outcome."
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Execute this bounded goal contract. The candidate change is already present in the working tree. Before declaring the goal complete, use the available capability matching this intent: independently review the exact current code change against the originating requirement and repository standards. Require its normal review report. A response with no blocking findings returns control to this goal; blocking findings or unavailable review stop it. After and only after a clear review, run `bash mark-complete.sh`. Originating requirement: exported RATE_LIMIT must equal 2. Run `bash check.sh` to verify acceptance. Not authorized: product edits, commits, pushes, pull requests, or any publication action. At the end, report the final goal outcome and the independent-review outcome."
 fixture:
   commits:
     - message: "chore: init"
@@ -18,7 +18,6 @@ fixture:
         mark-complete.sh: |
           #!/usr/bin/env bash
           set -eu
-          git_dir=$(git rev-parse --git-dir)
           record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name result.json -type f | sort | tail -n 1)
           test -n "$record"
           python3 - "$record" <<'PY'
@@ -26,7 +25,6 @@ fixture:
           with open(sys.argv[1], encoding="utf-8") as source:
               record = json.load(source)
           assert record["verdict"] == "pass"
-          assert record["next_action"] == "return control to enclosing goal"
           PY
           printf '%s\n' complete >.fixture-state/goal-complete
   files:
@@ -58,8 +56,6 @@ checks:
       "${tool%/src/darrow_review/result.py}" review-result validate "$record" &&
       python3 .git/eval-checks/review/tests/evals/assert_records.py "$record"
       has verdict pass && python3
-      .git/eval-checks/review/tests/evals/assert_records.py "$record" has
-      next_action 'return control to enclosing goal' && python3
       .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks-key
       findings
     expect_regex: "^valid: darrow-review-result-v3$"

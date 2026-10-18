@@ -1,7 +1,7 @@
 id: code-review-goal-contract-repair-verification
 activation: positive
 invariant: CR-C9,CR-C13,CR-C14,CR-C17,CR-C18,CR-E9,CR-E10,CR-E11,CR-E13,CR-E15
-prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Execute this bounded goal contract. The candidate change is already present and must receive independent review before any repair or completion. Use the available capability matching this intent: independently review the exact current code change against the originating requirement and repository standards. Use its normal review report. With no blocking findings, return control to this goal. With blocking findings, repair only those findings under the existing authorization below, rerun invalidated checks, and independently verify only the attempted findings and their direct repair consequences against the changed target fingerprint. If verification is unavailable or inconclusive, stop. After and only after clear exact-target verification, run `bash mark-complete.sh`. Originating requirement: exported TIMEOUT_MS must equal 2500 and RETRY_COUNT must remain 3. Acceptance: `bash check.sh` passes. Authorized repair: edit src/config.js only. Not authorized: commits, pushes, pull requests, or other publication. At the end, report the final goal outcome, the initial independent-review outcome, and the fix-verification outcome."
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Execute this bounded goal contract. The candidate change is already present and must receive independent review before any repair or completion. Use the available capability matching this intent: independently review the exact current code change against the originating requirement and repository standards. Use its normal review report. With no blocking findings, return control to this goal. With blocking findings, repair only those findings under the existing authorization below, rerun invalidated checks, and independently verify only the attempted findings and their direct repair consequences against the changed target fingerprint. If verification is unavailable or inconclusive, stop. After and only after clear exact-target verification, run `bash mark-complete.sh`. Originating requirement: exported TIMEOUT_MS must equal 2500 and RETRY_COUNT must remain 3. Run `bash check.sh` to verify acceptance. Authorized repair: edit src/config.js only. Not authorized: commits, pushes, pull requests, or other publication. At the end, report the final goal outcome, the initial independent-review outcome, and the fix-verification outcome."
 fixture:
   commits:
     - message: "chore: init"
@@ -21,7 +21,6 @@ fixture:
         mark-complete.sh: |
           #!/usr/bin/env bash
           set -eu
-          git_dir=$(git rev-parse --git-dir)
           record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
           test -n "$record"
           python3 - "$record" <<'PY'
@@ -37,9 +36,6 @@ fixture:
       export const RETRY_COUNT = 0;
   setup: |
     bash "{{case_dir}}/fixtures/prepare-grading.sh" "{{case_dir}}"
-    set -eu
-    backend=$(cd "{{case_dir}}/../../../backend" && pwd -P)
-    printf '%s\n' "$backend" >.git/review-backend
 checks:
   - name: human response excludes machine JSON
     run: python3 .git/eval-checks/review/tests/evals/assert_records.py

@@ -67,4 +67,7 @@ semantic_output_checks:
       The response identifies a repository-standards violation in normalizeName:
       calling trim without rejecting non-string input can throw and violates the
       documented input guard requirement. It describes the issue inline and
-      suggests restoring the guard.
+      makes clear that the non-string guard is required before trim. Contrasting
+      the missing guard and resulting throw with that requirement conveys the
+      correction; a separate imperative to restore it is not required. Reject
+      approval of the unguarded implementation or a missing concrete defect.

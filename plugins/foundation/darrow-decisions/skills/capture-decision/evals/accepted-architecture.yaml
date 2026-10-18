@@ -48,22 +48,13 @@ checks:
       test -n "$file" && cat "$file"
     expect_regex: "# ADR-0002:.*PostgreSQL[\\s\\S]*Status: Accepted[\\s\\S]*Summary: [^\\n]+[\\s\\S]*## Context[\\s\\S]+## Decision[\\s\\S]*PostgreSQL[\\s\\S]*## Consequences"
     flags: i
-  - name: Decision affirmatively selects PostgreSQL
-    run: >-
-      file=$(find docs/decisions -maxdepth 1 -type f -name 'ADR-0002-*.md' -print);
-      decision=$(awk '/^## Decision/{inside=1; next} /^## /{inside=0} inside{print}' "$file");
-      printf '%s\n' "$decision";
-      printf '%s\n' "$decision" | grep -Ei '(use|select|standardize on|adopt)[^.]*PostgreSQL|PostgreSQL[^.]*(is|will be)[^.]*(database|persistence)' >/dev/null;
-      ! printf '%s\n' "$decision" | grep -Ei '(do not|must not|avoid|reject)[^.]*PostgreSQL' >/dev/null
-    expect_regex: "PostgreSQL"
-  - name: canonical Summary faithfully condenses the PostgreSQL choice
+  - name: canonical Summary is one nonempty metadata line
     run: >-
       file=$(find docs/decisions -maxdepth 1 -type f -name 'ADR-0002-*.md' -print);
       summary=$(sed -n 's/^Summary: //p' "$file");
       printf '%s\n' "$summary";
-      test "$(printf '%s\n' "$summary" | awk 'NF {count++} END {print count + 0}')" -eq 1;
-      printf '%s\n' "$summary" | grep -Ei '^(Use|Select|Adopt|Standardize on) PostgreSQL( for (production )?(data )?persistence| as the (production )?(persistence )?(database|store|system))?\.$|^(Production )?[Pp]ersistence (uses|will use|is standardized on) PostgreSQL\.$|^PostgreSQL (is|will be) (the )?(selected|adopted|standard|production (database|persistence store|persistence system))( for production persistence)?\.$' >/dev/null;
-    expect_regex: "PostgreSQL"
+      test "$(printf '%s\n' "$summary" | awk 'NF {count++} END {print count + 0}')" -eq 1
+    expect_regex: "\\S"
   - name: deterministic ADR validation passes
     run: >-
       uv run --quiet --frozen --no-dev --project .git/decision-backend darrow-decision validate --repo .
@@ -92,3 +83,20 @@ checks:
       grep -Ei 'authority|authorized|maintainer|user' "$message" >/dev/null;
       echo reported
     expect_regex: "^reported$"
+semantic_artifact:
+  path: docs/decisions/ADR-0002-*.md
+  checks:
+    - name: canonical Summary faithfully condenses the PostgreSQL choice
+      proposition: >-
+        The canonical Summary metadata line itself faithfully states the user's
+        accepted choice to use PostgreSQL for production persistence. Equivalent
+        wording and grammatical voice are valid. It does not negate that choice
+        or leave it unresolved. Grade the Summary line itself; a correct Decision
+        section cannot rescue an incorrect Summary.
+    - name: Decision affirmatively selects PostgreSQL
+      proposition: >-
+        The Decision section itself affirmatively selects PostgreSQL for
+        production persistence as the accepted choice, rather than rejecting it,
+        leaving the choice unresolved, or selecting a different database instead.
+        Equivalent wording and grammatical voice are valid. Grade the Decision
+        section itself; a correct Summary cannot rescue an incorrect Decision.

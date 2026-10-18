@@ -1,7 +1,7 @@
 id: code-review-fix-verification-unavailable
 activation: positive
 invariant: CR-C17,CR-C18,CR-C20,CR-E13
-prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. First run `fixture-review-input` to initialize the fixture's prior evidence in your private Review state. Verify my uncommitted repair against the prior code-review findings recorded in `.fixture-state/verification-input`. Run the repository's prescribed checks and report whether the repair is verified or what evidence is missing. Remain read-only, and do not widen this into another comprehensive review."
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Verify my uncommitted repair against the prior code-review findings recorded in `.fixture-state/verification-input`. Run the repository's prescribed checks and report whether the repair is verified or what evidence is missing. Remain read-only, and do not widen this into another comprehensive review."
 fixture:
   commits:
     - message: "chore: base"
@@ -22,9 +22,6 @@ fixture:
     endpoint.txt: "https://example.invalid/v2\n"
   setup: |
     bash "{{case_dir}}/fixtures/prepare-grading.sh" "{{case_dir}}"
-    mkdir -p .git/fixture-bin
-    cp "{{case_dir}}/fixtures/initialize-prior-input.sh" .git/fixture-bin/fixture-review-input
-    chmod +x .git/fixture-bin/fixture-review-input
     set -eu
     backend=$(cd "{{case_dir}}/../../../backend" && pwd -P)
     prior_output=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
@@ -49,9 +46,10 @@ fixture:
         "attempted": [f"standards:1:{target}"],
     }, sys.stdout)
     PY
+    mkdir -p .fixture-state
+    cp .git/verification-input .fixture-state/verification-input
     git status --porcelain --untracked-files=all >.git/status-before
     git hash-object endpoint.txt >.git/endpoint-before
-    printf '%s\n' "$backend" >.git/review-backend
 checks:
   - name: human response excludes machine JSON
     run: python3 .git/eval-checks/review/tests/evals/assert_records.py

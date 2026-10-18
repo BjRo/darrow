@@ -130,7 +130,13 @@ compression.
 
 1. **VE-C1 — Intent-matched explanation.** Direct and indirect requests to
    explain technical relationships visually select the capability, including
-   natural requests for responsibility maps and state transitions. A
+   simple code call flows, responsibility maps, and state transitions. Visual
+   maps of where code or responsibilities live remain in scope even for a
+   small repository or question. Requests to replace too much prose with a
+   compact view, keep the view inline, or leave
+   files unchanged retain that visual intent. A
+   request to show structure, ownership, or state transitions need not use the
+   literal word "visual" to select the capability. A
    pseudocode-only format request does not by itself require selection;
    ordinary implementation, artifact creation, and sufficiently answered
    short-prose requests do not select it.
@@ -155,6 +161,10 @@ compression.
    It uses familiar words, active voice, and short prose, explains necessary
    terms, and omits repeated points and process narration without hiding
    evidence status, material boundaries, or uncertainty.
+   Minor isolated recaps or brief framing are nonblocking when the view remains
+   clear and compact. Extended repeated walkthroughs, redundant views, and
+   inspection narration still reduce clarity. Judge compactness by meaning and
+   readability rather than a fixed physical-line count.
 
 ## Request matrix
 

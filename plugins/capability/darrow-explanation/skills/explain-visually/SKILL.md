@@ -1,6 +1,6 @@
 ---
 name: explain-visually
-description: Use when the user asks to explain a technical subject visually in conversation. Includes “explain this visually,” “show me the structure or flow,” “draw or map the relationships,” and “this explanation is too much prose.” Choose one grounded inline view and expose evidence gaps. Exclude ordinary code or pseudocode explanations without visual intent, implementation, reviews, plans, short prose answers, and requests to create HTML, images, slides, mockups, or documentation.
+description: Always use for direct or indirect requests to show technical structure, call flow, ownership, or state transitions. This includes mapping where code or responsibilities live and “too much prose” requests for a compact view. These requests need not say “visual” or involve a large subject. Answers stay inline and read-only. Exclude ordinary code or pseudocode explanations without a request for a view, implementing changes, code reviews, delivery plans, and creating or editing HTML, images, slides, mockups, or documentation.
 ---
 
 # Explain visually
@@ -117,7 +117,7 @@ less elaborate form doing the job as clearly.
 ## Render without hiding the hard parts
 
 Start with the view or one necessary status sentence; skip process narration
-and a prose summary of the repository scan. Use at most one short framing
+and a prose summary of the repository scan. Prefer one short framing
 sentence before the view and one short qualification after it unless an
 evidence gap cannot be explained that briefly. Use familiar words and active
 voice. Explain a necessary technical term once, next to the view where it

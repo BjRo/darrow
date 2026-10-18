@@ -50,6 +50,9 @@ A decision record has:
   inferred source as explicit authority. Context and consequences distinguish
   observed repository facts from user-provided rationale and explicitly marked
   assumptions; polished prose must not erase those boundaries.
+  Clear user attribution and an explicit assumption label can establish those
+  distinctions without a separate verification disclaimer. Never claim
+  independent verification without supporting evidence.
 
 ## Canonical routing
 
@@ -94,6 +97,9 @@ and `Superseded`.
 An ADR retains the repository's compact structure: title, `Status`, `Date`, one
 canonical `Summary`, `Context`, `Decision`, and `Consequences`. `Supersedes`,
 `Superseded by`, and `Revisit when` are optional metadata lines when applicable.
+The Summary faithfully condenses the recorded choice. Summary and Decision
+prose may use equivalent wording or grammatical voice; their meaning, rather
+than a fixed sentence pattern, determines whether they preserve the choice.
 
 - **DM-9 — Valid lifecycle only.** Reject unsupported statuses and transitions.
   `Accepted` requires the authority rule in DM-1. A lifecycle transition does
@@ -280,6 +286,8 @@ canonical repository surfaces when the query is not ADR-only.
   subject, current status when supported, scope, canonical absolute path or
   external owner, and relevant supersession relationship. Distinguish normative
   records from proposals and references.
+  Preserve the recorded effect in equivalent wording; listing is not limited
+  to repeating the ADR title verbatim.
 - **DM-L4 — Honest gaps.** State applied filters, empty results, unreadable
   required records, inaccessible foreign owners, ambiguity, and output caps.
   Never present a partial or inferred inventory as complete.

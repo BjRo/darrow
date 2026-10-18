@@ -89,6 +89,13 @@ The regular case-resolution test includes canonical repository-skill,
 plugin-skill, and skill-less experiment cases. Unsupported cases remain named
 failures; omitting a scope cannot produce a valid result.
 
+Fixture command providers preserve the read-only behavior of help queries.
+A help request must not create publication state or emit a publication success
+receipt. Test both help and an actual mutation when repairing this boundary.
+Publication-absence checks use unconditional action state, not a file written
+only when an optional title or body argument is supplied. A title-free creation
+must not pass an absence check.
+
 Implicit repository-skill cases retain their repository scope. On Codex, prepare
 the owning skill under `.agents/skills/` without a plugin wrapper, exclude eval
 assets, and preserve activation grading. An explicit repository case negotiates
@@ -111,6 +118,12 @@ scope; supporting providers keep their manifests and mechanics. Validate skill
 name uniqueness and activation membership over the combined set. An ordered
 activation sequence can use these explicit providers without mounting plugin
 siblings. Apply the shared artifact count and byte bounds across all mounts.
+
+Plugin mounts retain an existing package-root `README.md` at that same relative
+location so bundled skill links resolve in project-skill and native-plugin
+installations. The README must be a regular file, remains Git-excluded, and
+counts toward the shared artifact bounds. This does not expose colocated evals
+or hidden checks; a missing optional README does not invalidate another package.
 
 A completed candidate trial with one definitive `darrow.evals.activation`
 outcome retains that activation measurement when an unrelated task grader is
@@ -195,6 +208,12 @@ files. Source-preservation and exact acknowledgement checks remain required;
 receipts must not be reconstructed or copied into substitute grading artifacts.
 This repository-owned state convention belongs in extension preparation, not
 the generic engine.
+Fixture setup receives `DARROW_EVAL_MOUNT_EXCLUDES`, a JSON array of the exact
+relative paths declared with `gitExclude` in that case's prepared artifacts.
+Ignore-configuration baselines must account for those later mount additions
+while preserving the original user configuration and rejecting undeclared,
+missing, or repeated rules. Bind the expected paths from preparation metadata,
+not from candidate-written files or a broad mount-directory exemption.
 Dependencies required after setup must survive destruction of the temporary
 setup home. Go corpus cases place module, build, and workspace caches in this
 excluded state and use the same declared Go launcher during setup, candidate
@@ -1016,18 +1035,19 @@ home. Graders use its candidate-bound `SEVRO_CANDIDATE_ARTIFACT_REVIEWS` path an
 read the original files without relocating them. Access stays read-only through
 grading; candidate runtime cleanup follows grading and evidence persistence.
 The grant does not archive those files. Missing or unsafe declared directories
-are grading errors; a negative case prepares an actual empty directory before
+are grading errors; fixture setup prepares an actual empty directory before
 checking absence. The selected Review profile may explicitly configure Darrow
 state and cache paths without inheriting the caller's overrides. Cases that
 depend on a declared state-directory grant state that configured state and
 cache paths must be preserved. A different valid private state root remains
 outside that grant; do not claim artifact presence or absence from it.
 
-Fixture setup uses a temporary home that is removed before host execution.
-Candidate-required private state must be initialized in the candidate runtime
-from the fixture's authoritative inputs. Setup-home paths cannot serve as live
-prior Review evidence. Fixture input receipts may use `.fixture-state/`, while
-generated canonical scopes and reports remain in the private Review state root.
+On Sevro rc.16, fixture setup and candidate commands share the same private
+trial home. Setup initializes required artifact directories and may seed prior
+Review evidence there; its temporary directory remains disposable. Graders
+retain their own homes and access only declared candidate artifact grants.
+Fixture input receipts may use `.fixture-state/`, while canonical scopes and
+reports remain in the private Review state root.
 
 Trusted fixture preparation records the selected bundled host as `codex` or
 `claude` in `.git/fixture-host`. Other adapters record `unavailable`. Shell

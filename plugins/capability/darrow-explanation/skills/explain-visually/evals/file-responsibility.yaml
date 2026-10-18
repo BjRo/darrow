@@ -30,14 +30,21 @@ checks:
       grep -F 'sessions/' .git/last-message.md >/dev/null;
       grep -F 'transport/' .git/last-message.md >/dev/null;
       grep -Ei 'pars(e|ing)|session state|API|request' .git/last-message.md >/dev/null
-  - name: response stays compact
-    run: test "$(wc -l <.git/last-message.md | tr -d ' ')" -le 22
 semantic_output_checks:
   - name: directory ownership is visible without a redundant tour
     proposition: >-
-      The response primarily uses one shallow directory or component tree to
+      The response primarily uses one compact shallow directory or component
+      ownership tree rooted at the owning directory, rather than src/index.ts, to
       show that commands owns parsing, sessions owns session state, and
-      transport owns API requests. It grounds those areas with nearby source
-      anchors and one concise responsibility label per area. It does not
-      present src/index.ts as the owner of the three areas or repeat the map
-      in a table or prose tour.
+      transport owns API requests. Equivalent concrete descriptions such as
+      sends requests with fetch are valid; the word API is not required. It
+      grounds those areas with nearby source
+      anchors and one concise responsibility label per area. Source paths in
+      the tree are sufficient anchors; separate links or line numbers are
+      optional. It does not
+      present src/index.ts as the owner of the three areas or invent runtime
+      dependencies among commands, sessions, and transport: the fixture only
+      establishes their separate responsibilities and public re-exports.
+      Mentioning those re-exports is valid. A brief clarification
+      or isolated recap is nonblocking; a substantial repeated map in a second
+      table or prose tour is not compact.

@@ -15,10 +15,11 @@ fixture:
   commits:
     - message: "chore: init"
       files:
-        config.json: '{"timeoutMs":1000}\n'
+        config.json: |
+          {"timeoutMs":1000}
         check.sh: |
           #!/usr/bin/env bash
-          grep -Eq '"timeoutMs"[[:space:]]*:[[:space:]]*2500' config.json
+          bun -e 'const config = await Bun.file("config.json").json(); if (config.timeoutMs !== 2500) process.exit(1);'
 checks:
   - name: ready composed goal continues to its authorized outcome
     run: bash check.sh

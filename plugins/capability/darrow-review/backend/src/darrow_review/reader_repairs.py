@@ -74,6 +74,15 @@ def repair_input(
         ],
         "attempted": attempted,
         "regressions": own_regressions,
+        "output_binding": {
+            "format": "darrow-review-fix-axis-v3",
+            "axis": axis,
+            "originals": attempted,
+            "prior_regressions": [
+                {"key": row["key"], "caused_by": row["caused_by"]}
+                for row in own_regressions
+            ],
+        },
         "history_targets": history,
         "previous_verification": binding.get(
             "previous_verification", {"path": "none", "checksum": "none"}

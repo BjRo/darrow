@@ -13,6 +13,7 @@ fixture:
           # Agent Instructions
 
           Never publish from an unclean worktree.
+          Keep project-owned skills under `project-skills/`.
 
           ## Release procedure
 
@@ -35,7 +36,7 @@ fixture:
 checks:
   - name: release procedure becomes an intent-triggered project skill
     run: >-
-      find . -type f -name SKILL.md
+      find project-skills -type f -name SKILL.md
       ! -path '*doctor-information-architecture*' -exec grep -il 'build-release' {} +
     expect_regex: "SKILL\\.md$"
   - name: release skill is tracked or visible to version control

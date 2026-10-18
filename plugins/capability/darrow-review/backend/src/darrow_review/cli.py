@@ -14,6 +14,7 @@ from . import (
     check,
     finalization,
     provider,
+    reader_aggregation,
     reader_feedback,
     reader_inputs,
     report,
@@ -21,8 +22,17 @@ from . import (
     routing,
     scope,
     storage,
+    terminal_scope,
 )
-from .common import ReviewError, read_text, require, root_directory, serialize
+from .common import (
+    ReviewError,
+    command_line,
+    entrypoint,
+    read_text,
+    require,
+    root_directory,
+    serialize,
+)
 from .records import validate_result
 
 
@@ -102,11 +112,34 @@ def prepare_scope(args: list[str]) -> str:
         "review-scope prepare",
         args,
         ("target",),
-        ("repo", "base", "prior-manifest"),
-        ("merge-base", "staged", "unstaged", "untracked", "allow-empty"),
+        ("repo", "base", "prior-manifest", "spec-source"),
+        (
+            "merge-base",
+            "staged",
+            "unstaged",
+            "untracked",
+            "allow-empty",
+            "report-terminal",
+        ),
     )
     parsed.repo = parsed.repo or "."
-    return scope.prepare(scope.ScopeOptions(**vars(parsed)))
+    terminal = vars(parsed).pop("report_terminal")
+    spec_source = vars(parsed).pop("spec_source")
+    require(
+        not terminal or not parsed.prior_manifest,
+        "terminal scope reporting is comprehensive-only",
+    )
+    try:
+        return scope.prepare(scope.ScopeOptions(**vars(parsed)))
+    except ReviewError as exc:
+        if terminal and exc.code in (2, 3, 4):
+            command = command_line(entrypoint("review-scope", "prepare", *args))
+            sys.stdout.write(
+                terminal_scope.save(
+                    parsed.repo, parsed.base, parsed.target, command, exc, spec_source
+                )
+            )
+        raise
 
 
 def show_scope(args: list[str]) -> bytes:
@@ -208,13 +241,34 @@ def prepare_reader(args: list[str]) -> str:
     parser = argparse.ArgumentParser(
         prog="review-result prepare-reader", allow_abbrev=False
     )
-    for name in ("manifest", "axis", "context"):
+    for name in ("manifest", "axis"):
         parser.add_argument("--" + name, required=True)
+    parser.add_argument("--context", default="")
+    parser.add_argument("--source", action="append", default=[])
+    parser.add_argument("--objective", default="")
+    parser.add_argument("--no-checks-reason", default="")
     parser.add_argument("--check", action="append", default=[])
     parser.add_argument("--original", default="")
+    parser.add_argument("--attempted-from-input", action="store_true")
+    parser.add_argument("--route-record", default="")
     parsed = parser.parse_args(args)
+    context = reader_inputs.context_argument(
+        parsed.context, parsed.source, parsed.objective, parsed.no_checks_reason
+    )
+    if parsed.attempted_from_input:
+        require(
+            "attempted" not in context, "attempted keys already supplied in context"
+        )
+        context["attempted"] = reader_inputs.attempted_keys(
+            parsed.original, parsed.axis
+        )
     return reader_inputs.prepare(
-        parsed.manifest, parsed.axis, parsed.context, parsed.check, parsed.original
+        parsed.manifest,
+        parsed.axis,
+        context,
+        parsed.check,
+        parsed.original,
+        parsed.route_record,
     )
 
 
@@ -232,13 +286,52 @@ def reader_correction(args: list[str]) -> str:
 
 def finalize_result(args: list[str]) -> str:
     parser = argparse.ArgumentParser(prog="review-result finalize", allow_abbrev=False)
-    for name in ("manifest", "draft", "output"):
-        parser.add_argument("--" + name, required=True)
+    parser.add_argument("--manifest", required=True)
+    parser.add_argument("--draft", default="")
+    parser.add_argument("--output", default="")
+    parser.add_argument("--reader", action="append", default=[])
+    parser.add_argument("--next-action", default="Return the review to the requester.")
+    parser.add_argument("--risk", action="append", default=[])
+    parser.add_argument("--spec-not-available", action="store_true")
     parser.add_argument("--check", action="append", default=[])
     parser.add_argument("--original", default="")
+    parser.add_argument("--present", action="store_true")
     parsed = parser.parse_args(args)
+    if parsed.reader:
+        require(
+            not parsed.draft, "reader aggregation cannot combine a coordinator draft", 4
+        )
+        data = reader_aggregation.draft(
+            parsed.manifest,
+            parsed.reader,
+            parsed.check,
+            parsed.next_action,
+            parsed.risk,
+            parsed.original,
+            parsed.spec_not_available,
+        )
+        name = "verification.json" if parsed.original else "result.json"
+        output = parsed.output or str(Path(parsed.manifest).parent / name)
+        return finalization.finalize(
+            parsed.manifest,
+            "",
+            output,
+            parsed.check,
+            parsed.original,
+            draft_data=data,
+            present=parsed.present,
+        )
+    if not parsed.draft or not parsed.output:
+        parser.error(
+            "--draft and --output are required unless retained --reader records are supplied"
+        )
     return finalization.finalize(
-        parsed.manifest, parsed.draft, parsed.output, parsed.check, parsed.original
+        parsed.manifest,
+        parsed.draft,
+        parsed.output,
+        parsed.check,
+        parsed.original,
+        present=parsed.present,
     )
 
 

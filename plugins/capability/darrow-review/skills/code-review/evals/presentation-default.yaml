@@ -12,7 +12,8 @@ fixture:
           Changed token code must not call console.log.
         src/token.js: |
           export function parseToken(value) {
-            return Number(value);
+            const token = Number(value);
+            return Number.isInteger(token) && token > 0 ? token : null;
           }
   files:
     src/token.js: |
@@ -66,7 +67,9 @@ semantic_output_checks:
   - name: review leads with the decision and remains concise
     proposition: >-
       The response leads with the failed review outcome and indicates that
-      repair is needed. It uses concise Markdown, with no substantial repetition
-      or narration of the review procedure. Findings remain understandable
+      repair is needed. It uses readable Markdown without extended narration
+      of the review procedure or substantially repeated finding descriptions.
+      Brief repetition of a requirement in guidance or resolution evidence is
+      acceptable. Metadata alone is not an error. Findings remain understandable
       inline; fixed headings, verbatim wording, metadata, and report links are
       optional.

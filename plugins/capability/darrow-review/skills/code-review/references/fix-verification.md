@@ -1,309 +1,116 @@
-# Fix-verification workflow
+# Bind a repair verification
 
-Use this workflow only after the main skill selects fix verification. The main
-skill's presentation and read-only gates, plus the reader-routing acceptance
-rules, remain in force throughout this branch.
+Use this branch only for an explicitly requested repair verification. Keep the
+main skill's repository binding, independent native readers, read-only behavior
+and presentation. Verify attempted findings and their direct repair-caused
+regressions; unrelated observations stay outside the closed finding set.
 
-## Correct an assessment at unchanged code
+## Read the supplied evidence
 
-A caller may identify a concrete assessment error or missing evidence and ask
-for a bounded correction. Keep the immediately previous completed verification
-as `original_input`, including when its outcome is blocked or no-progress. Pin
-the same current candidate against that report's scope with `--allow-empty`.
-Preserve its original findings, target history and carried regressions.
-
-Obtain fresh independent judgments for every original blocker and carried
-regression, using the normal reviewer route and current checks. Put a nonempty
-`assessment_correction` in the finalization draft explaining the earlier error
-or gap and the new evidence that corrects it. Include every fresh original
-judgment: corrections do not inherit previously resolved states mechanically.
-
-The finalizer can return clear at the unchanged candidate only when all blockers
-and regressions are resolved, current checks succeed and no evidence gap remains.
-A retained blocked verification may have no original findings. Its correction
-can preserve that empty set and clear without inventing a finding or gap; the
-previous verification and current successful checks are still required.
-Unchanged unresolved evidence remains no-progress. Return the correction reason
-and retained prior-result reference visibly. Never discard a completed result,
-label it a first follow-up, rewrite its outcome or delete its artifact to obtain
-clearance. This corrects an assessment; it does not spend or reset the owner's
-implementation repair allowance.
-
-## 1. Bind the closed finding set
-
-Read each supplied evidence file before deciding whether inputs are missing:
+Read each caller-supplied file through the bundled boundary before deciding
+that evidence is missing. Relative paths resolve against the bound repository;
+extensionless JSON is valid input.
 
 ```sh
 uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result read-evidence \
-  --repo "$repo" --input "<caller-supplied path>"
+  --repo "$repo" --input '<supplied path>'
 ```
 
-Use the returned absolute `path` and complete `record`. The command resolves
-relative paths against `repo` and reads regular JSON files even without an
-extension. If the caller supplied a directory, inspect that exact directory and
-read its relevant files with this command. Do not append `/*` to an unexamined
-path or infer missing records from search results. Only an actual read error or
-a missing required field establishes an input gap; retain that concrete error.
+Use the returned absolute path as `original_input` and inspect its complete
+record. For a supplied directory, inspect that exact directory before choosing
+its relevant files. Preserve actual path-specific read/validation errors; an
+empty search result does not establish absence.
 
-Require all of these caller-owned inputs before reader calls:
+The authoritative input is one of:
 
-- the exact original comprehensive-review target fingerprint;
-- the validated original or immediately prior scope manifest for that target;
-- every original finding with its original axis, severity, disposition,
-  location, source, evidence, nonempty repair guidance and resolution evidence,
-  and one canonical cross-axis order;
-- the immediately prior repair target plus every earlier repair target;
-- every finding attempted by the current repair;
-- the immediately prior validated verification artifact when an earlier fix
-  verification exists, including all carried regression records; and
-- current deterministic-check commands and evidence.
+- The original comprehensive `result.json` for the first follow-up, with its
+  sibling `scope.json` as the prior manifest.
+- The immediately previous `verification.json` for a later follow-up, with its
+  sibling scope. Keep that checksum-bound assessment, its complete original
+  findings, carried regressions and target history.
+- A complete external handoff supplying the original target, complete immutable
+  ordered findings, prior target/manifest, attempted set and any prior
+  verification. The original comprehensive file is not additionally required.
 
-When the original comprehensive `result.json` is retained, bind its absolute
-path as `original_result` and use its sibling scope manifest for the first
-follow-up. Obtain canonical original records through the bundled helper before
-passing them to readers:
+Every original finding and carried regression needs its source, evidence,
+advisory repair guidance and resolution evidence. A citation does not replace
+the source material needed to judge it. Read necessary requirement or
+maintenance documents separately. Missing fields or inconsistent history block;
+do not reconstruct records from a prose report or invent guidance.
+
+If the handoff supplies an exact prior target without a manifest path, locate
+that exact target:
 
 ```sh
-uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result original-findings "$original_result"
+uv run --quiet --no-project "$backend/scripts/run_locked.py" review-scope locate \
+  --repo "$repo" --target '<prior target>'
 ```
 
-Copy those returned rows unchanged into the handoff and final verification.
-The order runs across both axes in the original result, not separately per
-axis. Preserve the complete original source and evidence text, including
-advisories and both guidance fields; a shorter paraphrase is a changed record.
-Both guidance fields are required on every original finding and carried
-regression. Bind the
-authoritative file as `original_input`: the original comprehensive result for
-a first follow-up, the immediately prior verification for a later follow-up,
-or the caller's complete external handoff. Finalization copies its original
-records directly; do not make another shortened finding document.
-For an external handoff
-without that artifact, preserve the caller's complete immutable finding records
-and canonical order exactly as supplied. A validated prior verification also
-retains those original rows. Missing or incomplete original evidence blocks
-instead of permitting reconstruction from a rendered summary.
-An external handoff does not require the original `result.json`. Its `source`
-and `evidence` values are the immutable finding fields, not embedded full source
-documents. Read needed source documents separately. Never synthesize missing
-guidance to make an incomplete handoff valid.
+Use its unique validated manifest. Do not scan `.git`, guess a run or choose by
+filename order. Prior and current manifests must identify the bound repository.
 
-Derive each original key as
-`<axis>:<canonical-order>:<original-target>`. Reject duplicate orders or keys,
-attempts outside the original set, a changed original record, or inconsistent
-target history. Every original blocker must have one attempted state; if repair
-was unavailable or unauthorized, that state is `blocked`. An ineligible
-advisory may be omitted because advisories never gate.
+## Pin the repair
 
-Missing or inconsistent evidence does not authorize a comprehensive rereview.
-Preserve the evidence gap, pin the current scope if possible, and produce a
-validated `blocked` verification artifact as described in
-[`result-protocol.md`](result-protocol.md).
-
-**Complete when:** the immutable original set, stable keys, attempted subset,
-prior/history targets, repair evidence, and current checks are mutually
-consistent—or their exact evidence gaps are bound for a blocked result.
-
-## 2. Pin the current repair target
-
-Resolve the same bundled `review-scope`, `review-result`, `review-report`, and
-`review-check` tools as comprehensive mode. Validate the prior scope manifest
-and require its target to equal the supplied prior target and its effective base
-to equal the current scope's effective base. For the first verification, use
-the scope manifest retained by the comprehensive run. For a later verification,
-validate the immediately prior verification artifact and use its sibling scope
-manifest. If the caller has an exact prior target but no retained manifest path,
-resolve it through the bundled helper:
+Use the main skill's scope table for the current target/layers. Derive the
+effective base from the validated prior manifest by omitting `--base`:
 
 ```sh
-uv run --quiet --no-project "$backend/scripts/run_locked.py" review-scope locate --repo "$repo" --target "$prior_target"
+uv run --quiet --no-project "$backend/scripts/run_locked.py" review-scope prepare \
+  --repo "$repo" --target "$target" --allow-empty \
+  --prior-manifest "$prior_scope_manifest" [working-tree flags]
 ```
 
-Use its one validated absolute manifest. A missing or ambiguous result blocks;
-never scan `.git` or guess a run from filenames.
+Keep the returned manifest, current fingerprint and fixed repair-show command.
+The prior/current comparison must share the same effective base. `HEAD` is not
+a replacement base for a prior branch review. `--allow-empty` permits a repair
+that restores the base; the prior-to-current delta still establishes causality.
+Caller prose cannot establish that delta.
 
-Choose the current target and working-tree layers from the main skill's table.
-Keep the prior review's effective base: omit `--base` so the helper derives it
-from the validated prior manifest. `HEAD` describes the uncommitted target's
-parent, not a replacement review base. An explicitly supplied different base
-is inconsistent evidence and blocks.
+Return to **step 2 of the main skill**. Capture current applicable authorized
+checks through `review-check`, including an unavailable command's actual blocked
+capture. A failed capture is an evidence gap, not a claim the check ran.
 
-```sh
-uv run --quiet --no-project "$backend/scripts/run_locked.py" review-scope prepare --repo "$repo" --target "$target" \
-  [working-tree flags] --allow-empty --prior-manifest "$prior_scope_manifest"
-```
+Prepare only axes with attempted original findings or carried regressions.
+Pass `--original "$original_input" --attempted-from-input` when the handoff
+supplies the attempted set; the helper copies only its original keys for this
+axis, leaving carried regression keys separate. For a caller-selected subset
+without a handoff attempted list, use the context's explicit `attempted` list.
+The helper copies the
+closed original-axis evidence and validates scope/history. Do not copy original
+rows or their keys into a new shortened handoff. An original blocker needs a
+current state unless permitted prior resolved evidence is carried mechanically.
+An ineligible advisory may remain unattempted.
 
-Treat its target fingerprint, absolute manifest, changed paths, fixed show
-command, and `repair_show_command` as authoritative. The current target must
-not be copied from caller prose. Require both prior and current manifests'
-`repository` fields to equal the main skill's requester-bound `repo`; a plugin,
-skill, or cache repository is an evidence gap. `--allow-empty` is
-fix-verification-only: it permits an exact repair that restored the base while
-the pinned prior-to-current repair delta still exposes what changed. Run the
-`repair_show_command` and use only that mechanical delta—not caller-described
-changes—to establish repair causality.
+Readers judge each attempted finding as resolved, unresolved or blocked.
+Unresolved blockers progress only when concrete evidence narrows the failure;
+unchanged evidence is no progress. A new direct regression names its causing
+attempted original key and receives the verifier's own guidance. Resolution
+depends on required behavior, including valid alternative repairs, rather than
+adoption of the original suggestion. Advisories never keep the gate open.
 
-Run only applicable deterministic checks invalidated by the repair. For each
-one, never execute the literal command directly. Use the main skill's resolved
-`review-check` as its sole execution boundary:
+In **step 3**, pass raw fix-reader records and `--original "$original_input"`
+to finalization. It preserves findings and checks, carries permitted prior
+states, copies verifier evidence, assigns stable regression identities/order,
+and saves `verification.json` plus `verification.md`. No coordinator-written
+verification draft or regression bookkeeping is needed on this normal path.
 
-```sh
-check_record="$(dirname "$manifest")/check-1.json" # increment for later checks
-uv run --quiet --no-project "$backend/scripts/run_locked.py" review-check run --output "$check_record" --command "$literal_command"
-```
+The helper derives `clear` when all blockers/regressions resolve, `continue`
+for material progress, `no_progress` for unchanged failure, repetition or
+oscillation, and `blocked` for unavailable evidence. Explain that outcome and
+remaining blockers/advisories inline under the main presentation rule.
 
-Preserve the retained record's canonical `checks` entry values in reader
-evidence and pass its absolute path to finalization; never reinterpret the
-observed status. An unavailable command still runs through `review-check` and
-produces its actual retained blocked capture; describing it is insufficient. A check
-failure belongs in the convergence set only as evidence for a direct
-repair-caused regression tied to an attempted original finding. An unavailable
-required check or failed evidence capture is an evidence gap and blocks
-verification.
+## Assessment corrections and evidence gaps
 
-**Complete when:** current content and canonical check records are
-exact-target-bound and no reader has been asked to inspect an unpinned or stale
-target.
+A caller may request correction of a concrete assessment error at unchanged
+code. Retain the immediately prior verification and same-candidate scope;
+obtain fresh independent evidence for every original blocker and carried
+regression. Use the [result protocol](result-protocol.md) draft path with a
+nonempty `assessment_correction` describing the prior error and new evidence.
+Preserve prior checksum/history and artifacts. This does not reset an owner's
+repair allowance. An empty original set is valid for a retained blocked
+assessment; never invent a finding to fill it.
 
-## 3. Invoke isolated fix verifiers
-
-Read [`reader-inputs.md`](reader-inputs.md) and
-[`reader-routing.md`](reader-routing.md) completely. Resolve and retain the
-concrete reviewer route beside the current scope manifest. Group attempted
-findings by their original axis. Invoke the applicable Standards and Spec fix
-verifiers through that exact route as fresh readers, issuing both invocations
-before waiting when both groups exist. Do not invoke an axis with no attempted
-finding and no regression evidence to verify.
-
-Apply the reader-routing acceptance rules immediately after each launch. Write
-down the returned child ID before any wait. No child ID becomes an
-`evidence_gap`; it never permits coordinator verification of an attempted
-finding.
-
-Prepare one input per attempted axis using the current manifest, that axis's
-context and attempted keys, retained checks, and the authoritative original or
-prior verification evidence. The helper preserves original-axis findings,
-carried regressions, prior/current scope, and history; its complete launch
-message includes the isolated schema and validated input command. Pass that
-message unchanged. Never manually copy finding history or individual source
-paths into a verifier prompt.
-
-Permit inspection only of the current target, cited original finding context,
-the repair changes, and direct consequences. A reader must ignore an unrelated
-potential defect rather than serialize it. It may mark an attempted finding
-`resolved`, `unresolved`, or `blocked`; unresolved evidence is `progressing`
-only when it materially narrows the remaining failure and otherwise is
-`unchanged`. A newly detected direct repair-caused regression is `progressing`
-for its first verification so the enclosing owner can attempt it; if the same
-regression evidence remains after that attempt it is `unchanged`. A direct
-regression must name the causing original key. An invalid or missing reader
-record becomes an evidence gap; never repair its judgment or replace it with a
-generic review.
-
-Resolution depends on the original requirement and observable current behavior,
-not adoption of the original suggested implementation. Accept an alternative
-valid repair, and retain a defect even if the implementer followed the advice.
-New direct regressions receive the verifier's own advisory guidance (or explicit
-limitation), rationale, constraints, and resolution evidence. Copy those fields
-unchanged; the coordinator does not fill them in.
-
-Save each raw fix-axis record beneath the current scope artifact directory and
-run the applicable commands:
-
-```sh
-uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result validate-fix-axis standards "$standards_fix_record"
-uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result validate-fix-axis spec "$spec_fix_record"
-```
-
-For an input-read error or invalid returned record, use `reader-inputs.md`'s
-one diagnostic-only correction round with the same accepted verifier, retaining
-the failed record and validating the corrected record. Missing or mismatched
-route evidence, unavailable continuation, or a persistent error is an evidence
-gap. Do not replace the verifier or repair its judgment. Input availability
-does not create a repair-caused regression.
-
-**Complete when:** each attempted axis has one isolated fix-verifier record and
-exact-route evidence, and no observation outside the closed repair scope has
-entered aggregation.
-
-## 4. Derive and return verification
-
-Read [`result-protocol.md`](result-protocol.md) completely. Write a draft beneath
-the current scope artifact directory with the verification format, reader
-attempts and regressions, evidence gaps, and authorized next action. Preserve every
-original record and verifier state. Order direct regressions by causing
-original finding order, then by their reader order, and derive their stable
-regression keys mechanically. For a later verification, carry every prior regression
-under the same key, immutable causal fields, and original guidance and resolution
-evidence, and replace only its status,
-progress, and evidence from `regression_attempt`. New regression orders follow
-all carried regression orders. Regression order is its own sequence: when no
-regression is carried, the first new regression has order `1`, regardless of
-the causing original finding's order.
-
-Finalize the draft from retained inputs:
-
-```sh
-uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result finalize \
-  --manifest "$manifest" --draft "$draft_record" --original "$original_input" \
-  --output "$verification_record" [--check "$check_record" ...]
-```
-
-Use `--output <current-artifact-dir>/verification.json` and repeat `--check`
-for every captured command. Only when none applies, omit those arguments and
-include an explicit `not_applicable` check in the draft. Omit original findings,
-original/prior/current targets, outcome, and copied checks from the draft.
-The helper reads the authoritative original input, binds targets from both
-manifests, requires complete finding records, copies check receipts, validates
-history, and materializes the complete `verification.md`. A prior verification
-also supplies its checksum and target history mechanically. A complete external
-handoff supplies its previous-verification marker. Omitted history is derived
-from that validated artifact; explicitly supplied history must agree. The
-finalizer also carries previously resolved original states when the current
-reader supplied no replacement, so a regression-only repair does not require
-retyping prior resolutions. Unresolved or blocked originals still require
-current reader evidence.
-For an assessment correction, every original blocker requires a fresh supplied
-judgment even if the previous result marked it resolved.
-Never substitute authored unavailable-check evidence for a retained receipt.
-
-After finalization, when the original comprehensive artifact is retained, run:
-
-```sh
-uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result validate-original "$original_result" "$verification_record"
-```
-
-This also compares the completed ordered original set against that artifact.
-Incomplete original evidence permits only a validated blocked record carrying
-the actual evidence gap. If capture itself fails before a receipt exists,
-preserve the failed capture command and its error through the blocked-result
-validation path; do not claim that the original check executed.
-
-The finalizer derives the outcome: `clear` when all blockers and regressions
-are resolved; `continue` only for materially progressing blockers or
-regressions; `no_progress` for repetition, oscillation, or unchanged failure
-evidence; and `blocked` for evidence gaps or unavailable states. Advisory state
-never keeps the gate open.
-
-In default mode run:
-
-```sh
-uv run --quiet --no-project "$backend/scripts/run_locked.py" review-report render-verification "$verification_record"
-```
-
-Confirm the finalizer's report is a readable, nonempty regular file and inspect
-it. Return the self-contained inline verification described by the main skill's
-presentation gate. Explain the outcome, remaining issues or evidence gaps,
-resolved work, relevant checks, and next action. Keep advisory repair advice
-separate from required behavior. Do not require the user to open an artifact.
-For an explicit verification-v3, raw JSON, or machine request, return only the
-complete validated JSON.
-
-When you also own the enclosing goal, retain this evidence, exit the read-only
-capability, and resume the goal's already authorized continuation. An isolated
-review agent returns to its caller. The goal owns repair, stop, completion,
-and publication decisions.
-
-**Complete when:** the validated artifact binds original, prior, history, and
-current targets; contains only original attempts and directly caused
-regressions; preserves current checks; derives the honest mechanical outcome;
-and is returned without changing the reviewed product content.
+Use that same exceptional protocol for missing original evidence, unavailable
+readers or failed capture. Preserve the exact gap and any supported findings.
+A correction marker cannot bypass failed checks or unresolved evidence, and
+missing fix inputs never authorize a comprehensive rereview.

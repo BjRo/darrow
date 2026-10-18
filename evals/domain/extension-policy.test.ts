@@ -318,7 +318,7 @@ test("Darrow extension resolves supported cases and rejects unsupported fixtures
     id: "darrow.shell.2",
     grader: "sevro.shell",
     configuration: {
-      run: "git show-ref | diff .git/expected-refs -",
+      run: "git show-ref | diff .git/eval-checks/branch-guard/refs -",
       expectedExitCode: 0,
     },
   });
@@ -1397,7 +1397,73 @@ test("Darrow grades ticket delegation from supporting reads and forbidden calls"
   ).toEqual(["failed"]);
 });
 
-test("Darrow grades skill nonactivation from complete reads and native calls", async () => {
+test("publisher exclusion uses complete common activation without retired transcript checks", async () => {
+  const selected = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("resolve", {
+      projectRoot: pathToFileURL(projectRoot).href,
+      selectors: {
+        caseIds: ["publish-pr-evidence-generic-comment-nonactivation"],
+      },
+      configuration: {},
+    }),
+  );
+  expect(selected.code, selected.stderr).toBe(0);
+  const selectedCase = selected.value.result.cases[0]!;
+  expect(selectedCase.requiredEvidence).not.toContain(
+    "sevro.codex.skill-reads",
+  );
+  expect(selectedCase.requiredEvidence).not.toContain(
+    "sevro.codex.native-calls",
+  );
+  expect(
+    selectedCase.checks.some(
+      (check) => check.grader === "darrow.evals.transcript",
+    ),
+  ).toBe(false);
+  const status = async (observations: unknown[]) => {
+    const response = await command<{
+      result: { domainOutcomes: Array<{ id: string; status: string }> };
+    }>(
+      [process.execPath, extension],
+      request("evaluate", {
+        extensionData: selectedCase.extensionData,
+        observations,
+      }),
+    );
+    expect(response.code, response.stderr).toBe(0);
+    return response.value.result.domainOutcomes.find(
+      (outcome) => outcome.id === "darrow.evals.activation",
+    )?.status;
+  };
+  const clean = activationReceipt([]);
+  expect(await status([clean])).toBe("passed");
+  expect(await status([activationReceipt(["create-branch"])])).toBe("passed");
+  expect(
+    await status([activationReceipt(["create-branch", "publish-pr-evidence"])]),
+  ).toBe("failed");
+  expect(await status([])).toBe("unavailable");
+  expect(await status([{ ...clean, completeness: "partial" }])).toBe(
+    "unavailable",
+  );
+  expect(await status([clean, clean])).toBe("unavailable");
+  expect(
+    await status([
+      {
+        id: "sevro.codex.skill-reads",
+        source: "sevro.host.codex",
+        completeness: "complete",
+        data: {
+          method: "skill_file_read_probe",
+          primarySkill: null,
+          observedSkills: [],
+        },
+      },
+    ]),
+  ).toBe("unavailable");
+});
+
+test("recipe nonactivation retains its distinct read and native-call checks", async () => {
   const native = {
     id: "sevro.codex.native-calls",
     source: "sevro.host.codex",
@@ -1421,10 +1487,6 @@ test("Darrow grades skill nonactivation from complete reads and native calls", a
     },
   };
   for (const [caseId, forbiddenSkill] of [
-    [
-      "publish-pr-evidence-generic-comment-nonactivation",
-      "publish-pr-evidence",
-    ],
     ["ticket-to-pr-ordinary-engineering-nonactivation", "ticket-to-pr"],
   ]) {
     const selected = await command<ExtensionReply>(

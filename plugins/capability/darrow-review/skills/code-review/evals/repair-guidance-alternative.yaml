@@ -1,7 +1,7 @@
 id: code-review-guidance-alternative
 activation: positive
 invariant: CR-C9,CR-C18,CR-C19,CR-E15
-prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. First run `fixture-review-input` to initialize the fixture's prior evidence in your private Review state. Use {{skill_invocation}} to verify my uncommitted repair against the original review and binding records in .fixture-state/verification-input. The originating requirement is in requirements.md. Remain read-only and report the fix-verification outcome."
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Use {{skill_invocation}} to verify my uncommitted repair against the original review and binding records in .fixture-state/verification-input. The originating requirement is in requirements.md. Remain read-only and report the fix-verification outcome."
 fixture:
   commits:
     - message: "chore: base"
@@ -32,9 +32,6 @@ fixture:
       }
   setup: |
     bash "{{case_dir}}/fixtures/prepare-grading.sh" "{{case_dir}}"
-    mkdir -p .git/fixture-bin
-    cp "{{case_dir}}/fixtures/initialize-prior-input.sh" .git/fixture-bin/fixture-review-input
-    chmod +x .git/fixture-bin/fixture-review-input
     cp "{{case_dir}}/fixtures/name-trim-review.fixture.json" .git/fixture-name-trim-template.json
     set -eu
     backend=$(cd "{{case_dir}}/../../../backend" && pwd -P)
@@ -84,6 +81,8 @@ fixture:
         "attempted": [f"spec:1:{target}"],
     }, sys.stdout)
     PY
+    mkdir -p .fixture-state
+    cp .git/verification-input .fixture-state/verification-input
     git hash-object src/name.js >.git/before
 checks:
   - name: human response excludes machine JSON

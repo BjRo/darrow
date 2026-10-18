@@ -1,7 +1,7 @@
 id: code-review-neither-axis
 activation: positive
 invariant: CR-E2,CR-E5
-prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Review my uncommitted changes against this originating requirement: parseAge must return null for non-numeric input. Report only."
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Review my uncommitted changes against this originating requirement: parseAge must return null for non-numeric input. Run `bash test.sh` to verify the implementation as part of this review. Report only."
 fixture:
   commits:
     - message: "chore: init"
@@ -74,10 +74,11 @@ checks:
 semantic_output_checks:
   - name: review outcome and issues are understandable inline
     proposition: >-
-      The response conveys that the parseAge change satisfies the originating
-      requirement and boundary policy, has no findings requiring repair, and
+      The fixture's parseAge change satisfies the supplied nonnumeric-input
+      requirement and boundary policy. The response reports a favorable review
+      with no findings requiring repair and
       passed the required bash test.sh check. "No findings" conveys the absence
       of blocking findings; an exact verdict word is not required. Reject a
       claimed product defect, a failed or missing required check, or a stated
       unresolved review blocker. Acknowledging the check's limited input coverage
-      is allowed.
+      is allowed. It need not repeat the already supplied requirement or policy.

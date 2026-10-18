@@ -30,7 +30,10 @@ semantic_output_checks:
       proves live authentication or ingestion.
   - name: answer respects missing manual-hook inputs
     proposition: >-
-      Because no installed plugin root or readable absolute rollout path was
-      supplied, the response provides guidance only. It does not search for a
-      plugin installation, invent a path, run a hook, or claim verification was
-      performed.
+      No installed plugin root or readable absolute rollout path was supplied.
+      The response provides guidance without describing a search for a plugin
+      installation or claiming it found one, supplied a verified path, ran a hook,
+      or obtained trace or live-ingestion
+      results. Checking the procedure or environment settings against the skill
+      or documentation is allowed when installation and execution remain
+      explicitly unverified; that is not a claim that the hook was run.

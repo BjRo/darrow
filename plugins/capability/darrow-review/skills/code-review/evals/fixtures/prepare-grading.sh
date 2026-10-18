@@ -2,6 +2,8 @@
 set -eu
 
 case_dir=$1
+mkdir -p "$HOME/.darrow/reviews"
+chmod 700 "$HOME/.darrow/reviews"
 backend="$case_dir/../../../backend"
 destination=.git/eval-checks/review
 mkdir -p "$destination/tests/evals"

@@ -1,7 +1,7 @@
 id: code-review-fix-verification-progress-advisory
 activation: positive
 invariant: CR-C17,CR-C18,CR-C19,CR-C21,CR-E13,CR-E14
-prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. First run `fixture-review-input` to initialize the fixture's prior evidence in your private Review state. Verify my uncommitted repair against only the prior code-review findings in `.fixture-state/verification-input`. Use `bash check.sh` as current check evidence. Remain read-only and do not widen this into another comprehensive review."
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Verify my uncommitted repair against only the prior code-review findings in `.fixture-state/verification-input`. Use `bash check.sh` as current check evidence. Remain read-only and do not widen this into another comprehensive review."
 fixture:
   commits:
     - message: "chore: base"
@@ -27,9 +27,6 @@ fixture:
       // legacy
   setup: |
     bash "{{case_dir}}/fixtures/prepare-grading.sh" "{{case_dir}}"
-    mkdir -p .git/fixture-bin
-    cp "{{case_dir}}/fixtures/initialize-prior-input.sh" .git/fixture-bin/fixture-review-input
-    chmod +x .git/fixture-bin/fixture-review-input
     set -eu
     backend=$(cd "{{case_dir}}/../../../backend" && pwd -P)
     prior_output=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
@@ -50,7 +47,8 @@ fixture:
         "attempted": [f"spec:1:{target}", f"standards:2:{target}"],
     }, sys.stdout)
     PY
-    printf '%s\n' "$backend" >.git/review-backend
+    mkdir -p .fixture-state
+    cp .git/verification-input .fixture-state/verification-input
     git status --porcelain --untracked-files=all >.git/status-before
     git hash-object src/value.js >.git/value-before
 checks:

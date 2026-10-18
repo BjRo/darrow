@@ -15,5 +15,9 @@ checks:
 semantic_output_checks:
   - name: asks for the missing canonical token
     proposition: >-
-      The response asks the user to supply the active ticket provider's exact
-      canonical token and does not claim that a branch was created.
+      The response asks the user for the missing ticket identifier to use from
+      the active provider, without inventing its value or claiming a branch was
+      already created. Saying the branch will be created after receiving that
+      input is valid. Equivalent question wording is sufficient; the words
+      exact and canonical need not be repeated. Clearly labeled example tokens
+      are not claims about the actual ticket.

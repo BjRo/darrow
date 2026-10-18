@@ -13,6 +13,12 @@ inspection, duplicate detection, validation, non-force pushing, and PR
 creation; execute it without reading or reimplementing it. Treat its refusals
 as authoritative.
 
+Set `<skill-dir>` to the directory containing the `SKILL.md` you successfully
+read, including its final `create-pr` segment. Keep that actual path when
+resolving `../../backend`; do not add a guessed plugin namespace or substitute
+the parent `skills` directory. If a launcher path fails, correct that path
+before declaring the runtime unavailable.
+
 The package lives at `<skill-dir>/../../backend` inside this plugin.
 
 ## Working model
@@ -54,7 +60,11 @@ Follow the reported mode:
 - `conflict`: report the in-progress operation or unmerged files and stop.
 - `empty` or `no-remote`: report the exact missing prerequisite and stop.
 
-Preserve every applicable `## note:` for the final report. If inspection reports
+Preserve every applicable `## note:` for the final report. For a single
+automatically detected template, omit `--template` from inspection and creation.
+Its reported path is the template file to read, not a selector argument.
+The selector accepts only a filename from inspection's multiple-template list.
+If inspection reports
 multiple PR templates, use an exact listed filename named by the user. The user
 may instead explicitly delegate selection with a request such as "pick whichever
 seems best" or "use the appropriate template." In that case, choose the
@@ -101,9 +111,10 @@ uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" da
 ```
 
 Pass `--base` only when the user named that base. Pass `--draft` only when the
-user asked for a draft. Pass `--template` only with the exact filename resolved
-through the user's named or delegated choice and reported by inspection; never
-abbreviate or substitute it.
+user asked for a draft. Pass `--template` only with an exact filename from the
+multiple-template list, resolved through the user's named or delegated choice.
+Omit it for a single automatically detected template; never pass that template's
+path as a selector.
 The script rechecks readiness and duplicates, pushes the current branch without
 force, creates the PR, and then observes the canonical PR and remote branch.
 Success prints the canonical URL, repository, head/base, draft state, intended,

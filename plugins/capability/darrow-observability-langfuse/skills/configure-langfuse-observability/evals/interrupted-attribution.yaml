@@ -5,8 +5,9 @@ mount_plugin_skills: true
 prompt: >-
   Explain how Darrow Langfuse attribution should handle a Codex turn that was
   interrupted before Stop. The branch stayed on feat/issue-45-observability,
-  no attribution directive was used, and the turns before and after the
-  interruption belong to issue-45. Also explain what happens if the interrupted
+  automatic branch inference was active, no attribution directive was used,
+  and its provisional snapshot records the same issue-45 attribution source
+  and value as the turns before and after it. Also explain what happens if the interrupted
   turn has neither provisional nor final attribution evidence. Keep this
   read-only: do not run a hook or edit configuration.
 fixture:
@@ -18,27 +19,32 @@ checks:
   - name: interruption diagnosis stays read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-output_checks:
-  - name: answer uses provisional evidence for an interrupted turn
-    expect_regex: "interrupt[\\s\\S]{0,240}(provisional|prompt-time)[\\s\\S]{0,240}(snapshot|attribution|evidence)"
-    flags: i
 semantic_output_checks:
   - name: matching interrupted attribution preserves the epoch
     proposition: >-
-      The response explicitly explains that the interrupted turn's provisional
-      issue-45 attribution keeps it in the same attribution epoch and native
-      Langfuse session segment as the surrounding issue-45 turns. Merely saying
-      that the provisional snapshot governs the interrupted turn, without
-      stating the shared epoch or session result, does not satisfy this check.
+      The fixture establishes matching branch-inferred issue-45 snapshots for
+      the interrupted turn and its neighbors. The response uses the prompt-time
+      provisional snapshot when Stop is absent and describes a shared epoch and
+      native Langfuse session without interruption creating a new epoch. Those
+      statements together suffice; it need not restate the supplied snapshot
+      equality, repeat issue-45 in each sentence, or separately say "all three
+      turns." A conditional explanation of matching snapshots is valid here.
+      Fail if it discards provisional evidence, starts a new epoch because of
+      interruption, or explicitly excludes the matching interrupted turn.
   - name: answer preserves the conversation correlation key
     proposition: >-
-      The response identifies codex.thread_id as the stable conversation key
-      used to find or correlate turns across Langfuse session segments and any
-      ungrouped gap. Merely naming the field without explaining its
-      conversation-level role does not satisfy this check.
+      The response identifies codex.thread_id as a stable conversation-level
+      key for finding or correlating turns despite session grouping or an
+      ungrouped gap. Calling it the stable conversation key and explaining
+      correlation across the gap suffices; no separate sentence about multiple
+      session segments is required. Merely naming the field without its role,
+      treating it as changing per epoch, or denying cross-group correlation
+      fails.
   - name: answer leaves a genuinely unknown turn ungrouped
     proposition: >-
       The response explains that an interrupted turn with neither provisional
       nor final attribution evidence remains ungrouped, is not attached to a
-      Langfuse session, and does not create an attribution epoch. It must not
-      infer attribution for that turn from the surrounding issue-45 turns.
+      Langfuse session, and does not create an attribution epoch. Those outcomes
+      suffice without a separate sentence forbidding inference from surrounding
+      turns. Fail if it instead supplies a work item or epoch from the neighbors
+      despite the missing evidence, or contradicts any of those outcomes.

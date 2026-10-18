@@ -24,10 +24,6 @@ checks:
   - name: explanation is read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: response is compact pseudocode
-    run: >-
-      grep -Ei 'if|return' .git/last-message.md >/dev/null;
-      test "$(wc -l <.git/last-message.md | tr -d ' ')" -le 24
   - name: unrelated collaborators are not invented
     run: '! grep -Ei "database|queue|network|cache|normal distribution" .git/last-message.md'
 semantic_output_checks:

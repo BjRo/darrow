@@ -16,6 +16,8 @@ Plugin: `darrow-information-architecture`. Skills: `setup-information-architectu
   inaccessible repository/input, 1 for critical verification findings, and 0
   for completed inspection or successful verification. No Bash runtime shim is
   required. Setup and doctor retain separate intent and judgment in their skills.
+  Resolve bundled reference and backend paths from the absolute directory
+  containing the selected `SKILL.md`, retaining their declared upward segments.
 - **IA-P2 — Filesystem semantics.** Resolve the primary worktree from Git's
   first porcelain record, otherwise the supplied directory. Accept native
   repository paths, including Windows drives and UNC paths. Interpret portable
@@ -272,6 +274,9 @@ decisions, then rerun the audit.
   Resolve skill resources against the owning skill directory, including from
   its deferred references; repository-root lookalikes must not mask a missing
   bundled resource. Missing native or bundled dependencies still block.
+  Generic inline-code mentions of entrypoint filenames in skill prose are not
+  bundled resource declarations. Continue validating explicit read routes,
+  Markdown links, and native imports.
 - **IA-D12 — Intent-matched doctoring.** Explicit invocation and requests to
   audit, doctor, trim, deduplicate, or improve an existing repository guidance
   graph through diagnosed corrections select doctoring. Requests to create,

@@ -140,6 +140,13 @@ tool evidence. Do not reconstruct source paths or history. If required input
 cannot be read, preserve its exact attempted command and error in evidence_gaps
 and mark affected attempts blocked; do not invent a regression for that gap.
 
+Begin your JSON with repair.output_binding unchanged. Its originals list is
+exactly repair.attempted, not all reference original_findings. Add an attempts
+entry only for each key in that list. For regression-only verification, both
+originals and attempts are empty; report current carried-regression judgments
+under regression_attempts. The helper carries previously resolved original
+states; do not attempt them again or reconstruct protocol keys.
+
 Inspect only the cited finding context, its repair, and direct consequences.
 For each attempted key return resolved, unresolved, or blocked. An unresolved
 blocking finding is progressing only when concrete current evidence materially
@@ -211,6 +218,13 @@ objective are supplied with original citation paths. Checks are retained tool
 evidence. Do not reconstruct source paths or history. If required input cannot
 be read, preserve its exact attempted command and error in evidence_gaps and
 mark affected attempts blocked; do not invent a regression for that gap.
+
+Begin your JSON with repair.output_binding unchanged. Its originals list is
+exactly repair.attempted, not all reference original_findings. Add an attempts
+entry only for each key in that list. For regression-only verification, both
+originals and attempts are empty; report current carried-regression judgments
+under regression_attempts. The helper carries previously resolved original
+states; do not attempt them again or reconstruct protocol keys.
 
 Inspect only the cited requirement context, its repair, and direct
 consequences. For each attempted key return resolved, unresolved, or blocked.

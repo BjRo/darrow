@@ -1,7 +1,7 @@
 id: code-review-low-noise
 activation: positive
 invariant: CR-E5,CR-C6,CR-C7
-prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Review my uncommitted changes against this originating requirement: add an admin health handler that repeats the local two-line auth guard and returns status 204. Report only."
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Review my uncommitted changes against this originating requirement: add an admin health handler that repeats the local two-line auth guard and returns status 204. Run `bash format-check.sh` as the formatting check. Report only."
 fixture:
   commits:
     - message: "chore: init"
@@ -83,13 +83,15 @@ checks:
 semantic_output_checks:
   - name: review outcome and issues are understandable inline
     proposition: >-
-      The response reports a failed review gate because the formatting check
-      failed, while the independent readers found no code defects. Passing
-      Standards and Spec axes are consistent with an overall failed verdict:
-      deterministic check results separately control that verdict. A failed
-      verdict, failed format check, and no reader findings stated together
-      establish this distinction without an additional causal sentence. The
-      response must not demand centralizing the deliberately duplicated auth
-      guard; silence about that guard satisfies this exclusion. Reject an
-      overall pass, omission of the failed check, a separate model finding
-      duplicating the formatting failure, or an auth-guard refactoring demand.
+      The response communicates an overall failed review gate, the failed
+      formatting check, and a favorable code assessment. Saying the review
+      found no code findings or the handler fulfills the requirement conveys
+      that assessment. The canonical artifact checks separately verify both
+      passing axis statuses; do not require repeated
+      reader attribution, literal Standards or Spec labels, or an additional
+      causal sentence in the response. A favorable code assessment is consistent
+      with a failed gate because the formatter failed. The local two-line auth
+      guard duplication is accepted. Reject an overall pass, omission of the
+      failed check or favorable code assessment, an unavailable reader assessment,
+      a separate model finding duplicating the formatting failure, or a demand
+      to centralize the auth guard. Silence about the guard is sufficient.

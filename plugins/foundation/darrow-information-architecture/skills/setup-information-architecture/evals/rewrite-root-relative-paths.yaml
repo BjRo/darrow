@@ -37,16 +37,16 @@ fixture:
 checks:
   - name: nested-relative path is rewritten from the session root
     run: cat src/backend/MAP.md
-    expect_regex: "`src/backend/internal/export/assembler\\.go`"
+    expect_regex: '(^|[^A-Za-z0-9_./-])(\./)?src/backend/internal/export/assembler\.go($|[^A-Za-z0-9_./-])'
   - name: stale nested-relative form is gone
     run: cat src/backend/MAP.md
-    not_regex: "`internal/export/assembler\\.go`"
+    not_regex: '(^|[^A-Za-z0-9_./-])(\./)?internal/export/assembler\.go($|[^A-Za-z0-9_./-])'
   - name: loader-native relative import is preserved
     run: cat src/backend/MAP.md
     expect_regex: "@\\.\\./\\.\\./docs/native-loader-note\\.md"
   - name: skill-bundled resource path is preserved
     run: cat .agents/skills/export-check/SKILL.md
-    expect_regex: "`scripts/check\\.sh`"
+    expect_regex: '(^|[^A-Za-z0-9_./-])(\./)?scripts/check\.sh($|[^A-Za-z0-9_./-])'
   - name: deterministic path verification passes
     run: >-
       uv run --quiet --frozen --no-dev --project .git/ia-backend ia-doctor verify --runtime both . >/dev/null && echo verified

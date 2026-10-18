@@ -103,9 +103,9 @@ bun eval --harness codex --owner-evaluation passive --codex-entrypoint app-serve
 
 Use this profile for the `code-review` cases, `verification-existing-review`,
 `goal-verification-existing-review`, and `goal-preflight-high-risk-routine`.
-Negative Review cases first prepare an
-empty candidate state directory so their absence checks inspect real accessible
-state. A missing or unsafe declared directory is a grading error, never evidence
+Review fixture setup prepares an empty candidate state directory on Sevro
+rc.16, so missing reports fail task checks and negative cases inspect real
+accessible state. A missing or unsafe declared directory is a grading error, never evidence
 of absence. Artifacts remain temporary and are removed after grading; the grant
 does not persist their contents in the run archive. Do not select this profile
 for cases that do not create the declared directory.

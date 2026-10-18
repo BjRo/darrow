@@ -47,6 +47,10 @@ constraints for producing and interpreting that evidence.
   must resolve to exactly one regular file. Keep deterministic checks for file
   presence, status, and structural validation; `semantic_output_checks` grade
   only the final response.
+- Semantic graders receive the response or artifact and the propositions, not
+  the participant prompt or fixture. Include input facts needed to judge the
+  answer in the proposition. Do not require the answer to repeat established
+  facts merely to supply the grader's missing context.
 - Give one case one concrete state and one decision. When success would require
   recognizing several conditional branches in one free-form answer, split the
   branches into separate concrete-state cases.
@@ -58,6 +62,11 @@ constraints for producing and interpreting that evidence.
   require one exact tool sequence when several safe implementations yield the
   same observable result.
 - Keep participant prompts visible and pass criteria hidden.
+- When a native host requires user authorization to run tests, explicitly
+  request that verification in a participant prompt whose acceptance expects
+  test execution. Repository guidance or a skill cannot supply host-required
+  user authority. Preserve implicit selection by naming the permitted check
+  rather than adding a skill invocation.
 - When a case's expectation holds only on one host or candidate route, declare
   `harnesses` and `candidate_routes` in the case instead of a comment. Filtered
   and ownership runs then skip excluded hosts and apply the declared route.
@@ -89,8 +98,14 @@ constraints for producing and interpreting that evidence.
   Keep immutable setup inputs and hidden grading assets in their protected
   locations. Fixture backends remain immutable; give their `uv` child a private
   project environment when it would otherwise create a `.venv` in Git metadata.
-- Setup uses a temporary home that disappears before candidate execution.
-  Dependencies needed later must live in declared persistent fixture state.
+  Sevro appends prepared-artifact ignore rules after fixture setup. Setup receives
+  their exact relative paths as the JSON array `DARROW_EVAL_MOUNT_EXCLUDES`.
+  Bind an ignore-preservation baseline to that declared list; preserve the
+  original user configuration and reject missing, repeated, or undeclared rules.
+  Do not infer permitted additions from candidate files or exempt a whole directory.
+- On Sevro rc.16, setup shares the candidate commands' private home; its
+  temporary directory remains disposable. Initialize candidate-home state in
+  setup instead of asking the candidate to prepare grading prerequisites.
   Go corpus launchers share `.fixture-state/go/` caches across setup, candidate
   commands, and grading instead of downloading into that discarded home.
 - On Sevro rc.12, actual host-state cases select
@@ -110,8 +125,8 @@ constraints for producing and interpreting that evidence.
   configured runtime and dependency-cache paths. The participant prompt states
   that prerequisite because another valid private state root is outside the
   declared grant. Missing declared directories
-  fail grading; negative cases must prepare real empty state before testing
-  absence. The grant is read-only and lasts only through grading.
+  fail grading; Review fixture setup prepares real empty state before testing
+  missing reports or absence. The grant is read-only and lasts only through grading.
   Its path and tree have already passed Sevro's canonical-path and alias checks.
   Use that bound root and `dirname` for artifact paths; `cd` followed by
   `pwd -P` may require access to private ancestors outside the read grant.

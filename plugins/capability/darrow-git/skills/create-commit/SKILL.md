@@ -20,6 +20,12 @@ state inspection, staging, message validation,
 hook execution, and the final commit; execute it without reading or
 reimplementing it. Treat its refusals as authoritative.
 
+Set `<skill-dir>` to the directory containing the `SKILL.md` you successfully
+read, including its final `create-commit` segment. Keep that actual path when
+resolving `../../backend`; do not add a guessed plugin namespace or substitute
+the parent `skills` directory. If a launcher path fails, correct that path
+before declaring the runtime unavailable.
+
 The package lives at `<skill-dir>/../../backend` inside this plugin.
 
 ## Working model

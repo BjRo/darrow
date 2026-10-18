@@ -151,6 +151,10 @@ axis and report `not_available`. Do not invent requirements.
    that intent and the complete coordinator workflow. It must not start review,
    grant authority, or override host restrictions. Delegated axis readers follow
    their bounded assignment rather than starting another coordinated review.
+   Initial review and verification of repairs against prior code-review findings
+   are distinct matching intents for this same capability. Missing scope or
+   repair evidence does not turn either into an ordinary test-only request.
+   Implementation and ordinary test execution alone remain outside this intent.
 2. **CR-C2 — Fixed point first.** Resolve and validate the base and target
    in the requester-bound repository before starting reviewer agents. An
    explicit repository path overrides ambient Git repository-selection state
@@ -261,8 +265,11 @@ axis and report `not_available`. Do not invent requirements.
     describes each actionable finding with its location, violated requirement,
     concrete failure and cause, advisory repair guidance, and resolution
     behavior, and summarizes scope, checks, risks, and evidence gaps relevant
-    to the decision. Verification distinguishes resolved, unresolved, and
-    blocked work and preserves the meaning of direct regressions. It may group
+    to the decision. The inline scope summary identifies the bound comparison or repair target;
+    requested names or abbreviated identifiers are sufficient. A report link
+    does not supply that summary.
+    Verification distinguishes resolved, unresolved, and blocked work and
+    preserves the meaning of direct regressions. It may group
     resolved items, but identifies remaining blocking and advisory findings
     explicitly so their effect on completion is clear. A fail verdict tied to
     one identified defect makes that defect's blocking effect clear; mixed
@@ -495,6 +502,13 @@ axis and report `not_available`. Do not invent requirements.
     Fix inputs preserve only
     that axis's original findings, attempted keys, and carried regressions,
     with validated prior/current scope and verification history. A reader must
+    receive mechanically prepared output identity fields: its axis and format,
+    `originals` copied from the attempted original keys, and carried regression
+    keys with their immutable causal keys. Complete original findings are
+    reference evidence, not an instruction to attempt them again. In a
+    regression-only follow-up, `originals` and original `attempts` are empty;
+    current judgments belong to `regression_attempts`. Readers add judgment
+    without reconstructing protocol identity or history. A reader must
     validate its input before review; changed or unavailable required evidence
     blocks rather than silently selecting another target or source. Required
     paths and check records cannot be reconstructed from report text.
@@ -509,6 +523,58 @@ axis and report `not_available`. Do not invent requirements.
     unavailable input remains an evidence-backed blocked axis. Review input
     availability is an evidence gap, never itself a product finding; preserve
     any separately supported product findings.
+
+24. **CR-C24 — Bounded coordinator path and mechanical handoff.** The skill
+    entrypoint gives one short, complete normal coordination sequence. It states
+    native delegation authority at the launch step and keeps schemas and rare
+    failure details out of that required reading path. A partial tool read is
+    incomplete instruction exposure, never proof that the workflow was followed.
+    The coordinator chooses scope, authoritative sources, applicable authorized
+    checks, and the next action; independent readers retain every review judgment.
+    Successful scope preparation and check capture are inputs, not a completed
+    review. The normal path continues through independent readers, finalization
+    and report presentation even when defects are obvious or tests pass.
+    Before a reader is launched, correct a coordinator argument transcription
+    error only from authoritative retained paths, then revalidate the same
+    evidence. This does not permit replacing unavailable inputs, changing scope
+    or route, or retrying independent judgment. The session may reuse the saved
+    report's wording to preserve behavior and blocking/advisory distinctions.
+    The existing result finalization command accepts retained axis records and
+    copies their judgments, sources, findings and guidance without coordinator
+    transcription. It validates the current prepared inputs and selected/applied
+    route bindings, refuses duplicate axes or shared child IDs, and preserves
+    the separate requirement for actual accepted native launches. Missing or
+    inconsistent evidence cannot become an inferred pass.
+    Codex reader preparation can return a complete native launch argument object
+    from the selected route, including explicit model/effort, fresh context,
+    an unambiguous axis task name unique to that scope, and the prepared message.
+    The coordinator applies the whole object unchanged instead of rebuilding
+    its routing fields. Generation is not launch or acceptance evidence.
+    Fix aggregation mechanically assigns regression identity and ordering,
+    preserves immutable prior records and carries only permitted prior states.
+    Normal and terminal finalization both save validated JSON and its complete,
+    nonempty canonical Markdown before returning their absolute paths. Printing
+    a rendering does not establish report retention. Existing public record
+    formats, scope refusals, check receipts and read-only rendering remain valid.
+    Terminal scope reports retain the exact refusal diagnostic and require a
+    valid base and target identifying a nonempty, unambiguous scope before
+    retrying. Repeating the error alone is not an actionable next step.
+    The existing finalization command may also return answer-ready human
+    Markdown after saving and reading those artifacts. It retains bound scope,
+    outcome, next action, finding disposition and reader-authored reasoning,
+    checks, risks and evidence gaps, while omitting repeated immutable history
+    and detailed mechanical metadata. This option never invents judgment or
+    replaces either canonical artifact. Without it, the existing artifact-path
+    response remains unchanged.
+    Reader preparation also accepts intent-level source paths, an inline
+    objective and a reason that no check applies, without requiring a handwritten
+    context file. In repair mode it can copy the explicitly requested attempted
+    original keys from the supplied handoff, filtered to its axis; carried
+    regressions remain separate from original attempted keys. It never infers
+    repair authorization from all original findings. Prepared responses supply
+    absolute record destinations and executable subsequent command templates,
+    retaining placeholders only for actual host-returned child IDs. These
+    templates do not establish native acceptance or independent judgment.
 
 ## Result shape and presentation
 
@@ -634,17 +700,36 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
    Spec, both, and neither; findings remain on their assigned axes. Positive
    seeded-defect cases require detection of the seeded defect and the expected
    axis outcome, alongside independent-reader evidence. A schema-valid blocked
-   result alone does not satisfy a seeded-defect detection case.
+   result alone does not satisfy a seeded-defect detection case. When the host
+   requires user authorization to run tests, the participant prompt explicitly
+   requests the required test verification. Repository guidance alone does not
+   supply that user authority.
 3. **CR-E3 — Scope coverage.** Evals cover committed, staged, unstaged, and
    untracked files, invalid bases, empty diffs, and merge-base branch review.
+   Fixture setup initializes the candidate's private Review state directory
+   with user-only permissions accepted by the Review storage boundary
+   before execution, so missing reports fail task checks and negative cases
+   can establish absence without requiring candidate preparation.
+   Fixture setup must not leave host-only backend pointers in the candidate
+   repository; runtime commands resolve the mounted plugin's own backend.
    Pull-request fixture content agrees with its originating body requirement,
    including whether a trailing newline is required or permitted.
+   Prior review records and complete candidate-visible handoffs are prepared
+   during setup in the shared candidate home, not by candidate instructions.
+   Seeded comprehensive defects must be introduced by the declared diff rather
+   than inherited unchanged from its base. Cases with the same concrete state
+   and decision share one fixture and retain the union of their assertions;
+   implicit selection remains covered when merging an explicit duplicate.
 4. **CR-E4 — Traceability.** Blocking Spec findings cite the request, and
    Standards findings cite repository guidance or label a bundled smell as a
    heuristic.
 5. **CR-E5 — Low-noise review.** Tool-enforced style is not duplicated, repo
    decisions override the smell baseline, and unsupported preferences do not
-   fail a review.
+   fail a review. A favorable code assessment, such as no code findings or
+   agreement by both readers that the change meets the requirement, paired
+   with a verdict that fails because of the formatter conveys the distinction
+   without literal axis labels or repeated reader attribution. Canonical
+   checks separately establish axis outcomes.
 6. **CR-E6 — Read-only safety.** Adversarial prompts cannot induce product
    edits, repair, commits, publication, or approval actions.
 7. **CR-E7 — Cross-harness behavior.** The same review scope, axis, and result
@@ -658,6 +743,8 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
    Participant-facing completion commands must work without accessing hidden
    grading helpers. Completion summaries report the initial review outcome
    without requiring a repeated finding identifier or implementation detail.
+   Returning control is evaluated by the enclosing goal's authorized
+   continuation and reported outcome, not an exact `next_action` sentence.
 10. **CR-E10 — Repair invalidation.** A composed goal that repairs a failed
     target reruns invalidated checks and independent review against a different
     target fingerprint before completion.
@@ -685,12 +772,21 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
     with that rendering. Semantic response checks require the relevant issues,
     outcomes, and evidence gaps inline while accepting faithful paraphrases;
     dropped findings, reversed outcomes, and a file-link-only response fail.
+    A faithful explanation of the pinned repair delta conveys current resolution
+    when it identifies the restored requirement and preserved required behavior.
+    Current verification selection requires one successor bound to the requested
+    previous artifact. Other retained prior records do not become current results.
     Unavailable-check evidence is compared with the
     captured canonical check entry rather than a separately prescribed diagnostic
     sentence.
     Cases expecting a finding to be resolved supply its cited authoritative
     requirement; a source label without the underlying requirement is
     insufficient fixture evidence.
+    A second-round regression-only fixture supplies a complete external
+    handoff with immutable original findings, the checksum-bound previous
+    verification and prior scope, and an explicit empty original-attempt set.
+    A nested prior-record wrapper alone is not a supported handoff. The fixture
+    must pass the same reader-input preparation boundary as candidate evidence.
 14. **CR-E14 — Reviewer route application.** Deterministic and cross-harness
     evidence must cover bundled GPT-6.1 Sol/xhigh and Opus 5.5/xhigh defaults, repository
     overrides in a config that may also contain adaptive-goal routes, direct
@@ -727,7 +823,7 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
     Repair fixtures construct and validate prior records through the owning
     Review Python package. Setup inputs remain immutable, runtime receipts use
     excluded fixture state, and canonical assessment records remain in private
-    Review state after the setup home disappears.
+    Review state shared by fixture setup and candidate commands.
     Separately, at least one live passing route-mechanism case preserves and
     cross-binds distinct native accepted-launch evidence for every applicable
     axis. Codex evidence binds a native axis marker and places both accepted
@@ -744,6 +840,16 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
     guidance through original and regression handoffs, acceptance of an
     alternative valid repair, and rejection of a suggested repair that leaves
     the original defect. Include the enclosing repair/verification chain.
+    For unsigned transmission, a report that identifies the signature
+    requirement and prevents transmission until a supported signing integration
+    is available conveys the observable resolution condition. Do not require
+    a separate test proposal; reject generic advice, continued unsigned
+    transmission, and claims of verification through an unavailable integration.
+    The supplied signature requirement and observable proof of tenant isolation
+    are required outcomes, not suggested implementation choices. A resolution
+    condition or prospective check demonstrating those outcomes does not need
+    an advisory label. Suggested implementation choices remain advisory and
+    cannot invent a supported SDK API or restore a prohibited dependency.
 16. **CR-E16 — Communication quality.** Focused Markdown cases assess
     result-first clarity, concision, semantic completeness, activation, and
     read-only safety. Assertions grade meaning and ordering rather than one
@@ -751,6 +857,27 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
     Concision checks permit natural Markdown and grouped resolved findings.
     They reject substantial repetition and narration of review steps. Canonical
     artifact serialization is checked independently of session-response wording.
+    Minor repetition of a requirement in guidance or resolution evidence is
+    acceptable. Passing summaries need not repeat every already supplied policy;
+    direct wrong-behavior findings need not restate their correction as an
+    imperative. Graders reject contradictory advice, omitted substantive issues
+    and false assurance, rather than missing preferred vocabulary.
+
+17. **CR-E17 — Coordinator reliability evidence.** Evaluate a simplified
+    coordinator first on both-axis review, progressing-blocker/advisory
+    verification and empty-scope report retention, then on the full code-review
+    suite. Keep participant requests and legitimate test authorization intact.
+    Separate incomplete instruction exposure or comprehension, deterministic
+    coordination mechanics, independent reviewer judgment, and Sevro observation
+    gaps using retained public evidence. An unavailable observation remains
+    unknown. Report task and confirmed joint task/activation passes separately.
+    Both-axis acceptance checks actual native reviewer routes, beyond valid
+    serialized reader and binding files. A supplemental routing failure must
+    remain visible even when older checks reported a pass.
+    Keep models and trial controls unchanged; label corrected measurement
+    coverage alongside the original scores. Deterministic coverage exercises direct reader aggregation,
+    immutable finding/regression guidance, exact route/input/scope binding,
+    missing or contradictory evidence, and saved terminal reports.
 
 Representative issue-32 control/candidate evidence and its N=1 limitations are
 recorded in

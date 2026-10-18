@@ -906,6 +906,10 @@ test("Darrow extension mounts a plugin skill without exposing its evals", async 
   roots.push(root);
   const skillDir = join(root, "plugins/capability/example/skills/example");
   await examplePluginManifests(root);
+  await writeFile(
+    join(root, "plugins/capability/example/README.md"),
+    "Bundled installation guidance.\n",
+  );
   await mkdir(join(skillDir, "references"), { recursive: true });
   await mkdir(join(skillDir, "scripts"), { recursive: true });
   await mkdir(join(skillDir, "evals"), { recursive: true });
@@ -986,6 +990,7 @@ test("Darrow extension mounts a plugin skill without exposing its evals", async 
     ".agents/skills/example/scripts/run.sh",
     ".agents/.claude-plugin/plugin.json",
     ".agents/.codex-plugin/plugin.json",
+    ".agents/README.md",
   ]);
   expect(prepared.value.result.artifacts.every((item) => item.gitExclude)).toBe(
     true,
@@ -1007,6 +1012,7 @@ export default {
     if (prompt !== \`Use the example skill in \${workspace} and return ready.\`) throw new Error("workspace token unresolved");
     if (!(await readFile(join(skill, "SKILL.md"), "utf8")).includes("Example skill")) throw new Error("skill missing");
     if ((await readFile(join(skill, "references/guide.md"), "utf8")) !== "Visible guidance.\\n") throw new Error("reference missing");
+    if ((await readFile(join(skill, "../../README.md"), "utf8")) !== "Bundled installation guidance.\\n") throw new Error("plugin README missing");
     if (await Bun.file(join(skill, "evals/hidden.txt")).exists()) throw new Error("eval criteria exposed");
     const script = Bun.spawn([join(skill, "scripts/run.sh")], { stdout: "pipe" });
     if ((await new Response(script.stdout).text()) !== "ready\\n" || (await script.exited) !== 0) throw new Error("script not executable");
@@ -1112,13 +1118,30 @@ export default {
     evidence.trials[0].artifactRefs.filter(
       (item: { gitExclude?: boolean }) => item.gitExclude,
     ),
-  ).toHaveLength(5);
+  ).toHaveLength(prepared.value.result.artifacts.length);
   expect(
     evidence.trials[0].artifactRefs.filter(
       (item: { executable?: boolean }) => item.executable,
     ),
   ).toHaveLength(1);
   await writeFile(join(root, "secret.txt"), "private source\n");
+  const readmePath = join(root, "plugins/capability/example/README.md");
+  await rm(readmePath);
+  await symlink(join(root, "secret.txt"), readmePath);
+  const unsafeReadme = await command<ExtensionReply>(
+    [process.execPath, extension],
+    request("prepare", {
+      case: resolved.value.result.cases[0],
+      host: { id: "darrow.host.synthetic", capabilities: [] },
+      condition: "passive",
+      configuration: {},
+    }),
+  );
+  expect(unsafeReadme.value.error.message).toMatch(
+    /README is not a regular file/,
+  );
+  await rm(readmePath);
+  await writeFile(readmePath, "Bundled installation guidance.\n");
   await symlink(join(root, "secret.txt"), join(skillDir, "references/leak.md"));
   const unsafe = await command<ExtensionReply>(
     [process.execPath, extension],
@@ -1215,6 +1238,7 @@ test("explicit Codex skill invocation packages the owning plugin for Sevro", asy
     JSON.stringify({ name: "probe", version: "0.1.0", skills: "./skills/" }),
   );
   await writeFile(join(plugin, "backend/tool.txt"), "packaged tool\n");
+  await writeFile(join(plugin, "README.md"), "Native installation guidance.\n");
   await writeFile(
     join(skill, "SKILL.md"),
     "---\nname: probe\ndescription: Probe skill\n---\n\nUse this skill.\n",
@@ -1297,6 +1321,13 @@ test("explicit Codex skill invocation packages the owning plugin for Sevro", asy
     ".sevro-marketplace/plugin/.codex-plugin/plugin.json",
   );
   expect(paths).toContain(".sevro-marketplace/plugin/backend/tool.txt");
+  const readme = prepared.value.result.artifacts.find(
+    (item) => item.relativePath === ".sevro-marketplace/plugin/README.md",
+  );
+  expect(readme).toBeDefined();
+  expect(Buffer.from(readme!.contentBase64, "base64").toString()).toBe(
+    "Native installation guidance.\n",
+  );
   expect(paths).toContain(".sevro-marketplace/plugin/skills/probe/SKILL.md");
   expect(paths.some((path) => path.includes("/evals/"))).toBe(false);
   expect(prepared.value.result.artifacts.every((item) => item.gitExclude)).toBe(
@@ -1375,6 +1406,7 @@ if [ "$1" = --version ]; then printf 'synthetic-codex\\n'; exit 0; fi
 if [ "$1" != exec ]; then exit 99; fi
 skill_file="$CODEX_HOME/plugins/cache/darrow-eval/probe/0.1.0/skills/probe/SKILL.md"
 test -f "$skill_file" || exit 98
+test "$(/bin/cat "$CODEX_HOME/plugins/cache/darrow-eval/probe/0.1.0/README.md")" = 'Native installation guidance.' || exit 97
 /bin/cat >/dev/null
 /bin/cat <<SEVRO_EVENTS
 {"type":"thread.started","thread_id":"plugin-turn"}

@@ -64,9 +64,8 @@ semantic_output_checks:
       Taken together, the Oracle fields in the Quality bar preserve both exact
       input/output mappings and tie each mapping to its criterion:
       `" Alice@EXAMPLE.com "` produces `"alice@example.com"`, and `"A@B.C"`
-      produces `"a@b.c"`. At least one corresponding Verification field
-      includes running `bash test.sh`; it may also require adding assertions or
-      inspecting the implementation.
+      produces `"a@b.c"`. At least one Verification field anywhere in the
+      Quality bar includes running `bash test.sh`.
   - name: report is result first concise and complete
     proposition: >-
       The response puts the ready verdict and its next action before detailed

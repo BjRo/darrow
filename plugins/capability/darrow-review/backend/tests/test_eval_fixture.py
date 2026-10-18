@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 from conftest import git
-from darrow_review import eval_fixture, result
+from darrow_review import cli, eval_fixture, result
 from darrow_review.common import ReviewError, document, read_text, serialize
 from darrow_review.records import validate_result
 from darrow_review.verification import validate_verification
@@ -242,3 +242,60 @@ def test_cli_first_round(repo: Path) -> None:
         ]["path"]
         == "none"
     )
+
+
+def test_second_round_setup_prepares_complete_regression_only_reader_input(
+    repo: Path,
+) -> None:
+    broken(repo)
+    eval_fixture.command(
+        [
+            "seed-second",
+            "--repo",
+            str(repo),
+            "--template",
+            str(ASSETS / "second-round-verification.fixture.json"),
+        ]
+    )
+    handoff = eval_fixture.command(["second", "--repo", str(repo)]).strip()
+    value = document(read_text(handoff))
+    scope_output = cli.scope_command(
+        [
+            "prepare",
+            "--repo",
+            str(repo),
+            "--target",
+            "WORKTREE",
+            "--allow-empty",
+            "--prior-manifest",
+            str(value["prior_manifest"]),
+        ]
+    )
+    assert isinstance(scope_output, str)
+    prepared = document(scope_output)
+    reader = document(
+        cli.result_command(
+            [
+                "prepare-reader",
+                "--manifest",
+                str(prepared["manifest"]),
+                "--axis",
+                "standards",
+                "--original",
+                handoff,
+                "--attempted-from-input",
+                "--no-checks-reason",
+                "This input-preparation fixture has no configured checks.",
+            ]
+        )
+    )
+    packet = document(
+        cli.result_command(["read-reader", "--input", str(reader["input"])])
+    )
+    repair = packet["repair"]
+    assert isinstance(repair, dict)
+    assert repair["attempted"] == []
+    previous = value["previous_record"]
+    assert isinstance(previous, dict)
+    assert repair["original_findings"] == previous["original_findings"]
+    assert repair["regressions"] == previous["regressions"]

@@ -1,7 +1,7 @@
 id: code-review-fix-verification-regression-second-round
 activation: positive
 invariant: CR-C17,CR-C18,CR-C19,CR-C20,CR-E13
-prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. First run `fixture-review-input` to initialize the fixture's prior evidence in your private Review state. Verify only the carried repair-caused regression from the prior code review recorded in `.fixture-state/verification-input`. This is a follow-up repair verification, not a comprehensive review. Use `bash check.sh` as current check evidence and remain read-only."
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Verify only the carried repair-caused regression from the prior code review recorded in `.fixture-state/verification-input`. This is a follow-up repair verification, not a comprehensive review. Use `bash check.sh` as current check evidence and remain read-only."
 fixture:
   commits:
     - message: "chore: init"
@@ -27,15 +27,13 @@ fixture:
       RESULT=ok
   setup: |
     bash "{{case_dir}}/fixtures/prepare-grading.sh" "{{case_dir}}"
-    mkdir -p .git/fixture-bin
-    cp "{{case_dir}}/fixtures/initialize-second-round-input.sh" .git/fixture-bin/fixture-review-input
-    chmod +x .git/fixture-bin/fixture-review-input
     set -eu
     backend=$(cd "{{case_dir}}/../../../backend" && pwd -P)
     uv run --quiet --no-project "$backend/scripts/run_locked.py" python -m darrow_review.eval_fixture seed-second --repo "$PWD" --template "{{case_dir}}/fixtures/second-round-verification.fixture.json"
+    mkdir -p .fixture-state
+    cp .git/verification-input .fixture-state/verification-input
     git hash-object config.env >.git/config-before
     git status --porcelain --untracked-files=all >.git/status-before
-    printf '%s\n' "$backend" >.git/review-backend
 checks:
   - name: human response excludes machine JSON
     run: python3 .git/eval-checks/review/tests/evals/assert_records.py
@@ -53,10 +51,9 @@ checks:
       print(json.load(open(".fixture-state/verification-input"))["regression_key"])') &&
       previous_path=$(python3 -c 'import json;
       print(json.load(open(".fixture-state/verification-input"))["previous_verification"]["path"])')
-      && previous_relative=${previous_path#"$PWD"/} && record=$(find
-      "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
-      '*/darrow-review.*/*' ! -path "$previous_relative" -name verification.json
-      -type f -print) && test -n "$record" && test "$record" != "$previous_path"
+      && record=$(python3 .git/eval-checks/review/tests/evals/assert_records.py
+      "$DARROW_REVIEW_STATE_DIR" successor "$previous_path") && test -n "$record"
+      && test "$record" != "$previous_path"
       && uv run --quiet --frozen --no-dev --project
       "${tool%/src/darrow_review/result.py}" review-result validate-verification
       "$record" && python3 -c 'import json,sys;
@@ -70,10 +67,8 @@ checks:
       export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
       previous_path=$(python3 -c 'import json;
       print(json.load(open(".fixture-state/verification-input"))["previous_verification"]["path"])')
-      && previous_relative=${previous_path#"$PWD"/} && record=$(find
-      "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
-      '*/darrow-review.*/*' ! -path "$previous_relative" -name verification.json
-      -type f -print) && python3 -c 'import json,sys;
+      && record=$(python3 .git/eval-checks/review/tests/evals/assert_records.py
+      "$DARROW_REVIEW_STATE_DIR" successor "$previous_path") && python3 -c 'import json,sys;
       expected=json.load(open(sys.argv[1]))["previous_verification"];
       actual=json.load(open(sys.argv[2]))["previous_verification"]; assert
       expected==actual' .fixture-state/verification-input "$record"
@@ -82,10 +77,8 @@ checks:
       export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
       previous_path=$(python3 -c 'import json;
       print(json.load(open(".fixture-state/verification-input"))["previous_verification"]["path"])')
-      && previous_relative=${previous_path#"$PWD"/} && record=$(find
-      "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
-      '*/darrow-review.*/*' ! -path "$previous_relative" -name verification.json
-      -type f -print) && test -n "$record" && report=$(dirname
+      && record=$(python3 .git/eval-checks/review/tests/evals/assert_records.py
+      "$DARROW_REVIEW_STATE_DIR" successor "$previous_path") && test -n "$record" && report=$(dirname
       "$record")/verification.md && test -r "$report" && test -s "$report" &&
       tool=.git/eval-checks/review/src/darrow_review/report.py && test -n
       "$tool" && uv run --quiet --frozen --no-dev --project
@@ -98,7 +91,8 @@ checks:
 semantic_output_checks:
   - name: review outcome and issues are understandable inline
     proposition: >-
-      The response reports clear fix verification: the carried RESULT regression
-      is resolved because RESULT is ok while MODE remains good, and current
-      checks pass. It explains this inline without requiring the user to open a
-      report.
+      The response reports clear fix verification and explains that the carried
+      missing-RESULT regression is resolved: RESULT=ok is present or added by
+      the pinned repair, MODE=good is preserved, and current checks pass. A
+      faithful description of the pinned repair delta conveys the verified
+      current state. The outcome and its basis are understandable inline.

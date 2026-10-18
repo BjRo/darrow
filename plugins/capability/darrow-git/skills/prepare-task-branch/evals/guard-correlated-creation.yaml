@@ -12,29 +12,54 @@ fixture:
       files:
         README.md: "base\n"
   setup: |
+    set -eu
+    : "${DARROW_EVAL_MOUNT_EXCLUDES:?expected prepared mount exclusions}"
+    state=.git/eval-checks/branch-guard
+    mkdir -p "$state"
     git branch fix/issue-84-original
     git branch docs/issue-84-notes
     git branch fix/issue-840-similar
     printf 'user draft\n' > draft.txt
-    git show-ref > .git/expected-refs
-    git worktree list --porcelain > .git/expected-worktrees
-    git status --porcelain > .git/expected-status
-    cp .git/info/exclude .git/expected-exclude
+    git show-ref > "$state/refs"
+    git worktree list --porcelain > "$state/worktrees"
+    git status --porcelain > "$state/status"
+    cp .git/info/exclude "$state/exclude"
+    printf '%s' "$DARROW_EVAL_MOUNT_EXCLUDES" > "$state/mount-excludes.json"
 checks:
   - name: checkout remains unchanged
     run: git branch --show-current
     expect_exact: main
   - name: all refs and tips remain unchanged
-    run: git show-ref | diff .git/expected-refs -
+    run: git show-ref | diff .git/eval-checks/branch-guard/refs -
     expect_exit: 0
   - name: worktrees remain unchanged
-    run: git worktree list --porcelain | diff .git/expected-worktrees -
+    run: git worktree list --porcelain | diff .git/eval-checks/branch-guard/worktrees -
     expect_exit: 0
   - name: dirty work and ignore configuration remain unchanged
     run: |
-      git status --porcelain | diff .git/expected-status -
+      set -eu
+      git status --porcelain | diff .git/eval-checks/branch-guard/status -
       test "$(cat draft.txt)" = 'user draft'
-      cmp .git/info/exclude .git/expected-exclude
+      python3 - <<'PY'
+      from collections import Counter
+      import json
+      from pathlib import Path
+
+      state = Path('.git/eval-checks/branch-guard')
+      baseline = (state / 'exclude').read_bytes()
+      actual = Path('.git/info/exclude').read_bytes()
+      paths = json.loads((state / 'mount-excludes.json').read_text())
+      assert isinstance(paths, list) and all(isinstance(path, str) for path in paths)
+      assert len(paths) == len(set(paths)), 'duplicate declared mount exclusion'
+      assert actual.startswith(baseline), 'original ignore configuration changed'
+      special = set('\\*?[]#! ')
+      expected = [
+          '/' + ''.join('\\' + char if char in special else char for char in path)
+          for path in paths
+      ]
+      added = [line for line in actual[len(baseline):].decode().splitlines() if line]
+      assert Counter(added) == Counter(expected), 'unexpected or missing mount exclusion'
+      PY
       test ! -e .worktrees
     expect_exit: 0
 semantic_output_checks:

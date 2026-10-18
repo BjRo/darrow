@@ -76,6 +76,10 @@ when changed, and any needs-attention reason. Preserve the exact reply syntax
 when a human answer is pending. Never present an admission, question, open PR,
 archive save, or mock test as completed ticket delivery.
 
+When the original native owner identity or archives are unavailable, report
+recovery blocked and the claim retained. Explain that a human must reconcile
+the existing execution and published effects before recovery can proceed.
+
 After revocation, state that future admissions and continuations are disabled;
 existing execution and published effects were not cancelled or undone.
 

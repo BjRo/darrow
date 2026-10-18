@@ -18,6 +18,10 @@ checks:
     expect_exact: "fix/DAR-123-attribution"
   - name: task branch starts at deliberate base
     run: test "$(git rev-parse HEAD)" = "$(git rev-parse main)"
-output_checks:
+semantic_output_checks:
   - name: reports creation and base
-    expect_regex: "created|from main"
+    proposition: >-
+      The response reports that fix/DAR-123-attribution was newly created and
+      made active from main. Judge meaning rather than capitalization, code
+      formatting, or copied script prefixes. It must not describe an already
+      existing or reused branch, a different branch, or a different base.

@@ -129,6 +129,8 @@ def seed_second(repo: Path, template: Path) -> str:
         "prior_manifest": str(manifest),
         "previous_verification": previous(repo, record, manifest),
         "original_key": findings[0]["key"],
+        "original_findings": findings,
+        "attempted": [],
         "regression_key": regressions[0]["key"],
         "previous_record": record,
     }

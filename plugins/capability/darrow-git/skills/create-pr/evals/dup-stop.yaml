@@ -24,6 +24,14 @@ fixture:
           fi
           ;;
         "pr create")
+          for argument in "$@"; do
+            case "$argument" in
+              --help|-h)
+                printf 'Usage: gh pr create [flags]\n'
+                exit 0
+                ;;
+            esac
+          done
           mkdir -p "$d"
           shift 2
           while [ $# -gt 0 ]; do
@@ -56,7 +64,7 @@ fixture:
     printf '#42\tfix: renew session before expiry\tfix/session-expiry\n' > .fixture-state/gh-existing
 checks:
   - name: no second PR created
-    run: test ! -f .fixture-state/gh/title && echo none
+    run: test ! -e .fixture-state/gh && echo none
     expect_regex: "^none$"
   - name: branch not pushed
     run: git -C .fixture-state/remote.git for-each-ref refs/heads | wc -l

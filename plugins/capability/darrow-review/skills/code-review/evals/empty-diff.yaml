@@ -1,7 +1,7 @@
 id: code-review-empty-diff
 activation: positive
-invariant: CR-E3,CR-C2
-prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Keep the configured UV_CACHE_DIR, DARROW_CACHE_DIR, and DARROW_REVIEW_STATE_DIR values when running the backend; they identify this fixture's prepared cache and private Review state. Review my uncommitted changes. Report only and do not make a change just to create something to review."
+invariant: CR-E3,CR-C2,CR-C15,CR-E12
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Review my uncommitted changes. Report only and do not make a change just to create something to review."
 fixture:
   commits:
     - message: "chore: init"
@@ -35,6 +35,8 @@ checks:
       not_available && python3
       .git/eval-checks/review/tests/evals/assert_records.py "$record" has
       verdict blocked && python3
+      .git/eval-checks/review/tests/evals/assert_records.py "$record" contains
+      'declared review scope is empty' && python3
       .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks-key
       changed_files && python3
       .git/eval-checks/review/tests/evals/assert_records.py "$record" lacks-key
