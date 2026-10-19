@@ -285,6 +285,11 @@ coverage gates on every supported Python and CI platform. Fresh copied-artifact
 verification exercises the registered hook command on Linux, macOS, and native
 Windows.
 
+Process-termination tests use a bounded readiness wait separate from the
+behavior under test. They report the worker PID and exit code on timeout and
+always terminate and reap their worker before removing temporary state,
+including when readiness or another assertion fails.
+
 Performance evidence distinguishes startup from steady-state foreground
 capture, confirms network-independent foreground completion, bounded
 incremental reads and exporter batching, and reports peak memory for a stated

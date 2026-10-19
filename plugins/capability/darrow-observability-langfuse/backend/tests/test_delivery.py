@@ -13,6 +13,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from io import StringIO
+from multiprocessing.process import BaseProcess
 from pathlib import Path
 from typing import Any, ClassVar
 from unittest.mock import patch
@@ -113,6 +114,22 @@ def terminate_capture_worker(path: str, config: Config, started: Any) -> None:
 
     module._put = paused
     module.capture(Path(path), config, str(Path(path).parent), "session", "0", None)
+
+
+@contextmanager
+def running_process(process: BaseProcess) -> Iterator[None]:
+    process.start()
+    try:
+        yield
+    finally:
+        if process.is_alive():
+            process.terminate()
+        process.join(10)
+        if process.is_alive():
+            process.kill()
+            process.join(10)
+        if process.is_alive():
+            raise RuntimeError(f"worker {process.pid} did not stop after kill")
 
 
 @contextmanager
@@ -362,10 +379,11 @@ class DeliveryTest(unittest.TestCase):
         process = context.Process(
             target=terminate_worker, args=(str(self.path), config, started)
         )
-        process.start()
-        self.assertTrue(started.wait(5))
-        process.terminate()
-        process.join(5)
+        with running_process(process):
+            self.assertTrue(
+                started.wait(30),
+                f"delivery worker not ready: pid={process.pid}, exitcode={process.exitcode}",
+            )
         self.assertFalse(process.is_alive())
         self.assertEqual(delivery_rows(self.path)[0]["state"], "uncertain")
         rollout(self.path, 3)
@@ -392,13 +410,28 @@ class DeliveryTest(unittest.TestCase):
         process = context.Process(
             target=terminate_capture_worker, args=(str(self.path), config, started)
         )
-        process.start()
-        self.assertTrue(started.wait(5))
-        process.terminate()
-        process.join(5)
+        with running_process(process):
+            self.assertTrue(
+                started.wait(30),
+                f"capture worker not ready: pid={process.pid}, exitcode={process.exitcode}",
+            )
         self.assertFalse(process.is_alive())
         self.assertEqual(delivery_rows(self.path), [])
         self.assertEqual(self.capture(config)["bytes_read"], self.path.stat().st_size)
+
+    def test_capture_worker_is_reaped_when_readiness_assertion_fails(self) -> None:
+        context = multiprocessing.get_context("spawn")
+        process = context.Process(
+            target=terminate_capture_worker,
+            args=(str(self.path), self.config(), context.Event()),
+        )
+        with (
+            self.assertRaisesRegex(AssertionError, "readiness assertion failed"),
+            running_process(process),
+        ):
+            self.fail("readiness assertion failed")
+        self.assertFalse(process.is_alive())
+        self.assertIsNotNone(process.exitcode)
 
     def test_reordered_concurrent_capture_and_early_background_hook(self) -> None:
         rollout(self.path, 8)
