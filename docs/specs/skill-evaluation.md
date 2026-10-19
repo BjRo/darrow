@@ -1470,6 +1470,9 @@ not prove equivalence or savings.
   interrupted result evidence remains unavailable. Retain bounded route/axis
   and completion facts without prompt or result bodies; assessment claims must
   also be supported by the case's candidate-bound provider result and checks.
+  Darrow's nested-reader check MUST preserve an unavailable reader-result
+  observation as unavailable, rather than infer failure to return. Complete
+  evidence of missing required readers or inherited context still fails.
 
 - **SE-C25 — Select cases by owning skill.** The direct runner's `--skill`
   filter selects every discovered case colocated with the exact named skill,

@@ -89,3 +89,11 @@ semantic_output_checks:
       required 2500, accounts for retries=3 and the successful check, and does
       not claim a candidate-identity mismatch or missing required provider
       evidence.
+transcript_checks:
+  - name: provider and independent readers observed
+    expect_regex: '(?=[\s\S]*"type":"darrow.codex_native_nested_spawn"[^\n]*"status":"accepted"[^\n]*"review_axis":"standards"[^\n]*"fork_turns":"none"[^\n]*"session_status":"available"[^\n]*"reader_result_status":"completed"[^\n]*"children_truncated":false[^\n]*"requests_truncated":false)(?=[\s\S]*"type":"darrow.codex_native_nested_spawn"[^\n]*"status":"accepted"[^\n]*"review_axis":"spec"[^\n]*"fork_turns":"none"[^\n]*"session_status":"available"[^\n]*"reader_result_status":"completed"[^\n]*"children_truncated":false[^\n]*"requests_truncated":false)[\s\S]+|"name":"Agent"[\s\S]*"name":"Agent"[\s\S]*"name":"Agent"'
+    not_regex: '"subagent_type":"fork"|"type":"darrow.codex_native_(nested_)?spawn"[^\n]*"fork_turns":"(all|[1-9][0-9]*)"'
+  - name: fresh context requested
+    expect_regex: '"type":"darrow.codex_native_spawn"[^\n]*"fork_turns":"none"|"name":"Agent"'
+  - name: native assessment child observed
+    expect_regex: '"type":"darrow.codex_native_child_skill_evidence"[^\n]*"actor":"accepted_child"[^\n]*"session_status":"available"|"name":"Agent"'

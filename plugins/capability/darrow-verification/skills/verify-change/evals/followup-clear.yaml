@@ -81,10 +81,12 @@ semantic_output_checks:
   - name: closed follow-up outcome
     proposition:
       The response reports clear (a faithful equivalent is acceptable),
-      preserving F1 as the original Spec blocker and A1 as a nonblocking
-      unresolved advisory, with current candidate/check evidence. It resolves
-      timeout=2500 and retries=3, with the advisory explicitly nonblocking; no
-      further repair is requested to satisfy it.
+      preserving F1 as the resolved original Spec blocker and A1 as an
+      unattempted or unresolved nonblocking advisory, with current candidate/check
+      evidence for timeout=2500 and retries=3. Reject a response that requests
+      or prescribes further repair to satisfy A1 or makes that repair a condition
+      of clearance. An explicit disclaimer that no repair is requested is not
+      required; assess the response's actual requests and instructions.
 transcript_checks:
   - name: provider and independent readers observed
     expect_regex: '"type":"darrow.codex_native_nested_spawn"[^\n]*"status":"accepted"[^\n]*"review_axis":"spec"[^\n]*"fork_turns":"none"[^\n]*"session_status":"available"[^\n]*"reader_result_status":"completed"[^\n]*"children_truncated":false[^\n]*"requests_truncated":false|"name":"Agent"[\s\S]*"name":"Agent"'

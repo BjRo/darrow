@@ -1700,7 +1700,7 @@ test("Darrow grades completed independent readers through nested native receipts
           },
         })
       )[0],
-    ).toBe("failed");
+    ).toBe("unavailable");
     expect(
       (
         await statuses(selectedCase, {
@@ -1765,6 +1765,63 @@ test("Darrow grades completed independent readers through nested native receipts
     "passed",
     "passed",
   ]);
+  for (const caseId of [
+    "verification-existing-review",
+    "verification-criterion-gap",
+    "verification-indirect",
+  ]) {
+    const initial = await command<ExtensionReply>(
+      [process.execPath, extension],
+      request("resolve", {
+        projectRoot: pathToFileURL(projectRoot).href,
+        selectors: { caseIds: [caseId] },
+        configuration: {},
+      }),
+    );
+    expect(initial.code, initial.stderr).toBe(0);
+    const initialCase = initial.value.result.cases[0]!;
+    expect(await statuses(initialCase, dual)).toEqual([
+      "passed",
+      "passed",
+      "passed",
+    ]);
+    // Direct independent readers cannot replace the provider's own context.
+    expect(
+      (
+        await statuses(initialCase, {
+          ...native,
+          data: {
+            ...native.data,
+            childSessions: [
+              { ...native.data.childSessions[0], nestedSpawns: [] },
+            ],
+          },
+        })
+      )[0],
+    ).toBe("failed");
+    expect(
+      await statuses(initialCase, { ...dual, completeness: "partial" }),
+    ).toEqual(["unavailable", "unavailable", "unavailable"]);
+    expect(
+      (
+        await statuses(initialCase, {
+          ...dual,
+          data: {
+            ...dual.data,
+            childSessions: [
+              {
+                ...dual.data.childSessions[0],
+                nestedSpawns: [
+                  spec,
+                  { ...standards, readerResultStatus: "unavailable" },
+                ],
+              },
+            ],
+          },
+        })
+      )[0],
+    ).toBe("unavailable");
+  }
   expect((await statuses(selectedCase, native, [artifact]))[0]).toBe("failed");
   expect(
     (

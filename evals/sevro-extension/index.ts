@@ -4418,7 +4418,9 @@ function nestedAxisStatus(axis: string, requests: RecordValue[]) {
     return "passed";
   return matched.some(
     (request) =>
-      request.forkTurns === undefined || request.sessionStatus !== "available",
+      request.forkTurns === undefined ||
+      request.sessionStatus !== "available" ||
+      request.readerResultStatus !== "completed",
   )
     ? "unavailable"
     : "failed";

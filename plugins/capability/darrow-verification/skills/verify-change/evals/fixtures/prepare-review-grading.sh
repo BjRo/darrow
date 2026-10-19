@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -eu
 
+mkdir -p "$HOME/.darrow/reviews"
+chmod 700 "$HOME/.darrow/reviews"
+
 backend=$(python3 - "$1" <<'PY'
 import json
 import sys
