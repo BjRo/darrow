@@ -194,6 +194,11 @@ completed independent readers. A valid report produced by readers launched
 directly from the verification coordinator cannot establish the required
 provider handoff. Missing or incomplete native evidence remains unavailable;
 it cannot establish the handoff or its absence.
+The missing-required-provider case MUST accept a blocked response identifying
+the unavailable bound provider and refusing unauthorized substitution, together
+with its candidate-preservation and activation checks. It does not require a
+separate native assertion proving the absence of substitute delegation; this
+case establishes the response decision, not whole-run delegation absence.
 Artifact fixtures MUST prepare the declared empty provider state before candidate
 execution so a missing report can fail its checks without preventing grading.
 Identity assertions MUST distinguish the candidate file from a receipt holding

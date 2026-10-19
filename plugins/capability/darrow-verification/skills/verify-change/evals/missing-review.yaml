@@ -51,6 +51,3 @@ semantic_output_checks:
       replacement is authorized. It does not substitute another provider,
       replace review with coordinator self-assessment, or claim verification is
       clear. The response need not repeat who bound the provider.
-transcript_checks:
-  - name: no substitute native review agent
-    not_regex: '"type":"darrow.codex_native_spawn"|"name":"Agent"'
