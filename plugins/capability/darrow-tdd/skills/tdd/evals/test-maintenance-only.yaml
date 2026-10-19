@@ -1,4 +1,5 @@
 id: tdd-test-maintenance-only
+required_plugin_hook: darrow-tdd
 invariant: TDD-C1,TDD-E1
 activation: negative
 activation_excludes: [tdd]

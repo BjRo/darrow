@@ -1,4 +1,5 @@
 id: tdd-review-only
+required_plugin_hook: darrow-tdd
 invariant: TDD-C1,TDD-E1
 activation: negative
 activation_excludes: [tdd]
@@ -11,6 +12,15 @@ fixture:
   commits:
     - message: "chore: init"
       files:
+        README.md: |
+          # Counter library
+
+          The supported public API is `increment(value)` from `src/counter.js`.
+          It returns the input number plus one.
+
+          `addOne` is an internal implementation helper. Its export is not a
+          supported consumer API and may be removed or inlined without changing
+          the counter's public contract.
         src/counter.js: |
           export function increment(value) {
             return addOne(value);

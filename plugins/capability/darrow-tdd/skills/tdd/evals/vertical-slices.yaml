@@ -1,4 +1,5 @@
 id: tdd-vertical-slices
+required_plugin_hook: darrow-tdd
 invariant: TDD-C2,TDD-C3,TDD-C5,TDD-C6,TDD-C7,TDD-C11,TDD-E1,TDD-E4
 activation: positive
 mount_plugin_skills: true

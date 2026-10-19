@@ -1,4 +1,5 @@
 id: tdd-public-red-green
+required_plugin_hook: darrow-tdd
 invariant: TDD-C2,TDD-C3,TDD-C4,TDD-C12,TDD-E1
 activation: positive
 mount_plugin_skills: true

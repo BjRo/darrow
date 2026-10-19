@@ -1,4 +1,5 @@
 id: tdd-invalid-red-causes
+required_plugin_hook: darrow-tdd
 invariant: TDD-C4,TDD-C10,TDD-E1,TDD-E2
 activation: positive
 mount_plugin_skills: true

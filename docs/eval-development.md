@@ -141,7 +141,10 @@ constraints for producing and interpreting that evidence.
   and check reminder delivery in the native candidate context before launching
   a threshold run. Hook execution and skill activation remain separate, and
   negative selection cases retain the same installed hook. Preserve earlier
-  hook-disabled cohorts. With Sevro rc.8 or later, graders read the original candidate
+  hook-disabled cohorts. TDD cases similarly declare
+  `required_plugin_hook: darrow-tdd` and select
+  `evals/sevro-extension/runtime-tdd.json` for the installed reminder condition.
+  With Sevro rc.8 or later, graders read the original candidate
   `~/.darrow/reviews` subtree through `SEVRO_CANDIDATE_ARTIFACT_REVIEWS`, then
   bind that path to the owning oracle's `DARROW_REVIEW_STATE_DIR`. Preserve
   configured runtime and dependency-cache paths. The participant prompt states
