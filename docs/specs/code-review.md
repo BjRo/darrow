@@ -461,9 +461,33 @@ axis and report `not_available`. Do not invent requirements.
     effort on every assistant turn. Two-axis evidence MUST close the native
     launch batch over all retained Agent or spawn events: exactly the bound
     Standards and Spec readers may occur before their first wait or child
-    result. An unavailable-route result MUST retain zero native reader-launch
-    attempts, including inherited, substituted, background, generic, or
-    otherwise unbound attempts.
+    result. When the host or requester has already reported the selected route
+    unavailable, the coordinator MUST retain zero native reader-launch attempts,
+    including probes of that exact route. This exception precedes the ordinary
+    launch instruction in the main skill. If unavailability is first discovered
+    through a rejected native launch, retain that actual error and stop further
+    launches on the unavailable route; never inherit or substitute a route.
+    The existing `review-result` CLI MUST accept the pinned manifest, selected
+    route record and concrete unavailability reason and save canonical blocked
+    JSON and Markdown without coordinator-authored drafts or launch fields.
+    It preserves check receipts, available Spec identity and repair history,
+    validates scope and route binding, and never claims accepted readers or
+    supplies independent judgment. Reported unavailability is an input, not
+    helper-observed host capability evidence.
+    In repair verification, retain the causal attempt binding of every carried
+    regression. Previously resolved attempts remain retained; unresolved prior
+    attempts become explicitly unavailable rather than fresh progress when no
+    independent reassessment can run.
+    Preserve failing check receipts even when independent repair-causality
+    assessment is unavailable. An explicit evidence gap permits a blocked
+    verification without inventing a regression; a fully assessed verification
+    still requires unresolved or blocked regression evidence for a failed check.
+    Evidence gaps never permit `clear`. Comprehensive review retains its normal
+    failed-check verdict precedence while both independent axes remain blocked.
+    The no-reader shortcut applies only before reader inputs are prepared and
+    MUST refuse later use. A launch-time or child failure preserves every
+    separately supported axis judgment through exceptional finalization; it
+    never replaces a completed axis or drops its findings with a blanket block.
 22. **CR-C22 — User-level review state and bounded retention.** Generated review
     packets and evidence MUST live in a per-user review-state root, never in the
     repository Git directory or product tree. The default is `~/.darrow/reviews`
@@ -832,7 +856,7 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
     host-reported child ID. Two-axis evidence rejects every additional native
     launch in the retained batch, including unmarked or ineligible launches;
     one-axis evidence rejects any native launch for the unavailable axis; and
-    unavailable-route evidence rejects every native reader-launch attempt.
+    known-unavailable-route evidence rejects every native reader-launch attempt.
 
 15. **CR-E15 — Advisory repair reasoning.** Evidence covers useful guidance
     from each originating reader, explicit uncertainty without loss of a
@@ -895,6 +919,13 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
     not become another trial's interpreter through a shared source `.venv`.
     Exercise concurrent preparation without model execution before interpreting
     a repeated model cohort after a setup repair.
+    Setup-retention checks read the original prior manifest through the declared
+    Review artifact grant, bound to the setup actor's home. They preserve the
+    immutable repair inputs and product state without requiring a retired
+    fixture command or deletion of the candidate's home.
+    Copied-plugin fixture checks exercise the native frozen Python launcher on
+    Unix and Windows. Report-link checks compare the decoded destination with
+    the exact retained artifact, preserving required Markdown escaping.
 
 Representative issue-32 control/candidate evidence and its N=1 limitations are
 recorded in

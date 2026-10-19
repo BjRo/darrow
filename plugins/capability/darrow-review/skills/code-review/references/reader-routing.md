@@ -29,6 +29,10 @@ effective provider.
 
 Keep `reviewer-route.json` beside the scope manifest as route-selection
 evidence. Repository configuration comes only from the active worktree root.
+Before preparing or invoking readers, apply the main skill's known-unavailable
+branch. A host or requester report that the selected route is unavailable
+requires zero launch attempts, including attempts to confirm that report.
+`review-result block-route` saves the bound blocked report from that reason.
 
 ## Codex readers
 
@@ -149,9 +153,10 @@ fix-verification mode, materialize a schema-valid fix-axis record whose
 route record. Never replace unavailable independent judgment with coordinator
 analysis.
 
-An unavailable selected route permits zero native reader-launch attempts;
-inherited, substituted, generic, background, and otherwise unbound retries all
-invalidate the blocked result.
+Known unavailability permits zero native reader-launch attempts. When a native
+launch first discovers unavailability, retain that rejection and stop further
+launches. Inherited, substituted, generic, background, and otherwise unbound
+retries invalidate the blocked result.
 
 The single correction defined in `reader-inputs.md` uses native continuation
 of the existing accepted child, never another Agent or spawn call. Keep its

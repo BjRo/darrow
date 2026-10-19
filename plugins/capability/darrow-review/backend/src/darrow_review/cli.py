@@ -23,6 +23,7 @@ from . import (
     scope,
     storage,
     terminal_scope,
+    unavailable_route,
 )
 from .common import (
     ReviewError,
@@ -215,6 +216,8 @@ def result_command(args: list[str]) -> str:
         return readers[command](rest)
     if command == "finalize":
         return finalize_result(rest)
+    if command == "block-route":
+        return block_route(rest)
     counts = {
         "validate": 1,
         "validate-verification": 1,
@@ -230,6 +233,30 @@ def result_command(args: list[str]) -> str:
         "Usage: review-result COMMAND FILE [FILE]",
     )
     return result_operation(command, rest)
+
+
+def block_route(args: list[str]) -> str:
+    parser = argparse.ArgumentParser(
+        prog="review-result block-route", allow_abbrev=False
+    )
+    for name in ("manifest", "route-record", "reason"):
+        parser.add_argument("--" + name, required=True)
+    parser.add_argument("--spec-source", default="")
+    parser.add_argument("--original", default="")
+    parser.add_argument("--check", action="append", default=[])
+    parser.add_argument("--no-checks-reason", default="")
+    parser.add_argument("--present", action="store_true")
+    parsed = parser.parse_args(args)
+    return unavailable_route.block(
+        parsed.manifest,
+        parsed.route_record,
+        parsed.reason,
+        parsed.spec_source,
+        parsed.check,
+        parsed.no_checks_reason,
+        original=parsed.original,
+        present=parsed.present,
+    )
 
 
 def read_evidence(args: list[str]) -> str:

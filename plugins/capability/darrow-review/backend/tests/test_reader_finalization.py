@@ -7,6 +7,7 @@ from importlib.metadata import distribution
 from json import loads as document
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote
 
 import pytest
 from hypothesis import given, settings
@@ -141,7 +142,8 @@ def test_finalize_presents_scope_findings_and_checks_inline(
     assert "test value" in message and "echo checked" in message
     assert "Return findings to the requester." in message
     run = Path(manifest).parent
-    assert str(run / "review.md") in message
+    _, destination = message.rsplit("Complete review report: [report](<", 1)
+    assert unquote(destination) == f"{run / 'review.md'}>)\n"
     assert (run / "result.json").is_file()
     assert (run / "review.md").read_text(encoding="utf-8") == cli.report_command(
         ["render", str(run / "result.json")]

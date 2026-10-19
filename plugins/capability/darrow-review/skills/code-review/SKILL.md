@@ -11,9 +11,10 @@ receipts are inputs, never a completed review, even when defects are obvious.
 Read required instructions completely; if a tool truncates them, read the missing
 part before proceeding.
 
-**This skill explicitly requests native reviewer subagents, including for fix
-verification. A host rule permitting skill-requested delegation permits these
-calls.** Pin scope, capture checks, select the route and prepare every applicable
+**For an available selected route, this skill explicitly requests native reviewer
+subagents, including for fix verification. A host rule permitting skill-requested
+delegation permits these calls.** Pin scope, capture checks, select the route and
+prepare every applicable
 input before launching. Block only for an actual higher-priority prohibition,
 missing tool, returned launch error or unavailable evidence, retaining its exact
 diagnostic. Never substitute coordinator judgment or another model.
@@ -104,6 +105,27 @@ uv run --quiet --no-project "$backend/scripts/run_locked.py" review-route select
   --repo "$repo" --host <codex|claude> --record '<run>/reviewer-route.json'
 ```
 
+**If the host or requester already reports this selected route unavailable,
+do not launch readers, including a probe of that same route.** Save the blocked
+report directly:
+
+```sh
+uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result block-route \
+  --manifest "$manifest" --route-record '<run>/reviewer-route.json' \
+  --reason '<exact reported unavailability>' --spec-source '<originating source or not_available>' \
+  [--check '<captured check record>' ...] [--no-checks-reason '<why none applies>'] --present
+```
+
+Pass every captured check, or explicitly state why none applies. For repair
+verification replace `--spec-source` with `--original "$original_input"`; the
+helper preserves its original findings and repair history. Present the saved
+report and exit. Reported unavailability does not require a launch to confirm it.
+If a native launch first reveals unavailability, retain its actual error and
+stop further launches. Use the exceptional finalization path in
+[result-protocol.md](references/result-protocol.md), preserving every supported
+finding and completed axis. The no-reader shortcut refuses prepared inputs;
+never discard partial reader evidence to use it.
+
 Prepare each applicable axis directly with intent-level inputs; no context JSON
 is needed:
 
@@ -129,8 +151,8 @@ retained authoritative path, correct that argument and revalidate the same
 evidence before launch. Never guess a replacement path, change scope/route or
 convert genuinely missing evidence into a pass.
 
-**Codex: call `collaboration.spawn_agent` once for each prepared axis, passing
-its complete `launch` object unchanged.** All five fields are required:
+**Codex, with an available route: call `collaboration.spawn_agent` once for each
+prepared axis, passing its complete `launch` object unchanged.** All five fields are required:
 `task_name`, `fork_turns`, `model`, `reasoning_effort`, and `message`. The helper
 supplies explicit selected model/effort and fresh context. Launch both
 applicable axes before waiting.

@@ -167,12 +167,10 @@ def test_command_and_second_round_refusals(repo: Path) -> None:
         eval_fixture.seed_second(repo, template)
 
 
-@pytest.mark.parametrize("shell", ["bash", "/bin/bash"])
 @pytest.mark.parametrize("mount", [".agents", ".sevro-marketplace/plugin"])
 def test_copied_plugin_launchers_keep_records_private(
     repo: Path,
     tmp_path: Path,
-    shell: str,
     mount: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -197,11 +195,20 @@ def test_copied_plugin_launchers_keep_records_private(
     home = tmp_path / "actor-home"
     home.mkdir()
     monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("LOCALAPPDATA", str(home))
     monkeypatch.delenv("DARROW_REVIEW_STATE_DIR")
+    monkeypatch.delenv("DARROW_CACHE_DIR", raising=False)
     environment = dict(os.environ, UV_PYTHON=sys.executable)
+    command = [
+        sys.executable,
+        str(destination / "backend/scripts/run_locked.py"),
+        "python",
+        "-m",
+        "darrow_review.eval_fixture",
+    ]
     immutable = (repo / ".git/verification-input").read_bytes()
     first = subprocess.run(
-        [shell, str(ASSETS / "initialize-prior-input.sh")],
+        [*command, "first", "--repo", str(repo)],
         cwd=repo,
         env=environment,
         capture_output=True,
@@ -214,7 +221,7 @@ def test_copied_plugin_launchers_keep_records_private(
     eval_fixture.seed_second(repo, ASSETS / "second-round-verification.fixture.json")
     immutable = (repo / ".git/verification-input").read_bytes()
     prior = subprocess.run(
-        [shell, str(ASSETS / "initialize-second-round-input.sh")],
+        [*command, "second", "--repo", str(repo)],
         cwd=repo,
         env=environment,
         capture_output=True,

@@ -1,4 +1,8 @@
-import { expect, test } from "bun:test";
+import { afterAll, expect, test } from "bun:test";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { readFixtureCase, runFixtureChecks } from "./fixture-command";
 import { prepareUvFixtureRuntime } from "./fixture-runtime";
 
@@ -10,19 +14,38 @@ const runtimeConfig = new URL(
   "../sevro-extension/runtime-repository-skills.json",
   import.meta.url,
 );
+const roots: string[] = [];
+afterAll(async () => {
+  await Promise.all(
+    roots.map((root) => rm(root, { recursive: true, force: true })),
+  );
+});
 
-test("prior fixture inputs survive public setup teardown without product changes", async () => {
+test("prior fixture inputs remain bound to the setup home without product changes", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-review-setup-retention-"));
+  roots.push(root);
+  const profile = await Bun.file(runtimeConfig).json();
+  profile.runtime.artifactDirectories = [
+    { name: "reviews", path: ".darrow/reviews" },
+  ];
+  const runtime = await prepareUvFixtureRuntime();
+  const configured = join(root, "runtime.json");
+  await writeFile(configured, JSON.stringify(profile));
   for (const name of [
     "fix-verification-resolved",
     "fix-verification-regression-second-round",
   ]) {
     const source = new URL(`skills/code-review/evals/${name}.yaml`, plugin);
     const canonical = await readFixtureCase(source);
-    const runtime = await prepareUvFixtureRuntime();
     const result = await runFixtureChecks({
       source,
       fixtureAssets: plugin,
-      runtimeConfig,
+      fixtureAssetFiles: [
+        "backend/tests/evals/assert_records.py",
+        "backend/tests/evals/assert_guidance.py",
+        "backend/tests/evals/eval_routes.py",
+      ],
+      runtimeConfig: pathToFileURL(configured),
       setupPrefix: runtime.setupPrefix,
       fixture: {
         ...canonical.fixture,
@@ -50,8 +73,10 @@ git diff HEAD >.fixture-state/product-before`,
           name: "public teardown preserves immutable repair inputs and source",
           run: `set -eu
 export PATH="$PWD/.git/fixture-bin:$PATH"
-test ! -e "$(cat .fixture-state/setup-home)"
-test -r .git/fixture-bin/fixture-review-input
+test "\${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Review artifact grant is required}" = "$(cat .fixture-state/setup-home)/.darrow/reviews"
+prior_manifest=$(python3 -c 'import json; print(json.load(open(".fixture-state/verification-input"))["prior_manifest"])')
+test -r "$prior_manifest" && test -s "$prior_manifest"
+cmp .git/verification-input .fixture-state/verification-input
 git hash-object .git/verification-input >.fixture-state/input-after
 cmp .fixture-state/input-before .fixture-state/input-after
 git diff HEAD >.fixture-state/product-after
