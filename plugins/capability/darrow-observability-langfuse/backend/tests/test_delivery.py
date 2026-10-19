@@ -185,7 +185,7 @@ class DeliveryTest(unittest.TestCase):
                     exporter.assert_called_once()
                 self.assertEqual(delivery_rows(path)[0]["state"], "acknowledged")
 
-    def test_foreground_never_contacts_delayed_or_unavailable_endpoint(self) -> None:
+    def test_foreground_captures_locally_without_exporting(self) -> None:
         for delay in (0, 0.5):
             with endpoint(delay=delay) as (url, requests):
                 config = self.config(url)
@@ -204,12 +204,15 @@ class DeliveryTest(unittest.TestCase):
                         "darrow_observability_langfuse.cli.load_config",
                         return_value=config,
                     ),
+                    patch(
+                        "darrow_observability_langfuse.cli.export_document",
+                        side_effect=AssertionError("foreground attempted delivery"),
+                    ) as exporter,
                 ):
-                    start = time.monotonic()
                     self.assertEqual(run(), 0)
-                    self.assertLess(time.monotonic() - start, 2)
+                    exporter.assert_not_called()
                 self.assertEqual(requests, [])
-        self.assertEqual(delivery_rows(self.path)[0]["state"], "pending")
+                self.assertEqual(delivery_rows(self.path)[0]["state"], "pending")
 
     def test_real_otlp_batch_headers_and_large_queue(self) -> None:
         from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (

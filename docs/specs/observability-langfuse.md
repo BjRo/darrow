@@ -292,6 +292,11 @@ workload. Release evidence includes a fresh artifact install with runtime-only
 locked dependencies. The isolated live Langfuse smoke test remains the release
 check for actual ingestion.
 
+Foreground network-independence checks assert that no exporter is invoked, no
+HTTP request reaches the configured endpoint, and captured work remains pending
+for asynchronous delivery. An arbitrary wall-clock threshold is not evidence
+of this contract; local process and filesystem latency may vary across runners.
+
 Participant-visible colocated evals cover configuration/help intent, refusal to
 claim tracing without prerequisites, privacy disclosure, work-item precedence,
 interrupted-turn attribution, and the boundary against unrelated monitoring or
