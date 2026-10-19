@@ -183,6 +183,24 @@ def launch(
     return accepted_at, turn, child
 
 
+def reader_returns(rows: list[dict[str, Any]], bindings: dict[str, str]) -> list[int]:
+    positions = []
+    for index, payload in payloads(rows, "item_completed"):
+        item = payload.get("item", {})
+        if (item.get("type"), item.get("kind")) != (
+            "SubAgentActivity",
+            "completed",
+        ):
+            continue
+        child, agent = item.get("agent_thread_id"), item.get("agent_path")
+        if child in bindings or agent in bindings.values():
+            assert child in bindings and bindings[child] == agent, (
+                "uncorrelated native reader result"
+            )
+            positions.append(index)
+    return positions
+
+
 def bound_readers(
     root: str,
     captured: dict[str, list[dict[str, Any]]],
@@ -225,7 +243,9 @@ def bound_readers(
     identifiers = {rows[index]["payload"]["call_id"] for index in accepted}
     first = min(i for i, p in calls if p.get("call_id") in identifiers)
     waits = [i for i, p in calls if p.get("name") == "wait_agent" and i > first]
-    end = min(waits) if waits else max(accepted) + 1
+    bindings = {child: agents[axis] for axis, child in children.items()}
+    boundaries = waits + [i for i in reader_returns(rows, bindings) if i > first]
+    end = min(boundaries) if boundaries else max(accepted) + 1
     spawns = [
         p["call_id"]
         for i, p in calls
@@ -235,8 +255,8 @@ def bound_readers(
         "unexpected native spawn count"
     )
     if len(agents) > 1:
-        assert waits and max(accepted) < min(waits), (
-            "both readers must be accepted before waiting"
+        assert boundaries and max(accepted) < end, (
+            "both readers must be accepted before waiting or receiving results"
         )
     return parent, turn, identifiers
 

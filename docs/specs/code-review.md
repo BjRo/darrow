@@ -461,7 +461,12 @@ axis and report `not_available`. Do not invent requirements.
     effort on every assistant turn. Two-axis evidence MUST close the native
     launch batch over all retained Agent or spawn events: exactly the bound
     Standards and Spec readers may occur before their first wait or child
-    result. When the host or requester has already reported the selected route
+    result. An explicit wait call is optional when Codex returns the results
+    automatically. A coordinator-visible native completion notification binds
+    to both the accepted child thread ID and its agent path. Both readers must
+    be accepted before the earliest wait or bound completion notification;
+    missing ordering evidence cannot establish a parallel two-axis batch.
+    When the host or requester has already reported the selected route
     unavailable, the coordinator MUST retain zero native reader-launch attempts,
     including probes of that exact route. This exception precedes the ordinary
     launch instruction in the main skill. If unavailability is first discovered
@@ -843,7 +848,10 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
     assignment; an explicit implementation assignment does not require a
     particular task-name prefix. Separate validated
     assessment batches may share one host turn; each batch still rejects extra
-    launches and accepts all required readers before its first wait.
+    launches and accepts all required readers before its first wait or bound
+    native result notification. Controls cover automatic result delivery without
+    a wait, sequential launches before and after an explicit wait, missing or
+    mismatched result bindings, and extra launches before the first result.
     Repair fixtures construct and validate prior records through the owning
     Review Python package. Setup inputs remain immutable, runtime receipts use
     excluded fixture state, and canonical assessment records remain in private
@@ -851,7 +859,7 @@ the prior-to-current repair delta remains nonempty and exact-target-bound.
     Separately, at least one live passing route-mechanism case preserves and
     cross-binds distinct native accepted-launch evidence for every applicable
     axis. Codex evidence binds a native axis marker and places both accepted
-    starts before the first wait; Claude evidence places both
+    starts before the first wait or bound native result; Claude evidence places both
     Agent calls in one parallel tool-use turn and joins each tool-use ID to its
     host-reported child ID. Two-axis evidence rejects every additional native
     launch in the retained batch, including unmarked or ineligible launches;
