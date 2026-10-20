@@ -21,11 +21,16 @@ request are established.
 
 ## 2. Install the bundled files
 
-Run the contained package through its frozen runtime entrypoint. `<skill-dir>`
-is the absolute directory containing this `SKILL.md`:
+Run the contained package through its frozen runtime entrypoint.
+`<plugin-root>` is the absolute prefix before
+`/skills/install-ticket-templates/SKILL.md` in this file's actual path. For
+example, `/work/.agents/skills/install-ticket-templates/SKILL.md` uses
+`/work/.agents/backend/scripts/run_locked.py`. Do not insert a plugin-name
+directory or calculate parent traversals. If a wrong launcher path fails before
+the CLI starts, correct this binding before declaring the backend unavailable:
 
 ```sh
-uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-ticket-templates install --repo <absolute-repository-root>
+uv run --quiet --no-project "<plugin-root>/backend/scripts/run_locked.py" darrow-ticket-templates install --repo <absolute-repository-root>
 ```
 
 The command creates only absent `dependency-upgrade.md`, `retirement.md`, and

@@ -35,7 +35,11 @@ checks:
     run: grep -Eq 'LEGACY_READER' .fixture-state/gh/created-body
   - name: removal scope covers implementation and configuration
     run: grep -Eqi 'implementation|old reader' .fixture-state/gh/created-body && grep -Eqi 'config' .fixture-state/gh/created-body
-  - name: retained behavior and completion evidence remain required
-    run: grep -Eqi 'modern reader|retained behavior' .fixture-state/gh/created-body && grep -Eqi 'complete|evidence' .fixture-state/gh/created-body
   - name: migration uncertainty is explicit
     run: grep -Eqi 'migration' .fixture-state/gh/created-body && grep -Eqi 'open questions|undecided|unknown|not decided' .fixture-state/gh/created-body
+semantic_artifact:
+  path: .fixture-state/gh/created-body
+  checks:
+    - name: retained behavior and removal completion remain verifiable
+      proposition: >-
+        The retirement ticket retains the installed template's requirement to verify both that removal is finished and that the modern reader still works. It must require confirmation or evidence of removal completion, not merely list implementation steps to remove LEGACY_READER and its old path. It must also require confirmation that retained modern-reader behavior functions. Equivalent wording is valid; the literal words 'complete' and 'evidence' are not required.

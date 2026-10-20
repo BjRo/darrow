@@ -5,16 +5,43 @@ import re
 import shutil
 import subprocess
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
 
+def option_values(arguments: list[str]) -> Iterator[tuple[str, str]]:
+    """Consume values once for the fixture's supported value-taking options."""
+    supported = {
+        "--state",
+        "--label",
+        "--search",
+        "--limit",
+        "--json",
+        "--title",
+        "--body-file",
+        "--body",
+        "-b",
+        "-X",
+        "--method",
+        "-F",
+        "--field",
+        "-f",
+        "--raw-field",
+    }
+    iterator = iter(arguments)
+    for argument in iterator:
+        if argument in supported:
+            yield argument, next(iterator)
+        elif argument in ("--help", "-h"):
+            yield argument, ""
+
+
 def flag(arguments: list[str], name: str, default: str = "") -> str:
-    try:
-        return arguments[arguments.index(name) + 1]
-    except ValueError:
-        return default
+    return next(
+        (value for option, value in option_values(arguments) if option == name),
+        default,
+    )
 
 
 def read(path: Path) -> str:
@@ -62,9 +89,7 @@ def select_issues(
     if state != "ALL":
         records = [record for record in records if record["state"] == state]
     labels = [
-        arguments[index + 1]
-        for index, argument in enumerate(arguments)
-        if argument == "--label"
+        value for option, value in option_values(arguments) if option == "--label"
     ]
     if labels:
         records = [
@@ -121,20 +146,30 @@ def issue_view(directory: Path, arguments: list[str]) -> dict[str, Any]:
     return {field: record[field] for field in flag(arguments, "--json").split(",")}
 
 
+def inline_body(arguments: list[str]) -> bytes | None:
+    for option, value in option_values(arguments):
+        if option in ("--body", "-b"):
+            return value.encode("utf-8")
+    return None
+
+
 def copy_body(directory: Path, arguments: list[str], *names: str) -> None:
     source = flag(arguments, "--body-file")
-    if source:
+    body = Path(source).read_bytes() if source else inline_body(arguments)
+    if body is not None:
         for name in names:
-            shutil.copyfile(source, directory / name)
+            (directory / name).write_bytes(body)
 
 
 def create_issue(directory: Path, arguments: list[str]) -> str:
     number = str(99 + len(read(directory / "created-ids").splitlines()))
     copy_body(directory, arguments, "created-body")
     title = flag(arguments, "--title")
-    if "--title" in arguments:
+    if any(option == "--title" for option, _ in option_values(arguments)):
         (directory / "created-title").write_text(title, encoding="utf-8")
-    labels = [arguments[i + 1] for i, arg in enumerate(arguments) if arg == "--label"]
+    labels = [
+        value for option, value in option_values(arguments) if option == "--label"
+    ]
     (directory / "created-labels").write_text(
         "".join(label + "\n" for label in labels), encoding="utf-8"
     )
@@ -156,21 +191,24 @@ def mutate_issue(directory: Path, arguments: list[str]) -> str | None:
         copy_body(directory, arguments, f"edited-body-{number}", f"issue-{number}-body")
     else:
         append(directory / "transitions", f"{action} {number}")
+        (directory / f"issue-{number}-state").write_text(
+            "closed" if action == "close" else "open", encoding="utf-8"
+        )
     return None
 
 
 def api_arguments(arguments: list[str]) -> tuple[str, str, dict[str, str]]:
-    method, endpoint, fields = "GET", "", {}
+    method, endpoint, fields = "", "", {}
     iterator = iter(arguments[1:])
     for argument in iterator:
-        if argument == "-X":
+        if argument in ("-X", "--method"):
             method = next(iterator)
-        elif argument == "-F":
+        elif argument in ("-F", "--field", "-f", "--raw-field"):
             key, value = next(iterator).split("=", 1)
             fields[key] = value
         elif argument not in ("--paginate", "--slurp"):
             endpoint = argument
-    return method, endpoint, fields
+    return method or ("POST" if fields else "GET"), endpoint, fields
 
 
 def api_get(directory: Path, number: str, suffix: str) -> Any:
@@ -180,19 +218,29 @@ def api_get(directory: Path, number: str, suffix: str) -> Any:
             raise ValueError("gh: Not Found (HTTP 404)")
         return {"id": 10000 + int(number)}
     if suffix == "/parent":
-        parent = read(prefix.with_name(prefix.name + "-parent")).strip()
-        if not parent:
-            raise ValueError("gh: No parent issue found (HTTP 404)")
-        return {
-            "number": int(parent),
-            "html_url": f"https://github.test/o/r/issues/{parent}",
-        }
+        return parent_record(directory, number)
+    if suffix == "/sub_issues":
+        return [
+            {"number": int(path.name.split("-")[1])}
+            for path in sorted(directory.glob("issue-*-parent"))
+            if read(path).strip() == number
+        ]
     return [
         [
             {"number": int(n)}
             for n in read(directory / f"issue-{number}-blockedby").splitlines()
         ]
     ]
+
+
+def parent_record(directory: Path, number: str) -> dict[str, Any]:
+    parent = read(directory / f"issue-{number}-parent").strip()
+    if not parent:
+        raise ValueError("gh: No parent issue found (HTTP 404)")
+    return {
+        "number": int(parent),
+        "html_url": f"https://github.test/o/r/issues/{parent}",
+    }
 
 
 def api_mutate(
@@ -227,7 +275,12 @@ def api(directory: Path, arguments: list[str]) -> Any:
     if not match:
         raise ValueError(f"mock gh: unsupported api call: {method} {endpoint}")
     number, suffix = match.groups()
-    if method == "GET" and suffix in ("", "/parent", "/dependencies/blocked_by"):
+    if method == "GET" and suffix in (
+        "",
+        "/parent",
+        "/sub_issues",
+        "/dependencies/blocked_by",
+    ):
         return api_get(directory, number, suffix)
     supported = (
         method == "POST" and suffix in ("/dependencies/blocked_by", "/sub_issues")
@@ -242,8 +295,17 @@ def api(directory: Path, arguments: list[str]) -> Any:
 
 
 def dispatch(directory: Path, arguments: list[str]) -> Any:
+    if any(option in ("--help", "-h") for option, _ in option_values(arguments)):
+        command = " ".join(item for item in arguments[:2] if not item.startswith("-"))
+        return (
+            f"Usage: gh {command} [flags]\n"
+            "Issue commands: list, view, create, edit, comment, close, reopen\n"
+            "Issue flags: --title, --body/-b, --body-file, --label\n"
+            "API flags: --method/-X, --field/-F, --raw-field/-f"
+        )
     pair = tuple(arguments[:2])
     queries: dict[tuple[str, ...], Callable[[], Any]] = {
+        ("auth", "status"): lambda: "Logged in to github.test as fixture-user",
         ("repo", "view"): lambda: (
             {"url": "https://github.test/o/r"}
             if flag(arguments, "--json") == "url"

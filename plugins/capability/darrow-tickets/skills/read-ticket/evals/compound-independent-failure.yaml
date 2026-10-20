@@ -36,7 +36,7 @@ checks:
     expect_regex: "GraphQL: Could not resolve to an Issue with the number of 404\\."
   - name: exact ticket is fetched once
     run: |-
-      awk '/--no-project .*darrow-ticket get #?404( --provider github)?$/ {n++} END {print n+0}' .fixture-state/fixture-ticket-cli-calls
+      awk '/--frozen .*darrow-ticket get #?404( --provider github)?$/ {n++} END {print n+0}' .fixture-state/fixture-ticket-cli-calls
     expect_exact: "1"
   - name: only one tracker read occurs
     run: sed -n '$=' .fixture-state/gh-calls

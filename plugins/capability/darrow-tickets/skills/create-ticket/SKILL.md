@@ -44,11 +44,17 @@ appearance; the selected adapter owns URL validation.
 All tracker interaction goes through the bundled CLI:
 
 ```text
-uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-ticket <command> [args] [--provider <tracker>]
+uv run --quiet --no-project "<plugin-root>/backend/scripts/run_locked.py" darrow-ticket <command> [args] [--provider <tracker>]
 ```
 
-`<skill-dir>` is the absolute directory containing this `SKILL.md`. Use that
-complete locked command for every operation below. Append `--provider github`
+`<plugin-root>` is the absolute path before `/skills/create-ticket/SKILL.md`
+in the installed file you just read. For example,
+`/work/.agents/skills/create-ticket/SKILL.md` binds the launcher to
+`/work/.agents/backend/scripts/run_locked.py`. Resolve this root once and use
+it for every command below. If a constructed path is missing, check it against
+this file's actual path before declaring the installation unavailable; do not
+guess another parent directory or use raw tracker commands.
+Append `--provider github`
 to each command when the request or project context selects GitHub; the sole bundled adapter
 is the default otherwise. The current adapter requires UV, Python 3.10–3.13,
 Git, and authenticated `gh` on Linux, macOS, or native Windows.
@@ -93,7 +99,7 @@ its relations, continuing in that order until every item has an outcome.
 Run:
 
 ```sh
-uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-ticket inspect
+uv run --quiet --no-project "<plugin-root>/backend/scripts/run_locked.py" darrow-ticket inspect
 ```
 
 Choose each item's type from its described work, not the user's vocabulary:
@@ -120,7 +126,7 @@ open-ticket search. Run this search even if an earlier search covered similar
 terms:
 
 ```sh
-uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-ticket list --search "<distinctive terms>"
+uv run --quiet --no-project "<plugin-root>/backend/scripts/run_locked.py" darrow-ticket list --search "<distinctive terms>"
 ```
 
 Compare the returned titles to this item's requested problem/outcome. If any
@@ -153,7 +159,7 @@ issue templates before drafting. The command lists Markdown templates and YAML
 issue forms with their absolute paths and available names and descriptions:
 
 ```sh
-uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-ticket-templates list --repo <absolute-current-repository-root>
+uv run --quiet --no-project "<plugin-root>/backend/scripts/run_locked.py" darrow-ticket-templates list --repo <absolute-current-repository-root>
 ```
 
 Use the template the caller named, or one whose stated purpose clearly matches
@@ -168,7 +174,7 @@ regression-fix template.
 For a selected filename from that list, inspect its installed content:
 
 ```sh
-uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-ticket-templates show --repo <absolute-current-repository-root> --file <exact-listed-filename>
+uv run --quiet --no-project "<plugin-root>/backend/scripts/run_locked.py" darrow-ticket-templates show --repo <absolute-current-repository-root> --file <exact-listed-filename>
 ```
 
 These local commands do not contact GitHub. Use applicable headings, prompts,
@@ -231,7 +237,7 @@ private file under `$HOME/.darrow/tmp` on Linux/macOS or
 It makes no tracker call. Run one `create` command for that item:
 
 ```sh
-uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-ticket create --title <title> --type <type> --body-file <absolute-file> \
+uv run --quiet --no-project "<plugin-root>/backend/scripts/run_locked.py" darrow-ticket create --title <title> --type <type> --body-file <absolute-file> \
   [--label <existing-label>]... [--milestone <named-value>] \
   [--assignee <named-value>] [--depends-on <caller-named-id>]... \
   [--parent <caller-named-id>]

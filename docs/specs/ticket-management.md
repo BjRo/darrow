@@ -29,6 +29,13 @@ stable intent ("create a ticket for X") while the backend stays swappable.
   contained Python package managed by UV, invoked through its frozen
   `darrow-ticket` entrypoint by all four skills. Preserve the command arguments,
   output records, refusals, and exit codes of the existing GitHub provider.
+  Bind that entrypoint to the installed skill's actual plugin root: the path
+  before `/skills/<skill>/SKILL.md`, including `.agents` for a project-discovery
+  mount. Model-facing commands for both ticket and template operations name
+  that plugin root directly instead of requiring parent-directory calculations.
+  A failed path assembled from the wrong parent does not establish that
+  the bundled backend is missing; correct the resource binding before reporting
+  an unavailable installation. Never substitute raw tracker calls.
   Use argument-vector subprocesses, explicit UTF-8 JSON decoding and validation,
   and native filesystem and temporary-file handling on Linux, macOS, and Windows.
   Ticket body drafts allocated by the CLI and its separate copy passed to the
@@ -43,6 +50,12 @@ stable intent ("create a ticket for X") while the backend stays swappable.
   visible if a later relation write or read fails. Validate with mocked provider
   operations, generated boundary cases, and fresh copied-plugin execution;
   automated tests must never mutate live GitHub state.
+  Mocked providers preserve the declared authentication state and supplied
+  ticket bodies for their supported CLI forms, including body values that look
+  like option names. They must not report a successful creation or edit while
+  silently discarding or changing its body input. CLI help remains read-only,
+  successful close/reopen operations are visible in later reads, and supported
+  API operations preserve equivalent method and field flag forms.
   Claude's session-start context may route matching requests to the installed
   ticket skills before repository inspection or prerequisite judgments. It must
   remain static and nonmutating, perform no repository or tracker inspection,
@@ -109,7 +122,8 @@ same task requirements.
   including files supplied or customized by its users. It inspects an explicitly
   named template, or selects one whose stated purpose matches the requested
   issue; ambiguous matches require a caller choice. The created ticket retains
-  the selected template's applicable criteria and evidence requests. It never
+  the selected template's applicable criteria and evidence requests by their
+  checkable meaning; exact template wording is not required. It never
   substitutes the bundled copy for a missing or unreadable installed template.
   Without a matching installed template, the existing type-based drafting rules
   apply. Factual inputs come only from the request, conversation or repository;
@@ -178,7 +192,8 @@ decompose a broad request into tickets on its own.
   the result remains incomplete, leave that item uncreated. A plausible
   existing match is reported with id and title; skip that item until the user
   decides whether to file anyway, while continuing independent items. A shared
-  component or keyword alone does not make two tickets duplicates.
+  component or keyword alone does not make two tickets duplicates. The final report
+  need not enumerate unrelated search results.
 - **TM-C2 — Deliberate type.** The type (bug, feature, task, chore) is
   chosen from the request and evidence, stated in the report, and mapped to
   the backend's taxonomy by the script.
@@ -345,7 +360,11 @@ authorized work.
   those instructions or append an editorial assessment of them.
 - **TM-R4 — Honest retrieval failure.** A missing ticket, unusable backend,
   unreadable relation, or tracker error stops retrieval with the CLI's complete
-  diagnostic after one fetch. It stops dependent follow-on work. Separately
+  diagnostic after one fetch. A failed local launcher-path binding before the
+  ticket CLI starts is not a fetch: correct that binding under TM-P3 before
+  invoking the locked CLI. Count resolved locked CLI launches rather than outer
+  bootstrap attempts; never use that distinction to retry a tracker refusal.
+  It stops dependent follow-on work. Separately
   authorized work that remains meaningful without the ticket may continue, but
   the final answer must still include the complete diagnostic unchanged.
   Backend-provided evidence remains verbatim but may be capped with an explicit

@@ -27,7 +27,10 @@ uv run --quiet --no-project "<plugin-root>/backend/scripts/run_locked.py" darrow
 `<plugin-root>` is the absolute directory before `/skills/read-ticket/SKILL.md`
 in this file's path. For example, a skill at
 `/x/darrow-tickets/skills/read-ticket/SKILL.md` uses
-`/x/darrow-tickets/backend/scripts/run_locked.py`. Use that complete locked
+`/x/darrow-tickets/backend/scripts/run_locked.py`. A project-discovered skill at
+`/work/.agents/skills/read-ticket/SKILL.md` instead uses
+`/work/.agents/backend/scripts/run_locked.py`. Bind the prefix of this actual
+file's path; never insert a `darrow-tickets` directory. Use that complete locked
 command for every operation below. Append `--provider github`
 to the fetch when the request or project context selects GitHub; the sole bundled adapter is
 the default otherwise. The current adapter requires UV, Python 3.10–3.13,
@@ -102,8 +105,11 @@ follow-up mutation. A URL/project mismatch, missing ticket, unreadable relation,
 or backend error is the authoritative stop; do not retry with a numeric suffix
 or alternate source.
 
-Treat a nonzero exit as a completed read refusal, not as a reason to retry or
-seek another ticket source. Preserve the complete stderr for step 3.
+If a wrong launcher path fails before the ticket CLI starts, correct the path
+using this skill's actual location above. That local binding failure is not a
+ticket fetch. Once the resolved CLI runs, a nonzero exit is a completed read
+refusal: preserve its complete stderr for step 3 and stop without retrying or
+seeking another ticket source.
 
 **Complete when:** the CLI returns one ticket or one verbatim refusal, with zero
 tracker mutations.

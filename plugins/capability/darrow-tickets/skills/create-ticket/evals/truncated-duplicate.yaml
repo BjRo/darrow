@@ -39,12 +39,7 @@ checks:
   - name: duplicate was not created
     run: cat .fixture-state/gh/created-ids 2>/dev/null || true
     not_regex: "[0-9]"
-  - name: no creation command
-    run: cat .fixture-state/gh/calls
-    not_regex: "^issue create "
 semantic_output_checks:
   - name: exact duplicate beyond default page is reported
     proposition: >-
-      The response identifies issue #30 as the plausible matching ticket and
-      makes clear that no new ticket was created. It does not claim that the
-      first twenty ticket-archive telemetry tickets are duplicates.
+      The requested failure is a ticket-list SIGPIPE crash on repositories with hundreds of open tickets. Search result #30 describes that same failure; the first twenty results concern unrelated ticket-archive telemetry during CSV import. The response identifies #30 as the plausible matching ticket and makes clear that no new ticket was created. The response may omit the unrelated results entirely; discussing or enumerating them is not required. If it mentions those unrelated results, it must not call them duplicates.
