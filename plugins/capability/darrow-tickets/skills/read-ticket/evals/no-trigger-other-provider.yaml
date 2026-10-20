@@ -2,6 +2,7 @@ id: read-ticket-no-trigger-other-provider
 invariant: TM-P2
 activation: negative
 mount_plugin_skills: true
+required_plugin_hook: darrow-tickets
 activation_excludes:
   - create-ticket
   - read-ticket

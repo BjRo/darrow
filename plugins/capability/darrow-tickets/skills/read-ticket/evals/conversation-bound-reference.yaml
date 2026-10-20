@@ -2,6 +2,7 @@ id: read-ticket-conversation-bound-reference
 invariant: TM-R1,TM-R2,TM-R3
 activation: competition
 mount_plugin_skills: true
+required_plugin_hook: darrow-tickets
 prompt: >-
   Remember this context for my next request: the deployment ticket is #12. Do not retrieve it yet; reply only READY.
 follow_up_prompt: >-

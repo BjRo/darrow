@@ -2,6 +2,7 @@ id: read-ticket-silent-relation-failure
 invariant: TM-R2,TM-R4
 activation: positive
 mount_plugin_skills: true
+required_plugin_hook: darrow-tickets
 prompt: "Read ticket #32 and return the authoritative tracker response without changing anything."
 fixture:
   commits:

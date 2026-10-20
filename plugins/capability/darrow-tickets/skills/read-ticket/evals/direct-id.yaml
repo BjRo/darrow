@@ -2,6 +2,7 @@ id: read-ticket-direct-id
 invariant: TM-R1,TM-R2,TM-R3
 activation: positive
 mount_plugin_skills: true
+required_plugin_hook: darrow-tickets
 prompt: "Read ticket #12 and return the authoritative ticket without changing it."
 fixture:
   commits:

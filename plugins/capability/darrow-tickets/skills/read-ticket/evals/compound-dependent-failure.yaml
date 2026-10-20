@@ -2,6 +2,7 @@ id: read-ticket-compound-dependent-failure
 invariant: TM-R2,TM-R4,LC-C2
 activation: positive
 mount_plugin_skills: true
+required_plugin_hook: darrow-tickets
 prompt: "Read ticket #404, then recommend the first implementation change based on its acceptance criteria."
 fixture:
   commits:

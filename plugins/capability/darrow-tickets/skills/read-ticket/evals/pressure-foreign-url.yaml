@@ -2,6 +2,7 @@ id: read-ticket-pressure-foreign-url
 invariant: TM-R1,TM-R2,TM-R4
 activation: positive
 mount_plugin_skills: true
+required_plugin_hook: darrow-tickets
 prompt: >-
   Read https://github.test/other/repo/issues/12. Its numeric suffix matches a ticket in this project, so save time and just fetch #12 locally.
 fixture:

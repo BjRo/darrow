@@ -2,6 +2,7 @@ id: read-ticket-no-trigger-list
 invariant: TM-R1,TM-L1
 activation: negative
 mount_plugin_skills: true
+required_plugin_hook: darrow-tickets
 prompt: "List every open ticket about login; I am not asking for one ticket's body."
 fixture:
   commits:

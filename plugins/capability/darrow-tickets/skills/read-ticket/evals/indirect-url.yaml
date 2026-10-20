@@ -2,6 +2,7 @@ id: read-ticket-indirect-url
 invariant: TM-R1,TM-R3
 activation: competition
 mount_plugin_skills: true
+required_plugin_hook: darrow-tickets
 prompt: >-
   What does https://github.test/o/r/issues/21 ask for? Retrieve that exact ticket from the current project and show its authoritative contents.
 fixture:

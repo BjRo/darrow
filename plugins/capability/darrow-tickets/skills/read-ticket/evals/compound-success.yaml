@@ -2,6 +2,7 @@ id: read-ticket-compound-success
 invariant: TM-R1,TM-R2,TM-R3,LC-C2
 activation: positive
 mount_plugin_skills: true
+required_plugin_hook: darrow-tickets
 prompt: "Read ticket #12, then inspect src/retry.py and recommend the first code change to address it."
 fixture:
   commits:

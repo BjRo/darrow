@@ -144,6 +144,12 @@ constraints for producing and interpreting that evidence.
   hook-disabled cohorts. TDD cases similarly declare
   `required_plugin_hook: darrow-tdd` and select
   `evals/sevro-extension/runtime-tdd.json` for the installed reminder condition.
+  Read-ticket cases declare `required_plugin_hook: darrow-tickets` and use
+  `evals/sevro-extension/runtime-tickets.json` for the installed Codex catalog
+  binding reminder. Keep the same hook on positive and negative read cases and
+  retain the earlier catalog-only cohorts. Other Tickets cases keep their
+  declared installation condition; do not treat those earlier results as
+  measurements of the new reminder.
   With Sevro rc.8 or later, graders read the original candidate
   `~/.darrow/reviews` subtree through `SEVRO_CANDIDATE_ARTIFACT_REVIEWS`, then
   bind that path to the owning oracle's `DARROW_REVIEW_STATE_DIR`. Preserve

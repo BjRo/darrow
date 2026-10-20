@@ -56,10 +56,23 @@ stable intent ("create a ticket for X") while the backend stays swappable.
   silently discarding or changing its body input. CLI help remains read-only,
   successful close/reopen operations are visible in later reads, and supported
   API operations preserve equivalent method and field flag forms.
-  Claude's session-start context may route matching requests to the installed
-  ticket skills before repository inspection or prerequisite judgments. It must
-  remain static and nonmutating, perform no repository or tracker inspection,
-  preserve provider boundaries, and leave workflow and authority in the skill.
+  Static session-start context may route matching requests to installed skills
+  before repository inspection or prerequisite judgments. Claude's context covers
+  ticket operations; Codex's read-ticket reminder binds retrieval requests,
+  including incomplete references, to the catalog's exact skill file location.
+  Check provider eligibility before loading that skill. An explicitly selected
+  unsupported tracker remains the requested tracker; the reminder must not
+  cause a GitHub-only skill read just to establish that exclusion.
+  Expand a catalog root alias without adding namespace directories. A plugin
+  namespace is not a filesystem directory, and absent tracker connectors do not
+  establish that the bundled CLI is unavailable. A hook's private execution copy
+  is not an authoritative candidate skill location; context must not advertise
+  that copy as the installed skill. Context must remain nonmutating, perform no
+  repository or tracker inspection, preserve provider and intent boundaries, and
+  leave workflow and authority in the skill. Missing or unreadable catalog
+  resources remain real failures; do not invent an alternative path or tracker.
+  Hook descriptors use native command strings; installed paths containing
+  spaces must remain single launcher arguments.
 
 - **TM-P1 — One self-contained ticket plugin.** The five skills and all tracker
   adapters live in `darrow-tickets`. The shipped adapter is GitHub Issues via

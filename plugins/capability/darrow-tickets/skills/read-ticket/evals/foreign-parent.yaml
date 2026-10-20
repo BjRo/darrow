@@ -2,6 +2,7 @@ id: read-ticket-foreign-parent
 invariant: TM-3,TM-R2,TM-R4
 activation: positive
 mount_plugin_skills: true
+required_plugin_hook: darrow-tickets
 prompt: "Read ticket #12 and return the authoritative tracker result without changing anything."
 fixture:
   commits:
