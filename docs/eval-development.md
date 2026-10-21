@@ -216,6 +216,14 @@ constraints for producing and interpreting that evidence.
   normalize only declared plugin namespaces to Darrow's unique mounted skill
   names. Do not recover missing common collection from retired observations or
   native transcripts. Keep task and activation outcomes separate.
+- On Sevro rc.20, use a unique complete
+  `sevro.host.skill-activation-claims` receipt only for primary selection and
+  established positive membership in positive or competition cases. Keep its
+  paired collection partial and retain `incompleteReasons` and `collection`
+  diagnostics. Missing claimed membership remains unknown. Negative cases,
+  exclusions, and supporting sequences still require complete collection;
+  neither native logs nor balanced call counts replace it. An explicitly
+  unknown primary remains unknown even in a complete collection.
 - A composed `activation_sequence` requires the primary owner first and a
   complete mounted body read for every supporting skill. Use
   `activation_includes` when supporting skills must be read but their order is

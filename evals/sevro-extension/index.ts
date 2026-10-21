@@ -23,7 +23,9 @@ import { caseCandidateRoutes } from "./suite-routes";
 import { pluginHookPolicy, pluginHookChecks } from "./plugin-hook";
 import {
   commonSkillActivation,
+  commonSkillActivationClaims,
   commonSkillSource,
+  SKILL_ACTIVATION_CLAIMS,
   SKILL_ACTIVATIONS,
 } from "./skill-activation";
 import {
@@ -3261,6 +3263,11 @@ function supportedActivationSource(
   if (explicit) return supportedExplicitActivation(observation, data);
   if (observation.id === SKILL_ACTIVATIONS)
     return commonSkillSource(observation.source, data.method);
+  if (observation.id === SKILL_ACTIVATION_CLAIMS)
+    return (
+      observation.source === "sevro.host.codex" &&
+      data.scope === "primary_and_positive_presence"
+    );
   if (observation.id === "darrow.activation") return true;
   if (observation.id === "sevro.claude.tool-calls")
     return (
@@ -3327,12 +3334,7 @@ function explicitSupportingActivation(
   };
 }
 
-function commonCaseActivation(observations: unknown, details: RecordValue) {
-  if (!Array.isArray(observations))
-    throw new Error("evaluation observations must be an array");
-  const matches = observations.filter(
-    (item) => item && typeof item === "object" && item.id === SKILL_ACTIVATIONS,
-  );
+function observationNamespaces(details: RecordValue) {
   const namespaces = Array.isArray(details.activationNamespaces)
     ? details.activationNamespaces.filter(
         (item): item is string => typeof item === "string",
@@ -3341,12 +3343,41 @@ function commonCaseActivation(observations: unknown, details: RecordValue) {
   const invocation = activationData(details.invocation);
   if (typeof invocation?.pluginName === "string")
     namespaces.push(invocation.pluginName);
+  return namespaces;
+}
+
+function commonCaseActivation(observations: unknown, details: RecordValue) {
+  if (!Array.isArray(observations))
+    throw new Error("evaluation observations must be an array");
+  const matches = observations.filter(
+    (item) => item && typeof item === "object" && item.id === SKILL_ACTIVATIONS,
+  );
+  const namespaces = observationNamespaces(details);
+  const claims = observations.filter(
+    (item) =>
+      item && typeof item === "object" && item.id === SKILL_ACTIVATION_CLAIMS,
+  );
+  const observation =
+    matches.length === 1
+      ? commonSkillActivation(
+          record(matches[0], "skill activations"),
+          namespaces,
+        )
+      : null;
+  if (claims.length && observation?.completeness === "complete")
+    return {
+      present: true,
+      observation: { ...observation, completeness: "partial" },
+      claims: null,
+    };
   return {
     present: matches.length > 0,
-    observation:
-      matches.length === 1
-        ? commonSkillActivation(
-            record(matches[0], "skill activations"),
+    observation,
+    claims:
+      observation && claims.length === 1
+        ? commonSkillActivationClaims(
+            record(claims[0], "skill activation claims"),
+            observation,
             namespaces,
           )
         : null,
@@ -3367,7 +3398,8 @@ function caseActivationObservation(
 ) {
   const explicit = details.invocation !== undefined;
   const common = commonCaseActivation(observations, details);
-  if (!explicit && common.present) return common.observation;
+  if (!explicit && common.present)
+    return implicitCaseActivation(common, details);
   const selected = explicitDispatchObservation(
     activationObservation(observations, explicit),
   );
@@ -3383,6 +3415,33 @@ function caseActivationObservation(
       : null;
   }
   return selected;
+}
+
+function claimsCoverExpectation(
+  expected: ReturnType<typeof activationExpectation>,
+  observedSkills: string[],
+): boolean {
+  if (
+    expected.activationClass === "negative" ||
+    expected.sequence?.length ||
+    expected.excludes?.length
+  )
+    return false;
+  return (
+    expected.includes?.every((skill) => observedSkills.includes(skill)) ?? true
+  );
+}
+
+function implicitCaseActivation(
+  common: ReturnType<typeof commonCaseActivation>,
+  details: RecordValue,
+) {
+  if (observedActivation(common.observation, false)) return common.observation;
+  const claimed = observedActivation(common.claims, false);
+  const expected = activationExpectation(details.activation);
+  return claimed && claimsCoverExpectation(expected, claimed.observedSkills)
+    ? common.claims
+    : common.observation;
 }
 
 function explicitDispatchObservation(selected: RecordValue | null) {
@@ -3450,7 +3509,17 @@ function activationOutcomeData(
     source: observation?.source ?? null,
     primarySkill: observed?.primarySkill ?? null,
     observedSkills: observed?.observedSkills ?? [],
+    ...activationClaimScope(observation),
   };
+}
+
+function activationClaimScope(observation: RecordValue | null) {
+  return observation?.id === SKILL_ACTIVATION_CLAIMS
+    ? {
+        evidenceScope: "primary_and_positive_presence",
+        collectionCompleteness: "partial",
+      }
+    : {};
 }
 
 function uniqueObservation(value: unknown, id: string): RecordValue | null {
@@ -6190,7 +6259,9 @@ async function evaluateCase(params: RecordValue) {
         status,
         evidenceRefs: activationEvidenceRefs(observation),
         detail: observed
-          ? "Activation graded from complete host observation"
+          ? observation?.id === SKILL_ACTIVATION_CLAIMS
+            ? "Activation graded from complete primary/presence claim; collection remains partial"
+            : "Activation graded from complete host observation"
           : "Activation observation unavailable or incomplete",
         data: activationOutcomeData(expected, observation, observed),
       },
@@ -6239,6 +6310,7 @@ if (import.meta.main) {
               "sevro.host.native-controls",
               "sevro.host.hooks",
               SKILL_ACTIVATIONS,
+              SKILL_ACTIVATION_CLAIMS,
               "sevro.codex.plugin-marketplace",
               "sevro.codex.explicit-invocation",
               "sevro.codex.repository-invocation",

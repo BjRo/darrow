@@ -94,7 +94,11 @@ stable intent ("create a ticket for X") while the backend stays swappable.
   access. The caller must clarify unresolved ambiguity. A failed selected
   provider never triggers a silent fallback. A URL's appearance alone is not
   an explicit provider choice: after selection, TM-R1 requires the adapter to
-  validate every supplied ticket URL.
+  validate every supplied ticket URL. When the requested provider is unavailable,
+  an unsubmitted draft for that provider is allowed; it neither creates a ticket
+  nor changes the requested provider. A GitHub alternative requires the caller's
+  explicit choice before execution. A response that offers no GitHub alternative
+  need not ask the caller to reject one.
 - **TM-1 — Deliberate backend.** The script resolves exactly one usable
   backend deterministically and the report names it. No usable backend
   (no remote, issues disabled, missing CLI) → refuse with a clear error
@@ -117,7 +121,9 @@ same task requirements.
   evidence for affected behavior. The retirement template asks for the exact
   removal target and authorized scope, covers implementation, configuration,
   tests, documentation and migration obligations, and calls for evidence that
-  removal is complete and retained behavior works. The bug-fix template asks
+  removal is complete and retained behavior works. Keep those two verification
+  obligations as checkable done criteria; removal steps alone do not establish
+  verification of their completion. The bug-fix template asks
   for incident evidence, observed and expected behavior, a reproducer, a
   bounded fix, durable regression coverage and before/after evidence. Missing
   reproduction evidence remains an explicit blocker to a verified repair.
@@ -238,7 +244,8 @@ decompose a broad request into tickets on its own.
   still stop pending mutations; report the policy omission in the final result.
 - **TM-C8 — Traceable report.** The report states the external ticket id and
   canonical URL, the type, the labels applied, and anything omitted under
-  TM-C1/TM-C6.
+  TM-C1/TM-C6. The id and canonical URL identify the created ticket; repeating
+  its title is not required.
 - **TM-C9 — Relations by request.** `depends-on` and `parent` relations are
   set at creation only when the caller names them, per the relations
   contract (TM-2/TM-3). Verify each requested relation by reading the created
@@ -251,7 +258,12 @@ decompose a broad request into tickets on its own.
   reasons. A provider failure stops pending mutations under TM-P3; already
   created tickets remain visible, and no automatic rollback or second creation
   attempt occurs. A skipped item does not prevent independent items from
-  proceeding. Never substitute a missing batch relation target.
+  proceeding. Never substitute a missing batch relation target. After a refusal,
+  preserve its diagnostic verbatim in the final report alongside any created
+  ticket and its partial relation state; a summary of the failed operation alone
+  does not preserve that evidence. Describing the refusal and saying execution
+  stopped before the next named item states that item's reason for not being
+  attempted; no fixed phrase such as "pending mutations" is required.
 - **TM-C11 — Installed template use.** After duplicate checking and before
   drafting each GitHub issue, inspect available repository templates and any
   requested or matching template. Retain its applicable criteria, evidence

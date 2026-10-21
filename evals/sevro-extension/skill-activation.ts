@@ -1,6 +1,7 @@
 type RecordValue = Record<string, unknown>;
 
 export const SKILL_ACTIVATIONS = "sevro.host.skill-activations";
+export const SKILL_ACTIVATION_CLAIMS = "sevro.host.skill-activation-claims";
 
 /** Translate the public collector's qualified identities into Darrow's names. */
 function collectionData(observation: RecordValue): RecordValue | null {
@@ -67,13 +68,111 @@ export function commonSkillActivation(
     new Set(observedSkills).size !== observedSkills.length
   )
     return { ...observation, completeness: "partial" };
+  const primary = observedSkills[0] ?? null;
+  if (!consistentPrimary(observation.source, data, namespaces, primary))
+    return { ...observation, completeness: "partial" };
   return {
     ...observation,
     data: {
       ...data,
       qualifiedSkills,
       observedSkills,
-      primarySkill: observedSkills[0] ?? null,
+      primarySkill: primary,
+    },
+  };
+}
+
+function consistentPrimary(
+  source: unknown,
+  data: RecordValue,
+  namespaces: string[],
+  primary: string | null,
+): boolean {
+  if (
+    source !== "sevro.host.codex" ||
+    data.primarySkillCompleteness === undefined
+  )
+    return true;
+  if (data.primarySkillCompleteness !== "complete") return false;
+  if (data.primarySkill === null) return primary === null;
+  const declared = skillName(data.primarySkill, namespaces);
+  return declared !== null && declared === primary;
+}
+
+function claimData(observation: RecordValue): RecordValue | null {
+  const data = observation.data as RecordValue | undefined;
+  if (
+    observation.id !== SKILL_ACTIVATION_CLAIMS ||
+    observation.source !== "sevro.host.codex" ||
+    observation.completeness !== "complete" ||
+    !data ||
+    data.scope !== "primary_and_positive_presence" ||
+    data.collectionCompleteness !== "partial" ||
+    !Array.isArray(data.presentSkills)
+  )
+    return null;
+  return data;
+}
+
+function pairedClaimData(collection: RecordValue): RecordValue | null {
+  if (
+    collection.source !== "sevro.host.codex" ||
+    collection.completeness !== "partial"
+  )
+    return null;
+  const data = collectionData(collection);
+  if (data?.primarySkillCompleteness !== "complete") return null;
+  return Array.isArray(data.incompleteReasons) &&
+    data.incompleteReasons.length === 1 &&
+    data.incompleteReasons[0] === "pending_tool_calls"
+    ? data
+    : null;
+}
+
+/** A complete positive claim does not make its paired collection complete. */
+export function commonSkillActivationClaims(
+  observation: RecordValue,
+  collection: RecordValue,
+  namespaces: string[],
+): RecordValue | null {
+  const data = claimData(observation);
+  const paired = pairedClaimData(collection);
+  if (!data || !paired) return null;
+  return normalizedClaim(observation, data, paired, namespaces);
+}
+
+function normalizedClaim(
+  observation: RecordValue,
+  data: RecordValue,
+  paired: RecordValue,
+  namespaces: string[],
+): RecordValue | null {
+  const primary = skillName(data.primarySkill, namespaces);
+  const present = (data.presentSkills as unknown[]).map((skill) =>
+    skillName(skill, namespaces),
+  );
+  const observed = paired.observedSkills as unknown[];
+  if (
+    !primary ||
+    present.includes(null) ||
+    new Set(present).size !== present.length ||
+    !present.includes(primary) ||
+    paired.primarySkill !== primary ||
+    present.length !== observed.length ||
+    present.some((skill) => !observed.includes(skill))
+  )
+    return null;
+  return {
+    ...observation,
+    data: {
+      ...data,
+      qualifiedSkills: data.presentSkills,
+      qualifiedPrimarySkill: data.primarySkill,
+      primarySkill: primary,
+      observedSkills: [
+        primary,
+        ...present.filter((skill) => skill !== primary),
+      ],
     },
   };
 }

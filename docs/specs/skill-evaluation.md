@@ -72,6 +72,23 @@ must never fall back to retired read or transcript evidence. Explicit dispatch
 remains sufficient for the invoked owner; supporting inclusion, exclusion, and
 order require the separate complete activation collection.
 
+On Sevro rc.20, a unique complete Codex
+`sevro.host.skill-activation-claims` receipt may separately establish primary
+selection and positively observed supporting skills while its paired common
+collection remains partial. Cite that complete receipt, preserve the collection's
+partial status and public diagnostics, and normalize only mounted namespaces.
+For this rc.20 claim, the paired collection must explicitly name exactly the
+`pending_tool_calls` gap. Missing or malformed reasons, or any other gap,
+contradict established primary selection and make the claim unavailable.
+Use it for implicit positive or competition first-selection assertions and
+established positive membership only. Explicit dispatch and its supporting
+assertions retain their existing evidence requirements. Missing membership remains unknown; this receipt
+cannot prove negative activation, exclusions, or a supporting sequence. Missing,
+duplicate, foreign, malformed, or contradictory receipts remain unavailable.
+Honor an explicitly unknown primary even when the whole collection is complete;
+catalog order is not selection order. Older observations without the new claims
+retain their original interpretation and are never upgraded from native logs.
+
 ## Public contract
 
 ### Repository-owned model routes
@@ -1339,6 +1356,10 @@ not prove equivalence or savings.
   direct host event or explicitly labeled controlled-probe source, primary and
   ordered observed skills, and preserve unavailable or incomplete observation
   as unknown without changing task outcomes.
+  A separately complete primary/positive-presence receipt may prove only its
+  declared claims within a partial collection; absence and sequence assertions
+  still require complete collection. Retain the cited evidence scope so a
+  primary claim is never reported as complete collection coverage.
   Claude route observations match the shipped scoped agent names, model IDs,
   and effort levels. An agent name alone does not establish goal ownership or
   successful route application.

@@ -12,7 +12,8 @@ about: Retire a named behavior or dependency without leaving hidden obligations
 - [ ] Remove the authorized implementation and configuration paths.
 - [ ] Update or remove affected tests and documentation.
 - [ ] Address migration obligations for users or callers.
-- [ ] Show that removal is complete and retained behavior still functions.
+- [ ] Verify that the named target and its authorized implementation and configuration paths are gone.
+- [ ] Verify that retained behavior still functions.
 
 ## Remaining obligations or blockers
 

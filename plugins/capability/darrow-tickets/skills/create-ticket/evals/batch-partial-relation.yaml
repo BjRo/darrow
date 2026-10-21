@@ -42,9 +42,19 @@ checks:
   - name: no unsupported second creation attempt
     run: |
       test "$(grep -c '^issue create ' .fixture-state/gh/calls)" -eq 1
+  - name: backend refusal is relayed unchanged
+    run: cat .git/last-message.md
+    expect_regex: "gh: rejected parent write"
 semantic_output_checks:
   - name: partial effect and unattempted item are reported
     proposition: >-
-      The response identifies #99 as created but says its parent relation
-      failed, gives the backend refusal, and identifies the other requested
-      ticket as not attempted because pending mutations stopped.
+      The first creation returned #99, then its requested parent #7 was refused.
+      The second requested ticket is the nightly CSV report check. The response
+      must identify #99 as created, report its parent as failed or unverified,
+      and say the second ticket was not attempted after the failure. Describing
+      the refusal and saying execution stopped before creating the second
+      ticket is sufficient. Identifying the created ticket by #99 or "the first
+      ticket" is valid; its title need not be repeated. The phrase "pending
+      mutations" is not required. A response saying nothing was created or
+      both tickets were created does not pass. Exact refusal retention is
+      assessed separately by a deterministic check.

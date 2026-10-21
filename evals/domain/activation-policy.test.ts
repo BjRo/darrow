@@ -38,6 +38,224 @@ function commonActivation(skills: string[]) {
   };
 }
 
+function primaryClaims(skills = ["sample:grilling"]) {
+  const primarySkill = skills[0] ?? null;
+  return [
+    {
+      ...commonActivation(skills),
+      completeness: "partial",
+      data: {
+        ...commonActivation(skills).data,
+        primarySkill,
+        primarySkillCompleteness: "complete",
+        incompleteReasons: ["pending_tool_calls"],
+      },
+    },
+    {
+      id: "sevro.host.skill-activation-claims",
+      source: "sevro.host.codex",
+      completeness: "complete",
+      data: {
+        scope: "primary_and_positive_presence",
+        collectionCompleteness: "partial",
+        primarySkill,
+        presentSkills: skills,
+      },
+    },
+  ];
+}
+
+test("rc20 primary claims cite complete evidence without upgrading partial collection", async () => {
+  const selected = await (
+    await policyProject({
+      activation: "competition",
+      mount_plugin_skills: true,
+    })
+  ).resolve();
+  const observations = primaryClaims();
+  expect(await evaluateActivation(selected, observations)).toMatchObject({
+    status: "passed",
+    evidenceRefs: ["sevro.host.skill-activation-claims"],
+    data: {
+      primarySkill: "grilling",
+      observedSkills: ["grilling"],
+      evidenceScope: "primary_and_positive_presence",
+      collectionCompleteness: "partial",
+    },
+  });
+  expect(observations[0]!.completeness).toBe("partial");
+  expect(
+    (
+      await evaluateActivation(
+        selected,
+        primaryClaims(["sample:discover-feature"]),
+      )
+    ).status,
+  ).toBe("failed");
+});
+
+test("rc20 claims prove positive membership but never missing membership, exclusions or sequences", async () => {
+  const project = await policyProject({
+    activation: "positive",
+    additional_plugins: ["plugins/capability/provider"],
+    activation_includes: ["code-review"],
+  });
+  expect(
+    (
+      await evaluateActivation(
+        await project.resolve(),
+        primaryClaims(["sample:grilling", "provider:code-review"]),
+      )
+    ).status,
+  ).toBe("passed");
+  expect(
+    (await evaluateActivation(await project.resolve(), primaryClaims())).status,
+  ).toBe("unavailable");
+  for (const definition of [
+    { activation: "negative" },
+    { activation: "positive", activation_excludes: ["grilling"] },
+    {
+      activation: "positive",
+      activation_sequence: ["grilling", "plan-implementation"],
+      mount_plugin_skills: true,
+    },
+  ]) {
+    const selected = await (await policyProject(definition)).resolve();
+    expect(
+      (
+        await evaluateActivation(
+          selected,
+          primaryClaims(["sample:grilling", "sample:plan-implementation"]),
+        )
+      ).status,
+    ).toBe("unavailable");
+  }
+});
+
+test("rc20 claims fail closed for missing, duplicate, foreign and contradictory evidence", async () => {
+  const selected = await (
+    await policyProject({ activation: "positive" })
+  ).resolve();
+  const [collection, claim] = primaryClaims();
+  for (const observations of [
+    [collection],
+    [claim],
+    [collection, claim, claim],
+    [collection, collection, claim],
+    [collection, { ...claim, source: "sevro.host.claude" }],
+    [collection, { ...claim, completeness: "partial" }],
+    [
+      collection,
+      { ...claim, data: { ...claim!.data, scope: "whole_collection" } },
+    ],
+    [
+      collection,
+      {
+        ...claim,
+        data: { ...claim!.data, primarySkill: "sample:discover-feature" },
+      },
+    ],
+    [
+      collection,
+      {
+        ...claim,
+        data: {
+          ...claim!.data,
+          presentSkills: ["sample:grilling", "foreign:code-review"],
+        },
+      },
+    ],
+    [
+      collection,
+      {
+        ...claim,
+        data: {
+          ...claim!.data,
+          presentSkills: ["sample:grilling", "grilling"],
+        },
+      },
+    ],
+    [
+      {
+        ...collection,
+        data: { ...collection!.data, primarySkillCompleteness: "partial" },
+      },
+      claim,
+    ],
+    [{ ...collection, completeness: "complete" }, claim],
+  ])
+    expect((await evaluateActivation(selected, observations)).status).toBe(
+      "unavailable",
+    );
+});
+
+test("rc20 claims reject collection gaps that cannot establish a primary", async () => {
+  const selected = await (
+    await policyProject({ activation: "positive" })
+  ).resolve();
+  const [collection, claim] = primaryClaims();
+  for (const incompleteReasons of [
+    ["host_incomplete"],
+    ["observer_failure"],
+    undefined,
+    null,
+    "pending_tool_calls",
+    [],
+    [17],
+    ["pending_tool_calls", "host_incomplete"],
+    ["pending_tool_calls", "pending_tool_calls"],
+  ]) {
+    const outcome = await evaluateActivation(selected, [
+      {
+        ...collection,
+        data: { ...collection!.data, incompleteReasons },
+      },
+      claim,
+    ]);
+    expect(outcome.status, JSON.stringify(incompleteReasons) ?? "missing").toBe(
+      "unavailable",
+    );
+  }
+});
+
+test("rc20 complete collection does not invent a primary from catalog order", async () => {
+  const selected = await (
+    await policyProject({ activation: "positive" })
+  ).resolve();
+  const receipt = commonActivation([
+    "sample:grilling",
+    "sample:plan-implementation",
+  ]);
+  for (const data of [
+    { primarySkill: null, primarySkillCompleteness: "partial" },
+    {
+      primarySkill: "sample:plan-implementation",
+      primarySkillCompleteness: "complete",
+    },
+  ])
+    expect(
+      (
+        await evaluateActivation(selected, [
+          { ...receipt, data: { ...receipt.data, ...data } },
+        ])
+      ).status,
+    ).toBe("unavailable");
+  expect(
+    (
+      await evaluateActivation(selected, [
+        {
+          ...receipt,
+          data: {
+            ...receipt.data,
+            primarySkill: "sample:grilling",
+            primarySkillCompleteness: "complete",
+          },
+        },
+      ])
+    ).status,
+  ).toBe("passed");
+});
+
 test("rc15 common activation preserves qualified identity and fails closed without healthy collection", async () => {
   const selected = await (
     await policyProject({ activation: "positive" })
