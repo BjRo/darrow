@@ -1,6 +1,6 @@
 {
   "name": "darrow-tickets",
-  "version": "0.7.19",
+  "version": "0.7.20",
   "description": "Ticket operations and reusable GitHub issue templates with a bundled GitHub Issues adapter",
   "author": {
     "name": "Bj\u00f6rn Rochel"

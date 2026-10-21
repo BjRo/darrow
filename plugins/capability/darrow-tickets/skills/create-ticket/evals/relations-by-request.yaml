@@ -1,5 +1,5 @@
 id: create-ticket-relations-by-request
-invariant: TM-C9
+invariant: TM-C2, TM-C3, TM-C6, TM-C9
 activation: competition
 mount_plugin_skills: true
 prompt: >-

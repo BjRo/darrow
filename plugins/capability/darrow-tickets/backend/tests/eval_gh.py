@@ -131,19 +131,26 @@ def issue_view(directory: Path, arguments: list[str]) -> dict[str, Any]:
         raise ValueError(
             f"GraphQL: Could not resolve to an Issue with the number of {number}."
         )
-    fields = {
-        name: read(directory / f"issue-{number}-{name}")
-        for name in ("state", "title", "body", "labels")
-    }
     record: dict[str, Any] = {
         "number": int(number),
-        "state": fields["state"].upper(),
-        "title": fields["title"],
-        "body": fields["body"],
+        "state": read(directory / f"issue-{number}-state").upper(),
+        "title": read(directory / f"issue-{number}-title"),
+        "body": read(directory / f"issue-{number}-body"),
         "url": f"https://github.test/o/r/issues/{number}",
-        "labels": [{"name": n} for n in fields["labels"].splitlines()],
+        "labels": [
+            {"name": n} for n in read(directory / f"issue-{number}-labels").splitlines()
+        ],
+        "assignees": json.loads(read(directory / f"issue-{number}-assignees") or "[]"),
+        "milestone": json.loads(
+            read(directory / f"issue-{number}-milestone") or "null"
+        ),
     }
-    return {field: record[field] for field in flag(arguments, "--json").split(",")}
+    try:
+        return {field: record[field] for field in flag(arguments, "--json").split(",")}
+    except KeyError as error:
+        raise ValueError(
+            f"mock gh: unsupported issue JSON field: {error.args[0]}"
+        ) from error
 
 
 def inline_body(arguments: list[str]) -> bytes | None:

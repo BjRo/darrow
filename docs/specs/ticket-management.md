@@ -56,6 +56,12 @@ stable intent ("create a ticket for X") while the backend stays swappable.
   silently discarding or changing its body input. CLI help remains read-only,
   successful close/reopen operations are visible in later reads, and supported
   API operations preserve equivalent method and field flag forms.
+  Ticket-view JSON field selection must preserve the represented metadata.
+  A fixture issue without an assignee or milestone reports `assignees: []`
+  and `milestone: null`; requesting either valid field must not crash the
+  provider. Unsupported fixture JSON fields fail with a clear diagnostic
+  rather than a Python traceback. These responses do not relax the required
+  ticket type, body structure, or actual tracker relations.
   Static session-start context may route matching requests to installed skills
   before repository inspection or prerequisite judgments. Claude's context covers
   ticket operations; Codex's read-ticket reminder binds retrieval requests,

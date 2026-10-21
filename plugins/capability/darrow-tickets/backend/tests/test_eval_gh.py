@@ -61,6 +61,64 @@ def test_queries_and_field_selection(tmp_path: Path) -> None:
     }
 
 
+def test_issue_view_accepts_unassigned_metadata_fields(tmp_path: Path) -> None:
+    (tmp_path / "issue-7-state").write_text("open")
+    (tmp_path / "issue-7-title").write_text("Reporting epic")
+    assert dispatch(
+        tmp_path,
+        [
+            "issue",
+            "view",
+            "7",
+            "--json",
+            "number,title,body,state,url,labels,milestone,assignees",
+        ],
+    ) == {
+        "number": 7,
+        "title": "Reporting epic",
+        "body": "",
+        "state": "OPEN",
+        "url": "https://github.test/o/r/issues/7",
+        "labels": [],
+        "milestone": None,
+        "assignees": [],
+    }
+
+
+def test_issue_view_preserves_assigned_metadata(tmp_path: Path) -> None:
+    (tmp_path / "issue-7-state").write_text("open")
+    (tmp_path / "issue-7-assignees").write_text('[{"login": "sam"}]')
+    (tmp_path / "issue-7-milestone").write_text('{"title": "Reporting v2"}')
+    assert dispatch(
+        tmp_path, ["issue", "view", "7", "--json", "assignees,milestone"]
+    ) == {"assignees": [{"login": "sam"}], "milestone": {"title": "Reporting v2"}}
+
+
+def test_cli_rejects_unknown_json_fields_without_traceback(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    state = tmp_path / ".fixture-state/gh"
+    state.mkdir(parents=True)
+    (state / "issue-7-state").write_text("open")
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(Path(__file__).with_name("eval_gh.py")),
+            "issue",
+            "view",
+            "7",
+            "--json",
+            "number,invented",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 1
+    assert result.stdout == ""
+    assert result.stderr == "mock gh: unsupported issue JSON field: invented\n"
+
+
 def test_creation_comments_edits_and_transitions(tmp_path: Path) -> None:
     body = tmp_path / "body with spaces"
     body.write_bytes(b"body\nwith newline\n")
