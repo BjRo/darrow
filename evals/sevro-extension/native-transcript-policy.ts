@@ -145,7 +145,7 @@ export function nativeTranscriptEvidence(checks: NativeTranscript[]): string[] {
       checks.flatMap((check) => {
         if (check.kind === "ledger") return [];
         if (check.kind === "inactive")
-          return ["sevro.codex.skill-reads", "sevro.codex.events"];
+          return ["sevro.host.skill-activations", "sevro.codex.events"];
         // The check validates the selected host's accepted-child facts itself.
         // Requiring both host receipts, or an unused complete common receipt,
         // would make valid positive route evidence unavailable.
@@ -245,10 +245,9 @@ function routeStatus(check: NativeTranscript, spawns: Row[] | null): Status {
     : "failed";
 }
 
-function inactiveStatus(values: unknown, events: string | null): Status {
-  const skills = observation(values, "sevro.codex.skill-reads");
-  if (!skills || !Array.isArray(skills.observedSkills) || events === null)
-    return "unavailable";
+function inactiveStatus(context: NativeContext): Status {
+  const { skills, events } = context;
+  if (!skills || events === null) return "unavailable";
   return skills.observedSkills.includes("adaptive-goal") ||
     events.includes("adaptive-goal-preflight prepare")
     ? "failed"
@@ -258,6 +257,7 @@ function inactiveStatus(values: unknown, events: string | null): Status {
 type NativeContext = {
   events: string | null;
   eventId: string;
+  skills: { observedSkills: string[]; evidenceRef: string } | null;
   spawns: Row[] | null;
   claudeTools: Row[] | null;
   claudeNestedSkills: Row[] | null;
@@ -286,7 +286,7 @@ function status(
         ? "passed"
         : "failed";
   }
-  if (check.kind === "inactive") return inactiveStatus(values, events);
+  if (check.kind === "inactive") return inactiveStatus(context);
   if (check.kind.endsWith("before-feedback"))
     return feedbackStatus(check, values, context.spawns);
   return claudeStatus(check, context);
@@ -326,7 +326,7 @@ function transcriptRefs(check: NativeTranscript, context: NativeContext) {
         : []),
     ];
   if (check.kind === "ledger") return [eventId];
-  if (check.kind === "inactive") return ["sevro.codex.skill-reads", eventId];
+  if (check.kind === "inactive") return [context.skills!.evidenceRef, eventId];
   if (
     check.kind === "independent-review" &&
     context.claudeTools &&

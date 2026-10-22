@@ -469,6 +469,28 @@ owner child is not required. A missing publisher read fails; partial, missing,
 duplicate, or foreign-host observations remain unavailable. Separate effect
 checks must still prove actual publication and the intended commit.
 
+Whole-run supporting-read and skill-absence transcript checks consume the
+complete common `sevro.host.skill-activations` collection, with mounted namespace
+normalization and its actual receipt cited. A partial positive claim cannot
+prove these complete-collection assertions. Live grading does not accept retired
+skill-read receipts or require retired per-turn or parent-read diagnostics.
+Remove assertions whose only evidence was retired; do not mark them passed or
+reinterpret whole-run observations as counts, ordering, or per-turn absence.
+Use fixture invocation and outcome checks where they independently establish the
+required behavior. Historical readers preserve the original evidence meaning.
+Required native control and
+event evidence remains independently complete; a valid skill collection does
+not establish absence of delegation through an incompletely inspected `exec`.
+
+Ticket-to-PR task verdicts use the case's observable output, repository state,
+fixture effects and semantic acceptance checks. Its native-goal, ownership and
+transcript assertions are separate workflow domain outcomes. Missing workflow
+observations stay unavailable and observed violations stay failed in that
+dimension; neither changes the task verdict or becomes required task evidence.
+Activation remains separate. Other plugins retain their declared task gates.
+When regrading retained trials, preserve the original records and identify the
+new task assessment as a regrade, not fresh candidate execution.
+
 Positive implementation-route checks consume the owning host's validated
 accepted-child facts. They must not require a complete common-control receipt
 that they do not inspect. A missing or incomplete host-specific route remains
@@ -589,19 +611,10 @@ reference, not that the expression ran. Neither establishes goal persistence,
 adaptive delegation, or owner acceptance. Missing references cannot establish
 non-use because dynamic calls and unavailable source remain unobserved.
 
-Bounded parent skill-read diagnostics also cover well-formed sessions with no
-spawn request, including readiness stops before launch. Retain the same read
-recognition, body-presence, and command-shape facts without raw commands or
-output. These diagnostics confer no activation or pre-owner read credit; a
-pre-owner assertion still requires its accepted launch boundary. Malformed
-sessions remain unverified.
-
-For each correlated accepted child, retain bounded session-availability facts
-and the same read-recognition/body-presence diagnostics. Distinguish an absent
-or ambiguous child rollout from a malformed rollout and from an available
-rollout containing no recognized reads. Cap child and per-child diagnostic
-counts with explicit truncation flags. These records retain no raw command,
-output, or child prompt and never supply activation credit on their own.
+Parent and child skill-read diagnostics from the retired collector are historical
+evidence only. Current skill assertions use the common hook collection. Native
+child-session availability and route facts remain separate and do not establish
+skill exposure, read counts, or pre-owner ordering.
 
 Before resuming a configured Codex follow-up turn, retain the first turn's
 public final response at the feedback boundary, capped at 8,000 characters

@@ -31,6 +31,12 @@ Proceed only when:
 - unambiguous same-thread feedback targets the retained preflight or goal,
   including an answer, correction, added constraint, cancellation, or status request.
 
+For a required repository acknowledgement, copy the complete user reply
+unchanged as one argument. Do not extract the chosen option, shorten the reply,
+or reconstruct it from a summary. Keep approval references and all other text.
+Require acknowledgement success before affected work. A rejected or revoked
+approval requires new user authority; never rewrite it or try local replacements.
+
 Complexity and duration do not authorize orchestration. A fresh conversation,
 ambiguous answer, or multiple plausible owners supplies no continuation
 authority. Delegation adds no permission, publication, or destructive authority.
@@ -513,8 +519,8 @@ decision and implementation property; update affected acceptance and reassess
 readiness when its assumptions change. Send relevant full feedback to any active
 assignment before its next affected action. Retain a still-applicable assignment
 for same-thread follow-up instead of launching a competing implementor. Where a
-repository acknowledgement is required, pass the complete answer and require
-success before mutation. Using an existing component means calling it, not
+repository acknowledgement is required, apply the exact-copy rule in section 1.
+Using an existing component means calling it, not
 copying its algorithm. Status requests do not stop work; cancellation stops
 further work and reports effects already performed.
 

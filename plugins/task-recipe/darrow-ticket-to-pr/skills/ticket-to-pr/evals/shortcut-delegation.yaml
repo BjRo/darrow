@@ -18,7 +18,7 @@ fixture:
     .claude/skills/adaptive-goal/SKILL.md: &adaptive_goal |
       ---
       name: adaptive-goal
-      description: Accept one bounded engineering request delegated by an explicitly invoked task recipe and record this fixture's delivery envelope.
+      description: Provide adaptive-goal orchestration in the original main thread, owning preflight and one native goal for a bounded recipe-delegated delivery. Accept its preserved delivery authority envelope.
       ---
 
       # Fixture adaptive goal

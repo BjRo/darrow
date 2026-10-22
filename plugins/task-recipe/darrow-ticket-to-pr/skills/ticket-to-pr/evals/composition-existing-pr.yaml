@@ -11,7 +11,9 @@ additional_plugins:
   - plugins/orchestration/darrow-adaptive-goal
   - plugins/capability/darrow-readiness-gate
   - plugins/capability/darrow-git
-prompt: "{{skill_invocation}} https://example.invalid/tickets/42"
+prompt: >-
+  {{skill_invocation}} https://example.invalid/tickets/42
+  Verify the change by running `bash check.sh`.
 fixture:
   commits:
     - message: "chore: init"

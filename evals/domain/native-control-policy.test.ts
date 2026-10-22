@@ -6,10 +6,96 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { resolveCase } from "../sevro-extension/index";
 import { fixtureExtensionRequest } from "./fixture-command";
-import { policyHostCapabilities } from "./policy-project";
+import {
+  policyHostCapabilities,
+  policyProject,
+  runPolicyPrompt,
+} from "./policy-project";
 
 type Call = { ordinal: number; namespace: string; name: string };
 const projectRoot = pathToFileURL(resolve(import.meta.dir, "../..")).href;
+
+test("Ticket-to-PR task outcomes are independent of workflow diagnostics", async () => {
+  const project = await policyProject(
+    {
+      prompt: "launch_required: adaptive-goal is unavailable",
+      native_goal: "forbidden",
+      transcript_checks: [
+        {
+          name: "no agent fallback",
+          not_regex:
+            '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"name":"Agent"',
+        },
+      ],
+    },
+    {
+      skill: "ticket-to-pr",
+      plugin: "darrow-ticket-to-pr",
+      directory: "plugins/task-recipe/darrow-ticket-to-pr",
+    },
+  );
+  const selected = await project.resolve();
+  expect(selected.checks).not.toContainEqual(
+    expect.objectContaining({ grader: "darrow.evals.transcript" }),
+  );
+  const graded = await fixtureExtensionRequest<{
+    checks: unknown[];
+    domainOutcomes: { id: string; status: string }[];
+  }>("evaluate", {
+    extensionData: selected.extensionData,
+    observations: [],
+    artifacts: [],
+  });
+  expect(graded.checks).toEqual([]);
+  expect(graded.domainOutcomes).toContainEqual(
+    expect.objectContaining({
+      id: "darrow.evals.workflow.transcript.1",
+      status: "unavailable",
+    }),
+  );
+  const violation = await fixtureExtensionRequest<{
+    checks: unknown[];
+    domainOutcomes: { id: string; status: string }[];
+  }>("evaluate", {
+    extensionData: selected.extensionData,
+    observations: [
+      {
+        id: "sevro.host.native-goal",
+        source: "sevro.host.codex",
+        completeness: "complete",
+        data: {
+          threadId: "root",
+          goals: [{ status: "active", characters: 12 }],
+          goalStatus: "active",
+        },
+      },
+    ],
+    artifacts: [],
+  });
+  expect(violation.checks).toEqual([]);
+  expect(violation.domainOutcomes).toContainEqual(
+    expect.objectContaining({
+      id: "darrow.evals.workflow.native-goal",
+      status: "failed",
+    }),
+  );
+  const good = await runPolicyPrompt(
+    project,
+    "codex",
+    project.definition.prompt,
+  );
+  expect(good.exitCode, good.diagnostic).toBe(0);
+  expect(good.value.task.verdict).toBe("passed");
+  await project.write({
+    checks: [{ name: "observable task failure", run: "exit 1" }],
+  });
+  const bad = await runPolicyPrompt(
+    project,
+    "codex",
+    project.definition.prompt,
+  );
+  expect(bad.value.task.verdict).toBe("failed");
+}, 30_000);
 
 for (const name of [
   "empty-diff",
@@ -193,8 +279,6 @@ test("Continuation absence inspects the relevant submitted-code interval", async
               {
                 id: "boundary",
                 kind,
-                skill: "adaptive-goal",
-                forbidNativeSkillCall: true,
               },
             ],
           },
@@ -202,16 +286,6 @@ test("Continuation absence inspects the relevant submitted-code interval", async
         observations: [
           { ...native, data: { ...native.data, execCalls } },
           continuation,
-          {
-            id: "sevro.codex.follow-up-skill-reads",
-            source: "sevro.host.codex",
-            completeness: "complete",
-            data: {
-              method: "skill_file_read_probe",
-              primarySkill: null,
-              observedSkills: [],
-            },
-          },
         ],
         artifacts: [
           {
@@ -252,21 +326,6 @@ test("Continuation absence inspects the relevant submitted-code interval", async
         later,
       ]),
     ).toBe("unavailable");
-    expect(
-      await grade("skill-absent-after-continuation", [earlier, later]),
-    ).toBe("passed");
-    expect(
-      await grade("skill-absent-after-continuation", [
-        earlier,
-        { ...later, completeness: "partial" },
-      ]),
-    ).toBe("unavailable");
-    expect(
-      await grade("skill-absent-after-continuation", [
-        earlier,
-        { ...later, calls: [{ index: 0, namespace: "other", name: "Skill" }] },
-      ]),
-    ).toBe("failed");
   } finally {
     await rm(root, { recursive: true, force: true });
   }

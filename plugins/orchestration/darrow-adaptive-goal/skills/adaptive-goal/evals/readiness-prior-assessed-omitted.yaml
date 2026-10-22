@@ -40,10 +40,6 @@ checks:
       test "$(wc -l <.fixture-state/implementation-readiness-invocations | tr -d '
       ')" -eq 1
 transcript_checks:
-  - name: readiness is invoked exactly once before the goal turn
-    expect_regex: '"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"[\s\S]*"type":"darrow.eval.follow_up_turn"'
-  - name: readiness is not redundantly invoked after the goal turn begins
-    not_regex: '"type":"darrow.eval.follow_up_turn"[\s\S]*"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"'
   - name: no lifecycle ledger is used
     not_regex: adaptive-goal-preflight step|Protocol ledger
 semantic_output_checks:

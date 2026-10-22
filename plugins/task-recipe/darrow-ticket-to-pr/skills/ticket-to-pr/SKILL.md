@@ -16,6 +16,15 @@ thread, or when the host supplies the deliberate authorized unattended entry
 defined below. Invocation by an unrelated helper, ordinary ticket or engineering
 intent, and a later answer to another workflow do not count.
 
+**Check the ticket input first.** If it is missing or contains competing
+references, ask the user for one exact ticket ID or URL and stop. Do not look
+for Adaptive Goal or report its availability before that choice. Merely saying
+that one ticket is required does not ask the user to supply it.
+
+Treat the single exact reference as opaque input: do not read or validate the
+ticket, derive a provider token, inspect the repository, choose a branch name,
+run readiness, or mutate anything.
+
 For local Artificer, require the host's saved recurring human-grant receipt:
 grant and grantor, repository, exact issue, delivery and activation IDs,
 reserved worktree and branch, and the permitted ticket-to-PR effects. Missing
@@ -29,12 +38,6 @@ preflight or goal for continuation. A later answer never reinvokes this recipe.
 The local unattended execution host is Codex CLI. Claude Code supports the
 ordinary explicit human recipe, not this unattended execution entry.
 
-Require exactly one ticket ID or supplied ticket URL. Treat it as opaque input:
-do not read or validate the ticket, derive a provider token, inspect the
-repository, choose a branch name, run readiness, or mutate anything. If the
-reference is missing or ambiguous, ask only for the one exact ID or URL and
-stop.
-
 **Complete when:** one exact ticket and explicit human or grant-bound unattended
 authority are established, with every supplied option preserved.
 
@@ -44,10 +47,17 @@ repair default; adaptive-goal owns that policy.
 
 ## 2. Invoke Adaptive Goal once in this thread
 
-Invoke exactly one available capability whose advertised intent is
-adaptive-goal orchestration in this main host thread. Load and follow its
-instructions here, carrying the request and authority below. Keep the original
-thread as the orchestration owner; do not launch a child to receive this handoff.
+Read the names and descriptions in the host's supplied skills catalog.
+Match the advertised adaptive-goal orchestration contract, regardless of the
+skill's name. Load the matching skill's complete instructions from its listed
+path and follow them here with the request and authority below. For a skill,
+reading and following those instructions is the invocation; it needs no
+separate native tool with that name.
+
+If the catalog supplies no compatible skill, consider other host-advertised
+capabilities with that contract. Select exactly one unambiguous capability.
+A native-tool search alone cannot establish skill absence. Keep the original
+thread as orchestration owner; do not launch a child to receive this handoff.
 The invoked capability selects and delegates bounded implementation and
 capability assignments under its own contract.
 

@@ -9,6 +9,7 @@ import {
 } from "./fixture-command";
 import { gitPluginFixtureFiles } from "./fixture-git-plugin";
 import { prepareUvFixtureRuntime } from "./fixture-runtime";
+import { activationReceipt } from "./policy-project";
 
 const plugin = new URL(
   "../../plugins/task-recipe/darrow-ticket-to-pr/",
@@ -17,7 +18,10 @@ const plugin = new URL(
 const cases = new URL("skills/ticket-to-pr/evals/", plugin);
 
 function assertPassed(result: Awaited<ReturnType<typeof runFixtureChecks>>) {
-  expect(result.exitCode, result.diagnostic).toBe(0);
+  expect(
+    result.exitCode,
+    `${result.diagnostic}\nChecks: ${JSON.stringify(result.checks)}`,
+  ).toBe(0);
   expect(result.value.execution.status).toBe("completed");
   expect(result.value.grading.status).toBe("completed");
   expect(result.value.task.verdict).toBe("passed");
@@ -106,6 +110,115 @@ test("ticket-to-pr options oracle preserves a stricter caller repair limit", asy
   assertPassed(result);
 }, 20_000);
 
+test("unattended handoff recorder and oracle require the exact ticket", async () => {
+  const source = new URL("unattended-grant.yaml", cases);
+  const { fixture, checks } = await readFixtureCase(source);
+  const oracle = checks[1];
+  if (!oracle)
+    throw new Error("canonical unattended receipt oracle is missing");
+  const receipt =
+    "unattended recurring grant grant-157 grantor maintainer repository fixture/repo " +
+    "delivery delivery-157 activation activation-157 reserved worktree /fixture/worktree-157 " +
+    "branch feat/157-existing effects claims,questions,worktrees,recipe,commits,push,pr,archives; " +
+    "not authorized: merge, deploy, release, ticket mutation, destructive Git operations, " +
+    "unrelated changes, generic comments or any other external effect";
+  const result = await runFixtureChecks({
+    source,
+    fixture,
+    checks: [
+      {
+        name: "recorder is an executable shell command",
+        run: "command -v record-unattended-request",
+      },
+      {
+        name: "missing exact ticket fails the oracle",
+        run: `record-unattended-request '${receipt}' && (${oracle.run})`,
+        exit_code: 1,
+      },
+      {
+        name: "wrong exact ticket fails the oracle",
+        run: `record-unattended-request '${receipt} https://github.com/fixture/repo/issues/158' && (${oracle.run})`,
+        exit_code: 1,
+      },
+      {
+        name: "longer issue number fails the oracle",
+        run: `record-unattended-request '${receipt} https://github.com/fixture/repo/issues/1570' && (${oracle.run})`,
+        exit_code: 1,
+      },
+      {
+        name: "suffixed URL fails the oracle",
+        run: `record-unattended-request '${receipt} https://github.com/fixture/repo/issues/157/comments' && (${oracle.run})`,
+        exit_code: 1,
+      },
+      {
+        name: "complete exact-ticket receipt passes",
+        run: `record-unattended-request '${receipt} https://github.com/fixture/repo/issues/157' && (${oracle.run})`,
+      },
+      {
+        name: "exact ticket with prose punctuation passes",
+        run: `record-unattended-request '${receipt} Deliver (https://github.com/fixture/repo/issues/157).' && (${oracle.run})`,
+      },
+    ],
+  });
+  assertPassed(result);
+}, 20_000);
+
+test("feedback fixture permits readiness reassessment and a valid selected branch", async () => {
+  const source = new URL("feedback-relay.yaml", cases);
+  const { fixture, checks } = await readFixtureCase(source);
+  const runtime = await prepareUvFixtureRuntime(true);
+  fixture.bin = { ...fixture.bin, ...runtime.bin };
+  const branchCheck = checks[3];
+  if (!branchCheck) throw new Error("feedback branch oracle is missing");
+  const result = await runFixtureChecks({
+    source,
+    fixture,
+    checks: [
+      {
+        name: "authoritative ticket is read",
+        run: "fixture-read-ticket https://example.invalid/tickets/42",
+      },
+      {
+        name: "first readiness assessment succeeds",
+        run: "fixture-readiness https://example.invalid/tickets/42",
+      },
+      {
+        name: "additional read-only readiness assessment succeeds",
+        run: "fixture-readiness https://example.invalid/tickets/42",
+      },
+      {
+        name: "another ticket branch is rejected",
+        run: "fixture-prepare-branch feature/DAR-99-migration",
+        exit_code: 1,
+      },
+      {
+        name: "repeated ticket token is rejected",
+        run: "fixture-prepare-branch feature/DAR-42-DAR-42-migration",
+        exit_code: 1,
+      },
+      {
+        name: "decision is discovered and exact answer acknowledged",
+        run: "decisionctl discover && decisionctl acknowledge migration-policy 'Use the strict migration policy. Approval reference: cobalt-7391.'",
+      },
+      {
+        name: "coordinator selects a valid ticket-linked branch",
+        run: "fixture-prepare-branch feature/DAR-42-migration-policy",
+      },
+      {
+        name: "scoped implementation is committed and published",
+        run: "printf '%s\\n' 'export const identity = (value) => value;' 'export const migrationMode = () => \"strict\";' >src/migration.js && fixture-create-commit && fixture-create-pr",
+      },
+      ...checks,
+      {
+        name: "changed selected branch fails the canonical binding check",
+        run: `printf '%s\\n' feature/DAR-42-other >.fixture-state/branch-invocations && (${branchCheck.run})`,
+        exit_code: 1,
+      },
+    ],
+  });
+  assertPassed(result);
+}, 20_000);
+
 for (const variant of ["existing-pr", "replacement"]) {
   test(`composition ${variant} ticket and oracle agree on trailing newlines`, async () => {
     const source = new URL(`composition-${variant}.yaml`, cases);
@@ -160,16 +273,7 @@ test("Ticket publication reads belong to the retained main thread", async () => 
       (x) => x.skill === "create-pr" || x.skill === "ship-proposal",
     );
     expect(check?.kind).toBe("supporting-skill-read");
-    const observation = {
-      id: "sevro.codex.skill-reads",
-      source: "sevro.host.codex",
-      completeness: "complete",
-      data: {
-        method: "skill_file_read_probe",
-        primarySkill: check!.skill,
-        observedSkills: [check!.skill],
-      },
-    };
+    const observation = activationReceipt([check!.skill!]);
     const grade = async (observations: unknown[]) => {
       const result = await fixtureExtensionRequest<{
         checks: { status: string }[];

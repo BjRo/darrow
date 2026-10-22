@@ -334,7 +334,7 @@ test("current native transcript checks declare required host facts", async () =>
   for (const [id, facts] of [
     [
       "goal-ordinary-engineering-does-not-activate",
-      ["sevro.codex.skill-reads", "sevro.codex.events"],
+      ["sevro.host.skill-activations", "sevro.codex.events"],
     ],
     ["goal-preflight-high-risk-routine", ["sevro.host.native-goal"]],
     ["claude-readiness-nonready-stops", ["sevro.claude.tool-calls"]],

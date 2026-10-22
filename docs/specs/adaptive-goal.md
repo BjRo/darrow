@@ -746,6 +746,13 @@ reporting any unconfirmed stop honestly. Preserve the same native goal, accepted
 criteria, decisions, child results and consumed repair allowance. Resume with the
 answer's actual authority; complete required acknowledgements before mutation.
 
+When acknowledgement takes the user's answer, copy the complete reply unchanged
+as one argument. Do not extract the selected option, shorten the answer, or
+reconstruct it from a summary. Preserve approval references and other context
+even when the acknowledgement will reject the supplied authority. Rejection
+stops affected work and asks the user for valid authority; it never licenses
+rewriting the answer or trying another approval locally.
+
 Use available host controls truthfully. On Codex, literal `paused` status is used
 only for an explicit user pause request. A pending question can stop affected
 work without fabricating a pause transition. Blocked and complete states must
@@ -1147,10 +1154,10 @@ gates.
 Complete mounted-skill reads have the same activation meaning through the
 host's login and non-login shell wrappers. Preflight evidence still
 requires a completed full body read by the main thread before native goal activation.
-For missing activation, retain bounded parent-read diagnostics for known mounted
-skills: read recognition and body-presence facts, native path binding, and
-ordering. Such diagnostics carry no private commands or output and confer no
-activation credit by themselves.
+Current evals use supported common skill-exposure observations and fixture
+invocation/outcome checks. They do not require retired parent-read or per-turn
+skill-read diagnostics. Whole-run exposure does not prove read counts or phase
+ordering; retained historical diagnostics keep their original meaning.
 Readiness-selection evals require actual ready evidence before affected work,
 not an invented exact assessment count. Additional read-only reassessment does
 not excuse non-ready evidence, missing assessment, or mutation before the gate.

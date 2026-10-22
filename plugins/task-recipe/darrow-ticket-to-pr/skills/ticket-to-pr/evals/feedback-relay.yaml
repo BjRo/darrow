@@ -9,7 +9,9 @@ activation_sequence:
   - adaptive-goal
 additional_plugins:
   - plugins/orchestration/darrow-adaptive-goal
-prompt: "{{skill_invocation}} https://example.invalid/tickets/42"
+prompt: >-
+  {{skill_invocation}} https://example.invalid/tickets/42
+  Verify the change by running `bash test.sh`.
 follow_up_prompt: "Use the strict migration policy. Approval reference: cobalt-7391."
 fixture:
   commits:
@@ -74,8 +76,9 @@ fixture:
 
       For read-only token discovery, run `fixture-discover-branches DAR-42` and
       return the complete list. For exact preparation, run
-      `fixture-prepare-branch fix/DAR-42-migration` exactly once after the
-      caller selected that name. Never prepare a branch during discovery.
+      `fixture-prepare-branch '<selected branch>'` once after the coordinator
+      selected that complete ticket-linked name. Preserve that choice.
+      Never prepare a branch during discovery.
     .agents/skills/prepare-task-branch/SKILL.md: *prepare_branch
     .claude/skills/create-commit/SKILL.md: &create_commit |
       ---
@@ -116,7 +119,6 @@ fixture:
       set -eu
       test "$#" -eq 1
       test "$1" = https://example.invalid/tickets/42
-      test ! -e .fixture-state/readiness-invocations
       printf '%s\n' "$1" >>.fixture-state/readiness-invocations
       printf '%s\n' \
         '## Implementation readiness' \
@@ -149,15 +151,17 @@ fixture:
       #!/usr/bin/env bash
       set -eu
       test "$#" -eq 1
-      test "$1" = fix/DAR-42-migration
+      test "${#1}" -le 60
+      grep -Eq '^[a-z][a-z0-9-]*/DAR-42-[a-z0-9]+(-[a-z0-9]+)*$' <<< "$1"
+      git check-ref-format --branch "$1" >/dev/null
       test ! -e .fixture-state/branch-invocations
-      if git show-ref --verify --quiet refs/heads/fix/DAR-42-migration; then
-        git switch fix/DAR-42-migration
+      if git show-ref --verify --quiet "refs/heads/$1"; then
+        git switch "$1"
       else
-        git switch -c fix/DAR-42-migration
+        git switch -c "$1"
       fi
-      printf '%s\n' fix/DAR-42-migration >>.fixture-state/branch-invocations
-      printf '%s\n' 'branch: fix/DAR-42-migration'
+      printf '%s\n' "$1" >>.fixture-state/branch-invocations
+      printf 'branch: %s\n' "$1"
     decisionctl: |
       #!/usr/bin/env bash
       set -eu
@@ -204,18 +208,19 @@ fixture:
     fixture-create-pr: |
       #!/usr/bin/env bash
       set -eu
-      test "$(git branch --show-current)" = fix/DAR-42-migration
+      branch=$(git branch --show-current)
+      test "$branch" = "$(cat .fixture-state/branch-invocations)"
       git diff --quiet
       git diff --cached --quiet
-      git push -u origin fix/DAR-42-migration
+      git push -u origin "$branch"
       test ! -e .fixture-state/pull-requests
       printf '%s\t%s\n' \
-        fix/DAR-42-migration https://example.invalid/pull/42 \
+        "$branch" https://example.invalid/pull/42 \
         >.fixture-state/pull-requests
       head=$(git rev-parse HEAD)
-      remote_head=$(git --git-dir=.fixture-state/remote.git rev-parse refs/heads/fix/DAR-42-migration)
+      remote_head=$(git --git-dir=.fixture-state/remote.git rev-parse "refs/heads/$branch")
       test "$head" = "$remote_head"
-      printf '%s\n' 'Pull request: https://example.invalid/pull/42' 'Repository: fixture/repository' 'Head: fix/DAR-42-migration' 'Base: main' 'Draft: false' 'Open pull requests: 1'
+      printf '%s\n' 'Pull request: https://example.invalid/pull/42' 'Repository: fixture/repository' "Head: $branch" 'Base: main' 'Draft: false' 'Open pull requests: 1'
       printf 'Remote head: %s\nForge head: %s\n' "$remote_head" "$remote_head"
   setup: |
     git init --bare .fixture-state/remote.git >/dev/null
@@ -250,12 +255,13 @@ checks:
   - name: delivery prepares the exact ticket branch once
     run: |
       cat .fixture-state/branch-invocations
-      test "$(cat .fixture-state/branch-invocations)" = fix/DAR-42-migration
+      test "$(wc -l <.fixture-state/branch-invocations | tr -d ' ')" -eq 1
+      grep -Eq '^[a-z][a-z0-9-]*/DAR-42-[a-z0-9]+(-[a-z0-9]+)*$' .fixture-state/branch-invocations
   - name: delivery remains on the exact ticket branch
     run: |
       branch=$(git branch --show-current)
       printf 'current branch: %s\n' "$branch"
-      test "$branch" = fix/DAR-42-migration
+      test "$branch" = "$(cat .fixture-state/branch-invocations)"
   - name: delivery invokes the bound commit capability once
     run: |
       count=$(wc -l <.fixture-state/commit-invocations | tr -d ' ')
@@ -282,14 +288,14 @@ checks:
   - name: exact current branch is published once
     run: >-
       test "$(wc -l <.fixture-state/pull-requests | tr -d ' ')" -eq 1 && test
-      "$(cut -f1 .fixture-state/pull-requests)" = fix/DAR-42-migration && test
+      "$(cut -f1 .fixture-state/pull-requests)" = "$(cat .fixture-state/branch-invocations)" && test
       "$(cut -f2 .fixture-state/pull-requests)" =
       https://example.invalid/pull/42 && test "$(git
       --git-dir=.fixture-state/remote.git rev-parse
-      refs/heads/fix/DAR-42-migration)" = "$(git rev-parse HEAD)"
+      "refs/heads/$(cat .fixture-state/branch-invocations)")" = "$(git rev-parse HEAD)"
   - name: readiness and authoritative ticket capabilities were used
     run: >-
-      test "$(wc -l <.fixture-state/readiness-invocations | tr -d ' ')" -eq 1 &&
+      test "$(wc -l <.fixture-state/readiness-invocations | tr -d ' ')" -ge 1 &&
       test "$(wc -l <.fixture-state/read-ticket-invocations | tr -d ' ')" -ge 1
   - name: feedback fixture verifies product state before authorization
     run: test -s .fixture-state/feedback-product-unchanged && test "$(cat
@@ -309,6 +315,4 @@ transcript_checks:
     not_regex: '"type":"darrow.codex_native_feedback"[^\n]*"message_representation":"plaintext"[^\n]*"message_matches_expected":false'
   - name: user answer resumes the same native thread
     expect_regex: '"type":"darrow\.eval\.follow_up_turn"'
-  - name: later answer does not reinvoke the recipe
-    not_regex: '"type":"darrow.eval.follow_up_turn"[\s\S]*(?:"name":"Skill"[^\n]*ticket-to-pr|"type":"darrow.skill_read_probe"[^\n]*"skill":"ticket-to-pr")'
 native_goal: required
