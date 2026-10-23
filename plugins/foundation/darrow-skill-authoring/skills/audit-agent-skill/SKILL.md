@@ -5,78 +5,68 @@ description: Review, audit, validate, or assess an existing agent skill or draft
 
 # Audit an agent skill
 
-Assess one existing skill or named draft without changing it. Give the user
-evidence and actionable findings that an implementing agent can use as a
-specification. Do not execute the target skill's external actions.
+Assess one existing skill or named draft without changing it, and return
+findings an implementing agent can use as a specification. Do not execute the
+target skill's external actions.
 
 ## 1. Establish scope
 
-Identify the target, claimed hosts, and claims the user wants checked. Read
-applicable repository instructions, the target skill or draft, owning plugin
-manifests, local references, tests, evals, and relevant commands. Treat an
-unreadable required input as a blocker for the dependent claim. Do not infer
-contents or mark missing evidence as a pass.
+Identify the target, its claimed hosts, and the claims to check. Read the
+repository's agent instructions, any scoped instruction for the target, the
+target skill or draft, its plugin manifests, references, tests, evals, and
+relevant commands. An unreadable required input blocks the dependent claim;
+never infer its contents or count missing evidence as a pass.
 
-Read the repository's agent instruction entrypoints and any scoped instruction
-for the target before judging consequential actions. Preserve explicit
-authority rules in the finding and repair criterion: if the repository
-requires user approval, say so. A generic suggestion to ask or stop does not
-replace that approval requirement.
+Carry explicit repository authority rules into findings and repair criteria:
+if the repository requires user approval, say so rather than a generic "ask
+first".
 
 **Complete when:** the target, claims, required resources, and evidence gaps
 are known without changing checked-in files.
 
 ## 2. Check discovery, workflow, and packaging
 
-Judge whether the description names a recognizable goal and trigger, including
-the likely neighboring requests that should not select it. Report this
-judgment separately even when frontmatter syntax is valid or another package
-defect blocks installation.
+Judge whether the description names a recognizable goal and trigger and
+excludes likely neighboring requests. Report this judgment separately, even
+when the frontmatter is valid or another defect blocks installation.
 
-Trace the skill's inputs, ordered actions, question/refusal boundaries, output,
-and checkable completion criteria. For every consequential action, identify
-which request or delegation authorizes it, what conditions make it ready, and
-when the workflow asks or stops. Name the action when reporting a missing
-boundary. Do not treat publication or deployment as inherently defective when
-authority and readiness conditions are clear.
+Trace inputs, ordered actions, ask/refuse boundaries, output, and completion
+criteria. For each consequential action, name what authorizes it, when it is
+ready, and when the workflow asks or stops. List the authority and readiness
+conditions the target already states before naming gaps. Publication or
+deployment is not a defect when its authority and conditions are clear.
 
-Check plugin self-containment: required local files must be packaged in the
-owning plugin, and references must not depend on a sibling plugin or a user's
-machine. Run safe, read-only validators and existing tests when their
-prerequisites are available. The shared inspector is at `<plugin-root>/backend`,
-where `<plugin-root>` is two directories above this skill directory:
+Check self-containment: required files are packaged in the owning plugin, and
+nothing depends on a sibling plugin or the user's machine. Run safe, read-only
+validators and existing tests when available. The shared inspector lives at
+`<plugin-root>/backend`, two directories above this skill:
 
 ```text
 uv run --quiet --no-project "<plugin-root>/backend/scripts/run_locked.py" inspect-skill inspect "<target-skill>" "<target-plugin>"
 ```
 
-The inspector checks portable metadata and inline Markdown-linked local
-resources. Inspect command literals, reference-style links, and other path
-forms separately; native validators remain authoritative for their complete
-formats. Run scoped eval dry validation only when it does not alter checked-in
-files. Do not promote a draft to `SKILL.md`, add tests, apply fixes, commit, or
-perform the target skill's publication or deployment actions.
+It checks portable metadata and inline Markdown links; inspect command
+literals and other paths yourself. Run eval dry validation only when it leaves
+checked-in files unchanged. Do not promote a draft, add tests, apply fixes,
+commit, or perform the target's publication or deployment actions.
 
-**Complete when:** each requested claim and relevant action boundary has
-pass, fail, or unverified evidence, including a separate discovery judgment.
+**Complete when:** each requested claim and action boundary has pass, fail,
+or unverified evidence, including a separate discovery judgment.
 
 ## 3. Report findings
 
-Lead with the audit result and smallest next action. For each defect, name the
-affected path and behavior, observed evidence, practical impact, and concrete
-acceptance criterion for a repair. Separate skill defects from missing or
-invalid eval assertions. Report exact checks run, checks unavailable, and
-residual uncertainty. If no defect is found, say what was actually verified
-and what remains unverified. State that no target action or checked-in change
-was performed.
+Lead with the audit result and smallest next action. For each defect, give the
+affected path and behavior, observed evidence, practical impact, and a
+concrete acceptance criterion for the repair. Separate skill defects from eval
+defects. List the checks run, checks unavailable, and remaining uncertainty.
+If nothing is wrong, say what was verified and what was not. State that no
+target action or checked-in change was performed.
 
 **Complete when:** an implementing agent can act on each finding without
-inventing the missing goal or acceptance criterion, and the checked-in
-repository remains unchanged.
+inventing the goal or acceptance criterion, and the repository is unchanged.
 
 ## Boundaries
 
-- This is a read-only audit. A request to fix findings is ordinary
-  implementation work under the target repository's instructions.
-- Do not create a new skill, edit a target, install, publish, release, deploy,
-  commit, or push as part of an audit.
+- This is a read-only audit. Fixing findings is ordinary implementation work.
+- Do not create or edit a skill, install, publish, release, deploy, commit, or
+  push as part of an audit.

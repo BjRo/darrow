@@ -5,89 +5,74 @@ description: Create a new agent skill (SKILL.md) for Claude Code, Codex, or both
 
 # Create an agent skill
 
-Create one focused, independently installable skill with observable discovery,
-workflow, mechanics, and evaluation. The target repository's instructions and
-the user's authority govern every change.
+Create one focused, independently installable skill. The target repository's
+instructions and the user's authority govern every change.
 
-The final report is a handoff, not just a completion claim. Lead with the
-result and next action, then include these facts explicitly and briefly:
+The final report is a handoff. Lead with the result and next action, then
+state briefly:
 
 - **Skill:** the absolute path to the created `SKILL.md`.
-- **Behavior and safety:** what it does, what remains judgment, and which
-  changes or external actions it will not take without authority.
+- **Behavior and safety:** what it does, what remains judgment, and which edits
+  or external actions it will not take without authority.
 - **Evidence:** exact checks and observed runtimes, plus any unverified host.
 - **Repository state:** whether a commit was created.
 
-Do not replace the path with only a skill name or plugin name, or leave the
-safety boundary to be inferred from the skill's files.
+Name the created skill's edit and external-action limits explicitly;
+"judgment stays in the skill" does not state a safety boundary.
 
-## Required inputs
+## 0. Get the user's choices first
 
-Before creating files, establish the user's approved capability, destination,
-supported runtimes, and side-effect authority. You MUST ask for **all**
-unresolved inputs in one compact question group and stop without changing
-repository or user-level files. “Pick whatever capability is useful” does not
-approve a goal; “put it wherever is best” does not approve a destination.
-Propose options if helpful, but obtain the user's choice. Do not claim creation
-will proceed until the contract is supplied or approved.
-Do not browse for an arbitrary capability, pick a plausible team workflow, or
-scaffold a skill while waiting for approval.
-
-When the user delegates the goal or destination to you, both remain unresolved.
-The reply MUST ask for each missing item explicitly, even if you proposed an
-example contract during the turn. A generic statement that you are waiting
-for approval of a proposed contract, or that you already asked, is
-insufficient. Ask the user the missing questions now, omitting only items
-already established by the user's request:
+Before writing any file, the user must have chosen:
 
 1. What recurring task should the skill perform?
 2. Where should it live (repository plugin or user-level destination)?
 3. Which hosts must it support (Claude Code, Codex, or both)?
 
-Include any unresolved side-effect authority in the same question group. A
-question about runtimes alone does not satisfy the gate when the goal and
-destination are also missing.
+Also include authority for any side effect the skill will take. Ask every
+missing question explicitly in one group, then stop without changing
+repository or user-level files. "Pick something useful" or "put it wherever
+is best" leaves that item missing. You may propose options, but the user must
+choose; saying you are waiting for approval is not a substitute for asking.
+Asking only about hosts does not satisfy this while the task or destination is
+also missing. Create nothing until the user has answered.
 
-## 1. Establish the contract
+## 1. Define the contract
 
-Read applicable repository instructions and target plugin manifests. Define
-the single user goal, expected inputs and output, supported hosts, facts the
-agent must not infer, question/refusal boundaries, consequential actions and
-their authority, and observable completion criteria. Choose the target
-repository's established runtime and package manager for mechanics. If none
-exists and the choice matters, ask before writing mechanics.
+Read repository instructions and the target plugin's manifests. Write down the
+single goal, inputs and output, hosts, facts the agent must not infer, when to
+ask or refuse, each consequential action and its authority, and observable
+completion criteria. Use the target's established runtime and package manager
+for mechanics; if none applies and the choice matters, ask.
 
-Write representative requests before implementation: direct, indirect,
-incomplete input, negative trigger, and one plausible pressure case. Capture
-an uncontaminated baseline where the harness permits it; otherwise state that
-limit and use forward evidence. Do not invent a failure.
+Write representative requests: direct, indirect, incomplete input, negative
+trigger, and one plausible pressure case. Capture a baseline when the harness
+allows it; otherwise state that limit. Do not invent a failure.
 
 **Complete when:** the contract and request matrix are explicit, and each
 success claim has an observable check or a stated evaluation limit.
 
 ## 2. Design the skill
 
-Use a lower-case, hyphenated, verb-led name matching its directory. Front-load
-the recognizable goal and concrete triggers in a concise description, with a
-meaningful exclusion where adjacent work could mis-trigger it. Keep procedure
-out of the description.
+Name it lower-case, hyphenated, and verb-led, matching its directory. The
+description states the recognizable goal and concrete triggers, plus an
+exclusion where a neighboring request could select it. Keep procedure out of
+the description.
 
-Put the universally needed workflow in `SKILL.md`: inputs, ordered actions,
-ask/stop rules, output, and a demanding `Complete when:` criterion for every
-phase. Move heavy detail one link away into `references/`, deterministic
-repeated mechanics into `scripts/` or a contained package, and templates into
-`assets/`. Link each resource and state when to use it. Keep all required
-resources inside the owning plugin; do not assume a sibling plugin, user-global
-file, or MCP server is installed.
+`SKILL.md` holds inputs, ordered actions, ask/stop rules, output, and a
+demanding `Complete when:` criterion for every phase. Put heavy detail in
+`references/`, repeated deterministic mechanics in `scripts/` or a contained
+package, and templates in `assets/`. Link each resource and say when to use
+it. Keep everything inside the owning plugin; never rely on a sibling plugin,
+user-global file, or MCP server.
 
-Assess each consequential action: which request authorizes it, what conditions
-make it ready, and when the skill asks or stops. An action such as publication
-may be valid under clear authority and readiness conditions. Do not perform
-that target action while creating the skill.
+For each consequential action, state what authorizes it, when it is ready,
+and when the skill asks or stops. Publication can be valid with clear
+authority and readiness. Never perform the target action while creating the
+skill.
 
-Use portable `name` and `description` frontmatter. Put optional Codex UI data
-in `agents/openai.yaml`. Verify any host-specific invocation control on both
-claimed hosts.
+Use only portable `name` and `description` frontmatter; put Codex UI data in
+`agents/openai.yaml`. Verify any host-specific invocation control on each
+claimed host.
 
 **Complete when:** discovery distinguishes this goal from adjacent requests,
 every resource has a load condition, and every phase has a checkable end.
@@ -96,55 +81,43 @@ every resource has a load condition, and every phase has a checkable end.
 
 Add deterministic tests for mechanics and behavior evals for selection,
 judgment, output, and safety. Keep pass criteria in hidden checks, not in
-participant prompts. Include a counterexample that a superficial skill could
-pass. Run a scoped dry validation and an honest baseline before relying on the
-new evidence.
+participant prompts. Include a counterexample a superficial skill could pass.
+Run a scoped dry validation and an honest baseline first.
 
-Implement the smallest coherent skill and local resources. Follow the target
-repository's toolchain. Before adding executable mechanics, read
+Implement the smallest coherent skill with the target's toolchain. Keep
+judgment in `SKILL.md` and checkable mechanics in narrow helpers. Before
+adding executable mechanics, read
 [`references/plugin-mechanics.md`](references/plugin-mechanics.md); for shell
-scripts or shell tests also read
-[`references/portable-shell.md`](references/portable-shell.md). Keep
-contextual judgment in the skill and checkable mechanics in narrow helpers.
-Helpers refuse unreadable inputs, emit stable output, and use absolute paths
-in model-facing results. For every validator result, including success and
-failure, normalize each inspected input to its canonical absolute path and
-print that path in the result. A generic “valid” message without the inspected
-path is incomplete.
+scripts or shell tests, also read
+[`references/portable-shell.md`](references/portable-shell.md).
 
-When the target uses a UV package, put its actual runtime command in the
-created `SKILL.md`. Use frozen resolution and omit development dependencies,
-using `uv` with `run --frozen --no-dev --project <contained-package> <entrypoint>`.
-Keep `pyproject.toml`, `uv.lock`, and the entrypoint in the target's owning
-plugin or skill as its repository rules require. Decide that location before
-scaffolding: when the package serves only the new skill and the target rules
-put one-skill packages inside the skill, place it under that skill directory,
-not at plugin root. Verify the package path against those rules as well as the
-documented command, not only an equivalent ad hoc test command. Declare the chosen test
-runner in the development dependency group, lock it, and run tests from the
-contained package environment; a globally installed test runner is not
-evidence that the packaged tests work.
+Helpers refuse unreadable input and emit stable output. Every validator
+result, success and failure, normalizes each inspected input to its canonical
+absolute path and prints that path; a bare "valid" is incomplete.
 
-The shared inspector lives at `<plugin-root>/backend`, where `<plugin-root>`
-is two directories above this skill directory. Run it through its locked
-entrypoint after writing the target:
+For a UV package, decide its location from the target's rules before
+scaffolding: a package that serves one skill goes inside that skill when the
+rules say so. Put the runtime command in the created `SKILL.md`, using `uv`
+with `run --frozen --no-dev --project <package> <entrypoint>`. Commit
+`pyproject.toml` and `uv.lock`, declare the test runner as a locked
+development dependency, and run tests from the package environment.
+
+The shared inspector lives at `<plugin-root>/backend`, two directories above
+this skill. Run it after writing the target; it checks portable metadata and
+inline Markdown links, so inspect command literals and other paths yourself:
 
 ```text
 uv run --quiet --no-project "<plugin-root>/backend/scripts/run_locked.py" inspect-skill inspect "<target-skill>" "<target-plugin>"
 ```
 
-It checks portable metadata and inline Markdown-linked local resources.
-Inspect command literals, reference-style links, and other paths separately;
-native validators still own their complete formats. If the target claims
-Bash 3.2 and Bash 5 support, run its shell tests through:
+If the target claims Bash 3.2 and Bash 5, run its shell tests through:
 
 ```text
 uv run --quiet --no-project "<plugin-root>/backend/scripts/run_locked.py" verify-shell-tests -- "<test-script>"...
 ```
 
-Report each target interpreter's observed version and result, or say that an
-unavailable or unexecuted version remains unverified. Command names alone do
-not establish version coverage.
+Report every required version: its observed interpreter and result, or that
+it remains unverified. Command names do not prove versions.
 
 **Complete when:** the tests detect the intended failure, the finished skill
 passes the focused checks, and no unrelated capability or external action was
@@ -152,41 +125,32 @@ added.
 
 ## 4. Verify and challenge
 
-Run the target repository's package tests, the shared inspector, native skill
-and plugin validators, scoped eval dry validation and live trials, fresh copied
-artifact entrypoints on claimed hosts, affected documentation checks, and
-relevant repository quality gates. State unavailable platforms as unverified.
+Run the target's package tests, the inspector, native skill and plugin
+validators, scoped eval dry runs and live trials, entrypoints from a fresh
+copy on claimed hosts, documentation checks, and repository gates. Call
+unavailable platforms unverified.
 
-Obtain one independent fresh-context challenge of the exact finished skill
-and task-local evidence. It must cover discovery, self-containment,
-portability, safety, completion bounds, and eval loopholes. Reuse a complete,
-current independent review already requested by the user or enclosing goal;
-do not launch a duplicate merely to satisfy this step. After a finding-driven
-repair, verify that finding and direct regressions on the repaired content.
-Resolve material findings before claiming completion.
-
-If a reviewed draft is promoted to its final skill path, preserve its bytes
-and the independent review record. Compare the reviewed content identifier
-with the final file before treating the review as current. Do not rewrite the
-reviewer's evidence to make a changed artifact appear reviewed.
+Get one independent fresh-context challenge of the exact final skill and its
+evidence, covering discovery, self-containment, portability, safety,
+completion bounds, and eval loopholes. A complete, current review already
+supplied by the user or enclosing goal counts; do not launch a duplicate. When
+promoting a reviewed draft, keep its bytes and compare its content ID with the
+final file; never edit review evidence. After a repair, verify that finding
+and its direct regressions. Resolve material findings before claiming
+completion.
 
 Read [`references/practice-basis.md`](references/practice-basis.md) only when
-choosing a disputed invocation, disclosure, or evaluation design, or when
-maintaining this workflow.
-
-Before sending the final report, check its Skill, Behavior and safety,
-Evidence, and Repository state fields against the handoff contract above.
-Name the target skill's edit or external-action limit explicitly; saying only
-that editorial judgment remains in the skill does not state that limit.
+choosing a disputed invocation, disclosure, or evaluation design.
 
 **Complete when:** the focused and repository gates pass, one current
 independent challenge is resolved, and the report preserves complete evidence.
 
+Before sending the report, check its four fields against the handoff contract
+at the top.
+
 ## Boundaries
 
-- Use this workflow to create a new skill. An audit belongs to
-  `audit-agent-skill`; implementing findings on an existing skill follows the
-  target repository's ordinary engineering rules.
-- Do not invent an unspecified goal, destination, or runtime choice.
+- This workflow creates new skills. Audits belong to `audit-agent-skill`;
+  fixing an existing skill is ordinary engineering work.
 - Do not commit, push, publish, release, deploy, or install without separate
   user authority.

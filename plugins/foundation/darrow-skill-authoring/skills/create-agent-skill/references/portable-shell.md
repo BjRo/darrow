@@ -1,18 +1,15 @@
 # Portable shell mechanics
 
-Read this reference when the target skill adds or changes a shell script or
-shell test. Apply it to both the implementation and its deterministic tests.
+Read this when the target skill adds or changes a shell script or shell test.
+It applies to the implementation and its tests.
 
 ## Paths and temporary directories
 
-- Treat path spelling and filesystem identity separately. Normalize a path with
-  `cd` and `pwd -P` before emitting it as an absolute path or comparing it with
-  another canonical path.
-- Do not construct an expected canonical path by concatenating raw environment
-  variables. `TMPDIR` can be unset, empty, or spelled with or without a trailing
-  separator.
-- Give `mktemp` exactly one separator between the parent and template, then
-  canonicalize the directory it returns:
+- Canonicalize a path with `cd` and `pwd -P` before printing it as absolute or
+  comparing it with another canonical path.
+- Never build an expected path by concatenating raw environment variables.
+  `TMPDIR` can be unset, empty, or end with or without a separator.
+- Give `mktemp` exactly one separator, then canonicalize the result:
 
   ```bash
   temp_parent=${TMPDIR:-/tmp}
@@ -26,72 +23,55 @@ shell test. Apply it to both the implementation and its deterministic tests.
   ```
 
 - Quote path expansions. Avoid `readlink -f`, GNU-only `realpath` options, and
-  assumptions that the caller starts in the skill directory.
+  assuming the caller starts in the skill directory.
 
-## Portable mechanics
+## Portability
 
-- Support the shells, versions, operating systems, and utilities established by
-  the target repository. Do not import the authoring skill's source-repository
-  compatibility range into the target.
-- Use syntax and utility options supported by that declared range. For a target
-  that includes Bash 3.2, avoid associative arrays, `${var,,}`, `${var^^}`, and
-  other newer features. For a target that includes macOS or BSD utilities,
-  avoid unsupported GNU extensions.
-- Under `set -o pipefail`, do not use an early-exit consumer in a pipeline when
-  the producer may receive `SIGPIPE`. Capture bounded output or use a
-  here-string when that is safer.
-- Refuse unreadable required inputs and make failure output identify the input
-  that could not be processed.
+- Support the shells, versions, operating systems, and utilities the target
+  repository declares; do not import this repository's range.
+- For Bash 3.2, avoid associative arrays, `${var,,}`, `${var^^}`, and other
+  newer features. For macOS or BSD utilities, avoid GNU-only options.
+- Under `set -o pipefail`, do not pipe into an early-exit consumer when the
+  producer can get `SIGPIPE`; capture bounded output or use a here-string.
+- Refuse unreadable required inputs and name the input in the failure.
 
 ## Interpreter evidence
 
-Run target shell tests with each interpreter version the target repository
-claims. Use its established test command or matrix when available.
-
-When the target specifically requires both Bash 3.2 and Bash 5, the authoring
-skill's bundled matrix helper can supply that evidence:
+Run shell tests with each interpreter version the target claims, using its
+established test command when one exists. For a Bash 3.2 and Bash 5 target,
+use the bundled matrix helper:
 
 ```text
 uv run --quiet --no-project "<plugin-root>/backend/scripts/run_locked.py" verify-shell-tests -- "<test-script>"...
 ```
 
-This helper discovers actual Bash 3.2 and Bash 5 interpreters, queries their
-versions, deduplicates equivalent candidates, and labels results from observed
-version data. Pass one or more `--shell <executable>` options before `--` only
-when repository evidence supplies additional interpreter paths. Never infer a
-version from an executable name, install a missing shell, or count two command
-names resolving to the same version as two compatibility results.
+It finds real Bash 3.2 and Bash 5 interpreters, reads their versions,
+deduplicates equivalent ones, and labels results by observed version. Pass
+`--shell <executable>` before `--` only for interpreter paths the repository
+supplies. Never infer a version from a command name, install a missing shell,
+or count two names for the same version as two results.
 
-In Bash test scripts, invoke nested implementation helpers with `"$BASH"`
-instead of literal `bash` or a hard-coded `/bin/bash`. This preserves the
-interpreter executing the test even when `PATH` resolves another Bash. Exercise
-that boundary with a conflicting `bash` on `PATH`; expected-failure assertions
-must not hide calls through the wrong interpreter.
+In Bash tests, call nested helpers with `"$BASH"`, not `bash` or `/bin/bash`,
+so the test keeps its interpreter. Test this with a conflicting `bash` on
+`PATH`.
 
-For this Bash 3.2/5 matrix, interpret its final `matrix_status` and exit status
-together:
+Read the matrix's final `matrix_status` with its exit status:
 
-- `complete` / exit `0`: both required versions were observed and all tests
-  passed;
-- `failed` / exit `1`: at least one observed interpreter failed a test;
-- exit `2`: invocation or input evidence was invalid; and
-- `unverified` / exit `3`: at least one required version was unavailable.
+- `complete` / exit `0`: both versions were observed and all tests passed;
+- `failed` / exit `1`: an observed interpreter failed a test;
+- exit `2`: invocation or input was invalid; and
+- `unverified` / exit `3`: a required version was unavailable.
 
-Exit `3` is evidence of incomplete coverage, not a successful two-version
-matrix. Continue the remaining non-dependent checks, preserve the helper's
-interpreter paths and versions in the final report, and name each unavailable
-required version explicitly.
+Exit `3` means incomplete coverage, not success. Continue the other checks,
+report the observed interpreter paths and versions, and name each missing
+version.
 
 ## Tests
 
-- Require only the shell versions established by the target, and claim a live
-  result only for versions actually observed. For a Bash 3.2/5 target, use the
-  bundled matrix helper's observed versions.
-- When code uses `TMPDIR` or compares paths, run it with `TMPDIR` both with and
-  without a trailing separator. Compare canonical paths, not the raw strings
-  used to construct them.
-- Run at least one test from outside the skill directory when the script opens
-  repository or caller-provided paths.
-- Assert stable public output and exit status. Do not make a test pass only
-  because implementation and expectation repeat the same path-construction
-  mistake.
+- Claim results only for versions actually observed.
+- When code uses `TMPDIR` or compares paths, test with `TMPDIR` both with and
+  without a trailing separator, and compare canonical paths.
+- Run at least one test from outside the skill directory when the script
+  opens repository or caller paths.
+- Assert stable output and exit status. A test must not pass only because the
+  implementation and the expectation build the same wrong path.
