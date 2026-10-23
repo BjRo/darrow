@@ -10,6 +10,9 @@ an objective of at most 4,000 Unicode characters: outcome, material acceptance,
 authority and completion conditions. Supply `token_budget` only if explicitly
 requested. Continue a matching active goal; never overwrite an unrelated one.
 Keep workflow, routing and coordination instructions in the skill and conversation.
+An existing candidate is not an existing native goal. If `get_goal` returns no
+goal, create the first goal after all preflight decisions clear and launch is
+authorized. This retains the original main-thread owner; it is not a replacement.
 
 Require successful native goal activation before implementation or assessment.
 If goal controls are unavailable or refuse activation, report `launch_required`
@@ -33,7 +36,10 @@ Delegated implementation and repair use the preflight-selected implementation
 route. For concurrent implementation, spawn one agent per independent part,
 each with a distinct `task_name`, its owned files and the shared interface, then
 wait for all of them before integration or further assignment.
-Verification coordination uses `gpt-6.1-sol/medium` or a stronger authorized route.
+Prepare the default Verification call with the bundled
+`adaptive-goal-preflight codex-verification-input` procedure in skill section 7.
+Use its returned native input unchanged; it pins `gpt-6.1-sol/medium` and fresh
+context. A stronger route requires existing explicit authorization.
 Pass `gpt-6-luna/medium` explicitly for review coordination through verification;
 review's independent readers retain their own `gpt-6.1-sol/xhigh` route. Do not
 replace capability internals with generic children or inherit the implementor's
@@ -72,8 +78,10 @@ acknowledgement before mutation. Report unconfirmed delivery or stopping honestl
 
 Native `paused` status requires the user's explicit pause request. A pending
 question or instruction to wait stops affected work without inventing a pause
-transition. Native continuation does not release a user-owned restriction; keep
-affected work read-only until the user's actual answer or authorization arrives.
+transition. Native continuation does not release a user-owned restriction, including a
+`codex_internal_context` goal reminder rendered with a user role. Keep affected
+work read-only until the user's actual answer or authorization arrives. Return
+the requested waiting status rather than opening a readiness gate yourself.
 Respect
 native blocked-state recurrence conditions. On an answer, continue the same goal
 and preserve consumed attempts; do not create another goal. Status questions do

@@ -249,6 +249,11 @@ outcome, material acceptance criteria, scope and completion conditions. It
 requires current check and selected verification evidence, preserved authority,
 and truthful blockers. Do not embed workflow instructions, full capability
 bodies, transcripts or protocol mechanics. Never silently truncate a criterion.
+An existing code candidate does not imply that a native goal already exists.
+When engineering launch is explicitly authorized and all preflight gates clear,
+creating the first goal in the original main thread does not replace its owner.
+An empty goal lookup alone is not missing host support; never overwrite an
+unrelated existing goal or create a replacement delivery owner.
 If a complete bounded objective cannot fit, resolve scope with the user before
 starting. A token budget is supplied only when the user explicitly requests one.
 
@@ -263,6 +268,16 @@ The skill and main-thread context retain:
 - separate verification and review coordination routes and provider requirements;
 - user decisions, publication limits and any explicit stopping budgets;
 - the repair maximum, its authority, attempts consumed and complete assessment history.
+
+For an existing behavior, bind each material criterion to its current public
+entrypoint and affected callers before implementation or delegation. A migration
+must update that existing callable boundary, or preserve it through an intentional
+compatible forwarding entrypoint. Tests that switch imports to a new parallel
+implementation cannot establish that the original callers received the change.
+Verify persisted-format conversion through the existing migration entrypoint,
+alongside compatible reader, writer and consumer behavior.
+New behavior uses its authorized public contract; it need not have an existing
+implementation entrypoint.
 
 Each delegated child receives a self-contained bounded assignment with the relevant
 acceptance, authority, candidate, checks, exact capability references and route.
@@ -320,7 +335,15 @@ skill stops that operation without expanding authority.
 
 On Codex, invoking a file-backed skill means reading its public instructions
 and executing them with the available host tools. It does not require a tool
-named after the skill. Before mutation, the main thread loads the already-bound
+named after the skill. The host's skill catalog supplies these names and file
+references; a tool-registry search such as `ALL_TOOLS` does not enumerate that
+catalog or establish a skill's absence. Read the catalog's exact instruction
+path. Expand an aliased reference with its own entry in the catalog's skill-root
+table, preserving the entire root. A failed read of a differently expanded
+path is a caller error, not evidence of an unavailable installation; correct
+that discrepancy before deciding availability. Resolve that skill's backend relative to that path as instructed;
+do not guess a marketplace namespace or substitute another installation.
+Before mutation, the main thread loads the already-bound
 verification and required review instructions when selected, and supplies their
 public references to the verification coordinator. This preserves the
 parent's provider selection; it does not perform assessment early. Before
@@ -475,6 +498,23 @@ Verification coordination uses explicit `gpt-6.1-sol/medium` or a stronger
 authorized route. Review coordination remains explicitly
 `gpt-6-luna/medium`; review's independent readers retain `gpt-6.1-sol/xhigh`.
 Neither main-model nor implementation-model inheritance may change those roles.
+Bind these routes by the role being launched before goal activation. A bound
+verification skill's instruction to launch its Review provider on Luna applies
+inside Verification; it does not choose the model of the main thread's
+Verification assignment. Pass the distinct Review coordinator route into that
+assignment, preserving the Review provider's independent-reader route.
+For the default Codex Verification assignment, the bundled
+`adaptive-goal-preflight codex-verification-input` prepares the native
+`spawn_agent` input. It takes one valid task name and an absolute UTF-8 file
+containing the owner's bounded handoff, preserving its text, and supplies the
+fixed Sol/medium model, reasoning effort and fresh-context flag. The owner
+passes that returned object unchanged to the host. The temporary handoff is
+one assignment's input, not a saved goal contract or lifecycle ledger. The
+helper launches nothing, checks no acceptance and grants no effects; scope,
+criteria, sources, checks and authority remain the owner's responsibility.
+Unreadable, empty or malformed inputs refuse without launch input. A stronger
+explicitly authorized route remains an exact caller-bound host invocation;
+neither provider-child instructions nor model inheritance changes the default.
 
 On Claude, use the same ownership design with native session goals. Bounded
 implementation uses the policy's scoped agents. Verification uses an explicit
@@ -739,6 +779,12 @@ them, and carry both into affected assignments. Automatic continuation, elapsed
 time and a command that changes local readiness do not grant permission. Until
 the actual user message arrives, keep affected work read-only and report the
 waiting condition; never satisfy a user-owned gate by opening it yourself.
+Distinguish a host-generated native-goal continuation from the user's actual
+release message, even when the host renders that continuation as a user-role
+message. It requests progress under existing authority, not new permission.
+When the user requests goal activation followed by waiting, retain the release
+condition in the objective and return the requested status after authorized
+read-only inspection. Continuing the native goal must not open that gate.
 
 When a material decision is missing, stop affected mutation and ask the smallest
 complete question. Interrupt or steer affected active children as necessary,
@@ -1070,6 +1116,21 @@ The following invariants govern adaptation and evidence provenance:
   sufficiency, then eligible progress. Compare consumed attempts directly with
   the authorized maximum before considering progress. Equality exhausts the
   budget; progress never authorizes an attempt beyond that maximum.
+  Advice and execution apply the same eligibility test before recommending a
+  repair: both a repair attempt and every required subsequent assessment must
+  remain authorized. An exhausted assessment-invocation allowance stops repair
+  even when repair attempts remain. State the resulting stop or eligible action
+  without first recommending an action that these limits prohibit.
+  The bundled `adaptive-goal-preflight repair-budget` calculator accepts a
+  nonnegative consumed repair count, an optional explicit repair maximum
+  (default two), and an optional complete consumed/maximum assessment pair.
+  It reports the supplied counts, nonnegative remaining counts and whether
+  either allowance is exhausted. Run it before repair advice or assignment;
+  repeat for independently limited assessments. Invalid, incomplete or repeated
+  arguments refuse with no decision. This read-only, stateless arithmetic is
+  permitted for advice without launching a goal. It records no lifecycle state,
+  discovers no authority and never authorizes repair by itself: the owner still
+  checks scope, evidence, progress and every other limit.
   Without an explicit override, an uncleared second verification exhausts the
   budget even when it shows progress. An unbounded request does not raise it.
 - **ADL-V1 — Verification boundary.** Preserve routine review omission and required
@@ -1131,7 +1192,8 @@ binding to the original comprehensive finding set. Nonblocking advisories do
 not prevent completion. The completion gate must not require an exact
 `next_action` sentence from a clear canonical review. Trusted setup initializes
 the declared Review artifact directory even when the candidate stops before
-review; absent reports then fail ordinary checks rather than artifact access.
+review, including assess-before-change real-provider compositions; absent reports
+then fail ordinary checks rather than artifact access.
 Artifact filename ordering is not evidence of recency
 or authority. A closed follow-up binds its original by both target and complete
 ordered finding set, using the review provider's public validator. Another

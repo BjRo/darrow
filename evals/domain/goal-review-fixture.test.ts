@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { captureTestCommand } from "../test-command";
 import {
@@ -192,25 +192,36 @@ test("high-risk composition requires verification and supporting review reads", 
   }
 });
 
-test("high-risk setup prepares an empty Review grant before candidate work", async () => {
-  const canonical = await readFixtureCase(source);
-  const home = await mkdtemp(join(tmpdir(), "darrow-review-empty-home-"));
-  try {
-    const result = await captureTestCommand(
-      [
-        "/bin/bash",
-        "-eu",
-        "-c",
-        `${canonical.fixture.setup ?? ""}\ntest -d "$HOME/.darrow/reviews"\ntest -z "$(ls -A "$HOME/.darrow/reviews")"`,
-      ],
-      undefined,
-      { env: { ...process.env, HOME: home } },
-    );
-    expect(result.exitCode, result.stderr).toBe(0);
-  } finally {
-    await rm(home, { recursive: true, force: true });
-  }
-});
+for (const name of ["high-risk-routine", "verification-existing-review"]) {
+  test(`${name} setup prepares an empty Review grant before candidate work`, async () => {
+    const caseSource = new URL(`${name}.yaml`, source);
+    const canonical = await readFixtureCase(caseSource);
+    const root = await mkdtemp(join(tmpdir(), "darrow-review-empty-home-"));
+    const home = join(root, "candidate-home");
+    const repository = join(root, "repository");
+    try {
+      await mkdir(home);
+      await mkdir(repository);
+      const setup = (canonical.fixture.setup ?? "").replaceAll(
+        "{{case_dir}}",
+        dirname(fileURLToPath(caseSource)),
+      );
+      const result = await captureTestCommand(
+        [
+          "/bin/bash",
+          "-eu",
+          "-c",
+          `${setup}\ntest -d "$HOME/.darrow/reviews"\ntest -z "$(ls -A "$HOME/.darrow/reviews")"`,
+        ],
+        undefined,
+        { cwd: repository, env: { ...process.env, HOME: home } },
+      );
+      expect(result.exitCode, result.stderr).toBe(0);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+}
 
 function guidance(scenario: RepairScenario, handoff = false): string[] {
   if (handoff && scenario.omittedGuidance) return [];

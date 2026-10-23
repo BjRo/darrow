@@ -37,17 +37,38 @@ or reconstruct it from a summary. Keep approval references and all other text.
 Require acknowledgement success before affected work. A rejected or revoked
 approval requires new user authority; never rewrite it or try local replacements.
 
+**A user-owned wait is an authority boundary.** Record the actions withheld and
+the actual user message that releases them. If asked to activate a goal, inspect
+and wait, do only those authorized actions and return the waiting status. Keep
+that restriction in the goal objective and affected assignments. A host-generated
+"continue working toward the goal" message is automatic continuation, even if
+rendered with a user role; it does not release the gate. Neither elapsed time
+nor a command that changes local readiness supplies the user's permission.
+Keep affected work read-only until the actual release message arrives. Do not
+open the gate yourself or complete the goal while its work is still withheld.
+
 Complexity and duration do not authorize orchestration. A fresh conversation,
 ambiguous answer, or multiple plausible owners supplies no continuation
 authority. Delegation adds no permission, publication, or destructive authority.
 
 Explicit invocation may request advice rather than engineering work. When the
 user asks only for an explanation, comparison, or next-lifecycle-action answer,
-answer directly without preflight helpers or a goal.
+answer directly without repository preflight or a goal. The stateless repair-budget
+calculation below is allowed for advice; it launches no work.
 For assessment or repair advice, first read the
-[verification lifecycle](references/verification-lifecycle.md). Apply its stop
-conditions before considering unused budget: unavailable required evidence
-stops speculative repair even when an attempt remains. Resolve the reference
+[verification lifecycle](references/verification-lifecycle.md). Complete current
+clearance ends repair immediately. For an unresolved result, decide:
+
+1. Run the lifecycle's `repair-budget` calculation with the supplied counts and
+   finite overrides. Honor its `stop` result. A remaining repair attempt cannot
+   authorize work that cannot be verified within the assessment limit.
+2. Stop if required evidence or history is missing, or the latest repair made
+   no material progress.
+3. Only with all limits and evidence satisfied may progress justify another
+   repair. Give that resulting decision directly; do not recommend a repair
+   first and retract it later. "Keep trying" supplies no finite override.
+
+Resolve the reference
 beside this `SKILL.md`: on Codex it is
 `<plugin-root>/skills/adaptive-goal/references/verification-lifecycle.md`.
 
@@ -60,6 +81,16 @@ reason: explicit-orchestration-entrypoint-required
 ```
 
 ## 2. Prepare read-only
+
+Discover capabilities in the host's **skill catalog**, including its supplied
+`SKILL.md` paths. Skills are instructions executed with ordinary host tools;
+they need no dedicated tool. Searching `ALL_TOOLS` cannot establish that a skill
+is missing. Read the exact catalog path before declaring a capability unavailable.
+For an alias such as `r2/prepare-task-branch/SKILL.md`, substitute **r2's full root
+from the skill-root table** and append the relative suffix. Preserve every path
+component. On a failed read, compare the attempted path with that expansion and
+correct a mismatch before reporting unavailable. Use the loaded skill's own
+backend instructions; never rebuild an installed path from a plugin name.
 
 Resolve the repository, then bind the bundled helper without searching:
 
@@ -258,6 +289,20 @@ assessment. Use compatible replacements by intent, never provider identity or
 sibling files. The main thread invokes verification with the review binding; verification
 owns assessment coordination and review owns its independent judgments.
 
+Bind the **launched role**, not the model of its child. On Codex:
+
+| Launcher -> assignment | Explicit model / effort |
+| --- | --- |
+| This main thread -> Verification coordinator | `gpt-6.1-sol` / `medium` |
+| Verification -> Review coordinator | `gpt-6-luna` / `medium` |
+| Review -> independent readers | `gpt-6.1-sol` / `xhigh` |
+
+Keep this main thread's model unchanged. A verification skill's instruction to
+spawn a Luna Review provider applies **inside** Verification; do not use it to
+launch Verification itself on Luna. Compile these separate bindings before
+goal activation and pass the Review coordinator route into Verification. A
+stronger route requires existing explicit authorization, never automatic escalation.
+
 Read [`references/verification-lifecycle.md`](references/verification-lifecycle.md)
 completely and compile its shared repair rules into the retained delivery context.
 The main thread supplies current successful required checks before assessment. All
@@ -370,6 +415,9 @@ After read-only preflight, activate one native goal in this main thread or
 continue its matching active goal using the host guide. Never replace an unrelated
 goal. A queued proposal is not activation; wait for the native kickoff before
 implementation or assessment.
+An existing code candidate need not have a native goal yet. When all launch
+gates clear and no goal exists, create the first goal here; that does not create
+a replacement owner. An empty goal lookup alone is not missing host support.
 Its objective is at most 4,000 Unicode characters: the bounded outcome, material
 acceptance criteria, selected assurance, authority limits and completion criteria.
 Set a token budget only when the user explicitly supplied one. Keep workflow,
@@ -390,6 +438,9 @@ obligations and consumed attempts. Clarify missing task facts with the relevant
 child; do not ask a delegated implementor to reconstruct delivery bookkeeping.
 
 Translate the selected workflow into concrete work and evidence requirements.
+For behavior that already exists, bind each material criterion to its current
+public entrypoint and carry those paths into assignments. Verify the original callers; moving a test's import to
+a new parallel implementation cannot establish that those callers were fixed.
 When it requires a failing regression or acceptance check before an edit, obtain
 that evidence yourself or explicitly assign the check before mutation. Require
 failure for the intended missing or broken behavior. A passing check after the
@@ -473,16 +524,35 @@ the result before assigning conflicting work. A rejected route is a concrete
 launch failure, not permission to silently choose another model.
 
 Launch verification as a separate bounded capability assignment with the intent
-to coordinate acceptance verification. Pin this coordinator to Codex
-`gpt-6.1-sol/medium` or a stronger authorized route; on Claude use the scoped
-`claude-opus-5-5/high` agent. Preserve review coordination separately: explicitly
-pass Codex `gpt-6-luna/medium` or Claude `claude-sonnet-5-5/medium` as the review
-coordinator route. This never overrides review's independent-reader route
-(Codex `gpt-6.1-sol/xhigh`). Do not allow parent-model inheritance to change roles.
+to coordinate acceptance verification, using the role bindings from section 4.
 Supply the verification skill's exact installed instruction
 path, compatible review binding, selected providers, originating acceptance,
 scope/base/current candidate, successful checks, constraints and existing evidence.
-Require its complete combined result and provider evidence. The capability owns
+Require its complete combined result and provider evidence. Include the separate
+Review coordinator route from section 4 in that handoff.
+
+On **Codex**, write that one bounded assignment as UTF-8 to a unique temporary
+file outside product scope. Immediately before launch, use **Adaptive Goal's
+backend bound in section 2** to prepare the native input:
+
+```sh
+uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" adaptive-goal-preflight codex-verification-input \
+  --task-name <unique_lowercase_name> --assignment-file <absolute-handoff-file>
+```
+
+Call native `spawn_agent` with the returned JSON object **unchanged**. The helper
+copies your handoff and fixes Verification's `model`, `reasoning_effort` and
+`fork_turns`; do not substitute the Review-child parameters from the verification
+skill. It does not launch the agent for you. A rejected helper or native launch
+stops that assignment without fallback. Only an already authorized explicit
+stronger Verification route uses a caller-bound native invocation instead.
+This temporary input holds one assignment, not the goal or its history.
+
+On **Claude**, use the scoped `claude-opus-5-5/high` agent and explicitly pass
+`claude-sonnet-5-5/medium` for review coordination. Neither parent-model inheritance
+nor an implementation route changes these bindings or the provider's reader route.
+
+The capability owns
 provider selection, its required internal delegation and reader model/effort.
 Do not inherit the implementation route as a restriction on those readers, invoke
 review directly in place of verification, or absorb assessment internals here.
@@ -529,13 +599,6 @@ repository acknowledgement is required, apply the exact-copy rule in section 1.
 Using an existing component means calling it, not
 copying its algorithm. Status requests do not stop work; cancellation stops
 further work and reports effects already performed.
-
-An explicit instruction to wait for the user applies even when no product
-question is pending. Retain which actions are withheld and what user message
-releases them; include that restriction in affected assignments. Automatic
-continuation, elapsed time and commands that change local readiness do not grant
-authorization. Until the actual user message arrives, keep affected work
-read-only and report that you are waiting. Never open a user-owned gate yourself.
 
 Ask the smallest concrete question for a missing material decision. Stop affected
 mutation, steering or interrupting active children as needed, and preserve this

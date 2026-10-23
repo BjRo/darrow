@@ -15,6 +15,28 @@ Apply the first matching row. Keep the authorized maximum separate from attempts
 already used. The default maximum is 2; only an explicit finite user or repository
 override changes it. Progress never increases the maximum.
 
+Before repair advice or another repair assignment, calculate the remaining
+allowance with the bundled read-only helper. Resolve `<plugin-backend>` beside
+this installed skill: `<plugin-root>/backend`. Copy counts from the actual
+contract and history; do not adjust them for progress.
+
+```sh
+uv run --quiet --no-project "<plugin-backend>/scripts/run_locked.py" adaptive-goal-preflight repair-budget \
+  --repairs-used <consumed-count> \
+  [--repair-maximum <explicit-finite-override>] \
+  [--assessment-used <consumed-count> --assessment-maximum <explicit-limit>]
+```
+
+Omit `--repair-maximum` when no finite override was supplied: the helper applies
+two. Include both assessment options when an assessment limit exists, counting
+its initial invocation too; repeat for each independently limited assessment.
+If counts are unknown or the helper fails, stop rather than guess.
+`decision: stop` (rendered as a tab-separated record) prohibits another repair
+under those limits. `within_limits` establishes only arithmetic: scope,
+evidence, progress, time, tokens and authority must still permit the action.
+The calculator writes no state and creates no goal. Report the resulting
+decision directly, without a contradictory initial instruction to continue.
+
 | Current result or limit                                                                                                       | Next action                                                                                                                                                                                                                          |
 | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Complete current verification is clear                                                                                        | Stop repairing; unused attempts need not be used.                                                                                                                                                                                    |
