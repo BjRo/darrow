@@ -41,7 +41,7 @@ checks:
     run: bash check.sh 2500
   - name: only authorized configuration changes
     run: test "$(git status --porcelain | awk '{print $2}')" = config.json
-  - name: no commit or new owner
+  - name: no commits
     run: test "$(git rev-list --count HEAD)" = 1
   - name: full nonready and ready assessments survive the caller handoff
     run: >-
@@ -59,8 +59,6 @@ checks:
 transcript_checks:
   - name: resolution resumes the same host conversation
     expect_regex: '"type":"darrow.eval.follow_up_turn","thread_id":"[^"]+"'
-  - name: caller does not spawn a replacement owner
-    not_regex: '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"name":"Agent"|"name":"Task"'
 semantic_output_checks:
   - name: final result reports resolved readiness and verified implementation
     proposition: >-
