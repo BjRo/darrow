@@ -12,9 +12,12 @@ checks:
   - name: incomplete request is read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: response asks for the missing subject
-    run: >-
-      grep -Ei 'what|which|subject|topic' .git/last-message.md >/dev/null;
-      test "$(wc -l <.git/last-message.md | tr -d ' ')" -le 8
   - name: unrelated repository topic is not selected
     run: '! grep -Ei "inventory service" .git/last-message.md'
+semantic_output_checks:
+  - name: response asks compactly for the missing subject
+    proposition: >-
+      The response asks the user what they want shown, rather than selecting
+      or explaining a topic itself. One compact clarification request is
+      sufficient. It need not repeat technical or visual vocabulary from the
+      skill context, and no fixed physical-line count applies.

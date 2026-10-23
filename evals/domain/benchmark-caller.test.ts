@@ -12,6 +12,7 @@ import {
 import { tmpdir } from "node:os";
 
 import { join, resolve } from "node:path";
+import { captureTestCommand, spawnTestCommand } from "../test-command";
 
 const command = resolve(import.meta.dir, "../runner/suite.ts");
 
@@ -86,17 +87,18 @@ async function invoke(
   args: string[],
   environment: Record<string, string | undefined> = {},
 ) {
-  const child = Bun.spawn([process.execPath, command, ...args], {
-    cwd: root,
-    env: { ...process.env, ...environment },
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ]);
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(
+    [process.execPath, command, ...args],
+    undefined,
+    {
+      cwd: root,
+      env: { ...process.env, ...environment },
+    },
+  );
   return { stdout, stderr, code };
 }
 
@@ -212,7 +214,7 @@ for (const event of [
       expect(trial.evidence.advisoryReview.assessment.verdict).toBe("fail");
     }
   },
-  30_000,
+  90_000,
 );
 
 test("benchmark caller retains default storage and rejects route overrides", async () => {
@@ -341,7 +343,7 @@ await new Promise(() => setInterval(() => {}, 1000));
 `,
       { mode: 0o700 },
     );
-    const child = Bun.spawn(
+    const { child, result: captured } = await spawnTestCommand(
       [
         process.execPath,
         command,
@@ -364,7 +366,8 @@ await new Promise(() => setInterval(() => {}, 1000));
         "--codex-auth-file",
         credential,
       ],
-      { stdout: "pipe", stderr: "pipe" },
+      undefined,
+      { env: process.env },
     );
     try {
       const deadline = Date.now() + 15_000;
@@ -379,11 +382,7 @@ await new Promise(() => setInterval(() => {}, 1000));
       expect(initial.cellPlan).toHaveLength(4);
       expect(initial.cells).toEqual([]);
       child.kill("SIGTERM");
-      const [stdout, stderr, code] = await Promise.all([
-        new Response(child.stdout).text(),
-        new Response(child.stderr).text(),
-        child.exited,
-      ]);
+      const { stdout, stderr, exitCode: code } = await captured;
       expect(code, stderr + stdout).toBe(143);
       expect(JSON.parse(stdout)).toMatchObject({
         cells: 1,

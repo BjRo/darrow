@@ -285,12 +285,22 @@ coverage gates on every supported Python and CI platform. Fresh copied-artifact
 verification exercises the registered hook command on Linux, macOS, and native
 Windows.
 
+Process-termination tests use a bounded readiness wait separate from the
+behavior under test. They report the worker PID and exit code on timeout and
+always terminate and reap their worker before removing temporary state,
+including when readiness or another assertion fails.
+
 Performance evidence distinguishes startup from steady-state foreground
 capture, confirms network-independent foreground completion, bounded
 incremental reads and exporter batching, and reports peak memory for a stated
 workload. Release evidence includes a fresh artifact install with runtime-only
 locked dependencies. The isolated live Langfuse smoke test remains the release
 check for actual ingestion.
+
+Foreground network-independence checks assert that no exporter is invoked, no
+HTTP request reaches the configured endpoint, and captured work remains pending
+for asynchronous delivery. An arbitrary wall-clock threshold is not evidence
+of this contract; local process and filesystem latency may vary across runners.
 
 Participant-visible colocated evals cover configuration/help intent, refusal to
 claim tracing without prerequisites, privacy disclosure, work-item precedence,

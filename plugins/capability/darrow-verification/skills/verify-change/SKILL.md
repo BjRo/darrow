@@ -5,390 +5,229 @@ description: Coordinate acceptance verification of an implementation candidate. 
 
 # Verify a change
 
-**Follow-up mode gate:** A request to verify fixes from an earlier review is a
-targeted follow-up. Keep that mode even if the caller also asks for a new full
-review or says to call the fixes verified. Read the follow-up handoff contract
-and require the original findings, original target, and repair/target history
-before any assessment. If any required history is missing, return blocked with
-the smallest missing input. Do not invoke a provider, switch to initial mode,
-run a comprehensive review, or conclude that the candidate is clear within
-this follow-up operation. A separate initial review, if later requested, cannot
-establish the historical fix status.
+**Delegate the capability, not an axis review.** After binding its public
+contract, launch the selected provider's **complete skill workflow** in a fresh
+context. That provider must launch its own independent readers. Both initial
+and targeted follow-up assessments retain this call chain:
 
-**Final handoff gate:** when a provider retains a local report, the assessment
-is not returned until step 5 renders it. Finish all judgment in step 4, then
-invoke the bundled renderer and return its complete stdout unchanged, including
-the final absolute report link. A blocked criterion still needs this handoff
-when a completed provider report exists. Early refusal before any provider
-result returns the concrete gap directly.
+```text
+Verification coordinator → fresh provider coordinator → independent reader(s)
+```
 
-The renderer's tool output is not the final response. Your final assistant
-message must contain that entire assessment, not an acknowledgement or recap.
-Never replace it with “the assessment above”, “see above”, or a short conclusion
-plus report path. Copy every rendered section and the last report link into
-the final message, even if the tool output is already visible in the conversation.
+A single child that inspects the candidate and writes a report cannot fill both
+provider and reader roles. Do not ask the provider coordinator to act as a Spec
+or Standards reader. Reading its instructions does not transfer its role here.
 
-**Provider gate comes first for an assessable request.** After the follow-up
-mode and required history are bound, and before inspecting the implementation,
-running checks or launching any agent, consider all host-advertised skills whose
-descriptions match independent code-review intent and read the matching public
-instructions. A provider can have any name: a skill described as independently
-assessing code against standards and acceptance is a candidate even when its
-name contains neither "code" nor "review". Never restrict discovery to a literal
-`code-review` name. Only after considering the advertised intent matches, if no
-compatible skill is available, return **blocked: required code-review capability unavailable** and
-stop this operation. A native `review-agent` role or generic agent tool does not
-satisfy this gate. Do not proceed by giving either one a review prompt. This is
-an unavailable dependency, even when the candidate looks correct and the host
-could run a fresh reviewer. Preserve the public instruction source for the
-compatibility check below; do not infer a provider contract from agent tooling.
-
-Loading a skill named `code-review` is not itself an independent assessment.
-Before accepting it, establish from its public instructions that this invocation
-uses fresh assessment contexts for standards and acceptance judgments. A command
-that asks you to review inline, reuse this conversation, or merely take several
-review angles in this context is incompatible. If freshness or either assessment
-responsibility is unspecified, return blocked with that compatibility gap.
-Do not upgrade such a provider by adding your own reviewers or by labeling your
-own file inspection as its independent result. This applies equally to built-in
-host commands and separately installed plugins; judge behavior, never identity.
-
-Return one candidate-bound verification assessment to the caller. Independent
-code review is required within this operation. The active owner chooses
-assurance, implements and repairs, owns the shared budget and continuation, and
-decides overall completion. This capability does none of those owner actions.
+Return one candidate-bound assessment through compatible independent review.
+The active owner selects assurance, implements, repairs, controls budgets and
+continuation, and decides completion. This capability performs none of those
+owner actions. Verification selects review here; review is not mandatory for
+every engineering task.
 
 ## 1. Bind the request
 
-Establish from the request and available authoritative sources:
+Establish from the request and authoritative sources:
 
-- repository and exact candidate scope, base and current content identity;
-- originating objective, every material acceptance criterion, and applicable
-  constraints (do not infer acceptance from the implementation);
-- required deterministic checks and successful current evidence, or explicit
-  justified inapplicability;
-- selected assessment intents and why each is required or optional; and
-- initial assessment versus targeted follow-up, preserving any supplied
-  provider results and evidence references.
+- repository, candidate content identity, scope and base;
+- originating objective, every material acceptance criterion and constraints;
+- required checks and current successful evidence, or justified inapplicability;
+- selected assessment intents and any supplied provider binding or results; and
+- initial assessment versus targeted follow-up.
 
-A caller's symbolic WORKTREE request can be pinned by the review provider; bind
-its returned content identity before using its findings. A caller's explicit
-identity must match the assessed content. An edit after assessment invalidates
-that evidence. Preserve source provenance and absolute local evidence paths.
-Compare identities according to their scheme and scope. A caller's file checksum
-and a provider's whole-scope fingerprint are different identifiers, not evidence
-of a mismatch. Establish their relationship using current observed common
-content and the provider's scope evidence. Report a mismatch only from conflicting
-observations of the same content; an unavailable relationship is an evidence gap.
-Do not treat an author's assertion of success as independently observed proof.
+A request to verify earlier fixes is **follow-up**, even if it also asks for a
+new full review or immediate clearance. Read the [closed handoff
+contract](references/follow-up.md) before assessment. Require original findings
+and target, original/prior/current history, attempted repairs and prior results.
+Missing history returns **blocked** with the specific gap. Preserve this mode;
+an initial review cannot establish historical fix status.
 
-For follow-up, read [the handoff contract](references/follow-up.md) before any
-assessment. Never replace missing repair history with a new comprehensive review.
+**Unsupported selection gate:** only independent review is supported here.
+If the caller explicitly requires QA or evidence packaging, name the unsupported
+requirement and return **blocked**; do not execute or waive it. With no completed
+provider result, stop here before provider discovery, backend probes or launches.
+With an already completed result, bind only the renderer as in step 2 and preserve
+that result through step 5; launch no new assessment. Identify assessments not
+performed. Unselected extras do not block review-only work.
 
-If a material input cannot be established, ask the smallest missing-input
-question or return blocked to an enclosing owner. Available sources may resolve
-ordinary omissions; do not invent an objective, waive a criterion, or silently
-drop an assessment. Do not run implementation or repairs to satisfy prerequisites.
+Available sources may resolve ordinary omissions. Ask for a material missing
+input or return blocked to the owner; do not invent acceptance, waive a criterion,
+drop an assessment, or implement prerequisites. Preserve source provenance and
+absolute evidence paths. An author's success claim is not independent proof.
 
-**Complete when:** the bounded request, criteria, checks, selection and mode are
-explicit, or the missing input is returned without claiming a successful gate.
+The provider may pin a symbolic WORKTREE request. Bind its returned identity
+before using findings; edits invalidate that evidence. Compare identities by
+scheme and scope: a file checksum and a whole-scope fingerprint differ without
+conflicting. Relate them through observed common content and scope evidence.
+An unsupported relationship is a gap; only conflicting observations of the
+same content establish a mismatch.
 
 ## 2. Bind compatible assessment
 
-Discover independent code-review intent from the current host's advertised
-skills. Read the candidate provider's complete public instructions. Use the
-caller's existing compatible binding when supplied; otherwise select by supported
-behavior and applicable repository/user constraints. Clarify a consequential
-unresolved provider choice. Never search another plugin's private files or use
-a familiar plugin name as proof of compatibility.
+For an assessable request, discover and read the complete public instructions
+of host-advertised independent-review capabilities **before implementation
+inspection, checks or agent launches**. Match advertised intent, including
+differently named providers; a literal `code-review` name proves nothing.
+Honor the caller's compatible binding and resolve a consequential open choice.
+Do not inspect sibling/private provider files or create another registry.
+If a hook-advertised skill path is unreadable, preserve its exact error and
+retry the **same capability's public catalog path**, expanding its documented
+skill-root alias. A denied hook path does not prove its catalog installation
+unavailable. Do not scan private storage or change access controls; if the
+advertised catalog path also fails, return that concrete gap.
 
-A native agent tool or built-in reviewer role is an execution mechanism, not
-by itself a compatible public code-review capability. Identify and read an
-independently advertised review capability's public instructions before any
-assessment launch. If none is available, return blocked immediately. Do not
-manufacture a provider by assigning a review task to a generic or host reviewer
-agent, even with fresh context and apparently sufficient findings afterward.
+Check compatibility for this mode:
 
-Check all four dimensions for this mode:
-
-| Dimension | Required behavior |
+| Dimension | Required public behavior |
 | --- | --- |
-| Prerequisites | Accepts this repository/candidate scope, originating acceptance and constraints; follow-up accepts original findings, repair history and current evidence |
-| Authorized effects | Independent assessment and applicable deterministic checks with fresh-context readers; no implementation, owner repair, publication or goal control |
-| Result evidence | Content identity, source-bound standards/spec findings or explicit gaps, blocking/advisory disposition, checks and evidence; follow-up provides original identities, attempts and direct regression lineage |
-| Stop conditions | Missing/stale/unavailable evidence cannot pass; follow-up stays closed, preserves advisory disposition and distinguishes clear, material progress, unchanged failure and unavailable judgment |
+| Prerequisites | Accepts the bound repository, candidate, acceptance, constraints and checks; follow-up accepts the closed history |
+| Effects | Fresh independent standards/acceptance judgments and applicable authorized checks; no implementation, owner repair, publication or goal control |
+| Evidence | Current content identity, source-bound findings or gaps, original blocking/advisory disposition, checks and complete results; follow-up preserves finding identities and direct-regression lineage |
+| Stops | Missing or stale evidence cannot pass; follow-up stays closed and distinguishes resolution, material progress, unchanged failure and unavailable judgment |
 
-Review owns its standards/spec judgments, check mechanics, fresh reader routing
-and fix-verification judgments. Invoke that actual capability through its public
-boundary; do not duplicate its internals, request a private serialization, create
-another registry, spawn substitute reviewers, or perform coordinator self-review.
-Its public result may be Markdown, another report form, or opaque referenced
-artifacts. Keep the provider's semantic guarantees and normal complete output.
+Fresh assessment contexts for standards and acceptance must be explicit in the
+provider contract, as applicable to the mode. Inline role switching, inherited
+conversation or several review angles in this thread are incompatible. A native
+reviewer role or generic agent tool is not an advertised review capability.
+Absent/incompatible required review returns blocked with the exact gap. Do not
+install a provider, invent its contract, substitute self-review, or manufacture
+compatibility by adding your own readers. A bare provider "pass" is insufficient.
 
-Compatible independent review is mandatory only because verification was
-selected. This does not make review mandatory for every engineering goal.
-Absent or incompatible required review returns blocked with the specific
-dimension and smallest needed action; do not install a provider or bypass its
-refusal. A provider that only says “pass” without current independent evidence
-is insufficient, even if its advertised description matches.
-
-QA execution and reviewer-facing evidence packaging are future separate
-capabilities. Their installation does not select them; absent unselected
-capabilities do not block review-only verification. This version supports
-independent review only. If an additional assessment or package is explicitly
-required, report that unsupported selection as blocked rather than executing
-it, dropping it or inventing its evidence. Existing review/check/repair evidence
-is still required and is not an optional presentation package.
-
-For a provider that retains reports, bind the renderer before launch. This
-plugin's package is at `<plugin-root>/backend`; the plugin root is two
-directories above this skill directory. On Codex, derive the skill directory
-from this loaded skill's absolute catalog path. On Claude, use
-`CLAUDE_SKILL_DIR`. Resolve `../../backend` once to an absolute path and check
-that `scripts/run_locked.py`, `pyproject.toml` and `uv.lock` are readable there.
-Keep that exact backend path for step 5. UV selects compatible Python; a
-separate system Python check is unnecessary. If a file is unavailable, report
-its authoritative absolute path and the observed diagnostic. Do not infer a
-missing package from a lookup relative to the repository or a guessed cache
-version, and do not substitute another installation.
-
-**Complete when:** a compatible provider is bound for the selected mode, with
-all selected requirements accounted for, or a concrete compatibility gap is
-returned to the owner.
+If the provider retains reports, bind **this plugin's renderer backend** before
+launch. Derive this skill directory from its loaded absolute catalog path on
+Codex, or `CLAUDE_SKILL_DIR` on Claude. Resolve `../../backend` once to an
+absolute path; require readable `scripts/run_locked.py`, `pyproject.toml` and
+`uv.lock`. Keep that path for step 5. UV selects Python; no separate system
+Python probe is needed. Failed lookups must name the authoritative path and
+actual diagnostic, not a guessed cache/repository path or another installation.
+This backend renders verification; provider review commands belong to the provider.
 
 ## 3. Obtain one complete assessment
 
-Pass the provider the bound repository, scope/candidate, originating objective
-and criteria, relevant constraints and check evidence. Include the closed
-handoff for follow-up. Keep assessment contexts fresh; provide necessary
-finding history and sources without author conclusions or unrelated discussion.
-Let the provider apply its own fresh-context mechanism and normal result rules.
+Invoke the actual bound capability in **one fresh provider context**, with a
+response boundary that returns its complete normal result here. Pass its public skill
+and intent, bound sources/candidate, objective/criteria, constraints, checks and
+closed follow-up handoff. Exclude author conclusions and unrelated discussion.
+The provider owns its independent readers, their routes, checks and judgments;
+ask it to execute that complete workflow, including its own reader delegation.
+Do not reproduce those internals or request private serialization.
 
-Invoke the selected provider in one fresh, bounded assessment context so its
-normal final response returns here. Use the host's native fresh-agent boundary
-(Codex: `fork_turns: "none"`; Claude Code: a new Agent, never resume). Give it
-the bound public skill and intent, repository/candidate, originating criteria,
-constraints, current checks and any closed follow-up handoff. Instruct it to
-invoke that actual capability and return its complete normal response. It is
-only the provider invocation, not another engineering owner; it cannot implement,
-repair, choose assurance, continue the goal or control a budget. It must let the
-provider create its own independent readers and apply its own public routing.
-Do not replace the provider with a generic review prompt in that context.
+- **Codex:** use the advertised native `spawn_agent` with `fork_turns: "none"`,
+  `model: "gpt-6-luna"`, `reasoning_effort: "medium"`, unless the caller bound
+  another compatible explicit coordinator route. This does not override the
+  provider's reader routes. Code Mode's nested tool list can omit top-level
+  agent tools; an empty search there does not establish native unavailability.
+- **Claude:** use this plugin's scoped Agent
+  `darrow-verification:review-coordinator-sonnet-5-5-medium`,
+  `run_in_background: false`, without a per-call model override. It pins
+  `claude-sonnet-5-5/medium`. Inspect only `CLAUDE_CODE_SUBAGENT_MODEL` and
+  `CLAUDE_CODE_EFFORT_LEVEL`; conflicting nonempty overrides block. Another
+  caller route needs an available explicitly pinned scoped Agent and the same
+  checks. Do not inherit silently or use another plugin's private Agent file.
 
-Pin the provider coordinator's route separately from this verification thread
-and implementation. On Codex, explicitly use `model: "gpt-6-luna"` and
-`reasoning_effort: "medium"`, unless the caller supplied another compatible
-explicit coordinator route. This does not override the review capability's
-independent-reader model or effort.
+If the required native boundary is unavailable, return its concrete invocation
+gap. Never substitute a generic review prompt or act as another engineering
+owner. Wait for every selected supported result before reconciliation or owner
+repairs. A provider's final response is input to step 4, not this operation's
+final response. Preserve findings, checks, repair evidence, risks, gaps and native
+outcome with provenance. Missing/incomplete results remain blocked evidence;
+they do not terminate or replace the owner.
 
-On Claude, use this plugin's
-`darrow-verification:review-coordinator-sonnet-5-5-medium` scoped Agent, with
-`run_in_background: false` and no per-call model override. Its frontmatter pins
-`claude-sonnet-5-5/medium`. Before launch, inspect only
-`CLAUDE_CODE_SUBAGENT_MODEL` and `CLAUDE_CODE_EFFORT_LEVEL`; unset values are fine,
-but a conflicting nonempty override blocks that route. If a caller requests
-another route, require an available scoped Agent that explicitly pins it and
-check those same overrides. Never silently inherit a different route or rely
-on another plugin's private agent file. If the required native Agent is
-unavailable, return that invocation gap. The provider still creates and routes
-its own independent readers.
+A provider promising a retained report must expose its absolute path through
+its public result. Missing that path is an incomplete handoff, even with a full
+inline rendering. Do not search storage, infer filenames or relabel it inline-only.
 
-Do not load the provider as an inline role switch in this coordinator: its final
-response would end the current turn before reconciliation. If the host cannot
-return a bounded provider response, return blocked with that invocation gap.
-Wait for the complete response, then resume verification at step 4 and finish
-step 5. A provider's clear or blocked report is assessment input, never this
-capability's final response by itself. Preserve its complete findings,
-tests/checks, repair evidence, evidence gaps, risks and native outcome with
-provenance.
-
-If the provider's public instructions say it retains a local report, require
-its normal result to expose that report's absolute path. A complete inline
-rendering without the promised path is an incomplete handoff: return blocked
-with that specific gap. Do not search the provider's storage, infer a filename,
-or relabel a known retained report as inline-only evidence. Pass a supplied
-report path to step 5 for validation and the final handoff.
-
-Every selected supported assessment must return before the combined result can
-be used for owner repairs. Missing or incomplete results remain evidence gaps;
-never report early clearance or repair while another required result is pending.
-If evidence is unavailable, return the refusal and next needed evidence to the
-same owner. Do not retry in a loop or ask a new comprehensive review to reset
-history. A blocked suboperation does not replace or terminate the active owner.
-
-When a concrete assessment error or new available evidence justifies correction,
-request one bounded correction through the provider's public contract. Preserve
-the completed previous result and complete finding/target history; obtain fresh
-judgment at the same candidate and explain why the new result supersedes the
-earlier conclusion. Follow the correction rules in `references/follow-up.md`.
-This neither authorizes implementation nor spends or resets a repair attempt.
-
-Before accepting a provider's diagnosis of an unavailable helper or broken
-command, compare its attempted command, arguments and paths with the loaded
-public instructions and inspect the actual diagnostic. A misspelled command
-or altered argument is an invocation error. Request a bounded correction
-through that same provider and preserve the prior result; do not repair its
-artifacts, invent another command, or retry an unchanged refusal. If the cause
-cannot be established, report the observed failure and unverified cause.
-
-**Complete when:** each selected supported assessment has one complete result
-for the current candidate, or its explicit unavailable/incomplete status.
+For a demonstrated invocation error or concrete new evidence, request one bounded
+correction through the same provider's public contract. Compare attempted
+arguments/paths with its instructions and actual diagnostic before accepting a
+broken-installation claim. Preserve the completed prior result and all history;
+obtain fresh judgment at the same candidate and explain supersession. Read the
+correction rules in [the handoff contract](references/follow-up.md). Do not edit
+provider artifacts, retry unchanged refusals, restart comprehensive review or
+spend/reset an owner repair attempt. Unverified causes stay unverified.
 
 ## 4. Reconcile and return
 
-Account for every material criterion individually: identify its source, current
-supporting provider/check evidence, supported failure, or unsupported/unavailable
-evidence. A provider pass does not establish an unassessed criterion. Cross-check
-the exact command and current successful result of each required check. When a
-command runs a repository script, read that script on the bound candidate as
-code evidence to determine its assertions; its exit status or name alone does
-not establish coverage. A current passing check that asserts a criterion's
-required value can support that criterion even if the provider report does not
-restate it; a shape-only check cannot. Cross-check
-the provider's target against the request and current evidence. Preserve honest
-limits when identity or evidence cannot be established. Do not invent a product
-finding to fill a coverage gap or weaken a provider's failure into an advisory.
+Bind the provider's target to the request and current content. Account for every
+criterion using its source and current independent/check evidence, a supported
+failure, or an explicit evidence gap. Read a required check's current script to
+establish its assertions and confirm its exact command/result. A passing check
+supports only what it asserts: shape checks do not prove required values, while
+a current value assertion may support a criterion the provider did not restate.
+Do not invent findings to fill gaps or weaken provider blockers into advisories.
 
-Return a concise semantic report containing:
-
-- the conclusion and smallest targeted next evidence/action needed from the
-  owner, with no overall-completion or publication claim;
-- repository, assessed candidate/base/scope, objective and mode;
-- selected provider/intents and compatibility basis, plus unselected optional
-  or unavailable required assessments;
-- the complete provider result (include it, or supply a readable absolute local
-  artifact reference and preserve its native outcome, findings, checks and gaps
-  in the handoff); never replace retained evidence with a bare “review passed”;
-- criterion-by-criterion evidence and supported/failed/unsupported/unavailable
-  status;
-- combined findings with original provenance, identities and disposition,
-  follow-up states and direct-regression causes where applicable; and
-- limitations.
-
-Put the conclusion and next action first. Use familiar words, active voice,
-and short sections. Explain a necessary term once. Do not repeat the conclusion
-or narrate the verification process. Progressive disclosure must not remove a
-criterion, provider outcome, finding, limitation, content identity, check, or
-evidence reference.
-
-Keep the assessment compact:
-
-- identify scope, candidate, objective, mode, and provider compatibility once;
-- combine criterion, check, finding, and disposition evidence in one compact
-  table or list instead of restating it in separate narrative sections;
-- summarize the provider outcome once without reproducing its investigation
-  narrative; and
-- state only evidence limitations that affect the conclusion or next action.
-
-When the provider retains a complete report, always include its readable absolute
-artifact reference in the returned result. When it returns only inline evidence,
-include that complete result. A summary of the verdict and selected findings is
-not a substitute for either form of complete provider evidence. Check this handoff
-before returning so the caller can actually retrieve the retained report.
-
-Use these outward meanings, preserving the provider's original wording too:
-
-State exactly one outward conclusion explicitly: clear, progress, no-progress or
-blocked. Keep the provider's native pass/fail outcome separately labeled. Do not
-invent a hybrid conclusion such as “no-progress-eligible failure”: an initial
-actionable blocker is progress, whereas no-progress is a follow-up stop judgment.
+State exactly one conclusion and preserve the provider's native outcome separately:
 
 | Conclusion | Meaning |
 | --- | --- |
-| clear | Every material criterion has sufficient current evidence; required checks pass; no eligible blocker or direct regression remains; advisory-only remainder is nonblocking |
-| progress | Initial assessment has actionable evidenced blockers (not a claim of repair progress); follow-up has provider-observed material improvement or a new direct repair-caused regression eligible for owner repair |
-| no-progress | Follow-up failure is unchanged, repeated or oscillating; fresh assessment does not support another repair attempt |
-| blocked | Required input, compatible provider, current check, selected result, criterion coverage or conclusive evidence is missing/unavailable; no honest clearance is possible |
+| clear | Every material criterion has current evidence, required checks pass, and no eligible blocker/direct regression remains; advisories are nonblocking |
+| progress | Initial actionable evidenced defects; or follow-up material improvement/new direct repair-caused regression eligible for owner consideration |
+| no-progress | Follow-up failure is unchanged, repeated or oscillating; another assessment alone provides no repair eligibility |
+| blocked | Required input, provider, check, result, criterion coverage or conclusive evidence is missing/unavailable |
 
-For mixed results, an evidence gap takes precedence over no-progress, then
-progress; clear requires all required evidence. A provider's follow-up
-“continue” meaning material improvement maps to progress without directing
-continuation. Its pass/clear must still satisfy the complete acceptance/check
-coverage gate. Failed current required checks prevent clear; preserve any
-supported blocker while reporting insufficient successful check evidence.
+Evidence gaps take precedence, then no-progress, then progress. Missing staging
+or deployment observation is blocked even if the provider calls it a failed
+criterion. Failed required checks prevent clear; retain any evidenced blocker
+while reporting insufficient successful-check evidence. A provider's "continue"
+meaning improvement maps to progress without authorizing continuation.
 
-For no-progress, return the unchanged evidence and why another repair is not
-supported; do not prescribe another implementation attempt as the next executable
-step. For blocked, identify the missing evidence or decision. The owner retains
-authorized investigation and feedback handling; neither result silently resets
-its repair budget. Only an initial actionable or materially progressing result
-can identify a potential repair for the owner to consider within its authority.
+Draft a compact assessment with:
 
-After reconciliation, proceed to step 5 for the final handoff. Clear ends assessment; it is no
-new authority. An owner may request targeted follow-up after authorized repairs
-under its existing shared budget (default maximum two owner repair attempts,
-finite explicit overrides, strictest remaining limits). Verification neither
-spends an extra repair attempt itself nor resets the owner's budget. Unavailable,
-inconclusive, no-progress or exhausted evidence cannot clear the engineering goal.
+1. Conclusion and smallest next evidence/action first. **No-progress returns its
+   stop reason/investigation need, never another repair recipe or conditional
+   edit-and-reverify advice.** Clear ends this assessment without new authority.
+2. Repository, base/scope/content identity, objective, mode and provider/intents
+   with compatibility basis, stated once. Account for required/unselected extras.
+3. One compact criterion/finding/check table: provenance, observed evidence,
+   supported/failed/unavailable state and blocking/advisory disposition. Follow-up
+   must visibly preserve every original finding/regression identity, original
+   axis/disposition, current state and direct causing-original identity as the
+   handoff contract requires; a report link alone does not preserve those states.
+4. Provider native outcome and complete evidence, plus limitations affecting the
+   conclusion or next action. With retained evidence, use step 5's final report
+   reference. For inline-only providers, include their complete normal result.
 
-**Complete when:** the assessment draft binds current content, preserves every
-selected result and material criterion, and states an evidence-backed conclusion.
-Proceed to the handoff below without implementation, another repair controller
-or a lifecycle ledger.
+Combine evidence instead of repeating conclusions or narrating the process.
+Concision must preserve every material criterion, finding, check, identity, gap
+and evidence reference. Keep all supported required assessments together before
+returning eligible blockers. The owner alone implements, repairs and chooses
+continuation under its shared limits (default maximum two repair attempts, finite
+explicit overrides, strictest remaining limits). Do not allocate/count its
+remaining allowance, create a lifecycle ledger or claim overall completion.
 
 ## 5. Render a retained-report handoff
 
-When the selected provider returned a retained local report, use the packaged
-[assessment renderer](../../backend/src/darrow_verification/assessment.py) for the final handoff. It owns
-absolute-reference validation and rendering; do not reproduce its output by
-hand. It does not interpret the provider's format or decide findings.
+When a provider retained a report, finish semantic judgment first and use the
+existing renderer for the final handoff, including blocked assessments with a
+completed provider report. Early refusal without a provider result returns its
+concrete gap directly. A genuinely inline-only provider needs no invented artifact.
 
-First finish the semantic assessment above. Obtain a unique temporary draft
-file outside the product scope with the host's native temporary-file facility
-(`mktemp` in a POSIX shell or `[System.IO.Path]::GetTempFileName()` in
-PowerShell), then write that assessment using the host's file-writing tool.
-This temporary draft is assessment output, not an implementation edit or a
-required evidence package. Reuse the absolute backend path bound in step 2.
+Create a unique temporary draft **outside product scope** (`mktemp`, or
+`[System.IO.Path]::GetTempFileName()` in PowerShell). Write and read back the whole
+step 4 assessment. Reserve the report link and `Complete provider result` label
+for the renderer; exclude both from the draft.
 
-Take the report's absolute filesystem path from the provider's public result.
-For a Markdown link, remove its `(<` and `>)` delimiters and decode any escaped
-destination characters; do not include Markdown syntax in the renderer argument
-or reconstruct the path from the review state directory. Confirm that the
-resulting path names a readable, nonempty regular file
-before rendering. If it does not, return blocked with that handoff gap; do not
-substitute a different report path.
-
-Then run:
+Take the plain absolute report path from the provider result. Decode Markdown
+destination escapes and remove link delimiters; do not pass Markdown syntax or
+reconstruct a path from provider storage. Reuse the backend bound in step 2:
 
 ```text
 uv run --quiet --no-project "<absolute-backend-path>/scripts/run_locked.py" --isolated darrow-render-assessment --assessment "<absolute-draft-file>" --provider-report "<absolute-provider-report>"
 ```
 
-Substitute the actual paths and invoke this frozen entrypoint directly; do not
-look for or create a host-specific launcher. Resolve the backend from this
-installed skill, never the user's repository or another plugin. On success,
-copy the command's complete stdout unchanged as the final response. Do not
-shorten, rewrite or append to it: the renderer's absolute provider reference is
-part of the result. Complete semantic checks before this final command so no
-later tool or commentary displaces its output.
+The frozen helper validates readable, nonempty regular inputs and the absolute
+report reference, then preserves assessment bytes. It neither interprets provider
+formats nor decides findings. Do not create a launcher or reproduce its rendering.
+Correct a demonstrated wrong-path invocation before diagnosing installation;
+preserve its diagnostic. A correctly invoked refusal is a blocked handoff with
+the precise gap, not permission to substitute another report or repair its files.
 
-When a retained report exists, reserve its artifact link for the renderer's
-final line. Do not put that link or another `Complete provider result` label in
-the assessment draft. The draft summarizes the provider outcome once; the final
-link supplies the complete evidence by reference.
+On success, return **the complete stdout unchanged as the entire final assistant
+message**, including its assessment and final line:
 
-The final nonempty line must remain the renderer's angle-delimited Markdown
-link: the literal prefix `Complete provider result: [report]` immediately
-followed by `(<absolute-path>)`. A rewritten destination without the surrounding
-angle delimiters is not the renderer's exact stdout and does not complete this
-handoff.
+```text
+Complete provider result: [report](<absolute-path>)
+```
 
-That exact link is necessary but not sufficient. Before invocation, read the
-temporary draft back and confirm it contains the complete step 4 assessment,
-including the criterion-by-criterion evidence and conclusion. After invocation,
-return the assessment prefix and final link together as the renderer emitted
-them. A response containing only the link, only a conclusion, or a summary of
-the draft is an incomplete handoff.
-
-A failed lookup at another path is not a renderer refusal. Compare the attempted
-path with the path bound in step 2 and correct a demonstrated invocation error
-before diagnosing the installation. Preserve the failed attempt and diagnostic.
-A refusal from the correctly invoked renderer is a blocked handoff. Return the precise missing/unreadable
-evidence gap rather than a partial rendering or a passing summary. Do not
-repair the provider's report or run an assessment retry loop. If the provider
-returned only inline evidence, retain that complete result and its references
-in the semantic response without inventing a local artifact. No storage or
-retention policy is added.
-
-**Complete when:** the caller receives the complete authored assessment and
-usable complete provider evidence, or the concrete blocked handoff.
+Tool output is not the final response. Do not summarize, rewrite, acknowledge,
+append to it, or return only its link. Finish all checks before rendering so no
+later tool or commentary displaces the complete assessment and canonical link.

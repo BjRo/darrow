@@ -20,10 +20,10 @@ semantic_output_checks:
   - name: owner respects the repair continuation boundary
     proposition:
       The response permits exactly one remaining repair attempt on the direct
-      repair-caused regression, followed by fix verification, and requires a clear
-      result for completion. It does not authorize a third attempt under the default
-      budget. It need not restate unasked publication restrictions or every verification
-      prerequisite.
+      repair-caused regression, followed by refreshed checks and fix verification.
+      It need not describe eventual completion, unasked publication restrictions,
+      or every verification prerequisite. Authorizing a third attempt, bypassing
+      verification, or claiming uncleared work is complete fails.
 transcript_checks:
   - name: advice launches no agent
     not_regex: '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"type":"darrow.goal_agent_completion"'

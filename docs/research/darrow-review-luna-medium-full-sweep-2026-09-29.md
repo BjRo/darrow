@@ -66,12 +66,12 @@ No recorded failure identifies missing legacy guidance as its cause. The modern 
 | [code-review-neither-axis](../../plugins/capability/darrow-review/skills/code-review/evals/neither-axis.yaml)                                                         |  5/5 |                    5/5 |
 | [code-review-no-trigger-after-edit](../../plugins/capability/darrow-review/skills/code-review/evals/no-trigger-after-edit.yaml)                                       |  5/5 |                    5/5 |
 | [code-review-no-trigger-implementation](../../plugins/capability/darrow-review/skills/code-review/evals/no-trigger-implementation.yaml)                               |  5/5 |                    5/5 |
-| [code-review-presentation-blocked](../../plugins/capability/darrow-review/skills/code-review/evals/presentation-blocked.yaml)                                         |  5/5 |                    5/5 |
+| [code-review-presentation-blocked][presentation-blocked-historical]                                                                                                   |  5/5 |                    5/5 |
 | [code-review-presentation-default](../../plugins/capability/darrow-review/skills/code-review/evals/presentation-default.yaml)                                         |  5/5 |                    5/5 |
 | [code-review-presentation-machine-v1](../../plugins/capability/darrow-review/skills/code-review/evals/presentation-machine-v1.yaml)                                   |  4/5 |                    4/5 |
 | [code-review-pull-request](../../plugins/capability/darrow-review/skills/code-review/evals/pull-request.yaml)                                                         |  5/5 |                    5/5 |
 | [code-review-read-only-adversarial](../../plugins/capability/darrow-review/skills/code-review/evals/read-only-adversarial.yaml)                                       |  5/5 |                    5/5 |
-| [code-review-repair-guidance](../../plugins/capability/darrow-review/skills/code-review/evals/repair-guidance.yaml)                                                   |  5/5 |                    5/5 |
+| [code-review-repair-guidance][repair-guidance-historical]                                                                                                             |  5/5 |                    5/5 |
 | [code-review-reviewer-route-override](../../plugins/capability/darrow-review/skills/code-review/evals/reviewer-route-override.yaml)                                   |  4/5 |                    5/5 |
 | [code-review-reviewer-route-unavailable](../../plugins/capability/darrow-review/skills/code-review/evals/reviewer-route-unavailable.yaml)                             |  5/5 |                    5/5 |
 | [code-review-spec-only](../../plugins/capability/darrow-review/skills/code-review/evals/spec-only.yaml)                                                               |  3/5 |                    5/5 |
@@ -84,3 +84,6 @@ No recorded failure identifies missing legacy guidance as its cause. The modern 
 The detailed local overview (`evals/results/review-full-sweep-2026-09-29/overview.md`) retains every failed trial's assessment and recommendation. Raw results (`evals/results/review-full-sweep-2026-09-29/all-cases.json`), protocol (`evals/results/review-full-sweep-2026-09-29/protocol.json`), summary (`evals/results/review-full-sweep-2026-09-29/summary.json`), and individual assessments (`evals/results/review-full-sweep-2026-09-29/failure-assessments.json`) are local gitignored artifacts. Snapshot hashes and case hashes were verified unchanged.
 
 The optional report observer retains hashes and length facts only and began after the first copy failure. Private launch bodies and exact higher-priority policy text were not retained. Those limits leave the reported launch-message mismatch, truncation origin and delegation prohibition partly unresolved. This is a Codex measurement of the current cases; five trials do not guarantee future stability.
+
+[presentation-blocked-historical]: https://github.com/BjRo/darrow/blob/c09b022d9fa901c3717d1c7b1898b446e2152670/plugins/capability/darrow-review/skills/code-review/evals/presentation-blocked.yaml
+[repair-guidance-historical]: https://github.com/BjRo/darrow/blob/c09b022d9fa901c3717d1c7b1898b446e2152670/plugins/capability/darrow-review/skills/code-review/evals/repair-guidance.yaml

@@ -2,6 +2,7 @@ id: read-ticket-implicit-incomplete-reference
 invariant: TM-R1,TM-R2
 activation: positive
 mount_plugin_skills: true
+required_plugin_hook: darrow-tickets
 prompt: "Show me the ticket."
 fixture:
   commits:
@@ -11,7 +12,7 @@ fixture:
   bin:
     gh: |
       #!/bin/sh
-      d="$(git rev-parse --git-dir)/fixture-gh"
+      d="$(git rev-parse --show-toplevel)/.fixture-state/gh"
       mkdir -p "$d"
       echo "$*" >> "$d/calls"
       echo "mock gh: tracker must not be contacted" >&2
@@ -25,7 +26,7 @@ checks:
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
   - name: incomplete request does not contact the tracker
-    run: test ! -f .git/fixture-gh/calls
+    run: test ! -f .fixture-state/gh/calls
   - name: repository topic is not guessed as the ticket
     run: cat .git/last-message.md
     not_regex: "Unrelated project"

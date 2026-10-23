@@ -16,7 +16,10 @@ capability to allocate an additional linked worktree.
   its skill before repository inspection or a terminal response. Missing input,
   a clean tree, conflicts, and hook failures remain within the owning skill's
   scope. General inspection and unrelated comments do not select a mutation
-  skill. Claude receives a plugin-local SessionStart routing reminder through
+  skill. Creating a branch from a work or ticket description stays with
+  `create-branch` while asking for a missing provider token; missing input does
+  not turn that request into exact task-branch preparation.
+  Claude receives a plugin-local SessionStart routing reminder through
   its native context hook. The hook supplies static context only: no provider
   calls, prompt classification, workflow execution, state, or authority grants.
   Native skill discovery and the selected skill retain contextual decisions;
@@ -29,6 +32,10 @@ capability to allocate an additional linked worktree.
   entrypoints and no runtime dependency on another plugin. Git and GitHub CLI
   remain the provider boundaries. Frozen UV console commands are the runtime
   interface on every platform; legacy shell-script paths are not retained.
+  Resolve a bundled launcher from the directory containing the skill file
+  actually read, retaining its final skill-name segment. Correct a guessed
+  namespace or parent-directory substitution before declaring the runtime
+  unavailable.
   Command arguments, stable records, refusal statuses, and mutation safeguards
   remain intact. Internal refactoring preserves argument consumption order,
   repeated-option behavior, diagnostic text, and stdout/stderr routing as well
@@ -131,7 +138,10 @@ new linked worktree instead and the current checkout stays where it is.
   the slug begins with that exact token and contains it exactly once (e.g.
   `feat/DAR-123-retry-logic`, `fix/issue-64-preserve-identifiers`). Generic Git
   neither maps nor normalizes provider tokens; a ticket-linked request without
-  the token asks one smallest question and performs no Git mutation. Segments
+  the token asks one smallest question and performs no Git mutation. Equivalent
+  wording that requests the provider's identifier is valid; no prescribed
+  clarification phrase is required. Work that
+  is not linked to a ticket needs no provider token. Segments
   lowercase except opaque ticket-token segments.
 - **GW-B2 — No work lost.** Uncommitted changes are never stashed, reset,
   discarded, or committed to make the operation work. Switching in place
@@ -194,6 +204,9 @@ while leaving the caller's checkout untouched.
   `reused`, or `created` (with a `worktree-` prefix when applicable) plus the
   exact branch, base or fully qualified existing branch tip, and worktree path
   when applicable.
+  The user-facing report may paraphrase script labels and use code formatting
+  while preserving the outcome, exact branch, and base or existing tip; it
+  need not copy the script's line prefixes.
 - **GW-TB3 — No work lost.** Uncommitted changes are never stashed, reset,
   discarded, or committed. A refused switch relays Git's failure and leaves the
   original branch, refs, worktree, index, and stash intact. A failed worktree
@@ -275,6 +288,12 @@ verified publication.
   what it does, derived from the branch commits; a known ticket id is
   referenced verbatim. No filler; no boilerplate checklists unless the
   repo's PR template asks for them (GW-P8).
+  Motivation and solution may share one paragraph. Assess their meaning in the
+  branch's context without requiring separate paragraphs, headings, or fixed
+  vocabulary.
+  Read the body as a whole: rationale and solution may share information
+  without repeating terms. A high-level change summary is sufficient; a full
+  runtime specification is not required.
 - **GW-P3 — No AI attribution.** No "Generated with ..." lines, no AI
   co-author credits, no tool emoji in title or body.
 - **GW-P4 — Deliberate shape.** Base is the repo's default branch unless the
@@ -300,13 +319,20 @@ verified publication.
   the body follows it: headings kept verbatim, every section filled with
   real content from the branch, instructions in HTML comments followed and
   the comments removed. The template defines the body's shape and overrides
-  the default why/what structure. With multiple templates
+  the default why/what structure. A single automatically detected template
+  needs no `--template` selector; its reported path identifies the file to
+  read, not a selector argument. With multiple templates
   (`.github/PULL_REQUEST_TEMPLATE/`), the user either names an exact template
   or explicitly delegates the choice. A request merely to open a PR does not
   delegate it. When delegated, choose from the branch's change and report the
   selected filename and reason. If no template fits the change, ask the user.
   Without a named template or delegation, ask before pushing or creating a PR;
   never silently pick one.
+  Assess the choice reason and section content by meaning in the branch's
+  context. A reason may identify the problem or correction without repeating
+  every issue qualifier. Describing added branch test coverage does not require the word
+  "committed" or a stock verification disclaimer. The chosen filename and a
+  branch-related reason remain required when selection was delegated.
 - **GW-P9 — Verified publication.** An authorized reuse requires the intended
   full commit ID and verifies exactly one open same-repository PR with the
   expected head, base and draft state before pushing. Push only that commit to

@@ -62,6 +62,33 @@ yet fail to activate for intended wording, activate for adjacent intent, or
 lose to a neighboring capability. Activation evidence must therefore remain
 distinct from task outcomes and skill-value ablation.
 
+On Sevro rc.15, implicit activation uses the unique complete
+`sevro.host.skill-activations` observation. Codex's `tool_result_body_match`
+reports exposure of prepared skill bodies; Claude's `skill_tool_result` reports
+successful Skill calls. Preserve qualified identities while matching the mounted
+skill names. Partial, duplicate, malformed, truncated, or ambiguous collection
+stays unavailable, including for negative cases. A current common observation
+must never fall back to retired read or transcript evidence. Explicit dispatch
+remains sufficient for the invoked owner; supporting inclusion, exclusion, and
+order require the separate complete activation collection.
+
+On Sevro rc.20, a unique complete Codex
+`sevro.host.skill-activation-claims` receipt may separately establish primary
+selection and positively observed supporting skills while its paired common
+collection remains partial. Cite that complete receipt, preserve the collection's
+partial status and public diagnostics, and normalize only mounted namespaces.
+For this rc.20 claim, the paired collection must explicitly name exactly the
+`pending_tool_calls` gap. Missing or malformed reasons, or any other gap,
+contradict established primary selection and make the claim unavailable.
+Use it for implicit positive or competition first-selection assertions and
+established positive membership only. Explicit dispatch and its supporting
+assertions retain their existing evidence requirements. Missing membership remains unknown; this receipt
+cannot prove negative activation, exclusions, or a supporting sequence. Missing,
+duplicate, foreign, malformed, or contradictory receipts remain unavailable.
+Honor an explicitly unknown primary even when the whole collection is complete;
+catalog order is not selection order. Older observations without the new claims
+retain their original interpretation and are never upgraded from native logs.
+
 ## Public contract
 
 ### Repository-owned model routes
@@ -69,13 +96,42 @@ distinct from task outcomes and skill-value ablation.
 Darrow owns its candidate, semantic-grader, and advisory-grader model and
 effort defaults in the evaluation extension. Repository callers use that
 policy without importing generic runner types or implementation. Moving the
-policy does not change the configured defaults or explicit route overrides.
+policy preserves explicit route overrides. Codex candidates default to
+`gpt-6-luna/medium`; the gating semantic grader defaults to Codex
+`gpt-6-luna/high` across direct, suite, benchmark, and repository-guide callers.
 
 ### Repository-owned fixture sources
+
+Synthetic independent-review providers preserve the selected verification
+contract's coordinator/reader boundary. Their coordinator launches fresh
+Standards and Acceptance readers on the declared routes. Reader observations
+must not advance the closed assessment history or overwrite canonical reports.
+Only reconciliation records one assessment, bound to the readers' current
+candidate; stale, missing or conflicting reader results cannot clear it.
+A synthetic provider exposes its configured subject's byte-exact snapshot and
+blob identity when needed to ground acceptance beyond its programmed finding.
+Reader observations remain read-only; changed subjects cannot receive clearance.
+Semantic grading context must not add deliverables absent from the authoritative
+participant input.
+Reporting all required steps as successfully finished can establish completion;
+do not require a separate completion phrase or blocker-free declaration.
+Accept reports of completed observable effects without command-by-command narration.
+Keep completion reporting separate from executable content and identity assertions.
+Supply synthetic fixture facts to semantic graders; a declared mock URL is not
+evidence of a failed workflow.
+Cases expecting candidate test execution must explicitly authorize that check in
+the participant prompt; fixture guidance cannot supply user authority.
 
 The regular case-resolution test includes canonical repository-skill,
 plugin-skill, and skill-less experiment cases. Unsupported cases remain named
 failures; omitting a scope cannot produce a valid result.
+
+Fixture command providers preserve the read-only behavior of help queries.
+A help request must not create publication state or emit a publication success
+receipt. Test both help and an actual mutation when repairing this boundary.
+Publication-absence checks use unconditional action state, not a file written
+only when an optional title or body argument is supplied. A title-free creation
+must not pass an absence check.
 
 Implicit repository-skill cases retain their repository scope. On Codex, prepare
 the owning skill under `.agents/skills/` without a plugin wrapper, exclude eval
@@ -100,6 +156,37 @@ name uniqueness and activation membership over the combined set. An ordered
 activation sequence can use these explicit providers without mounting plugin
 siblings. Apply the shared artifact count and byte bounds across all mounts.
 
+Plugin mounts retain an existing package-root `README.md` at that same relative
+location so bundled skill links resolve in project-skill and native-plugin
+installations. The README must be a regular file, remains Git-excluded, and
+counts toward the shared artifact bounds. This does not expose colocated evals
+or hidden checks; a missing optional README does not invalidate another package.
+
+A completed candidate trial with one definitive `darrow.evals.activation`
+outcome retains that activation measurement when an unrelated task grader is
+unavailable. Task grading remains unavailable. Failed or incomplete execution,
+grading errors, missing or ambiguous activation outcomes, and incomplete
+activation observations remain unmeasured; no unknown trial enters a pass rate.
+
+Inline fixture repository skills under `.agents/skills/<name>/SKILL.md` or
+`.claude/skills/<name>/SKILL.md` are supporting mounts, not ordinary product
+files. Bind their bytes at resolution, mount only the selected host's entrypoint
+as a Git-excluded public artifact, and include it in activation membership.
+Reject changed source bytes, duplicate mounted names, and a missing host mirror.
+An unmounted control omits these supporting skills as well as the owning skill.
+
+Feedback fixtures distinguish mutable receipts from product state. A visible
+workspace fingerprint includes receipts and cannot prove that product files
+changed. Bind an immutable Git-state baseline during setup and require the
+feedback fixture to compare product state before discovery and acknowledgement.
+Grade the actual same-thread continuation separately from that state evidence.
+
+Negative CLI checks inspect command records rather than captured command output.
+Reading a skill body that names a diagnostic is not a diagnostic invocation.
+Missing, malformed, or incomplete command evidence remains unavailable.
+Terminal Review checks use bound native control labels for reviewer absence.
+A missing retired harness file cannot establish that no reviewer launched.
+
 Repository guide fixtures exercise implementation-derived explanations against
 Darrow-owned evaluation code, such as its Sevro extension. Their snapshots must
 not copy generic runner implementation. Keep the question, source inventory,
@@ -118,15 +205,57 @@ Agent-launch or goal-mutation attempts fail it even when no agent was accepted.
 Missing, duplicate, partial, malformed, foreign, or contradictory records remain
 unavailable. Submitted Codex code that has not been inspected cannot establish
 control absence. Claude's unknown acceptance count cannot establish acceptance.
+All native control absence assertions, including inactive-skill and doctor
+checks, require inspected submitted-code evidence. Direct session capture alone
+cannot prove absence. Direct acceptance and routing receipts remain distinct.
+Complete Code Mode receipts must match every direct exec ordinal and submission
+count. Inspect their ordered submitted labels for prohibited attempts independently
+of direct agent acceptance; malformed or incomplete receipts remain unavailable.
+For after-continuation absence checks, validate all receipt bindings and inspect
+every submission after the native boundary. A partial earlier submission does
+not by itself invalidate complete evidence for the later interval. Submitted
+labels cannot substitute for correlated owner acceptance.
+
+Explicit Codex owner dispatch can establish owner activation independently of
+supporting reads. Composition order, supporting-skill inclusion, and exclusions
+also require unique complete skill-read evidence consistent with the dispatch.
+Partial supporting reads cannot establish those assertions.
+
+Host-state cases explicitly opt into Sevro's `codexState` runtime interface.
+Grade user-skill absence across all four original candidate-bound skill roots,
+excluding only the native CODEX_HOME/skills/.system directory. Missing bindings
+remain unavailable. Diagnose the actual isolated config, not fixture config.
+Local HTTP corpus cases explicitly select `network.localHttp`; keep their
+original socket tests and assertions.
 
 A setup-only generated fixture starts with an empty Git history. Its setup may
 create the initial snapshot; no placeholder commit may be synthesized before
 that setup runs.
 
-The Darrow extension prepares `.git/fixture-state` before running a case's
-fixture setup or tools. Existing fixture protocols and acceptance oracles may
-write there without creating the directory themselves. This repository-owned
-state convention belongs in extension preparation, not the generic engine.
+The Darrow extension prepares `.fixture-state/` and excludes it from Git before
+running a case's fixture setup or tools. Candidate-run fixture tools write their
+receipts, mutable mock state, and test traces there. They do not require writes
+inside `.git`. Sevro permits legitimate writes to the isolated trial's Git
+metadata while protecting hidden grading assets. Git metadata, immutable setup inputs, and
+hidden grading assets remain separate; hidden oracles stay in `.git/eval-checks/`.
+Cases that assert an unchanged whole-workspace fingerprint at a feedback boundary
+keep mutable fixture receipts in a declared private runtime home subtree instead.
+Their explicit runtime profile grants graders read-only access to those original
+files. Source-preservation and exact acknowledgement checks remain required;
+receipts must not be reconstructed or copied into substitute grading artifacts.
+This repository-owned state convention belongs in extension preparation, not
+the generic engine.
+Fixture setup receives `DARROW_EVAL_MOUNT_EXCLUDES`, a JSON array of the exact
+relative paths declared with `gitExclude` in that case's prepared artifacts.
+Ignore-configuration baselines must account for those later mount additions
+while preserving the original user configuration and rejecting undeclared,
+missing, or repeated rules. Bind the expected paths from preparation metadata,
+not from candidate-written files or a broad mount-directory exemption.
+Dependencies required after setup must survive destruction of the temporary
+setup home. Go corpus cases place module, build, and workspace caches in this
+excluded state and use the same declared Go launcher during setup, candidate
+execution, and grading. They must not depend on a cache in the discarded setup
+home or require candidate writes to Git metadata.
 Canonical Darrow fixture setup resolves ambient tools before declared fixture
 wrappers. A setup command that records system Git must not bind its own Git
 wrapper and recurse. Declared fixture tools remain first on `PATH` for candidate
@@ -190,6 +319,22 @@ are excluded. `--plugin` and `--skill` intersect when both are supplied, and
 repeatable `--case` filters narrow the result to IDs matching any substring.
 Without either ownership filter, existing case selection is unchanged. An empty
 selection fails with `No cases matched.`
+
+A case may declare `harnesses`, a nonempty list of unique supported host names.
+Filtered and ownership selection omits a case whose declaration excludes the
+requested candidate host; an empty result after that omission still fails with
+`No cases matched.` Exact `--case-id` keeps refusing an excluded host before
+execution.
+
+A case may declare `candidate_routes`, mapping supported host names to a
+complete `{model, effort}` parent candidate route. Filtered and ownership
+selection applies it as that case's default route on the matching host, so a
+default skill or plugin run executes the case on its required route. An explicit
+`--case-routes` entry for the case takes precedence; hosts absent from the
+declaration keep the CLI or default route. Exact `--case-id` runs and suite
+cells keep their explicit routes. Malformed declarations fail case resolution.
+Grader routes stay independent, and retained evidence binds the effective route
+exactly as for `--case-routes`.
 
 Selection happens before fixture resolution and mounted-skill overrides.
 `--skill-dir` still overrides the skill mounted for the selected cases; it
@@ -266,9 +411,9 @@ forwards supported public Sevro options after `--`. Candidate and semantic
 adapter modules are refused because this caller assesses native hosts with the
 Codex semantic judge. Caller-owned case, storage, host,
 condition, trial, job, threshold, and dry options cannot be overridden there.
-Candidate defaults preserve Codex `gpt-5.6-terra/medium` and Claude
-`claude-sonnet-5/medium`; the semantic judge remains Codex
-`gpt-5.6-terra/medium`. Explicit model and effort overrides enter retained routes.
+Candidate defaults use Codex `gpt-6-luna/medium` and Claude
+`claude-sonnet-5-5/medium`; the semantic grader uses Codex
+`gpt-6-luna/high`. Explicit model and effort overrides enter retained routes.
 Claude repository trials enable project skill settings. The default auth and
 binary paths use the local host configuration, with explicit public overrides
 available for deterministic tests and coordinated development.
@@ -337,6 +482,51 @@ provider execution. Sequence assertions remain available where order is part of
 the contract. Required membership is validated against the mounted skill set,
 retained in results and evaluation identity, and remains unknown when observation
 is incomplete.
+
+Ticket-to-PR publisher-read checks use the main thread's complete supporting
+skill observations. Adaptive Goal owns publication in that thread; an overall
+owner child is not required. A missing publisher read fails; partial, missing,
+duplicate, or foreign-host observations remain unavailable. Separate effect
+checks must still prove actual publication and the intended commit.
+
+Whole-run supporting-read and skill-absence transcript checks consume the
+complete common `sevro.host.skill-activations` collection, with mounted namespace
+normalization and its actual receipt cited. A partial positive claim cannot
+prove these complete-collection assertions. Live grading does not accept retired
+skill-read receipts or require retired per-turn or parent-read diagnostics.
+Remove assertions whose only evidence was retired; do not mark them passed or
+reinterpret whole-run observations as counts, ordering, or per-turn absence.
+Use fixture invocation and outcome checks where they independently establish the
+required behavior. Historical readers preserve the original evidence meaning.
+Required native control and
+event evidence remains independently complete; a valid skill collection does
+not establish absence of delegation through an incompletely inspected `exec`.
+
+Ticket-to-PR task verdicts use the case's observable output, repository state,
+fixture effects and semantic acceptance checks. Its native-goal, ownership and
+transcript assertions are separate workflow domain outcomes. Missing workflow
+observations stay unavailable and observed violations stay failed in that
+dimension; neither changes the task verdict or becomes required task evidence.
+Activation remains separate.
+Adaptive Goal outcome cases likewise retain auxiliary transcript assertions as
+workflow diagnostics. Native-goal outcomes, explicitly tested implementation
+routes, and an observed no-mutation-before-user-feedback safeguard remain task
+requirements. A successful final result does not excuse mutation before the
+user supplies required authority. The unchanged-worktree safeguard uses the
+complete, unique continuation observation; missing or incomplete evidence stays
+unavailable. A selection-only case without output,
+state or semantic acceptance keeps its selection assertion as the task under
+test. Missing diagnostic evidence cannot withhold an otherwise established task
+outcome; observed diagnostic violations are never relabeled as passes.
+Other plugins retain their declared task gates.
+When regrading retained trials, preserve the original records and identify the
+new task assessment as a regrade, not fresh candidate execution.
+
+Positive implementation-route checks consume the owning host's validated
+accepted-child facts. They must not require a complete common-control receipt
+that they do not inspect. A missing or incomplete host-specific route remains
+unavailable, and an observed wrong route fails. This does not relax absence
+checks, which still require complete control inspection.
 
 A colocated eval case may declare one activation class:
 
@@ -452,19 +642,10 @@ reference, not that the expression ran. Neither establishes goal persistence,
 adaptive delegation, or owner acceptance. Missing references cannot establish
 non-use because dynamic calls and unavailable source remain unobserved.
 
-Bounded parent skill-read diagnostics also cover well-formed sessions with no
-spawn request, including readiness stops before launch. Retain the same read
-recognition, body-presence, and command-shape facts without raw commands or
-output. These diagnostics confer no activation or pre-owner read credit; a
-pre-owner assertion still requires its accepted launch boundary. Malformed
-sessions remain unverified.
-
-For each correlated accepted child, retain bounded session-availability facts
-and the same read-recognition/body-presence diagnostics. Distinguish an absent
-or ambiguous child rollout from a malformed rollout and from an available
-rollout containing no recognized reads. Cap child and per-child diagnostic
-counts with explicit truncation flags. These records retain no raw command,
-output, or child prompt and never supply activation credit on their own.
+Parent and child skill-read diagnostics from the retired collector are historical
+evidence only. Current skill assertions use the common hook collection. Native
+child-session availability and route facts remain separate and do not establish
+skill exposure, read counts, or pre-owner ordering.
 
 Before resuming a configured Codex follow-up turn, retain the first turn's
 public final response at the feedback boundary, capped at 8,000 characters
@@ -496,7 +677,41 @@ handoff or private message delivery.
 ### Semantic output checks
 
 An eval case may declare one or more gating semantic output checks when the
-public contract is a proposition that permits faithful paraphrase. Each check
+public contract is a proposition that permits faithful paraphrase. Assertions
+must accept the representations allowed by that contract. A compact mapping
+table can satisfy a visual explanation; grading still requires its material
+relationships and authority boundaries, without requiring exact policy words.
+When a contract permits either a documented route or a separate request,
+either satisfies that alternative. A prohibition on configuration changes
+states a repair limit without requiring the literal word "repair".
+Assess each finding's own disposition. An unresolved blocker does not make a
+separate advisory blocking, and describing that advisory's resolution condition
+does not make it a completion gate.
+Reporting the changed state and a passing acceptance check conveys successful
+verification. A prohibition on claiming permanent termination does not require
+repeating an earlier non-ready finding in the final response.
+The actual-state Codex Doctor case grades its required verbatim source records
+deterministically: checked and used records name the same absolute isolated
+configuration, and `checkout_config_used` is `no`. Keep the concurrency
+and nesting control names in deterministic checks too. The exact names and
+nesting applicability may appear in prose or helper records; the public skill
+does not require `concurrency_control` or `nesting_control` field labels.
+Preserve the exact control values, including the V1-only nesting qualifier,
+and keep the three source-record checks unchanged.
+Keep the configured concurrency and unknown live free-capacity distinction in
+a separate, small semantic check without requiring a backend conclusion there.
+A valid configured limit does not prove current free slots or resolve an unknown
+backend. A recommendation alone does not report the diagnosed current setting.
+Reporting configured capacity and comparing it with the topology is valid without
+an extra live-capacity disclaimer. Reject an explicit claim that configuration
+proves currently free slots or guarantees immediate spawning; do not infer that
+claim from "adequate" within a configuration assessment.
+For effective Codex configuration, concurrent threads and spawned-agent slots
+describe the same concurrency limit. Accept either term when the completed
+diagnosis reports the correct effective value. Keep that value distinct from the
+topology's required minimum; supplied values or recommendations alone do not
+establish a completed diagnosis.
+Each check
 has a stable name and a plain-language proposition. The runner grades all such
 checks against the candidate's final response in a separate, hidden grader
 call and requires every proposition to pass.
@@ -596,6 +811,29 @@ and effective-owner assertions. Relative project, configuration, result, active
 storage, skill, condition, and output paths resolve from the invocation directory.
 Result storage defaults to the evaluated project's `evals/results`.
 
+Repository evaluation runs use Sevro's runtime policy in the root `sevro.json`:
+inherited `PATH` and uv-managed Python, a prepared public UV cache shared by
+explicitly selected candidate and shell-check roles, native goals, and read-only access to the trial's
+own native transcripts, which Adaptive Goal uses to observe its session route.
+Sevro owns each role's private temporary storage and its temporary-directory
+environment variables; repository policy cannot override them. A fixture recorder must reject empty input
+before consuming a receipt slot; a failed upstream command cannot establish a
+returned assessment. Callers launch Sevro with `PATH`
+free of repository and Bun-injected entries, set `UV_PYTHON_INSTALL_DIR` when
+unset, and warm the shared cache in place only when a registered lock changes.
+Warming preserves existing cache entries and directory identity; it must not
+delete or replace a cache that another evaluation may be using. Runtime profiles
+select `runtime.sharedCacheDirectories` rather than copying the UV cache into
+per-role seeds, and set `UV_PYTHON_DOWNLOADS=never`. Hooks and semantic/advisory
+graders receive no cache grant unless their declared work actually needs UV.
+Repository-skill guide trials select a hook-free runtime file because Claude
+project settings conflict with native-goal hooks. It retains native transcripts
+for complete control observations and skill-read recovery. With the repository's
+default goal-enabled policy, Darrow compiles Codex runs with the `app-server`
+entrypoint when no entrypoint was supplied. Explicit entrypoints and replacement
+runtime files remain authoritative. An explicit
+`--runtime-config-file` replaces either default.
+
 The candidate defaults remain Codex `gpt-6-luna/medium` and Claude
 `claude-sonnet-5-5/medium`; the semantic default is Codex `gpt-5.6-luna/low`.
 An advisory judge is requested only by `--judge-harness`, with Codex
@@ -605,6 +843,11 @@ default owner condition remains enforced and cannot become passive silently.
 Native host options follow `--` and cannot override caller-owned routes,
 conditions, roots, limits, or graders. Bundled-host enforcement and private goal
 assertions remain explicitly unsupported.
+The public Sevro `--codex-timeout-ms` option passes through unchanged, including
+for native app-server trials. Sevro owns its value validation and execution bound.
+The opt-in `--retain-host-diagnostics` flag also passes through unchanged to
+selected native roles. Retention changes configuration identity, preserves
+failure outcomes, and does not authorize publishing private diagnostic contents.
 
 The direct caller uses the existing public selection command and its
 `darrow-sevro-selection-v1` manifest. Stdout and optional `--output` contain that
@@ -721,6 +964,12 @@ task checks, including semantic and owner-route checks, remain required. The
 report preserves public execution, grading, task, and exit states and names
 each input result and retained evidence path. It preserves task verdicts and
 the existing task and activation gate semantics.
+
+Persisted suite cell result paths use canonical absolute file identities,
+matching Sevro's public report input and row paths. A symlink alias to that
+same result must not create a missing-report or unmatched-ablation outcome.
+Retain exact input count, order, case and provenance checks; canonicalization
+does not permit a missing, additional, duplicate or foreign result.
 
 A quality rate requires completed execution and grading, an executed trial,
 and assessed non-record checks under the default task policy. A selected custom
@@ -844,12 +1093,50 @@ the cell unsuccessful without changing Sevro's raw task verdict or exit code.
 
 Sevro does not supply `DARROW_CACHE_DIR` to candidates or shell checks. Darrow's
 locked launchers select their documented cache beneath the isolated `HOME`.
-With a curated Claude UV cache, candidate and check homes remain under the
-trial's Git metadata, outside assessed worktree contents. The homes and Darrow
-caches are separate; the curated UV cache remains shared within the trial.
+With a selected Sevro runtime policy, each execution role receives a private
+home and writable runtime outside the Git fixture. Candidate and checker homes
+and Darrow caches are separate. On Sevro rc.18 or later, only the explicitly
+declared public UV dependency cache is shared across selected roles and runs;
+project environments, homes, temporary files, and Review state remain private.
+Shared-cache identity binds its source, target and roles, not mutable contents;
+equal identities cannot establish identical dependency-cache bytes. Isolated
+fingerprinted seeds remain appropriate when dependency independence is required.
+Disposable checker state, including copied seeds, is removed after grading even
+on failed or retained fixtures, while shared sources and result evidence survive.
 Caller cache overrides and credentials are not inherited. This deliberately
 replaces the legacy shared Darrow cache environment contract without changing
 the plugin launcher's public default or introducing Darrow policy into Sevro.
+
+The `.fixture-state/` receipt convention does not relocate a plugin's public
+state when its contract requires state outside the repository. A grader must
+use retained evidence bound to the candidate's actual state, not the checker's
+private home or a retired candidate-home path. Missing or inaccessible state
+cannot establish either artifact presence or artifact absence.
+
+Review artifact evals explicitly select Sevro's bounded
+`runtime.artifactDirectories` grant for `.darrow/reviews` beneath the candidate
+home. Graders use its candidate-bound `SEVRO_CANDIDATE_ARTIFACT_REVIEWS` path and
+read the original files without relocating them. Access stays read-only through
+grading; candidate runtime cleanup follows grading and evidence persistence.
+The grant does not archive those files. Missing or unsafe declared directories
+are grading errors; fixture setup prepares an actual empty directory before
+checking absence. The selected Review profile may explicitly configure Darrow
+state and cache paths without inheriting the caller's overrides. Cases that
+depend on a declared state-directory grant state that configured state and
+cache paths must be preserved. A different valid private state root remains
+outside that grant; do not claim artifact presence or absence from it.
+
+On Sevro rc.16, fixture setup and candidate commands share the same private
+trial home. Setup initializes required artifact directories and may seed prior
+Review evidence there; its temporary directory remains disposable. Graders
+retain their own homes and access only declared candidate artifact grants.
+Fixture input receipts may use `.fixture-state/`, while canonical scopes and
+reports remain in the private Review state root.
+
+Trusted fixture preparation records the selected bundled host as `codex` or
+`claude` in `.git/fixture-host`. Other adapters record `unavailable`. Shell
+oracles use this prepared fact rather than an undeclared ambient host variable;
+it identifies preparation and does not prove a native child route.
 
 Shell checks execute candidate-controlled code inside the runner's outer
 isolation boundary, including during dry runs. Grading uses a private,
@@ -858,18 +1145,66 @@ harness credentials, or modify retained evidence. An unavailable isolation
 boundary is an explicit error.
 
 Plugin-local skills prepared for project discovery retain the owning plugin's
-contained backend under `.agents/backend`, alongside `.agents/skills/`. This
+contained backend under `.agents/backend`, alongside `.agents/skills/`. Plugin
+configuration and shared references retain their plugin-relative paths below
+`.agents/` so an implicit mount has the same mechanics inputs as its package. This
 includes implicit Codex preparation and adapters that use the project skill
-surface. The backend's source bytes participate in fixture identity and its
+surface. Retain both owning plugin manifests at `.agents/.claude-plugin/plugin.json`
+and `.agents/.codex-plugin/plugin.json` with their original names and versions,
+so the locked backend launcher can establish its plugin identity. Copy only
+those manifest files, not plugin hooks or agent registrations.
+The backend, configuration, references, and manifest source bytes participate in fixture identity and their
 artifacts remain Git-excluded and subject to the shared artifact limits. Native
 plugin preparation retains the backend inside its independent plugin package.
 Project discovery does not copy plugin hooks or agents into project settings.
+
+Plugin cases may declare `required_plugin_hook: <plugin-name>` to evaluate an
+installed plugin hook. Preserve implicit prompts: this declaration installs the
+native plugin package without adding a skill invocation. It requires the public
+`sevro.host.hooks` observation and a matching runtime `hooks.plugins` allowlist.
+One complete receipt must identify the declared plugin as the sole allowed
+plugin and retain at least one completed successful hook execution. A disabled
+hook, no execution, or a failed execution fails the check. Missing, duplicate,
+partial or malformed receipts remain unavailable. Do not infer hook execution
+from packaged files, hook configuration, native-goal hooks or skill activation.
+The current receipt does not attribute executions among multiple allowed
+plugins; such evidence remains unavailable. Hook output delivery is a separate
+native check and does not establish skill activation. Hook-free controls retain
+their original runtime profile and evidence rather than being relabeled.
 
 Packaged Python eval oracles remain hidden from participants. Plugin mounting
 excludes every nested `evals/` directory, including `backend/tests/evals/`.
 Fixture setup may copy grading helpers to `.git/eval-checks/`; the outer agent
 sandbox denies reading and writing that subtree, while isolated grading may
 execute it. Declared external isolation must preserve this boundary too.
+
+Review route checks select the declared aggregate kind: `result.json` for
+comprehensive review or `verification.json` for fix verification. Exactly one
+finalized scope of that kind must exist. The original comprehensive scope may
+coexist with a follow-up verification scope; it neither makes the follow-up
+ambiguous nor supplies its reader identities. Missing or multiple selected
+scopes remain unavailable, and selecting an artifact does not replace native
+launch evidence or canonical result validation.
+
+Codex Review route graders read the trial-bound public native transcript view
+from `SEVRO_CANDIDATE_TRANSCRIPTS`. They require a complete candidate capture,
+verify each indexed file digest, and correlate the requested spawn, native
+start, accepted result, child session and completed reader turn. Both selected
+axes must belong to one coordinator turn and be accepted before its first wait.
+Retired `retained-harness.jsonl` labels cannot establish current native routes.
+Missing, partial, mismatched or uncorrelated evidence fails closed.
+
+Adaptive Goal's real-Review completion fixture resolves its validation provider
+from the prepared `.sevro-marketplace/.claude-plugin/marketplace.json` catalog.
+It requires exactly one declared `darrow-review` package with matching Codex
+and Claude plugin identities. Undeclared copies in Git metadata are not
+providers. Missing, duplicate, malformed, or escaping catalog sources refuse
+completion; the fixture must not search unrelated packages or private caches.
+Its completion launcher uses the owning mounted package's frozen bootstrap and
+the provider's documented private state root. After successful validation it
+records that absolute root alongside the selected artifact receipt. Grading
+must read that same artifact; a separate grader home or a receipt by itself
+cannot prove a review. State inside the repository cannot clear completion.
 
 Codex trials may import the repository's explicit agent-concurrency limit into
 their isolated configuration. They must not inherit unrelated repository or
@@ -1077,6 +1412,26 @@ not prove equivalence or savings.
   direct host event or explicitly labeled controlled-probe source, primary and
   ordered observed skills, and preserve unavailable or incomplete observation
   as unknown without changing task outcomes.
+  A separately complete primary/positive-presence receipt may prove only its
+  declared claims within a partial collection; absence and sequence assertions
+  still require complete collection. Retain the cited evidence scope so a
+  primary claim is never reported as complete collection coverage.
+  Codex per-skill body exposure and collection health remain distinct. Preserve
+  RC.21's `skillExposures`, `collectionStatus` and positive exposure receipts in
+  retained evidence. Full exposure proves complete prepared-body exposure to a
+  tool caller; partial exposure proves fragments. Neither proves primary
+  selection, order, compliance or absence. Missing fields in older evidence
+  remain unknown; do not backfill them from activation lists.
+  An established explicit Codex invocation may combine with a separately
+  complete RC.21 positive-exposure receipt to establish supporting-skill
+  inclusion. Each required support must have `full` exposure in that receipt.
+  The aggregate catalog observation is a separate diagnostic, not an additional
+  proof requirement. Partial exposure never satisfies a full read;
+  missing positive membership stays unknown. Retain explicit ownership,
+  unordered positive members, aggregate completeness and collection health
+  separately. This receipt supplies no implicit primary, absence or sequence.
+  A passing result cites only the complete receipts that establish its claim;
+  an incomplete aggregate remains diagnostic metadata, outside its evidence refs.
   Claude route observations match the shipped scoped agent names, model IDs,
   and effort levels. An agent name alone does not establish goal ownership or
   successful route application.
@@ -1208,12 +1563,21 @@ not prove equivalence or savings.
   interrupted result evidence remains unavailable. Retain bounded route/axis
   and completion facts without prompt or result bodies; assessment claims must
   also be supported by the case's candidate-bound provider result and checks.
+  Darrow's nested-reader check MUST preserve an unavailable reader-result
+  observation as unavailable, rather than infer failure to return. Complete
+  evidence of missing required readers or inherited context still fails.
 
 - **SE-C25 — Select cases by owning skill.** The direct runner's `--skill`
   filter selects every discovered case colocated with the exact named skill,
   independently of case-ID naming and mounted-skill overrides. Case filters
   narrow that set, skill-less cases are excluded, and an empty selection
   fails explicitly.
+
+- **SE-C34 — Case-declared hosts and routes.** Filtered and ownership
+  selection omits cases whose `harnesses` exclude the requested host and
+  applies a case's `candidate_routes` as its default parent candidate route on
+  each declared host, below explicit per-case routes. Grader routes are
+  unaffected; malformed declarations fail resolution.
 
 - **SE-C26 — Select cases by owning plugin.** The direct runner's `--plugin`
   filter selects every discovered case colocated under all skills of the exact
@@ -1325,6 +1689,11 @@ not prove equivalence or savings.
   A check requiring a specific host observation declares that identifier as
   required evidence. A conditionally consumed observation is validated when
   used. Missing, incomplete or contradictory evidence remains unavailable.
+  Native goal history and ledger-only checks do not require a complete control
+  receipt merely because the host emits one. Declare control receipts only for
+  checks that consume them; unrelated partial inspection must not make otherwise
+  complete goal and ledger assessments unavailable. Genuine control-absence and
+  implementation-route requirements remain mandatory.
   Dual-host implementation-route checks require the shared native control
   receipt and validate the applicable host's facts when grading. Codex routes
   use correlated accepted spawns. Claude routes bind the normalized Agent call

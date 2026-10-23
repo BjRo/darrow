@@ -32,8 +32,11 @@ checks:
   - name: no extra commit
     run: test "$(git rev-list --count HEAD)" -eq 1
 semantic_output_checks:
-  - name: request necessary inputs
-    proposition:
-      The response asks for the missing originating objective/acceptance
-      or candidate scope, or identifies the unavailable required review
-      capability. It does not claim successful verification.
+  - name: handle unavailable verification prerequisites
+    proposition: >
+      The response does not claim successful verification and does at least
+      one of these independently sufficient things: asks for the missing
+      originating objective, acceptance criteria, or candidate scope; or
+      identifies the unavailable required independent review capability.
+      Identifying the unavailable capability alone is sufficient; a response
+      taking that branch need not also ask for originating inputs.

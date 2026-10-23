@@ -1,10 +1,8 @@
 id: code-review-fix-verification-progress-advisory
+required_plugin_hook: darrow-review
 activation: positive
-invariant: CR-C17,CR-C18,CR-C19,CR-C21,CR-E13,CR-E14
-prompt: >-
-  Verify my uncommitted repair against only the prior code-review findings in
-  `.git/verification-input`. Use `bash check.sh` as current check evidence.
-  Remain read-only and do not widen this into another comprehensive review.
+invariant: CR-C17,CR-C18,CR-C19,CR-C21,CR-E13,CR-E14,CR-E18,CR-E19
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Verify my uncommitted repair against only the prior code-review findings in `.fixture-state/verification-input`. Use `bash check.sh` as current check evidence. Remain read-only and do not widen this into another comprehensive review."
 fixture:
   commits:
     - message: "chore: base"
@@ -29,9 +27,10 @@ fixture:
       export const value = 1;
       // legacy
   setup: |
+    bash "{{case_dir}}/fixtures/prepare-grading.sh" "{{case_dir}}"
     set -eu
     backend=$(cd "{{case_dir}}/../../../backend" && pwd -P)
-    prior_output=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
+    prior_output=$(uv run --quiet --no-project "$backend/scripts/run_locked.py" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
     prior_manifest=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' manifest)
     original_target=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' target)
     python3 - "$original_target" "$prior_manifest" "$PWD" <<'PY' >.git/verification-input
@@ -49,58 +48,77 @@ fixture:
         "attempted": [f"spec:1:{target}", f"standards:2:{target}"],
     }, sys.stdout)
     PY
-    printf '%s\n' "$backend" >.git/review-backend
+    mkdir -p .fixture-state
+    cp .git/verification-input .fixture-state/verification-input
     git status --porcelain --untracked-files=all >.git/status-before
     git hash-object src/value.js >.git/value-before
-    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
-    cp "{{case_dir}}/../../../backend/tests/evals/eval_routes.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: human response excludes machine JSON
-    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py
+      .git/last-message.md human-response
   - name: progress verification remains read only
     run: >-
-      git status --porcelain --untracked-files=all >.git/status-after &&
-      diff -u .git/status-before .git/status-after &&
-      git hash-object src/value.js >.git/value-after &&
-      cmp .git/value-before .git/value-after
+      git status --porcelain --untracked-files=all >.git/status-after && diff -u
+      .git/status-before .git/status-after && git hash-object src/value.js
+      >.git/value-after && cmp .git/value-before .git/value-after
   - name: only the two configured independent verifiers are launched
     run: >-
-      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n 1) &&
-      test -n "$tool" &&
-      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}"
-      python .git/eval-checks/review/tests/evals/eval_routes.py
-      --host "$DARROW_EVAL_HARNESS" --profile default --axes standards spec
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
+      python3 .git/eval-checks/review/tests/evals/eval_routes.py --host "$(cat
+      .git/fixture-host)" --profile default --axes standards spec --record-kind verification
   - name: progressing blocker keeps convergence open
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
-      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n '1') &&
-      test -n "$tool" &&
-      test -n "$record" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-verification "$record" &&
-      python3 .git/eval-checks/review/tests/evals/assert_records.py "$record" has outcome continue &&
-      original_target=$(python3 -c 'import json; print(json.load(open(".git/verification-input"))["original_target"])') &&
-      python3 -c 'import json,sys; record=json.load(open(sys.argv[1])); assert any(item["key"]==sys.argv[2] and item["status"]=="unresolved" and item["progress"]=="progressing" for item in record["attempts"])' "$record" "spec:1:$original_target"
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
+      && tool=.git/eval-checks/review/src/darrow_review/result.py && test -n
+      "$tool" && test -n "$record" && uv run --quiet --frozen --no-dev --project
+      "${tool%/src/darrow_review/result.py}" review-result validate-verification
+      "$record" && python3 .git/eval-checks/review/tests/evals/assert_records.py
+      "$record" has outcome continue && original_target=$(python3 -c 'import
+      json;
+      print(json.load(open(".git/verification-input"))["original_target"])') &&
+      python3 -c 'import json,sys; record=json.load(open(sys.argv[1])); assert
+      any(item["key"]==sys.argv[2] and item["status"]=="unresolved" and
+      item["progress"]=="progressing" for item in record["attempts"])' "$record"
+      "spec:1:$original_target"
   - name: unresolved advisory does not become a blocker
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
-      original_target=$(python3 -c 'import json; print(json.load(open(".git/verification-input"))["original_target"])') &&
-      python3 -c 'import json,sys; record=json.load(open(sys.argv[1])); assert any(item["key"]==sys.argv[2] and item["status"]=="unresolved" and item["progress"]=="unchanged" for item in record["attempts"])' "$record" "standards:2:$original_target"
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
+      && original_target=$(python3 -c 'import json;
+      print(json.load(open(".git/verification-input"))["original_target"])') &&
+      python3 -c 'import json,sys; record=json.load(open(sys.argv[1])); assert
+      any(item["key"]==sys.argv[2] and item["status"]=="unresolved" and
+      item["progress"]=="unchanged" for item in record["attempts"])' "$record"
+      "standards:2:$original_target"
   - name: retained verification report preserves the complete canonical evidence
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
-      test -n "$record" &&
-      report=$(dirname "$record")/verification.md &&
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
+      && test -n "$record" && report=$(dirname "$record")/verification.md &&
       test -r "$report" && test -s "$report" &&
-      tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n 1) &&
-      test -n "$tool" &&
-      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render-verification "$record" >.git/expected-verification.md &&
-      awk 'NF' .git/expected-verification.md >.git/expected-verification-normalized.md &&
-      awk 'NF' "$report" >.git/retained-verification-normalized.md &&
-      cmp .git/expected-verification-normalized.md .git/retained-verification-normalized.md
+      tool=.git/eval-checks/review/src/darrow_review/report.py && test -n
+      "$tool" && uv run --quiet --frozen --no-dev --project
+      "${tool%/src/darrow_review/report.py}" review-report render-verification
+      "$record" >.git/expected-verification.md && awk 'NF'
+      .git/expected-verification.md >.git/expected-verification-normalized.md &&
+      awk 'NF' "$report" >.git/retained-verification-normalized.md && cmp
+      .git/expected-verification-normalized.md
+      .git/retained-verification-normalized.md
 semantic_output_checks:
   - name: review outcome and issues are understandable inline
     proposition: >-
       The response explains that value 1 still violates the required minimum of
-      2, so verification must continue or further repair is needed. It identifies
-      the remaining comment as advisory and does not claim that the comment
-      blocks completion. Repeating the original nonnumeric value or defining
-      the word advisory is not required.
+      2, so verification must continue or further repair is needed. It
+      identifies the remaining comment as advisory and does not claim that the
+      comment blocks completion. The value blocker and comment advisory are
+      distinct findings. A label such as "Advisory, unchanged" identifies the
+      comment as nonblocking; another finding labelled blocking and unresolved
+      does not change that disposition. Suggested removal or a resolution
+      condition for the advisory is allowed without making it a completion gate.
+      Reject an explicit claim that the comment itself blocks completion, even
+      if it is also labelled advisory. Repeating the original nonnumeric value or
+      defining the word advisory is not required.

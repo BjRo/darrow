@@ -1,11 +1,16 @@
 """Independent oracle for retained review-reader identities and routes."""
 
+from __future__ import annotations
+
 import argparse
 import json
 import os
 import re
 from pathlib import Path
 from typing import Any
+
+from native_codex_routes import verify_codex
+from prior_codex_routes import prior_bindings
 
 
 def unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -62,42 +67,6 @@ def identities(directory: Path, axes: list[str], expected: list[str]) -> dict[st
 
 def events_of(events: list[dict[str, Any]], kind: str) -> list[dict[str, Any]]:
     return [event for event in events if event.get("type") == kind]
-
-
-def ordinal(event: dict[str, Any], key: str) -> int:
-    value = event.get(key)
-    assert isinstance(value, int) and not isinstance(value, bool) and value > 0
-    return value
-
-
-def codex_evidence(
-    events: list[dict[str, Any]],
-    agents: dict[str, str],
-    expected: list[str],
-) -> None:
-    launches = events_of(events, "darrow.codex_native_spawn")
-    assert len(launches) == len(agents), "unexpected native spawn count"
-    ordinals: list[int] = []
-    for axis, agent in agents.items():
-        matches = [event for event in launches if event.get("agent_ref") == agent]
-        assert len(matches) == 1
-        event = matches[0]
-        assert event.get("status") == "accepted"
-        assert event.get("review_axis") == axis
-        assert event.get("model") == expected[2]
-        assert event.get("reasoning_effort") == expected[3]
-        assert event.get("fork_turns") == "none"
-        if len(agents) > 1:
-            ordinals.append(ordinal(event, "accepted_ordinal"))
-    if len(agents) > 1:
-        waits = [
-            ordinal(event, "ordinal")
-            for event in events_of(events, "darrow.codex_native_wait")
-        ]
-        assert waits
-        assert max(ordinals) < min(waits), (
-            "both readers must be accepted before waiting"
-        )
 
 
 def agent_calls(value: Any) -> list[dict[str, Any]]:
@@ -170,18 +139,23 @@ def verify(
     profile: str,
     axes: list[str],
     review_state: Path | None = None,
+    record_name: str = "result.json",
 ) -> None:
+    assert record_name in {"result.json", "verification.json"}, "invalid aggregate kind"
     review_root = review_state if review_state is not None else git_dir
     finalized = {
-        path.parent
-        for name in ("result.json", "verification.json")
-        for path in review_root.glob(f"**/darrow-review.*/{name}")
+        path.parent for path in review_root.glob(f"**/darrow-review.*/{record_name}")
     }
     assert len(finalized) == 1, "route evidence requires exactly one finalized scope"
     directory = finalized.pop()
     assert (directory / "reviewer-route.json").is_file(), "missing reviewer route"
     expected = route(host, profile)
     agents = identities(directory, axes, expected)
+    if host == "codex":
+        view = os.environ.get("SEVRO_CANDIDATE_TRANSCRIPTS")
+        assert view, "missing candidate native transcript view"
+        verify_codex(Path(view), agents, expected, prior_bindings(directory))
+        return
     events = [
         json.loads(line)
         for line in (git_dir / "retained-harness.jsonl")
@@ -190,10 +164,7 @@ def verify(
         if line.strip()
     ]
     assert all(isinstance(event, dict) for event in events)
-    if host == "codex":
-        codex_evidence(events, agents, expected)
-    else:
-        claude_evidence(directory, events, agents, expected)
+    claude_evidence(directory, events, agents, expected)
 
 
 def main() -> None:
@@ -202,6 +173,9 @@ def main() -> None:
     parser.add_argument("--profile", choices=("default", "override"), required=True)
     parser.add_argument(
         "--axes", choices=("standards", "spec"), nargs="+", required=True
+    )
+    parser.add_argument(
+        "--record-kind", choices=("result", "verification"), default="result"
     )
     arguments = parser.parse_args()
     review_root = os.environ.get("DARROW_REVIEW_STATE_DIR")
@@ -212,6 +186,7 @@ def main() -> None:
         arguments.profile,
         arguments.axes,
         Path(review_root),
+        f"{arguments.record_kind}.json",
     )
 
 

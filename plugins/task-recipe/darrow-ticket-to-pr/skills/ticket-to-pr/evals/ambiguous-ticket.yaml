@@ -17,9 +17,19 @@ checks:
       test "$(git branch --show-current)" = main &&
       test "$(git rev-list --count HEAD)" -eq 1 &&
       git diff --exit-code
-output_checks:
+semantic_output_checks:
   - name: asks for one exact ticket reference
-    expect_regex: "one (?:exact|single) (?:ticket )?(?:ID|id|URL|reference)|exactly one"
+    proposition: >-
+      Given: the input contains two competing ticket URLs and no user choice.
+      Judge only whether the response asks the user to choose or supply one
+      exact ticket ID or URL to use before work proceeds. The response need not
+      repeat the given input facts. Ordinary wording such as "the single ticket
+      URL or ID" is sufficient; no exact phrase is required. An imperative
+      request to provide the one reference to use, optionally listing the
+      alternatives, counts without a question mark or the word "choose".
+      Choosing a ticket
+      for the user, or claiming work will proceed without that choice, fails
+      this requirement.
 transcript_checks:
   - name: ambiguous input is not delegated
     not_regex: '(?:"name":"Skill"[^\n]*adaptive-goal|"type":"darrow.skill_read_probe"[^\n]*"skill":"adaptive-goal")'

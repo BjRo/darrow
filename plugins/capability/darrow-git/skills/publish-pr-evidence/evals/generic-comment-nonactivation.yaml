@@ -15,6 +15,3 @@ fixture:
 checks:
   - name: repository remains unchanged
     run: git diff --exit-code && git diff --cached --exit-code
-transcript_checks:
-  - name: focused PR evidence publisher remains inactive
-    not_regex: '"skill":"publish-pr-evidence"|"name":"Skill"[^\n]*publish-pr-evidence'

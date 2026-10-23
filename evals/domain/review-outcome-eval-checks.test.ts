@@ -1,4 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   readFixtureCase,
   runFixtureChecks,
@@ -13,11 +17,11 @@ const plugin = new URL(
 );
 const cases = new URL("skills/code-review/evals/", plugin);
 const artifacts = "review-state/darrow-review.fixture";
-const backend = ".git/eval-tools/backend";
+const backend = ".git/eval-checks/review";
 const renderCommand = `uv run --quiet --frozen --no-dev --project ${backend} review-report render-verification`;
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 const state =
-  'export DARROW_REVIEW_STATE_DIR="$(cat .git/oracle-review-state)"';
+  'export DARROW_REVIEW_STATE_DIR="$(cat .git/oracle-review-state)" SEVRO_CANDIDATE_ARTIFACT_REVIEWS="$(cat .git/oracle-review-state)"';
 
 function assertResult(
   result: Awaited<ReturnType<typeof runFixtureChecks>>,
@@ -44,6 +48,7 @@ for (const name of [
   "fix-verification-regression-scope",
   "fix-verification-regression-second-round",
   "fix-verification-unavailable",
+  "goal-contract-pass",
   "goal-contract-repair-rereview",
   "repair-guidance-alternative",
   "repair-guidance-unresolved",
@@ -53,7 +58,29 @@ for (const name of [
     const { fixture } = await readFixtureCase(source);
     const runtime = await prepareUvFixtureRuntime();
     fixture.bin = { ...fixture.bin, ...runtime.bin };
-    fixture.setup = `${runtime.setupPrefix}\nuv sync --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend"\n${fixture.setup ?? ""}\n(cd "{{case_dir}}/../../../backend" && pwd -P) >.git/expected-review-backend`;
+    fixture.setup = `${runtime.setupPrefix}\n${fixture.setup ?? ""}\ntest ! -e "{{case_dir}}/../../../backend/.venv"\ncp "{{case_dir}}/../../../backend/pyproject.toml" .git/expected-review-pyproject.toml`;
+    if (!name.startsWith("goal-contract-")) {
+      const axes =
+        name === "fix-verification-resolved" ||
+        name === "fix-verification-progress-advisory"
+          ? ["standards", "spec"]
+          : name === "fix-verification-regression-scope" ||
+              name.startsWith("repair-guidance-")
+            ? ["spec"]
+            : ["standards"];
+      fixture.setup += `
+set -eu
+prior=$(python3 -c 'import json; print(json.load(open(".fixture-state/verification-input"))["prior_manifest"])')
+current=$(uv run --quiet --no-project "$backend/scripts/run_locked.py" review-scope prepare --repo "$PWD" --target WORKTREE --allow-empty --prior-manifest "$prior")
+manifest=$(printf '%s' "$current" | python3 -c 'import json,sys; print(json.load(sys.stdin)["manifest"])')
+${axes
+  .map(
+    (axis) =>
+      `uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result prepare-reader --manifest "$manifest" --axis ${axis} --original "$PWD/.fixture-state/verification-input" --attempted-from-input --no-checks-reason 'Input-binding oracle only; no assessment or repository-check outcome is asserted.'`,
+  )
+  .join("\n")}
+`;
+    }
     const result = await runFixtureChecks({
       source,
       fixture,
@@ -66,15 +93,63 @@ for (const name of [
       ],
       checks: [
         {
-          name: "setup retains the owning package or requested repository manifest",
-          run:
-            name === "goal-contract-repair-rereview"
-              ? "cmp .git/expected-review-backend .git/review-backend"
-              : `manifest=$(python3 -c 'import json; print(json.load(open(".git/verification-input"))["prior_manifest"])') && python3 .git/eval-checks/review/tests/evals/assert_records.py "$manifest" has repository "$(pwd -P)"`,
+          name: "setup retains the owning package and no host backend pointer",
+          run: `test ! -e .git/review-backend && cmp .git/expected-review-pyproject.toml .git/eval-checks/review/pyproject.toml${
+            name.startsWith("goal-contract-")
+              ? ""
+              : ` && cmp .git/verification-input .fixture-state/verification-input && manifest=$(python3 -c 'import json; print(json.load(open(".fixture-state/verification-input"))["prior_manifest"])') && python3 .git/eval-checks/review/tests/evals/assert_records.py "$manifest" has repository "$(pwd -P)"`
+          }`,
         },
       ],
     });
     assertResult(result);
+  }, 30_000);
+}
+
+for (const shell of ["bash", "/bin/bash"]) {
+  test(`Review setup exposes empty state without candidate cooperation: ${shell}`, async () => {
+    const root = await mkdtemp(join(tmpdir(), "darrow-review-home-oracle-"));
+    try {
+      const config = join(root, "runtime.json");
+      await writeFile(
+        config,
+        JSON.stringify({
+          format: "sevro.runtime.v1",
+          runtime: {
+            artifactDirectories: [{ name: "reviews", path: ".darrow/reviews" }],
+          },
+        }),
+      );
+      const source = new URL("no-trigger-implementation.yaml", cases);
+      const canonical = await readFixtureCase(source);
+      const absence = canonical.checks.find(
+        (check) => check.name === "no coordinated review artifact is created",
+      );
+      if (!absence) throw new Error("Missing canonical Review absence oracle");
+      const result = await runFixtureChecks({
+        source,
+        fixture: {
+          ...canonical.fixture,
+          setup: canonical.fixture.setup?.replace(
+            'bash "{{case_dir}}/fixtures/prepare-grading.sh"',
+            `${shell} "{{case_dir}}/fixtures/prepare-grading.sh"`,
+          ),
+        },
+        fixtureAssets: plugin,
+        fixtureAssetFiles: ["backend/tests/evals/assert_records.py"],
+        runtimeConfig: pathToFileURL(config),
+        checks: [
+          absence,
+          {
+            name: "candidate state satisfies Review ownership rules",
+            run: `export DARROW_REVIEW_STATE_DIR="\${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}"\npython3 -c 'import sys; sys.path.insert(0, ".git/eval-checks/review/src"); from darrow_review.storage import state_root; state_root(create=False)'`,
+          },
+        ],
+      });
+      assertResult(result);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   }, 30_000);
 }
 
@@ -145,13 +220,21 @@ function artifactPath(path: string) {
     : quote(path);
 }
 
-function render(record: string): OracleCheck[] {
+function bindPreviousVerification(): OracleCheck {
+  return {
+    name: "bind the current verification to the requested previous artifact",
+    run: `${state}\npython3 -c 'import json,sys; p=sys.argv[1]; record=json.load(open(p)); record["previous_verification"]=json.load(open(".fixture-state/verification-input"))["previous_verification"]; record["prior_target"]="b"*40; record["current_target"]="c"*40; record["history_targets"]=["a"*40]; json.dump(record,open(p,"w"))' ${artifactPath(`${artifacts}/verification.json`)}`,
+  };
+}
+
+function render(record: string, bindPrevious = false): OracleCheck[] {
   return [
     write(
       "write current verification",
       `${artifacts}/verification.json`,
       record,
     ),
+    ...(bindPrevious ? [bindPreviousVerification()] : []),
     {
       name: "render the canonical report and final response",
       run: `${state}\n${renderCommand} ${artifactPath(`${artifacts}/verification.json`)} >${artifactPath(`${artifacts}/verification.md`)} && cp ${artifactPath(`${artifacts}/verification.md`)} .git/last-message.md`,
@@ -289,13 +372,23 @@ for (const shell of ["bash", "/bin/bash"]) {
                 previous,
                 verification(true, "prior check evidence"),
               ),
+              write(
+                "retain another initialized prior verification",
+                "review-state/darrow-review.yy-older/verification.json",
+                verification(true, "earlier initialization"),
+              ),
               {
                 name: "bind the exact prior artifact",
-                run: `${state}\npython3 -c 'import json,sys; json.dump({"previous_verification":{"checksum":"prior-checksum","path":sys.argv[1]}},sys.stdout)' ${artifactPath(previous)} >.git/verification-input`,
+                run: `${state}\nmkdir -p .fixture-state\nchecksum=$(git hash-object --no-filters ${artifactPath(previous)})\npython3 -c 'import json,sys; json.dump({"previous_verification":{"checksum":sys.argv[2],"path":sys.argv[1]}},sys.stdout)' ${artifactPath(previous)} "$checksum" >.fixture-state/verification-input`,
               },
             );
           }
-          actions.push(...render(verification()));
+          actions.push(
+            ...render(
+              verification(),
+              file === "fix-verification-regression-second-round",
+            ),
+          );
           if (variant === "matching summaries" || variant === "empty reports") {
             const summary =
               variant === "empty reports"
@@ -320,6 +413,9 @@ for (const shell of ["bash", "/bin/bash"]) {
                 `${artifacts}/verification.json`,
                 verification(true, "exited 0: fresh check output"),
               ),
+              ...(file === "fix-verification-regression-second-round"
+                ? [bindPreviousVerification()]
+                : []),
             );
           } else {
             // Existing presentation gates intentionally ignore blank lines.
@@ -339,5 +435,54 @@ for (const shell of ["bash", "/bin/bash"]) {
         await runReviewRecordChecks(actions);
       }, 30_000);
     }
+    test("second-round selection rejects ambiguous or invalid successors", async () => {
+      const previous = "review-state/darrow-review.previous/verification.json";
+      const duplicate =
+        "review-state/darrow-review.duplicate/verification.json";
+      const malformed =
+        "review-state/darrow-review.malformed/verification.json";
+      const file = "fix-verification-regression-second-round";
+      const checkName =
+        "retained verification report preserves the complete canonical evidence";
+      const actions: OracleCheck[] = [
+        write("retain prior verification", previous, verification()),
+        {
+          name: "bind the requested prior artifact",
+          run: `${state}\nmkdir -p .fixture-state\nchecksum=$(git hash-object --no-filters ${artifactPath(previous)})\npython3 -c 'import json,sys; json.dump({"previous_verification":{"checksum":sys.argv[2],"path":sys.argv[1]}},sys.stdout)' ${artifactPath(previous)} "$checksum" >.fixture-state/verification-input`,
+        },
+        ...render(verification(), true),
+        await oracleCheck(file, checkName, {
+          shell,
+          variant: "one bound successor",
+          passes: true,
+        }),
+        {
+          name: "duplicate the bound current verification",
+          run: `${state}\nmkdir -p "$(dirname ${artifactPath(duplicate)})" && cp ${artifactPath(`${artifacts}/verification.json`)} ${artifactPath(duplicate)}`,
+        },
+        await oracleCheck(file, checkName, {
+          shell,
+          variant: "ambiguous bound successors",
+          passes: false,
+        }),
+        {
+          name: "remove duplicate and break the current binding",
+          run: `${state}\nrm ${artifactPath(duplicate)}\npython3 -c 'import json,sys; p=sys.argv[1]; record=json.load(open(p)); record["previous_verification"]={"checksum":"none","path":"none"}; json.dump(record,open(p,"w"))' ${artifactPath(`${artifacts}/verification.json`)}`,
+        },
+        await oracleCheck(file, checkName, {
+          shell,
+          variant: "missing bound successor",
+          passes: false,
+        }),
+        bindPreviousVerification(),
+        write("retain malformed canonical JSON", malformed, "{invalid"),
+        await oracleCheck(file, checkName, {
+          shell,
+          variant: "malformed retained record",
+          passes: false,
+        }),
+      ];
+      await runReviewRecordChecks(actions);
+    }, 30_000);
   });
 }

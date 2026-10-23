@@ -27,10 +27,11 @@ function record(value: unknown): RecordValue | null {
 
 function completedTrial(value: unknown, ordinal: number) {
   const trial = record(value);
+  const grading = record(trial?.grading)?.status;
   if (
     trial?.trial !== ordinal ||
     record(trial.execution)?.status !== "completed" ||
-    record(trial.grading)?.status !== "completed"
+    (grading !== "completed" && grading !== "unavailable")
   )
     return null;
   return trial;

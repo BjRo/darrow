@@ -1,8 +1,8 @@
 id: doctor-information-architecture-verify-deferred-guidance
-invariant: IA-D1,IA-D11,IA-D12,IA-S8
+invariant: IA-D1,IA-D4,IA-D11,IA-D12,IA-S8
 activation: positive
 prompt: >-
-  {{skill_invocation}} Audit the Codex guidance graph and report any structural
+  {{skill_invocation}} Audit only the Codex guidance graph and report any structural
   blockers. Keep the repository unchanged.
 fixture:
   commits:
@@ -30,3 +30,11 @@ semantic_output_checks:
       The response identifies the missing docs/agent-guidance/errors.md target
       referenced by docs/agent-guidance/map.md as a structural blocker for the
       Codex graph. It does not claim that the graph passes verification.
+      Saying that the direct AGENTS.md-to-map route resolves or that there
+      are no cycles does not claim the transitive graph passes verification.
+  - name: structural blockers stay within the selected runtime
+    proposition: >-
+      The requested audit is Codex-only. The response does not present a
+      missing Claude entrypoint as a critical finding or blocker for that
+      selected audit. A clearly separate, out-of-scope note about Claude
+      is allowed.

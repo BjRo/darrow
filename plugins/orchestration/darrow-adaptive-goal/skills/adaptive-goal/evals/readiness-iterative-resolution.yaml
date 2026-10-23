@@ -11,6 +11,7 @@ follow_up_prompt: >-
   Choose safe mode. That is my resolution of the readiness finding for this same
   unchanged request; assess the now-resolved scope again and, if ready, continue the
   same explicitly invoked adaptive goal. Acceptance is that bash check.sh passes.
+  Run bash check.sh.
   Keep the result local.
 fixture:
   commits:
@@ -36,7 +37,7 @@ checks:
     run: bash check.sh
   - name: readiness runs once before and once after resolution
     run:
-      test "$(wc -l <.git/fixture-state/implementation-readiness-invocations | tr -d '
+      test "$(wc -l <.fixture-state/implementation-readiness-invocations | tr -d '
       ')" -eq 2
 semantic_output_checks:
   - name: resolved same goal completes

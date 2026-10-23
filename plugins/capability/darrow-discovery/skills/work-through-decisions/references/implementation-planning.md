@@ -316,34 +316,37 @@ remains.
 ## 4. Draft the implementation plan
 
 After the material decision and fact frontiers are empty, produce a compact
-draft plan in the conversation with these conceptual sections. Open with one
-sentence that states the implementation outcome and affected public seam; a
+draft plan in the conversation. Open with one sentence that states the
+implementation outcome and affected public seam; a
 generic plan heading does not count as that outcome. Use familiar words, active
 voice, and short sentences and paragraphs. Explain a necessary Darrow term
-once. State each constraint in one natural place instead of repeating it across
-the objective, slices, verification, and restatement. Name material risks and
-mitigations, or state that no material residual risk remains when that is the
-evidence-backed conclusion.
+once.
 
 In plan phase, the first response sentence must be that outcome. Put no preface
 about settled choices, discovery, repository inspection, or planning process
 before it.
 
-- **Objective and constraints** — desired outcome and authoritative limits;
-- **Current-state evidence** — relevant public seams, architecture, tests, and
-  accepted decisions with repository pointers;
-- **Selected approach** — the intended technical shape plus material rejected
-  alternatives and why;
-- **Ordered slices** — numbered vertical or otherwise independently verifiable
-  slices, each naming its observable result, dependencies, and focused check;
-- **Verification** — acted public-boundary evidence plus applicable repository
-  gates;
-- **Compatibility, migration, and rollout** — only where applicable, including
-  reversal or expand-migrate-contract boundaries;
-- **Risks, assumptions, and deferred work** — explicit residuals rather than
-  hidden guesses; and
-- **Plan restatement** — one sentence describing the implementation route and
-  quality bar.
+Organize the body around these purposes rather than a heading for every concept:
+
+- **Current state** — relevant repository facts with source pointers. Omit
+  search chronology, tool use, and absent instruction files unless the absence
+  creates a material constraint or evidence gap.
+- **Approach and ordered slices** — the selected technical shape and material
+  rejected alternatives, then numbered, independently verifiable changes. Each
+  slice states its observable result, dependencies, and focused check. Keep
+  concrete boundary cases named by the user in the test coverage; do not shorten
+  them to a generic label such as “invalid inputs.” Place behavior constraints
+  in the slice that changes them, without a second requirements recap.
+- **Compatibility, rollout, and risks** — state the migration and release
+  policy here once, including reversal when relevant. Name material risks and
+  mitigations, or explain why no material residual risk remains. Expose
+  assumptions and intentionally deferred work.
+- **Final verification** — name the repository gates; refer to slice checks
+  rather than repeating their requirements.
+
+The opening already states the objective. Do not add another objective or
+constraints recap. The final one-sentence restatement summarizes the outcome
+and implementation route without repeating every policy and command.
 
 Prefer independently useful vertical slices. For a wide mechanical migration,
 use an explicit expand-migrate-contract sequence when that is safer and more
@@ -363,7 +366,10 @@ agreement or readiness.
 Before sending a plan-phase response, verify that it explicitly names material
 risks with mitigations, or states why no material residual risk remains. Even a
 small backward-compatible change needs this visible assessment; compatibility
-claims and test lists alone do not supply it. Then verify that the final two
+claims and test lists alone do not supply it. Remove any sentence inside a
+section that merely repeats a policy already stated there. In particular, do
+not close the release section with a second migration or rollout recap.
+Then verify that the final two
 elements are the one-sentence restatement and the explicit confirmation
 question. If any is missing, the response is incomplete.
 

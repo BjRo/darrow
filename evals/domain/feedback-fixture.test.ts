@@ -16,6 +16,39 @@ const deliveryChecks = evalCase.checks.filter((check) =>
 );
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 
+test.each([source, rejectionSource])(
+  "feedback refuses a product-file mutation before acknowledgement: %s",
+  async (caseSource) => {
+    const result = await runFixtureChecks({
+      source: caseSource,
+      checks: [
+        {
+          name: "discovery accepts unchanged product state",
+          run: "decisionctl discover",
+        },
+        {
+          name: "simulate mutation outside the implementation file",
+          run: "printf '// unauthorized\\n' >>test/migration.test.js",
+        },
+        {
+          name: "acknowledgement rejects the changed Git state",
+          run: "decisionctl acknowledge migration-policy 'Use the strict migration policy. Approval reference: cobalt-7391.' 2>&1",
+          exit_code: 1,
+        },
+        {
+          name: "the rejected state never produces acknowledgement evidence",
+          run: 'test "$(cat .fixture-state/feedback-product-unchanged)" = discover && test "$(wc -l <.fixture-state/ticket-feedback-trace | tr -d \' \')" -eq 1',
+        },
+      ],
+    });
+    assertLifecycle(result, true);
+    expect(result.checks.every((check) => check.status === "passed")).toBe(
+      true,
+    );
+  },
+  30_000,
+);
+
 async function gradeDelivery(
   files: Record<string, string>,
   extraCommit = false,
@@ -38,8 +71,8 @@ async function gradeDelivery(
       ],
       setup: [
         "git switch -c fix/DAR-42-migration",
-        "printf '%s\\n' fix/DAR-42-migration >.git/branch-invocations",
-        "git rev-parse HEAD >.git/commit-invocations",
+        "printf '%s\\n' fix/DAR-42-migration >.fixture-state/branch-invocations",
+        "git rev-parse HEAD >.fixture-state/commit-invocations",
       ].join("\n"),
     },
     checks: [...deliveryChecks, ...diagnosis],
@@ -212,7 +245,7 @@ test("rejected approval trace failures retain bounded cause flags", async () => 
       checks: [
         {
           name: "write controlled approval trace",
-          run: `printf '%s' ${quote(trace)} >.git/ticket-feedback-trace`,
+          run: `printf '%s' ${quote(trace)} >.fixture-state/ticket-feedback-trace`,
         },
         check,
         ...(passes

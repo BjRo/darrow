@@ -1,7 +1,21 @@
 # Review result protocol
 
-Use the first protocol for comprehensive reviews and terminal scope failures.
-Use the second additive protocol only for fix verification.
+The main skill's normal path passes retained `--reader` records directly to
+`review-result finalize`; it validates and aggregates them without a handwritten
+draft. `review-scope prepare --report-terminal` saves terminal blocked reports.
+Both paths materialize canonical JSON and Markdown. Read this reference only
+for exceptional evidence gaps, contextual finding selection, assessment
+corrections or external protocol inspection. The draft interface below remains
+available for those bounded cases; it never authorizes coordinator judgment.
+For a selected route reported unavailable before reader preparation, use the main skill's
+`review-result block-route` command instead of a handwritten draft. It saves
+canonical blocked review or verification artifacts without reader judgments.
+After preparation or delegation, use exceptional draft finalization below,
+retaining every separately supported reader finding and actual evidence gap.
+For the normal human response, add `--present` to a finalization call, including
+the draft path. It saves and reads the canonical artifacts before emitting
+answer-ready Markdown. Omit that option for artifact-path JSON or an explicitly
+requested machine response; return the saved canonical record for the latter.
 
 ## Canonical artifact and output envelope
 
@@ -284,11 +298,13 @@ uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result valid
 uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result validate-fix-axis spec "$spec_fix_record"
 ```
 
-The fix-axis schema declares supplied original keys in `originals`, active
+The fix-axis schema declares attempted original keys in `originals`, active
 carried regressions in `prior_regressions`, original states in `attempts`,
 carried states in `regression_attempts`, newly detected direct regressions in
-`regressions`, and missing evidence in `evidence_gaps`. Without an explicit
-evidence gap, every supplied original and carried regression must have exactly
+`regressions`, and missing evidence in `evidence_gaps`. Copy identity fields
+from the prepared repair.output_binding. Complete original findings are
+reference evidence; only repair.attempted belongs in originals. Without an explicit
+evidence gap, every attempted original and carried regression must have exactly
 one corresponding state record.
 
 Derive the outcome mechanically in this order:
@@ -313,7 +329,9 @@ Derive the outcome mechanically in this order:
    advisories do not prevent `clear`.
 
 A failed deterministic check must be represented by an unresolved or blocked
-repair-caused regression, not by an unscoped new finding. Validate with:
+repair-caused regression, not by an unscoped new finding. If independent causal
+assessment is unavailable, preserve the failed receipt and an explicit evidence
+gap instead; the outcome remains `blocked`, never `clear`. Validate with:
 
 ```sh
 uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result validate-verification "$verification_record"

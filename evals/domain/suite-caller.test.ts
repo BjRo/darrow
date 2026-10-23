@@ -4,18 +4,36 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  realpath,
   rm,
   symlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { selectCaseIds } from "../sevro-extension/index";
 import { analyzeAblations, planSuite } from "../sevro-extension/suite";
 import { sevroCommand } from "../sevro-extension/sevro-command";
+import { captureTestCommand, spawnTestCommand } from "../test-command";
 
 const roots: string[] = [];
 const suiteCommand = resolve(import.meta.dir, "../sevro-extension/suite.ts");
+
+async function skillPluginManifests(skill: string) {
+  const plugin = dirname(dirname(skill));
+  for (const host of ["claude", "codex"]) {
+    const directory = join(plugin, `.${host}-plugin`);
+    await mkdir(directory, { recursive: true });
+    await writeFile(
+      join(directory, "plugin.json"),
+      JSON.stringify({
+        name: basename(plugin),
+        version: "0.1.0",
+        ...(host === "codex" ? { skills: "./skills/" } : {}),
+      }),
+    );
+  }
+}
 
 afterEach(async () => {
   await Promise.all(
@@ -124,89 +142,64 @@ async function invoke(
   orderSeed: string | null = "existing-order-1",
 ) {
   args = withSeed(args, orderSeed);
-  const proc = Bun.spawn([process.execPath, suiteCommand, ...args], {
-    stdout: "pipe",
-    stderr: "pipe",
-    env: { ...process.env, ...environment },
-  });
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(
+    [process.execPath, suiteCommand, ...args],
+    undefined,
+    {
+      env: { ...process.env, ...environment },
+    },
+  );
   return { stdout, stderr, code };
 }
 
-test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
-  "suite applies enabled case routes before mode candidate defaults",
-  async () => {
-    const { root, suite, results } = await fixture();
-    const host = await syntheticCandidateHost(root, "codex");
-    const definition = JSON.parse(await readFile(suite, "utf8"));
-    await writeFile(
-      suite,
-      JSON.stringify({
-        ...definition,
-        case_routes: {
-          codex: { "suite-alpha": { model: "case-model", effort: "high" } },
-        },
-        modes: {
-          inactive: {
-            owner_evaluation: "passive",
-            model_by_harness: { codex: "mode-model" },
-            effort: "medium",
-          },
-          active: {
-            owner_evaluation: "passive",
-            model_by_harness: { codex: "mode-model" },
-            effort: "medium",
-            apply_case_routes: true,
-          },
-        },
-      }),
-    );
-    const run = await invoke([
-      "--suite",
-      suite,
-      "--project-root",
-      root,
-      "--results-root",
-      results,
-      "--trials",
-      "1",
-      "--threshold",
-      "1",
-      "--",
-      ...host,
-      "--shell-isolation",
-    ]);
-    expect(run.code, run.stderr + run.stdout).toBe(0);
-    const manifest = JSON.parse(
-      await readFile(join(results, "suite-run.json"), "utf8"),
-    );
-    expect(manifest.caseRoutes).toEqual({
-      codex: { "suite-alpha": { model: "case-model", effort: "high" } },
-    });
-    expect(manifest.cells).toHaveLength(4);
-    const expected = [
-      { model: "mode-model", effort: "medium" },
-      { model: "mode-model", effort: "medium" },
-      { model: "case-model", effort: "high" },
-      { model: "mode-model", effort: "medium" },
-    ];
-    for (const [index, cell] of manifest.cells.entries()) {
-      expect(cell.requestedRoute).toEqual(expected[index]);
-      expect(cell.provenance.routes[0]).toEqual({
-        role: "candidate",
-        host: "sevro.host.codex",
-        ...expected[index],
-      });
-      const result = JSON.parse(await readFile(cell.result, "utf8"));
-      expect(result.task.verdict).toBe("passed");
-    }
-  },
-  20_000,
-);
+test("suite reports canonical result identities through an output alias", async () => {
+  const { root, suite, adapter } = await fixture();
+  const storage = await mkdtemp(join(tmpdir(), "darrow-suite-output-alias-"));
+  roots.push(storage);
+  const target = join(storage, "canonical-results");
+  const alias = join(storage, "results-alias");
+  await mkdir(target);
+  await symlink(target, alias, "dir");
+  const run = await invoke([
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    alias,
+    "--case",
+    "suite-alpha",
+    "--mode",
+    "passive",
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+  ]);
+  expect(run.code, run.stderr + run.stdout).toBe(0);
+  const manifest = JSON.parse(
+    await readFile(join(alias, "suite-run.json"), "utf8"),
+  );
+  const cell = manifest.cells[0];
+  expect(manifest.cells).toHaveLength(1);
+  expect(cell.result).toBe(
+    await realpath(join(target, `cell-${cell.index}/result.json`)),
+  );
+  const report = JSON.parse(await readFile(manifest.report.jsonPath, "utf8"));
+  expect(report.inputs).toHaveLength(1);
+  expect(report.inputs[0].resultFile).toBe(cell.result);
+  expect(report.rows).toHaveLength(1);
+  expect(report.rows[0].resultFile).toBe(cell.result);
+  expect(report.rows[0].task).toBe("passed");
+});
 
 test("suite rejects malformed case routes and missing selected harness maps before execution", async () => {
   const { root, suite, adapter, results } = await fixture();
@@ -277,7 +270,7 @@ test("suite rejects malformed case routes and missing selected harness maps befo
   }
 });
 
-test("suite plans focused case routes for both hosts and leaves disabled routes at their defaults", async () => {
+test("suite plans host, mode, and enabled case route precedence for both hosts", async () => {
   const { root, suite, results } = await fixture();
   const hostOptions = join(root, "hosts.json");
   await writeFile(
@@ -296,21 +289,28 @@ test("suite plans focused case routes for both hosts and leaves disabled routes 
       case_routes: {
         codex: {
           "suite-alpha": { model: "case-codex", effort: "high" },
-          "suite-beta": { model: "unused-codex", effort: "low" },
         },
         claude: { "suite-alpha": { model: "case-claude", effort: "medium" } },
       },
       modes: {
         inactive: { owner_evaluation: "passive", apply_case_routes: false },
-        active: { owner_evaluation: "passive", apply_case_routes: true },
+        mode: {
+          owner_evaluation: "passive",
+          model_by_harness: { codex: "mode-codex", claude: "mode-claude" },
+          effort: "low",
+        },
+        active: {
+          owner_evaluation: "passive",
+          model_by_harness: { codex: "mode-codex", claude: "mode-claude" },
+          effort: "low",
+          apply_case_routes: true,
+        },
       },
     }),
   );
   const { manifest, cells } = await plan([
     "--suite",
     suite,
-    "--case",
-    "suite-alpha",
     "--project-root",
     root,
     "--results-root",
@@ -325,23 +325,31 @@ test("suite plans focused case routes for both hosts and leaves disabled routes 
     "--shell-isolation",
     "--dry",
   ]);
-  expect(manifest.caseIds).toEqual(["suite-alpha"]);
-  expect(cells).toHaveLength(4);
+  expect(manifest.caseIds).toEqual(["suite-alpha", "suite-beta"]);
+  expect(cells).toHaveLength(12);
+  const expectedRoutes: Record<string, { model: string; effort: string }> = {
+    "inactive/codex/suite-alpha": { model: "base-model", effort: "low" },
+    "inactive/claude/suite-alpha": { model: "base-model", effort: "low" },
+    "mode/codex/suite-alpha": { model: "mode-codex", effort: "low" },
+    "mode/claude/suite-alpha": { model: "mode-claude", effort: "low" },
+    "active/codex/suite-alpha": { model: "case-codex", effort: "high" },
+    "active/claude/suite-alpha": { model: "case-claude", effort: "medium" },
+    "inactive/codex/suite-beta": { model: "base-model", effort: "low" },
+    "inactive/claude/suite-beta": { model: "base-model", effort: "low" },
+    "mode/codex/suite-beta": { model: "mode-codex", effort: "low" },
+    "mode/claude/suite-beta": { model: "mode-claude", effort: "low" },
+    "active/codex/suite-beta": { model: "mode-codex", effort: "low" },
+    "active/claude/suite-beta": { model: "mode-claude", effort: "low" },
+  };
   expect(
-    cells.map((cell: { requestedRoute: unknown }) => cell.requestedRoute),
-  ).toEqual([
-    { model: null, effort: null },
-    { model: null, effort: null },
-    { model: "case-codex", effort: "high" },
-    { model: "case-claude", effort: "medium" },
-  ]);
-  for (const [index, cell] of cells.entries()) {
+    cells.map((cell) => `${cell.mode}/${cell.harness}/${cell.caseId}`).sort(),
+  ).toEqual(Object.keys(expectedRoutes).sort());
+  for (const cell of cells) {
     const expected =
-      index < 2
-        ? { model: "base-model", effort: "low" }
-        : index === 2
-          ? { model: "case-codex", effort: "high" }
-          : { model: "case-claude", effort: "medium" };
+      expectedRoutes[`${cell.mode}/${cell.harness}/${cell.caseId}`]!;
+    expect(cell.requestedRoute).toEqual(
+      cell.mode === "inactive" ? { model: null, effort: null } : expected,
+    );
     expect(cell.command[cell.command.indexOf("--model") + 1]).toBe(
       expected.model,
     );
@@ -350,55 +358,6 @@ test("suite plans focused case routes for both hosts and leaves disabled routes 
     );
   }
 }, 15_000);
-
-async function syntheticCandidateHost(
-  root: string,
-  harness: "codex" | "claude",
-) {
-  const binaryRoot = await mkdtemp(
-    join(tmpdir(), "darrow-sevro-case-route-bin-"),
-  );
-  roots.push(binaryRoot);
-  const binary = join(binaryRoot, `synthetic-${harness}`);
-  const credential = join(root, `${harness}-auth.json`);
-  const realCodex = `'${Bun.which("codex")!.replaceAll("'", `'"'"'`)}'`;
-  const events = [
-    { type: "thread.started", thread_id: "synthetic-case-route" },
-    { type: "item.completed", item: { type: "agent_message", text: "ready" } },
-    { type: "turn.completed", usage: { input_tokens: 1, output_tokens: 1 } },
-  ]
-    .map((event) => JSON.stringify(event))
-    .join("\n");
-  await writeFile(credential, '{"test":"synthetic-login"}', { mode: 0o600 });
-  await writeFile(
-    binary,
-    harness === "codex"
-      ? `#!/bin/sh
-if [ "$1" = sandbox ]; then exec ${realCodex} "$@"; fi
-if [ "$1" = --version ]; then printf 'synthetic-codex\\n'; exit 0; fi
-if [ "$1" != exec ]; then exit 99; fi
-/bin/cat >/dev/null
-/bin/cat <<'SEVRO_EVENTS'
-${events}
-SEVRO_EVENTS
-`
-      : `#!/bin/sh
-test -r "$CLAUDE_CONFIG_DIR/.credentials.json" || exit 3
-printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"result":"ready","usage":{"input_tokens":1,"output_tokens":1},"total_cost_usd":0}'
-`,
-    { mode: 0o700 },
-  );
-  return [
-    "--host",
-    harness,
-    `--${harness}-bin`,
-    binary,
-    harness === "codex" ? "--codex-auth-file" : "--claude-credential-file",
-    credential,
-    "--model=base-model",
-    "--effort=low",
-  ];
-}
 
 test("suite grades benchmark owner routes separately from the parent candidate route", async () => {
   const { root, cases, suite, adapter, results } = await fixture();
@@ -820,6 +779,7 @@ test("suite gates requested evaluation records independently of existing task ch
 test("suite preserves dry and adaptive-goal record exceptions", async () => {
   const { root, suite, adapter, results } = await fixture();
   const skillDir = "plugins/orchestration/example/skills/adaptive-goal";
+  await skillPluginManifests(join(root, skillDir));
   await mkdir(join(root, skillDir), { recursive: true });
   await writeFile(join(root, skillDir, "SKILL.md"), "Adaptive delivery body\n");
   await writeFile(
@@ -963,6 +923,7 @@ test("suite rejects malformed record policies before any cells start", async () 
 test("suite mounts candidate skill overrides without changing experiment selection", async () => {
   const { root, cases, adapter, results } = await fixture();
   const plugin = join(root, "plugins/capability/candidate");
+  await skillPluginManifests(join(plugin, "skills/probe"));
   for (const name of ["probe", "rival"]) {
     await mkdir(join(plugin, "skills", name, "evals"), { recursive: true });
     await writeFile(join(plugin, "skills", name, "SKILL.md"), `${name} body\n`);
@@ -1054,7 +1015,7 @@ test("suite mounts candidate skill overrides without changing experiment selecti
       skillDir: "plugins/capability/candidate/skills/probe",
       mountPluginSkills: true,
     });
-    expect(evidence.trials[0].artifactRefs).toHaveLength(index === 0 ? 2 : 0);
+    expect(evidence.trials[0].artifactRefs).toHaveLength(index === 0 ? 4 : 0);
   }
 }, 20_000);
 
@@ -1189,6 +1150,7 @@ test("suite compares a shared experiment with the same declared skill override",
   );
   roots.push(results);
   const directory = join(root, "plugins/capability/example/skills/probe");
+  await skillPluginManifests(directory);
   await mkdir(directory, { recursive: true });
   await writeFile(join(directory, "SKILL.md"), "Probe body\n");
   const mode = {
@@ -1675,7 +1637,7 @@ test("suite checks condition-induced invocation only in selected modes", async (
 });
 
 test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
-  "suite applies per-mode candidate routes independently for both hosts",
+  "suite executes route overrides for both hosts and rejects contradictory evidence",
   async () => {
     const { root, suite, results } = await fixture();
     const binRoot = await mkdtemp(
@@ -1729,10 +1691,19 @@ printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"result":"
         experiment: "mode-routes",
         harnesses: ["codex", "claude"],
         case_filter: "suite-alpha",
+        case_routes: {
+          codex: {
+            "suite-alpha": { model: "codex-case-variant", effort: "medium" },
+          },
+          claude: {
+            "suite-alpha": { model: "claude-variant", effort: "high" },
+          },
+        },
         modes: {
           original: { owner_evaluation: "passive" },
           overridden: {
             owner_evaluation: "passive",
+            apply_case_routes: true,
             model_by_harness: {
               codex: "codex-variant",
               claude: "claude-variant",
@@ -1792,6 +1763,14 @@ printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"result":"
       await readFile(join(results, "suite-run.json"), "utf8"),
     );
     expect(manifest.cells).toHaveLength(4);
+    expect(manifest.caseRoutes).toEqual({
+      codex: {
+        "suite-alpha": { model: "codex-case-variant", effort: "medium" },
+      },
+      claude: {
+        "suite-alpha": { model: "claude-variant", effort: "high" },
+      },
+    });
     expect(manifest.modes[1]).toMatchObject({
       modelByHarness: { codex: "codex-variant", claude: "claude-variant" },
       effort: "high",
@@ -1817,8 +1796,8 @@ printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"result":"
       {
         role: "candidate",
         host: "sevro.host.codex",
-        model: "codex-variant",
-        effort: "high",
+        model: "codex-case-variant",
+        effort: "medium",
       },
       {
         role: "candidate",
@@ -1828,8 +1807,8 @@ printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"result":"
       },
     ]);
     expect(manifest.cells[2].requestedRoute).toEqual({
-      model: "codex-variant",
-      effort: "high",
+      model: "codex-case-variant",
+      effort: "medium",
     });
     expect(manifest.cells[3].requestedRoute).toEqual({
       model: "claude-variant",
@@ -1911,6 +1890,7 @@ process.exitCode = code;
     const definition = JSON.parse(await readFile(suite, "utf8"));
     definition.case_filter = "route-ablation";
     definition.modes.original.without_skill = true;
+    definition.modes.overridden.apply_case_routes = false;
     definition.ablations = [
       { name: "route-mismatch", baseline: "original", candidate: "overridden" },
     ];
@@ -1934,12 +1914,13 @@ process.exitCode = code;
     );
     expect(report.comparisons[0].cases).toEqual([]);
   },
-  45_000,
+  150_000,
 );
 
 async function activationFixture() {
   const { root, adapter, suite, results } = await fixture();
   const skill = join(root, "plugins/capability/example/skills/probe");
+  await skillPluginManifests(skill);
   await mkdir(join(skill, "evals"), { recursive: true });
   await writeFile(
     join(skill, "SKILL.md"),
@@ -1969,8 +1950,8 @@ export default {
   async run({ condition }) {
     const skills = ++runs === 1 ? ["probe"] : [];
     return { finalMessage: "ready", complete: true, actualCondition: condition,
-      observations: [{ id: "sevro.codex.skill-reads", completeness: "complete",
-        data: { method: "skill_file_read_probe", primarySkill: skills[0] ?? null,
+      observations: [{ id: "sevro.host.skill-activations", completeness: "complete",
+        data: { method: "tool_result_body_match", visibility: "tool_result", scope: "prepared_skill_bodies", catalogComplete: true, partialSkills: [], ambiguousSkills: [], calls: [], truncated: false,
           observedSkills: skills } }] };
   },
 };\n`,
@@ -2395,8 +2376,8 @@ export default {
     const primary = prompt === "negative" ? (first ? "rival" : "probe")
       : first ? "probe" : prompt === "competition" ? "rival" : null;
     return { finalMessage: "ready", complete: true, actualCondition: condition,
-      observations: [{ id: "sevro.codex.skill-reads", completeness: "complete",
-        data: { method: "skill_file_read_probe", primarySkill: primary,
+      observations: [{ id: "sevro.host.skill-activations", completeness: "complete",
+        data: { method: "tool_result_body_match", visibility: "tool_result", scope: "prepared_skill_bodies", catalogComplete: true, partialSkills: [], ambiguousSkills: [], calls: [], truncated: false,
           observedSkills: primary ? [primary] : [] } }] };
   },
 };\n`,
@@ -3022,6 +3003,7 @@ test("suite compares a mounted skill with a no-skill baseline", async () => {
   const results = await mkdtemp(join(tmpdir(), "darrow-sevro-ablation-"));
   roots.push(results);
   const skillRoot = join(root, "plugins/capability/example/skills/probe");
+  await skillPluginManifests(skillRoot);
   await mkdir(join(skillRoot, "evals"), { recursive: true });
   await writeFile(
     join(skillRoot, "SKILL.md"),
@@ -3421,7 +3403,7 @@ test("suite quality remains unknown after semantic grading error", async () => {
 test("suite interruption cancels the active Sevro cell and stops selection", async () => {
   const { root, adapter, suite, results } = await fixture();
   const ready = join(root, "suite-ready");
-  const child = Bun.spawn(
+  const { child, result: captured } = await spawnTestCommand(
     [
       process.execPath,
       suiteCommand,
@@ -3442,10 +3424,9 @@ test("suite interruption cancels the active Sevro cell and stops selection", asy
       adapter,
       "--shell-isolation",
     ],
+    undefined,
     {
       env: { ...process.env, SEVRO_SUITE_READY_PATH: ready },
-      stdout: "pipe",
-      stderr: "pipe",
     },
   );
   try {
@@ -3463,10 +3444,7 @@ test("suite interruption cancels the active Sevro cell and stops selection", asy
       { index: 4, harness: "codex", mode: "passive", caseId: "suite-beta" },
     ]);
     child.kill("SIGTERM");
-    const [stdout, code] = await Promise.all([
-      new Response(child.stdout).text(),
-      child.exited,
-    ]);
+    const { stdout, exitCode: code } = await captured;
     expect(code).toBe(143);
     expect(JSON.parse(stdout)).toMatchObject({
       cells: 1,

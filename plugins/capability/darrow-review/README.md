@@ -122,6 +122,11 @@ validated prior manifest when a follow-up did not retain its path.
 If preparation stops before producing a scope manifest, `review-scope
 allocate-terminal --repo <repo>` returns a private directory and terminal
 manifest for the blocked result. That manifest also supports `pin` and `unpin`.
+For comprehensive preparation, `--report-terminal` also saves validated blocked
+JSON and canonical Markdown on scope exit 2, 3 or 4, returning their absolute
+paths while preserving the original failure exit code. Supply `--spec-source`
+when an originating source is available. No reviewer is launched for a terminal
+scope failure.
 
 The next review invocation prunes unpinned runs whose directories have not
 changed for 30 days across the
@@ -158,17 +163,33 @@ both nonempty guidance fields. Since **0.9.0**, older records without those
 fields are rejected. External handoffs remain supported when their records are
 complete; they do not require an original review artifact.
 
-`finalize --manifest <scope.json> --draft <draft.json> --output <result.json>`
-copies scope identity and captured checks from retained files, derives the
-verdict, validates the result, and materializes its complete Markdown report.
-Repeat `--check <absolute-check.json>` for each captured command. Applicable
-checks require retained receipts; inapplicability remains an explicit draft
-decision. For fix verification, use `verification.json` and add `--original`
-with the original comprehensive result, immediately prior verification, or
-complete external handoff. The helper preserves immutable original findings,
-required guidance fields, target bindings, and prior-verification history.
-It writes only inside the current private review run. Readers still own
-judgment; the coordinator still chooses sources, checks, and accepted findings.
+`finalize --manifest <scope.json> --reader <axis.json>` accepts each retained
+independent record through a repeated `--reader` argument. It validates current
+reader inputs and route bindings, rejects repeated axes or child IDs, copies
+reader judgments unchanged, and derives scope, checks and outcome. Native
+accepted-launch evidence remains separately required; a binding file alone
+does not prove an independent launch. Repeat `--check <absolute-check.json>`
+for every captured command. Use `--spec-not-available` only for comprehensive
+review without an originating objective; check inapplicability remains an
+explicit reader-context decision. `--next-action` and repeatable `--risk` supply
+coordinator context without copying findings.
+
+For fix verification add `--original` with the original comprehensive result,
+immediately prior verification or complete external handoff. Mechanics preserve
+immutable findings, target/history bindings and carried regression guidance,
+and assign new regression identity/order directly from verifier records. The
+helper saves `result.json` and `review.md`, or `verification.json` and
+`verification.md`, beneath the current private run. Readers retain judgment.
+Add `--present` to emit a ready-to-use human report after retaining and reading
+the canonical artifacts. It preserves scope, finding dispositions, reasoning,
+checks, risks and evidence gaps while omitting repeated finding history.
+Without `--present`, finalization returns the existing artifact-path JSON.
+
+The existing `--draft <draft.json> --output <result.json>` interface remains
+available for bounded evidence gaps, contextual duplicate/tool-output selection,
+assessment corrections and external protocol callers. It cannot be combined
+with `--reader`. Both paths preserve the same canonical formats and report
+validation; neither grants repair or publication authority.
 
 `prepare-reader` generates a separate immutable input and short launch
 message for each axis. It binds the complete reader instructions, scope, and
@@ -178,6 +199,10 @@ Standards baseline. Fix inputs preserve the axis's original findings, prior
 scope, and carried regressions. `read-reader` rejects changed or unavailable
 required evidence before judgment and returns the full instructions and schema
 directly to the reader. The coordinator only relays the short loading command.
+On Codex, `--route-record <current-run/reviewer-route.json>` additionally returns
+complete native `launch` arguments, with explicit model/effort, fresh context,
+a scope-unique axis task name and the unchanged message. Apply the whole object;
+generation alone never proves native acceptance or an effective route.
 
 An input-read error or invalid returned record permits one diagnostic-only
 correction with the same route-bound native reader. `reader-feedback` retains

@@ -8,7 +8,9 @@ prompt: >-
   administrator selects one or more recipients; every verified workspace
   member is eligible, and delivery uses email. Any workspace administrator may
   view, pause, resume, or delete any schedule. The administrator who creates a
-  schedule owns it for failure notifications. Generation failures retry once
+  schedule owns it for failure notifications. Pausing or deleting a schedule
+  cancels its queued but unsent deliveries; resuming affects future scheduled
+  deliveries only. Generation failures retry once
   after five minutes and then email that owning administrator. CSV is the only
   format. Historical backfill, external recipients, custom cron schedules, and
   new report authoring are out of scope. Acceptance will be observed through
@@ -34,10 +36,15 @@ semantic_output_checks:
       pause or delete schedules, use CSV only, and receive an owner email after
       one failed-generation retry five minutes later. Every administrator can
       manage every schedule, every verified member is recipient-eligible, and
-      the schedule creator owns failure notifications. Treat wording that
+      the schedule creator owns failure notifications. Pausing or deleting
+      cancels queued but unsent deliveries, and resuming applies only to future
+      scheduled deliveries. Treat wording that
       recipient selection is from verified workspace members, or that eligible
       recipients are verified workspace members, as preserving the recipient
-      boundary; the exact quantifier "every" is not required.
+      boundary; the exact quantifier "every" is not required. Describing CSV as
+      the fixed report format preserves the format boundary without the word
+      "only". Presenting CSV as a default or one selectable option, or allowing
+      another format, does not preserve CSV-only behavior.
   - name: brief preserves the settled non-goals
     proposition: >-
       The response keeps historical backfill, external recipients, custom cron
@@ -54,9 +61,20 @@ semantic_output_checks:
       The response provides a concise outcome restatement for the user to
       confirm or correct and does not turn the discovery brief into an
       implementation plan.
-  - name: brief is concise clear and complete
+  - name: brief leads with the outcome and states evidence directly
     proposition: >-
-      The response leads with the feature outcome, uses direct and familiar
-      language, and avoids repeating decisions or narrating the agent's
-      process. It remains easy to scan without dropping the settled behavior,
-      non-goals, evidence, acceptance checks, or final confirmation request.
+      The brief leads with the feature outcome, uses direct and familiar
+      language, and remains easy to scan. Material evidence and its source
+      remain clear. Extended narration of searches, tool calls, or inspection
+      steps that distracts from or delays the brief fails this check; a brief
+      process aside is a minor style issue and must not fail it.
+      Attributing a fact to the repository README or a choice to the user is
+      evidence provenance, not process narration.
+  - name: brief avoids redundant decision recaps
+    proposition: >-
+      The brief avoids duplicated whole decision, constraint, or non-goal
+      lists and substantial redundant recaps. Acceptance
+      criteria may reuse settled behavior to describe observable effects, and
+      the final goal restatement may summarize the outcome. Isolated repetition
+      of a single constraint is a minor style issue and must not fail this
+      check. Duplicated lists and substantial recaps still fail.

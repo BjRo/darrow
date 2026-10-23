@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { fixtureExtensionRequest } from "./fixture-command";
+import { fixtureExtensionRequest, policyOutcomes } from "./fixture-command";
 
 const roots: string[] = [];
 
@@ -12,10 +12,6 @@ test("current implementation routes grade sourced Claude completions on both hos
   const root = await mkdtemp(join(tmpdir(), "darrow-claude-route-"));
   roots.push(root);
   for (const [id, types] of [
-    [
-      "goal-preflight-high-risk-routine",
-      ["adaptive-goal-sonnet-5-5-low", "adaptive-goal-sonnet-5-5-medium"],
-    ],
     [
       "goal-preflight-quality-sensitive-localized",
       ["adaptive-goal-sonnet-5-5-medium"],
@@ -144,7 +140,7 @@ test("current implementation routes grade sourced Claude completions on both hos
             },
           ],
         });
-        expect(result.checks).toContainEqual(
+        expect(policyOutcomes(result)).toContainEqual(
           expect.objectContaining({
             id: "darrow.evals.transcript.1",
             status: expected,
@@ -159,9 +155,9 @@ test("current implementation routes grade sourced Claude completions on both hos
     expect(resolved.cases[0]!.requiredEvidence).not.toContain(
       "sevro.codex.native-calls",
     );
-    expect(resolved.cases[0]!.requiredEvidence).toContain(
-      "sevro.host.native-controls",
-    );
+    expect(resolved.cases[0]!.requiredEvidence).toEqual([
+      "sevro.host.native-goal",
+    ]);
   }
 });
 
@@ -234,7 +230,7 @@ test("current Claude assertions keep malformed tool evidence unavailable", async
       ],
     });
     for (const [index, status] of statuses.entries())
-      expect(result.checks).toContainEqual(
+      expect(policyOutcomes(result)).toContainEqual(
         expect.objectContaining({
           id: `darrow.evals.transcript.${index + 1}`,
           status,
@@ -284,7 +280,7 @@ test("current ordinary engineering distinguishes absence, activation and unavail
       artifacts: [],
       configuration: {},
     });
-    expect(result.checks).toContainEqual(
+    expect(policyOutcomes(result)).toContainEqual(
       expect.objectContaining({
         id: "darrow.evals.native-goal",
         status: expected,
@@ -325,7 +321,7 @@ test("contradictory native goal history remains unavailable", async () => {
       artifacts: [],
       configuration: {},
     });
-    expect(result.checks).toContainEqual(
+    expect(policyOutcomes(result)).toContainEqual(
       expect.objectContaining({
         id: "darrow.evals.native-goal",
         status: "unavailable",
@@ -336,12 +332,9 @@ test("contradictory native goal history remains unavailable", async () => {
 
 test("current native transcript checks declare required host facts", async () => {
   for (const [id, facts] of [
-    [
-      "goal-ordinary-engineering-does-not-activate",
-      ["sevro.codex.skill-reads", "sevro.codex.events"],
-    ],
-    ["goal-preflight-high-risk-routine", ["sevro.host.native-controls"]],
-    ["claude-readiness-nonready-stops", ["sevro.claude.tool-calls"]],
+    ["goal-ordinary-engineering-does-not-activate", ["sevro.host.native-goal"]],
+    ["goal-preflight-high-risk-routine", ["sevro.host.native-goal"]],
+    ["claude-readiness-nonready-stops", ["sevro.host.native-goal"]],
   ] as const) {
     const result = await fixtureExtensionRequest<{
       cases: Array<{ requiredEvidence: string[] }>;
@@ -360,7 +353,7 @@ test("native route grading refuses observations attributed to another host", asy
     cases: Array<{ id: string; extensionData: Record<string, unknown> }>;
   }>("resolve", {
     projectRoot: pathToFileURL(join(import.meta.dir, "../..")).href,
-    selectors: { caseIds: ["goal-preflight-high-risk-routine"] },
+    selectors: { caseIds: ["goal-preflight-quality-sensitive-localized"] },
     configuration: {},
   });
   const result = await fixtureExtensionRequest<{
@@ -370,18 +363,20 @@ test("native route grading refuses observations attributed to another host", asy
     extensionData: resolved.cases[0]!.extensionData,
     configuration: {},
     artifacts: [],
+    builtinChecks: [],
+    execution: { status: "completed" },
     observations: [
       {
         id: "sevro.codex.native-calls",
         source: "sevro.host.claude",
         completeness: "complete",
         data: {
-          acceptedSpawns: [{ model: "gpt-6-luna", reasoningEffort: "medium" }],
+          acceptedSpawns: [{ model: "gpt-6-luna", reasoningEffort: "high" }],
         },
       },
     ],
   });
-  expect(result.checks).toContainEqual(
+  expect(policyOutcomes(result)).toContainEqual(
     expect.objectContaining({
       id: "darrow.evals.transcript.1",
       status: "unavailable",
@@ -394,7 +389,7 @@ test("native route grading requires correlated acceptance and cites its observat
     cases: Array<{ id: string; extensionData: Record<string, unknown> }>;
   }>("resolve", {
     projectRoot: pathToFileURL(join(import.meta.dir, "../..")).href,
-    selectors: { caseIds: ["goal-preflight-high-risk-routine"] },
+    selectors: { caseIds: ["goal-preflight-quality-sensitive-localized"] },
     configuration: {},
   });
   const evaluate = (data: Record<string, unknown>) =>
@@ -405,6 +400,8 @@ test("native route grading requires correlated acceptance and cites its observat
       extensionData: resolved.cases[0]!.extensionData,
       configuration: {},
       artifacts: [],
+      builtinChecks: [],
+      execution: { status: "completed" },
       observations: [
         {
           id: "sevro.codex.native-calls",
@@ -421,7 +418,7 @@ test("native route grading requires correlated acceptance and cites its observat
     startedOrdinal: 2,
     acceptedOrdinal: 3,
     model: "gpt-6-luna",
-    reasoningEffort: "medium",
+    reasoningEffort: "high",
   };
   const data = {
     method: "native_session",
@@ -530,7 +527,7 @@ test("public extension mounts plugin references and excludes their evals", async
   ).toBe(false);
 });
 
-test("current native goal cases preserve their transcript assertions", async () => {
+test("current native goal cases preserve task and diagnostic transcript assertions", async () => {
   const root = join(import.meta.dir, "../..");
   for (const id of [
     "goal-preflight-bounded-native-goal",
@@ -540,17 +537,33 @@ test("current native goal cases preserve their transcript assertions", async () 
     "goal-review-high-selected-claude",
   ]) {
     const reply = await fixtureExtensionRequest<{
-      cases: Array<{ id: string; checks: Array<{ id: string }> }>;
+      cases: Array<{
+        id: string;
+        checks: Array<{ id: string }>;
+        extensionData: {
+          "darrow.case": {
+            nativeTranscriptChecks?: { id: string }[];
+            transcriptChecks?: { id: string }[];
+            workflowDiagnosticIds?: string[];
+          };
+        };
+      }>;
     }>("resolve", {
       projectRoot: pathToFileURL(root).href,
       selectors: { caseIds: [id] },
       configuration: {},
     });
-    expect(
-      reply.cases[0]!.checks.some((check) =>
-        check.id.startsWith("darrow.evals.transcript."),
-      ),
-    ).toBe(true);
+    const selected = reply.cases[0]!;
+    const details = selected.extensionData["darrow.case"];
+    const transcriptIds = [
+      ...(details.nativeTranscriptChecks ?? []),
+      ...(details.transcriptChecks ?? []),
+    ].map((check) => check.id);
+    expect(transcriptIds.length).toBeGreaterThan(0);
+    expect([
+      ...selected.checks.map((check) => check.id),
+      ...(details.workflowDiagnosticIds ?? []),
+    ]).toEqual(expect.arrayContaining(transcriptIds));
   }
 });
 

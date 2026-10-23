@@ -19,6 +19,17 @@ import {
 } from "./benchmark-policy";
 import { parse as parseYaml } from "yaml";
 import { TICKETCTL } from "../fixture-ticket";
+import { caseCandidateRoutes } from "./suite-routes";
+import { pluginHookPolicy, pluginHookChecks } from "./plugin-hook";
+import {
+  commonSkillActivation,
+  commonSkillActivationClaims,
+  commonSkillExposureClaims,
+  commonSkillSource,
+  SKILL_ACTIVATION_CLAIMS,
+  SKILL_ACTIVATIONS,
+  SKILL_EXPOSURE_CLAIMS,
+} from "./skill-activation";
 import {
   caseWithCondition,
   conditionedCase,
@@ -202,15 +213,56 @@ function fixtureSetupScript(fixture: RecordValue): string | null {
   return script;
 }
 
+function fixtureSkills(fixture: RecordValue) {
+  const files =
+    fixture.files === undefined ? {} : record(fixture.files, "fixture files");
+  return Object.entries(files)
+    .flatMap(([path, body]) => {
+      const match =
+        /^\.(agents|claude)\/skills\/([a-z][a-z0-9-]*)\/SKILL\.md$/.exec(path);
+      if (!match) return [];
+      return [
+        {
+          path,
+          host: match[1] === "agents" ? "codex" : "claude",
+          skillName: match[2]!,
+          body: string(body, "fixture skill body"),
+        },
+      ];
+    })
+    .sort((left, right) => left.path.localeCompare(right.path));
+}
+
+function fixtureSkillsDigest(fixture: RecordValue) {
+  const skills = fixtureSkills(fixture);
+  return skills.length
+    ? createHash("sha256").update(JSON.stringify(skills)).digest("hex")
+    : undefined;
+}
+
 function caseFixture(value: unknown) {
   const fixture = record(value, "fixture");
   const setup = fixtureSetupScript(fixture);
   const ticket = fixtureTicket(fixture);
+  const skills = fixtureSkills(fixture);
+  const ordinary = skills.length
+    ? {
+        ...fixture,
+        files: Object.fromEntries(
+          Object.entries(record(fixture.files, "fixture files")).filter(
+            ([path]) => !skills.some((skill) => skill.path === path),
+          ),
+        ),
+      }
+    : fixture;
   return {
     fixture:
       fixture.source === undefined
-        ? generatedFixture(fixture, ticket)
-        : repositoryFixture(fixture, ticket),
+        ? generatedFixture(ordinary, ticket)
+        : repositoryFixture(ordinary, ticket),
+    ...(skills.length
+      ? { fixtureSkillsDigest: fixtureSkillsDigest(fixture) }
+      : {}),
     ...(setup
       ? { setupDigest: createHash("sha256").update(setup).digest("hex") }
       : {}),
@@ -587,7 +639,8 @@ function caseActivation(
       supporting:
         mountPluginSkills ||
         selected.additional_plugins !== undefined ||
-        selected.additional_skills !== undefined,
+        selected.additional_skills !== undefined ||
+        fixtureSkills(record(selected.fixture, "fixture")).length > 0,
     },
     lists.sequence,
   );
@@ -760,6 +813,7 @@ const CASE_FIELDS = [
   "prompt",
   "follow_up_prompt",
   "harnesses",
+  "candidate_routes",
   "fixture",
   "checks",
   "expect_head_change",
@@ -772,6 +826,7 @@ const CASE_FIELDS = [
   "activation_includes",
   "activation_excludes",
   "mount_plugin_skills",
+  "required_plugin_hook",
   "additional_plugins",
   "additional_skills",
   "goal_report",
@@ -838,15 +893,8 @@ const REJECTED_FEEDBACK_PATTERN = String.raw`(?:"type":"darrow.human_feedback_re
 const RELAYED_FEEDBACK_PATTERN = String.raw`(?:"type":"darrow.human_feedback_relay"[^\n]*"same_owner":true[\s\S]*"type":"darrow.goal_agent_resumption"[^\n]*"status":"completed"[^\n]*"same_owner":true|"type":"darrow.codex_native_feedback"[^\n]*"tool":"(?:followup_task|send_message)"[^\n]*"same_owner":true[^\n]*"after_follow_up":true[^\n]*"response_observed":true)`;
 const NONREADY_SKILL_READ_PATTERN =
   '"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"';
-const NONREADY_NO_REPEATED_READ_PATTERN =
-  '"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"[\\s\\S]*"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"';
 const NONREADY_NO_OWNER_PATTERN =
   '"tool":"spawn_agent"|"type":"(?:darrow\\.codex_native_spawn|darrow\\.codex_native_single_agent_accepted|darrow\\.goal_agent_completion)"|"name":"Agent"';
-const READINESS_PRE_OWNER_PATTERN =
-  '"type":"darrow\\.codex_native_pre_owner_skill_read","actor":"parent","pre_owner_skill":"assess-implementation-readiness","status":"completed"|"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"[\\s\\S]*"type":"darrow\\.goal_agent_completion"';
-const READINESS_BEFORE_CONTINUATION_PATTERN = String.raw`"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"[\s\S]*"type":"darrow.eval.follow_up_turn"`;
-const READINESS_AFTER_CONTINUATION_PATTERN = String.raw`"type":"darrow.eval.follow_up_turn"[\s\S]*"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"`;
-const TICKET_REINVOKED_AFTER_CONTINUATION_PATTERN = String.raw`"type":"darrow.eval.follow_up_turn"[\s\S]*(?:"name":"Skill"[^\n]*ticket-to-pr|"type":"darrow.skill_read_probe"[^\n]*"skill":"ticket-to-pr")`;
 const PLAINTEXT_FEEDBACK_MISMATCH_PATTERN = String.raw`"type":"darrow.codex_native_feedback"[^\n]*"message_representation":"plaintext"[^\n]*"message_matches_expected":false`;
 const SECOND_OWNER_PATTERN = String.raw`(?:"type":"darrow.parent_spawn_after_goal"|"tool":"spawn_agent"[^\n]*"status":"completed"[^\n]*[\s\S]*"tool":"spawn_agent"[^\n]*"status":"completed")`;
 const TWO_OWNER_COMPLETIONS_PATTERN = String.raw`"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"[\s\S]*"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"`;
@@ -917,22 +965,12 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     kind: string;
     forbiddenSkills?: string[];
     forbidSpawn?: boolean;
-    skill?: string;
-    max?: number;
-    forbidNativeSkillCall?: boolean;
     forbiddenEventTerms?: string[];
+    forbiddenCommandTerms?: string[];
     forbiddenEventPattern?: string;
     forbidAgentTool?: boolean;
   }
 >([
-  [
-    NONREADY_NO_REPEATED_READ_PATTERN,
-    {
-      kind: "parent-skill-read-count",
-      skill: "assess-implementation-readiness",
-      max: 1,
-    },
-  ],
   [
     NONREADY_NO_OWNER_PATTERN,
     {
@@ -964,10 +1002,7 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     {
       kind: "inactive-controls",
       forbiddenSkills: ["adaptive-goal"],
-      forbiddenEventTerms: [
-        '"skill":"adaptive-goal"',
-        "adaptive-goal-preflight",
-      ],
+      forbiddenCommandTerms: ["adaptive-goal-preflight"],
       forbidSpawn: true,
     },
   ],
@@ -976,10 +1011,7 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     {
       kind: "inactive-controls",
       forbiddenSkills: ["adaptive-goal"],
-      forbiddenEventTerms: [
-        '"skill":"adaptive-goal"',
-        "adaptive-goal-preflight",
-      ],
+      forbiddenCommandTerms: ["adaptive-goal-preflight"],
       forbidSpawn: true,
       forbidAgentTool: true,
     },
@@ -988,7 +1020,7 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     DOCTOR_NO_PREFLIGHT_AGENT_PATTERN,
     {
       kind: "inactive-controls",
-      forbiddenEventTerms: ["adaptive-goal-preflight"],
+      forbiddenCommandTerms: ["adaptive-goal-preflight"],
       forbidSpawn: true,
       forbidAgentTool: true,
     },
@@ -997,7 +1029,7 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     DOCTOR_NO_HOST_CHOICE_PATTERN,
     {
       kind: "inactive-controls",
-      forbiddenEventTerms: ["host-config-doctor", "adaptive-goal-preflight"],
+      forbiddenCommandTerms: ["host-config-doctor", "adaptive-goal-preflight"],
       forbidSpawn: true,
       forbidAgentTool: true,
     },
@@ -1007,10 +1039,7 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     {
       kind: "inactive-controls",
       forbiddenSkills: ["doctor-adaptive-goal"],
-      forbiddenEventTerms: [
-        '"skill":"doctor-adaptive-goal"',
-        "host-config-doctor",
-      ],
+      forbiddenCommandTerms: ["host-config-doctor"],
     },
   ],
   [
@@ -1065,21 +1094,6 @@ const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
     },
   ],
   [
-    READINESS_AFTER_CONTINUATION_PATTERN,
-    {
-      kind: "skill-absent-after-continuation",
-      skill: "assess-implementation-readiness",
-    },
-  ],
-  [
-    TICKET_REINVOKED_AFTER_CONTINUATION_PATTERN,
-    {
-      kind: "skill-absent-after-continuation",
-      skill: "ticket-to-pr",
-      forbidNativeSkillCall: true,
-    },
-  ],
-  [
     PR_EVIDENCE_INACTIVE_PATTERN,
     { kind: "skills-inactive", forbiddenSkills: ["publish-pr-evidence"] },
   ],
@@ -1107,7 +1121,7 @@ function ticketTranscriptSelection(pattern: unknown) {
   if (pattern === ADAPTIVE_SUPPORTING_READ_PATTERN)
     return { kind: "supporting-skill-read", skill: "adaptive-goal" };
   const publisher = PUBLISHER_READ_PATTERNS.get(pattern as string);
-  if (publisher) return { kind: "bound-child-skill", skill: publisher };
+  if (publisher) return { kind: "supporting-skill-read", skill: publisher };
   return null;
 }
 
@@ -1136,21 +1150,10 @@ function expectedTranscriptSelection(pattern: unknown) {
   if (route) return { kind: "owner-route", ...route };
   if (ONE_OWNER_TRANSCRIPT_PATTERNS.has(pattern as string))
     return { kind: "one-owner-accepted" };
-  if (pattern === READINESS_BEFORE_CONTINUATION_PATTERN)
-    return {
-      kind: "skill-before-continuation",
-      skill: "assess-implementation-readiness",
-    };
-  if (pattern === READINESS_PRE_OWNER_PATTERN)
-    return {
-      kind: "pre-owner-skill-read",
-      skill: "assess-implementation-readiness",
-    };
   if (pattern === NONREADY_SKILL_READ_PATTERN)
     return {
-      kind: "parent-skill-read-count",
+      kind: "supporting-skill-read",
       skill: "assess-implementation-readiness",
-      min: 1,
     };
   const responseRequired = SAME_OWNER_FEEDBACK_PATTERNS.get(pattern as string);
   if (responseRequired !== undefined)
@@ -1291,6 +1294,7 @@ function caseOwnership(selected: RecordValue, skillDir: string | null) {
 
 const TRANSCRIPT_EVIDENCE = new Map([
   ["guide-no-owner-or-goal-control", ["sevro.host.native-controls"]],
+  ["review-no-agent-spawn", ["sevro.host.native-controls"]],
   ["no-agent-spawn", ["sevro.codex.native-calls"]],
   ["one-owner-accepted", ["sevro.codex.native-calls"]],
   ["owner-route", ["sevro.codex.native-calls"]],
@@ -1298,8 +1302,7 @@ const TRANSCRIPT_EVIDENCE = new Map([
   ["fresh-provider-context", ["sevro.codex.native-calls"]],
   ["accepted-child-session", ["sevro.codex.native-calls"]],
   ["event-term", ["sevro.codex.events"]],
-  ["supporting-skill-read", ["sevro.codex.skill-reads"]],
-  ["bound-child-skill", ["sevro.codex.native-calls"]],
+  ["supporting-skill-read", [SKILL_ACTIVATIONS]],
   ["no-parent-work-after-handoff", ["sevro.codex.native-calls"]],
   ["no-lifecycle-ledger", ["sevro.codex.native-calls", "sevro.codex.events"]],
   ["owner-after-continuation", ["sevro.codex.native-calls"]],
@@ -1311,27 +1314,27 @@ const TRANSCRIPT_EVIDENCE = new Map([
   ],
   ["no-native-goal-control", ["sevro.codex.native-calls"]],
   ["no-owner-or-goal-control", ["sevro.codex.native-calls"]],
-  ["skills-inactive", ["sevro.codex.native-calls", "sevro.codex.skill-reads"]],
+  ["skills-inactive", ["sevro.codex.native-calls", SKILL_ACTIVATIONS]],
   ["same-owner-feedback", ["sevro.codex.native-calls"]],
-  ["pre-owner-skill-read", ["sevro.codex.native-calls"]],
-  ["parent-skill-read-count", ["sevro.codex.native-calls"]],
   ["no-plaintext-feedback-mismatch", ["sevro.codex.native-calls"]],
   ["no-second-owner", ["sevro.codex.native-calls"]],
-  ["skill-before-continuation", ["sevro.codex.initial-skill-reads"]],
-  ["skill-absent-after-continuation", ["sevro.codex.follow-up-skill-reads"]],
 ]);
+
+function requiresCommandEvents(check: RecordValue): boolean {
+  return (
+    [check.forbiddenEventTerms, check.forbiddenCommandTerms].some(
+      (value) => Array.isArray(value) && value.length > 0,
+    ) || typeof check.forbiddenEventPattern === "string"
+  );
+}
 
 function inactiveControlEvidence(check: RecordValue): string[] {
   if (check.kind !== "inactive-controls") return [];
   return [
     ...(Array.isArray(check.forbiddenSkills) && check.forbiddenSkills.length
-      ? ["sevro.codex.skill-reads"]
+      ? [SKILL_ACTIVATIONS]
       : []),
-    ...((Array.isArray(check.forbiddenEventTerms) &&
-      check.forbiddenEventTerms.length) ||
-    typeof check.forbiddenEventPattern === "string"
-      ? ["sevro.codex.events"]
-      : []),
+    ...(requiresCommandEvents(check) ? ["sevro.codex.events"] : []),
     ...(check.forbidSpawn === true || check.forbidAgentTool === true
       ? ["sevro.codex.native-calls"]
       : []),
@@ -1342,10 +1345,6 @@ function transcriptEvidence(check: RecordValue): string[] {
   return [
     ...(TRANSCRIPT_EVIDENCE.get(String(check.kind)) ?? []),
     ...inactiveControlEvidence(check),
-    ...(check.kind === "skill-absent-after-continuation" &&
-    check.forbidNativeSkillCall === true
-      ? ["sevro.codex.native-calls"]
-      : []),
   ];
 }
 
@@ -1434,8 +1433,16 @@ function claudeSelectedOwnerCasePolicy(transcript: unknown) {
   };
 }
 
-function guideTranscriptChecks(value: unknown, skillDir: string | null) {
+function scopedTranscriptChecks(value: unknown, skillDir: string | null) {
   const checks = caseTranscriptChecks(value);
+  if (skillDir === "plugins/capability/darrow-review/skills/code-review")
+    return (
+      checks?.map((check) =>
+        check.kind === "no-agent-spawn"
+          ? { ...check, kind: "review-no-agent-spawn" }
+          : check,
+      ) ?? null
+    );
   if (skillDir !== ".agents/skills/darrow-guide") return checks;
   return (
     checks?.map((check) =>
@@ -1447,9 +1454,83 @@ function guideTranscriptChecks(value: unknown, skillDir: string | null) {
 }
 
 function casePolicy(selected: RecordValue, skillDir: string | null) {
-  return selected.native_goal === undefined
-    ? legacyCasePolicy(selected, skillDir)
-    : nativeGoalCasePolicy(selected);
+  const policy =
+    selected.native_goal === undefined
+      ? legacyCasePolicy(selected, skillDir)
+      : nativeGoalCasePolicy(selected);
+  if (
+    skillDir === "plugins/task-recipe/darrow-ticket-to-pr/skills/ticket-to-pr"
+  )
+    return {
+      ...policy,
+      checks: [],
+      requiredEvidence: [],
+      details: { ...policy.details, workflowDiagnostics: true },
+    };
+  return adaptiveGoalDiagnostics(selected, skillDir, policy);
+}
+
+function hasObservableTask(selected: RecordValue) {
+  return [
+    "checks",
+    "output_checks",
+    "semantic_output_checks",
+    "semantic_artifact",
+  ].some((field) =>
+    Array.isArray(selected[field])
+      ? selected[field].length > 0
+      : field === "semantic_artifact" && selected[field] !== undefined,
+  );
+}
+
+function adaptiveGoalDiagnostics(
+  selected: RecordValue,
+  skillDir: string | null,
+  policy:
+    | ReturnType<typeof legacyCasePolicy>
+    | ReturnType<typeof nativeGoalCasePolicy>,
+) {
+  if (
+    !skillDir?.startsWith(
+      "plugins/orchestration/darrow-adaptive-goal/skills/",
+    ) ||
+    !hasObservableTask(selected)
+  )
+    return policy;
+  const details: RecordValue = policy.details;
+  const current = (details.nativeTranscriptChecks ?? []) as NativeTranscript[];
+  const legacy = (details.transcriptChecks ?? []) as NonNullable<
+    ReturnType<typeof caseTranscriptChecks>
+  >;
+  const taskChecks = [
+    ...current.filter((check) => check.kind === "route"),
+    ...legacy.filter(
+      (check) =>
+        check.kind === "owner-route" ||
+        check.kind === "unchanged-before-continuation",
+    ),
+  ];
+  const taskIds = new Set(taskChecks.map((check) => check.id));
+  const diagnosticIds = [...current, ...legacy]
+    .filter((check) => !taskIds.has(check.id))
+    .map((check) => check.id);
+  return {
+    ...policy,
+    checks: policy.checks.filter((check) => !diagnosticIds.includes(check.id)),
+    requiredEvidence: [
+      ...new Set([
+        ...(details.nativeGoal === undefined ? [] : ["sevro.host.native-goal"]),
+        ...nativeTranscriptEvidence(
+          current.filter((check) => taskIds.has(check.id)),
+        ),
+        ...policyEvidence(
+          null,
+          legacy.filter((check) => taskIds.has(check.id)),
+        ),
+      ]),
+    ],
+    details: { ...policy.details, workflowDiagnosticIds: diagnosticIds },
+  };
 }
 
 function currentTranscriptSelection(value: unknown) {
@@ -1490,7 +1571,6 @@ function nativeGoalCasePolicy(selected: RecordValue) {
     requiredEvidence: [
       ...new Set([
         ...policy.requiredEvidence,
-        "sevro.host.native-controls",
         ...nativeTranscriptEvidence(transcriptChecks.current),
         ...policyEvidence(null, transcriptChecks.legacy),
       ]),
@@ -1513,7 +1593,7 @@ function legacyCasePolicy(selected: RecordValue, skillDir: string | null) {
   if (selected.id === "goal-review-high-selected-claude")
     return claudeSelectedOwnerCasePolicy(selected.transcript_checks);
   const ownership = caseOwnership(selected, skillDir);
-  const transcriptChecks = guideTranscriptChecks(
+  const transcriptChecks = scopedTranscriptChecks(
     selected.transcript_checks,
     skillDir,
   );
@@ -1599,31 +1679,45 @@ async function caseAssessment(
   selected: RecordValue,
   root: string,
   skillDir: string | null,
-  configuration: SkillMountConfiguration & BenchmarkPolicyConfiguration,
+  configuration: SkillMountConfiguration &
+    BenchmarkPolicyConfiguration & { withoutSkill?: boolean },
 ) {
   const policy = casePolicy(selected, skillDir);
   const benchmark = benchmarkCasePolicy(
     configuration,
     configuration.skillDir ?? skillDir,
   );
+  const hooks = pluginHookPolicy(
+    selected.required_plugin_hook,
+    skillDir,
+    configuration.withoutSkill,
+  );
   return {
     policy: {
       ...policy,
       requiredEvidence: [
-        ...new Set([...policy.requiredEvidence, ...benchmark.requiredEvidence]),
+        ...new Set([
+          ...policy.requiredEvidence,
+          ...benchmark.requiredEvidence,
+          ...hooks.requiredEvidence,
+        ]),
       ],
-      details: { ...policy.details, ...benchmark.details },
+      details: { ...policy.details, ...benchmark.details, ...hooks.details },
     },
     checks: [
       ...(await caseChecks(selected, root, skillDir)),
       ...policy.checks,
       ...benchmark.checks,
+      ...hooks.checks,
     ],
   };
 }
 
 type CaseConfiguration = SkillMountConfiguration &
-  BenchmarkPolicyConfiguration & { deferRoute?: boolean };
+  BenchmarkPolicyConfiguration & {
+    deferRoute?: boolean;
+    withoutSkill?: boolean;
+  };
 
 async function neutralCase(
   value: unknown,
@@ -1635,13 +1729,12 @@ async function neutralCase(
   const { fixture, ...setup } = caseFixture(selected.fixture);
   if (options.skillDir)
     await loadSkillOverride(root, join(root, options.skillDir));
-  const { skillDir, mountPluginSkills, ...mount } = caseMount(
-    selected.mount_plugin_skills,
+  const { skillDir, mountPluginSkills, ...mount } = await caseMountDetails(
+    selected,
     source,
     root,
     options,
   );
-  const additionalMounts = caseAdditionalMounts(selected, skillDir);
   const { invocation, prompt, ...followUp } = await casePrompts(
     selected,
     root,
@@ -1667,12 +1760,41 @@ async function neutralCase(
         projectRoot: pathToFileURL(root).href,
         ...setup,
         ...mount,
-        ...additionalMounts,
         ...(invocation ? { invocation } : {}),
         ...policy.details,
         ...disclosureDetails(checks),
       },
     },
+  };
+}
+
+async function caseMountDetails(
+  selected: RecordValue,
+  source: string,
+  root: string,
+  options: CaseConfiguration,
+) {
+  const mount = caseMount(selected.mount_plugin_skills, source, root, options);
+  return {
+    ...mount,
+    ...(await caseAdditionalDetails(root, selected, mount.skillDir)),
+  };
+}
+
+async function caseAdditionalDetails(
+  root: string,
+  selected: RecordValue,
+  skillDir: string | null,
+) {
+  const additional = caseAdditionalMounts(selected, skillDir);
+  const activationNamespaces =
+    selected.activation === undefined &&
+    selected.transcript_checks === undefined
+      ? []
+      : await caseActivationNamespaces(root, skillDir, additional);
+  return {
+    ...additional,
+    ...(activationNamespaces.length ? { activationNamespaces } : {}),
   };
 }
 
@@ -1682,6 +1804,7 @@ function caseFacts(
   mountPluginSkills: boolean,
 ) {
   const hostIds = caseHostIds(selected.harnesses);
+  caseCandidateRoutes(selected.candidate_routes);
   return {
     invariant: string(selected.invariant, "case invariant"),
     ...(hostIds ? { hostIds } : {}),
@@ -1690,6 +1813,29 @@ function caseFacts(
     checkNames: checkNames(selected),
     ...caseMetricDetails(selected),
   };
+}
+
+async function caseActivationNamespaces(
+  root: string,
+  skillDir: string | null,
+  additional: ReturnType<typeof caseAdditionalMounts>,
+) {
+  const paths = [
+    ...(skillDir?.startsWith("plugins/")
+      ? [skillDir.split("/").slice(0, 3).join("/")]
+      : []),
+    ...(additional.additionalPlugins ?? []),
+    ...(additional.additionalSkills ?? []).map((path) =>
+      path.split("/").slice(0, 3).join("/"),
+    ),
+  ];
+  return [
+    ...new Set(
+      await Promise.all(
+        [...new Set(paths)].map((path) => pluginName(join(root, path))),
+      ),
+    ),
+  ];
 }
 
 const OMITTED_SKILL_ENTRIES = new Set([
@@ -2023,7 +2169,9 @@ async function projectSkillArtifacts(
       0,
     ),
   };
-  for (const name of ["backend", "references"]) {
+  await appendProjectManifests(pluginRoot, artifacts, total);
+  await appendPluginReadme(pluginRoot, ".agents", artifacts, total);
+  for (const name of ["backend", "config", "references"]) {
     const directory = join(pluginRoot, name);
     if (await optionalPluginDirectory(directory))
       await collectPluginDirectory(pluginRoot, directory, [name], {
@@ -2033,6 +2181,33 @@ async function projectSkillArtifacts(
       });
   }
   return artifacts;
+}
+
+async function appendProjectManifests(
+  pluginRoot: string,
+  artifacts: SkillArtifact[],
+  total: { bytes: number },
+): Promise<void> {
+  for (const name of [".claude-plugin", ".codex-plugin"]) {
+    const directory = join(pluginRoot, name);
+    if (!(await optionalPluginDirectory(directory)))
+      throw new Error("project plugin mount needs both manifests");
+    const path = join(directory, "plugin.json");
+    const entry = await lstat(path);
+    if (!entry.isFile() || entry.isSymbolicLink())
+      throw new Error("plugin manifest is not a regular file");
+    const bytes = await readFile(path);
+    total.bytes += bytes.byteLength;
+    checkSkillArtifactLimit(bytes, total.bytes, artifacts.length);
+    artifacts.push(
+      skillArtifact(
+        bytes,
+        `.agents/${name}/plugin.json`,
+        artifacts.length + 1,
+        false,
+      ),
+    );
+  }
 }
 
 async function optionalPluginDirectory(path: string): Promise<boolean> {
@@ -2046,6 +2221,36 @@ async function optionalPluginDirectory(path: string): Promise<boolean> {
       return false;
     throw error;
   }
+}
+
+async function appendPluginReadme(
+  pluginRoot: string,
+  destination: string,
+  artifacts: SkillArtifact[],
+  total: { bytes: number },
+): Promise<void> {
+  const path = join(pluginRoot, "README.md");
+  let entry;
+  try {
+    entry = await lstat(path);
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT")
+      return;
+    throw error;
+  }
+  if (!entry.isFile() || entry.isSymbolicLink())
+    throw new Error("plugin README is not a regular file");
+  const bytes = await readFile(path);
+  total.bytes += bytes.byteLength;
+  checkSkillArtifactLimit(bytes, total.bytes, artifacts.length);
+  artifacts.push(
+    skillArtifact(
+      bytes,
+      `${destination}/README.md`,
+      artifacts.length + 1,
+      false,
+    ),
+  );
 }
 
 async function collectPluginDirectory(
@@ -2095,6 +2300,7 @@ async function appendPluginMechanics(
   artifacts: SkillArtifact[],
   total: { bytes: number },
 ): Promise<void> {
+  await appendPluginReadme(pluginRoot, destination, artifacts, total);
   for (const name of [
     ".claude-plugin",
     ".codex-plugin",
@@ -2215,12 +2421,11 @@ function ticketProvision(
 ) {
   return `(
 set -e
-mkdir -p .git/fixture-bin .git/fixture-state
+mkdir -p .git/fixture-bin .fixture-state
 printf '%s\\n' ${shellQuote(ticket.id)} > .git/fixture-ticket-id
 printf '%s\\n' ${shellQuote(ticket.title)} > .git/fixture-ticket-title
-printf '%s' ${shellQuote(ticket.body)} > .git/fixture-ticket.md
-: > .git/fixture-state/ticketctl.log
-ln -s fixture-state/ticketctl.log .git/ticketctl.log
+printf '%s' ${shellQuote(ticket.body)} > .fixture-state/fixture-ticket.md
+: > .fixture-state/ticketctl.log
 ) || exit $?`;
 }
 
@@ -2260,10 +2465,24 @@ function verifyFixturePreparation(details: RecordValue, fixture: RecordValue) {
   return { script, ticket };
 }
 
-async function caseSetup(details: RecordValue, caseId: string) {
+async function caseSetup(
+  details: RecordValue,
+  caseId: string,
+  hostValue: unknown,
+) {
+  const host = record(hostValue, "candidate host");
+  const label =
+    host.id === "sevro.host.codex"
+      ? "codex"
+      : host.id === "sevro.host.claude"
+        ? "claude"
+        : "unavailable";
+  const stateSetup =
+    "mkdir -p .fixture-state\nprintf '/.fixture-state/\\n' >>.git/info/exclude\n" +
+    `printf '%s\\n' ${shellQuote(label)} >.git/fixture-host`;
   if (details.setupDigest === undefined && details.ticketDigest === undefined)
     return {
-      command: ["/bin/bash", "-c", "mkdir -p .git/fixture-state"],
+      command: ["/bin/bash", "-c", stateSetup],
       environment: {},
     };
   const { fixture, source } = await readBoundCase(details, caseId);
@@ -2274,7 +2493,7 @@ async function caseSetup(details: RecordValue, caseId: string) {
       "-c",
       [
         'case "${PATH%%:*}" in */.git/fixture-bin) PATH=${PATH#*:}; export PATH ;; esac',
-        "mkdir -p .git/fixture-state",
+        stateSetup,
         ...(ticket ? [ticketProvision(ticket)] : []),
         ...(script
           ? [script.replaceAll("{{case_dir}}", "$DARROW_EVAL_CASE_DIR")]
@@ -2291,7 +2510,7 @@ async function caseSetup(details: RecordValue, caseId: string) {
 
 function requireActivationSkills(
   details: RecordValue,
-  sources: { skillRoot: string; skillName: string }[],
+  sources: { skillName: string }[],
 ): void {
   if (details.activation === undefined) return;
   const expected = activationExpectation(details.activation);
@@ -2348,10 +2567,12 @@ function codexPackageHost(
   hostValue: unknown,
   hasAdditional: boolean,
   hasInvocation: boolean,
+  requiredHook = false,
 ): boolean {
   const host = record(hostValue, "candidate host");
   const selected =
-    host.id === "sevro.host.codex" && (hasInvocation || hasAdditional);
+    host.id === "sevro.host.codex" &&
+    (hasInvocation || hasAdditional || requiredHook);
   if (
     selected &&
     (!Array.isArray(host.capabilities) ||
@@ -2496,6 +2717,7 @@ async function repositorySkillMounts(
   details: RecordValue,
   sources: { skillRoot: string; skillName: string }[],
   hostValue: unknown,
+  fixtureMounts: Awaited<ReturnType<typeof fixtureSkillMounts>>,
 ) {
   const claude = claudeRepositoryHost(hostValue);
   const { owner, additional } = mergeAdditionalSkills(
@@ -2504,20 +2726,21 @@ async function repositorySkillMounts(
     await additionalSkillSources(details),
   );
   const mounted = [...owner, ...additional.flatMap((item) => item.sources)];
-  if (new Set(mounted.map((item) => item.skillName)).size !== mounted.length)
-    throw new Error("mounted skill names must be unique");
-  requireActivationSkills(details, mounted);
+  const combined = [...mounted, ...fixtureMounts];
+  validatePreparedSkills(details, combined);
   const codexPackages = codexPackageHost(
     hostValue,
     additional.length > 0,
     false,
   );
   const claudePackages = claudePackageHost(hostValue, additional.length > 0);
+  const artifacts = await repositoryArtifacts(owner, additional, {
+    packaged: codexPackages || claudePackages,
+    destination: claude ? ".claude/skills" : ".agents/skills",
+  });
+  appendFixtureSkillArtifacts(artifacts, fixtureMounts);
   return {
-    artifacts: await repositoryArtifacts(owner, additional, {
-      packaged: codexPackages || claudePackages,
-      destination: claude ? ".claude/skills" : ".agents/skills",
-    }),
+    artifacts,
     ...packageDeclarations({
       codexPackages,
       claudePackages,
@@ -2529,31 +2752,93 @@ async function repositorySkillMounts(
   };
 }
 
+async function fixtureSkillMounts(
+  details: RecordValue,
+  hostValue: unknown,
+  caseId: string,
+) {
+  if (details.fixtureSkillsDigest === undefined) return [];
+  const { fixture } = await readBoundCase(details, caseId);
+  if (fixtureSkillsDigest(fixture) !== details.fixtureSkillsDigest)
+    throw new Error("fixture skills changed after resolution");
+  const host = record(hostValue, "candidate host");
+  const label =
+    host.id === "sevro.host.codex"
+      ? "codex"
+      : host.id === "sevro.host.claude"
+        ? "claude"
+        : null;
+  if (!label)
+    throw new Error("fixture repository skills require a supported host");
+  const skills = fixtureSkills(fixture);
+  const mounted = skills.filter((skill) => skill.host === label);
+  if (
+    new Set(mounted.map((skill) => skill.skillName)).size !==
+    new Set(skills.map((skill) => skill.skillName)).size
+  )
+    throw new Error("fixture repository skill host mirror is missing");
+  return mounted;
+}
+
+function appendFixtureSkillArtifacts(
+  artifacts: SkillArtifact[],
+  skills: Awaited<ReturnType<typeof fixtureSkillMounts>>,
+) {
+  let total = artifacts.reduce(
+    (size, artifact) =>
+      size + Buffer.from(artifact.contentBase64, "base64").byteLength,
+    0,
+  );
+  for (const skill of skills) {
+    const bytes = Buffer.from(skill.body, "utf8");
+    total += bytes.byteLength;
+    checkSkillArtifactLimit(bytes, total, artifacts.length);
+    artifacts.push(
+      skillArtifact(bytes, skill.path, artifacts.length + 1, false),
+    );
+  }
+}
+
+function validatePreparedSkills(
+  details: RecordValue,
+  skills: { skillName: string }[],
+) {
+  if (new Set(skills.map((item) => item.skillName)).size !== skills.length)
+    throw new Error("mounted skill names must be unique");
+  requireActivationSkills(details, skills);
+}
+
+function requiresHookPackage(details: RecordValue, owner: unknown[]) {
+  return details.requiredPluginHook !== undefined && owner.length > 0;
+}
+
 async function preparedMounts(
   details: RecordValue,
   hostValue: unknown,
   configuration: unknown,
+  caseId: string,
 ) {
+  const fixtureMounts = await fixtureSkillMounts(details, hostValue, caseId);
   const sources =
     details.mount === undefined
       ? []
       : await skillMountSource(details, configuration);
   if (repositoryMount(details))
-    return repositorySkillMounts(details, sources, hostValue);
+    return repositorySkillMounts(details, sources, hostValue, fixtureMounts);
   const { owner, additional } = mergeAdditionalSkills(
     sources,
     await additionalPluginSources(details),
     await additionalSkillSources(details),
   );
   const mounted = [...owner, ...additional.flatMap((item) => item.sources)];
-  if (new Set(mounted.map((item) => item.skillName)).size !== mounted.length)
-    throw new Error("mounted skill names must be unique");
-  requireActivationSkills(details, mounted);
+  const combined = [...mounted, ...fixtureMounts];
+  validatePreparedSkills(details, combined);
   const invocation = requiredInvocation(details, mounted, hostValue);
   const codexPackages = codexPackageHost(
     hostValue,
     additional.length > 0,
     invocation !== null,
+    requiresHookPackage(details, owner),
   );
   const claudePackages = claudePackageHost(hostValue, owner.length > 0);
   const packagePlugins = codexPackages || claudePackages;
@@ -2564,6 +2849,7 @@ async function preparedMounts(
   const artifacts = packagePlugins
     ? await codexPluginArtifacts(owner, ownerName!, additional)
     : await projectSkillArtifacts(mounted, owner[0]?.skillRoot);
+  appendFixtureSkillArtifacts(artifacts, fixtureMounts);
   return {
     artifacts,
     ...packageDeclarations({
@@ -2607,9 +2893,10 @@ function requiredNativeRoute(details: RecordValue) {
     details.ownership === undefined &&
     Array.isArray(details.transcriptChecks) &&
     details.transcriptChecks.length > 0 &&
-    details.transcriptChecks.every(
-      (check) =>
-        activationData(check)?.kind === "guide-no-owner-or-goal-control",
+    details.transcriptChecks.every((check) =>
+      ["guide-no-owner-or-goal-control", "review-no-agent-spawn"].includes(
+        String(activationData(check)?.kind),
+      ),
     );
   if (portable)
     return {
@@ -2654,13 +2941,37 @@ async function prepareCase(params: RecordValue) {
   if (omitSkills && details.invocation !== undefined)
     throw new Error("explicit skill invocation cannot run without skills");
   requireNativeEvidence(details, params.host);
-  const setup = await caseSetup(details, string(selected.id, "case ID"));
+  const setup = await caseSetup(
+    details,
+    string(selected.id, "case ID"),
+    params.host,
+  );
+  const mounts = omitSkills
+    ? { artifacts: [] }
+    : await preparedMounts(
+        details,
+        params.host,
+        params.configuration,
+        string(selected.id, "case ID"),
+      );
   return {
-    ...(omitSkills
-      ? { artifacts: [] }
-      : await preparedMounts(details, params.host, params.configuration)),
+    ...mounts,
     requestedInstrumentation: [],
-    ...(setup ? { fixtureSetup: setup } : {}),
+    ...(setup
+      ? {
+          fixtureSetup: {
+            ...setup,
+            environment: {
+              ...setup.environment,
+              DARROW_EVAL_MOUNT_EXCLUDES: JSON.stringify(
+                mounts.artifacts
+                  .filter((artifact) => artifact.gitExclude)
+                  .map((artifact) => artifact.relativePath),
+              ),
+            },
+          },
+        }
+      : {}),
     extensionData: {},
   };
 }
@@ -2758,20 +3069,50 @@ export async function selectRunCaseIds(
   filters: string[],
   ownership: RunOwnership,
 ) {
+  return (await selectRunCases(root, filters, ownership)).ids;
+}
+
+function excludesHost(value: RecordValue, host: string | undefined) {
+  if (host === undefined) return false;
+  const hostIds = caseHostIds(value.harnesses);
+  return hostIds !== null && !hostIds.includes(`sevro.host.${host}`);
+}
+
+function matchesFilters(id: string, filters: string[]) {
+  return !filters.length || filters.some((filter) => id.includes(filter));
+}
+
+function declaredCaseRoute(value: RecordValue, host: string | undefined) {
+  return host === "codex" || host === "claude"
+    ? caseCandidateRoutes(value.candidate_routes)[host]
+    : undefined;
+}
+
+/** Select cases for a host and collect their declared default candidate routes. */
+export async function selectRunCases(
+  root: string,
+  filters: string[],
+  ownership: RunOwnership,
+  host?: string,
+) {
   validateRunSelectors(filters, ownership);
   const projectRoot = await realpath(root);
   const ids = new Set<string>();
   const selected: string[] = [];
+  const routes: Record<string, { model: string; effort: string }> = {};
   for (const entry of await caseEntries(projectRoot)) {
-    const id = string(record(entry.value, "case").id, "case ID");
+    const value = record(entry.value, "case");
+    const id = string(value.id, "case ID");
     if (ids.has(id)) throw new Error(`duplicate case ID: ${id}`);
     ids.add(id);
     if (!matchesRunOwnership(entry.source, ownership)) continue;
-    if (!filters.length || filters.some((filter) => id.includes(filter)))
-      selected.push(id);
+    if (!matchesFilters(id, filters) || excludesHost(value, host)) continue;
+    selected.push(id);
+    const route = declaredCaseRoute(value, host);
+    if (route) routes[id] = route;
   }
   if (!selected.length) throw new Error("No cases matched.");
-  return selected.sort();
+  return { ids: selected.sort(), routes };
 }
 
 /** Validate every canonical Darrow case against the current extension. */
@@ -2902,9 +3243,7 @@ function activationObservation(
             "sevro.codex.explicit-invocation",
             "sevro.claude.repository-invocation",
           ].includes(item.id)
-        : item.id === "darrow.activation" ||
-          item.id === "sevro.codex.skill-reads" ||
-          item.id === "sevro.claude.tool-calls"),
+        : item.id === "darrow.activation"),
   );
   return matches.length === 1
     ? record(matches[0], "activation observation")
@@ -2947,17 +3286,20 @@ function supportedActivationSource(
   explicit: boolean,
 ): boolean {
   if (explicit) return supportedExplicitActivation(observation, data);
+  if (observation.id === SKILL_ACTIVATIONS)
+    return commonSkillSource(observation.source, data.method);
+  if (observation.id === SKILL_ACTIVATION_CLAIMS)
+    return (
+      observation.source === "sevro.host.codex" &&
+      data.scope === "primary_and_positive_presence"
+    );
   if (observation.id === "darrow.activation") return true;
   if (observation.id === "sevro.claude.tool-calls")
     return (
       observation.source === "sevro.host.claude" &&
       data.method === "stream_tool_calls"
     );
-  return (
-    observation.id === "sevro.codex.skill-reads" &&
-    observation.source === "sevro.host.codex" &&
-    data.method === "skill_file_read_probe"
-  );
+  return false;
 }
 
 function observedActivation(
@@ -2973,36 +3315,166 @@ function observedActivation(
   const primarySkill = data.primarySkill;
   if (primarySkill !== null && !nonemptyString(primarySkill)) return null;
   if (primarySkill !== (observedSkills[0] ?? null)) return null;
-  return { primarySkill, observedSkills };
+  return {
+    primarySkill,
+    observedSkills,
+    positiveSkills: positiveActivationSkills(observation, explicit),
+    evidenceRef: string(observation.id, "skill observation ID"),
+  };
+}
+
+function positiveActivationSkills(observation: RecordValue, explicit: boolean) {
+  if (
+    !explicit ||
+    observation.id !== "sevro.codex.explicit-invocation" ||
+    observation.supportingReadScope !== "positive_full_exposure"
+  )
+    return [];
+  return skillSequence(observation.positiveFullSkills) ?? [];
 }
 
 function nonemptyString(value: unknown): value is string {
   return typeof value === "string" && value.length > 0;
 }
 
-function implicitClaudeActivation(
+function explicitSupportingActivation(
   selected: RecordValue,
   observations: unknown,
   details: RecordValue,
 ): RecordValue {
-  const calls = claudeCalls(observations);
-  if (!calls) return { ...selected, completeness: "partial" };
-  const target = activationExpectation(details.activation).targetSkill;
-  const skills = calls.filter((call) => call.name === "Skill");
-  const repository = String(details.source).startsWith(".agents/");
-  const foreignOwner =
-    repository &&
-    skills.some((call) => call.skill === target && call.invocation !== target);
-  const observedSkills = [...new Set(skills.map((call) => String(call.skill)))];
+  const expected = activationExpectation(details.activation);
+  const supporting =
+    [...(expected.sequence ?? []), ...(expected.includes ?? [])].some(
+      (skill) => skill !== expected.targetSkill,
+    ) || !!expected.excludes?.length;
+  if (!supporting) return selected;
+  const common = commonCaseActivation(observations, details);
+  const reads = common.observation;
+  const observed = observedActivation(reads, false);
+  const dispatched = observedActivation(selected, true);
+  if (!dispatched) return { ...selected, completeness: "partial" };
+  if (!observed)
+    return explicitExposureActivation(
+      selected,
+      dispatched,
+      observations,
+      details,
+    );
+  const sequence = [
+    dispatched.primarySkill!,
+    ...observed.observedSkills.filter(
+      (skill) => skill !== dispatched.primarySkill,
+    ),
+  ];
   return {
     ...selected,
-    completeness: foreignOwner ? "partial" : "complete",
     data: {
-      ...record(selected.data, "Claude calls"),
-      primarySkill: observedSkills[0] ?? null,
-      observedSkills,
+      ...record(selected.data, "explicit dispatch"),
+      primarySkill: sequence[0],
+      observedSkills: sequence,
     },
+    supportingReadEvidence: SKILL_ACTIVATIONS,
   };
+}
+
+function exposureAggregate(observations: unknown) {
+  const aggregate = uniqueObservation(observations, SKILL_ACTIVATIONS);
+  return aggregate?.source === "sevro.host.codex" &&
+    ["complete", "partial", "unavailable"].includes(
+      String(aggregate.completeness),
+    )
+    ? aggregate
+    : null;
+}
+
+function explicitExposureActivation(
+  selected: RecordValue,
+  dispatched: NonNullable<ReturnType<typeof observedActivation>>,
+  observations: unknown,
+  details: RecordValue,
+): RecordValue {
+  const unavailable = { ...selected, completeness: "partial" };
+  if (selected.id !== "sevro.codex.explicit-invocation") return unavailable;
+  const expected = activationExpectation(details.activation);
+  const claim = uniqueObservation(observations, SKILL_EXPOSURE_CLAIMS);
+  const exposure = claim
+    ? commonSkillExposureClaims(claim, observationNamespaces(details))
+    : null;
+  if (
+    !exposure ||
+    !claimsCoverExpectation(expected, [
+      dispatched.primarySkill!,
+      ...exposure.fullSkills,
+    ])
+  )
+    return unavailable;
+  const aggregate = exposureAggregate(observations);
+  return {
+    ...selected,
+    positiveFullSkills: exposure.fullSkills,
+    supportingReadEvidence: SKILL_EXPOSURE_CLAIMS,
+    supportingReadScope: "positive_full_exposure",
+    supportingCollectionStatus: exposure.collectionStatus,
+    supportingAggregateCompleteness: aggregate?.completeness ?? null,
+  };
+}
+
+function observationNamespaces(details: RecordValue) {
+  const namespaces = Array.isArray(details.activationNamespaces)
+    ? details.activationNamespaces.filter(
+        (item): item is string => typeof item === "string",
+      )
+    : [];
+  const invocation = activationData(details.invocation);
+  if (typeof invocation?.pluginName === "string")
+    namespaces.push(invocation.pluginName);
+  return namespaces;
+}
+
+function commonCaseActivation(observations: unknown, details: RecordValue) {
+  if (!Array.isArray(observations))
+    throw new Error("evaluation observations must be an array");
+  const matches = observations.filter(
+    (item) => item && typeof item === "object" && item.id === SKILL_ACTIVATIONS,
+  );
+  const namespaces = observationNamespaces(details);
+  const claims = observations.filter(
+    (item) =>
+      item && typeof item === "object" && item.id === SKILL_ACTIVATION_CLAIMS,
+  );
+  const observation =
+    matches.length === 1
+      ? commonSkillActivation(
+          record(matches[0], "skill activations"),
+          namespaces,
+        )
+      : null;
+  if (claims.length && observation?.completeness === "complete")
+    return {
+      present: true,
+      observation: { ...observation, completeness: "partial" },
+      claims: null,
+    };
+  return {
+    present: matches.length > 0,
+    observation,
+    claims:
+      observation && claims.length === 1
+        ? commonSkillActivationClaims(
+            record(claims[0], "skill activation claims"),
+            observation,
+            namespaces,
+          )
+        : null,
+  };
+}
+
+function activationEvidenceRefs(observation: RecordValue | null) {
+  if (!observation) return [];
+  const refs = [string(observation.id, "activation evidence ID")];
+  if (observation.supportingReadEvidence)
+    refs.push(String(observation.supportingReadEvidence));
+  return refs;
 }
 
 function caseActivationObservation(
@@ -3010,30 +3482,91 @@ function caseActivationObservation(
   details: RecordValue,
 ) {
   const explicit = details.invocation !== undefined;
-  const selected = activationObservation(observations, explicit);
+  const common = commonCaseActivation(observations, details);
+  if (!explicit && common.present)
+    return implicitCaseActivation(common, details);
+  const selected = explicitDispatchObservation(
+    activationObservation(observations, explicit),
+  );
   if (!selected) return null;
+  if (selected.id === "sevro.codex.explicit-invocation")
+    return explicitSupportingActivation(selected, observations, details);
   if (selected.id === "sevro.claude.repository-invocation") {
     const invocation = record(details.invocation, "repository invocation");
     const data = activationData(selected.data);
     return invocation.scope === "repository" &&
       data?.skill === invocation.skillName
-      ? selected
+      ? explicitSupportingActivation(selected, observations, details)
       : null;
   }
-  if (selected.id !== "sevro.claude.tool-calls") return selected;
-  return implicitClaudeActivation(selected, observations, details);
+  return selected;
+}
+
+function claimsCoverExpectation(
+  expected: ReturnType<typeof activationExpectation>,
+  observedSkills: string[],
+): boolean {
+  if (
+    expected.activationClass === "negative" ||
+    expected.sequence?.length ||
+    expected.excludes?.length
+  )
+    return false;
+  return (
+    expected.includes?.every((skill) => observedSkills.includes(skill)) ?? true
+  );
+}
+
+function implicitCaseActivation(
+  common: ReturnType<typeof commonCaseActivation>,
+  details: RecordValue,
+) {
+  if (observedActivation(common.observation, false)) return common.observation;
+  const claimed = observedActivation(common.claims, false);
+  const expected = activationExpectation(details.activation);
+  return claimed && claimsCoverExpectation(expected, claimed.observedSkills)
+    ? common.claims
+    : common.observation;
+}
+
+function explicitDispatchObservation(selected: RecordValue | null) {
+  if (
+    !selected ||
+    ![
+      "sevro.codex.explicit-invocation",
+      "sevro.claude.repository-invocation",
+    ].includes(String(selected.id))
+  )
+    return selected;
+  const data = activationData(selected.data);
+  const primarySkill =
+    selected.id === "sevro.codex.explicit-invocation"
+      ? data?.primarySkill
+      : data?.skill;
+  if (!data || !nonemptyString(primarySkill))
+    return { ...selected, completeness: "partial" };
+  return {
+    id: selected.id,
+    source: selected.source,
+    completeness: selected.completeness,
+    data: { ...data, primarySkill, observedSkills: [primarySkill] },
+  };
 }
 
 function matchesSkillExpectations(
   expected: ReturnType<typeof activationExpectation>,
   observedSkills: string[],
+  positiveSkills: string[] = [],
 ) {
   const sequencePassed =
     expected.sequence?.every(
       (skill, index) => observedSkills[index] === skill,
     ) ?? true;
   const includesPassed =
-    expected.includes?.every((skill) => observedSkills.includes(skill)) ?? true;
+    expected.includes?.every(
+      (skill) =>
+        observedSkills.includes(skill) || positiveSkills.includes(skill),
+    ) ?? true;
   const excludesPassed =
     expected.excludes?.every((skill) => !observedSkills.includes(skill)) ??
     true;
@@ -3048,7 +3581,11 @@ function activationStatus(
   const selected = observed.primarySkill === expected.targetSkill;
   const primaryPassed = (expected.activationClass !== "negative") === selected;
   return primaryPassed &&
-    matchesSkillExpectations(expected, observed.observedSkills)
+    matchesSkillExpectations(
+      expected,
+      observed.observedSkills,
+      observed.positiveSkills,
+    )
     ? "passed"
     : "failed";
 }
@@ -3067,7 +3604,45 @@ function activationOutcomeData(
     source: observation?.source ?? null,
     primarySkill: observed?.primarySkill ?? null,
     observedSkills: observed?.observedSkills ?? [],
+    ...positiveExposureOutcome(observed),
+    ...activationClaimScope(observation),
   };
+}
+
+function positiveExposureOutcome(
+  observed: ReturnType<typeof observedActivation>,
+) {
+  const skills = observed?.positiveSkills ?? [];
+  return skills.length ? { positiveExposureSkills: skills } : {};
+}
+
+function activationClaimScope(observation: RecordValue | null) {
+  if (observation?.supportingReadScope === "positive_full_exposure")
+    return {
+      evidenceScope: "explicit_invocation_and_positive_full_exposure",
+      supportingSkillOrder: "unverified",
+      aggregateActivationCompleteness:
+        observation.supportingAggregateCompleteness,
+      collectionStatus: observation.supportingCollectionStatus,
+    };
+  return observation?.id === SKILL_ACTIVATION_CLAIMS
+    ? {
+        evidenceScope: "primary_and_positive_presence",
+        collectionCompleteness: "partial",
+      }
+    : {};
+}
+
+function activationDetail(
+  observation: RecordValue | null,
+  observed: ReturnType<typeof observedActivation>,
+) {
+  if (!observed) return "Activation observation unavailable or incomplete";
+  if (observation?.supportingReadScope === "positive_full_exposure")
+    return "Activation graded from explicit invocation and complete positive full-exposure claims; aggregate collection remains separately qualified";
+  return observation?.id === SKILL_ACTIVATION_CLAIMS
+    ? "Activation graded from complete primary/presence claim; collection remains partial"
+    : "Activation graded from complete host observation";
 }
 
 function uniqueObservation(value: unknown, id: string): RecordValue | null {
@@ -3351,17 +3926,13 @@ function nativeControlEvidence(observations: unknown) {
     !matched("functions", "update_goal")
   )
     return null;
+  const inspection = nativeControlInspection(data!, evidence.calls);
   return {
-    attemptedSpawn:
-      controlOrdinals(calls, "collaboration", "spawn_agent").length > 0,
-    attemptedGoal:
-      controlOrdinals(calls, "functions", "create_goal").length > 0,
-    attemptedGoalControl: calls.some(
-      (call) =>
-        call.namespace === "functions" &&
-        ["create_goal", "update_goal"].includes(String(call.name)),
-    ),
-    attemptedSkillTool: evidence.calls.some((call) => call.name === "Skill"),
+    controlsComplete: inspection.complete,
+    controlData: data!,
+    ...controlAttemptFlags(inspection.labels),
+    submittedSpawnAttempt: inspection.submittedSpawn,
+    controlLabels: inspection.labels,
     spawnCount: controlOrdinals(calls, "collaboration", "spawn_agent").length,
     acceptedSpawnCount: evidence.spawns.length,
     acceptedSpawns: evidence.spawns,
@@ -3369,71 +3940,34 @@ function nativeControlEvidence(observations: unknown) {
   };
 }
 
-function validParentReadCounts(diagnostic: RecordValue, readCount: number) {
-  return (
-    Number.isSafeInteger(diagnostic.readAttempts) &&
-    (diagnostic.readAttempts as number) >= readCount &&
-    Number.isSafeInteger(diagnostic.commandExecutions) &&
-    (diagnostic.commandExecutions as number) >=
-      (diagnostic.readAttempts as number)
-  );
+function nativeControlInspection(data: RecordValue, calls: RecordValue[]) {
+  const submitted = submittedControlCalls(data, calls, -1);
+  return {
+    complete: submitted !== null,
+    labels: [...calls, ...(submitted ?? [])],
+    submittedSpawn: (submitted ?? []).some(
+      (call) =>
+        call.namespace === "collaboration" && call.name === "spawn_agent",
+    ),
+  };
 }
 
-function parentReadShape(diagnostic: RecordValue | null) {
-  const skills = skillSequence(diagnostic?.observedSkills);
-  const rawReads = diagnostic?.completedReads;
-  if (
-    diagnostic?.completeness !== "complete" ||
-    diagnostic.truncated !== false ||
-    !skills ||
-    !Array.isArray(rawReads) ||
-    !validParentReadCounts(diagnostic, rawReads.length)
-  )
-    return null;
-  return { skills, rawReads };
-}
-
-function validParentReadEntry(
-  read: RecordValue | null,
-  skills: string[],
-  priorOrdinal: number,
-) {
-  return (
-    !!read &&
-    typeof read.skill === "string" &&
-    skills.includes(read.skill) &&
-    Number.isSafeInteger(read.ordinal) &&
-    (read.ordinal as number) > priorOrdinal
-  );
-}
-
-function parentReadCompletions(
-  observations: unknown,
-  native: ReturnType<typeof nativeControlEvidence>,
-) {
-  if (!native) return null;
-  const observation = uniqueObservation(
-    observations,
-    "sevro.codex.native-calls",
-  );
-  const data = observation ? activationData(observation.data) : null;
-  const shape = parentReadShape(activationData(data?.parentReadDiagnostics));
-  if (!shape) return null;
-  const { skills, rawReads } = shape;
-  const reads = rawReads.map(activationData);
-  if (
-    reads.some(
-      (read, index) =>
-        !validParentReadEntry(
-          read,
-          skills,
-          index === 0 ? -1 : (reads[index - 1]?.ordinal as number),
-        ),
-    ) ||
-    skills.some((skill) => !reads.some((read) => read?.skill === skill))
-  )
-    return null;
-  return reads as RecordValue[];
+function controlAttemptFlags(controls: RecordValue[]) {
+  return {
+    attemptedSpawn: controls.some(
+      (call) =>
+        call.namespace === "collaboration" && call.name === "spawn_agent",
+    ),
+    attemptedGoal: controls.some(
+      (call) => call.namespace === "functions" && call.name === "create_goal",
+    ),
+    attemptedGoalControl: controls.some(
+      (call) =>
+        call.namespace === "functions" &&
+        ["create_goal", "update_goal"].includes(String(call.name)),
+    ),
+    attemptedSkillTool: controls.some((call) => call.name === "Skill"),
+  };
 }
 
 function validChildSessionOrder(
@@ -3531,29 +4065,6 @@ function completeNestedRequests(
   return segments.flat() as RecordValue[];
 }
 
-function completeTurnSkillSequence(data: RecordValue) {
-  const skills = skillSequence(data.observedSkills);
-  if (
-    !skills ||
-    new Set(skills).size !== skills.length ||
-    data.primarySkill !== (skills[0] ?? null)
-  )
-    return null;
-  return skills;
-}
-
-function turnSkillEvidence(observations: unknown, id: string) {
-  const observation = uniqueObservation(observations, id);
-  const data = observation ? activationData(observation.data) : null;
-  if (
-    observation?.source !== "sevro.host.codex" ||
-    observation.completeness !== "complete" ||
-    data?.method !== "skill_file_read_probe"
-  )
-    return null;
-  return completeTurnSkillSequence(data);
-}
-
 function codexEventRef(artifacts: unknown, id = "sevro.codex.events") {
   if (!Array.isArray(artifacts)) return null;
   const matches = artifacts.filter(
@@ -3595,7 +4106,29 @@ async function codexEventText(
   }
 }
 
+function completeNativeControls(
+  native: ReturnType<typeof nativeControlEvidence>,
+) {
+  return native?.controlsComplete ? native : null;
+}
+
+function completeNativeOwnerControls(
+  native: ReturnType<typeof nativeControlEvidence>,
+) {
+  const complete = completeNativeControls(native);
+  return complete?.submittedSpawnAttempt ? null : complete;
+}
+
+function submittedAfterBoundary(
+  native: ReturnType<typeof nativeControlEvidence>,
+  boundary: number | null | undefined,
+) {
+  if (!native || typeof boundary !== "number") return null;
+  return submittedControlCalls(native.controlData, native.toolCalls, boundary);
+}
+
 function noAgentOutcome(native: ReturnType<typeof nativeControlEvidence>) {
+  native = completeNativeControls(native);
   return {
     status: native
       ? native.attemptedSpawn
@@ -3612,6 +4145,7 @@ function noAgentOutcome(native: ReturnType<typeof nativeControlEvidence>) {
 function noNativeGoalControlOutcome(
   native: ReturnType<typeof nativeControlEvidence>,
 ) {
+  native = completeNativeControls(native);
   return {
     status: native
       ? native.attemptedGoalControl
@@ -3628,6 +4162,7 @@ function noNativeGoalControlOutcome(
 function noOwnerOrGoalControlOutcome(
   native: ReturnType<typeof nativeControlEvidence>,
 ) {
+  native = completeNativeControls(native);
   return {
     status: !native
       ? "unavailable"
@@ -3651,6 +4186,7 @@ const NATIVE_CONTROL_GRADERS = new Map([
 function noSecondOwnerOutcome(
   native: ReturnType<typeof nativeControlEvidence>,
 ) {
+  native = completeNativeOwnerControls(native);
   if (!native)
     return {
       status: "unavailable",
@@ -3679,6 +4215,7 @@ function skillsInactiveOutcome(
   native: ReturnType<typeof nativeControlEvidence>,
   observed: ReturnType<typeof observedActivation>,
 ) {
+  native = completeNativeControls(native);
   const forbiddenSkills = skillSequence(selected.forbiddenSkills);
   if (
     !forbiddenSkills ||
@@ -3703,7 +4240,7 @@ function skillsInactiveOutcome(
         ? "failed"
         : "passed",
     detail: "Graded from complete Codex skill reads and native tool calls",
-    evidenceRefs: ["sevro.codex.skill-reads", "sevro.codex.native-calls"],
+    evidenceRefs: [observed.evidenceRef, "sevro.codex.native-calls"],
   };
 }
 
@@ -3711,7 +4248,15 @@ function supportingSkillOutcome(
   selected: RecordValue,
   observed: ReturnType<typeof observedActivation>,
 ) {
-  if (selected.skill !== "adaptive-goal")
+  if (
+    typeof selected.skill !== "string" ||
+    ![
+      "adaptive-goal",
+      "assess-implementation-readiness",
+      "create-pr",
+      "ship-proposal",
+    ].includes(selected.skill)
+  )
     throw new Error("supporting skill check configuration is invalid");
   return {
     status: observed
@@ -3720,45 +4265,7 @@ function supportingSkillOutcome(
         : "failed"
       : "unavailable",
     detail: "Graded from complete supporting skill reads",
-    evidenceRefs: observed ? ["sevro.codex.skill-reads"] : [],
-  };
-}
-
-function completeBoundChildSkills(
-  bound: ReturnType<typeof boundChildSessions>,
-): string[] | null {
-  if (!bound || bound.truncated || bound.children.length !== 1) return null;
-  const child = bound.children[0];
-  const diagnostic = child ? activationData(child.readDiagnostics) : null;
-  return child?.status === "available" ? completeReadSkills(diagnostic) : null;
-}
-
-function completeReadSkills(diagnostic: RecordValue | null): string[] | null {
-  if (diagnostic?.completeness !== "complete" || diagnostic.truncated !== false)
-    return null;
-  const skills = skillSequence(diagnostic.observedSkills);
-  return skills && new Set(skills).size === skills.length ? skills : null;
-}
-
-function boundChildSkillOutcome(
-  selected: RecordValue,
-  native: ReturnType<typeof nativeControlEvidence>,
-  bound: ReturnType<typeof boundChildSessions>,
-) {
-  if (selected.skill !== "create-pr" && selected.skill !== "ship-proposal")
-    throw new Error("bound child skill check configuration is invalid");
-  const skills =
-    native?.acceptedSpawnCount === 1 ? completeBoundChildSkills(bound) : null;
-  if (!skills)
-    return {
-      status: "unavailable",
-      detail: "Bound child skill-read evidence unavailable or incomplete",
-      evidenceRefs: [],
-    };
-  return {
-    status: skills.includes(selected.skill) ? "passed" : "failed",
-    detail: "Graded from the accepted child's complete skill reads",
-    evidenceRefs: ["sevro.codex.native-calls"],
+    evidenceRefs: observed ? [observed.evidenceRef] : [],
   };
 }
 
@@ -3783,23 +4290,39 @@ function noParentWorkAfterHandoffOutcome(
   };
 }
 
+function forbiddenControlTerms(value: unknown): string[] {
+  const terms = skillSequence(value ?? []);
+  if (!terms)
+    throw new Error("inactive control check configuration is invalid");
+  return terms;
+}
+
 function inactiveControlsOutcome(
   selected: RecordValue,
   native: ReturnType<typeof nativeControlEvidence>,
   observed: ReturnType<typeof observedActivation>,
   events: string | null,
 ) {
-  const forbiddenSkills = skillSequence(selected.forbiddenSkills ?? []);
-  const forbiddenEventTerms = skillSequence(selected.forbiddenEventTerms ?? []);
+  const forbiddenSkills = forbiddenControlTerms(selected.forbiddenSkills);
+  const forbiddenEventTerms = forbiddenControlTerms(
+    selected.forbiddenEventTerms,
+  );
+  const forbiddenCommandTerms = forbiddenControlTerms(
+    selected.forbiddenCommandTerms,
+  );
+  const commands = forbiddenCommandTerms.length
+    ? codexCommandRecords(events)
+    : [];
   if (
-    !forbiddenSkills ||
-    !forbiddenEventTerms ||
-    (selected.forbiddenEventPattern !== undefined &&
-      !FORBIDDEN_EVENT_REGEX.has(String(selected.forbiddenEventPattern)))
+    selected.forbiddenEventPattern !== undefined &&
+    !FORBIDDEN_EVENT_REGEX.has(String(selected.forbiddenEventPattern))
   )
     throw new Error("inactive control check configuration is invalid");
   const required = inactiveControlEvidence(selected);
-  if (!inactiveControlEvidenceAvailable(required, native, observed, events))
+  if (
+    commands === null ||
+    !inactiveControlEvidenceAvailable(required, native, observed, events)
+  )
     return {
       status: "unavailable",
       detail: "Required skill, event, or native control evidence unavailable",
@@ -3808,6 +4331,8 @@ function inactiveControlsOutcome(
   const violated = inactiveControlViolation(selected, {
     forbiddenSkills,
     forbiddenEventTerms,
+    forbiddenCommandTerms,
+    commands,
     native,
     observed,
     events,
@@ -3815,8 +4340,45 @@ function inactiveControlsOutcome(
   return {
     status: violated ? "failed" : "passed",
     detail: "Graded from complete Codex skill, event, and native controls",
-    evidenceRefs: required,
+    evidenceRefs: required.map((id) =>
+      id === SKILL_ACTIVATIONS ? observed!.evidenceRef : id,
+    ),
   };
+}
+
+function codexCommandEvent(value: unknown) {
+  const event = activationData(value);
+  if (!event || typeof event.type !== "string" || event.type === "turn.failed")
+    throw new Error("invalid command event");
+  let command: string | undefined;
+  if (["item.started", "item.updated", "item.completed"].includes(event.type)) {
+    const item = activationData(event.item);
+    if (!item) throw new Error("missing command item");
+    if (item.type === "command_execution") {
+      if (typeof item.command !== "string" || !item.command.trim())
+        throw new Error("missing command text");
+      command = item.command;
+    }
+  }
+  return { type: event.type, command };
+}
+
+function codexCommandRecords(events: string | null): string[] | null {
+  if (events === null) return null;
+  const commands: string[] = [];
+  let started = 0;
+  let completed = 0;
+  try {
+    for (const line of events.split("\n").filter((line) => line.trim())) {
+      const event = codexCommandEvent(JSON.parse(line));
+      if (event.type === "turn.started") started++;
+      if (event.type === "turn.completed") completed++;
+      if (event.command !== undefined) commands.push(event.command);
+    }
+  } catch {
+    return null;
+  }
+  return started > 0 && started === completed ? commands : null;
 }
 
 function inactiveControlEvidenceAvailable(
@@ -3826,9 +4388,9 @@ function inactiveControlEvidenceAvailable(
   events: string | null,
 ): boolean {
   return !(
-    (required.includes("sevro.codex.skill-reads") && !observed) ||
+    (required.includes(SKILL_ACTIVATIONS) && !observed) ||
     (required.includes("sevro.codex.events") && events === null) ||
-    (required.includes("sevro.codex.native-calls") && !native)
+    (required.includes("sevro.codex.native-calls") && !native?.controlsComplete)
   );
 }
 
@@ -3837,27 +4399,40 @@ function inactiveControlViolation(
   context: {
     forbiddenSkills: string[];
     forbiddenEventTerms: string[];
+    forbiddenCommandTerms: string[];
+    commands: string[];
     native: ReturnType<typeof nativeControlEvidence>;
     observed: ReturnType<typeof observedActivation>;
     events: string | null;
   },
 ): boolean {
-  const { forbiddenSkills, forbiddenEventTerms, native, observed, events } =
-    context;
+  const {
+    forbiddenSkills,
+    forbiddenEventTerms,
+    forbiddenCommandTerms,
+    commands,
+    native,
+    observed,
+    events,
+  } = context;
   return (
     forbiddenSkills.some((skill) => observed!.observedSkills.includes(skill)) ||
     forbiddenEventTerms.some((term) => events!.includes(term)) ||
+    forbiddenCommandTerms.some((term) =>
+      commands.some((command) => command.includes(term)),
+    ) ||
     (typeof selected.forbiddenEventPattern === "string" &&
       FORBIDDEN_EVENT_REGEX.get(selected.forbiddenEventPattern)!.test(
         events!,
       )) ||
     (selected.forbidSpawn === true && native!.attemptedSpawn) ||
     (selected.forbidAgentTool === true &&
-      native!.toolCalls.some((call) => call.name === "Agent"))
+      native!.controlLabels.some((call) => call.name === "Agent"))
   );
 }
 
 function oneOwnerOutcome(native: ReturnType<typeof nativeControlEvidence>) {
+  native = completeNativeOwnerControls(native);
   return {
     status: native
       ? native.spawnCount === 1 && native.acceptedSpawnCount === 1
@@ -3952,7 +4527,9 @@ function nestedAxisStatus(axis: string, requests: RecordValue[]) {
     return "passed";
   return matched.some(
     (request) =>
-      request.forkTurns === undefined || request.sessionStatus !== "available",
+      request.forkTurns === undefined ||
+      request.sessionStatus !== "available" ||
+      request.readerResultStatus !== "completed",
   )
     ? "unavailable"
     : "failed";
@@ -4072,6 +4649,7 @@ function noLedgerOutcome(
     throw new Error("ledger terms are invalid");
   if (typeof forbidGoal !== "boolean")
     throw new Error("ledger goal policy is invalid");
+  if (forbidGoal) native = completeNativeControls(native);
   if (!native || events === null)
     return {
       status: "unavailable",
@@ -4147,6 +4725,8 @@ function ownerBoundaryOutcome(
   native: ReturnType<typeof nativeControlEvidence>,
   continuation: ReturnType<typeof continuationEvidence>,
 ) {
+  if (kind === "no-owner-before-continuation")
+    native = completeNativeOwnerControls(native);
   const boundary = continuation?.nativeAfterOrdinal;
   if (!native || boundary === null || boundary === undefined)
     return {
@@ -4176,79 +4756,19 @@ function ownerBoundaryOutcome(
   };
 }
 
-function preOwnerSkillReadOutcome(
-  selected: RecordValue,
-  native: ReturnType<typeof nativeControlEvidence>,
-  parentReads: ReturnType<typeof parentReadCompletions>,
-) {
-  if (selected.skill !== "assess-implementation-readiness")
-    throw new Error("pre-owner skill check configuration is invalid");
-  if (!native || !parentReads || native.acceptedSpawnCount !== 1)
-    return {
-      status: "unavailable",
-      detail: "Complete parent reads and one accepted owner boundary required",
-      evidenceRefs: [],
-    };
-  const ownerStart = native.acceptedSpawns[0]!.requestedOrdinal as number;
-  return {
-    status: parentReads.some(
-      (read) =>
-        read.skill === selected.skill && (read.ordinal as number) < ownerStart,
-    )
-      ? "passed"
-      : "failed",
-    detail:
-      "Graded from verified parent skill completion before native owner launch",
-    evidenceRefs: ["sevro.codex.native-calls"],
-  };
-}
-
-function parentSkillReadCountOutcome(
-  selected: RecordValue,
-  parentReads: ReturnType<typeof parentReadCompletions>,
-) {
-  if (
-    selected.skill !== "assess-implementation-readiness" ||
-    !(
-      (selected.min === 1 && selected.max === undefined) ||
-      (selected.max === 1 && selected.min === undefined)
-    )
-  )
-    throw new Error("parent skill count check configuration is invalid");
-  if (!parentReads)
-    return {
-      status: "unavailable",
-      detail: "Complete parent skill-read diagnostic required",
-      evidenceRefs: [],
-    };
-  const count = parentReads.filter(
-    (read) => read.skill === selected.skill,
-  ).length;
-  return {
-    status:
-      selected.min === 1
-        ? count >= 1
-          ? "passed"
-          : "failed"
-        : count <= 1
-          ? "passed"
-          : "failed",
-    detail: "Graded from bounded verified parent skill-body completions",
-    evidenceRefs: ["sevro.codex.native-calls"],
-  };
-}
-
 function noReplacementAfterContinuationOutcome(
   native: ReturnType<typeof nativeControlEvidence>,
   continuation: ReturnType<typeof continuationEvidence>,
   followUpEvents: string | null,
 ) {
   const boundary = continuation?.nativeAfterOrdinal;
+  const submitted = submittedAfterBoundary(native, boundary);
   if (
     !native ||
     boundary === null ||
     boundary === undefined ||
-    followUpEvents === null
+    followUpEvents === null ||
+    submitted === null
   )
     return {
       status: "unavailable",
@@ -4256,11 +4776,13 @@ function noReplacementAfterContinuationOutcome(
         "Complete native follow-up calls and verified follow-up events required",
       evidenceRefs: [],
     };
-  const prohibitedCall = native.toolCalls.some(
+  const direct = native.toolCalls.filter(
+    (call) => (call.ordinal as number) > boundary,
+  );
+  const prohibitedCall = [...direct, ...submitted].some(
     (call) =>
-      (call.ordinal as number) > boundary &&
-      ((call.namespace === "collaboration" && call.name === "spawn_agent") ||
-        (call.namespace === "functions" && call.name === "create_goal")),
+      (call.namespace === "collaboration" && call.name === "spawn_agent") ||
+      (call.namespace === "functions" && call.name === "create_goal"),
   );
   const prohibitedEvent = [
     '"type":"darrow.parent_spawn_after_goal"',
@@ -4360,61 +4882,6 @@ function noPlaintextFeedbackMismatchOutcome(
   };
 }
 
-function laterNativeSkillCall(
-  selected: RecordValue,
-  native: ReturnType<typeof nativeControlEvidence>,
-  continuation: ReturnType<typeof continuationEvidence>,
-): boolean | null {
-  if (selected.forbidNativeSkillCall !== true) return false;
-  const boundary = continuation?.nativeAfterOrdinal;
-  if (!native || boundary === null || boundary === undefined) return null;
-  return native.toolCalls.some(
-    (call) => call.name === "Skill" && (call.ordinal as number) > boundary,
-  );
-}
-
-function turnSkillOutcome(
-  selected: RecordValue,
-  context: {
-    initial: ReturnType<typeof turnSkillEvidence>;
-    followUp: ReturnType<typeof turnSkillEvidence>;
-    native: ReturnType<typeof nativeControlEvidence>;
-    continuation: ReturnType<typeof continuationEvidence>;
-  },
-) {
-  const { initial, followUp, native, continuation } = context;
-  if (typeof selected.skill !== "string")
-    throw new Error("turn skill check configuration is invalid");
-  const before = selected.kind === "skill-before-continuation";
-  const skills = before ? initial : followUp;
-  if (!skills)
-    return {
-      status: "unavailable",
-      detail: "Complete turn-specific skill reads required",
-      evidenceRefs: [],
-    };
-  const nativeSkillCall = laterNativeSkillCall(selected, native, continuation);
-  if (nativeSkillCall === null)
-    return {
-      status: "unavailable",
-      detail: "Native tool calls and follow-up ordinal required",
-      evidenceRefs: [],
-    };
-  const read = skills.includes(selected.skill);
-  return {
-    status: (before ? read : !read && !nativeSkillCall) ? "passed" : "failed",
-    detail: "Graded from turn-specific skill reads and native call order",
-    evidenceRefs: [
-      before
-        ? "sevro.codex.initial-skill-reads"
-        : "sevro.codex.follow-up-skill-reads",
-      ...(selected.forbidNativeSkillCall === true
-        ? ["sevro.codex.native-calls", "sevro.codex.continuation"]
-        : []),
-    ],
-  };
-}
-
 function continuationOutcome(
   kind: string,
   evidence: ReturnType<typeof continuationEvidence>,
@@ -4486,8 +4953,6 @@ function policyTranscriptOutcome(
     return freshProviderContextOutcome(context.native);
   if (selected.kind === "accepted-child-session")
     return acceptedChildSessionOutcome(context.children);
-  if (selected.kind === "bound-child-skill")
-    return boundChildSkillOutcome(selected, context.native, context.children);
   if (selected.kind === "event-term")
     return eventTermOutcome(selected, context.events);
   if (selected.kind === "inactive-controls")
@@ -4537,7 +5002,6 @@ function transcriptOutcome(
   selected: RecordValue,
   context: {
     native: ReturnType<typeof nativeControlEvidence>;
-    parentReads: ReturnType<typeof parentReadCompletions>;
     nested: RecordValue[] | null;
     children: ReturnType<typeof boundChildSessions>;
     events: string | null;
@@ -4545,15 +5009,9 @@ function transcriptOutcome(
     continuation: ReturnType<typeof continuationEvidence>;
     skills: ReturnType<typeof observedActivation>;
     feedback: ReturnType<typeof nativeFeedbackEvidence>;
-    initial: ReturnType<typeof turnSkillEvidence>;
-    followUp: ReturnType<typeof turnSkillEvidence>;
   },
 ) {
   const { native, continuation, skills, feedback } = context;
-  if (selected.kind === "pre-owner-skill-read")
-    return preOwnerSkillReadOutcome(selected, native, context.parentReads);
-  if (selected.kind === "parent-skill-read-count")
-    return parentSkillReadCountOutcome(selected, context.parentReads);
   const direct = nativeTranscriptOutcome(selected, native, skills);
   if (direct) return direct;
   const feedbackOutcome = feedbackTranscriptOutcome(
@@ -4564,11 +5022,6 @@ function transcriptOutcome(
   if (feedbackOutcome) return feedbackOutcome;
   const policyOutcome = policyTranscriptOutcome(selected, context);
   if (policyOutcome) return policyOutcome;
-  if (
-    selected.kind === "skill-before-continuation" ||
-    selected.kind === "skill-absent-after-continuation"
-  )
-    return turnSkillOutcome(selected, context);
   const continuationResult = continuationTranscriptOutcome(
     selected,
     native,
@@ -4588,7 +5041,6 @@ const CONTINUATION_EVIDENCE_KINDS = new Set([
   "no-replacement-after-continuation",
   "same-owner-feedback",
   "no-plaintext-feedback-mismatch",
-  "skill-absent-after-continuation",
 ]);
 
 function readerObservationContext(
@@ -4597,9 +5049,7 @@ function readerObservationContext(
   native: ReturnType<typeof nativeControlEvidence>,
 ) {
   const children =
-    kinds.has("nested-readers") ||
-    kinds.has("accepted-child-session") ||
-    kinds.has("bound-child-skill")
+    kinds.has("nested-readers") || kinds.has("accepted-child-session")
       ? boundChildSessions(observations, native)
       : null;
   const nested = kinds.has("nested-readers")
@@ -4608,23 +5058,12 @@ function readerObservationContext(
   return { children, nested };
 }
 
-function parentReadObservationContext(
-  kinds: Set<string>,
-  observations: unknown,
-  native: ReturnType<typeof nativeControlEvidence>,
-) {
-  return kinds.has("pre-owner-skill-read") ||
-    kinds.has("parent-skill-read-count")
-    ? parentReadCompletions(observations, native)
-    : null;
-}
-
 function transcriptObservationContext(
   kinds: Set<string>,
   observations: unknown,
+  details: RecordValue,
 ) {
   const native = nativeControlEvidence(observations);
-  const parentReads = parentReadObservationContext(kinds, observations, native);
   const reader = readerObservationContext(kinds, observations, native);
   const feedback =
     kinds.has("same-owner-feedback") ||
@@ -4635,17 +5074,8 @@ function transcriptObservationContext(
     kinds.has("skills-inactive") ||
     kinds.has("inactive-controls") ||
     kinds.has("supporting-skill-read")
-      ? observedActivation(
-          uniqueObservation(observations, "sevro.codex.skill-reads"),
-          false,
-        )
+      ? transcriptSkillObservation(observations, details)
       : null;
-  const initial = kinds.has("skill-before-continuation")
-    ? turnSkillEvidence(observations, "sevro.codex.initial-skill-reads")
-    : null;
-  const followUp = kinds.has("skill-absent-after-continuation")
-    ? turnSkillEvidence(observations, "sevro.codex.follow-up-skill-reads")
-    : null;
   const continuation = [...kinds].some((kind) =>
     CONTINUATION_EVIDENCE_KINDS.has(kind),
   )
@@ -4653,14 +5083,21 @@ function transcriptObservationContext(
     : null;
   return {
     native,
-    parentReads,
     ...reader,
     feedback,
     skills,
-    initial,
-    followUp,
     continuation,
   };
+}
+
+function transcriptSkillObservation(
+  observations: unknown,
+  details: RecordValue,
+) {
+  const observation = commonCaseActivation(observations, details).observation;
+  return observation?.source === "sevro.host.codex"
+    ? observedActivation(observation, false)
+    : null;
 }
 
 function claudeTranscriptChecks(
@@ -4681,6 +5118,7 @@ async function nativeTranscriptChecks(
   value: unknown,
   observations: unknown,
   artifacts: unknown,
+  details: RecordValue,
 ) {
   if (value === undefined) return [];
   if (!Array.isArray(value) || !value.length)
@@ -4701,14 +5139,19 @@ async function nativeTranscriptChecks(
     ? await codexEventText(artifacts, "sevro.codex.follow-up-events")
     : null;
   const context = {
-    ...transcriptObservationContext(kinds, observations),
+    ...transcriptObservationContext(kinds, observations, details),
     events,
     followUpEvents,
   };
   return selected.map((entry) => ({
     id: string(entry.id, "native transcript check ID"),
-    ...(entry.kind === "guide-no-owner-or-goal-control"
-      ? guideNativeControlOutcome(observations)
+    ...(["guide-no-owner-or-goal-control", "review-no-agent-spawn"].includes(
+      String(entry.kind),
+    )
+      ? portableNativeControlOutcome(
+          observations,
+          entry.kind === "guide-no-owner-or-goal-control",
+        )
       : transcriptOutcome(entry, context)),
   }));
 }
@@ -4747,8 +5190,70 @@ function portableControlCounts(
     Number.isSafeInteger(data.acceptedAgentCount) &&
     (data.acceptedAgentCount as number) >= 0 &&
     (data.acceptedAgentCount as number) <= attempts &&
-    data.submittedExecCalls === 0 &&
+    submittedControlCalls(data, calls, -1) !== null &&
     calls.every(validNativeToolCall)
+  );
+}
+
+// Submitted labels have local indices, never fabricated native ordinals.
+function submittedControlCalls(
+  data: RecordValue,
+  direct: RecordValue[],
+  afterOrdinal: number,
+): RecordValue[] | null {
+  const submissions = direct.filter((call) => call.name === "exec");
+  if (
+    !Number.isSafeInteger(data.submittedExecCalls) ||
+    data.submittedExecCalls !== submissions.length
+  )
+    return null;
+  if (data.execCalls === undefined && submissions.length === 0) return [];
+  if (
+    !Array.isArray(data.execCalls) ||
+    data.execCalls.length !== submissions.length ||
+    data.execCalls.length > 128
+  )
+    return null;
+  const labels: RecordValue[] = [];
+  for (const [index, value] of data.execCalls.entries()) {
+    const calls = submittedReceiptCalls(
+      value,
+      submissions[index]!.ordinal,
+      afterOrdinal,
+    );
+    if (!calls) return null;
+    labels.push(...calls);
+  }
+  return labels;
+}
+
+function submittedReceiptCalls(
+  value: unknown,
+  ordinal: unknown,
+  afterOrdinal: number,
+): RecordValue[] | null {
+  const receipt = activationData(value);
+  if (
+    !receipt ||
+    receipt.ordinal !== ordinal ||
+    !["complete", "partial"].includes(String(receipt.completeness)) ||
+    !Array.isArray(receipt.calls) ||
+    receipt.calls.length > 128
+  )
+    return null;
+  const calls = receipt.calls.map(activationData);
+  if (!calls.every(validSubmittedCall)) return null;
+  if ((ordinal as number) <= afterOrdinal) return [];
+  return receipt.completeness === "complete" ? (calls as RecordValue[]) : null;
+}
+
+function validSubmittedCall(call: RecordValue | null, index: number) {
+  return (
+    !!call &&
+    call.index === index &&
+    ["functions", "collaboration", "other"].includes(String(call.namespace)) &&
+    typeof call.name === "string" &&
+    /^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(call.name)
   );
 }
 
@@ -4785,7 +5290,15 @@ function portableControlRecord(observations: unknown) {
     !portableControlCounts(data, String(observation.source), labels)
   )
     return null;
-  return { source: String(observation.source), data, calls: labels };
+  return {
+    source: String(observation.source),
+    data,
+    calls: labels,
+    submitted:
+      observation.source === "sevro.host.codex"
+        ? submittedControlCalls(data, labels, -1)!
+        : [],
+  };
 }
 
 function sameNativeLabels(left: RecordValue[], right: RecordValue[]) {
@@ -4799,8 +5312,18 @@ function codexControlConsistency(
   observations: unknown,
 ) {
   const native = nativeControlEvidence(observations);
+  const observation = uniqueObservation(
+    observations,
+    "sevro.codex.native-calls",
+  );
+  const data = observation ? activationData(observation.data) : null;
   return (
     native !== null &&
+    data !== null &&
+    submittedControlCalls(data, native.toolCalls, -1) !== null &&
+    data.submittedExecCalls === common.data.submittedExecCalls &&
+    JSON.stringify(data.execCalls ?? []) ===
+      JSON.stringify(common.data.execCalls ?? []) &&
     common.data.acceptedAgentCount === native.acceptedSpawnCount &&
     sameNativeLabels(native.toolCalls, common.calls)
   );
@@ -4839,23 +5362,29 @@ function legacyControlConsistency(
     : codexControlConsistency(common, observations);
 }
 
-function guideNativeControlOutcome(observations: unknown) {
+function portableNativeControlOutcome(
+  observations: unknown,
+  forbidGoals: boolean,
+) {
   const common = portableControlRecord(observations);
   const available =
     common !== null && legacyControlConsistency(common, observations);
   const prohibited =
     available &&
-    common.calls.some(
+    [...common.calls, ...common.submitted].some(
       (call) =>
         ["Agent", "Task"].includes(String(call.name)) ||
         (call.namespace === "collaboration" && call.name === "spawn_agent") ||
-        (["functions", "claude"].includes(String(call.namespace)) &&
+        (forbidGoals &&
+          ["functions", "claude"].includes(String(call.namespace)) &&
           ["create_goal", "update_goal"].includes(String(call.name))),
     );
   return {
     status: !available ? "unavailable" : prohibited ? "failed" : "passed",
     detail: available
-      ? "Graded owner and goal-control absence from complete native labels"
+      ? forbidGoals
+        ? "Graded owner and goal-control absence from complete native labels"
+        : "Graded reviewer absence from complete native labels"
       : "Native control evidence unavailable, incomplete, or contradictory",
     evidenceRefs: available ? ["sevro.host.native-controls"] : [],
   };
@@ -5512,6 +6041,7 @@ async function currentNativeTranscriptChecks(
     {
       events,
       eventId,
+      skills: transcriptSkillObservation(params.observations, details),
       spawns:
         nativeControlEvidence(params.observations)?.acceptedSpawns ?? null,
       claudeTools: tools,
@@ -5586,6 +6116,45 @@ function currentClaudeRouteCompleted(events: RecordValue[], call: RecordValue) {
   );
 }
 
+async function workflowChecks(details: RecordValue, params: RecordValue) {
+  const ownership = await caseOwnershipChecks(details, params);
+  return [
+    ...nativeGoalOutcomes(details.nativeGoal, params.observations),
+    ...(await currentNativeTranscriptChecks(details, params)),
+    ...(details.ownership === "composition"
+      ? ownership.slice(0, 2)
+      : ownership),
+    ...(await nativeTranscriptChecks(
+      details.transcriptChecks,
+      params.observations,
+      params.artifacts,
+      details,
+    )),
+  ];
+}
+
+function splitWorkflow(
+  details: RecordValue,
+  workflow: Awaited<ReturnType<typeof workflowChecks>>,
+) {
+  const diagnostics = details.workflowDiagnostics === true;
+  const diagnosticIds = new Set(
+    Array.isArray(details.workflowDiagnosticIds)
+      ? details.workflowDiagnosticIds
+      : [],
+  );
+  const diagnostic = (id: string) => diagnostics || diagnosticIds.has(id);
+  return {
+    checks: workflow.filter((check) => !diagnostic(check.id)),
+    domainOutcomes: workflow
+      .filter((check) => diagnostic(check.id))
+      .map((check) => ({
+        ...check,
+        id: check.id.replace("darrow.evals.", "darrow.evals.workflow."),
+      })),
+  };
+}
+
 async function evaluateCase(params: RecordValue) {
   const omitSkills = withoutSkill(params.configuration);
   const extensionData = record(
@@ -5594,23 +6163,19 @@ async function evaluateCase(params: RecordValue) {
   );
   const details = record(extensionData["darrow.case"], "Darrow case data");
   const metrics = caseMetrics(details, params);
-  const ownership = await caseOwnershipChecks(details, params);
+  const workflow = splitWorkflow(
+    details,
+    await workflowChecks(details, params),
+  );
   const checks = [
-    ...nativeGoalOutcomes(details.nativeGoal, params.observations),
-    ...(await currentNativeTranscriptChecks(details, params)),
+    ...pluginHookChecks(details.requiredPluginHook, params.observations),
     ...guideDisclosureOutcomes(details.disclosureChecks, params.observations),
     ...caseBenchmarkChecks(details, params),
-    ...(details.ownership === "composition"
-      ? ownership.slice(0, 2)
-      : ownership),
-    ...(await nativeTranscriptChecks(
-      details.transcriptChecks,
-      params.observations,
-      params.artifacts,
-    )),
+    ...workflow.checks,
   ];
+  const domainOutcomes = workflow.domainOutcomes;
   if (omitSkills || details.activation === undefined)
-    return { checks, metrics, domainOutcomes: [] };
+    return { checks, metrics, domainOutcomes };
   const expected = activationExpectation(details.activation);
   const explicit = details.invocation !== undefined;
   const observation = caseActivationObservation(params.observations, details);
@@ -5620,15 +6185,12 @@ async function evaluateCase(params: RecordValue) {
     checks,
     metrics,
     domainOutcomes: [
+      ...domainOutcomes,
       {
         id: "darrow.evals.activation",
         status,
-        evidenceRefs: observation
-          ? [string(observation.id, "activation evidence ID")]
-          : [],
-        detail: observed
-          ? "Activation graded from complete host observation"
-          : "Activation observation unavailable or incomplete",
+        evidenceRefs: activationEvidenceRefs(observation),
+        detail: activationDetail(observation, observed),
         data: activationOutcomeData(expected, observation, observed),
       },
     ],
@@ -5674,6 +6236,10 @@ if (import.meta.main) {
               "sevro.fixture.setup",
               "sevro.host.continuation",
               "sevro.host.native-controls",
+              "sevro.host.hooks",
+              SKILL_ACTIVATIONS,
+              SKILL_ACTIVATION_CLAIMS,
+              SKILL_EXPOSURE_CLAIMS,
               "sevro.codex.plugin-marketplace",
               "sevro.codex.explicit-invocation",
               "sevro.codex.repository-invocation",
@@ -5688,6 +6254,7 @@ if (import.meta.main) {
               "darrow.evals.transcript",
               "darrow.evals.disclosure",
               "darrow.evals.benchmark",
+              "darrow.evals.plugin-hook",
             ],
             taskVerdictPolicies: [],
           }

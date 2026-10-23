@@ -97,8 +97,10 @@ main -> verification coordinator -> review coordinator
                                               -> Spec reader
 ```
 
-Bounded implementation needs one spawned-agent slot and one layer below
-the main thread. With implementation settled before assessment, the full
+Direct main-thread implementation needs no spawned-agent slot. Delegated
+bounded implementation needs one spawned-agent slot per concurrent assignment
+and one layer below the main thread; the baseline result covers one delegated
+assignment. With implementation settled before assessment, the full
 required-assessment path needs four active spawned-agent slots and three nesting
 layers. Hosts may also count retained inactive threads; configuration alone
 does not prove current free capacity or native goal availability. Codex concurrency excludes the

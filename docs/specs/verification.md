@@ -34,9 +34,26 @@ delivery under #155. It does not execute QA or create reviewer-facing evidence p
   be required. Review remains responsible for standards/spec assessment,
   deterministic checks, fresh-context readers and repair judgments. Missing or
   incompatible review MUST block; verification MUST NOT substitute self-review.
+  An unreadable hook-advertised entrypoint MUST preserve its diagnostic and
+  prompt a retry of the same capability's public catalog path, when advertised,
+  before declaring its instructions unavailable. This does not authorize
+  private-file searches or access-control changes.
   The provider invocation MUST have a bounded response boundary that returns
   its complete normal result to verification. A provider's final response MUST
   NOT replace verification's reconciliation or end the enclosing owner.
+  Reading provider instructions MUST NOT switch the verification coordinator
+  into that provider's role. Only the delegated provider coordinates its readers
+  and invokes its review helpers; the verification backend only renders the
+  reconciled assessment.
+  Initial and targeted follow-up assessments both retain three contexts:
+  verification coordinator, fresh provider coordinator, and the provider's
+  independent readers. Follow-up narrows eligible reader axes; it MUST NOT
+  collapse the provider and its reader into one assessment context.
+  The main skill MUST present a compact binding, invocation, reconciliation and
+  handoff path. Closed follow-up detail belongs in the colocated reference;
+  deterministic validation and rendering remain owned by the bundled helper.
+  Simplification MUST preserve provider compatibility, fresh contexts, exact
+  routing, authority, content binding and complete result evidence.
 - **VF-C3 — Complete target-bound evidence.** Inputs and results MUST identify
   the repository, candidate content and scope/base, originating objective,
   every material acceptance criterion, applicable constraints and current
@@ -70,6 +87,9 @@ delivery under #155. It does not execute QA or create reviewer-facing evidence p
   operation is unavailable or unsupported, verification MUST report that gap
   and cannot clear. It MUST NOT execute QA or produce a rich evidence package
   in this slice, nor silently drop a selected requirement.
+  This blocked prerequisite may be returned before launching other assessments
+  or probing their backends. Any already completed provider results MUST retain
+  their complete evidence and normal canonical handoff.
 - **VF-C5 — Closed follow-up.** Follow-up MUST preserve original finding
   identities, provider/axis provenance, evidence, severity and blocking/advisory
   disposition; original/prior/current targets and target history; attempted
@@ -97,7 +117,9 @@ delivery under #155. It does not execute QA or create reviewer-facing evidence p
   available, not proof of a repair). Follow-up progress requires material
   provider-observed improvement or a newly evidenced direct regression eligible
   for owner repair. Unchanged, repeated or oscillating failure is no-progress;
-  missing/unavailable/inconclusive evidence is blocked. Mixed required results
+  missing/unavailable/inconclusive evidence is blocked. A missing observation
+  for an external acceptance criterion remains an evidence gap, even when the
+  provider labels that absence as a failed criterion. Mixed required results
   cannot clear; blocked evidence takes precedence, then no-progress, then
   progress. A clear provider follow-up may clear an advisory-only remainder.
   A failed invocation alone MUST NOT establish a broken installation or
@@ -166,6 +188,39 @@ storage, retention and required-artifact policy. Neither future capability is
 necessary for a complete review-only operation here.
 
 ## Evaluation
+
+Assessable provider composition cases MUST require a fresh provider context and its
+completed independent readers. A valid report produced by readers launched
+directly from the verification coordinator cannot establish the required
+provider handoff. Missing or incomplete native evidence remains unavailable;
+it cannot establish the handoff or its absence.
+The missing-required-provider case MUST accept a blocked response identifying
+the unavailable bound provider and refusing unauthorized substitution, together
+with its candidate-preservation and activation checks. It does not require a
+separate native assertion proving the absence of substitute delegation; this
+case establishes the response decision, not whole-run delegation absence.
+Artifact fixtures MUST prepare the declared empty provider state before candidate
+execution so a missing report can fail its checks without preventing grading.
+Identity assertions MUST distinguish the candidate file from a receipt holding
+its checksum. Naming the candidate and its matching checksum establishes that
+identity without repeating the receipt filename; contradictory receipt-content
+claims remain evidence errors.
+Negative response expectations MUST reject actual prohibited requests or claims,
+without requiring a separate disclaimer that those actions are not requested.
+Semantic response grading MUST judge the answer's meaning and claims, not
+require its prose to establish unobserved execution absence. An ordinary
+explanation needs no verification-abstention disclaimer.
+Incomplete-input assertions MUST accept either a request for missing originating
+inputs or identification of an unavailable required review capability, provided
+the response does not claim successful verification. Case labels must not turn
+those alternatives into cumulative requirements.
+Missing-history assertions MUST require a blocked follow-up and identification
+of the specific absent history, without requiring a separate question. They
+MUST still reject substituting an initial review or claiming the fixes verified.
+Unsupported-QA assertions MUST distinguish the selected behavioral QA exercise
+from legitimate independent-review checks. Reporting an allowed shape check
+does not establish that the separate QA assessment was performed.
+They MUST also accept a blocked preflight that performs none of those checks.
 
 Colocated cases cover direct, indirect, incomplete and negative selection;
 actual existing-review composition; an independently mounted differently named

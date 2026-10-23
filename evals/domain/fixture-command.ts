@@ -1,3 +1,4 @@
+import { captureTestCommand } from "../test-command";
 import { afterEach } from "bun:test";
 import {
   cp,
@@ -29,6 +30,26 @@ export type OracleCheck = {
   expect_regex?: string;
   expect_exact?: string;
 };
+
+/** Inspect the same policy fact after it moves from a task check to diagnostics. */
+export function policyOutcomes<T extends { id: string }>(result: {
+  checks: T[];
+  domainOutcomes?: T[];
+}): T[] {
+  return [
+    ...result.checks,
+    ...(result.domainOutcomes ?? [])
+      .filter((outcome) => outcome.id.startsWith("darrow.evals.workflow."))
+      .map((outcome) => ({
+        ...outcome,
+        id: outcome.id.replace("darrow.evals.workflow.", "darrow.evals."),
+      })),
+  ];
+}
+export type OutputOracleCheck = Omit<OracleCheck, "run" | "exit_code"> & {
+  not_regex?: string;
+  flags?: string;
+};
 type Fixture = Record<string, unknown> & {
   setup?: string;
   commits?: { message: string; files?: Record<string, string> }[];
@@ -39,6 +60,7 @@ export type FixtureCase = {
   id: string;
   fixture: Fixture;
   checks: OracleCheck[];
+  output_checks?: OutputOracleCheck[];
 };
 type CliResult = {
   format: string;
@@ -67,11 +89,14 @@ export async function readFixtureCase(source: URL): Promise<FixtureCase> {
 type OracleOptions = {
   source: URL;
   checks: OracleCheck[];
+  outputChecks?: OutputOracleCheck[];
+  finalMessage?: string;
   setupPrefix?: string;
   fixture?: Fixture;
   fixtureAssets?: URL;
   fixtureAssetFiles?: string[];
   reviewState?: boolean;
+  runtimeConfig?: URL;
 };
 
 async function copyFixtureAssetFiles(
@@ -162,6 +187,7 @@ async function prepareOracle(root: string, options: OracleOptions) {
       prompt: "Return fixture ready. This is a deterministic oracle test.",
       fixture,
       checks: options.checks,
+      output_checks: options.outputChecks,
     }),
   );
   const adapter = join(root, "candidate.ts");
@@ -169,21 +195,11 @@ async function prepareOracle(root: string, options: OracleOptions) {
     adapter,
     `export default {
   id: "darrow.host.fixture-oracle", model: "fixture-oracle-v1", effort: "none",
-  async run() { return { finalMessage: "fixture ready", complete: true }; },
+  async run() { return { finalMessage: ${JSON.stringify(options.finalMessage ?? "fixture ready")}, complete: true }; },
 };
 `,
   );
   return { id, adapter };
-}
-
-function commandEnvironment() {
-  return Object.fromEntries(
-    Object.entries(process.env).filter(
-      ([name, value]) =>
-        value !== undefined &&
-        !/(?:api[_-]?key|token|secret|password|credential)/i.test(name),
-    ),
-  );
 }
 
 export async function fixtureExtensionRequest<T>(
@@ -191,16 +207,8 @@ export async function fixtureExtensionRequest<T>(
   params: Record<string, unknown>,
 ): Promise<T> {
   const requestId = `oracle-${method}`;
-  const command = Bun.spawn(
+  const { stdout, stderr, exitCode } = await captureTestCommand(
     [process.execPath, resolve(import.meta.dir, "../sevro-extension/index.ts")],
-    {
-      env: commandEnvironment(),
-      stdin: "pipe",
-      stdout: "pipe",
-      stderr: "pipe",
-    },
-  );
-  await command.stdin.write(
     JSON.stringify({
       protocol: "sevro.extension.v1",
       id: requestId,
@@ -208,12 +216,10 @@ export async function fixtureExtensionRequest<T>(
       params,
     }),
   );
-  await command.stdin.end();
-  const [stdout, stderr, exitCode] = await Promise.all([
-    new Response(command.stdout).text(),
-    new Response(command.stderr).text(),
-    command.exited,
-  ]);
+  if (exitCode !== 0 || !stdout.trim())
+    throw new Error(
+      `fixture extension ${method} exited ${exitCode}: ${stderr || stdout || "empty stdout and stderr"}`,
+    );
   const reply = JSON.parse(stdout) as {
     id: string;
     result?: T;
@@ -237,7 +243,12 @@ async function resolvedCheckIds(root: string, id: string) {
   return selected.checks.map((check) => check.id);
 }
 
-function oracleCommand(root: string, id: string, adapter: string) {
+function oracleCommand(
+  root: string,
+  id: string,
+  adapter: string,
+  runtimeConfig?: URL,
+) {
   return [
     process.execPath,
     resolve(import.meta.dir, "../sevro-extension/run.ts"),
@@ -247,6 +258,7 @@ function oracleCommand(root: string, id: string, adapter: string) {
     root,
     "--results-root",
     join(root, "results"),
+    "--without-skill",
     "--",
     "--adapter-module",
     adapter,
@@ -259,6 +271,9 @@ function oracleCommand(root: string, id: string, adapter: string) {
     "1",
     "--threshold",
     "1",
+    ...(runtimeConfig
+      ? ["--runtime-config-file", fileURLToPath(runtimeConfig)]
+      : []),
   ];
 }
 
@@ -284,18 +299,14 @@ export async function runFixtureChecks(options: OracleOptions) {
   roots.push(root);
   const { id, adapter } = await prepareOracle(root, options);
   const checkIds = await resolvedCheckIds(root, id);
-  if (checkIds.length !== options.checks.length)
+  if (
+    checkIds.length !==
+    options.checks.length + (options.outputChecks?.length ?? 0)
+  )
     throw new Error("resolved fixture checks differ from the oracle input");
-  const command = Bun.spawn(oracleCommand(root, id, adapter), {
-    env: commandEnvironment(),
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const [stdout, stderr, exitCode] = await Promise.all([
-    new Response(command.stdout).text(),
-    new Response(command.stderr).text(),
-    command.exited,
-  ]);
+  const { stdout, stderr, exitCode } = await captureTestCommand(
+    oracleCommand(root, id, adapter, options.runtimeConfig),
+  );
   const value = readResult(stdout, stderr, id, exitCode);
   const checks = value.cases[0]?.trials[0]?.checks ?? [];
   return {

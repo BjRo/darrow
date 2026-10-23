@@ -4,8 +4,11 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from tests.eval_gh import dispatch
 
@@ -56,6 +59,64 @@ def test_queries_and_field_selection(tmp_path: Path) -> None:
         "title": 'Quoted "title"',
         "state": "OPEN",
     }
+
+
+def test_issue_view_accepts_unassigned_metadata_fields(tmp_path: Path) -> None:
+    (tmp_path / "issue-7-state").write_text("open")
+    (tmp_path / "issue-7-title").write_text("Reporting epic")
+    assert dispatch(
+        tmp_path,
+        [
+            "issue",
+            "view",
+            "7",
+            "--json",
+            "number,title,body,state,url,labels,milestone,assignees",
+        ],
+    ) == {
+        "number": 7,
+        "title": "Reporting epic",
+        "body": "",
+        "state": "OPEN",
+        "url": "https://github.test/o/r/issues/7",
+        "labels": [],
+        "milestone": None,
+        "assignees": [],
+    }
+
+
+def test_issue_view_preserves_assigned_metadata(tmp_path: Path) -> None:
+    (tmp_path / "issue-7-state").write_text("open")
+    (tmp_path / "issue-7-assignees").write_text('[{"login": "sam"}]')
+    (tmp_path / "issue-7-milestone").write_text('{"title": "Reporting v2"}')
+    assert dispatch(
+        tmp_path, ["issue", "view", "7", "--json", "assignees,milestone"]
+    ) == {"assignees": [{"login": "sam"}], "milestone": {"title": "Reporting v2"}}
+
+
+def test_cli_rejects_unknown_json_fields_without_traceback(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    state = tmp_path / ".fixture-state/gh"
+    state.mkdir(parents=True)
+    (state / "issue-7-state").write_text("open")
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(Path(__file__).with_name("eval_gh.py")),
+            "issue",
+            "view",
+            "7",
+            "--json",
+            "number,invented",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 1
+    assert result.stdout == ""
+    assert result.stderr == "mock gh: unsupported issue JSON field: invented\n"
 
 
 def test_creation_comments_edits_and_transitions(tmp_path: Path) -> None:
@@ -152,6 +213,64 @@ def test_distinct_created_issues_are_listed_and_readable(tmp_path: Path) -> None
     }
 
 
+@pytest.mark.parametrize("body_flag", ["--body", "-b"])
+def test_inline_bodies_survive_creation_and_edits(
+    tmp_path: Path, body_flag: str
+) -> None:
+    body = "## Observed\n\nLiteral `command` and Unicode ä.\n"
+    assert (
+        dispatch(
+            tmp_path,
+            ["issue", "create", "--title", "Import crash", body_flag, body],
+        )
+        == "https://github.test/o/r/issues/99"
+    )
+    assert dispatch(tmp_path, ["issue", "view", "99", "--json", "body"]) == {
+        "body": body
+    }
+    dispatch(tmp_path, ["issue", "edit", "99", body_flag, ""])
+    assert dispatch(tmp_path, ["issue", "view", "99", "--json", "body"]) == {"body": ""}
+
+
+@pytest.mark.parametrize(
+    "body", ["--body", "-b", "--body-file", "--title", "--label", "--help", "-h"]
+)
+def test_option_names_remain_literal_body_values(tmp_path: Path, body: str) -> None:
+    assert (
+        dispatch(
+            tmp_path,
+            ["issue", "create", "--title", "Example", "-b", body, "--label", "bug"],
+        )
+        == "https://github.test/o/r/issues/99"
+    )
+    assert (tmp_path / "issue-99-body").read_bytes() == body.encode("utf-8")
+    assert (tmp_path / "created-labels").read_text() == "bug\n"
+    dispatch(tmp_path, ["issue", "edit", "99", "-b", body, "--label", "bug"])
+    assert (tmp_path / "edited-body-99").read_bytes() == body.encode("utf-8")
+    assert (tmp_path / "issue-99-body").read_bytes() == body.encode("utf-8")
+
+
+def test_authentication_probe_is_successful_and_read_only(tmp_path: Path) -> None:
+    result = dispatch(tmp_path, ["auth", "status"])
+    assert "github.test" in result
+    assert "Logged in" in result
+    assert list(tmp_path.iterdir()) == []
+
+
+@settings(derandomize=True, max_examples=30)
+@given(
+    st.sampled_from(["--body", "-b"]),
+    st.text(
+        st.characters(exclude_categories=["Cs"], exclude_characters="\0"), max_size=128
+    ),
+)
+def test_inline_body_preserves_stored_bytes(body_flag: str, body: str) -> None:
+    with TemporaryDirectory() as temporary:
+        directory = Path(temporary)
+        dispatch(directory, ["issue", "create", "--title", "Example", body_flag, body])
+        assert (directory / "issue-99-body").read_bytes() == body.encode("utf-8")
+
+
 def test_relationships(tmp_path: Path) -> None:
     (tmp_path / "issue-7-state").write_text("open")
     endpoint = "repos/o/r/issues/7"
@@ -246,5 +365,62 @@ def test_cli_records_calls_and_reports_failure(tmp_path: Path) -> None:
     assert result.returncode == 1
     assert "Could not resolve" in result.stderr
     assert (
-        tmp_path / ".git/fixture-gh/calls"
+        tmp_path / ".fixture-state/gh/calls"
     ).read_text() == "issue list\nissue view 9\n"
+    assert not (tmp_path / ".git/fixture-gh").exists()
+
+
+@pytest.mark.parametrize("help_flag", ["--help", "-h"])
+@pytest.mark.parametrize(
+    "command", [["issue"], ["issue", "create"], ["issue", "edit", "99"], ["api"]]
+)
+def test_cli_help_never_mutates(
+    tmp_path: Path, help_flag: str, command: list[str]
+) -> None:
+    assert "Usage:" in dispatch(tmp_path, [*command, help_flag])
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_transitions_are_visible_to_later_reads(tmp_path: Path) -> None:
+    dispatch(tmp_path, ["issue", "create", "--title", "Example", "--body", "body"])
+    for action, expected in [("close", "CLOSED"), ("reopen", "OPEN")]:
+        dispatch(tmp_path, ["issue", action, "99"])
+        assert dispatch(tmp_path, ["issue", "view", "99", "--json", "state"]) == {
+            "state": expected
+        }
+
+
+@pytest.mark.parametrize("method_flag", ["-X", "--method"])
+@pytest.mark.parametrize("field_flag", ["-F", "--field", "-f", "--raw-field"])
+def test_api_aliases_preserve_parent_operations(
+    tmp_path: Path, method_flag: str, field_flag: str
+) -> None:
+    dispatch(
+        tmp_path,
+        [
+            "api",
+            method_flag,
+            "POST",
+            "repos/o/r/issues/7/sub_issues",
+            field_flag,
+            "sub_issue_id=10099",
+        ],
+    )
+    assert dispatch(tmp_path, ["api", "repos/o/r/issues/99/parent"]) == {
+        "number": 7,
+        "html_url": "https://github.test/o/r/issues/7",
+    }
+
+
+def test_api_fields_default_to_post(tmp_path: Path) -> None:
+    dispatch(
+        tmp_path, ["api", "repos/o/r/issues/7/sub_issues", "-F", "sub_issue_id=10099"]
+    )
+    assert dispatch(tmp_path, ["api", "repos/o/r/issues/99/parent"])["number"] == 7
+
+
+def test_sub_issue_listing_reflects_parent_relations(tmp_path: Path) -> None:
+    endpoint = "repos/o/r/issues/7/sub_issues"
+    assert dispatch(tmp_path, ["api", endpoint]) == []
+    dispatch(tmp_path, ["api", endpoint, "-X", "POST", "-F", "sub_issue_id=10099"])
+    assert dispatch(tmp_path, ["api", endpoint]) == [{"number": 99}]

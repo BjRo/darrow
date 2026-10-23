@@ -29,6 +29,13 @@ stable intent ("create a ticket for X") while the backend stays swappable.
   contained Python package managed by UV, invoked through its frozen
   `darrow-ticket` entrypoint by all four skills. Preserve the command arguments,
   output records, refusals, and exit codes of the existing GitHub provider.
+  Bind that entrypoint to the installed skill's actual plugin root: the path
+  before `/skills/<skill>/SKILL.md`, including `.agents` for a project-discovery
+  mount. Model-facing commands for both ticket and template operations name
+  that plugin root directly instead of requiring parent-directory calculations.
+  A failed path assembled from the wrong parent does not establish that
+  the bundled backend is missing; correct the resource binding before reporting
+  an unavailable installation. Never substitute raw tracker calls.
   Use argument-vector subprocesses, explicit UTF-8 JSON decoding and validation,
   and native filesystem and temporary-file handling on Linux, macOS, and Windows.
   Ticket body drafts allocated by the CLI and its separate copy passed to the
@@ -43,10 +50,35 @@ stable intent ("create a ticket for X") while the backend stays swappable.
   visible if a later relation write or read fails. Validate with mocked provider
   operations, generated boundary cases, and fresh copied-plugin execution;
   automated tests must never mutate live GitHub state.
-  Claude's session-start context may route matching requests to the installed
-  ticket skills before repository inspection or prerequisite judgments. It must
-  remain static and nonmutating, perform no repository or tracker inspection,
-  preserve provider boundaries, and leave workflow and authority in the skill.
+  Mocked providers preserve the declared authentication state and supplied
+  ticket bodies for their supported CLI forms, including body values that look
+  like option names. They must not report a successful creation or edit while
+  silently discarding or changing its body input. CLI help remains read-only,
+  successful close/reopen operations are visible in later reads, and supported
+  API operations preserve equivalent method and field flag forms.
+  Ticket-view JSON field selection must preserve the represented metadata.
+  A fixture issue without an assignee or milestone reports `assignees: []`
+  and `milestone: null`; requesting either valid field must not crash the
+  provider. Unsupported fixture JSON fields fail with a clear diagnostic
+  rather than a Python traceback. These responses do not relax the required
+  ticket type, body structure, or actual tracker relations.
+  Static session-start context may route matching requests to installed skills
+  before repository inspection or prerequisite judgments. Claude's context covers
+  ticket operations; Codex's read-ticket reminder binds retrieval requests,
+  including incomplete references, to the catalog's exact skill file location.
+  Check provider eligibility before loading that skill. An explicitly selected
+  unsupported tracker remains the requested tracker; the reminder must not
+  cause a GitHub-only skill read just to establish that exclusion.
+  Expand a catalog root alias without adding namespace directories. A plugin
+  namespace is not a filesystem directory, and absent tracker connectors do not
+  establish that the bundled CLI is unavailable. A hook's private execution copy
+  is not an authoritative candidate skill location; context must not advertise
+  that copy as the installed skill. Context must remain nonmutating, perform no
+  repository or tracker inspection, preserve provider and intent boundaries, and
+  leave workflow and authority in the skill. Missing or unreadable catalog
+  resources remain real failures; do not invent an alternative path or tracker.
+  Hook descriptors use native command strings; installed paths containing
+  spaces must remain single launcher arguments.
 
 - **TM-P1 — One self-contained ticket plugin.** The five skills and all tracker
   adapters live in `darrow-tickets`. The shipped adapter is GitHub Issues via
@@ -68,7 +100,11 @@ stable intent ("create a ticket for X") while the backend stays swappable.
   access. The caller must clarify unresolved ambiguity. A failed selected
   provider never triggers a silent fallback. A URL's appearance alone is not
   an explicit provider choice: after selection, TM-R1 requires the adapter to
-  validate every supplied ticket URL.
+  validate every supplied ticket URL. When the requested provider is unavailable,
+  an unsubmitted draft for that provider is allowed; it neither creates a ticket
+  nor changes the requested provider. A GitHub alternative requires the caller's
+  explicit choice before execution. A response that offers no GitHub alternative
+  need not ask the caller to reject one.
 - **TM-1 — Deliberate backend.** The script resolves exactly one usable
   backend deterministically and the report names it. No usable backend
   (no remote, issues disabled, missing CLI) → refuse with a clear error
@@ -91,7 +127,9 @@ same task requirements.
   evidence for affected behavior. The retirement template asks for the exact
   removal target and authorized scope, covers implementation, configuration,
   tests, documentation and migration obligations, and calls for evidence that
-  removal is complete and retained behavior works. The bug-fix template asks
+  removal is complete and retained behavior works. Keep those two verification
+  obligations as checkable done criteria; removal steps alone do not establish
+  verification of their completion. The bug-fix template asks
   for incident evidence, observed and expected behavior, a reproducer, a
   bounded fix, durable regression coverage and before/after evidence. Missing
   reproduction evidence remains an explicit blocker to a verified repair.
@@ -109,7 +147,8 @@ same task requirements.
   including files supplied or customized by its users. It inspects an explicitly
   named template, or selects one whose stated purpose matches the requested
   issue; ambiguous matches require a caller choice. The created ticket retains
-  the selected template's applicable criteria and evidence requests. It never
+  the selected template's applicable criteria and evidence requests by their
+  checkable meaning; exact template wording is not required. It never
   substitutes the bundled copy for a missing or unreadable installed template.
   Without a matching installed template, the existing type-based drafting rules
   apply. Factual inputs come only from the request, conversation or repository;
@@ -178,7 +217,8 @@ decompose a broad request into tickets on its own.
   the result remains incomplete, leave that item uncreated. A plausible
   existing match is reported with id and title; skip that item until the user
   decides whether to file anyway, while continuing independent items. A shared
-  component or keyword alone does not make two tickets duplicates.
+  component or keyword alone does not make two tickets duplicates. The final report
+  need not enumerate unrelated search results.
 - **TM-C2 — Deliberate type.** The type (bug, feature, task, chore) is
   chosen from the request and evidence, stated in the report, and mapped to
   the backend's taxonomy by the script.
@@ -202,10 +242,16 @@ decompose a broad request into tickets on its own.
   says so. Milestones and assignees stay opt-in: only when the user asks,
   and only to existing values.
 - **TM-C7 — No tool attribution.** No "Generated with ..." lines, no AI
-  co-author credits, no tool emoji in title or body.
+  co-author credits, no tool emoji in title or body. Omit requested attribution
+  while preserving the substantive ticket request. If creation rejects local
+  title/body attribution with exit 6 before provider access, correct the same
+  draft and retry that item. This is not a provider refusal and that rejected
+  attempt created no ticket. Provider failures and uncertain creation effects
+  still stop pending mutations; report the policy omission in the final result.
 - **TM-C8 — Traceable report.** The report states the external ticket id and
   canonical URL, the type, the labels applied, and anything omitted under
-  TM-C1/TM-C6.
+  TM-C1/TM-C6. The id and canonical URL identify the created ticket; repeating
+  its title is not required.
 - **TM-C9 — Relations by request.** `depends-on` and `parent` relations are
   set at creation only when the caller names them, per the relations
   contract (TM-2/TM-3). Verify each requested relation by reading the created
@@ -218,7 +264,12 @@ decompose a broad request into tickets on its own.
   reasons. A provider failure stops pending mutations under TM-P3; already
   created tickets remain visible, and no automatic rollback or second creation
   attempt occurs. A skipped item does not prevent independent items from
-  proceeding. Never substitute a missing batch relation target.
+  proceeding. Never substitute a missing batch relation target. After a refusal,
+  preserve its diagnostic verbatim in the final report alongside any created
+  ticket and its partial relation state; a summary of the failed operation alone
+  does not preserve that evidence. Describing the refusal and saying execution
+  stopped before the next named item states that item's reason for not being
+  attempted; no fixed phrase such as "pending mutations" is required.
 - **TM-C11 — Installed template use.** After duplicate checking and before
   drafting each GitHub issue, inspect available repository templates and any
   requested or matching template. Retain its applicable criteria, evidence
@@ -340,7 +391,11 @@ authorized work.
   those instructions or append an editorial assessment of them.
 - **TM-R4 — Honest retrieval failure.** A missing ticket, unusable backend,
   unreadable relation, or tracker error stops retrieval with the CLI's complete
-  diagnostic after one fetch. It stops dependent follow-on work. Separately
+  diagnostic after one fetch. A failed local launcher-path binding before the
+  ticket CLI starts is not a fetch: correct that binding under TM-P3 before
+  invoking the locked CLI. Count resolved locked CLI launches rather than outer
+  bootstrap attempts; never use that distinction to retry a tracker refusal.
+  It stops dependent follow-on work. Separately
   authorized work that remains meaningful without the ticket may continue, but
   the final answer must still include the complete diagnostic unchanged.
   Backend-provided evidence remains verbatim but may be capped with an explicit

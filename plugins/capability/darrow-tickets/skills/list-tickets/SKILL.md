@@ -20,11 +20,16 @@ appearance; the selected adapter owns URL validation.
 All tracker interaction goes through the bundled CLI:
 
 ```text
-uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-ticket <command> [args] [--provider <tracker>]
+uv run --quiet --no-project "<plugin-root>/backend/scripts/run_locked.py" darrow-ticket <command> [args] [--provider <tracker>]
 ```
 
-`<skill-dir>` is the absolute directory containing this `SKILL.md`. Use that
-complete locked command for every operation below. Append `--provider github`
+`<plugin-root>` is the absolute prefix before `/skills/list-tickets/SKILL.md`
+in this file's actual path. For example,
+`/work/.agents/skills/list-tickets/SKILL.md` uses
+`/work/.agents/backend/scripts/run_locked.py`. Do not insert a plugin-name
+directory or calculate parent traversals. If a wrong launcher path fails before
+the CLI starts, correct this binding before declaring the backend unavailable.
+Use that complete locked command for every operation below. Append `--provider github`
 to the query when the request or project context selects GitHub; the sole bundled adapter is
 the default otherwise. The current adapter requires UV, Python 3.10–3.13,
 Git, and authenticated `gh` on Linux, macOS, or native Windows.
@@ -67,7 +72,7 @@ requested supported filter maps to exactly one argument.
 Run:
 
 ```sh
-uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-ticket list [--state open|closed|all] \
+uv run --quiet --no-project "<plugin-root>/backend/scripts/run_locked.py" darrow-ticket list [--state open|closed|all] \
   [--type bug|feature|task|chore] [--label <label>]... \
   [--search <query>] [--milestone <milestone>] [--limit <count>]
 ```

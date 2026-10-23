@@ -1,3 +1,4 @@
+import { captureTestCommand } from "../test-command";
 import { afterAll, afterEach, expect } from "bun:test";
 import {
   cp,
@@ -11,7 +12,7 @@ import {
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { OracleCheck } from "./fixture-command";
+import { type OracleCheck } from "./fixture-command";
 import { prepareUvFixtureRuntime } from "./fixture-runtime";
 
 type ProofAssets = {
@@ -20,9 +21,10 @@ type ProofAssets = {
   setup: string;
 };
 type ProofContext = { root: string; environment: Record<string, string> };
+type ProofPackage = { backend: string; uvCacheDir: string };
 const cases: string[] = [];
 const packages: string[] = [];
-let proofPackage: Promise<string> | undefined;
+let proofPackage: Promise<ProofPackage> | undefined;
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 
 afterEach(async () => {
@@ -41,31 +43,23 @@ afterAll(async () => {
 });
 
 async function execute(script: string, context: ProofContext) {
-  const command = Bun.spawn(["/bin/bash", "-e", "-c", script], {
+  return captureTestCommand(["/bin/bash", "-e", "-c", script], undefined, {
     cwd: context.root,
     env: context.environment,
-    stdin: "ignore",
-    stdout: "pipe",
-    stderr: "pipe",
     timeout: 30_000,
   });
-  const [stdout, stderr, exitCode] = await Promise.all([
-    new Response(command.stdout).text(),
-    new Response(command.stderr).text(),
-    command.exited,
-  ]);
-  return { stdout, stderr, exitCode };
 }
 
 function environment(
   root: string,
   bin: string,
   reviewState: string,
+  temporary: string,
 ): Record<string, string> {
   return {
     PATH: [bin, "/usr/bin:/bin:/usr/sbin:/sbin"].filter(Boolean).join(":"),
     HOME: join(root, ".git/oracle-home"),
-    TMPDIR: join(root, ".git/oracle-tmp"),
+    TMPDIR: temporary,
     LANG: "C",
     UV_CACHE_DIR: process.env.UV_CACHE_DIR ?? join(root, ".git/uv-cache"),
     UV_PYTHON_DOWNLOADS: "never",
@@ -75,6 +69,22 @@ function environment(
     DARROW_REVIEW_STATE_DIR: reviewState,
     DARROW_CACHE_DIR: join(root, ".git/fixture-runtime-cache"),
   };
+}
+
+async function copyProofManifests(root: string) {
+  const plugin = fileURLToPath(
+    new URL(
+      "../../plugins/orchestration/darrow-adaptive-goal/",
+      import.meta.url,
+    ),
+  );
+  for (const folder of [".claude-plugin", ".codex-plugin"]) {
+    await mkdir(join(root, folder));
+    await cp(
+      join(plugin, folder, "plugin.json"),
+      join(root, folder, "plugin.json"),
+    );
+  }
 }
 
 async function prepareProofPackage() {
@@ -102,9 +112,15 @@ async function prepareProofPackage() {
     backend,
     { recursive: true, filter: (path) => !excluded.has(basename(path)) },
   );
+  await copyProofManifests(root);
   const context = {
     root,
-    environment: environment(root, "", join(root, "review-state")),
+    environment: environment(
+      root,
+      "",
+      join(root, "review-state"),
+      join(root, ".git/oracle-tmp"),
+    ),
   };
   await Promise.all(
     [context.environment.HOME!, context.environment.TMPDIR!].map((path) =>
@@ -119,7 +135,7 @@ async function prepareProofPackage() {
     context,
   );
   expect(result.exitCode, result.stderr || result.stdout).toBe(0);
-  return backend;
+  return { backend, uvCacheDir: context.environment.UV_CACHE_DIR! };
 }
 
 async function prepareRepository(context: ProofContext, assets: ProofAssets) {
@@ -129,12 +145,13 @@ async function prepareRepository(context: ProofContext, assets: ProofAssets) {
   const result = await execute(`${quote(git)} init --quiet .\n`, context);
   expect(result.exitCode, result.stderr || result.stdout).toBe(0);
   await Promise.all(
-    [
-      ".git/fixture-bin",
-      ".git/fixture-state",
-      ".git/oracle-home",
-      ".git/oracle-tmp",
-    ].map((path) => mkdir(join(root, path), { recursive: true })),
+    [".git/fixture-bin", ".fixture-state", ".git/oracle-home"].map((path) =>
+      mkdir(join(root, path), { recursive: true }),
+    ),
+  );
+  await writeFile(
+    join(root, ".git/info/exclude"),
+    "/.fixture-state/\n/.sevro-marketplace/\n",
   );
   await writeFile(join(root, "value.txt"), "before\n");
   const commit = await execute(
@@ -166,13 +183,25 @@ export async function goalReviewOracle(assets: ProofAssets) {
     await mkdtemp(join(tmpdir(), "darrow-goal-review-state-")),
   );
   cases.push(reviewState);
+  const temporary = await realpath(
+    await mkdtemp(join(tmpdir(), "darrow-goal-review-tmp-")),
+  );
+  cases.push(temporary);
   const context = {
     root,
-    environment: environment(root, join(root, ".git/fixture-bin"), reviewState),
+    environment: environment(
+      root,
+      join(root, ".git/fixture-bin"),
+      reviewState,
+      temporary,
+    ),
   };
   await prepareRepository(context, assets);
   proofPackage ??= prepareProofPackage();
-  await symlink(await proofPackage, join(root, ".git/fixture-backend"));
+  const { backend, uvCacheDir } = await proofPackage;
+  context.environment.UV_CACHE_DIR = uvCacheDir;
+  await mkdir(join(root, ".sevro-marketplace"), { recursive: true });
+  await symlink(dirname(backend), join(root, ".sevro-marketplace/plugin"));
   const uv = Bun.which("uv");
   if (!uv) throw new Error("fixture tool is unavailable: uv");
   const setup = await execute(

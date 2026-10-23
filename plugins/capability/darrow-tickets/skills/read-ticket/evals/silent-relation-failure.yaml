@@ -2,6 +2,7 @@ id: read-ticket-silent-relation-failure
 invariant: TM-R2,TM-R4
 activation: positive
 mount_plugin_skills: true
+required_plugin_hook: darrow-tickets
 prompt: "Read ticket #32 and return the authoritative tracker response without changing anything."
 fixture:
   commits:
@@ -13,13 +14,13 @@ fixture:
       #!/bin/sh
       d="$(git rev-parse --git-dir)"
       case " $* " in
-        *" darrow-ticket "*) printf '%s\n' "$*" >>"$d/fixture-ticket-cli-calls" ;;
+        *" darrow-ticket "*) printf '%s\n' "$*" >>"$(git rev-parse --show-toplevel)/.fixture-state/fixture-ticket-cli-calls" ;;
       esac
       real_uv=$(awk '!/fixture-bin/ && !seen {print; seen=1}' "$d/fixture-uv-paths")
       exec "$real_uv" "$@"
     gh: |
       #!/bin/sh
-      d="$(git rev-parse --git-dir)/fixture-gh"
+      d="$(git rev-parse --show-toplevel)/.fixture-state/gh"
       mkdir -p "$d"
       echo "$*" >>"$d/calls"
       case "$1" in
@@ -48,10 +49,10 @@ checks:
     run: cat .git/last-message.md
     expect_exact: "error: GitHub backend command failed with exit 1 and no diagnostic"
   - name: bundled CLI owns the silent failed retrieval
-    run: cat .git/fixture-ticket-cli-calls
+    run: cat .fixture-state/fixture-ticket-cli-calls
     expect_regex: "darrow-ticket get #?32( --provider github)?$"
   - name: silent failure stops without partial ticket output or later calls
-    run: cat .git/fixture-gh/protocol
+    run: cat .fixture-state/gh/protocol
     expect_exact: |-
       issue view 32 --json number,state,title,url,labels
       issue view 32 --json body

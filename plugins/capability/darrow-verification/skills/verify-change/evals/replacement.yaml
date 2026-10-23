@@ -51,12 +51,13 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
   - name: retained report handoff is rendered last
     run: |
-      test -e .git/inspect-candidate-report.md || exit 0
-      report=$(cd .git && pwd -P)/inspect-candidate-report.md
+      test -e .fixture-state/inspect-candidate-report.md || exit 0
+      report=$(cd .fixture-state && pwd -P)/inspect-candidate-report.md
       last=$(awk 'NF { line=$0 } END { print line }' .git/last-message.md)
       test "$last" = "Complete provider result: [report](<$report>)"
   - name: complete replacement evidence retained and referenced
-    run: test -s .git/inspect-candidate-report.md && report=$(cd .git && pwd
+    run:
+      test -s .fixture-state/inspect-candidate-report.md && report=$(cd .fixture-state && pwd
       -P)/inspect-candidate-report.md && grep -F "$report" .git/last-message.md
 semantic_output_checks:
   - name: current complete review-only conclusion

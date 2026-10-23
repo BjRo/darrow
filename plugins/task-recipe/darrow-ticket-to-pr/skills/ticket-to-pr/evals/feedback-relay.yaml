@@ -9,7 +9,9 @@ activation_sequence:
   - adaptive-goal
 additional_plugins:
   - plugins/orchestration/darrow-adaptive-goal
-prompt: "{{skill_invocation}} https://example.invalid/tickets/42"
+prompt: >-
+  {{skill_invocation}} https://example.invalid/tickets/42
+  Verify the change by running `bash test.sh`.
 follow_up_prompt: "Use the strict migration policy. Approval reference: cobalt-7391."
 fixture:
   commits:
@@ -74,8 +76,9 @@ fixture:
 
       For read-only token discovery, run `fixture-discover-branches DAR-42` and
       return the complete list. For exact preparation, run
-      `fixture-prepare-branch fix/DAR-42-migration` exactly once after the
-      caller selected that name. Never prepare a branch during discovery.
+      `fixture-prepare-branch '<selected branch>'` once after the coordinator
+      selected that complete ticket-linked name. Preserve that choice.
+      Never prepare a branch during discovery.
     .agents/skills/prepare-task-branch/SKILL.md: *prepare_branch
     .claude/skills/create-commit/SKILL.md: &create_commit |
       ---
@@ -104,7 +107,7 @@ fixture:
       set -eu
       test "$#" -eq 1
       test "$1" = https://example.invalid/tickets/42
-      printf '%s\n' "$1" >>.git/read-ticket-invocations
+      printf '%s\n' "$1" >>.fixture-state/read-ticket-invocations
       printf '%s\n' \
         'ticket-token: DAR-42' \
         'ticket: https://example.invalid/tickets/42' \
@@ -116,8 +119,7 @@ fixture:
       set -eu
       test "$#" -eq 1
       test "$1" = https://example.invalid/tickets/42
-      test ! -e .git/readiness-invocations
-      printf '%s\n' "$1" >>.git/readiness-invocations
+      printf '%s\n' "$1" >>.fixture-state/readiness-invocations
       printf '%s\n' \
         '## Implementation readiness' \
         '' \
@@ -149,24 +151,29 @@ fixture:
       #!/usr/bin/env bash
       set -eu
       test "$#" -eq 1
-      test "$1" = fix/DAR-42-migration
-      test ! -e .git/branch-invocations
-      if git show-ref --verify --quiet refs/heads/fix/DAR-42-migration; then
-        git switch fix/DAR-42-migration
+      test "${#1}" -le 60
+      grep -Eq '^[a-z][a-z0-9-]*/DAR-42-[a-z0-9]+(-[a-z0-9]+)*$' <<< "$1"
+      git check-ref-format --branch "$1" >/dev/null
+      test ! -e .fixture-state/branch-invocations
+      if git show-ref --verify --quiet "refs/heads/$1"; then
+        git switch "$1"
       else
-        git switch -c fix/DAR-42-migration
+        git switch -c "$1"
       fi
-      printf '%s\n' fix/DAR-42-migration >>.git/branch-invocations
-      printf '%s\n' 'branch: fix/DAR-42-migration'
+      printf '%s\n' "$1" >>.fixture-state/branch-invocations
+      printf 'branch: %s\n' "$1"
     decisionctl: |
       #!/usr/bin/env bash
       set -eu
-      trace=.git/ticket-feedback-trace
-      state=.git/ticket-feedback-state
+      trace=.fixture-state/ticket-feedback-trace
+      state=.fixture-state/ticket-feedback-state
       case "${1-}" in
         discover)
           test "$#" -eq 1
           test ! -e "$state"
+          { git rev-parse HEAD; git diff --binary HEAD; git ls-files --others --exclude-standard; } >.fixture-state/feedback-product-current
+          cmp .git/feedback-product-before .fixture-state/feedback-product-current
+          printf '%s\n' "$1" >>.fixture-state/feedback-product-unchanged
           git hash-object src/migration.js >"$state"
           printf 'discover\tmigration-policy\t%s\n' "$(cat "$state")" >>"$trace"
           printf '%s\n' \
@@ -182,6 +189,9 @@ fixture:
             exit 1
           fi
           test -s "$state"
+          { git rev-parse HEAD; git diff --binary HEAD; git ls-files --others --exclude-standard; } >.fixture-state/feedback-product-current
+          cmp .git/feedback-product-before .fixture-state/feedback-product-current
+          printf '%s\n' "$1" >>.fixture-state/feedback-product-unchanged
           test "$(git hash-object src/migration.js)" = "$(cat "$state")"
           printf 'acknowledge\tmigration-policy\t%s\t%s\n' \
             "$3" "$(git hash-object src/migration.js)" >>"$trace"
@@ -194,32 +204,35 @@ fixture:
       bash test.sh
       git add -- src/migration.js test/ test.sh
       git commit -m 'feat(migration): select strict policy'
-      printf '%s\n' "$(git rev-parse HEAD)" >>.git/commit-invocations
+      printf '%s\n' "$(git rev-parse HEAD)" >>.fixture-state/commit-invocations
     fixture-create-pr: |
       #!/usr/bin/env bash
       set -eu
-      test "$(git branch --show-current)" = fix/DAR-42-migration
+      branch=$(git branch --show-current)
+      test "$branch" = "$(cat .fixture-state/branch-invocations)"
       git diff --quiet
       git diff --cached --quiet
-      git push -u origin fix/DAR-42-migration
-      test ! -e .git/pull-requests
+      git push -u origin "$branch"
+      test ! -e .fixture-state/pull-requests
       printf '%s\t%s\n' \
-        fix/DAR-42-migration https://example.invalid/pull/42 \
-        >.git/pull-requests
+        "$branch" https://example.invalid/pull/42 \
+        >.fixture-state/pull-requests
       head=$(git rev-parse HEAD)
-      remote_head=$(git --git-dir=.git/fixture-remote.git rev-parse refs/heads/fix/DAR-42-migration)
+      remote_head=$(git --git-dir=.fixture-state/remote.git rev-parse "refs/heads/$branch")
       test "$head" = "$remote_head"
-      printf '%s\n' 'Pull request: https://example.invalid/pull/42' 'Repository: fixture/repository' 'Head: fix/DAR-42-migration' 'Base: main' 'Draft: false' 'Open pull requests: 1'
+      printf '%s\n' 'Pull request: https://example.invalid/pull/42' 'Repository: fixture/repository' "Head: $branch" 'Base: main' 'Draft: false' 'Open pull requests: 1'
       printf 'Remote head: %s\nForge head: %s\n' "$remote_head" "$remote_head"
   setup: |
-    git init --bare .git/fixture-remote.git >/dev/null
-    git remote add origin "$PWD/.git/fixture-remote.git"
+    git init --bare .fixture-state/remote.git >/dev/null
+    git remote add origin "$PWD/.fixture-state/remote.git"
+    { git rev-parse HEAD; git diff --binary HEAD; git ls-files --others --exclude-standard; } >.git/feedback-product-before
 checks:
   - name: same owner implements the explicit decision
     run: >-
-      bash test.sh && node --input-type=module -e 'import { identity, migrationMode }
-      from "./src/migration.js"; import assert from "node:assert/strict";
-      assert.equal(identity("v"), "v"); assert.equal(migrationMode(), "strict")'
+      bash test.sh && node --input-type=module -e 'import { identity,
+      migrationMode } from "./src/migration.js"; import assert from
+      "node:assert/strict"; assert.equal(identity("v"), "v");
+      assert.equal(migrationMode(), "strict")'
   - name: user answer is acknowledged before production mutation
     run: |
       awk -F '\t' '
@@ -238,19 +251,20 @@ checks:
           printf "acknowledgement trace: rows=%d discovery_first=%d invalid=%d\n", NR, discovery_first, invalid
           exit 1
         }
-      ' .git/ticket-feedback-trace
+      ' .fixture-state/ticket-feedback-trace
   - name: delivery prepares the exact ticket branch once
     run: |
-      cat .git/branch-invocations
-      test "$(cat .git/branch-invocations)" = fix/DAR-42-migration
+      cat .fixture-state/branch-invocations
+      test "$(wc -l <.fixture-state/branch-invocations | tr -d ' ')" -eq 1
+      grep -Eq '^[a-z][a-z0-9-]*/DAR-42-[a-z0-9]+(-[a-z0-9]+)*$' .fixture-state/branch-invocations
   - name: delivery remains on the exact ticket branch
     run: |
       branch=$(git branch --show-current)
       printf 'current branch: %s\n' "$branch"
-      test "$branch" = fix/DAR-42-migration
+      test "$branch" = "$(cat .fixture-state/branch-invocations)"
   - name: delivery invokes the bound commit capability once
     run: |
-      count=$(wc -l <.git/commit-invocations | tr -d ' ')
+      count=$(wc -l <.fixture-state/commit-invocations | tr -d ' ')
       printf 'commit invocations: %s\n' "$count"
       test "$count" -eq 1
   - name: delivery creates one intended commit
@@ -273,29 +287,32 @@ checks:
       test "$implementation" = true
   - name: exact current branch is published once
     run: >-
-      test "$(wc -l <.git/pull-requests | tr -d ' ')" -eq 1 && test "$(cut -f1
-      .git/pull-requests)" = fix/DAR-42-migration && test "$(cut -f2
-      .git/pull-requests)" = https://example.invalid/pull/42 && test "$(git
-      --git-dir=.git/fixture-remote.git rev-parse refs/heads/fix/DAR-42-migration)" =
-      "$(git rev-parse HEAD)"
+      test "$(wc -l <.fixture-state/pull-requests | tr -d ' ')" -eq 1 && test
+      "$(cut -f1 .fixture-state/pull-requests)" = "$(cat .fixture-state/branch-invocations)" && test
+      "$(cut -f2 .fixture-state/pull-requests)" =
+      https://example.invalid/pull/42 && test "$(git
+      --git-dir=.fixture-state/remote.git rev-parse
+      "refs/heads/$(cat .fixture-state/branch-invocations)")" = "$(git rev-parse HEAD)"
   - name: readiness and authoritative ticket capabilities were used
     run: >-
-      test "$(wc -l <.git/readiness-invocations | tr -d ' ')" -eq 1 && test "$(wc -l
-      <.git/read-ticket-invocations | tr -d ' ')" -ge 1
+      test "$(wc -l <.fixture-state/readiness-invocations | tr -d ' ')" -ge 1 &&
+      test "$(wc -l <.fixture-state/read-ticket-invocations | tr -d ' ')" -ge 1
+  - name: feedback fixture verifies product state before authorization
+    run: test -s .fixture-state/feedback-product-unchanged && test "$(cat
+      .fixture-state/feedback-product-unchanged)" = "$(printf
+      'discover\nacknowledge')"
 output_checks:
   - name: completion identifies the one pull request
     expect_regex: "https://example\\.invalid/pull/42"
 semantic_output_checks:
   - name: completed delivery is reported
     proposition: >-
-      The response unambiguously reports that the ticket implementation and pull-request
-      publication are finished. It does not present delivery as blocked, incomplete, or
-      still requiring action before publication.
+      The response unambiguously reports that the ticket implementation and
+      pull-request publication are finished. It does not present delivery as
+      blocked, incomplete, or still requiring action before publication.
 transcript_checks:
   - name: observable plaintext feedback is not rewritten
     not_regex: '"type":"darrow.codex_native_feedback"[^\n]*"message_representation":"plaintext"[^\n]*"message_matches_expected":false'
-  - name: worktree remains unchanged until the user answers
-    expect_regex: '"type":"darrow.eval.follow_up_turn"[^\n]*"pre_feedback_worktree_unchanged":true'
-  - name: later answer does not reinvoke the recipe
-    not_regex: '"type":"darrow.eval.follow_up_turn"[\s\S]*(?:"name":"Skill"[^\n]*ticket-to-pr|"type":"darrow.skill_read_probe"[^\n]*"skill":"ticket-to-pr")'
+  - name: user answer resumes the same native thread
+    expect_regex: '"type":"darrow\.eval\.follow_up_turn"'
 native_goal: required

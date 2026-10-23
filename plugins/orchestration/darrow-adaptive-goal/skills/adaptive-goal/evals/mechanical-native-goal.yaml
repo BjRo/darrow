@@ -5,7 +5,7 @@ goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Alphabetize the three entries in NOTES.md. Acceptance is exact
   alphabetical order under the existing heading, covered completely by bash check.sh.
-  Select and apply the policy route. Keep the result local.
+  Run bash check.sh. Select and apply the policy route. Keep the result local.
 fixture:
   commits:
     - message: "chore: init"
@@ -22,8 +22,8 @@ fixture:
           - maple
         check.sh: |
           #!/usr/bin/env bash
-          printf '%s\n' '# Notes' '' '- alpha' '- maple' '- zebra' >.git/expected-notes
-          cmp -s .git/expected-notes NOTES.md
+          printf '%s\n' '# Notes' '' '- alpha' '- maple' '- zebra' >.fixture-state/expected-notes
+          cmp -s .fixture-state/expected-notes NOTES.md
 checks:
   - name: deterministic prose transformation is correct
     run: bash check.sh

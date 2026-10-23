@@ -33,8 +33,8 @@ fixture:
       #!/usr/bin/env bash
       set -euo pipefail
       git_dir=$(git rev-parse --git-dir)
-      body="$git_dir/fixture-ticket.md"
-      log="$git_dir/ticketctl.log"
+      body="$(git rev-parse --show-toplevel)/.fixture-state/fixture-ticket.md"
+      log="$(git rev-parse --show-toplevel)/.fixture-state/ticketctl.log"
       usage() {
         printf '%s\n' \
           'ticketctl get <id> --body-file <output>' \
@@ -66,7 +66,7 @@ fixture:
         *) usage >&2; exit 64 ;;
       esac
   setup: |
-    cat >.git/fixture-ticket.md <<'EOF'
+    cat >.fixture-state/fixture-ticket.md <<'EOF'
     ## Outcome
 
     Export triple(value), returning exactly three times a numeric input.
@@ -79,7 +79,7 @@ fixture:
 
     Preserve this operator note.
     EOF
-    : >.git/ticketctl.log
+    : >.fixture-state/ticketctl.log
 checks:
   - name: final behavior is correct
     run: >-
@@ -89,20 +89,20 @@ checks:
     run: grep -E 'triple\((0|-4)' test/math.test.js >/dev/null && bash test.sh >/dev/null
   - name: ticket retains all phase artifacts and verified state
     run: >-
-      grep -F 'Preserve this operator note.' .git/fixture-ticket.md >/dev/null &&
-      awk -F '\t' '$1=="state" && $2=="verified" {f=1} END {exit !f}' .git/fixture-ticket.md &&
+      grep -F 'Preserve this operator note.' .fixture-state/fixture-ticket.md >/dev/null &&
+      awk -F '\t' '$1=="state" && $2=="verified" {f=1} END {exit !f}' .fixture-state/fixture-ticket.md &&
       for phase in refine challenge implement review qa codify; do
-        grep -F "## Ticket Pipeline Artifact — $phase — Iteration 1" .git/fixture-ticket.md >/dev/null || exit 1;
+        grep -F "## Ticket Pipeline Artifact — $phase — Iteration 1" .fixture-state/fixture-ticket.md >/dev/null || exit 1;
       done
   - name: execution ledger records every normal-path child
     run: >-
-      test "$(awk '/^\| (refine|challenge|implement|review|qa|codify) \| [0-9]+ \|/ {n++} END {print n+0}' .git/fixture-ticket.md)" -eq 6
+      test "$(awk '/^\| (refine|challenge|implement|review|qa|codify) \| [0-9]+ \|/ {n++} END {print n+0}' .fixture-state/fixture-ticket.md)" -eq 6
   - name: only the named ticket description is mutated externally
     run: >-
-      test -s .git/ticketctl.log &&
-      awk -F '\t' '$2 != "7" {bad=1} END {exit bad}' .git/ticketctl.log &&
-      awk -F '\t' '$1=="help" {help=1} $1=="get" && help {get=1} $1=="describe" && get {describe=1} END {exit !(help && get && describe)}' .git/ticketctl.log &&
-      awk -F '\t' '$1=="describe" && $2=="7" {f=1} END {exit !f}' .git/ticketctl.log
+      test -s .fixture-state/ticketctl.log &&
+      awk -F '\t' '$2 != "7" {bad=1} END {exit bad}' .fixture-state/ticketctl.log &&
+      awk -F '\t' '$1=="help" {help=1} $1=="get" && help {get=1} $1=="describe" && get {describe=1} END {exit !(help && get && describe)}' .fixture-state/ticketctl.log &&
+      awk -F '\t' '$1=="describe" && $2=="7" {f=1} END {exit !f}' .fixture-state/ticketctl.log
   - name: no publication occurs
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:

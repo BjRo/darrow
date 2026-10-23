@@ -40,7 +40,16 @@ semantic_output_checks:
       delivery channel in this round.
   - name: unresolved discovery prevents a brief
     proposition: >-
-      The response asks schedule ownership as the current material
-      product-decision frontier with an advisory recommendation, then stops
-      without producing a discovery brief or claiming discovery is complete or
-      confirmed.
+      The response asks the user to choose schedule ownership, gives a concrete
+      advisory recommendation for that choice, and ends the turn without a
+      discovery brief or a claim that discovery is complete or confirmed.
+      The recommendation identifies an owner role or ownership arrangement;
+      recommending only the order in which decisions should be made is
+      insufficient.
+      Assess the actual response content. It need not announce that it is
+      stopping, say that no brief is being produced, use the word "frontier",
+      or announce that it is waiting. Ending after the current question round
+      satisfies the stopping boundary. Other independent questions and their
+      recommendations may appear in that round; it is not limited to the
+      ownership question alone. Delivery-channel dependency is assessed by its
+      separate check.

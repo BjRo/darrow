@@ -2,6 +2,7 @@ id: read-ticket-no-trigger-other-provider
 invariant: TM-P2
 activation: negative
 mount_plugin_skills: true
+required_plugin_hook: darrow-tickets
 activation_excludes:
   - create-ticket
   - read-ticket
@@ -12,18 +13,21 @@ fixture:
   commits:
     - message: "chore: init"
       files:
-        README.md: "# APP\n\nThis project tracks work in Jira.\n"
+        README.md: "# APP
+
+
+          This project tracks work in Jira.\n"
   bin:
     gh: |
       #!/bin/sh
-      printf '%s\n' "$*" >> "$(git rev-parse --git-dir)/fixture-gh-calls"
+      printf '%s\n' "$*" >> "$(git rev-parse --show-toplevel)/.fixture-state/gh-calls"
       echo "Unexpected GitHub tracker access" >&2
       exit 1
   setup: |
     git remote add origin https://github.test/o/r.git
 checks:
   - name: explicit other tracker does not contact GitHub
-    run: test ! -f .git/fixture-gh-calls
+    run: test ! -f .fixture-state/gh-calls
 semantic_output_checks:
   - name: requested tracker is preserved
     proposition: The response preserves Jira as the requested tracker and does not claim the requested operation succeeded or substitute a GitHub issue.

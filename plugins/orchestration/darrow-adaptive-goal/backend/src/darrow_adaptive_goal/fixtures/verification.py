@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import tempfile
 import time
 from pathlib import Path
 
 from ..common import CheckRequiredError, RefusalError
-from . import review
-from .state import append, checksum, lines, metadata
+from .review_policy import Findings
+from .review_policy import conclusion as review_conclusion
+from .state import append, capture, checksum, lines
 
 
 def prerequisites(state: Path, target: str, mode: str) -> str:
@@ -94,27 +94,43 @@ def report(
     )
 
 
-def assess(repo: Path, mode: str) -> str:
+def current_review(repo: Path, mode: str, artifact: Path) -> str:
+    state = repo / ".fixture-state"
+    history = lines(state / "independent-review-invocations")
+    expected = state / f"review-result-{len(history) - 1}.md"
+    fields = history[-1].split("\t") if history else []
+    target = capture(repo).target
+    if (
+        len(fields) != 3
+        or fields[0] != target
+        or fields[2] != mode
+        or artifact.resolve() != expected
+        or not expected.is_file()
+    ):
+        raise CheckRequiredError(
+            "blocked: complete current independent review required"
+        )
+    result = expected.read_text(encoding="utf-8")
+    prefix = review_conclusion(Findings(outcome=fields[1]), mode)
+    if not result.startswith(
+        prefix + f"Reviewed target: {target}\n"
+    ) or not result.endswith(f"Complete review result: {expected}\n"):
+        raise CheckRequiredError(
+            "blocked: complete current independent review required"
+        )
+    return result
+
+
+def assess(repo: Path, mode: str, artifact: Path) -> str:
     repo = repo.resolve()
-    state = metadata(repo) / "fixture-state"
+    artifact = artifact.resolve()
+    state = repo / ".fixture-state"
     subject = repo / "src/config.js"
     target = checksum(subject.read_bytes())
     review_mode = prerequisites(state, target, mode)
+    review_report = current_review(repo, review_mode, artifact)
     events = state / "verification-events"
     append(events, f"assessment-start\t{mode}\t{target}\n")
-    review_report = review.assess(
-        repo, review_mode, "independent-review-skill-contract-v1"
-    )
-    with tempfile.NamedTemporaryFile(
-        mode="w",
-        encoding="utf-8",
-        newline="\n",
-        prefix="review-result.",
-        dir=state,
-        delete=False,
-    ) as stream:
-        stream.write(review_report)
-        artifact = Path(stream.name)
     append(events, f"review-returned\t{mode}\t{checksum(subject.read_bytes())}\n")
     time.sleep(2)
     qa_target, qa = qa_result(subject)

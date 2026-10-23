@@ -5,14 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv",
-            "args": [
-              "run",
-              "--quiet",
-              "--no-project",
-              "${CLAUDE_PLUGIN_ROOT}/backend/scripts/run_locked.py",
-              "darrow-tickets-claude-context"
-            ],
+            "command": "uv run --quiet --no-project \"${CLAUDE_PLUGIN_ROOT}/backend/scripts/run_locked.py\" darrow-tickets-claude-context",
             "timeout": 30
           }
         ]

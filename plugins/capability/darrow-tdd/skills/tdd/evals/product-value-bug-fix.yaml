@@ -1,4 +1,5 @@
 id: tdd-product-value-bug-fix
+required_plugin_hook: darrow-tdd
 invariant: TDD-C4,TDD-C9,TDD-C12,TDD-E1,TDD-E7
 activation: positive
 mount_plugin_skills: true
@@ -32,14 +33,14 @@ fixture:
         test.sh: |
           #!/usr/bin/env bash
           set +e
-          node --test test/retry-after.test.js >.git/test-output 2>&1
+          node --test test/retry-after.test.js >.fixture-state/test-output 2>&1
           status=$?
-          cat .git/test-output
+          cat .fixture-state/test-output
           if grep -Eqi 'HTTP.?date|2030|1893456000000' test/retry-after.test.js; then added=1; else added=0; fi
           if git diff --quiet -- src/retry-after.js; then implementation=unchanged; else implementation=changed; fi
           if [ "$status" -eq 0 ]; then result=pass; else result=fail; fi
           printf '%s|regression_test=%s|implementation=%s\n' \
-            "$result" "$added" "$implementation" >>.git/tdd-trace
+            "$result" "$added" "$implementation" >>.fixture-state/tdd-trace
           exit "$status"
 checks:
   - name: no seeded Retry-After defect escapes
@@ -74,7 +75,7 @@ checks:
       awk -F'|' '
       $1=="fail" && $2=="regression_test=1" && $3=="implementation=unchanged" { red=NR }
       $1=="pass" && $2=="regression_test=1" && $3=="implementation=changed" && red && NR>red { green=NR }
-      END { exit !(red && green) }' .git/tdd-trace
+      END { exit !(red && green) }' .fixture-state/tdd-trace
   - name: test telemetry wrapper is unchanged
     run: git diff --exit-code -- test.sh
   - name: final suite is green
@@ -84,4 +85,10 @@ semantic_output_checks:
     proposition: >-
       The response reports an observed failing test before the Retry-After fix
       and a passing test afterward, and names bash test.sh or the equivalent
-      focused node test command used for that evidence.
+      focused node test command used for that evidence. A red result naming
+      the missing HTTP-date behavior followed by a green result establishes
+      that sequence; an opening summary of the completed fix does not imply
+      implementation preceded the red run. Do not require an additional
+      literal "before the fix" disclaimer. Reject a generic claim of following
+      TDD without observed outcomes, a syntax or unrelated failure presented as
+      the red, or an explicit claim that the new test first ran after the fix.

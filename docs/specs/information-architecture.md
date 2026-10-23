@@ -16,12 +16,16 @@ Plugin: `darrow-information-architecture`. Skills: `setup-information-architectu
   inaccessible repository/input, 1 for critical verification findings, and 0
   for completed inspection or successful verification. No Bash runtime shim is
   required. Setup and doctor retain separate intent and judgment in their skills.
+  Resolve bundled reference and backend paths from the absolute directory
+  containing the selected `SKILL.md`, retaining their declared upward segments.
 - **IA-P2 — Filesystem semantics.** Resolve the primary worktree from Git's
   first porcelain record, otherwise the supplied directory. Accept native
   repository paths, including Windows drives and UNC paths. Interpret portable
   guidance routes with forward slashes; accept Windows separators on Windows.
   Match instruction names with their documented case even on case-insensitive
-  filesystems. Recognize CRLF, LF, and UTF-8 BOM guidance without changing bytes.
+  filesystems. Case validation stays within the resolved repository root and
+  does not require directory-listing access to its ancestors. Recognize CRLF,
+  LF, and UTF-8 BOM guidance without changing bytes.
   Emit UTF-8 records even when a native pipe defaults to a legacy code page,
   so non-Latin repository paths remain reportable.
   Follow file adapters only within the repository; report broken, looping,
@@ -270,11 +274,16 @@ decisions, then rerun the audit.
   Resolve skill resources against the owning skill directory, including from
   its deferred references; repository-root lookalikes must not mask a missing
   bundled resource. Missing native or bundled dependencies still block.
+  Generic inline-code mentions of entrypoint filenames in skill prose are not
+  bundled resource declarations. Continue validating explicit read routes,
+  Markdown links, and native imports.
 - **IA-D12 — Intent-matched doctoring.** Explicit invocation and requests to
   audit, doctor, trim, deduplicate, or improve an existing repository guidance
   graph through diagnosed corrections select doctoring. Requests to create,
   set up, or reorganize the guidance graph select setup unless the user
   explicitly asks for doctoring, even when instruction files already exist.
+  Naming an installed doctor skill in a proposed file graph or a future audit
+  route does not itself claim that doctoring was selected or used.
 
 ### Non-goals
 

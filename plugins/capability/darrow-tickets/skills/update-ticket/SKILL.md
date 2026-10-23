@@ -33,11 +33,16 @@ appearance; the selected adapter owns URL validation.
 All tracker interaction goes through the bundled CLI:
 
 ```text
-uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-ticket <command> [args] [--provider <tracker>]
+uv run --quiet --no-project "<plugin-root>/backend/scripts/run_locked.py" darrow-ticket <command> [args] [--provider <tracker>]
 ```
 
-`<skill-dir>` is the absolute directory containing this `SKILL.md`. Use that
-complete locked command for every operation below. Append `--provider github`
+`<plugin-root>` is the absolute prefix before `/skills/update-ticket/SKILL.md`
+in this file's actual path. For example,
+`/work/.agents/skills/update-ticket/SKILL.md` uses
+`/work/.agents/backend/scripts/run_locked.py`. Do not insert a plugin-name
+directory or calculate parent traversals. If a wrong launcher path fails before
+the CLI starts, correct this binding before declaring the backend unavailable.
+Use that complete locked command for every operation below. Append `--provider github`
 to each command when the request or project context selects GitHub; the sole bundled adapter
 is the default otherwise. The current adapter requires UV, Python 3.10–3.13,
 Git, and authenticated `gh` on Linux, macOS, or native Windows.
@@ -64,9 +69,9 @@ an order or apply a partial subset.
 Resolve the target:
 
 - Explicit ID, including one already bound unambiguously in the conversation:
-  run `uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-ticket get <id>`. If the returned title conflicts with the
+  run `uv run --quiet --no-project "<plugin-root>/backend/scripts/run_locked.py" darrow-ticket get <id>`. If the returned title conflicts with the
   user's description, report the mismatch and stop.
-- Topic/name only: run `uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-ticket list --search "<distinctive terms>"`.
+- Topic/name only: run `uv run --quiet --no-project "<plugin-root>/backend/scripts/run_locked.py" darrow-ticket list --search "<distinctive terms>"`.
   Use a result only when exactly one ticket plausibly matches. For zero or
   multiple plausible matches, report the candidates and stop for selection.
 

@@ -2,6 +2,7 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { captureTestCommand } from "../test-command";
 
 const roots: string[] = [];
 afterEach(async () => {
@@ -28,39 +29,42 @@ test("direct caller preserves an explicit Codex app-server route", async () => {
       native_goal: "required",
     }),
   );
-  const child = Bun.spawn([
-    process.execPath,
-    join(import.meta.dir, "../runner/run.ts"),
-    "--project-root",
-    root,
-    "--results-root",
-    join(root, "results"),
-    "--case",
-    "route-probe",
-    "--harness",
-    "codex",
-    "--codex-entrypoint",
-    "app-server",
-    "--owner-evaluation",
-    "passive",
-    "--dry",
-    "--trials",
-    "1",
-    "--threshold",
-    "1",
-    "--jobs",
-    "1",
-    "--",
-    "--codex-bin",
-    process.execPath,
-    "--codex-auth-file",
-    join(root, "unused-auth.json"),
-  ]);
-  const [out, err, code] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ]);
+  const {
+    stdout: out,
+    stderr: err,
+    exitCode: code,
+  } = await captureTestCommand(
+    [
+      process.execPath,
+      join(import.meta.dir, "../runner/run.ts"),
+      "--project-root",
+      root,
+      "--results-root",
+      join(root, "results"),
+      "--case",
+      "route-probe",
+      "--harness",
+      "codex",
+      "--codex-entrypoint",
+      "app-server",
+      "--owner-evaluation",
+      "passive",
+      "--dry",
+      "--trials",
+      "1",
+      "--threshold",
+      "1",
+      "--jobs",
+      "1",
+      "--",
+      "--codex-bin",
+      process.execPath,
+      "--codex-auth-file",
+      join(root, "unused-auth.json"),
+    ],
+    undefined,
+    { env: process.env },
+  );
   expect(code, out + err).toBe(0);
   const manifest = JSON.parse(out);
   expect(manifest.caseIds).toEqual(["route-probe"]);

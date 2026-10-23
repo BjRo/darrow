@@ -1,12 +1,16 @@
 import { expect, test } from "bun:test";
-import { readFixtureCase, runFixtureChecks } from "./fixture-command";
+import {
+  type OracleCheck,
+  readFixtureCase,
+  runFixtureChecks,
+} from "./fixture-command";
 
 const source = new URL(
   "../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/evals/verification-cadence.yaml",
   import.meta.url,
 );
 
-for (const scenario of [
+const scenarios = [
   {
     name: "red green final",
     events: ["focused fail", "focused pass", "final pass"],
@@ -29,9 +33,9 @@ for (const scenario of [
     passes: true,
   },
   {
-    name: "missing red",
+    name: "successful feedback without a manufactured failure",
     events: ["focused pass", "final pass"],
-    passes: false,
+    passes: true,
   },
   {
     name: "missing green",
@@ -64,36 +68,42 @@ for (const scenario of [
     passes: true,
   },
   { name: "no evidence", events: [], passes: false },
-]) {
-  test(`verification cadence: ${scenario.name}`, async () => {
-    const canonical = await readFixtureCase(source);
-    const check = canonical.checks.find(
-      (c) => c.name === "feedback precedes final-tree verification",
-    );
-    if (!check) throw new Error("canonical cadence oracle is missing");
+];
+
+test("verification cadence preserves successful order without requiring red", async () => {
+  const canonical = await readFixtureCase(source);
+  const check = canonical.checks.find(
+    (c) => c.name === "feedback precedes final-tree verification",
+  );
+  if (!check) throw new Error("canonical cadence oracle is missing");
+  const checks: OracleCheck[] = [];
+  for (const scenario of scenarios) {
     const trace =
       scenario.events.map((event) => event.replace(" ", "\t")).join("\n") +
       "\n";
     const quoted = `'${trace.replaceAll("'", "'\\''")}'`;
-    const result = await runFixtureChecks({
-      source,
-      checks: [
-        {
-          name: "record synthetic cadence trace",
-          run: `printf '%s' ${quoted} >.git/fixture-state/verification-trace`,
-        },
-        check,
-      ],
-    });
-    expect(result.exitCode, result.diagnostic).toBe(scenario.passes ? 0 : 1);
-    expect(result.value.execution.status).toBe("completed");
-    expect(result.value.grading.status).toBe("completed");
-    expect(result.value.task.verdict).toBe(
-      scenario.passes ? "passed" : "failed",
+    checks.push(
+      {
+        name: `record ${scenario.name}`,
+        run: `printf '%s' ${quoted} >.fixture-state/verification-trace`,
+      },
+      { ...check, name: scenario.name, exit_code: scenario.passes ? 0 : 1 },
     );
-    expect(result.checks[0]?.status).toBe("passed");
-    expect(result.checks[1]?.status).toBe(
-      scenario.passes ? "passed" : "failed",
-    );
-  }, 20_000);
-}
+  }
+  const result = await runFixtureChecks({
+    source,
+    fixtureAssets: new URL(
+      "../../plugins/orchestration/darrow-adaptive-goal/",
+      import.meta.url,
+    ),
+    fixtureAssetFiles: ["backend/tests/evals/verification_cadence.py"],
+    checks,
+  });
+  expect(result.exitCode, result.diagnostic).toBe(0);
+  expect(result.value.execution.status).toBe("completed");
+  expect(result.value.grading.status).toBe("completed");
+  expect(result.value.task.verdict).toBe("passed");
+  expect(result.checks.map((entry) => entry.status)).toEqual(
+    checks.map(() => "passed"),
+  );
+}, 60_000);

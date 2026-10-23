@@ -13,6 +13,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from io import StringIO
+from multiprocessing.process import BaseProcess
 from pathlib import Path
 from typing import Any, ClassVar
 from unittest.mock import patch
@@ -116,6 +117,22 @@ def terminate_capture_worker(path: str, config: Config, started: Any) -> None:
 
 
 @contextmanager
+def running_process(process: BaseProcess) -> Iterator[None]:
+    process.start()
+    try:
+        yield
+    finally:
+        if process.is_alive():
+            process.terminate()
+        process.join(10)
+        if process.is_alive():
+            process.kill()
+            process.join(10)
+        if process.is_alive():
+            raise RuntimeError(f"worker {process.pid} did not stop after kill")
+
+
+@contextmanager
 def endpoint(
     mode: str = "ok", delay: float = 0
 ) -> Iterator[tuple[str, list[tuple[str, dict[str, str], bytes]]]]:
@@ -185,7 +202,7 @@ class DeliveryTest(unittest.TestCase):
                     exporter.assert_called_once()
                 self.assertEqual(delivery_rows(path)[0]["state"], "acknowledged")
 
-    def test_foreground_never_contacts_delayed_or_unavailable_endpoint(self) -> None:
+    def test_foreground_captures_locally_without_exporting(self) -> None:
         for delay in (0, 0.5):
             with endpoint(delay=delay) as (url, requests):
                 config = self.config(url)
@@ -204,12 +221,15 @@ class DeliveryTest(unittest.TestCase):
                         "darrow_observability_langfuse.cli.load_config",
                         return_value=config,
                     ),
+                    patch(
+                        "darrow_observability_langfuse.cli.export_document",
+                        side_effect=AssertionError("foreground attempted delivery"),
+                    ) as exporter,
                 ):
-                    start = time.monotonic()
                     self.assertEqual(run(), 0)
-                    self.assertLess(time.monotonic() - start, 2)
+                    exporter.assert_not_called()
                 self.assertEqual(requests, [])
-        self.assertEqual(delivery_rows(self.path)[0]["state"], "pending")
+                self.assertEqual(delivery_rows(self.path)[0]["state"], "pending")
 
     def test_real_otlp_batch_headers_and_large_queue(self) -> None:
         from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
@@ -359,10 +379,11 @@ class DeliveryTest(unittest.TestCase):
         process = context.Process(
             target=terminate_worker, args=(str(self.path), config, started)
         )
-        process.start()
-        self.assertTrue(started.wait(5))
-        process.terminate()
-        process.join(5)
+        with running_process(process):
+            self.assertTrue(
+                started.wait(30),
+                f"delivery worker not ready: pid={process.pid}, exitcode={process.exitcode}",
+            )
         self.assertFalse(process.is_alive())
         self.assertEqual(delivery_rows(self.path)[0]["state"], "uncertain")
         rollout(self.path, 3)
@@ -389,13 +410,28 @@ class DeliveryTest(unittest.TestCase):
         process = context.Process(
             target=terminate_capture_worker, args=(str(self.path), config, started)
         )
-        process.start()
-        self.assertTrue(started.wait(5))
-        process.terminate()
-        process.join(5)
+        with running_process(process):
+            self.assertTrue(
+                started.wait(30),
+                f"capture worker not ready: pid={process.pid}, exitcode={process.exitcode}",
+            )
         self.assertFalse(process.is_alive())
         self.assertEqual(delivery_rows(self.path), [])
         self.assertEqual(self.capture(config)["bytes_read"], self.path.stat().st_size)
+
+    def test_capture_worker_is_reaped_when_readiness_assertion_fails(self) -> None:
+        context = multiprocessing.get_context("spawn")
+        process = context.Process(
+            target=terminate_capture_worker,
+            args=(str(self.path), self.config(), context.Event()),
+        )
+        with (
+            self.assertRaisesRegex(AssertionError, "readiness assertion failed"),
+            running_process(process),
+        ):
+            self.fail("readiness assertion failed")
+        self.assertFalse(process.is_alive())
+        self.assertIsNotNone(process.exitcode)
 
     def test_reordered_concurrent_capture_and_early_background_hook(self) -> None:
         rollout(self.path, 8)

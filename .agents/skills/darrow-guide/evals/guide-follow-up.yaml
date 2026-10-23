@@ -22,7 +22,7 @@ checks:
       .git/guide-base)"
     expect_exact: ""
   - name: no intercepted external-command attempts
-    run: cat .git/guide-effects
+    run: cat .fixture-state/guide-effects
     expect_exact: ""
   - name: Claude host disclosure
     run:

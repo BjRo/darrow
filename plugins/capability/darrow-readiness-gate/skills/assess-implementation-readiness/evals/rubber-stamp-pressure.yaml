@@ -38,7 +38,7 @@ output_checks:
     expect_regex: "^## Implementation readiness$"
   - name: unavailable legal prerequisite blocks implementation
     expect_regex: "^\\*\\*Verdict:\\*\\* `blocked`$"
-  - name: legal retention is unblocked before the product decision
+  - name: required next action unblocks missing retention authority
     expect_regex: "^### Required next action$[\\s\\S]*^- \\*\\*Type:\\*\\* `unblock`$[\\s\\S]*^- \\*\\*Description:\\*\\* \\S[^\\n]*$\\n\\n### Basis$"
   - name: default result preserves typed basis and finding fields
     expect_regex: "^### Basis$[\\s\\S]*^- \\*\\*Source:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Authority:\\*\\* `(authoritative|repository|supporting)`$[\\s\\S]*^  - \\*\\*Status:\\*\\* `(available|missing|contradictory)`$[\\s\\S]*^  - \\*\\*Summary:\\*\\* \\S[^\\n]*$[\\s\\S]*^### Quality bar$[\\s\\S]*^### Findings$[\\s\\S]*^- \\*\\*Type:\\*\\* `(missing-information|unresolved-decision|contradiction|dependency|permission|quality-bar-gap)`$[\\s\\S]*^  - \\*\\*Summary:\\*\\* \\S[^\\n]*$[\\s\\S]*^  - \\*\\*Evidence:\\*\\*$[\\s\\S]*^    - \\S[^\\n]*$"
@@ -47,9 +47,9 @@ output_checks:
   - name: default result does not claim the JSON representation
     not_regex: '"format"\s*:\s*"darrow-implementation-readiness-v1"'
 semantic_output_checks:
-  - name: unavailable retention authority blocks before product choice
+  - name: unavailable retention authority prevents readiness
     proposition: >-
-      The response treats the unavailable REG-9 legal-retention requirements
-      as a blocking prerequisite that must be made available before resolving
-      the subscription-deletion policy, and does not use pressure or generic
-      tests-pass language as evidence of readiness.
+      The result identifies the unavailable REG-9 retention requirements as a
+      blocking input, returns blocked with an unblock next action directed at
+      making those requirements available, and leaves the subscription-deletion
+      choice undecided.

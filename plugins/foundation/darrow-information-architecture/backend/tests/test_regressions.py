@@ -120,6 +120,50 @@ def test_skill_resources_ignore_root_lookalike(
     assert "wrong-target.md" not in output and "nonroot-path" not in output
 
 
+def test_skill_entrypoint_mentions_are_not_bundled_resources(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    skill = ".agents/skills/check/SKILL.md"
+    write(
+        tmp_path,
+        {
+            "CLAUDE.md": f"Before checking guidance, read `{skill}`.\n",
+            skill: (
+                "Codex chooses its `AGENTS.md` chain at session start.\n"
+                "A declared `CLAUDE.md` source stays canonical.\n"
+            ),
+        },
+    )
+    link_or_skip(tmp_path / "AGENTS.md", Path("CLAUDE.md"))
+    status, output = invoke(tmp_path, capsys, "verify", "--runtime", "both")
+    assert status == 0, output
+    assert "broken-reference" not in output
+    assert "adapter-drift" not in output
+    assert f"{tmp_path / 'CLAUDE.md'} -> {tmp_path / skill}" in output
+
+
+@pytest.mark.parametrize(
+    "dependency",
+    ["Read `AGENTS.md`.", "[Guidance](AGENTS.md)", "@AGENTS.md"],
+    ids=["read-route", "markdown-link", "native-import"],
+)
+def test_skill_entrypoint_dependencies_ignore_root_lookalike(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], dependency: str
+) -> None:
+    skill = ".agents/skills/check"
+    write(
+        tmp_path,
+        {"AGENTS.md": f"Read `{skill}/SKILL.md`.", f"{skill}/SKILL.md": dependency},
+    )
+    status, output = invoke(tmp_path, capsys, "verify", "--runtime", "codex")
+    assert status == 1, output
+    assert (
+        f"broken-reference | {tmp_path / skill / 'SKILL.md'} -> "
+        f"{tmp_path / skill / 'AGENTS.md'}" in output
+    )
+    assert "instruction-cycle" not in output
+
+
 @pytest.mark.parametrize(
     "runtime, imported, expected",
     [("claude", False, 0), ("both", False, 1), ("claude", True, 1)],

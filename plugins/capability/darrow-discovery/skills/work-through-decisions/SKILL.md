@@ -1,6 +1,6 @@
 ---
 name: work-through-decisions
-description: Use for requests to draft, produce, or discuss an implementation, migration, rollout, or delivery plan for an identifiable technical change; discover, define, or spec out product feature behavior, including when a later saved spec or ticket is mentioned; or grill a named decision through structured questions. Includes "draft an implementation plan," "plan the migration," "spec out a feature," and "grill me." Exclude ordinary advice, coding, bug diagnosis, readiness checks, and ticket publication alone.
+description: Always use when the requested deliverable is a technical plan, such as "draft an implementation plan," "plan the migration," or a rollout or delivery plan. This includes concise plans and plans requested without an interview. Also use to discover or spec out product-feature behavior, draft a discovery brief from settled decisions, or grill a named decision through structured questions. Select by deliverable, not words such as implementation or spec. Exclude implementation work alone, ordinary advice, bug diagnosis, readiness checks, and ticket publication alone.
 ---
 
 # Work through decisions
@@ -17,6 +17,12 @@ choices and confirmation are complete. An explicit request for those actions,
 or pressure to move quickly, does not delegate unanswered product or technical
 choices. Ask the current frontier and stop; do not create a placeholder file,
 start another capability, or claim that the requested action occurred.
+
+For an explicit invocation with no identifiable subject or requested outcome
+in the conversation,
+select standalone grilling and read the complete decision-frontier method
+below before responding. Its missing-subject gate owns the answer; do not
+ask the user to choose a mode or paraphrase that gate's question.
 
 Choose exactly one mode from the requested **outcome**, not words in the
 subject. Implementation planning applies when the user asks how to build,

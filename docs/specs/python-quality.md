@@ -119,6 +119,11 @@ tests are required where generated cases can test a meaningful invariant, such
 as parser normalization, validation, redaction, serialization round trips, or
 state-machine transitions. They use deterministic settings suitable for CI.
 
+Fixture helpers that prepare locked Python backends before offline checks must
+use the same UV cache in both stages. Cover an explicitly configured, initially
+empty `UV_CACHE_DIR` as well as the default cache; a warm developer cache must
+not hide missing build dependencies.
+
 Coverage is measured for the complete import package with branch measurement
 enabled. The aggregate gate calculates statement coverage and branch coverage
 separately for each registered package; both must be at least 95%. The gate

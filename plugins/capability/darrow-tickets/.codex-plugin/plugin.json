@@ -1,16 +1,17 @@
 {
   "name": "darrow-tickets",
-  "version": "0.7.0",
+  "version": "0.7.20",
   "description": "Ticket operations and reusable GitHub issue templates with a bundled GitHub Issues adapter",
   "author": {
-    "name": "Björn Rochel"
+    "name": "Bj\u00f6rn Rochel"
   },
   "skills": "./skills/",
+  "hooks": "./hooks/codex-hooks.json",
   "interface": {
     "displayName": "Darrow -> Tickets",
     "shortDescription": "Manage tickets and install issue templates",
     "longDescription": "Create, read, find, and update GitHub tickets, and install reusable issue templates for dependency upgrades, retirement, and regression fixes.",
-    "developerName": "Björn Rochel",
+    "developerName": "Bj\u00f6rn Rochel",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],
     "defaultPrompt": [

@@ -112,7 +112,9 @@ feature, but each cycle incorporates what the preceding cycle revealed.
     final gates.
 12. **TDD-C12 — Evidence over narration.** Report the test command and the
     relevant red and green outcomes. Do not replace observable results with a
-    claim that the loop was followed.
+    claim that the loop was followed. An opening summary of the completed fix
+    does not contradict subsequent red/green evidence. Judge the reported
+    execution order and outcomes, not the order of summary paragraphs.
 
 ## Packaging and portability
 
@@ -147,7 +149,9 @@ feature, but each cycle incorporates what the preceding cycle revealed.
    missing behavior from syntax, fixture, environment, and unrelated failures.
 3. **TDD-E3 — Test quality.** Cases reject implementation-coupled,
    tautological, over-mocked, and side-channel tests while accepting behavior
-   observed through a stable public seam.
+   observed through a stable public seam. When a case distinguishes an
+   internal export from the public API, its fixture documents that boundary;
+   export syntax or a suggestive function name alone does not establish it.
 4. **TDD-E4 — Vertical progress.** Multi-behavior tasks proceed as successive
    red/green slices instead of all tests followed by all implementation.
 5. **TDD-E5 — Scope restraint.** Missing test infrastructure or an ambiguous
@@ -158,6 +162,12 @@ feature, but each cycle incorporates what the preceding cycle revealed.
 7. **TDD-E7 — Value measurement.** Comparative evals record escaped defects,
    test mutation sensitivity or equivalent defect detection, total tokens, and
    wall-clock time against direct implementation without the skill.
+8. **TDD-E8 — Installed hook evidence.** Installed Codex cases retain the
+   shipped SessionStart hook for positive and negative selection. Require its
+   successful public execution receipt and verify reminder delivery before
+   threshold runs. Hook execution does not establish skill activation or task
+   success; keep those outcomes separate. Hook-disabled results remain valid
+   only for their declared installation conditions.
 
 ## Non-goals
 

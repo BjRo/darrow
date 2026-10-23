@@ -11,7 +11,7 @@ fixture:
   bin:
     gh: |
       #!/bin/sh
-      d="$(git rev-parse --git-dir)/fixture-gh"
+      d="$(git rev-parse --show-toplevel)/.fixture-state/gh"
       mkdir -p "$d"
       echo "$*" >> "$d/calls"
       case "$1 $2" in
@@ -25,12 +25,11 @@ fixture:
     git remote add origin https://github.test/o/r.git
 checks:
   - name: requested limit is passed through with one-row lookahead
-    run: cat .git/fixture-gh/calls
+    run: cat .fixture-state/gh/calls
     expect_regex: "issue list.*--state open.*--limit 3"
   - name: truncated result is relayed without semantic changes
     run: >-
-      sed -E 's/^(#[0-9]+ (open|closed))[[:blank:]]+/\1  /; s/[[:blank:]]*$//'
-      .git/last-message.md
+      sed -E 's/^(#[0-9]+ (open|closed))[[:blank:]]+/\1  /; s/[[:blank:]]*$//' .git/last-message.md
     expect_exact: |-
       backend: github
       #1 open  First issue
@@ -38,5 +37,5 @@ checks:
       total: more than 2 (state=open)
       note: list truncated at 2 — narrow the filters or raise --limit
   - name: listing remains read-only
-    run: cat .git/fixture-gh/calls
+    run: cat .fixture-state/gh/calls
     not_regex: "(^| )(create|edit|comment|close|reopen|delete|transfer|fork)( |$)|(^| )(-X|--method) (POST|PUT|PATCH|DELETE)( |$)"

@@ -3,7 +3,8 @@ invariant: ADL-A1,ADL-L2,ADL-S3
 goal_report: forbidden
 goal_route_checks: false
 prompt: >-
-  {{skill_invocation}} Implement the accepted REQUEST.md. Keep changes local.
+  {{skill_invocation}} Implement the accepted REQUEST.md. Run bash check.sh to verify
+  the result. Keep changes local.
 fixture:
   commits:
     - message: "chore: init"
@@ -37,11 +38,11 @@ fixture:
       #!/usr/bin/env bash
       set -eu
       test "$1" = inspect
-      test -s .git/fixture-state/implementation-readiness-invocations
-      if test ! -e .git/fixture-state/caller-inspection; then
-        wc -l <.git/fixture-state/implementation-readiness-invocations >.git/fixture-state/initial-readiness-count
+      test -s .fixture-state/implementation-readiness-invocations
+      if test ! -e .fixture-state/caller-inspection; then
+        wc -l <.fixture-state/implementation-readiness-invocations >.fixture-state/initial-readiness-count
       fi
-      printf '%s\n' inspected >>.git/fixture-state/caller-inspection
+      printf '%s\n' inspected >>.fixture-state/caller-inspection
       printf '%s\n' \
         'New material caller constraint: callers invoke the new normalize entrypoint directly with undefined, invalidating the initial string-only readiness assumption.' \
         'Updated acceptance: normalize(undefined) must return the empty string, matching parse(undefined). Returning undefined or throwing is incompatible. Leave the existing parser unchanged.'
@@ -53,10 +54,10 @@ checks:
       assert.equal(normalize(undefined), '');"
   - name: changed readiness is assessed by the retained owner
     run: |
-      cat .git/fixture-state/implementation-readiness-invocations >&2
-      test "$(wc -l <.git/fixture-state/implementation-readiness-invocations | tr -d ' ')" -gt "$(cat .git/fixture-state/initial-readiness-count | tr -d ' ')"
-      test -s .git/fixture-state/caller-inspection
-      test ! -s .git/fixture-state/implementation-readiness-pre-status
+      cat .fixture-state/implementation-readiness-invocations >&2
+      test "$(wc -l <.fixture-state/implementation-readiness-invocations | tr -d ' ')" -gt "$(cat .fixture-state/initial-readiness-count | tr -d ' ')"
+      test -s .fixture-state/caller-inspection
+      test ! -s .fixture-state/implementation-readiness-pre-status
   - name: authority and existing parser are preserved
     run:
       git diff --exit-code HEAD -- src/parser.js && test "$(git rev-list --count HEAD)"

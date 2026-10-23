@@ -1,3 +1,4 @@
+import { fixtureExtensionRequest } from "./fixture-command";
 import { describe, expect, test } from "bun:test";
 import { activationGate } from "../sevro-extension/activation";
 import {
@@ -16,6 +17,651 @@ const selectedTrials = (outcomes: ActivationOutcome[]) => ({
     grading: { status: "completed" },
     domainOutcomes: [outcome],
   })),
+});
+
+function commonActivation(skills: string[]) {
+  return {
+    id: "sevro.host.skill-activations",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "tool_result_body_match",
+      visibility: "tool_result",
+      scope: "prepared_skill_bodies",
+      catalogComplete: true,
+      observedSkills: skills,
+      partialSkills: [],
+      ambiguousSkills: [],
+      calls: [],
+      truncated: false,
+    },
+  };
+}
+
+function primaryClaims(skills = ["sample:grilling"]) {
+  const primarySkill = skills[0] ?? null;
+  return [
+    {
+      ...commonActivation(skills),
+      completeness: "partial",
+      data: {
+        ...commonActivation(skills).data,
+        primarySkill,
+        primarySkillCompleteness: "complete",
+        incompleteReasons: ["pending_tool_calls"],
+      },
+    },
+    {
+      id: "sevro.host.skill-activation-claims",
+      source: "sevro.host.codex",
+      completeness: "complete",
+      data: {
+        scope: "primary_and_positive_presence",
+        collectionCompleteness: "partial",
+        primarySkill,
+        presentSkills: skills,
+      },
+    },
+  ];
+}
+
+function fullSupportingExposures(collectionStatus = "complete") {
+  const skillExposures = [
+    { skill: "sample:grilling", status: "partial" },
+    { skill: "provider:verify-change", status: "full" },
+    { skill: "provider:code-review", status: "full" },
+  ];
+  const collection = {
+    ...commonActivation(["provider:verify-change", "provider:code-review"]),
+    completeness: "partial",
+    data: {
+      ...commonActivation([]).data,
+      observedSkills: ["provider:verify-change", "provider:code-review"],
+      partialSkills: ["sample:grilling"],
+      primarySkill: null,
+      primarySkillCompleteness: "partial",
+      incompleteReasons: ["partial_skill_bodies"],
+      collectionStatus,
+      skillExposures,
+    },
+  };
+  const claim = {
+    id: "sevro.host.skill-exposure-claims",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "tool_result_body_match",
+      scope: "positive_exposure",
+      collectionStatus,
+      skillExposures,
+    },
+  };
+  return [collection, claim] as const;
+}
+
+const explicitOwner = {
+  id: "sevro.codex.explicit-invocation",
+  source: "sevro.host.codex",
+  completeness: "complete",
+  data: { method: "explicit_invocation", primarySkill: "grilling" },
+};
+
+const supportingDefinition = {
+  activation: "positive",
+  prompt: "Use {{skill_invocation}}.",
+  additional_plugins: ["plugins/capability/provider"],
+  activation_includes: ["verify-change", "code-review"],
+};
+
+test("rc21 explicit ownership combines with full supporting exposure without inventing order", async () => {
+  const selected = await (await policyProject(supportingDefinition)).resolve();
+  for (const health of ["complete", "partial"]) {
+    const [collection, claim] = fullSupportingExposures(health);
+    const result = await evaluateActivation(selected, [
+      explicitOwner,
+      collection,
+      claim,
+    ]);
+    expect(result).toMatchObject({
+      status: "passed",
+      evidenceRefs: [
+        "sevro.codex.explicit-invocation",
+        "sevro.host.skill-exposure-claims",
+      ],
+      data: {
+        primarySkill: "grilling",
+        observedSkills: ["grilling"],
+        positiveExposureSkills: ["verify-change", "code-review"],
+        evidenceScope: "explicit_invocation_and_positive_full_exposure",
+        supportingSkillOrder: "unverified",
+        aggregateActivationCompleteness: "partial",
+        collectionStatus: health,
+      },
+    });
+    expect(collection.completeness).toBe("partial");
+    expect(collection.data.primarySkill).toBeNull();
+    expect(collection.data.partialSkills).toEqual(["sample:grilling"]);
+  }
+  expect(
+    await evaluateActivation(selected, [
+      explicitOwner,
+      fullSupportingExposures()[1],
+    ]),
+  ).toMatchObject({
+    status: "passed",
+    evidenceRefs: [
+      "sevro.codex.explicit-invocation",
+      "sevro.host.skill-exposure-claims",
+    ],
+    data: {
+      aggregateActivationCompleteness: null,
+      observedSkills: ["grilling"],
+    },
+  });
+  expect(
+    (
+      await evaluateActivation(selected, [
+        {
+          ...explicitOwner,
+          data: { ...explicitOwner.data, primarySkill: "wrong-owner" },
+        },
+        ...fullSupportingExposures(),
+      ])
+    ).status,
+  ).toBe("failed");
+});
+
+test("rc21 full supporting exposure requires bound, unique positive public receipts", async () => {
+  const selected = await (await policyProject(supportingDefinition)).resolve();
+  const [collection, claim] = fullSupportingExposures();
+  const partial = [
+    { skill: "sample:grilling", status: "partial" },
+    { skill: "provider:verify-change", status: "full" },
+    { skill: "provider:code-review", status: "partial" },
+  ];
+  const foreign = [
+    { skill: "provider:verify-change", status: "full" },
+    { skill: "foreign:code-review", status: "full" },
+  ];
+  for (const evidence of [
+    [],
+    [collection],
+    [collection, claim, claim],
+    [collection, { ...claim, source: "sevro.host.claude" }],
+    [collection, { ...claim, completeness: "partial" }],
+    [collection, { ...claim, data: { ...claim.data, scope: "primary" } }],
+    [collection, { ...claim, data: { ...claim.data, method: "unverified" } }],
+    [
+      collection,
+      { ...claim, data: { ...claim.data, collectionStatus: "unknown" } },
+    ],
+    [collection, { ...claim, data: { ...claim.data, skillExposures: [] } }],
+    [
+      collection,
+      {
+        ...claim,
+        data: {
+          ...claim.data,
+          skillExposures: [
+            { skill: "provider:code-review", status: "complete" },
+          ],
+        },
+      },
+    ],
+    [
+      collection,
+      { ...claim, data: { ...claim.data, skillExposures: partial } },
+    ],
+    [
+      { ...collection, data: { ...collection.data, skillExposures: partial } },
+      { ...claim, data: { ...claim.data, skillExposures: partial } },
+    ],
+    [
+      { ...collection, data: { ...collection.data, skillExposures: foreign } },
+      { ...claim, data: { ...claim.data, skillExposures: foreign } },
+    ],
+    [
+      collection,
+      {
+        ...claim,
+        data: {
+          ...claim.data,
+          skillExposures: [
+            ...claim.data.skillExposures,
+            claim.data.skillExposures[1],
+          ],
+        },
+      },
+    ],
+  ])
+    expect(
+      (await evaluateActivation(selected, [explicitOwner, ...evidence])).status,
+    ).toBe("unavailable");
+  for (const dispatch of [
+    { ...explicitOwner, completeness: "partial" },
+    { ...explicitOwner, source: "foreign" },
+  ])
+    expect(
+      (await evaluateActivation(selected, [dispatch, collection, claim]))
+        .status,
+    ).toBe("unavailable");
+  expect(
+    (
+      await evaluateActivation(selected, [
+        {
+          ...explicitOwner,
+          supportingReadScope: "positive_full_exposure",
+          positiveFullSkills: ["verify-change", "code-review"],
+        },
+        collection,
+      ])
+    ).status,
+  ).toBe("unavailable");
+});
+
+test("rc21 supporting exposure cannot supply implicit primary, exclusions or sequence", async () => {
+  const evidence = fullSupportingExposures();
+  for (const definition of [
+    { ...supportingDefinition, prompt: "Do the work." },
+    { ...supportingDefinition, prompt: "Do the work.", activation: "negative" },
+    {
+      ...supportingDefinition,
+      activation_excludes: ["discover-feature"],
+      mount_plugin_skills: true,
+    },
+    {
+      ...supportingDefinition,
+      activation_includes: undefined,
+      activation_sequence: ["grilling", "verify-change", "code-review"],
+    },
+  ]) {
+    const selected = await (await policyProject(definition)).resolve();
+    expect(
+      (await evaluateActivation(selected, [explicitOwner, ...evidence])).status,
+    ).toBe("unavailable");
+  }
+});
+
+test("rc20 primary claims cite complete evidence without upgrading partial collection", async () => {
+  const selected = await (
+    await policyProject({
+      activation: "competition",
+      mount_plugin_skills: true,
+    })
+  ).resolve();
+  const observations = primaryClaims();
+  expect(await evaluateActivation(selected, observations)).toMatchObject({
+    status: "passed",
+    evidenceRefs: ["sevro.host.skill-activation-claims"],
+    data: {
+      primarySkill: "grilling",
+      observedSkills: ["grilling"],
+      evidenceScope: "primary_and_positive_presence",
+      collectionCompleteness: "partial",
+    },
+  });
+  expect(observations[0]!.completeness).toBe("partial");
+  expect(
+    (
+      await evaluateActivation(
+        selected,
+        primaryClaims(["sample:discover-feature"]),
+      )
+    ).status,
+  ).toBe("failed");
+});
+
+test("rc20 claims prove positive membership but never missing membership, exclusions or sequences", async () => {
+  const project = await policyProject({
+    activation: "positive",
+    additional_plugins: ["plugins/capability/provider"],
+    activation_includes: ["code-review"],
+  });
+  expect(
+    (
+      await evaluateActivation(
+        await project.resolve(),
+        primaryClaims(["sample:grilling", "provider:code-review"]),
+      )
+    ).status,
+  ).toBe("passed");
+  expect(
+    (await evaluateActivation(await project.resolve(), primaryClaims())).status,
+  ).toBe("unavailable");
+  for (const definition of [
+    { activation: "negative" },
+    { activation: "positive", activation_excludes: ["grilling"] },
+    {
+      activation: "positive",
+      activation_sequence: ["grilling", "plan-implementation"],
+      mount_plugin_skills: true,
+    },
+  ]) {
+    const selected = await (await policyProject(definition)).resolve();
+    expect(
+      (
+        await evaluateActivation(
+          selected,
+          primaryClaims(["sample:grilling", "sample:plan-implementation"]),
+        )
+      ).status,
+    ).toBe("unavailable");
+  }
+});
+
+test("rc20 claims fail closed for missing, duplicate, foreign and contradictory evidence", async () => {
+  const selected = await (
+    await policyProject({ activation: "positive" })
+  ).resolve();
+  const [collection, claim] = primaryClaims();
+  for (const observations of [
+    [collection],
+    [claim],
+    [collection, claim, claim],
+    [collection, collection, claim],
+    [collection, { ...claim, source: "sevro.host.claude" }],
+    [collection, { ...claim, completeness: "partial" }],
+    [
+      collection,
+      { ...claim, data: { ...claim!.data, scope: "whole_collection" } },
+    ],
+    [
+      collection,
+      {
+        ...claim,
+        data: { ...claim!.data, primarySkill: "sample:discover-feature" },
+      },
+    ],
+    [
+      collection,
+      {
+        ...claim,
+        data: {
+          ...claim!.data,
+          presentSkills: ["sample:grilling", "foreign:code-review"],
+        },
+      },
+    ],
+    [
+      collection,
+      {
+        ...claim,
+        data: {
+          ...claim!.data,
+          presentSkills: ["sample:grilling", "grilling"],
+        },
+      },
+    ],
+    [
+      {
+        ...collection,
+        data: { ...collection!.data, primarySkillCompleteness: "partial" },
+      },
+      claim,
+    ],
+    [{ ...collection, completeness: "complete" }, claim],
+  ])
+    expect((await evaluateActivation(selected, observations)).status).toBe(
+      "unavailable",
+    );
+});
+
+test("rc20 claims reject collection gaps that cannot establish a primary", async () => {
+  const selected = await (
+    await policyProject({ activation: "positive" })
+  ).resolve();
+  const [collection, claim] = primaryClaims();
+  for (const incompleteReasons of [
+    ["host_incomplete"],
+    ["observer_failure"],
+    undefined,
+    null,
+    "pending_tool_calls",
+    [],
+    [17],
+    ["pending_tool_calls", "host_incomplete"],
+    ["pending_tool_calls", "pending_tool_calls"],
+  ]) {
+    const outcome = await evaluateActivation(selected, [
+      {
+        ...collection,
+        data: { ...collection!.data, incompleteReasons },
+      },
+      claim,
+    ]);
+    expect(outcome.status, JSON.stringify(incompleteReasons) ?? "missing").toBe(
+      "unavailable",
+    );
+  }
+});
+
+test("rc20 complete collection does not invent a primary from catalog order", async () => {
+  const selected = await (
+    await policyProject({ activation: "positive" })
+  ).resolve();
+  const receipt = commonActivation([
+    "sample:grilling",
+    "sample:plan-implementation",
+  ]);
+  for (const data of [
+    { primarySkill: null, primarySkillCompleteness: "partial" },
+    {
+      primarySkill: "sample:plan-implementation",
+      primarySkillCompleteness: "complete",
+    },
+  ])
+    expect(
+      (
+        await evaluateActivation(selected, [
+          { ...receipt, data: { ...receipt.data, ...data } },
+        ])
+      ).status,
+    ).toBe("unavailable");
+  expect(
+    (
+      await evaluateActivation(selected, [
+        {
+          ...receipt,
+          data: {
+            ...receipt.data,
+            primarySkill: "sample:grilling",
+            primarySkillCompleteness: "complete",
+          },
+        },
+      ])
+    ).status,
+  ).toBe("passed");
+});
+
+test("rc15 common activation preserves qualified identity and fails closed without healthy collection", async () => {
+  const selected = await (
+    await policyProject({ activation: "positive" })
+  ).resolve();
+  const receipt = commonActivation(["sample:grilling"]);
+  expect(await evaluateActivation(selected, [receipt])).toMatchObject({
+    status: "passed",
+    data: { primarySkill: "grilling", observedSkills: ["grilling"] },
+  });
+  expect(
+    (await evaluateActivation(selected, [commonActivation([])])).status,
+  ).toBe("failed");
+  for (const observations of [
+    [receipt, receipt],
+    [{ ...receipt, completeness: "partial" }],
+    [{ ...receipt, source: "foreign" }],
+    [commonActivation(["foreign:grilling"])],
+    [commonActivation(["sample:grilling", "grilling"])],
+    ...[
+      { truncated: true },
+      { catalogComplete: false },
+      { partialSkills: ["sample:grilling"] },
+      { ambiguousSkills: ["sample:grilling"] },
+      { method: "unverified" },
+      { calls: null },
+      { observedSkills: [12] },
+    ].map((data) => [{ ...receipt, data: { ...receipt.data, ...data } }]),
+  ])
+    expect((await evaluateActivation(selected, observations)).status).toBe(
+      "unavailable",
+    );
+  const partial = { ...receipt, completeness: "partial" };
+  expect(
+    (
+      await evaluateActivation(selected, [
+        partial,
+        activationReceipt(["grilling"]),
+      ])
+    ).status,
+  ).toBe("unavailable");
+  const negative = await (
+    await policyProject({ activation: "negative" })
+  ).resolve();
+  expect(
+    (await evaluateActivation(negative, [commonActivation([])])).status,
+  ).toBe("passed");
+  expect(
+    (
+      await evaluateActivation(negative, [
+        { ...commonActivation([]), completeness: "partial" },
+      ])
+    ).status,
+  ).toBe("unavailable");
+});
+
+test("rc15 Claude activation uses successful Skill collection and retains repository namespace boundaries", async () => {
+  const project = await policyProject({ activation: "positive" });
+  const receipt = {
+    id: "sevro.host.skill-activations",
+    source: "sevro.host.claude",
+    completeness: "complete",
+    data: {
+      method: "skill_tool_result",
+      visibility: "skill_tool",
+      observedSkills: ["sample:grilling"],
+      calls: [],
+      truncated: false,
+    },
+  };
+  expect(
+    (await evaluateActivation(await project.resolve(), [receipt])).status,
+  ).toBe("passed");
+  const repository = await (
+    await policyProject({ activation: "positive" }, { repository: true })
+  ).resolve();
+  expect((await evaluateActivation(repository, [receipt])).status).toBe(
+    "unavailable",
+  );
+  expect(
+    (
+      await evaluateActivation(repository, [
+        { ...receipt, data: { ...receipt.data, observedSkills: ["grilling"] } },
+      ])
+    ).status,
+  ).toBe("passed");
+});
+
+test("rc15 explicit dispatch remains separate from complete supporting activations", async () => {
+  const selected = await (
+    await policyProject({
+      activation: "positive",
+      prompt: "Use {{skill_invocation}}.",
+      additional_plugins: ["plugins/capability/provider"],
+      activation_includes: ["code-review"],
+    })
+  ).resolve();
+  const dispatch = {
+    id: "sevro.codex.explicit-invocation",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: { method: "explicit_invocation", primarySkill: "grilling" },
+  };
+  const receipt = commonActivation(["provider:code-review"]);
+  expect(await evaluateActivation(selected, [dispatch, receipt])).toMatchObject(
+    { status: "passed" },
+  );
+  expect(
+    await evaluateActivation(selected, [
+      { ...dispatch, data: { ...dispatch.data, primarySkill: "wrong-owner" } },
+      receipt,
+    ]),
+  ).toMatchObject({
+    status: "failed",
+    data: {
+      primarySkill: "wrong-owner",
+      observedSkills: ["wrong-owner", "code-review"],
+    },
+  });
+  expect((await evaluateActivation(selected, [dispatch])).status).toBe(
+    "unavailable",
+  );
+  expect((await evaluateActivation(selected, [receipt])).status).toBe(
+    "unavailable",
+  );
+  expect(
+    (
+      await evaluateActivation(selected, [
+        dispatch,
+        { ...receipt, completeness: "partial" },
+      ])
+    ).status,
+  ).toBe("unavailable");
+  expect(
+    (await evaluateActivation(selected, [dispatch, commonActivation([])]))
+      .status,
+  ).toBe("failed");
+});
+
+test("rc15 Claude explicit supporting assertions require a bound dispatch and complete common collection", async () => {
+  const project = await policyProject(
+    {
+      activation: "positive",
+      prompt: "{{skill_invocation}} Help.",
+      additional_plugins: ["plugins/capability/provider"],
+      activation_includes: ["code-review"],
+    },
+    { repository: true },
+  );
+  const selected = await project.resolve();
+  const dispatch = {
+    id: "sevro.claude.repository-invocation",
+    source: "sevro.host.claude",
+    completeness: "complete",
+    data: {
+      method: "native_repository_command",
+      accepted: true,
+      skill: "grilling",
+      reason: "native command and complete mounted body matched",
+    },
+  };
+  const collection = {
+    id: "sevro.host.skill-activations",
+    source: "sevro.host.claude",
+    completeness: "complete",
+    data: {
+      method: "skill_tool_result",
+      visibility: "skill_tool",
+      observedSkills: ["provider:code-review"],
+      calls: [],
+      truncated: false,
+    },
+  };
+  expect(
+    (await evaluateActivation(selected, [dispatch, collection])).status,
+  ).toBe("passed");
+  for (const observations of [
+    [dispatch],
+    [collection],
+    [dispatch, { ...collection, completeness: "partial" }],
+    [{ ...dispatch, completeness: "partial" }, collection],
+    [{ ...dispatch, data: { ...dispatch.data, accepted: false } }, collection],
+    [
+      { ...dispatch, data: { ...dispatch.data, skill: "wrong-owner" } },
+      collection,
+    ],
+  ])
+    expect((await evaluateActivation(selected, observations)).status).toBe(
+      "unavailable",
+    );
 });
 
 describe("public skill activation policy", () => {
@@ -307,6 +953,61 @@ describe("public skill activation policy", () => {
     });
   });
 
+  test("retains definitive activation when only unrelated task grading is unavailable", async () => {
+    const selected = await (
+      await policyProject({ activation: "positive" })
+    ).resolve();
+    const passed = await evaluateActivation(selected, [
+      activationReceipt(["grilling"]),
+    ]);
+    const failed = await evaluateActivation(selected, [
+      activationReceipt(["discover-feature"]),
+    ]);
+    const unknown = await evaluateActivation(selected, []);
+    const expected = { class: "positive", targetSkill: "grilling" } as const;
+    const gate = (
+      outcome: ActivationOutcome,
+      grading: string,
+      execution = "completed",
+    ) => {
+      const result = selectedTrials([outcome]);
+      result.trials[0]!.grading.status = grading;
+      result.trials[0]!.execution.status = execution;
+      const measurement = activationGate(
+        expected,
+        { trials: 1, threshold: 1 },
+        result,
+      );
+      expect(result.trials[0]!.grading.status).toBe(grading);
+      return measurement;
+    };
+    expect(gate(passed, "unavailable")).toMatchObject({
+      status: "passed",
+      measured: 1,
+      passRate: 1,
+    });
+    expect(gate(failed, "unavailable")).toMatchObject({
+      status: "failed",
+      measured: 1,
+      passRate: 0,
+    });
+    expect(gate(unknown, "unavailable")).toMatchObject({
+      status: "unavailable",
+      measured: 0,
+      passRate: null,
+    });
+    for (const grading of ["error", "not_requested", "unknown"]) {
+      expect(gate(passed, grading)).toMatchObject({
+        status: "unavailable",
+        measured: 0,
+      });
+    }
+    expect(gate(passed, "unavailable", "failed")).toMatchObject({
+      status: "unavailable",
+      measured: 0,
+    });
+  });
+
   test("gates declared activation independently while leaving undeclared cases alone", async () => {
     const selected = await (
       await policyProject({ activation: "positive" })
@@ -342,3 +1043,72 @@ describe("public skill activation policy", () => {
     ).toMatchObject({ status: "passed", passRate: 2 / 3 });
   });
 });
+
+test("Explicit owner dispatch does not establish complete supporting reads", async () => {
+  const dispatch = {
+    id: "sevro.codex.explicit-invocation",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "explicit_invocation",
+      primarySkill: "verify-change",
+      observedSkills: ["verify-change", "code-review"],
+    },
+  };
+  const reads = commonActivation(["code-review"]);
+  const grade = async (
+    observations: unknown[],
+    expectation: Record<string, unknown>,
+  ) => {
+    const result = await fixtureExtensionRequest<{
+      domainOutcomes: { status: string; evidenceRefs: string[] }[];
+    }>("evaluate", {
+      extensionData: {
+        "darrow.case": {
+          activation: {
+            class: "positive",
+            targetSkill: "verify-change",
+            ...expectation,
+          },
+          invocation: { pluginName: "probe", skillName: "verify-change" },
+        },
+      },
+      observations,
+    });
+    return result.domainOutcomes[0]!;
+  };
+  expect(
+    (await grade([dispatch, { ...reads, completeness: "partial" }], {})).status,
+  ).toBe("passed");
+  for (const expectation of [
+    { includes: ["code-review"] },
+    { sequence: ["verify-change", "code-review"] },
+    { excludes: ["adaptive-goal"] },
+  ]) {
+    expect(await grade([dispatch, reads], expectation)).toMatchObject({
+      status: "passed",
+      evidenceRefs: [dispatch.id, reads.id],
+    });
+    for (const observations of [
+      [dispatch],
+      [dispatch, { ...reads, completeness: "partial" }],
+      [dispatch, reads, reads],
+      [dispatch, { ...reads, source: "other" }],
+    ]) {
+      expect((await grade(observations, expectation)).status).toBe(
+        "unavailable",
+      );
+    }
+  }
+  const ownerOnly = {
+    ...dispatch,
+    data: { ...dispatch.data, observedSkills: ["verify-change"] },
+  };
+  const noSupport = {
+    ...reads,
+    data: { ...reads.data, primarySkill: null, observedSkills: [] },
+  };
+  expect(
+    (await grade([ownerOnly, noSupport], { includes: ["code-review"] })).status,
+  ).toBe("failed");
+}, 30_000);

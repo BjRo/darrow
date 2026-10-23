@@ -55,7 +55,7 @@ for (const [name, trace, passes] of [
       checks: [
         {
           name: "record synthetic readiness trace",
-          run: `printf '%s' ${quote(trace)} >.git/fixture-state/implementation-readiness-invocations`,
+          run: `printf '%s' ${quote(trace)} >.fixture-state/implementation-readiness-invocations`,
         },
         check,
       ],

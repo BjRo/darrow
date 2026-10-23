@@ -18,7 +18,7 @@ fixture:
     .claude/skills/adaptive-goal/SKILL.md: &adaptive_goal |
       ---
       name: adaptive-goal
-      description: Accept one bounded engineering request delegated by an explicitly invoked task recipe and record this fixture's delivery envelope.
+      description: Provide adaptive-goal orchestration in the original main thread, owning preflight and one native goal for a bounded recipe-delegated delivery. Accept its preserved delivery authority envelope.
       ---
 
       # Fixture adaptive goal
@@ -53,12 +53,12 @@ fixture:
       set -eu
       test "$#" -eq 1
       test "$1" = https://example.invalid/tickets/42
-      printf '%s\n' "$1" >>.git/ticket-to-pr-delegations
+      printf '%s\n' "$1" >>.fixture-state/ticket-to-pr-delegations
 checks:
   - name: recipe delegates the exact shortcut once
     run: >-
-      test "$(wc -l <.git/ticket-to-pr-delegations | tr -d ' ')" -eq 1 &&
-      test "$(cat .git/ticket-to-pr-delegations)" =
+      test "$(wc -l <.fixture-state/ticket-to-pr-delegations | tr -d ' ')" -eq 1 &&
+      test "$(cat .fixture-state/ticket-to-pr-delegations)" =
       https://example.invalid/tickets/42
   - name: recipe parent performs no delivery mutation
     run: >-

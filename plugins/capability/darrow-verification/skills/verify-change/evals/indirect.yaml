@@ -50,14 +50,23 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
   - name: retained report handoff is rendered last
     run: |
-      test -e .git/inspect-candidate-report.md || exit 0
-      report=$(cd .git && pwd -P)/inspect-candidate-report.md
+      test -e .fixture-state/inspect-candidate-report.md || exit 0
+      report=$(cd .fixture-state && pwd -P)/inspect-candidate-report.md
       last=$(awk 'NF { line=$0 } END { print line }' .git/last-message.md)
       test "$last" = "Complete provider result: [report](<$report>)"
   - name: complete replacement evidence retained and referenced
-    run: test -s .git/inspect-candidate-report.md && report=$(cd .git && pwd
+    run:
+      test -s .fixture-state/inspect-candidate-report.md && report=$(cd .fixture-state && pwd
       -P)/inspect-candidate-report.md && grep -F "$report" .git/last-message.md
 semantic_output_checks:
   - name: clear current evidence
     proposition: The response reports a clear current-candidate assessment with
       supported conclusions for C1 and C2 and independent review provenance.
+transcript_checks:
+  - name: provider and independent readers observed
+    expect_regex: '(?=[\s\S]*"type":"darrow.codex_native_nested_spawn"[^\n]*"status":"accepted"[^\n]*"review_axis":"standards"[^\n]*"fork_turns":"none"[^\n]*"session_status":"available"[^\n]*"reader_result_status":"completed"[^\n]*"children_truncated":false[^\n]*"requests_truncated":false)(?=[\s\S]*"type":"darrow.codex_native_nested_spawn"[^\n]*"status":"accepted"[^\n]*"review_axis":"spec"[^\n]*"fork_turns":"none"[^\n]*"session_status":"available"[^\n]*"reader_result_status":"completed"[^\n]*"children_truncated":false[^\n]*"requests_truncated":false)[\s\S]+|"name":"Agent"[\s\S]*"name":"Agent"[\s\S]*"name":"Agent"'
+    not_regex: '"subagent_type":"fork"|"type":"darrow.codex_native_(nested_)?spawn"[^\n]*"fork_turns":"(all|[1-9][0-9]*)"'
+  - name: fresh context requested
+    expect_regex: '"type":"darrow.codex_native_spawn"[^\n]*"fork_turns":"none"|"name":"Agent"'
+  - name: native assessment child observed
+    expect_regex: '"type":"darrow.codex_native_child_skill_evidence"[^\n]*"actor":"accepted_child"[^\n]*"session_status":"available"|"name":"Agent"'

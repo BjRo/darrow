@@ -2,6 +2,7 @@ id: read-ticket-missing-ticket
 invariant: TM-R2,TM-R4
 activation: positive
 mount_plugin_skills: true
+required_plugin_hook: darrow-tickets
 prompt: "Read ticket #404 and return the authoritative tracker response without changing anything."
 fixture:
   commits:
@@ -11,7 +12,7 @@ fixture:
   bin:
     gh: |
       #!/bin/sh
-      d="$(git rev-parse --git-dir)/fixture-gh"
+      d="$(git rev-parse --show-toplevel)/.fixture-state/gh"
       mkdir -p "$d"
       echo "$*" >> "$d/calls"
       case "$1 $2" in
@@ -28,8 +29,8 @@ checks:
     run: cat .git/last-message.md
     expect_exact: "GraphQL: Could not resolve to an Issue with the number of 404."
   - name: exact missing ticket is requested once
-    run: cat .git/fixture-gh/calls
+    run: cat .fixture-state/gh/calls
     expect_regex: "^issue view 404"
   - name: missing-ticket refusal remains read-only
-    run: cat .git/fixture-gh/calls
+    run: cat .fixture-state/gh/calls
     not_regex: "(^| )(create|edit|comment|close|reopen|delete|transfer|fork)( |$)|(^| )(-X|--method) (POST|PUT|PATCH|DELETE)( |$)"

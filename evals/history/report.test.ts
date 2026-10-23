@@ -12,6 +12,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
+import { captureTestCommand } from "../test-command";
 
 const roots: string[] = [];
 const legacyCommand = resolve(import.meta.dir, "../runner/report.ts");
@@ -201,11 +202,14 @@ async function invoke(
   json = true,
   args: string[] = [],
 ) {
-  const child = Bun.spawn(
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(
     [process.execPath, command, input, ...(json ? ["--json"] : []), ...args],
+    undefined,
     {
-      stdout: "pipe",
-      stderr: "pipe",
       env: {
         ...process.env,
         SEVRO_CHECKOUT: undefined,
@@ -213,11 +217,6 @@ async function invoke(
       },
     },
   );
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ]);
   return { stdout, stderr, code };
 }
 

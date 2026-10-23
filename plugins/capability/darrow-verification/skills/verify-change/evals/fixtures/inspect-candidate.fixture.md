@@ -12,7 +12,7 @@ original/prior/current targets, history, attempted repairs and previous results.
 Missing inputs or unreadable evidence return unavailable without assessment.
 Keep product content read-only; do not implement, repair or publish. The sole
 allowed write is retaining the complete combined provider result as
-`.git/inspect-candidate-report.md`. Return that complete result and its absolute
+`.fixture-state/inspect-candidate-report.md`. Return that complete result and its absolute
 path so the caller can preserve the assessment evidence.
 
 Use the host's native fresh-context agent tool (no inherited conversation) for

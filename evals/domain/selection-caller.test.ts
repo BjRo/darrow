@@ -2,6 +2,7 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { captureTestCommand, spawnTestCommand } from "../test-command";
 
 const roots: string[] = [];
 const runCommand = resolve(import.meta.dir, "../sevro-extension/run.ts");
@@ -22,12 +23,18 @@ async function fixture() {
   };
 }
 
-async function caseFile(project: string, source: string, id: string) {
+async function caseFile(
+  project: string,
+  source: string,
+  id: string,
+  extra: Record<string, unknown> = {},
+) {
   const path = join(project, source);
   await mkdir(join(path, ".."), { recursive: true });
   await writeFile(
     path,
     JSON.stringify({
+      ...extra,
       id,
       invariant: "SE-C29",
       prompt: "Return ready.",
@@ -48,7 +55,11 @@ async function drySelection(
   selectors: string[],
   env: Record<string, string | undefined> = process.env,
 ) {
-  const child = Bun.spawn(
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(
     [
       process.execPath,
       runCommand,
@@ -77,13 +88,9 @@ async function drySelection(
       "1",
       "--dry",
     ],
-    { stdout: "pipe", stderr: "pipe", env },
+    undefined,
+    { env },
   );
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ]);
   return { stdout, stderr, code };
 }
 
@@ -419,7 +426,7 @@ export default {
   },
 };\n`,
   );
-  const child = Bun.spawn(
+  const { child, result } = await spawnTestCommand(
     [
       process.execPath,
       runCommand,
@@ -439,10 +446,9 @@ export default {
       "--threshold",
       "1",
     ],
-    { stdout: "pipe", stderr: "pipe" },
+    undefined,
+    { env: process.env },
   );
-  const output = new Response(child.stdout).text();
-  const errors = new Response(child.stderr).text();
   let candidatePid: number | undefined;
   try {
     const deadline = Date.now() + 5000;
@@ -453,11 +459,7 @@ export default {
     }
     candidatePid = JSON.parse(await readFile(ready, "utf8")).pid;
     child.kill(signal);
-    const [stdout, stderr, code] = await Promise.all([
-      output,
-      errors,
-      child.exited,
-    ]);
+    const { stdout, stderr, exitCode: code } = await result;
     expect(code, stderr).toBe(expectedCode);
     const manifest = JSON.parse(
       await readFile(join(results, "selection-run.json"), "utf8"),
@@ -602,7 +604,11 @@ export default {
   },
 };\n`,
   );
-  const child = Bun.spawn(
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(
     [
       process.execPath,
       runCommand,
@@ -622,13 +628,9 @@ export default {
       "--threshold",
       "1",
     ],
-    { stdout: "pipe", stderr: "pipe" },
+    undefined,
+    { env: process.env },
   );
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ]);
   expect(code, stderr).toBe(1);
   const reply = JSON.parse(stdout);
   expect(reply.interrupted).toBe(false);
@@ -730,4 +732,75 @@ test("Darrow selection rejects incomplete or contradictory public result frames"
     expect(reply.runs[0]).toMatchObject({ exitCode: 0, result: null });
     expect(reply.runs[0].resultError).toContain("CLI JSON");
   }
+});
+
+async function candidateRoute(resultPath: string) {
+  const evidence = JSON.parse(await readFile(resultPath, "utf8"));
+  return evidence.routes.find(
+    (route: { role: string }) => route.role === "candidate",
+  );
+}
+
+test("filtered selection applies case-declared routes and omits excluded hosts", async () => {
+  const { project, results } = await fixture();
+  const skill = "plugins/capability/example/skills/chosen/evals";
+  await caseFile(project, `${skill}/pinned.yaml`, "chosen-pinned", {
+    candidate_routes: {
+      codex: { model: "pinned-model", effort: "high" },
+      claude: { model: "claude-pinned", effort: "low" },
+    },
+  });
+  await caseFile(project, `${skill}/default.yaml`, "chosen-default");
+  await caseFile(project, `${skill}/claude.yaml`, "chosen-claude-only", {
+    harnesses: ["claude"],
+  });
+  const run = await drySelection(project, results, ["--skill", "chosen"]);
+  expect(run.code, run.stderr).toBe(0);
+  const reply = JSON.parse(run.stdout);
+  expect(reply.caseIds).toEqual(["chosen-default", "chosen-pinned"]);
+  const routes = await Promise.all(
+    reply.runs.map((entry: { result: { evidencePath: string } }) =>
+      candidateRoute(entry.result.evidencePath),
+    ),
+  );
+  expect(routes).toEqual([
+    {
+      role: "candidate",
+      host: "sevro.host.codex",
+      model: "synthetic-codex",
+      effort: "low",
+    },
+    {
+      role: "candidate",
+      host: "sevro.host.codex",
+      model: "pinned-model",
+      effort: "high",
+    },
+  ]);
+});
+
+test("selection fails when every match excludes the requested host", async () => {
+  const { project, results } = await fixture();
+  await caseFile(
+    project,
+    "plugins/capability/example/skills/chosen/evals/claude.yaml",
+    "chosen-claude-only",
+    { harnesses: ["claude"] },
+  );
+  const run = await drySelection(project, results, ["--skill", "chosen"]);
+  expect(run.code).toBe(64);
+  expect(run.stderr).toContain("No cases matched.");
+});
+
+test("malformed case-declared routes fail before execution", async () => {
+  const { project, results } = await fixture();
+  await caseFile(
+    project,
+    "plugins/capability/example/skills/chosen/evals/bad.yaml",
+    "chosen-bad",
+    { candidate_routes: { codex: { model: "only-model" } } },
+  );
+  const run = await drySelection(project, results, ["--skill", "chosen"]);
+  expect(run.code).toBe(64);
+  expect(run.stderr).toContain("invalid case route effort");
 });

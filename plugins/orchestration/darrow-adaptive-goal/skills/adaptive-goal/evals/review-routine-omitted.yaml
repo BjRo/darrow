@@ -7,7 +7,7 @@ additional_plugins:
 prompt: >-
   {{skill_invocation}} Add the exact line "Retries are bounded." beneath the heading in
   NOTES.md. This is a localized, reversible documentation edit with a complete oracle
-  and limited blast radius. Acceptance is that `bash check.sh` passes. Select and apply
+  and limited blast radius. Acceptance is that `bash check.sh` passes. Run bash check.sh. Select and apply
   the policy route. Keep the result local; commits, pushes, pull requests, and other
   publication are not authorized.
 fixture:
@@ -19,8 +19,8 @@ fixture:
         check.sh: |
           #!/usr/bin/env bash
           set -eu
-          printf '%s\n' '# Notes' 'Retries are bounded.' >.git/expected-notes
-          cmp -s .git/expected-notes NOTES.md
+          printf '%s\n' '# Notes' 'Retries are bounded.' >.fixture-state/expected-notes
+          cmp -s .fixture-state/expected-notes NOTES.md
   setup: >-
     uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend"
     adaptive-goal-fixture install review "$PWD" "{{case_dir}}/fixtures" codex
@@ -28,7 +28,7 @@ checks:
   - name: routine change reaches its exact outcome
     run: bash check.sh
   - name: routine work does not automatically invoke independent review
-    run: test ! -e .git/fixture-state/independent-review-invocations
+    run: test ! -e .fixture-state/independent-review-invocations
   - name: routine work stays local
     run: test "$(git rev-list --count HEAD)" -eq 1
 semantic_output_checks:

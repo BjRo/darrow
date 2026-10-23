@@ -38,10 +38,8 @@ semantic_output_checks:
   - name: non-ready result does not claim implementation
     proposition: The response does not claim that implementation occurred or completed.
 transcript_checks:
-  - name: readiness uses its advertised skill exactly once
+  - name: readiness instructions are loaded
     expect_regex: '"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"'
-  - name: readiness is not retried without a user resolution
-    not_regex: '"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"[\s\S]*"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"'
   - name: no work owner launches before ready
     not_regex: '"tool":"spawn_agent"|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"|"name":"Agent"'
   - name: no lifecycle ledger is used

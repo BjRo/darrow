@@ -65,6 +65,9 @@ branch name, or run readiness before delegation. A missing or ambiguous
 reference produces one small request for an exact ID or URL and no delegation
 or mutation.
 
+Resolve this input gate before discovering an orchestration capability. Missing
+Adaptive Goal availability does not replace the required ticket-choice question.
+
 Explicit user options such as a named base, linked worktree, draft pull
 request, or finite repair/review limit are preserved. The recipe never invents
 those choices or supplies its own repair default; adaptive-goal owns that policy.
@@ -85,6 +88,10 @@ orchestration. The recipe must not use them as a substitute or treat their
 availability as proof that an adaptive-goal capability is available. A
 compatible orchestration capability may have a different name; matching is
 about its advertised contract, not a fixed plugin name or path.
+
+The host's advertised skills catalog is a capability source. A listed skill
+with this contract is available even when no native tool has a matching name.
+A native-tool search alone cannot establish that the capability is absent.
 
 The delegated request preserves the exact ticket reference and directs the
 adaptive goal to:
@@ -200,6 +207,12 @@ despite that unresolved prerequisite.
 - **TPR-P3 — No runtime.** The plugin ships no controller, ledger, queue,
   lifecycle hooks, retry state, Git/forge implementation, or background work.
 
+Task success is graded from observable outputs and fixture outcomes. Native
+goal, ownership and transcript observations are retained as workflow diagnostics
+separately from task and activation results. Incomplete inspection does not turn
+a correct missing-capability response and unchanged repository into a failed
+or unavailable task outcome. Actual fixture-effect or output failures still fail.
+
 Behavior evals cover:
 
 - direct explicit shortcut delegation using the harness-rendered invocation;
@@ -214,6 +227,15 @@ Behavior evals cover:
 - required same-PR evidence authority, plus exclusions for unrelated PRs,
   generic comments, creation-only requests and automatic recovery.
 
+The ambiguous-input response check judges whether the user is asked to supply
+or choose one exact ticket ID or URL before work proceeds. Ordinary wording
+such as "the single ticket URL or ID" satisfies that request; an exact phrase
+is not required. An imperative request to provide the one reference to use,
+optionally listing the alternatives, counts without a question mark or the
+word "choose". Selecting a ticket for the user or claiming work will proceed
+without that choice fails the check. Repository-state and delegation checks
+remain separate requirements.
+
 Cross-host claims run on both native harnesses. Composition evals assert the
 public boundary and repository outcome; adaptive-goal and capability suites own
 their detailed readiness, routing, Git, review, publication, and retry cases.
@@ -222,6 +244,11 @@ A shortcut fixture's recorder proves the number of successful recorded
 handoffs. Supporting-skill read evidence establishes that the skill was loaded,
 not an independent count of logical invocations or failed delegation attempts.
 Do not label those bounded observations as complete invocation-count proof.
+Supporting-read check names describe instruction exposure, not logical
+invocation counts.
+Feedback evals retain same-thread continuation, exact acknowledgement, authority,
+and delivery checks. They do not require retired per-turn skill-read receipts to
+assert that the recipe was not reread; reread absence is outside current coverage.
 
 Rejected-feedback fixtures retain bounded failure diagnostics distinguishing
 trace count/order, complete-answer equality, and unchanged production content.
@@ -238,10 +265,27 @@ changes; unrelated committed paths remain failures.
 Composition fixtures install supporting plugins with their complete mechanics
 at their own plugin boundaries. An explicitly selected replacement publisher
 remains the bound provider even when another compatible publisher is installed.
+Their participant prompts explicitly authorize the named acceptance test command;
+repository guidance and skill text do not substitute for user test authority.
+Handoff test doubles advertise the same adaptive-goal orchestration contract
+used for capability selection. Their names alone do not establish compatibility;
+their bodies may record the accepted request and return a fixture blocker before
+preflight or native goal activation.
+Recorder instructions identify prepared shell commands and show their quoted
+argument form. The unattended handoff oracle requires the exact ticket URL as
+well as the grant identity, reserved target and authority exclusions.
+Compare the complete URL token, allowing surrounding prose punctuation; a longer
+issue number or another URL suffix must not satisfy the exact-reference check.
 
 Feedback fixtures provide authoritative consumer and data-impact
 scope so the intended preflight path is grounded in consequences, not inferred
 from a selector's name. A readiness result does not waive a selected review gate.
+Their readiness provider permits additional read-only assessments instead of
+enforcing one invocation. Branch preparation accepts the coordinator's valid
+exact ticket-linked choice; checks bind that recorded choice to the current
+branch and published branch rather than imposing an unrequested fixed name.
+The exact feedback acknowledgement, mutation boundary, scoped implementation,
+intended commit and one-PR publication requirements remain intact.
 
 ## Non-goals
 

@@ -26,6 +26,7 @@ semantic_output_checks:
       retries, or a budget reset fails.
   - name: publication waits for verification
     proposition:
-      The response withholds completion and publication until required checks and
-      fix verification clear the repaired current content.
+      The response withholds publication until required checks and fix
+      verification clear the repaired current content. It need not discuss unasked
+      completion status, but claiming unresolved work is complete fails.
 native_goal: forbidden

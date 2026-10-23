@@ -1,3 +1,4 @@
+import { captureTestCommand } from "../test-command";
 import { afterEach, expect, test } from "bun:test";
 
 import {
@@ -86,17 +87,18 @@ async function invoke(
   args: string[],
   environment: Record<string, string | undefined> = {},
 ) {
-  const child = Bun.spawn([process.execPath, command, ...args], {
-    cwd: root,
-    env: { ...process.env, ...environment },
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ]);
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(
+    [process.execPath, command, ...args],
+    undefined,
+    {
+      cwd: root,
+      env: { ...process.env, ...environment },
+    },
+  );
   return { stdout, stderr, code };
 }
 
@@ -164,8 +166,8 @@ test("benchmark caller routes a filtered dry suite through Sevro", async () => {
       {
         role: "semantic",
         host: "sevro.host.codex",
-        model: "gpt-5.6-luna",
-        effort: "low",
+        model: "gpt-6-luna",
+        effort: "high",
       },
     ],
     [
@@ -178,8 +180,8 @@ test("benchmark caller routes a filtered dry suite through Sevro", async () => {
       {
         role: "semantic",
         host: "sevro.host.codex",
-        model: "gpt-5.6-luna",
-        effort: "low",
+        model: "gpt-6-luna",
+        effort: "high",
       },
     ],
     [
@@ -192,8 +194,8 @@ test("benchmark caller routes a filtered dry suite through Sevro", async () => {
       {
         role: "semantic",
         host: "sevro.host.codex",
-        model: "gpt-5.6-luna",
-        effort: "low",
+        model: "gpt-6-luna",
+        effort: "high",
       },
     ],
     [
@@ -206,8 +208,8 @@ test("benchmark caller routes a filtered dry suite through Sevro", async () => {
       {
         role: "semantic",
         host: "sevro.host.codex",
-        model: "gpt-5.6-luna",
-        effort: "low",
+        model: "gpt-6-luna",
+        effort: "high",
       },
     ],
   ]);
@@ -258,7 +260,7 @@ test("benchmark caller uses the frozen package without route overrides", async (
   expect(manifest.cells[0].provenance.runner).toMatchObject({
     source: "package",
     packageName: "@bjoernrochel/sevro",
-    version: "0.1.0-rc.2",
+    version: "0.1.0-rc.22",
   });
   const result = JSON.parse(await readFile(manifest.cells[0].result, "utf8"));
   expect(result.task.verdict).toBe("not_assessed");

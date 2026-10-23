@@ -9,6 +9,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { captureTestCommand } from "../test-command";
 
 const roots: string[] = [];
 const command = resolve(import.meta.dir, "../sevro-extension/run.ts");
@@ -40,7 +41,11 @@ test("Darrow exact and filtered callers forward the trial concurrency limit", as
     }),
   );
   for (const selector of ["--case-id", "--case"]) {
-    const child = Bun.spawn(
+    const {
+      stdout,
+      stderr,
+      exitCode: code,
+    } = await captureTestCommand(
       [
         process.execPath,
         command,
@@ -71,13 +76,9 @@ test("Darrow exact and filtered callers forward the trial concurrency limit", as
         "--jobs",
         "2",
       ],
-      { stdout: "pipe", stderr: "pipe" },
+      undefined,
+      { env: process.env },
     );
-    const [stdout, stderr, code] = await Promise.all([
-      new Response(child.stdout).text(),
-      new Response(child.stderr).text(),
-      child.exited,
-    ]);
     expect(code, stderr + stdout).toBe(0);
     const reply = JSON.parse(stdout);
     const result = selector === "--case-id" ? reply : reply.runs[0].result;

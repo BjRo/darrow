@@ -7,6 +7,7 @@ from collections import Counter
 from pathlib import Path
 
 from . import report_templates as templates
+from . import scope
 from .common import read_text, require
 from .records import Records, validate_result
 from .verification import validate_verification
@@ -240,3 +241,39 @@ def render(command: str, path: str) -> str:
     else:
         rendered = comprehensive(validate_result(text))
     return rendered + report_link(command, path)
+
+
+def presentation(command: str, path: str, manifest: str) -> str:
+    """Return retained human judgment without rebuilding it in the coordinator."""
+    name, section = {
+        "render": ("review.md", "\n## Scope\n"),
+        "render-verification": (
+            "verification.md",
+            "\n## Closed original finding set",
+        ),
+    }[command]
+    canonical = read_text(str(Path(path).with_name(name)), "canonical report")
+    require(
+        canonical == render(command, path), "canonical report differs from result", 4
+    )
+    content, marker, _ = canonical.partition(section)
+    require(marker, "canonical report scope section is missing", 4)
+    if command == "render-verification":
+        content = content.replace("\n## Target binding\n", "\n## Repair scope\n")
+        return content.rstrip() + "\n" + report_link(command, path)
+    else:
+        bound = scope.manifest(manifest)
+        records = validate_result(read_text(path, "result"))
+        base, target = escape(bound["base_input"]), escape(bound["target_input"])
+        comparison = f"{base} → {target}"
+        if bound["merge_base"] == "1":
+            comparison = f"merge-base({base}, {target}) → {target}"
+        summary = (
+            f"**Scope:** {comparison} ({escape(bound['layers'])})\n"
+            f"**Axes:** Standards {escape(records.value('standards'))};"
+            f" Spec {escape(records.value('spec'))}\n"
+            "**Sources:** Standards "
+            + ", ".join(escape(value) for value in records.strings("standards_sources"))
+            + f"; Spec {escape(records.value('spec_source'))}"
+        )
+    return content.rstrip() + "\n\n" + summary + "\n" + report_link(command, path)

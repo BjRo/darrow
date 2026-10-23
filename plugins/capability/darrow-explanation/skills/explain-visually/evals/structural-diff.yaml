@@ -31,6 +31,26 @@ checks:
       grep -F 'client.ts' .git/last-message.md >/dev/null;
       grep -F 'stream.ts' .git/last-message.md >/dev/null
   - name: response stays structural and compact
-    run: >-
-      ! grep -F 'export const' .git/last-message.md;
-      test "$(wc -l <.git/last-message.md | tr -d ' ')" -le 24
+    run: "! grep -F 'export const' .git/last-message.md"
+semantic_output_checks:
+  - name: compact structural diff preserves the accepted target
+    proposition: >-
+      The response uses a compact structural diff that distinguishes the
+      accepted target from the current layout. It visibly marks removal of
+      src/transport.ts and addition of transport/client.ts for request
+      construction and transport/stream.ts for event streaming. It does not move
+      or change commands and sessions; those unchanged areas may be omitted.
+      Each added file is visibly marked as an
+      addition; a plus-prefixed file line in a nested tree counts. It does not
+      invent current exports or behavior. Layout labels such as "current
+      transport entry" are valid; only concrete unsupported exports, calls,
+      or internal behavior violate grounding. The current source files contain:
+      src/transport.ts has `export const send = () => {}`;
+      src/commands/index.ts has `export const parse = () => {}`;
+      src/sessions/index.ts has `export const load = () => {}`.
+      These source facts constrain optional claims, not required response content.
+      Describing current exports or behavior is not required,
+      and acknowledging that a stub does not establish internal responsibilities
+      is valid. It does not dump implementation source or claim the refactor
+      has already been implemented. Equivalent nested diff layouts are valid;
+      physical-line counts do not define compactness.

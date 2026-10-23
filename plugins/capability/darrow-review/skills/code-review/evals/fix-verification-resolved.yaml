@@ -1,11 +1,8 @@
 id: code-review-fix-verification-resolved
+required_plugin_hook: darrow-review
 activation: positive
-invariant: CR-C13,CR-C14,CR-C17,CR-C18,CR-C21,CR-E12,CR-E13,CR-E14
-prompt: >-
-  Verify whether my uncommitted repair resolved the prior code-review findings
-  recorded in `.git/verification-input`. Use `bash check.sh` as current check
-  evidence. Remain read-only and do not widen this into another comprehensive
-  review.
+invariant: CR-C13,CR-C14,CR-C17,CR-C18,CR-C21,CR-E12,CR-E13,CR-E14,CR-E18,CR-E19
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Verify whether my uncommitted repair resolved the prior code-review findings recorded in `.fixture-state/verification-input`. Use `bash check.sh` as current check evidence. Remain read-only and do not widen this into another comprehensive review."
 fixture:
   commits:
     - message: "chore: base"
@@ -39,13 +36,10 @@ fixture:
       export const DEBUG = false;
       export const TIMEOUT_MS = 2500;
   setup: |
-    mkdir -p .git/eval-checks/review/tests/evals
-    cp "{{case_dir}}/../../../backend/pyproject.toml" "{{case_dir}}/../../../backend/uv.lock" .git/eval-checks/review/
-    cp -R "{{case_dir}}/../../../backend/src" .git/eval-checks/review/
-    cp "{{case_dir}}/../../../backend/tests/evals/eval_routes.py" .git/eval-checks/review/tests/evals/
+    bash "{{case_dir}}/fixtures/prepare-grading.sh" "{{case_dir}}"
     set -eu
     backend=$(cd "{{case_dir}}/../../../backend" && pwd -P)
-    prior_output=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
+    prior_output=$(uv run --quiet --no-project "$backend/scripts/run_locked.py" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
     prior_manifest=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' manifest)
     original_target=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' target)
     python3 - "$original_target" "$prior_manifest" "$PWD" <<'PY' >.git/verification-input
@@ -66,32 +60,37 @@ fixture:
         ],
     }, sys.stdout)
     PY
+    mkdir -p .fixture-state
+    cp .git/verification-input .fixture-state/verification-input
     git status --porcelain --untracked-files=all >.git/status-before
     git hash-object src/config.js >.git/config-before
-    printf '%s\n' "$backend" >.git/review-backend
-    mkdir -p .git/eval-checks/review/tests/evals && cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: human response excludes machine JSON
-    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py
+      .git/last-message.md human-response
   - name: verification preserves the repair bytes
-    run: git hash-object src/config.js >.git/config-after; cmp .git/config-before .git/config-after
+    run:
+      git hash-object src/config.js >.git/config-after; cmp .git/config-before
+      .git/config-after
   - name: verification remains read only
-    run: git status --porcelain --untracked-files=all >.git/status-after; cmp .git/status-before .git/status-after
+    run: git status --porcelain --untracked-files=all >.git/status-after; cmp
+      .git/status-before .git/status-after
   - name: current verification scope binds the requested repository
     run: >-
-      verification=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
-      test -n "$verification" &&
-      artifact_dir=$(cd "$(dirname "$verification")" && pwd -P) &&
-      manifest=$artifact_dir/scope.json &&
-      test -r "$manifest" &&
-      expected_repo=$(pwd -P) &&
-      state_dir=$(cd "$DARROW_REVIEW_STATE_DIR" && pwd -P) &&
-      python3 .git/eval-checks/review/tests/evals/assert_records.py "$manifest" has repository "$expected_repo" &&
-      case "$manifest" in "$state_dir"/*) ;; *) exit 1 ;; esac
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
+      verification=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}"
+      -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail
+      -n 1) && test -n "$verification" && artifact_dir=$(dirname
+      "$verification") && manifest=$artifact_dir/scope.json && test
+      -r "$manifest" && expected_repo=$(pwd -P) && state_dir="$DARROW_REVIEW_STATE_DIR" && python3
+      .git/eval-checks/review/tests/evals/assert_records.py "$manifest" has
+      repository "$expected_repo" && case "$manifest" in "$state_dir"/*) ;; *)
+      exit 1 ;; esac
   - name: additive verification artifact validates and clears
     run: |
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}"
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
-      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n 1)
+      tool=.git/eval-checks/review/src/darrow_review/result.py
       test -n "$tool" && test -n "$record" || exit 1
       uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-verification "$record" || exit 1
       python3 - "$record" <<'PY'
@@ -103,21 +102,24 @@ checks:
       PY
   - name: both fix verifiers retain exact default route evidence
     run: >-
-      uv run --quiet --frozen --no-dev --project .git/eval-checks/review
-      python .git/eval-checks/review/tests/evals/eval_routes.py
-      --host "$DARROW_EVAL_HARNESS" --profile default --axes standards spec
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
+      python3 .git/eval-checks/review/tests/evals/eval_routes.py --host "$(cat
+      .git/fixture-host)" --profile default --axes standards spec --record-kind verification
   - name: retained verification report preserves the complete canonical evidence
     run: >-
-      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1) &&
-      test -n "$record" &&
-      report=$(dirname "$record")/verification.md &&
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" &&
+      record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path
+      '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
+      && test -n "$record" && report=$(dirname "$record")/verification.md &&
       test -r "$report" && test -s "$report" &&
-      tool=$(find .git -path '*/backend/src/darrow_review/report.py' -type f | sort | tail -n 1) &&
-      test -n "$tool" &&
-      uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/report.py}" review-report render-verification "$record" >.git/expected-verification.md &&
-      awk 'NF' .git/expected-verification.md >.git/expected-verification-normalized.md &&
-      awk 'NF' "$report" >.git/retained-verification-normalized.md &&
-      cmp .git/expected-verification-normalized.md .git/retained-verification-normalized.md
+      tool=.git/eval-checks/review/src/darrow_review/report.py && test -n
+      "$tool" && uv run --quiet --frozen --no-dev --project
+      "${tool%/src/darrow_review/report.py}" review-report render-verification
+      "$record" >.git/expected-verification.md && awk 'NF'
+      .git/expected-verification.md >.git/expected-verification-normalized.md &&
+      awk 'NF' "$report" >.git/retained-verification-normalized.md && cmp
+      .git/expected-verification-normalized.md
+      .git/retained-verification-normalized.md
 semantic_output_checks:
   - name: review outcome and issues are understandable inline
     proposition: >-

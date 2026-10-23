@@ -166,7 +166,14 @@ def repaired(
 
 
 def finalize(
-    manifest: str, draft_path: str, output: str, checks: list[str], original: str = ""
+    manifest: str,
+    draft_path: str,
+    output: str,
+    checks: list[str],
+    original: str = "",
+    *,
+    draft_data: dict[str, object] | None = None,
+    present: bool = False,
 ) -> str:
     run = storage.run_for_manifest(Path(manifest))
     require(
@@ -174,7 +181,9 @@ def finalize(
         "final result must belong to the current scope run",
         4,
     )
-    draft = Records(record_file(draft_path))
+    draft = Records(
+        serialize(draft_data) if draft_data is not None else record_file(draft_path)
+    )
     draft.data["checks"] = check_evidence(draft, checks, run)
     if draft.value("format") == "darrow-review-verification-v3":
         data = repaired(draft, manifest, original, output)
@@ -185,4 +194,6 @@ def finalize(
         command, report_name = "render", "review.md"
     path = new_record(output, serialize(data))
     report_path = new_record(str(run / report_name), report.render(command, str(path)))
+    if present:
+        return report.presentation(command, str(path), manifest)
     return serialize({"result_record": str(path), "report": str(report_path)})

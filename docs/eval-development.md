@@ -47,6 +47,10 @@ constraints for producing and interpreting that evidence.
   must resolve to exactly one regular file. Keep deterministic checks for file
   presence, status, and structural validation; `semantic_output_checks` grade
   only the final response.
+- Semantic graders receive the response or artifact and the propositions, not
+  the participant prompt or fixture. Include input facts needed to judge the
+  answer in the proposition. Do not require the answer to repeat established
+  facts merely to supply the grader's missing context.
 - Give one case one concrete state and one decision. When success would require
   recognizing several conditional branches in one free-form answer, split the
   branches into separate concrete-state cases.
@@ -58,11 +62,117 @@ constraints for producing and interpreting that evidence.
   require one exact tool sequence when several safe implementations yield the
   same observable result.
 - Keep participant prompts visible and pass criteria hidden.
+- When a native host requires user authorization to run tests, explicitly
+  request that verification in a participant prompt whose acceptance expects
+  test execution. Repository guidance or a skill cannot supply host-required
+  user authority. Preserve implicit selection by naming the permitted check
+  rather than adding a skill invocation.
+- When a case's expectation holds only on one host or candidate route, declare
+  `harnesses` and `candidate_routes` in the case instead of a comment. Filtered
+  and ownership runs then skip excluded hosts and apply the declared route.
+- Keep represented host configuration beneath a named fixture subdirectory.
+  Identify its project root, working directory, user-config path, and trust in
+  the prompt. Sevro rejects a fixture's top-level `.codex` directory unless the runtime
+  explicitly opts into `codexState`; a nested
+  represented configuration diagnoses that input, not the eval host itself.
+  Cases that require the real isolated host configuration must retain that
+  distinction and remain unavailable if the host cannot expose it.
 - Keep packaged Python oracles under `backend/tests/evals/` so participant mounts
   omit them. Copy them into `.git/eval-checks/` during fixture setup for hidden
   grading; agents cannot read or write that reserved subtree.
 - Keep authoritative fixture input and its executable acceptance oracle aligned,
   including whether representation details such as trailing newlines matter.
+  Fixture content digests must remain SHA-256 when replacing an unavailable
+  host utility. Use Python's standard-library hashing when macOS `shasum` cannot
+  load Perl inside the isolated runtime; update the producer and checker together.
+  Size deterministic test timeouts for every isolated fixture preparation in a
+  batched control. Increasing that budget does not relax the acceptance checks.
+- Put candidate-written fixture receipts, mutable mock state, and test traces
+  under the prepared, Git-excluded `.fixture-state/`. Sevro permits legitimate
+  writes to trial Git metadata while protecting hidden grading assets.
+  For an unchanged whole-workspace feedback-boundary assertion, use
+  `evals/sevro-extension/runtime-feedback-receipts.json` instead: fixture tools
+  write to `DARROW_FIXTURE_RECEIPTS_DIR`, and graders read the original files
+  through `SEVRO_CANDIDATE_ARTIFACT_RECEIPTS`. Preserve the configured directory
+  and retain source-preservation and exact acknowledgement checks.
+  `goal-failed-check-blocks-publication` uses the same profile for check and
+  dependent-effect receipts, so cleanup of generated workspace files cannot
+  erase evidence that the required check ran.
+  Keep immutable setup inputs and hidden grading assets in their protected
+  locations. Fixture backends remain immutable; give their `uv` child a private
+  project environment when it would otherwise create a `.venv` in Git metadata.
+  Sevro appends prepared-artifact ignore rules after fixture setup. Setup receives
+  their exact relative paths as the JSON array `DARROW_EVAL_MOUNT_EXCLUDES`.
+  Bind an ignore-preservation baseline to that declared list; preserve the
+  original user configuration and reject missing, repeated, or undeclared rules.
+  Do not infer permitted additions from candidate files or exempt a whole directory.
+- On Sevro rc.18 or later, repository profiles share the prepared public UV cache
+  through `runtime.sharedCacheDirectories` with only `candidate` and `checks`
+  roles. Shell graders using UV require explicit `checks` selection. Do not seed
+  a copy per role or grant the cache to current hooks and semantic/advisory hosts.
+  Keep `UV_CACHE_DIR={{sevro.runtime}}/uv-cache` and
+  `UV_PYTHON_DOWNLOADS=never`; warm registered dependencies before evaluation.
+  Warm-up preserves the shared source directory and entries instead of replacing
+  a live cache. Shared content is mutable and excluded from cache-content identity;
+  use fingerprinted private seeds when dependency independence is contractual.
+  Sevro cleans disposable checker state after passed and failed grading, without
+  deleting shared sources or retained evidence. Prune public caches only between
+  evaluations; upgrading does not clean old retained result directories.
+- On Sevro rc.16 or later, setup shares the candidate commands' private home; its
+  temporary directory remains disposable. Initialize candidate-home state in
+  setup instead of asking the candidate to prepare grading prerequisites.
+  Review repair fixtures invoke their bundled frozen launcher during setup;
+  direct `uv run --project` against the source plugin would share its `.venv`
+  across workers with different temporary homes and interpreter installations.
+  Go corpus launchers share `.fixture-state/go/` caches across setup, candidate
+  commands, and grading instead of downloading into that discarded home.
+- On Sevro rc.12, actual host-state cases select
+  `evals/sevro-extension/runtime-codex-state.json`. Doctor diagnoses the absolute
+  isolated CODEX_HOME config, preserving the seeded UV cache. User-skill absence
+  checks require all four candidate-bound skill directory grants, excluding only
+  the native CODEX_HOME/skills/.system tree; missing evidence stays unavailable.
+  These two cases declare `harnesses: [codex]` because those actual-state grants
+  are Codex-specific. They do not establish native Claude user-state coverage.
+- Express and Requests socket corpus cases select
+  `evals/sevro-extension/runtime-local-http.json` on rc.12. Local HTTP access
+  remains an explicit per-run opt-in; retain the original tests and assertions.
+- Review artifact cases select `evals/sevro-extension/runtime-review-artifacts.json`
+  explicitly. Current code-review and real-provider composition cases declare
+  `required_plugin_hook: darrow-review`; the profile allowlists that plugin's
+  hooks. Codex installs the complete package even for implicit requests, without
+  inserting a skill token. Require a successful public hook execution receipt
+  and check reminder delivery in the native candidate context before launching
+  a threshold run. Hook execution and skill activation remain separate, and
+  negative selection cases retain the same installed hook. Preserve earlier
+  hook-disabled cohorts. TDD cases similarly declare
+  `required_plugin_hook: darrow-tdd` and select
+  `evals/sevro-extension/runtime-tdd.json` for the installed reminder condition.
+  Read-ticket cases declare `required_plugin_hook: darrow-tickets` and use
+  `evals/sevro-extension/runtime-tickets.json` for the installed Codex catalog
+  binding reminder. Keep the same hook on positive and negative read cases and
+  retain the earlier catalog-only cohorts. Other Tickets cases keep their
+  declared installation condition; do not treat those earlier results as
+  measurements of the new reminder.
+  With Sevro rc.8 or later, graders read the original candidate
+  `~/.darrow/reviews` subtree through `SEVRO_CANDIDATE_ARTIFACT_REVIEWS`, then
+  bind that path to the owning oracle's `DARROW_REVIEW_STATE_DIR`. Preserve
+  configured runtime and dependency-cache paths. The participant prompt states
+  that prerequisite because another valid private state root is outside the
+  declared grant. Missing declared directories
+  fail grading; Review fixture setup prepares real empty state before testing
+  missing reports or absence. The grant is read-only and lasts only through grading.
+  Its path and tree have already passed Sevro's canonical-path and alias checks.
+  Use that bound root and `dirname` for artifact paths; `cd` followed by
+  `pwd -P` may require access to private ancestors outside the read grant.
+  Read existing canonical records from the grant. A current-worktree comparison
+  creates its new scope only in separate private temporary state, then compares
+  the owning backend's exact target fingerprint without changing the granted tree.
+- Graders use declared host tools or portable system commands. Tools injected
+  from a Codex credential directory are removed from the inherited runtime
+  `PATH` and must not become an undeclared grading dependency.
+  Review's independent route oracle uses only the Python standard library and
+  runs directly with `python3`; it does not bootstrap the Review runtime.
+  Canonical result validation still uses the owning frozen backend.
 - Keep fixture skills inert in the source tree: never name an eval fixture
   `SKILL.md`. Use a non-discoverable template filename and materialize it as
   `SKILL.md` only inside the isolated eval repository during setup.
@@ -96,19 +206,37 @@ constraints for producing and interpreting that evidence.
   token delivered once to a successfully completed turn. It does not require a
   transcript-visible `SKILL.md` load.
 - A Codex case without the placeholder remains an implicit-discovery probe and
-  requires a completed mounted-skill body read. Do not use the explicit path to
-  make implicit selection pass.
-  A complete read of the byte-identical marketplace staging copy of an
-  installed plugin skill also counts: the staging path must come from that
-  eval's installed marketplace catalog, and the observed output must match
-  the installed body. Prepared target skill drafts elsewhere in the fixture
-  never count as activation.
-- Missing, repeated, malformed, or unverified observation evidence stays
-  unknown. A failed compound shell command may still prove an earlier skill
-  read only when the command names a mounted skill path and its output contains
-  that mounted skill's frontmatter; a later clause's failure does not erase the
-  completed read. Retain the source, primary skill, and ordered observed skills
-  separately from the task outcome.
+  requires complete prepared-body exposure in the unique
+  `sevro.host.skill-activations` observation on Sevro rc.15. Do not use explicit
+  dispatch to make implicit selection pass. The `tool_result_body_match`
+  collector matches tool results independently of shell syntax and can combine
+  exact pages within one session and turn. Identical copies can match; this
+  proves body exposure to the tool caller, not which file was opened or whether
+  Code Mode forwarded the result to the model. Changed, short, transformed, and
+  unanchored text lies outside the prepared matching scope.
+- Missing, repeated, malformed, partial, truncated, or ambiguous collection stays
+  unknown, including in negative cases. Retain qualified host identities and
+  normalize only declared plugin namespaces to Darrow's unique mounted skill
+  names. Do not recover missing common collection from retired observations or
+  native transcripts. Keep task and activation outcomes separate.
+- On Sevro rc.20, use a unique complete
+  `sevro.host.skill-activation-claims` receipt only for primary selection and
+  established positive membership in positive or competition cases. Keep its
+  paired collection partial and retain `incompleteReasons` and `collection`
+  diagnostics. Missing claimed membership remains unknown. Negative cases,
+  exclusions, and supporting sequences still require complete collection;
+  neither native logs nor balanced call counts replace it. An explicitly
+  unknown primary remains unknown even in a complete collection.
+- On Sevro rc.21, retain `skillExposures` and `collectionStatus` separately:
+  a full or partial body exposure can survive collection gaps. The optional
+  `sevro.host.skill-exposure-claims` receipt supports only its listed positive
+  exposures; it cannot establish primary selection, sequence, compliance or
+  absence. An explicit Codex owner may use complete positive `full` exposure
+  claims for supporting `activation_includes`; retain the aggregate catalog
+  receipt separately when available.
+  Preserve supporting membership separately from observed order; implicit
+  primary, negative and sequence gates retain their requirements. Missing fields
+  in older results stay unknown rather than being reconstructed.
 - A composed `activation_sequence` requires the primary owner first and a
   complete mounted body read for every supporting skill. Use
   `activation_includes` when supporting skills must be read but their order is
@@ -119,42 +247,16 @@ constraints for producing and interpreting that evidence.
   Excluded skills must actually be available in the case's mounted skill set;
   that includes independently installed `additional_plugins` and explicitly
   selected `additional_skills`, not just siblings of the owning skill.
-  Claude's reduced Skill events also retain a bounded exact invocation identifier
-  separately from the normalized activation name. This distinguishes namespaced
-  plugin dispatch from a same-named command without retaining skill arguments;
-  an invocation identifier alone does not prove provider execution or compliance.
-  Adaptive-goal observations recover deeper Skill dispatch from the native
-  session's completed Agent result graph when the outer stream omits it. Recovery
-  binds session and child identities, preserves chronological skill order and
-  retains only invocation metadata. Missing or inconsistent graph evidence
-  leaves activation incomplete; unrelated transcript files are never evidence.
+  Claude uses the common collector's `skill_tool_result` method: only successful
+  structured Skill calls establish selection. Direct Read calls and explicit
+  native command expansion do not add observed skills. Repository skill names
+  remain unqualified; a foreign plugin with the same skill name cannot substitute.
 - Explicit Codex probes retain the invoked owner first, then verified supporting
-  reads. Every supporting read must contain the complete mounted body, including
-  the first supporting read. Consecutive pages from the same actor may establish
-  that complete body when their accumulated output contains it exactly. The raw
-  read probes and activation summary use the same completeness requirement.
-  Overlapping exact source pages from that same actor also establish the read
-  when their coverage includes the whole body; repeated pages cannot fill a
-  gap, and altered or ambiguously located fragments do not prove coverage.
-  For compound output, locate unique source anchors and extend only through
-  byte-for-byte matching text; unrelated output contributes no source coverage.
-  If the native session recovers a complete read missing from CLI output,
-  recompute read completeness from that recovered evidence. Never retain a
-  stale incomplete flag, and never let read recovery repair failed or ambiguous
-  explicit dispatch. A partial read visible only natively remains incomplete.
-  Insert recovered reads according to shared ordering anchors rather than
-  appending an earlier skill after later ones. Conflicting source orders remain
-  incomplete instead of silently selecting one sequence.
-  Claude's explicit plugin commands may be expanded before the first assistant
-  turn without a Skill event. The observer accepts only a native command bound
-  to the mounted plugin namespace, exact arguments, and session, followed by
-  the complete mounted body in that same session. This proves dispatch without
-  requiring a redundant model-side Skill call; implicit discovery still needs
-  its observed invocation.
-  Do not infer cross-child read order from launch-list order: multiple children
-  contributing unanchored new reads keep the observation incomplete.
-  Truncated evidence cannot establish an exclusion;
-  the observation stays unknown until a complete read verifies that skill.
+  activations from the common collector. The dispatch receipt contains only the
+  invoked owner; it cannot establish supporting inclusion, exclusion, or order.
+  Incomplete collection cannot establish an exclusion. Retired per-turn read
+  observations remain unavailable for policies that still require that distinct
+  evidence; a whole-run collector cannot silently acquire per-turn meaning.
 
 - Recipe composition evidence must positively establish the accepted agent and
   the bound supporting capability. Absence of a prohibited action alone cannot
@@ -208,6 +310,11 @@ completion feedback. The normal result array is published atomically only after
 the entire run finishes.
 
 On error or interruption, inspect the printed diagnostic and evidence paths.
+With Sevro rc.10 or later, forward `--retain-host-diagnostics` after `--` to
+retain bounded native stage, error, and subprocess receipts, including failures
+before a session exists. Resolve `sevro.host.diagnostics` through the trial's
+artifact references. Keep these private files out of Git. The flag changes run
+identity; a diagnostic rerun is not an exact repeat of a run without it.
 Completed trials remain available even if another worker fails. If checkpoint
 storage fails, the diagnostic's `unpersistedTrials` retains the full results
 when the diagnostic destination is writable, and the error names the retained
@@ -301,8 +408,8 @@ evaluation that stops at the first failure. `--only <question-id>` and
 before continuing. Fixtures snapshot current public documentation, manifests,
 and relevant code while excluding inventory, hidden checks, and delivery
 conclusions from the participant repository.
-The guide driver pins semantic grading to Codex `gpt-6-luna` / medium;
-the shared runner's default lightweight grader remains unchanged.
+The guide driver pins semantic grading to Codex `gpt-6-luna` / high;
+the shared runner uses the same gating grader default.
 
 That same command uses Darrow's exact installed Sevro dependency and retains
 separate task and activation outcomes. `SEVRO_CHECKOUT` or `SEVRO_PACKAGE_BIN`
@@ -377,7 +484,7 @@ Codex runs use independent defaults for each eval role:
 
 - candidate: `gpt-6-luna` at `medium` effort;
 - advisory quality judge: `gpt-5.6-sol` at `low` effort;
-- gating semantic-output grader: `gpt-5.6-luna` at `low` effort.
+- gating semantic-output grader: `gpt-6-luna` at `high` effort.
 
 Use `--model` and `--effort`, `--judge-model` and `--judge-effort`, or
 `--semantic-check-model` and `--semantic-check-effort` to override the
@@ -430,6 +537,8 @@ or types.
 
 Integration commands allow 30 seconds per test for frozen backend startup and
 isolated CLI fixtures. A test's explicit timeout still takes precedence.
+Pass explicit `./evals/...` directory paths to Bun. Bare paths are substring
+filters and can scan retained fixture trees outside the intended test scope.
 
 The [test ownership guide](../evals/README.md) separates installed integration,
 Darrow policy and historical readers. The source-copy launcher and comparison

@@ -4,8 +4,12 @@ import { dirname, isAbsolute, join } from "node:path";
 import Ajv2020 from "ajv/dist/2020";
 import cliResultSchema from "@bjoernrochel/sevro/schemas/cli-result-v1.schema.json";
 import { invocation } from "./run";
-import { selectRunCaseIds } from "./index";
-import { candidateArguments, type CaseRoutes } from "./suite-routes";
+import { selectRunCases } from "./index";
+import {
+  candidateArguments,
+  optionValue,
+  type CaseRoutes,
+} from "./suite-routes";
 import type { ActivationGate } from "./activation";
 
 const validateCliResult = new Ajv2020({ strict: false }).compile(
@@ -289,16 +293,32 @@ async function publishManifest(manifest: SelectionManifest) {
   await atomicWrite(join(manifest.resultsRoot, "selection-run.json"), contents);
 }
 
+/** Select cases for the requested host with their declared default routes. */
+async function selectedCases(
+  argv: string[],
+  projectRoot: string,
+  options: SelectionOptions,
+) {
+  const host = optionValue(argv.slice(argv.indexOf("--") + 1), "--host");
+  return selectRunCases(
+    projectRoot,
+    options.filters,
+    { skill: options.skill, plugin: options.plugin },
+    host ?? undefined,
+  );
+}
+
 /** Retain each selected public CLI result without combining its outcome axes. */
 export async function runSelection(argv: string[], options: SelectionOptions) {
   const roots = selectionRoots(options);
-  const caseIds = await selectRunCaseIds(roots.projectRoot, options.filters, {
-    skill: options.skill,
-    plugin: options.plugin,
-  });
+  const selection = await selectedCases(argv, roots.projectRoot, options);
+  const caseIds = selection.ids;
   const attemptId = randomUUID();
   const attemptRoot = join(roots.resultsRoot, "attempts", attemptId);
-  const cells = selectionCells(argv, caseIds, attemptRoot, options.caseRoutes);
+  const cells = selectionCells(argv, caseIds, attemptRoot, {
+    ...selection.routes,
+    ...options.caseRoutes,
+  });
   const manifest: SelectionManifest = {
     format: "darrow-sevro-selection-v1",
     ...roots,

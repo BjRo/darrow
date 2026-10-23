@@ -13,6 +13,13 @@ const source = new URL(
 );
 const notes = "# Notes\nReal commit capability composes.\n";
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
+const reviewAssets = {
+  fixtureAssets: new URL(
+    "../../plugins/orchestration/darrow-adaptive-goal/",
+    import.meta.url,
+  ),
+  fixtureAssetFiles: ["backend/tests/evals/review_receipts.py"],
+};
 const reviewCheck =
   "review clears the final uncommitted candidate before commit";
 const commit =
@@ -69,7 +76,7 @@ for (const scenario of [
         name: "read-only help before implementation",
         run: "independent-review-protocol --help",
       });
-    const log = ".git/fixture-state/composition-events";
+    const log = ".fixture-state/composition-events";
     const alteration = {
       normal: "true",
       help: "true",
@@ -81,7 +88,7 @@ for (const scenario of [
       name: "select review evidence counterexample",
       run: alteration,
     });
-    const passes = scenario === "normal" || scenario === "help";
+    const passes = ["normal", "help", "duplicate"].includes(scenario);
     const diagnosis: OracleCheck[] = passes
       ? []
       : [
@@ -89,14 +96,11 @@ for (const scenario of [
             name: "rejection explains the review evidence defect",
             run: check.run,
             exit_code: 1,
-            expect_regex: {
-              missing: "Expected one review record; observed 0",
-              duplicate: "Expected one review record; observed 2",
-              stale: "Expected reviewed target:",
-            }[scenario],
+            expect_regex: "Expected reviewed target:",
           },
         ];
     const result = await runFixtureChecks({
+      ...reviewAssets,
       source,
       fixture: await realCommitFixture(),
       checks: [...actions, ...canonical.checks, ...diagnosis],
@@ -128,6 +132,7 @@ for (const [arg, exitCode] of [
 ] as const) {
   test(`real commit reviewer ${arg} has no assessment effects`, async () => {
     const result = await runFixtureChecks({
+      ...reviewAssets,
       source,
       checks: [
         {
@@ -137,7 +142,7 @@ for (const [arg, exitCode] of [
         },
         {
           name: "no assessment or mutation",
-          run: 'test ! -e .git/fixture-state/composition-events && test ! -e .git/fixture-state/pull-requests && test "$(git rev-list --count HEAD)" -eq 1 && test -z "$(git status --porcelain)"',
+          run: 'test ! -e .fixture-state/composition-events && test ! -e .fixture-state/pull-requests && test "$(git rev-list --count HEAD)" -eq 1 && test -z "$(git status --porcelain)"',
         },
       ],
     });
@@ -167,8 +172,9 @@ for (const scenario of [
     }
     const contents =
       scenario === "wrong-content" ? "# Notes\nWrong line.\n" : notes;
-    const recorded = `awk -F '\\t' '$1 == "review" { found = 1 } END { exit !found }' .git/fixture-state/composition-events`;
+    const recorded = `awk -F '\\t' '$1 == "review" { found = 1 } END { exit !found }' .fixture-state/composition-events`;
     const result = await runFixtureChecks({
+      ...reviewAssets,
       source,
       fixture: canonical.fixture,
       checks: [
@@ -191,7 +197,7 @@ for (const scenario of [
           run:
             scenario === "correct"
               ? recorded
-              : `if test -f .git/fixture-state/composition-events; then ! ${recorded}; fi`,
+              : `if test -f .fixture-state/composition-events; then ! ${recorded}; fi`,
         },
       ],
     });

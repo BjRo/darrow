@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 from typing import Any, cast
 
@@ -10,6 +11,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from darrow_review import cli
+from darrow_review.check import shell_args
 from darrow_review.common import ReviewError, document, package_root, serialize
 from fixtures import result_record, verification_record, write
 from test_cli_contract import invoke
@@ -53,6 +55,232 @@ def prepared(manifest: str, axis: str, source: str, *extra: str) -> dict[str, An
 
 def read_packet(path: str) -> dict[str, Any]:
     return document(cli.result_command(["read-reader", "--input", path]))
+
+
+@pytest.mark.parametrize("native", [True, False])
+def test_prepare_reader_accepts_intent_inputs_without_context_file(
+    repo: Path, native: bool
+) -> None:
+    (repo / "file.txt").write_text("changed\n", encoding="utf-8")
+    guidance = repo / "policy with spaces.md"
+    guidance.write_text("Preserve the public behavior.\n", encoding="utf-8")
+    manifest = prepare(repo)
+    arguments = [
+        "prepare-reader",
+        "--manifest",
+        manifest,
+        "--axis",
+        "spec",
+        "--source",
+        str(guidance),
+        "--objective",
+        "Return null for invalid input.",
+        "--no-checks-reason",
+        "No configured checks apply.",
+    ]
+    if native:
+        process = invoke(repo, "review-result", *arguments)
+        assert process.returncode == 0, process.stderr
+        output = process.stdout
+    else:
+        output = cli.result_command(arguments)
+    packet = read_packet(str(document(output)["input"]))
+    assert packet["objective"] == "Return null for invalid input."
+    assert packet["sources"][0]["path"] == str(guidance)
+    assert packet["checks"] == [
+        {
+            "command": "none",
+            "applicability": "not_applicable",
+            "status": "not_applicable",
+            "evidence": "No configured checks apply.",
+        }
+    ]
+
+
+def test_codex_preparation_returns_complete_native_launch_arguments(repo: Path) -> None:
+    (repo / "file.txt").write_text("changed\n", encoding="utf-8")
+    labels = []
+    for _ in range(2):
+        manifest = prepare(repo)
+        run = Path(manifest).parent
+        route = str(run / "reviewer-route.json")
+        cli.route_command(
+            [
+                "select",
+                "--repo",
+                str(repo),
+                "--host",
+                "codex",
+                "--record",
+                route,
+            ]
+        )
+        result = prepared(manifest, "standards", context(run), "--route-record", route)
+        launch = result["launch"]
+        assert set(launch) == {
+            "task_name",
+            "model",
+            "reasoning_effort",
+            "fork_turns",
+            "message",
+        }
+        assert launch["model"] == "gpt-6.1-sol"
+        assert launch["reasoning_effort"] == "xhigh"
+        assert launch["fork_turns"] == "none"
+        assert launch["message"] == result["message"]
+        assert "standards" in launch["task_name"]
+        assert "spec" not in launch["task_name"]
+        labels.append(launch["task_name"])
+    assert labels[0] != labels[1]
+
+
+@pytest.mark.parametrize("native", [True, False])
+def test_prepare_reader_copies_only_requested_original_keys_for_its_axis(
+    repo: Path,
+    native: bool,
+) -> None:
+    (repo / "file.txt").write_text("broken\n", encoding="utf-8")
+    prior = prepare(repo)
+    target = document(Path(prior).read_text())["target"]
+    spec = {**verification_record()["original_findings"][0], "key": f"spec:1:{target}"}
+    standard = {
+        **spec,
+        "axis": "standards",
+        "order": "2",
+        "key": f"standards:2:{target}",
+    }
+    original = write(
+        Path(prior).parent / "handoff.json",
+        {
+            "original_target": target,
+            "original_findings": [spec, standard],
+            "attempted": [spec["key"], standard["key"]],
+        },
+    )
+    (repo / "file.txt").write_text("fixed\n", encoding="utf-8")
+    manifest = prepare(repo, prior)
+    arguments = [
+        "prepare-reader",
+        "--manifest",
+        manifest,
+        "--axis",
+        "spec",
+        "--original",
+        original,
+        "--attempted-from-input",
+        "--no-checks-reason",
+        "No configured checks apply.",
+    ]
+    if native:
+        process = invoke(repo, "review-result", *arguments)
+        assert process.returncode == 0, process.stderr
+        output = process.stdout
+    else:
+        output = cli.result_command(arguments)
+    packet = read_packet(str(document(output)["input"]))
+    assert packet["repair"]["attempted"] == [spec["key"]]
+    assert packet["repair"]["original_findings"] == [spec]
+
+
+def test_prepared_reader_returns_executable_route_binding_template(repo: Path) -> None:
+    (repo / "file.txt").write_text("changed\n", encoding="utf-8")
+    manifest = prepare(repo)
+    run = Path(manifest).parent
+    route = str(run / "reviewer-route.json")
+    cli.route_command(
+        ["select", "--repo", str(repo), "--host", "codex", "--record", route]
+    )
+    response = prepared(manifest, "standards", context(run), "--route-record", route)
+    assert response["reader_record"] == str(run / "standards.json")
+    command = response["confirm_command"].replace(
+        "<accepted-child-id>", "accepted-standards-child"
+    )
+    process = subprocess.run(
+        shell_args(command), capture_output=True, text=True, cwd=repo.parent
+    )
+    assert process.returncode == 0, process.stderr
+    application = document((run / "standards-route.json").read_text())
+    assert application["axis"] == "standards"
+    assert "accepted-standards-child" in application.values()
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        ["--objective", "extra"],
+        ["--source", "/missing"],
+        ["--no-checks-reason", "extra"],
+        ["--attempted-from-input"],
+    ],
+)
+def test_prepare_reader_refuses_ambiguous_or_unbound_intent_inputs(
+    repo: Path, extra: list[str]
+) -> None:
+    (repo / "file.txt").write_text("changed\n", encoding="utf-8")
+    manifest = prepare(repo)
+    run = Path(manifest).parent
+    arguments = [
+        "prepare-reader",
+        "--manifest",
+        manifest,
+        "--axis",
+        "standards",
+        "--context",
+        context(run),
+        *extra,
+    ]
+    with pytest.raises(ReviewError):
+        cli.result_command(arguments)
+    assert not (run / "standards-input.json").exists()
+
+
+@pytest.mark.parametrize(
+    "attempted", [["unknown"], ["spec:1:target", "spec:1:target"], "not-an-array"]
+)
+def test_prepare_reader_refuses_invalid_handoff_attempts(
+    repo: Path, attempted: object
+) -> None:
+    (repo / "file.txt").write_text("changed\n", encoding="utf-8")
+    manifest = prepare(repo)
+    original = write(
+        Path(manifest).parent / "handoff.json",
+        {
+            "original_target": "target",
+            "original_findings": verification_record()["original_findings"],
+            "attempted": attempted,
+        },
+    )
+    arguments = [
+        "prepare-reader",
+        "--manifest",
+        manifest,
+        "--axis",
+        "spec",
+        "--original",
+        original,
+        "--attempted-from-input",
+        "--no-checks-reason",
+        "No configured checks.",
+    ]
+    with pytest.raises(ReviewError):
+        cli.result_command(arguments)
+    assert not (Path(manifest).parent / "spec-input.json").exists()
+
+
+def test_codex_launch_refuses_another_scopes_route_before_saving_input(
+    repo: Path,
+) -> None:
+    (repo / "file.txt").write_text("changed\n", encoding="utf-8")
+    previous = prepare(repo)
+    route = str(Path(previous).parent / "reviewer-route.json")
+    cli.route_command(
+        ["select", "--repo", str(repo), "--host", "codex", "--record", route]
+    )
+    manifest = prepare(repo)
+    run = Path(manifest).parent
+    with pytest.raises(ReviewError, match="current scope run"):
+        prepared(manifest, "standards", context(run), "--route-record", route)
+    assert not (run / "standards-input.json").exists()
 
 
 @pytest.mark.parametrize("axis", ["standards", "spec"])
@@ -317,8 +545,9 @@ def test_comprehensive_original_can_seed_fix_inputs(
 
 
 @pytest.mark.parametrize("external", [False, True])
+@pytest.mark.parametrize("from_input", [False, True])
 def test_prior_history_and_carried_regressions_survive_reader_handoff(
-    repo: Path, external: bool
+    repo: Path, external: bool, from_input: bool
 ) -> None:
     from darrow_review.common import blob_hash
 
@@ -339,12 +568,43 @@ def test_prior_history_and_carried_regressions_survive_reader_handoff(
         )
     (repo / "file.txt").write_text("second repair\n", encoding="utf-8")
     manifest = prepare(repo, prior)
-    source = context(Path(manifest).parent, attempted=[])
-    packet = prepared(manifest, "spec", source, "--original", original)["input"]
+    source = context(Path(manifest).parent, **({} if from_input else {"attempted": []}))
+    packet = prepared(
+        manifest,
+        "spec",
+        source,
+        "--original",
+        original,
+        *(["--attempted-from-input"] if from_input else []),
+    )["input"]
     repair = read_packet(packet)["repair"]
+    assert repair["attempted"] == []
     assert repair["regressions"] == old["regressions"]
     assert repair["history_targets"] == [old["original_target"]]
     assert repair["previous_verification"]["path"] == previous
+
+
+def test_regression_only_reader_receives_exact_output_identity(repo: Path) -> None:
+    prior, previous = prior_with_regression(repo)
+    (repo / "file.txt").write_text("second repair\n", encoding="utf-8")
+    manifest = prepare(repo, prior)
+    source = context(Path(manifest).parent)
+    response = prepared(
+        manifest, "spec", source, "--original", previous, "--attempted-from-input"
+    )
+    repair = read_packet(response["input"])["repair"]
+    previous_record = document(Path(previous).read_text())
+    regressions = previous_record["regressions"]
+    assert isinstance(regressions, list)
+    first = regressions[0]
+    assert isinstance(first, dict)
+    assert repair["output_binding"] == {
+        "format": "darrow-review-fix-axis-v3",
+        "axis": "spec",
+        "originals": [],
+        "prior_regressions": [{"key": first["key"], "caused_by": first["caused_by"]}],
+    }
+    assert repair["original_findings"]
 
 
 @pytest.mark.parametrize(

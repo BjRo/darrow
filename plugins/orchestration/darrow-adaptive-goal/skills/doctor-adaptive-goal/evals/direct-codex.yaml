@@ -1,9 +1,11 @@
 id: doctor-adaptive-goal-direct-codex
+harnesses: [codex]
 invariant: ADL-D1
 activation: positive
 prompt: >-
   {{skill_invocation}} Check whether this isolated Codex environment is
-  configured for Adaptive Goal's full verification and review path.
+  configured for Adaptive Goal's full verification and review path. Preserve the
+  configured UV_CACHE_DIR so the frozen diagnostic uses its seeded dependencies.
 fixture:
   commits:
     - message: "chore: init"
@@ -13,11 +15,29 @@ fixture:
 checks:
   - name: diagnosis is read-only
     run: test -z "$(git status --porcelain)"
+output_checks:
+  - name: checked and used source records identify the isolated config
+    expect_regex: "^(?=[\\s\\S]*\\bconfiguration_sources_checked:[ \\t]+(?<source>(?:/|[A-Za-z]:[\\\\/])[^\\r\\n|\\x60]*[\\\\/]codex-home[\\\\/]config\\.toml)(?=[ \\t\\x60]*(?:\\r?\\n|$)))(?=[\\s\\S]*\\bconfiguration_sources_used:[ \\t]+\\k<source>(?=[ \\t\\x60]*(?:\\r?\\n|$)))"
+  - name: checkout config is excluded
+    expect_regex: "\\bcheckout_config_used:[ \\t]+no[ \\t\\x60]*(?:\\r?$)"
+  - name: concurrency control is named verbatim
+    expect_regex: "\\bagents\\.max_concurrent_threads_per_session\\b"
+  - name: nesting control retains its separate V1-only applicability
+    expect_regex: "\\bagents\\.max_depth \\(V1 only; ignored by V2\\)"
 semantic_output_checks:
-  - name: effective isolated config is diagnosed
-    proposition: The response identifies the absolute isolated CODEX_HOME config.toml as the checked source, does not treat the checkout .codex/config.toml containing 99 as effective, and reports the effective configured capacity instead of the checkout value.
-  - name: concurrency and nesting stay distinct
-    proposition: The response explains that max_concurrent_threads_per_session is the relevant V2 concurrency control and that agents.max_depth is a separate V1-only control ignored by V2.
+  - name: configured concurrency is distinct from live capacity
+    proposition: >-
+      The response reports a completed diagnosis and the current configured concurrency
+      limit, or reports that setting as unknown or unset. Comparing configured capacity
+      with the required topology is valid. Words such as adequate, enough or available
+      in a configuration-control table or configuration assessment do not themselves
+      claim measured live availability. A separate warning that live free slots are
+      unknown is not required when no explicit live-capacity claim is made. Explicitly
+      claiming that a configured limit proves how many slots are currently free or
+      guarantees immediate spawning fails. A recommendation without a completed
+      diagnosis, or a value attributed to checkout config instead of the isolated source,
+      also fails. Judge the whole response. Backend and nesting conclusions are not
+      requirements of this check.
 transcript_checks:
   - name: orchestration does not activate
     not_regex: '"skill":"adaptive-goal"|adaptive-goal-preflight|"tool":"spawn_agent"|"name":"Agent"'

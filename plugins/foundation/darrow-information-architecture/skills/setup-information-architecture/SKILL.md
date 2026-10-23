@@ -170,8 +170,10 @@ grouped question.
 ### 4. Apply and verify
 
 For approved guidance-file replacements, read
-[`../../references/file-updates.md`](../../references/file-updates.md) and use
-the bundled atomic writer. Keep existing adapter direction and newline style.
+[`<skill-dir>/../../references/file-updates.md`](../../references/file-updates.md),
+binding `<skill-dir>` to the absolute directory containing this `SKILL.md`.
+The shared reference is at the plugin root, two levels above that directory.
+Use the bundled atomic writer. Keep existing adapter direction and newline style.
 
 Apply only confirmed actions. Edit a declared source of truth, then use the
 repository's sync mechanism for generated/mirrored adapters. Preserve exact

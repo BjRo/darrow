@@ -46,11 +46,13 @@ checks:
   - name: no extra commit
     run: test "$(git rev-list --count HEAD)" -eq 1
   - name: no replacement review report
-    run: test ! -e .git/inspect-candidate-report.md
+    run: test ! -e .fixture-state/inspect-candidate-report.md
 semantic_output_checks:
   - name: missing lineage blocks
     proposition: The overall verification result is blocked because the original
       findings, prior review target, and repair history needed to verify fixes
-      are missing. The response asks for those inputs and does not switch to an
+      are missing. Identifying those specific missing inputs is sufficient;
+      a separate question or request to provide them is not required.
+      The response does not switch to an
       initial full review, claim the candidate clear, or claim the fixes verified
       from a comprehensive review of the current content.

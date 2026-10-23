@@ -53,6 +53,10 @@ acceptance. This specification defines the local implementation boundary.
   readiness, interrupted/ambiguous execution or missing state retains ownership
   for human recovery. Missing labels and expiry do not release claims. A closed
   unmerged PR does not reapply readiness.
+  When the original native owner identity or archives are unavailable, report
+  recovery blocked, the retained claim, and the need for a human to reconcile
+  existing execution and published effects. A status listing alone does not
+  supply that next action.
 
 ## Human loop and local execution
 
@@ -123,6 +127,18 @@ Live Codex evidence must prove original main-thread restoration, goal, history,
 model and effort after process exit. Live launchd evidence must show nonterminal
 activation and the configured interval. Explicit-entry evals cover a direct
 request, missing authority, status, revocation and a request to bypass recovery.
+The recovery-boundary fixture contains the existing grant and claimed delivery
+with its original native identity and archives unavailable. Its checks preserve
+that claim and grant; a missing installation cannot substitute for lost-owner
+recovery evidence.
+Revocation grading accepts equivalent wording for the revoked recurring grant
+when the operation and state path are clear. It still requires the report to
+explain that future admissions and continuations are disabled; quoting a raw
+command return value alone does not establish that outcome.
+Account-boundary grading accepts a concrete explanation that available credits
+may be consumed after the included allowance. It does not require repeating every
+billing setting when the response clearly rejects a zero-paid-usage guarantee
+and leaves enabling pending resolution of that requirement.
 No implicit-positive activation is required. Packaging must disable implicit
 selection and preserve ordinary engineering requests outside this entry.
 

@@ -9,6 +9,45 @@ providers require a compatible selected operation; installation alone selects no
 Selecting independent review alone still uses this verification boundary with
 one assessment. The owner does not invoke review directly.
 
+## Decide whether another repair is allowed
+
+Apply the first matching row. Keep the authorized maximum separate from attempts
+already used. The default maximum is 2; only an explicit finite user or repository
+override changes it. Progress never increases the maximum.
+
+Before repair advice or another repair assignment, calculate the remaining
+allowance with the bundled read-only helper. Resolve `<plugin-backend>` beside
+this installed skill: `<plugin-root>/backend`. Copy counts from the actual
+contract and history; do not adjust them for progress.
+
+```sh
+uv run --quiet --no-project "<plugin-backend>/scripts/run_locked.py" adaptive-goal-preflight repair-budget \
+  --repairs-used <consumed-count> \
+  [--repair-maximum <explicit-finite-override>] \
+  [--assessment-used <consumed-count> --assessment-maximum <explicit-limit>]
+```
+
+Omit `--repair-maximum` when no finite override was supplied: the helper applies
+two. Include both assessment options when an assessment limit exists, counting
+its initial invocation too; repeat for each independently limited assessment.
+If counts are unknown or the helper fails, stop rather than guess.
+`decision: stop` (rendered as a tab-separated record) prohibits another repair
+under those limits. `within_limits` establishes only arithmetic: scope,
+evidence, progress, time, tokens and authority must still permit the action.
+The calculator writes no state and creates no goal. Report the resulting
+decision directly, without a contradictory initial instruction to continue.
+
+| Current result or limit                                                                                                       | Next action                                                                                                                                                                                                                          |
+| ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Complete current verification is clear                                                                                        | Stop repairing; unused attempts need not be used.                                                                                                                                                                                    |
+| Attempts used **greater than or equal to** the maximum, or another required limit is exhausted                                | Stop. Two used out of two allows **zero** more repairs, even with material progress or “keep trying” feedback.                                                                                                                       |
+| Required evidence is unavailable, inconclusive or missing; history is missing; or the latest repair made no material progress | Stop speculative repair. Investigate the gap only within existing authority.                                                                                                                                                         |
+| An in-scope, authorized blocker remains, evidence supports action, and budget remains                                         | Make one combined repair, refresh checks and obtain fresh closed-set verification. After a prior repair, require provider-observed progress: resolved original blockers, a narrowed cause, or an evidenced direct repair regression. |
+
+Different wording or a speculative edit is not progress. A singular repair request
+or the number of findings does not override the maximum. Early clearance does
+not change it either.
+
 ## Assess the current candidate
 
 After implementation and every applicable current required check succeeds,
@@ -56,13 +95,6 @@ may raise or lower the maximum, including to zero. Apply the strictest remaining
 invocation, time, token and authority limits across all selected activities.
 An unbounded “keep trying” request never enlarges the default.
 
-Keep the authorized maximum separate from the consumed count. With no explicit
-override, compile maximum 2 and the observed consumed count (normally 0 at
-launch). One successful repair is one consumed out of two allowed, not a
-one-attempt limit. Early clearance stops work without changing that maximum.
-Do not infer an override from a singular repair request or the number of
-findings; identify the actual user/repository source of any override.
-
 Repair only when all unresolved blockers are within the originating scope and
 authority, the combined result supports action and budget remains. Stronger
 checks of the same behavior are permitted. Ineligible blockers stop affected
@@ -83,13 +115,6 @@ Follow-up establishes whether the repair actually worked against the original
 findings, affected evidence and direct repair-caused regressions. Keep that set
 closed; no unrelated findings or comprehensive assessment may reset the budget.
 Collect all selected follow-up results before any further repair attempt.
-
-Clear current-content verification ends repair immediately. A further attempt
-requires material provider-observed progress and remaining budget: resolved
-original blockers, evidence narrowing a remaining cause, or a newly evidenced
-direct repair-caused regression eligible for repair. Different wording or a
-speculative edit is not progress. Without an override, an uncleared second
-follow-up exhausts the budget even when it shows progress.
 
 No-progress (unchanged, repeated or oscillating failure), blocked/inconclusive/
 unavailable evidence, exhausted limits or missing authority stops repair,

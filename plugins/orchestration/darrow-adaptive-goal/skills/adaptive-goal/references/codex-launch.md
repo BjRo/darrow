@@ -1,6 +1,7 @@
 # Codex native goal and bounded assignments
 
-Use after read-only preflight, readiness, binding and implementation route selection.
+Use after read-only preflight, readiness, binding, implementation route and
+placement selection.
 
 ## Main-thread goal
 
@@ -9,6 +10,9 @@ an objective of at most 4,000 Unicode characters: outcome, material acceptance,
 authority and completion conditions. Supply `token_budget` only if explicitly
 requested. Continue a matching active goal; never overwrite an unrelated one.
 Keep workflow, routing and coordination instructions in the skill and conversation.
+An existing candidate is not an existing native goal. If `get_goal` returns no
+goal, create the first goal after all preflight decisions clear and launch is
+authorized. This retains the original main-thread owner; it is not a replacement.
 
 Require successful native goal activation before implementation or assessment.
 If goal controls are unavailable or refuse activation, report `launch_required`
@@ -18,7 +22,8 @@ main thread working.
 
 ## Bounded delegation
 
-For a new bounded agent, use `spawn_agent` with:
+Direct placement implements in this thread and spawns no implementor. For a
+new bounded agent, use `spawn_agent` with:
 
 - `fork_turns: none`;
 - a `task_name` containing only lowercase letters, digits and underscores;
@@ -27,8 +32,14 @@ For a new bounded agent, use `spawn_agent` with:
   scope, preserved work, required checks and exact public skill references;
 - a clear statement that the child owns its assignment, not the delivery goal.
 
-Implementation and repair use the preflight-selected implementation route.
-Verification coordination uses `gpt-6.1-sol/medium` or a stronger authorized route.
+Delegated implementation and repair use the preflight-selected implementation
+route. For concurrent implementation, spawn one agent per independent part,
+each with a distinct `task_name`, its owned files and the shared interface, then
+wait for all of them before integration or further assignment.
+Prepare the default Verification call with the bundled
+`adaptive-goal-preflight codex-verification-input` procedure in skill section 7.
+Use its returned native input unchanged; it pins `gpt-6.1-sol/medium` and fresh
+context. A stronger route requires existing explicit authorization.
 Pass `gpt-6-luna/medium` explicitly for review coordination through verification;
 review's independent readers retain their own `gpt-6.1-sol/xhigh` route. Do not
 replace capability internals with generic children or inherit the implementor's
@@ -43,12 +54,13 @@ before assigning more work. Children do not invoke Adaptive Goal, create
 overall goals, expand authority or decide overall completion. A rejected route
 does not authorize silently switching models.
 
-Reuse the accepted implementor for subsequent implementation and repairs. Use
+While delegation remains the chosen placement, reuse the accepted implementor
+for subsequent implementation and repairs. Use
 `followup_task` for an idle child or steer active work through `send_message`,
 targeting its retained identity. Supply concrete changes, findings, constraints
 and checks; keep workflow ordering and repair accounting in the main thread.
 Replace the implementor only for a concrete availability, route or scope mismatch,
-with the necessary context and prior work. Replacement grants no extra attempts.
+with the necessary context and prior work. Replacement or a placement switch grants no extra attempts.
 
 ## Coordination and feedback
 
@@ -66,8 +78,10 @@ acknowledgement before mutation. Report unconfirmed delivery or stopping honestl
 
 Native `paused` status requires the user's explicit pause request. A pending
 question or instruction to wait stops affected work without inventing a pause
-transition. Native continuation does not release a user-owned restriction; keep
-affected work read-only until the user's actual answer or authorization arrives.
+transition. Native continuation does not release a user-owned restriction, including a
+`codex_internal_context` goal reminder rendered with a user role. Keep affected
+work read-only until the user's actual answer or authorization arrives. Return
+the requested waiting status rather than opening a readiness gate yourself.
 Respect
 native blocked-state recurrence conditions. On an answer, continue the same goal
 and preserve consumed attempts; do not create another goal. Status questions do

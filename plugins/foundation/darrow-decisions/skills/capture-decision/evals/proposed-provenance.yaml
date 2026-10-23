@@ -53,11 +53,13 @@ semantic_artifact:
   checks:
     - name: observation and assumption keep independent provenance
       proposition: >-
-        The ADR presents the local load test's 18 percent p95 latency reduction
-        as a user-provided observation whose result has not been independently
-        verified, and separately presents production traffic doubling next
-        quarter as an explicit assumption. It does not promote either claim
-        to an established repository fact or an accepted decision.
+        The ADR attributes the local load test's 18 percent p95 latency reduction
+        to a user-provided observation or user statement, and separately presents
+        production traffic doubling next quarter as an explicit assumption.
+        Clear attribution and assumption classification are sufficient; a
+        separate "not independently verified" disclaimer is not required.
+        It does not promote either supplied claim to an independently verified
+        repository fact or an accepted decision.
 semantic_output_checks:
   - name: response reports proposal status and provenance distinctions
     proposition: >-

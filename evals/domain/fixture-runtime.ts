@@ -1,5 +1,12 @@
 import { afterAll } from "bun:test";
-import { cp, mkdtemp, realpath, rm } from "node:fs/promises";
+import {
+  cp,
+  mkdtemp,
+  readFile,
+  realpath,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 
@@ -17,18 +24,24 @@ afterAll(async () => {
 });
 
 async function publicPythonRuntime(uv: string) {
-  const found = Bun.spawnSync(
-    [uv, "python", "find", "--managed-python", "3.13"],
-    {
-      env: { ...process.env, UV_PYTHON_DOWNLOADS: "never" },
-      stdout: "pipe",
-      stderr: "pipe",
-    },
-  );
-  if (found.exitCode !== 0) throw new Error(found.stderr.toString());
-  const interpreter = await realpath(found.stdout.toString().trim());
   const runtime = await mkdtemp(join(tmpdir(), "darrow-fixture-python-"));
   pythonRoots.push(runtime);
+  const stdout = join(runtime, "stdout");
+  const stderr = join(runtime, "stderr");
+  await Promise.all([writeFile(stdout, ""), writeFile(stderr, "")]);
+  const found = Bun.spawn([uv, "python", "find", "--managed-python", "3.13"], {
+    env: { ...process.env, UV_PYTHON_DOWNLOADS: "never" },
+    stdin: "ignore",
+    stdout: Bun.file(stdout),
+    stderr: Bun.file(stderr),
+  });
+  const exitCode = await found.exited;
+  const interpreterPath = (await readFile(stdout, "utf8")).trim();
+  if (exitCode !== 0 || !interpreterPath)
+    throw new Error(
+      `UV interpreter lookup exited ${exitCode}: ${(await readFile(stderr, "utf8")) || "empty interpreter path"}`,
+    );
+  const interpreter = await realpath(interpreterPath);
   await cp(dirname(dirname(interpreter)), runtime, { recursive: true });
   return quote(join(runtime, "bin", basename(interpreter)));
 }

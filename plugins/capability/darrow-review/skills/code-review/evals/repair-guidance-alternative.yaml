@@ -1,11 +1,8 @@
 id: code-review-guidance-alternative
+required_plugin_hook: darrow-review
 activation: positive
-invariant: CR-C9,CR-C18,CR-C19,CR-E15
-prompt: >-
-  Use {{skill_invocation}} to verify my uncommitted repair against the original
-  review and binding records in .git/verification-input. The originating
-  requirement is in requirements.md. Remain read-only and report the
-  fix-verification outcome.
+invariant: CR-C9,CR-C18,CR-C19,CR-E15,CR-E18,CR-E19
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Use {{skill_invocation}} to verify my uncommitted repair against the original review and binding records in .fixture-state/verification-input. The originating requirement is in requirements.md. Remain read-only and report the fix-verification outcome."
 fixture:
   commits:
     - message: "chore: base"
@@ -35,13 +32,15 @@ fixture:
         return result;
       }
   setup: |
+    bash "{{case_dir}}/fixtures/prepare-grading.sh" "{{case_dir}}"
+    cp "{{case_dir}}/fixtures/name-trim-review.fixture.json" .git/fixture-name-trim-template.json
     set -eu
     backend=$(cd "{{case_dir}}/../../../backend" && pwd -P)
-    prior_output=$(uv run --quiet --frozen --no-dev --project "$backend" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
+    prior_output=$(uv run --quiet --no-project "$backend/scripts/run_locked.py" review-scope prepare --repo "$PWD" --base HEAD^ --target HEAD)
     prior_manifest=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' manifest)
     original_target=$(printf '%s' "$prior_output" | python3 -c 'import json,sys; print(json.load(sys.stdin)[sys.argv[1]])' target)
     original_result=$(dirname "$prior_manifest")/result.json
-    scope_json=$(uv run --quiet --frozen --no-dev --project "$backend" review-result scope-records "$prior_manifest")
+    scope_json=$(uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result scope-records "$prior_manifest")
     python3 - "$PWD" "$scope_json" <<'PY' >"$original_result"
     import json, sys
     repo, scope_json = sys.argv[1:]
@@ -69,7 +68,7 @@ fixture:
         "next_action": "return findings",
     }, sys.stdout)
     PY
-    finding_json=$(uv run --quiet --frozen --no-dev --project "$backend" review-result original-findings "$original_result")
+    finding_json=$(uv run --quiet --no-project "$backend/scripts/run_locked.py" review-result original-findings "$original_result")
     python3 - "$original_target" "$prior_manifest" "$original_result" "$finding_json" <<'PY' >.git/verification-input
     import json, sys
     target, manifest, result, finding_json = sys.argv[1:]
@@ -83,17 +82,19 @@ fixture:
         "attempted": [f"spec:1:{target}"],
     }, sys.stdout)
     PY
+    mkdir -p .fixture-state
+    cp .git/verification-input .fixture-state/verification-input
     git hash-object src/name.js >.git/before
-    mkdir -p .git/eval-checks/review/tests/evals
-    cp "{{case_dir}}/../../../backend/tests/evals/assert_records.py" .git/eval-checks/review/tests/evals/
 checks:
   - name: human response excludes machine JSON
-    run: python3 .git/eval-checks/review/tests/evals/assert_records.py .git/last-message.md human-response
+    run: python3 .git/eval-checks/review/tests/evals/assert_records.py
+      .git/last-message.md human-response
   - name: alternative implementation resolves the original finding
     run: |
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}"
       record=$(find "${DARROW_REVIEW_STATE_DIR:-$HOME/.darrow/reviews}" -path '*/darrow-review.*/*' -name verification.json -type f | sort | tail -n 1)
-      original=$(python3 -c 'import json; print(json.load(open(".git/verification-input"))["original_result"])')
-      tool=$(find .git -path '*/backend/src/darrow_review/result.py' -type f | sort | tail -n 1)
+      original=$(python3 -c 'import json; print(json.load(open(".fixture-state/verification-input"))["original_result"])')
+      tool=.git/eval-checks/review/src/darrow_review/result.py
       test -n "$record" && test -n "$tool" && uv run --quiet --frozen --no-dev --project "${tool%/src/darrow_review/result.py}" review-result validate-original "$original" "$record" || exit 1
       python3 -c 'import json,sys; record=json.load(open(sys.argv[1])); assert record["outcome"]=="clear" and any(item["status"]=="resolved" for item in record["attempts"])' "$record"
   - name: repair remains read only
@@ -106,8 +107,12 @@ semantic_output_checks:
       particular local variable or boolean fallback merely because the original
       advisory suggested them. Saying the repair trims whitespace describes
       behavior and does not imply a trim() call. Repeating the original advice
-      or explicitly contrasting it with the current repair is not required;
-      the saved artifact is checked separately for preservation of that history.
-      The response must not falsely claim the repair uses trim() or the suggested
+      or explicitly contrasting it with the current repair is not required; the
+      saved artifact is checked separately for preservation of that history. The
+      response must not falsely claim the repair uses trim() or the suggested
       boolean fallback, and it must preserve the required Anonymous result for
       empty or whitespace-only input.
+      Trimming nonempty names and returning Anonymous for empty trimmed input
+      are compatible requirements. A report that explicitly confirms both
+      behaviors satisfies this criterion; saying that required trimming is
+      preserved does not contradict the stated Anonymous fallback.

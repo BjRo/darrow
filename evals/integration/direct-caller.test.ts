@@ -1,3 +1,4 @@
+import { captureTestCommand } from "../test-command";
 import { afterEach, expect, test } from "bun:test";
 
 import {
@@ -82,17 +83,18 @@ async function invoke(
   args: string[],
   environment: Record<string, string | undefined> = {},
 ) {
-  const child = Bun.spawn([process.execPath, command, ...args], {
-    cwd: root,
-    env: { ...process.env, ...environment },
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const [stdout, stderr, code] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ]);
+  const {
+    stdout,
+    stderr,
+    exitCode: code,
+  } = await captureTestCommand(
+    [process.execPath, command, ...args],
+    undefined,
+    {
+      cwd: root,
+      env: { ...process.env, ...environment },
+    },
+  );
   return { stdout, stderr, code };
 }
 
@@ -120,6 +122,7 @@ test("direct caller routes a filtered dry evaluation through Sevro", async () =>
     "--no-progress",
     "--",
     ...nativeArgs(binary, credential),
+    "--retain-host-diagnostics",
   ]);
   expect(run.code, run.stderr + run.stdout).toBe(0);
   const manifest = JSON.parse(run.stdout);
@@ -152,6 +155,10 @@ test("direct caller routes a filtered dry evaluation through Sevro", async () =>
     jobs: 1,
     passThreshold: 0.5,
   });
+  expect(evidence.configuration.redacted.hostConfiguration).toMatchObject({
+    candidate: { "sevro.host.retain-diagnostics": true },
+    semantic: { "sevro.host.retain-diagnostics": true },
+  });
   expect(evidence.routes).toEqual([
     {
       role: "candidate",
@@ -162,8 +169,8 @@ test("direct caller routes a filtered dry evaluation through Sevro", async () =>
     {
       role: "semantic",
       host: "sevro.host.codex",
-      model: "gpt-5.6-luna",
-      effort: "low",
+      model: "gpt-6-luna",
+      effort: "high",
     },
   ]);
   expect(evidence.runner.source).toBe(
@@ -191,7 +198,7 @@ test("direct caller uses the frozen package without route overrides", async () =
   expect(evidence.runner).toMatchObject({
     source: "package",
     packageName: "@bjoernrochel/sevro",
-    version: "0.1.0-rc.2",
+    version: "0.1.0-rc.22",
   });
 }, 30_000);
 

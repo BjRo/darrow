@@ -38,18 +38,14 @@ checks:
   - name: explanation is read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: call flow contains the observed path in order
+  - name: call flow contains the observed call names
     run: >-
-      awk '
-      /submitJob/ && !a { a=NR }
-      /validateJob/ && !b { b=NR }
-      /storeJob/ && !c { c=NR }
-      /enqueueJob/ && !d { d=NR }
-      END { exit !(a && b>a && c>b && d>c) }' .git/last-message.md
+      grep -F 'submitJob' .git/last-message.md >/dev/null;
+      grep -F 'validateJob' .git/last-message.md >/dev/null;
+      grep -F 'storeJob' .git/last-message.md >/dev/null;
+      grep -F 'enqueueJob' .git/last-message.md >/dev/null
   - name: response uses a compact visual shape
-    run: >-
-      grep -Eq -- '->|-->|─+>|├|└|│|→|^[[:space:]][[:space:]]+[[:alnum:]_<]' .git/last-message.md;
-      test "$(wc -l <.git/last-message.md | tr -d ' ')" -le 24
+    run: grep -Eq -- '->|-->|─+>|├|└|│|→|^[[:space:]][[:space:]]+[[:alnum:]_<]' .git/last-message.md
   - name: observed source is anchored
     run: grep -Ei 'observed|current|src/jobs\.ts' .git/last-message.md
   - name: unrelated callable is not invented into the path
@@ -61,7 +57,10 @@ semantic_output_checks:
   - name: visual explanation is concise clear and complete
     proposition: >-
       The response leads with the observed call-flow answer, uses direct and
-      familiar language, and avoids repeating the diagram in prose or
-      narrating the inspection process. It remains understandable without rich
-      rendering and preserves the source anchor, validation failure path,
-      storage step, queue step, and observed evidence status.
+      familiar language, and remains compact and understandable without rich
+      rendering. It preserves a useful source anchor and observed evidence
+      status, and shows validation before storage before queue publication,
+      with validation failure stopping the path before storage or publication.
+      An isolated short recap or brief framing is nonblocking. Extended
+      inspection narration, long repeated walkthroughs, or redundant views that
+      materially bury the answer fail the clarity requirement.

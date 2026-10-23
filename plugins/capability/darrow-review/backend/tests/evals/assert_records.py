@@ -84,10 +84,36 @@ def human_response(path: Path) -> None:
             raise ValueError("human response includes a machine record")
 
 
+def previous_path(record: dict[str, object]) -> str:
+    binding = record.get("previous_verification")
+    if record.get("format") != "darrow-review-verification-v3":
+        raise ValueError("expected a verification record")
+    if not isinstance(binding, dict) or not isinstance(binding.get("path"), str):
+        raise ValueError("expected a previous verification path")
+    return str(binding["path"])
+
+
+def successor(root: Path, fields: list[str]) -> str:
+    if len(fields) != 1:
+        raise ValueError("successor needs one previous verification path")
+    matches = [
+        path
+        for path in root.glob("**/darrow-review.*/verification.json")
+        if previous_path(load(path)) == fields[0]
+    ]
+    if len(matches) != 1:
+        raise ValueError(
+            f"expected one bound verification successor; got {len(matches)}"
+        )
+    return str(matches[0])
+
+
 def check(path: Path, operation: str, fields: list[str]) -> str | None:
     if operation == "human-response":
         human_response(path)
         return None
+    if operation == "successor":
+        return successor(path, fields)
     return check_record(load(path), operation, fields)
 
 

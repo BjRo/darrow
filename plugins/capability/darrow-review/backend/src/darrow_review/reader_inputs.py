@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 from typing import Any, cast
 
-from . import finalization, schema, scope, storage
+from . import finalization, routing, schema, scope, storage
 from .common import (
     blob_hash,
     command_line,
@@ -52,11 +52,51 @@ def validate_context(value: dict[str, object]) -> dict[str, Any]:
     return value
 
 
+def context_argument(
+    path: str, sources: list[str], objective: str, reason: str
+) -> dict[str, Any]:
+    require(
+        not path or not (sources or objective or reason),
+        "context file cannot be combined with intent inputs",
+    )
+    if path:
+        return validate_context(document(record_file(path)))
+    value: dict[str, object] = {"sources": sources}
+    if objective:
+        value["objective"] = objective
+    if reason:
+        value["checks"] = [
+            {
+                "command": "none",
+                "applicability": "not_applicable",
+                "status": "not_applicable",
+                "evidence": reason,
+            }
+        ]
+    return validate_context(value)
+
+
 def source(path: str) -> dict[str, str]:
     require(Path(path).is_absolute(), f"reader source path must be absolute: {path}", 4)
     raw = read_text(path, "reader source")
     require(raw.strip(), f"reader source is empty: {path}", 4)
     return {"path": path, "checksum": blob_hash(Path(path).read_bytes()), "text": raw}
+
+
+def attempted_keys(original: str, axis: str) -> list[str]:
+    require(original, "copying attempted keys requires original evidence")
+    handoff = document(record_file(original))
+    value = handoff.get("attempted", [])
+    schema.validate_node(value, schema.array(schema.string()), "attempted")
+    attempted = cast(list[str], value)
+    binding = Records(serialize(finalization.original_binding(original)))
+    findings = {row["key"]: row for row in binding.items("original_findings")}
+    require(
+        len(attempted) == len(set(attempted))
+        and all(key in findings for key in attempted),
+        "handoff attempted keys must be unique original finding keys",
+    )
+    return [key for key in attempted if findings[key]["axis"] == axis]
 
 
 def scope_input(path: str) -> dict[str, object]:
@@ -179,20 +219,68 @@ def launch_message(path: str, packet: dict[str, object]) -> str:
     )
 
 
+def codex_launch(
+    route_record: str, run: Path, axis: str, message: str
+) -> dict[str, str]:
+    require(
+        Path(route_record) == run / "reviewer-route.json",
+        "launch route must belong to the current scope run",
+        4,
+    )
+    route = routing.load_route(route_record, "codex")
+    identity = blob_hash(str(run).encode("utf-8"), sha256=True)[:12]
+    return {
+        "task_name": f"review_{axis}_{identity}",
+        "fork_turns": "none",
+        "model": route.model,
+        "reasoning_effort": route.effort,
+        "message": message,
+    }
+
+
 def prepare(
-    manifest: str, axis: str, context: str, checks: list[str], original: str
+    manifest: str,
+    axis: str,
+    context: str | dict[str, Any],
+    checks: list[str],
+    original: str,
+    route_record: str = "",
 ) -> str:
     request: dict[str, object] = {
         "manifest": manifest,
         "axis": axis,
-        "context": validate_context(document(record_file(context))),
+        "context": validate_context(document(record_file(context)))
+        if isinstance(context, str)
+        else validate_context(context),
         "check_records": checks,
         "original": original,
     }
     schema.validate_node(request, REQUEST, "reader request")
     packet = evidence(request)
-    path = storage.run_for_manifest(Path(manifest)) / f"{axis}-input.json"
+    run = storage.run_for_manifest(Path(manifest))
+    path = run / f"{axis}-input.json"
     message = launch_message(str(path), packet)
+    response: dict[str, object] = {
+        "input": str(path),
+        "message": message,
+        "reader_record": str(run / f"{axis}.json"),
+    }
+    if route_record:
+        response["launch"] = codex_launch(route_record, run, axis, message)
+        response["confirm_command"] = command_line(
+            entrypoint(
+                "review-route",
+                "confirm-codex",
+                "--route-record",
+                route_record,
+                "--axis",
+                axis,
+                "--agent-id",
+                "<accepted-child-id>",
+                "--application-record",
+                str(run / f"{axis}-route.json"),
+            )
+        )
     new_record(
         str(path),
         serialize(
@@ -203,7 +291,7 @@ def prepare(
             }
         ),
     )
-    return serialize({"input": str(path), "message": message})
+    return serialize(response)
 
 
 def load(path: str) -> dict[str, object]:

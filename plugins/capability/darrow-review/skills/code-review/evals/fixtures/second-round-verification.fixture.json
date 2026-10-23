@@ -1,0 +1,55 @@
+{
+  "format": "darrow-review-verification-v3",
+  "original_target": "ORIGINAL-TARGET-SECOND-ROUND",
+  "prior_target": "ORIGINAL-TARGET-SECOND-ROUND",
+  "current_target": "{{prior_target}}",
+  "previous_verification": { "checksum": "none", "path": "none" },
+  "original_findings": [
+    {
+      "key": "standards:1:ORIGINAL-TARGET-SECOND-ROUND",
+      "axis": "standards",
+      "order": "1",
+      "severity": "high",
+      "disposition": "blocking",
+      "location": "config.env:1",
+      "source": "{{repo}}/AGENTS.md",
+      "evidence": "MODE was bad",
+      "repair_guidance": "Advisory: set MODE to good while retaining the other required configuration",
+      "resolution_evidence": "config.env contains MODE=good"
+    }
+  ],
+  "attempts": [
+    {
+      "key": "standards:1:ORIGINAL-TARGET-SECOND-ROUND",
+      "status": "resolved",
+      "progress": "resolved",
+      "evidence": "MODE is good"
+    }
+  ],
+  "regressions": [
+    {
+      "key": "regression:1:standards:1:ORIGINAL-TARGET-SECOND-ROUND",
+      "caused_by": "standards:1:ORIGINAL-TARGET-SECOND-ROUND",
+      "order": "1",
+      "axis": "standards",
+      "severity": "high",
+      "status": "unresolved",
+      "progress": "progressing",
+      "location": "config.env:2",
+      "source": "{{repo}}/AGENTS.md",
+      "evidence": "RESULT is missing after the repair",
+      "repair_guidance": "Advisory: restore RESULT=ok while retaining MODE=good",
+      "resolution_evidence": "both required configuration lines are present and bash check.sh succeeds"
+    }
+  ],
+  "checks": [
+    {
+      "command": "bash check.sh",
+      "applicability": "applicable",
+      "status": "fail",
+      "evidence": "RESULT is missing"
+    }
+  ],
+  "outcome": "continue",
+  "next_action": "repair the carried regression"
+}

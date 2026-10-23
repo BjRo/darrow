@@ -33,7 +33,7 @@ def test_readiness_reports_and_iterations(repo: Path) -> None:
             f"## Implementation readiness\n\n**Verdict:** `{name}`\n"
         )
         assert "### Required next action" in output
-    state = repo / ".git/fixture-state"
+    state = repo / ".fixture-state"
     invocations = state / "implementation-readiness-invocations"
     assert (
         invocations.read_text() == "ready\nneeds-decision\nneeds-discovery\nblocked\n"
@@ -157,7 +157,7 @@ def test_review_closed_sequence_and_history(repo: Path, final: str) -> None:
     assert "Fix verification: continue." in review.assess(repo, "verify", CONTRACT)
     (repo / "value.txt").write_text("repaired twice\n")
     assert f"Fix verification: {final}." in review.assess(repo, "verify", CONTRACT)
-    history = (git_dir / "fixture-state/independent-review-invocations").read_text()
+    history = (repo / ".fixture-state/independent-review-invocations").read_text()
     rows = [row.split("\t") for row in history.splitlines()]
     assert [row[2] for row in rows] == ["comprehensive", "verify", "verify"]
     assert len({row[0] for row in rows}) == 3
@@ -202,8 +202,12 @@ def test_review_subject_and_mutation(
         (repo / "value.txt").write_text("changed during assessment\n")
 
     monkeypatch.setattr("darrow_adaptive_goal.fixtures.review.time.sleep", mutate)
-    assert "outcome: inconclusive" in review.assess(repo, "comprehensive", CONTRACT)
-    events = (git_dir / "fixture-state/review-events").read_text().splitlines()
+    before = (repo / "value.txt").read_bytes()
+    output = review.assess(repo, "comprehensive", CONTRACT)
+    assert "outcome: inconclusive" in output
+    assert f"Observed source bytes: {before!r}\n" in output
+    assert "changed during assessment" not in output
+    events = (repo / ".fixture-state/review-events").read_text().splitlines()
     assert events[0].split("\t")[1] != events[1].split("\t")[1]
     assert events[2].startswith("review\tinconclusive\t")
 
@@ -249,25 +253,46 @@ def test_combined_assessment_requires_current_checks(
         lambda _seconds: None,
     )
     subject = write_candidate(repo)
-    state = repo / ".git/fixture-state"
+    state = repo / ".fixture-state"
+    missing = state / "missing.md"
     (repo / ".git/fixture-review-reject-pattern").write_text("RETRY_COUNT = 0\n")
     with pytest.raises(CheckRequiredError, match="current checks"):
-        verification.assess(repo, "initial")
+        verification.assess(repo, "initial", missing)
     (state / "check-target").write_text(checksum(subject.read_bytes()) + "\n")
     with pytest.raises(CheckRequiredError, match="initial verification"):
-        verification.assess(repo, "follow-up")
-    output = verification.assess(repo, "initial")
+        verification.assess(repo, "follow-up", missing)
+    with pytest.raises(CheckRequiredError, match="current independent review"):
+        verification.assess(repo, "initial", missing)
+
+    review.assess(repo, "comprehensive", CONTRACT)
+    original = state / "review-result-0.md"
+    original_bytes = original.read_bytes()
+    output = verification.assess(repo, "initial", original)
     assert "Conclusion: progress\n" in output
     assert "Q1, QA/cache, blocking" in output
     assert "Independent review outcome: blocking findings" in output
-    assert "Conclusion: no-progress\n" in verification.assess(repo, "follow-up")
+    assert f"Complete review result: {original}\n" in output
+    assert original.read_bytes() == original_bytes
+    assert len((state / "independent-review-invocations").read_text().splitlines()) == 1
     with pytest.raises(CheckRequiredError, match="already recorded"):
-        verification.assess(repo, "initial")
+        verification.assess(repo, "initial", original)
+    with pytest.raises(CheckRequiredError, match="current independent review"):
+        verification.assess(repo, "follow-up", original)
+
+    review.assess(repo, "verify", CONTRACT)
+    follow_up = state / "review-result-1.md"
+    assert "Conclusion: no-progress\n" in verification.assess(
+        repo, "follow-up", follow_up
+    )
     write_candidate(repo, 3, 5)
     with pytest.raises(CheckRequiredError, match="current checks"):
-        verification.assess(repo, "follow-up")
+        verification.assess(repo, "follow-up", follow_up)
     (state / "check-target").write_text(checksum(subject.read_bytes()) + "\n")
-    assert "Conclusion: clear\n" in verification.assess(repo, "follow-up")
+    with pytest.raises(CheckRequiredError, match="current independent review"):
+        verification.assess(repo, "follow-up", follow_up)
+    review.assess(repo, "verify", CONTRACT)
+    current = state / "review-result-2.md"
+    assert "Conclusion: clear\n" in verification.assess(repo, "follow-up", current)
     events = (state / "verification-events").read_text().splitlines()
     assert [row.split("\t")[0] for row in events[:4]] == [
         "assessment-start",
@@ -276,7 +301,37 @@ def test_combined_assessment_requires_current_checks(
         "assessment-returned",
     ]
     with pytest.raises(RefusalError, match="initial or follow-up"):
-        verification.assess(repo, "bad")
+        verification.assess(repo, "bad", current)
+
+
+@pytest.mark.parametrize(
+    "defect", ["missing", "foreign", "partial", "outcome", "scope"]
+)
+def test_combined_assessment_rejects_unbound_reports(repo: Path, defect: str) -> None:
+    subject = write_candidate(repo)
+    state = repo / ".fixture-state"
+    (state / "check-target").write_text(checksum(subject.read_bytes()) + "\n")
+    review.assess(repo, "comprehensive", CONTRACT)
+    artifact = state / "review-result-0.md"
+    report = artifact.read_text()
+    if defect == "missing":
+        artifact.unlink()
+    elif defect == "foreign":
+        artifact = state / "other-report.md"
+        artifact.write_text(report)
+    elif defect == "partial":
+        artifact.write_text(report.split("Complete review result:")[0])
+    elif defect == "outcome":
+        artifact.write_text(
+            report.replace("no blocking findings", "blocking findings", 1)
+        )
+    else:
+        (repo / "value.txt").write_text("unreviewed change\n")
+    before = (state / "independent-review-invocations").read_bytes()
+    with pytest.raises(CheckRequiredError, match="current independent review"):
+        verification.assess(repo, "initial", artifact)
+    assert (state / "independent-review-invocations").read_bytes() == before
+    assert not (state / "verification-invocations").exists()
 
 
 @pytest.mark.parametrize(
@@ -317,7 +372,17 @@ def test_fixture_cli(
     assert cli.main() == 2
     assert "usage:" in capsys.readouterr().err
     write_candidate(repo)
-    monkeypatch.setattr(sys, "argv", ["fixture", "verification", str(repo), "initial"])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "fixture",
+            "verification",
+            str(repo),
+            "initial",
+            str(repo / ".fixture-state/missing.md"),
+        ],
+    )
     assert cli.main() == 1
     assert "current checks required" in capsys.readouterr().out
     monkeypatch.chdir(repo)

@@ -21,6 +21,14 @@ graders, cancellation, and evidence persistence. Its repository tests those
 mechanics. Darrow retains request translation and response handling, rather than
 duplicating the engine matrix or comparing with the retired runner.
 
+Group domain tests by their current contract, rather than a Sevro release.
+Use planning tests for selector and route permutations, with representative
+public-CLI checks for actual execution and retained evidence. Backend validation
+matrices belong to their owning packages; domain fixtures exercise the real
+provider connection. Keep regression triggers such as an initially empty UV
+cache, and cover unchanged-proof and stale-proof behavior in one dedicated
+integration case rather than repeating that sequence for every valid report.
+
 The commands under `runner/` preserve Darrow's evaluation entrypoints. The
 extension and its policy live under [sevro-extension/](sevro-extension/README.md).
 Read [eval development](../docs/eval-development.md) before changing or running

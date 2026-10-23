@@ -1,11 +1,18 @@
 """Valid evidence and false-positive counterexamples for the independent eval oracle."""
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
 import pytest
 from eval_routes import row, verify
+from native_fixture import retain_native
+
+
+@pytest.fixture(autouse=True)
+def native_view(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SEVRO_CANDIDATE_TRANSCRIPTS", str(tmp_path / "native-view"))
 
 
 def evidence(root: Path, host: str, axes: list[str]) -> list[dict[str, Any]]:
@@ -75,6 +82,7 @@ def evidence(root: Path, host: str, axes: list[str]) -> list[dict[str, Any]]:
 
 
 def retain(root: Path, events: list[dict[str, Any]]) -> None:
+    retain_native(Path(os.environ["SEVRO_CANDIDATE_TRANSCRIPTS"]), events)
     # Whitespace and key order differ from the compact harness serialization.
     (root / "retained-harness.jsonl").write_text(
         "\n".join(
@@ -151,9 +159,50 @@ def test_route_evidence_requires_one_finalized_scope(
     else:
         other = tmp_path / "darrow-review.another"
         other.mkdir()
-        (other / "verification.json").write_text("{}\n")
+        (other / "result.json").write_text("{}\n")
     with pytest.raises(AssertionError, match="exactly one finalized scope"):
         verify(tmp_path, "codex", "default", ["standards"])
+
+
+def test_followup_routes_select_verification_scope(tmp_path: Path) -> None:
+    retain(tmp_path, evidence(tmp_path, "codex", ["standards", "spec"]))
+    scope = tmp_path / "darrow-review.fixture"
+    (scope / "result.json").rename(scope / "verification.json")
+    original = tmp_path / "darrow-review.original"
+    original.mkdir()
+    (original / "result.json").write_text("{}\n")
+    verify(
+        tmp_path,
+        "codex",
+        "default",
+        ["standards", "spec"],
+        record_name="verification.json",
+    )
+
+
+@pytest.mark.parametrize("mutation", ["missing", "duplicate"])
+def test_followup_does_not_substitute_or_choose_among_scopes(
+    tmp_path: Path, mutation: str
+) -> None:
+    retain(tmp_path, evidence(tmp_path, "codex", ["standards"]))
+    if mutation == "duplicate":
+        for name in ("first", "second"):
+            directory = tmp_path / f"darrow-review.{name}"
+            directory.mkdir()
+            (directory / "verification.json").write_text("{}\n")
+    with pytest.raises(AssertionError, match="exactly one finalized scope"):
+        verify(
+            tmp_path,
+            "codex",
+            "default",
+            ["standards"],
+            record_name="verification.json",
+        )
+
+
+def test_unknown_aggregate_kind_is_refused(tmp_path: Path) -> None:
+    with pytest.raises(AssertionError, match="invalid aggregate kind"):
+        verify(tmp_path, "codex", "default", ["standards"], record_name="peer.json")
 
 
 def test_later_bound_readers_do_not_hide_an_earlier_inherited_launch(
@@ -172,5 +221,5 @@ def test_later_bound_readers_do_not_hide_an_earlier_inherited_launch(
         },
     )
     retain(tmp_path, events)
-    with pytest.raises(AssertionError, match="unexpected native spawn count"):
+    with pytest.raises(AssertionError, match="unbound earlier reviewer launch"):
         verify(tmp_path, "codex", "default", ["standards", "spec"])

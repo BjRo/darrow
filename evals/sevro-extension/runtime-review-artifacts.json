@@ -1,0 +1,36 @@
+{
+  "format": "sevro.runtime.v1",
+  "environment": {
+    "inherit": ["PATH", "UV_PYTHON_INSTALL_DIR"],
+    "set": {
+      "UV_CACHE_DIR": "{{sevro.runtime}}/uv-cache",
+      "DARROW_CACHE_DIR": "{{sevro.runtime}}/darrow-cache",
+      "DARROW_REVIEW_STATE_DIR": "{{sevro.runtime}}/home/.darrow/reviews",
+      "UV_PYTHON_DOWNLOADS": "never"
+    }
+  },
+  "filesystem": {
+    "readOnlyRoots": ["${UV_PYTHON_INSTALL_DIR}"],
+    "optionalReadOnlyRoots": ["/System/Library/OpenSSL"]
+  },
+  "runtime": {
+    "artifactDirectories": [
+      {
+        "name": "reviews",
+        "path": ".darrow/reviews"
+      }
+    ],
+    "sharedCacheDirectories": [
+      {
+        "source": "~/.darrow/cache/sevro-uv-cache",
+        "target": "uv-cache",
+        "roles": ["candidate", "checks"]
+      }
+    ]
+  },
+  "hooks": {
+    "nativeGoal": true,
+    "plugins": ["darrow-review"]
+  },
+  "nativeTranscripts": true
+}

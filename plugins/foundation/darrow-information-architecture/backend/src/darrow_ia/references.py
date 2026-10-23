@@ -6,6 +6,10 @@ from pathlib import Path
 
 from darrow_ia.filesystem import absolute_reference, existing, inside
 
+ENTRYPOINT_NAMES = frozenset(
+    {"AGENTS.md", "AGENTS.override.md", "CLAUDE.md", "CLAUDE.local.md"}
+)
+
 
 @dataclass(frozen=True)
 class Reference:
@@ -48,7 +52,7 @@ def line_references(line: str) -> list[Reference]:
     )
     explicit = explicit or bool(re.search(r"(?:^|\s)(?:->|→)(?:\s|$)", line))
     ordinary = re.findall(r"\[[^\[\]]*\]\(([^()]*)\)", line)
-    ordinary.extend(re.findall(r"`([^`]+)`", line))
+    ordinary.extend(inline_paths(line, explicit))
     refs = [
         Reference(value, explicit)
         for raw in ordinary
@@ -60,6 +64,14 @@ def line_references(line: str) -> list[Reference]:
         for value in re.findall(r"(?:^|\s)@([.A-Za-z0-9_/\\-]+\.md)", bare)
     )
     return refs
+
+
+def inline_paths(line: str, explicit: bool) -> list[str]:
+    return [
+        path
+        for path in re.findall(r"`([^`]+)`", line)
+        if explicit or path not in ENTRYPOINT_NAMES
+    ]
 
 
 def references(text: str) -> list[Reference]:
@@ -111,11 +123,7 @@ def resolve_ordinary(ref: Reference, source: Path, root: Path) -> Resolution:
 
 
 def guidance_reference(value: str) -> bool:
-    return value.startswith(
-        (".agent-shared/", ".claude/", ".agents/", ".codex/", ".pi/")
-    ) or Path(value).name in {
-        "AGENTS.md",
-        "AGENTS.override.md",
-        "CLAUDE.md",
-        "CLAUDE.local.md",
-    }
+    return (
+        value.startswith((".agent-shared/", ".claude/", ".agents/", ".codex/", ".pi/"))
+        or Path(value).name in ENTRYPOINT_NAMES
+    )

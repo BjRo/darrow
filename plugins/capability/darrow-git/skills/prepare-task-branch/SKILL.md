@@ -1,6 +1,6 @@
 ---
 name: prepare-task-branch
-description: "Find prior local task branches for an exact ticket token, or prepare an already caller-bound complete branch name. Use for token-based discovery or switching to, reusing, or creating that exact name, optionally in an explicitly requested worktree. A request to create a new branch from ticket work without a complete branch name belongs to create-branch, even when a ticket token is supplied. Multiple discovery candidates require an exact caller choice. Do not use for general branch listing."
+description: "Use only to find existing local task branches by an exact ticket token, or prepare a specific complete branch name already chosen by the caller. Preparation may switch to, reuse, or create that exact name, with a worktree only when requested. Do not select for creating a new branch from a work or ticket description: create-branch owns naming and asks for any missing canonical token. Multiple discovery candidates require an exact caller choice. Exclude general branch listing."
 ---
 
 # Prepare a task branch
@@ -11,6 +11,12 @@ operation through the frozen UV entrypoint below; `<skill-dir>` contains this
 file. The script owns repository inspection, name and ticket-token validation,
 complete token discovery, additive creation, exact reuse, switching, worktree allocation, and refusal
 safety. Use its output as the source of truth.
+
+Set `<skill-dir>` to the directory containing the `SKILL.md` you successfully
+read, including its final `prepare-task-branch` segment. Keep that actual path
+when resolving `../../backend`; do not add a guessed plugin namespace or
+substitute the parent `skills` directory. If a launcher path fails, correct that
+path before declaring the runtime unavailable.
 
 The package lives at `<skill-dir>/../../backend` inside this plugin.
 
@@ -122,7 +128,9 @@ has been preserved with the original repository state intact.
 
 ## 4. Report
 
-Copy the `## mode:` line and branch evidence line. Include every `## note:` line
-when present. The report is complete when the caller can distinguish current,
+Report the mode and exact branch evidence. Include every material note when
+present. Ordinary prose and code formatting are valid; preserve the meaning
+without requiring the script's line prefixes. The report is complete when the
+caller can distinguish current,
 reused, and created state, identify the exact branch plus its existing tip or
 creation base, and—when applicable—use the absolute worktree execution path.

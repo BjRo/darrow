@@ -1,4 +1,5 @@
 id: tdd-ambiguous-seam
+required_plugin_hook: darrow-tdd
 invariant: TDD-C10,TDD-E1,TDD-E5
 activation: positive
 mount_plugin_skills: true

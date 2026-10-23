@@ -11,7 +11,9 @@ additional_plugins:
   - plugins/orchestration/darrow-adaptive-goal
   - plugins/capability/darrow-readiness-gate
   - plugins/capability/darrow-git
-prompt: "{{skill_invocation}} https://example.invalid/tickets/42"
+prompt: >-
+  {{skill_invocation}} https://example.invalid/tickets/42
+  Verify the change by running `bash check.sh`.
 fixture:
   commits:
     - message: "chore: init"
@@ -78,15 +80,15 @@ checks:
     run: bash check.sh
   - name: additional commits and intended implementation reach the existing PR branch
     run:
-      test "$(git rev-parse HEAD)" = "$(git --git-dir=.git/remote.git rev-parse
+      test "$(git rev-parse HEAD)" = "$(git --git-dir=.fixture-state/remote.git rev-parse
       refs/heads/fix/GH-42-timeout)" && git merge-base --is-ancestor "$(cat
-      .git/original-local-head)" HEAD && test "$(git --git-dir=.git/remote.git show
+      .git/original-local-head)" HEAD && test "$(git --git-dir=.fixture-state/remote.git show
       fix/GH-42-timeout:config.json)" = '{"timeoutMs":2500}' && test "$(git
-      --git-dir=.git/remote.git show fix/GH-42-timeout:NOTES.md)" = "$(cat NOTES.md)"
+      --git-dir=.fixture-state/remote.git show fix/GH-42-timeout:NOTES.md)" = "$(cat NOTES.md)"
   - name: forge observation proves the intended final commit
-    run: grep -Fx "$(git rev-parse HEAD)" .git/forge-observations
+    run: grep -Fx "$(git rev-parse HEAD)" .fixture-state/forge-observations
   - name: builtin publication entrypoint verifies the intended commit
-    run: grep -Fx "$(git rev-parse HEAD)" .git/builtin-publications
+    run: grep -Fx "$(git rev-parse HEAD)" .fixture-state/builtin-publications
   - name: owner reports the intended commit evidence
     run: |
       expected=$(git rev-parse HEAD)
@@ -97,13 +99,18 @@ checks:
       done
       exit 1
   - name: no duplicate PR or unauthorized forge effect
-    run: test ! -e .git/forbidden-forge-effects
+    run: test ! -e .fixture-state/forbidden-forge-effects
 semantic_output_checks:
   - name: owner completion and existing URL are relayed
     proposition: >-
       The response unambiguously reports that delivery is complete and includes the
       exact pull request URL https://github.com/fixture/repo/pull/42. It does not
-      present the result as blocked, incomplete, or still requiring action.
+      present the result as blocked, incomplete, or still requiring delivery action.
+      A completed publication with the verified intended commit, passing checks,
+      and the PR ready for review communicates completed delivery; a separate
+      fixed completion phrase is not required. Evaluate the whole response.
+      A plan to publish, remaining implementation, or unresolved verification
+      does not satisfy completion.
 # Composition is gated by accepted handoff, executed publication and artifacts.
 # Full supporting-skill activation remains a separate reported observation.
 transcript_checks:

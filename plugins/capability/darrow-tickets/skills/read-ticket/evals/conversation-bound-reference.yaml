@@ -2,12 +2,11 @@ id: read-ticket-conversation-bound-reference
 invariant: TM-R1,TM-R2,TM-R3
 activation: competition
 mount_plugin_skills: true
+required_plugin_hook: darrow-tickets
 prompt: >-
-  Remember this context for my next request: the deployment ticket is #12. Do
-  not retrieve it yet; reply only READY.
+  Remember this context for my next request: the deployment ticket is #12. Do not retrieve it yet; reply only READY.
 follow_up_prompt: >-
-  What does the deployment ticket ask for? Return its authoritative contents
-  without changing anything.
+  What does the deployment ticket ask for? Return its authoritative contents without changing anything.
 fixture:
   commits:
     - message: "chore: init"
@@ -18,13 +17,13 @@ fixture:
       #!/bin/sh
       d="$(git rev-parse --git-dir)"
       case " $* " in
-        *" darrow-ticket "*) printf '%s\n' "$*" >>"$d/fixture-ticket-cli-calls" ;;
+        *" darrow-ticket "*) printf '%s\n' "$*" >>"$(git rev-parse --show-toplevel)/.fixture-state/fixture-ticket-cli-calls" ;;
       esac
       real_uv=$(awk '!/fixture-bin/ && !seen {print; seen=1}' "$d/fixture-uv-paths")
       exec "$real_uv" "$@"
     gh: |
       #!/bin/sh
-      d="$(git rev-parse --git-dir)/fixture-gh"
+      d="$(git rev-parse --show-toplevel)/.fixture-state/gh"
       mkdir -p "$d"
       echo "$*" >>"$d/calls"
       case "$1" in
@@ -78,10 +77,10 @@ checks:
       ## body
       Preserve CONVERSATION-TOKEN-12 exactly.
   - name: bundled CLI resolves the bound reference exactly once
-    run: cat .git/fixture-ticket-cli-calls
+    run: cat .fixture-state/fixture-ticket-cli-calls
     expect_regex: "^.*?darrow-ticket get #?12( --provider github)?$"
   - name: conversation-bound retrieval uses only the read protocol
-    run: cat .git/fixture-gh/protocol
+    run: cat .fixture-state/gh/protocol
     expect_exact: |-
       issue view 12 --json number,state,title,url,labels
       issue view 12 --json body

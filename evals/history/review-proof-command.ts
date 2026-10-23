@@ -2,6 +2,7 @@ import { expect } from "bun:test";
 import { copyFile, mkdir } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { captureTestCommand } from "../test-command";
 
 // Exercise the standalone historical command, including its file and exit contract.
 export async function historicalReviewProofCommand(
@@ -18,15 +19,11 @@ export async function historicalReviewProofCommand(
       new URL("./review-axis.ts", script),
       join(consumer, "review-axis.ts"),
     );
-  const child = Bun.spawn(
+  const { exitCode, stdout, stderr } = await captureTestCommand(
     [process.execPath, executable, ...args, "--output", output],
-    { cwd: consumer, stdout: "pipe", stderr: "pipe" },
+    undefined,
+    { cwd: consumer, env: process.env },
   );
-  const [exitCode, stdout, stderr] = await Promise.all([
-    child.exited,
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-  ]);
   if (exitCode !== 0) {
     expect(exitCode).toBe(1);
     expect(stdout).toBe("");

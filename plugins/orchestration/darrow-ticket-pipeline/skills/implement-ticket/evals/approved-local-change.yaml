@@ -1,11 +1,11 @@
 id: ticket-pipeline-implement-approved-local-change
 invariant: TP-P1,TP-S1,TP-E1
 prompt: >-
-  Explicitly invoke $implement-ticket for run eval-implement, phase implement,
+  Explicitly invoke {{skill_invocation}} for run eval-implement, phase implement,
   iteration 1, agent implementer-eval. The current absolute repository is the
   write boundary, the approved ticket snapshot is .ticket-pipeline-input/ticket.md,
   there are no pre-existing changes, and the artifact output is the absolute
-  path {{repo_dir}}/.git/implement-artifact.tsv. Implement only the approved local change;
+  path {{repo_dir}}/.fixture-state/implement-artifact.tsv. Implement only the approved local change;
   do not publish it.
 fixture:
   commits:
@@ -59,9 +59,9 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
   - name: implementation artifact is complete
     run: >-
-      awk -F '\t' '$1=="phase" && $2=="implement" {f=1} END {exit !f}' .git/implement-artifact.tsv &&
-      awk -F '\t' '$1=="status" && $2=="complete" {f=1} END {exit !f}' .git/implement-artifact.tsv &&
-      grep -F 'bash test.sh' .git/implement-artifact.tsv >/dev/null
+      awk -F '\t' '$1=="phase" && $2=="implement" {f=1} END {exit !f}' .fixture-state/implement-artifact.tsv &&
+      awk -F '\t' '$1=="status" && $2=="complete" {f=1} END {exit !f}' .fixture-state/implement-artifact.tsv &&
+      grep -F 'bash test.sh' .fixture-state/implement-artifact.tsv >/dev/null
 output_checks:
   - name: implementation reports its artifact
     expect_regex: "implement-artifact\\.tsv"

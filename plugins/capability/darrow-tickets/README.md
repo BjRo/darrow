@@ -23,6 +23,13 @@ requests activate the owning skill before repository inspection or prerequisite
 judgments. It uses the same frozen Python package, without inspecting the
 repository or contacting GitHub. Workflow and authority remain in the skill.
 
+Codex's session-start hook binds matching retrieval requests, including incomplete
+references, to the catalog's `read-ticket` file location and root aliases. It
+does not advertise the hook's own execution copy as a skill location. It reads only
+bundled resources, without Python startup, repository inspection, or tracker
+access. It does not select read-ticket for lists, mutations, or unsupported
+trackers. Start a new session after updating the plugin to load its context.
+
 ## What it provides
 
 ### `create-ticket`

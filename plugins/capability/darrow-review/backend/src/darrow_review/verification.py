@@ -81,8 +81,9 @@ def outcome(
     checks = [row["status"] for row in result.items("checks")]
     result.check(
         "fail" not in checks
+        or result.strings("evidence_gaps")
         or any(status != "resolved" for status, _ in regression_states),
-        "a failing deterministic check requires an unresolved or blocked repair-caused regression",
+        "a failing deterministic check requires an unresolved or blocked repair-caused regression or an explicit evidence gap",
     )
     blocked = (
         bool(result.strings("evidence_gaps"))

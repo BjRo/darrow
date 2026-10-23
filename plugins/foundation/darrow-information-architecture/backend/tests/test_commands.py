@@ -419,6 +419,37 @@ def test_missing_git_and_repository(
     assert "not a readable directory" in capsys.readouterr().err
 
 
+@pytest.mark.parametrize("runtime", ["auto", "both", "codex", "claude"])
+def test_verify_without_ancestor_listing_access(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    runtime: str,
+) -> None:
+    write(
+        tmp_path,
+        {
+            "AGENTS.md": "Read `docs/Policy.md`.\n",
+            "CLAUDE.md": "@AGENTS.md\n",
+            "docs/Policy.md": "# Policy\n",
+        },
+    )
+    real_listdir = os.listdir
+
+    def confined_listdir(path: Path) -> list[str]:
+        if not path.is_relative_to(tmp_path):
+            raise PermissionError(f"ancestor listing denied: {path}")
+        return real_listdir(path)
+
+    with monkeypatch.context() as sandbox:
+        sandbox.setattr(os, "listdir", confined_listdir)
+        status = cli.run(cli.doctor, ["verify", "--runtime", runtime, str(tmp_path)])
+        captured = capsys.readouterr()
+
+    assert status == 0, captured.err
+    assert "broken=0" in captured.out
+
+
 def test_case_and_absolute_routes(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

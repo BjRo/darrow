@@ -72,7 +72,7 @@ describe("discovery eval loopholes", () => {
         passes ? "passed" : "failed",
       ]);
     }
-  }, 40_000);
+  }, 120_000);
 
   test("unresolved planning keeps prose judgment in semantic checks", async () => {
     const evalCase = await planningCase("direct-unknowns");

@@ -1,5 +1,5 @@
 id: list-decisions-catalog-fallback
-invariant: "DM-20,DM-L5"
+invariant: "DM-20,DM-L3,DM-L5"
 activation: competition
 mount_plugin_skills: true
 prompt: >-
@@ -15,7 +15,7 @@ fixture:
       case " $* " in
         *" darrow-decision "*)
           git_dir=$(git rev-parse --git-dir) || exit 1
-          stderr_file="$git_dir/decision-stderr.$$"
+          stderr_file="$(git rev-parse --show-toplevel)/.fixture-state/decision-stderr.$$"
           status=0
           "$real_uv" "$@" 2>"$stderr_file" || status=$?
           cat "$stderr_file" >&2
@@ -24,7 +24,7 @@ fixture:
             for argument in "$@"; do printf ' %s' "$argument"; done
             printf '\n'
             cat "$stderr_file"
-          } >>"$git_dir/decision-facade.log"
+          } >>"$(git rev-parse --show-toplevel)/.fixture-state/decision-facade.log"
           rm -f "$stderr_file"
           exit "$status"
           ;;
@@ -76,17 +76,16 @@ fixture:
 checks:
   - name: decision facade performs the warned malformed-catalog fallback
     run: >-
-      root=$(pwd -P); log=.git/decision-facade.log;
+      root=$(pwd -P); log=.fixture-state/decision-facade.log;
       grep -E '^command .* darrow-decision list( |$)' "$log" >/dev/null;
       grep -F "warning: ADR catalog is malformed; using full scan: $root/docs/decisions/README.md" "$log" >/dev/null;
       printf 'warned fallback\n'
     expect_exact: "warned fallback"
-  - name: malformed catalog cannot hide the exact ADR match
+  - name: malformed catalog cannot hide the canonical accepted ADR
     run: >-
       root=$(pwd -P); message=.git/last-message.md;
       grep -F "$root/docs/decisions/ADR-0001-zephyr.md" "$message" >/dev/null;
       grep -Ei 'Accepted' "$message" >/dev/null;
-      grep -Ei 'zephyr routing' "$message" >/dev/null;
       echo matched
     expect_exact: "matched"
   - name: unrelated ADR remains silently filtered
@@ -99,3 +98,11 @@ checks:
   - name: fallback creates no commit
     run: git rev-list --all --reflog --count
     expect_exact: "1"
+semantic_output_checks:
+  - name: listing communicates the accepted routing effect
+    proposition: >-
+      The response communicates the accepted decision to use zephyr routing,
+      for example by describing edge traffic following the zephyr route table.
+      Equivalent wording is valid. It does not negate the routing choice or
+      present it as unresolved. A record path alone without communicating
+      the recorded routing choice is insufficient.

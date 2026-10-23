@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
+from . import placement, repair_budget, verification_input
 from .arguments import options, require
 from .common import PLUGIN, RefusalError, git_text, read_text, record, repository
 from .routes import catalog, validate_tuple
@@ -12,6 +14,9 @@ from .routes import catalog, validate_tuple
 USAGE = """usage:
   adaptive-goal-preflight prepare --repo <path> --host <codex|claude>
   adaptive-goal-preflight route --repo <path> --host <codex|claude> --profile <profile> [--route <harness|provider|model|effort>]
+  adaptive-goal-preflight placement --repo <path> --host <codex|claude> --selected-route <harness|provider|model|effort> [--main-route <harness|provider|model|effort>]
+  adaptive-goal-preflight repair-budget --repairs-used <count> [--repair-maximum <count>] [--assessment-used <count> --assessment-maximum <count>]
+  adaptive-goal-preflight codex-verification-input --task-name <name> --assignment-file <absolute-utf8-file>
 """
 WORKFLOWS = (
     "fix-bug",
@@ -70,12 +75,14 @@ def prepare(repo: Path, host: str, plugin: Path) -> str:
     return result + workflow_records(workflows)
 
 
-def explicit_tuple(value: str, host: str) -> tuple[str, str, str, str]:
+def explicit_tuple(
+    value: str, host: str, label: str = "explicit route", option: str = "--route"
+) -> tuple[str, str, str, str]:
     fields = value.split("|")
     if len(fields) != 4 or not all(fields):
-        raise RefusalError("--route must be harness|provider|model|effort")
+        raise RefusalError(f"{option} must be harness|provider|model|effort")
     route = (fields[0], fields[1], fields[2], fields[3])
-    validate_tuple("explicit route", host, route)
+    validate_tuple(label, host, route)
     return route
 
 
@@ -102,19 +109,40 @@ def selected(repo: Path, host: str, profile: str, explicit: str, plugin: Path) -
     )
 
 
+def placed(repo: Path, host: str, values: dict[str, str], plugin: Path) -> str:
+    selected_route = explicit_tuple(
+        values["selected-route"], host, "selected route", "--selected-route"
+    )
+    routes = catalog(repo, plugin)
+    if "main-route" in values:
+        main = explicit_tuple(values["main-route"], host, "main route", "--main-route")
+        return placement.report(selected_route, main, "user", routes)
+    main_route = placement.observed(host, os.environ)
+    return placement.report(selected_route, main_route, "session", routes)
+
+
+COMMANDS = {
+    "prepare": (set(), set(), "prepare requires --repo and --host"),
+    "route": (
+        {"--profile", "--route"},
+        {"profile"},
+        "route requires --repo, --host, and --profile",
+    ),
+    "placement": (
+        {"--selected-route", "--main-route"},
+        {"selected-route"},
+        "placement requires --repo, --host, and --selected-route",
+    ),
+}
+
+
 def parse(args: list[str]) -> tuple[str, dict[str, str]]:
     command, *rest = args
-    if command not in {"prepare", "route"}:
+    if command not in COMMANDS:
         raise RefusalError(f"unknown command: {command}")
-    names = {"--repo", "--host"}
-    required = {"repo", "host"}
-    message = "prepare requires --repo and --host"
-    if command == "route":
-        names |= {"--profile", "--route"}
-        required.add("profile")
-        message = "route requires --repo, --host, and --profile"
-    values = options(rest, names, command + " ")
-    require(values, required, message)
+    names, required, message = COMMANDS[command]
+    values = options(rest, names | {"--repo", "--host"}, command + " ")
+    require(values, required | {"repo", "host"}, message)
     return command, values
 
 
@@ -123,6 +151,10 @@ def run(args: list[str], plugin: Path = PLUGIN) -> str:
         raise RefusalError(USAGE.rstrip())
     if args[0] in {"-h", "--help", "help"}:
         return USAGE
+    if args[0] == "repair-budget":
+        return repair_budget.run(args[1:])
+    if args[0] == "codex-verification-input":
+        return verification_input.run(args[1:])
     command, values = parse(args)
     return dispatch(command, values, plugin)
 
@@ -137,4 +169,6 @@ def dispatch(command: str, values: dict[str, str], plugin: Path) -> str:
     repo = repository(values["repo"])
     if command == "prepare":
         return prepare(repo, host, plugin)
+    if command == "placement":
+        return placed(repo, host, values, plugin)
     return selected(repo, host, profile, values.get("route", ""), plugin)

@@ -1,22 +1,28 @@
 id: code-review-no-trigger-after-edit
+required_plugin_hook: darrow-review
 activation: negative
-invariant: CR-E1
-prompt: >-
-  Change DEFAULT_TIMEOUT_MS from 1000 to 2500. Do not perform a code review;
-  just make the requested edit.
+invariant: CR-E1,CR-E18
+prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Change DEFAULT_TIMEOUT_MS from 1000 to 2500. Do not perform a code review; just make the requested edit."
 fixture:
   commits:
     - message: "chore: init"
       files:
         src/config.js: "export const DEFAULT_TIMEOUT_MS = 1000;\n"
+  setup: |
+    bash "{{case_dir}}/fixtures/prepare-grading.sh" "{{case_dir}}"
 checks:
   - name: ordinary edit intent is fulfilled
     run: grep -F 'DEFAULT_TIMEOUT_MS = 2500' src/config.js
   - name: no review artifact was returned
     run: "! grep -F 'darrow-review-result-v3' .git/last-message.md"
   - name: no coordinated review artifact is created
-    run: >-
-      records=$(find "$DARROW_REVIEW_STATE_DIR" -type f \( -name result.json -o -name verification.json \));
+    run: |
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}"
+      test -n "${DARROW_REVIEW_STATE_DIR:-}" && test -d "$DARROW_REVIEW_STATE_DIR" || {
+        printf '%s\n' 'Candidate review-state view is unavailable to the isolated grader.' >&2
+        exit 2
+      }
+      records=$(find "$DARROW_REVIEW_STATE_DIR" -type f \( -name result.json -o -name verification.json \)) || exit 2
       test -z "$records"
 output_checks:
   - name: skill does not claim a review

@@ -23,19 +23,27 @@ fixture:
   bin:
     gh: |
       #!/bin/sh
-      d="$(git rev-parse --git-dir)/fixture-gh"
+      d="$(git rev-parse --show-toplevel)/.fixture-state/gh"
       case "$1 $2" in
         "pr list")
-          if [ -f "$(git rev-parse --git-dir)/fixture-gh-created" ]; then
+          if [ -f "$(git rev-parse --show-toplevel)/.fixture-state/gh-created" ]; then
             tip=$(git rev-parse HEAD)
             base=$(cat "$d/base")
             draft=false; [ ! -f "$d/draft" ] || draft=true
             printf '1\thttps://github.com/fixture/repo/pull/1\tOPEN\t%s\t%s\t%s\t%s\tfalse\n' "$(cat "$d/head")" "$tip" "$base" "$draft"
-            rm -f "$(git rev-parse --git-dir)/fixture-gh-created"
+            rm -f "$(git rev-parse --show-toplevel)/.fixture-state/gh-created"
             exit 0
           fi
           ;;
         "pr create")
+          for argument in "$@"; do
+            case "$argument" in
+              --help|-h)
+                printf 'Usage: gh pr create [flags]\n'
+                exit 0
+                ;;
+            esac
+          done
           mkdir -p "$d"
           shift 2
           while [ $# -gt 0 ]; do
@@ -50,7 +58,7 @@ fixture:
             esac
           done
           echo "https://github.com/fixture/repo/pull/1"
-          : > "$(git rev-parse --git-dir)/fixture-gh-created"
+          : > "$(git rev-parse --show-toplevel)/.fixture-state/gh-created"
           ;;
         "repo view")
           printf '%s\n' fixture/repo
@@ -61,9 +69,9 @@ fixture:
           ;;
       esac
   setup: |
-    git init -q --bare .git/remote.git
-    git --git-dir=.git/remote.git symbolic-ref HEAD refs/heads/main
-    git remote add origin "$PWD/.git/remote.git"
+    git init -q --bare .fixture-state/remote.git
+    git --git-dir=.fixture-state/remote.git symbolic-ref HEAD refs/heads/main
+    git remote add origin "$PWD/.fixture-state/remote.git"
     git push -qu origin main
     git remote set-head origin main
     git switch -qc fix/DAR-123-timeout-retry
@@ -75,14 +83,14 @@ fixture:
     git commit -qm "test: cover retry exhaustion"
 checks:
   - name: PR created
-    run: test -f .git/fixture-gh/body && echo created
+    run: test -f .fixture-state/gh/body && echo created
     expect_exact: created
   - name: selected bugfix template headings kept verbatim
-    run: cat .git/fixture-gh/body
+    run: cat .fixture-state/gh/body
     expect_regex: "^## Failure$[\\s\\S]*^## Correction$[\\s\\S]*^## Testing$"
   - name: unselected feature template was not used
-    run: grep -c '^## User Value$' .git/fixture-gh/body || true
+    run: grep -c '^## User Value$' .fixture-state/gh/body || true
     expect_exact: "0"
   - name: template comments removed
-    run: grep -c '<!--' .git/fixture-gh/body || true
+    run: grep -c '<!--' .fixture-state/gh/body || true
     expect_exact: "0"

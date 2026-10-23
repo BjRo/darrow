@@ -2,9 +2,9 @@ id: read-ticket-ambiguous-reference
 invariant: TM-R1,TM-R2
 activation: competition
 mount_plugin_skills: true
+required_plugin_hook: darrow-tickets
 prompt: >-
-  We discussed ticket #12 and ticket #21. Show me the ticket we should handle,
-  but do not guess which of those two I mean.
+  We discussed ticket #12 and ticket #21. Show me the ticket we should handle, but do not guess which of those two I mean.
 fixture:
   commits:
     - message: "chore: init"
@@ -13,7 +13,7 @@ fixture:
   bin:
     gh: |
       #!/bin/sh
-      d="$(git rev-parse --git-dir)/fixture-gh"
+      d="$(git rev-parse --show-toplevel)/.fixture-state/gh"
       mkdir -p "$d"
       echo "$*" >>"$d/calls"
       echo "mock gh: tracker must not be contacted" >&2
@@ -23,9 +23,8 @@ checks:
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
   - name: ambiguous request does not contact the tracker
-    run: test ! -f .git/fixture-gh/calls
+    run: test ! -f .fixture-state/gh/calls
 semantic_output_checks:
   - name: both candidate references are disambiguated
     proposition: >-
-      The response asks the user to choose exactly one of ticket #12 and #21
-      and does not claim that either ticket was retrieved.
+      The response asks the user to choose exactly one of ticket #12 and #21 and does not claim that either ticket was retrieved.

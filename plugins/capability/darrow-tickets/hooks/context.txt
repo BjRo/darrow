@@ -1,0 +1,5 @@
+DARROW_READ_TICKET_SESSION_HINT_V1: Check tracker scope before loading darrow-tickets:read-ticket. This GitHub-only skill does not apply when the user or established project context selects another tracker, such as Jira or Linear. Keep that named tracker; do not load this skill to confirm the exclusion or substitute GitHub. Listing, ticket mutations, template installation, and implementation alone also fall outside this reminder.
+
+For a standalone or compound request to read one current-project ticket with GitHub Issues selected or no tracker established, load the complete read-ticket skill before judging repository or connector availability. Missing or ambiguous references remain matching read requests. Use the skill's exact file location in the available-skills catalog. If it uses a root alias, expand only the alias and append the listed suffix. The qualified skill name is an identifier, not a filesystem path; never add darrow-tickets beneath a skills directory.
+
+This reminder grants no tracker access or mutation authority. The skill owns prerequisites, reference resolution, retrieval, and output.
