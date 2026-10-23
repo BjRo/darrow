@@ -44,7 +44,9 @@ def test_readers_expose_exact_source_without_writes_or_invented_findings(
     assert f"Observed source bytes: {contents!r}\n" in observed
     output = review.assess(repo, "comprehensive", CONTRACT, target)
     assert output.startswith(observed)
-    assert (repo / ".fixture-state/review-result-0.md").read_text() == output
+    assert (repo / ".fixture-state/review-result-0.md").read_text(
+        encoding="utf-8"
+    ) == output
     follow_up = review.assess(repo, "verify", CONTRACT)
     assert "Finding R1: resolved" not in follow_up
 
@@ -96,7 +98,9 @@ def test_two_readers_do_not_consume_assessment_or_change_reports(
     assert snapshot(repo) == before
     output = cli.dispatch(["review", str(repo), mode, CONTRACT, target])
     assert output.startswith(first)
-    history = (repo / ".fixture-state/independent-review-invocations").read_text()
+    history = (repo / ".fixture-state/independent-review-invocations").read_text(
+        encoding="utf-8"
+    )
     assert len(history.splitlines()) == (1 if mode == "comprehensive" else 2)
     if mode == "verify":
         assert "Finding R1: resolved; original blocking disposition preserved" in first
@@ -116,7 +120,9 @@ def test_changed_reader_target_cannot_record_or_overwrite_assessment(
     with pytest.raises(RefusalError, match="reader target"):
         cli.dispatch(["review", str(repo), "verify", CONTRACT, target])
     assert snapshot(repo) == before
-    assert (repo / ".fixture-state/review-result-0.md").read_text() == original
+    assert (repo / ".fixture-state/review-result-0.md").read_text(
+        encoding="utf-8"
+    ) == original
 
 
 @pytest.mark.parametrize(

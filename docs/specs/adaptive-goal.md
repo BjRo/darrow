@@ -1356,6 +1356,11 @@ Repeated provider names or the adjective "independent" add
 no proof. Combined follow-up clearing both original findings after repair is a
 valid summary of current closed clearance without the words "fresh" or "closed".
 The fixture retains candidate binding and assessment history independently.
+Fresh-install checks use that same public review-to-verification handoff for
+both initial and follow-up assessment. They create the current canonical review
+before supplying its absolute path to verification. Saved fixture reports are
+UTF-8; comparisons decode them explicitly so non-ASCII paths retain the same
+meaning on every supported platform.
 Missing, stale or unavailable selected assurance and unresolved
 criteria still fail. Retain observed coordinator-route or reader-workflow
 violations separately from this completion-summary judgment.

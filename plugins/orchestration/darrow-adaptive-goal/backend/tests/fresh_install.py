@@ -179,22 +179,32 @@ def fixtures(plugin: Path, repo: Path) -> None:
     (repo / ".fixture-state/check-target").write_text(
         checksum, encoding="utf-8", newline="\n"
     )
-    assert "Conclusion: clear\n" in runtime(
-        installed,
-        repo,
-        "adaptive-goal-fixture",
-        "verification",
-        str(repo),
-        "initial",
-    )
-    assert "Conclusion: clear\n" in runtime(
-        repo / ".claude/backend",
-        repo,
-        "adaptive-goal-fixture",
-        "verification",
-        str(repo),
-        "follow-up",
-    )
+    for index, (provider, mode, review_mode) in enumerate(
+        (
+            (installed, "initial", "comprehensive"),
+            (repo / ".claude/backend", "follow-up", "verify"),
+        )
+    ):
+        artifact = repo / f".fixture-state/review-result-{index}.md"
+        runtime(
+            provider,
+            repo,
+            "adaptive-goal-fixture",
+            "review",
+            str(repo),
+            review_mode,
+            "independent-review-skill-contract-v1",
+        )
+        assert artifact.is_file()
+        assert "Conclusion: clear\n" in runtime(
+            provider,
+            repo,
+            "adaptive-goal-fixture",
+            "verification",
+            str(repo),
+            mode,
+            str(artifact),
+        )
     assert "WORKTREE@" in runtime(
         installed, repo, "adaptive-goal-fixture", "review", str(repo), "fingerprint"
     )
