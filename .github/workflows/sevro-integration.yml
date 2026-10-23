@@ -3,6 +3,7 @@ name: Installed Sevro integration
 on:
   pull_request:
   push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       version:
