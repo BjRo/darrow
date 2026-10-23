@@ -11,20 +11,29 @@ review; neither provider owns repairs or continuation. The caller supplies the
 repository, candidate, acceptance, constraints, successful current checks,
 selection and initial or closed-follow-up mode. Missing required evidence blocks.
 
-Read the advertised independent-code-review instructions. The fixture mechanics
-execute that deterministic provider in this bounded assessment context, then
-collect the selected QA-like result. Run exactly:
+Delegate the advertised independent-code-review workflow to a fresh provider
+coordinator, carrying the repository, candidate, acceptance, constraints, current
+successful checks and assessment mode. On Codex use `spawn_agent` with
+`fork_turns: "none"`, `model: "gpt-6-luna"` and `reasoning_effort: "medium"`.
+The provider owns its independent readers and canonical report; do not execute
+review yourself. Wait for its complete result, read the supplied absolute report,
+and preserve any missing, unavailable or stale evidence as blocked.
+
+For initial assessment request comprehensive review. Then combine its complete
+canonical report with the selected QA-like result:
 
 ```sh
-uv run --quiet --no-project "$skill_dir/../../backend/scripts/run_locked.py" adaptive-goal-fixture verification "$repo" initial
+uv run --quiet --no-project "$skill_dir/../../backend/scripts/run_locked.py" adaptive-goal-fixture verification "$repo" initial "$review_report"
 ```
 
 For follow-up, require the complete original/prior results, finding identities,
 provider provenance, blocking/advisory disposition, target and repair history,
-and direct-regression lineage. In a fresh assessment context run:
+and direct-regression lineage. Delegate closed fix verification to a fresh review
+provider coordinator with that complete history. After it returns and its report
+has been read, run:
 
 ```sh
-uv run --quiet --no-project "$skill_dir/../../backend/scripts/run_locked.py" adaptive-goal-fixture verification "$repo" follow-up
+uv run --quiet --no-project "$skill_dir/../../backend/scripts/run_locked.py" adaptive-goal-fixture verification "$repo" follow-up "$review_report"
 ```
 
 Return the complete candidate-bound report, including both selected results,

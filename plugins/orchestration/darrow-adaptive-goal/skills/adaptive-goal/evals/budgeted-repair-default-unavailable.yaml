@@ -18,8 +18,12 @@ checks:
 semantic_output_checks:
   - name: owner respects the repair continuation boundary
     proposition:
-      The response stops affected work and does not authorize another speculative
-      repair, completion, or publication on unavailable verification evidence.
+      The response stops speculative implementation repair while required
+      verification evidence is unavailable. An unambiguous stop or blocked outcome
+      suffices without separate completion and publication disclaimers. Investigating
+      the evidence gap or correcting an assessment on new evidence is allowed;
+      permission for speculative repair, completion, or publication without resolving
+      the verification gap fails.
 transcript_checks:
   - name: advice launches no agent
     not_regex: '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"type":"darrow.goal_agent_completion"'

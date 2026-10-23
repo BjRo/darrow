@@ -5,7 +5,7 @@ goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Alphabetize the three entries in NOTES.md. Acceptance is exact
   alphabetical order under the existing heading, covered completely by bash check.sh.
-  Select and apply the policy route. Keep the result local.
+  Run bash check.sh. Select and apply the policy route. Keep the result local.
 fixture:
   commits:
     - message: "chore: init"

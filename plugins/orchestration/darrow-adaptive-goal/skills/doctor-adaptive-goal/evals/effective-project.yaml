@@ -21,7 +21,13 @@ semantic_output_checks:
   - name: trusted project layer contributes
     proposition: The response reports both the absolute user and project configuration paths as checked and contributing sources, says checkout configuration was used, and concludes that the baseline and full required-assessment paths are supported.
   - name: effective concurrency is five
-    proposition: The response reports that the completed diagnosis found effective concurrency of five spawned-agent slots. A supplied configuration value, hypothetical capacity, or failed diagnosis is insufficient.
+    proposition: >-
+      The response reports a completed diagnosis with effective Codex concurrency
+      five. Five concurrent threads and five spawned-agent slots are equivalent
+      descriptions of that limit. The topology's required minimum of four is a
+      separate value and does not contradict a diagnosed limit of five. A supplied
+      value without a completed diagnosis, a recommendation, a hypothetical limit,
+      a different diagnosed value or a failed diagnosis is insufficient.
 transcript_checks:
   - name: orchestration does not activate
     not_regex: 'adaptive-goal-preflight|"tool":"spawn_agent"|"name":"Agent"'

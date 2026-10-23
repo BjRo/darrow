@@ -13,6 +13,7 @@ import { pathToFileURL } from "node:url";
 
 import { invocation } from "../sevro-extension/run";
 import { activationReceipt } from "./policy-project";
+import { policyOutcomes } from "./fixture-command";
 
 const extension = resolve(import.meta.dir, "../sevro-extension/index.ts");
 
@@ -35,7 +36,7 @@ test("Darrow record checks require one complete final response and unique intege
       }),
     );
     expect(reply.code, reply.stderr).toBe(0);
-    return reply.value.result.checks.map((check) => check.status);
+    return policyOutcomes(reply.value.result).map((check) => check.status);
   };
   for (const source of ["sevro.host.codex", "sevro.host.claude"]) {
     const observation = {
@@ -227,6 +228,7 @@ interface ExtensionReply {
   result: {
     extension: { id: string };
     protocols: string[];
+    optionalCapabilities?: string[];
     cases: Array<{
       prompt: string;
       fixture: {
@@ -277,6 +279,9 @@ test("Darrow extension resolves supported cases and rejects unsupported fixtures
   expect(describe.code).toBe(0);
   expect(describe.value.result.extension.id).toBe("darrow.evals");
   expect(describe.value.result.protocols).toEqual(["sevro.extension.v1"]);
+  expect(describe.value.result.optionalCapabilities).toContain(
+    "sevro.host.skill-exposure-claims",
+  );
   const resolveParams = (caseId: string) => ({
     projectRoot: pathToFileURL(projectRoot).href,
     selectors: { caseIds: [caseId] },
@@ -638,10 +643,9 @@ test("task recipe composition keeps the two legacy ownership checks", async () =
     }),
   );
   expect(evaluated.code, evaluated.stderr).toBe(0);
-  expect(evaluated.value.result.checks.map((check) => check.status)).toEqual([
-    "passed",
-    "passed",
-  ]);
+  expect(
+    policyOutcomes(evaluated.value.result).map((check) => check.status),
+  ).toEqual(["passed", "passed"]);
 });
 
 test("repository guide assertions forbid owner and goal-control attempts", async () => {
@@ -696,7 +700,7 @@ test("repository guide assertions forbid owner and goal-control attempts", async
       }),
     );
     expect(result.code, result.stderr).toBe(0);
-    return result.value.result.checks.find(
+    return policyOutcomes(result.value.result).find(
       (check) => check.id === "darrow.evals.transcript.1",
     )?.status;
   };
@@ -794,7 +798,7 @@ test("guide native control assertions prepare and grade on Claude", async () => 
         extensionData: selected.extensionData,
       }),
     );
-    return result.value.result.checks.find(
+    return policyOutcomes(result.value.result).find(
       (check) => check.id === "darrow.evals.transcript.1",
     )?.status;
   };
@@ -907,7 +911,7 @@ test("Darrow doctor controls require intact negative evidence", async () => {
       }),
     );
     expect(reply.code, reply.stderr).toBe(0);
-    return reply.value.result.checks.find(
+    return policyOutcomes(reply.value.result).find(
       (check) => check.id === "darrow.evals.transcript.1",
     )?.status;
   };
@@ -930,7 +934,9 @@ test("Darrow doctor controls require intact negative evidence", async () => {
     );
     expect(selected.code, selected.stderr).toBe(0);
     const selectedCase = selected.value.result.cases[0]!;
-    expect(selectedCase.requiredEvidence).toContain("sevro.codex.events");
+    if (suffix === "nonactivation-delivery")
+      expect(selectedCase.requiredEvidence).toContain("sevro.codex.events");
+    else expect(selectedCase.requiredEvidence).toEqual([]);
     expect(await evaluate(selectedCase, [native, skills], [clean])).toBe(
       "passed",
     );
@@ -1088,10 +1094,7 @@ test("Darrow keeps Adaptive Goal inactive for ordinary engineering", async () =>
   );
   expect(selected.code, selected.stderr).toBe(0);
   const selectedCase = selected.value.result.cases[0]!;
-  expect(selectedCase.requiredEvidence).toContain(
-    "sevro.host.skill-activations",
-  );
-  expect(selectedCase.requiredEvidence).toContain("sevro.codex.events");
+  expect(selectedCase.requiredEvidence).toEqual(["sevro.host.native-goal"]);
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-ordinary-"));
   roots.push(root);
   const events = async (name: string, content: string) => {
@@ -1121,7 +1124,7 @@ test("Darrow keeps Adaptive Goal inactive for ordinary engineering", async () =>
       }),
     );
     expect(response.code, response.stderr).toBe(0);
-    return response.value.result.checks.find(
+    return policyOutcomes(response.value.result).find(
       (check) => check.id === "darrow.evals.transcript.1",
     )?.status;
   };
@@ -1199,9 +1202,9 @@ test("Darrow guards advice-only and missing-ticket delegation", async () => {
     );
     expect(selected.code, selected.stderr).toBe(0);
     const selectedCase = selected.value.result.cases[0]!;
-    if (adviceOnly)
-      expect(selectedCase.requiredEvidence).toContain("sevro.codex.events");
-    else expect(selectedCase.requiredEvidence).toEqual([]);
+    expect(selectedCase.requiredEvidence).toEqual(
+      adviceOnly ? ["sevro.host.native-goal"] : [],
+    );
     const status = async (observations: unknown[], artifacts: unknown[]) => {
       const reply = await command<{
         result: {
@@ -1217,13 +1220,9 @@ test("Darrow guards advice-only and missing-ticket delegation", async () => {
         }),
       );
       expect(reply.code, reply.stderr).toBe(0);
-      const outcomes = adviceOnly
-        ? reply.value.result.checks
-        : reply.value.result.domainOutcomes;
+      const outcomes = reply.value.result.domainOutcomes;
       return outcomes.find(
-        (check) =>
-          check.id ===
-          `darrow.evals.${adviceOnly ? "" : "workflow."}transcript.1`,
+        (check) => check.id === "darrow.evals.workflow.transcript.1",
       )?.status;
     };
     const observations = adviceOnly ? [native] : [skills];
@@ -1771,7 +1770,7 @@ test("Darrow grades completed independent readers through nested native receipts
     );
     expect(reply.code, reply.stderr).toBe(0);
     expect(reply.value.result, reply.value.error?.message).toBeDefined();
-    return reply.value.result.checks
+    return policyOutcomes(reply.value.result)
       .filter((check) => check.id.startsWith("darrow.evals.transcript."))
       .map((check) => check.status);
   };
@@ -2020,7 +2019,7 @@ test("Darrow grades a resumed conversation and its unchanged workspace boundary"
       }),
     );
     expect(response.code, response.stderr).toBe(0);
-    return response.value.result.checks.map((check) => check.status);
+    return policyOutcomes(response.value.result).map((check) => check.status);
   };
   expect(await statuses([observation])).toEqual(["passed", "passed"]);
   expect(
@@ -2086,7 +2085,7 @@ async function assertReadinessExposure(
     );
     expect(graded.code, graded.stderr).toBe(0);
     expect(graded.value.result, graded.value.error?.message).toBeDefined();
-    const checks = graded.value.result!.checks;
+    const checks = policyOutcomes(graded.value.result!);
     expect(
       checks.find((c) => c.id === "darrow.evals.transcript.1")?.status,
     ).toBe(expected);
@@ -2136,7 +2135,7 @@ test("live cases omit retired skill diagnostics and preserve current assertions"
       id === "goal-readiness-nonready-stops" ||
       id === "goal-ordinary-engineering-does-not-activate"
     )
-      expect(c.requiredEvidence).toContain("sevro.host.skill-activations");
+      expect(c.requiredEvidence).toEqual(["sevro.host.native-goal"]);
     if (id === "goal-readiness-nonready-stops")
       await assertReadinessExposure(c);
     if (id === "ticket-to-pr-feedback-relay") {
@@ -2198,7 +2197,7 @@ test("Darrow current ledger exclusions use intact host events", async () => {
       }),
     );
     expect(response.code, JSON.stringify(response.value)).toBe(0);
-    return response.value.result.checks.find(
+    return policyOutcomes(response.value.result).find(
       (check) => check.id === "darrow.evals.transcript.1",
     );
   };
@@ -2251,7 +2250,7 @@ test("Darrow current ledger exclusions use intact host events", async () => {
   );
   expect(alternative.code, JSON.stringify(alternative.value)).toBe(0);
   expect(
-    alternative.value.result.checks.find(
+    policyOutcomes(alternative.value.result).find(
       (check) => check.id === "darrow.evals.transcript.1",
     )?.status,
   ).toBe("passed");

@@ -2,6 +2,73 @@ type RecordValue = Record<string, unknown>;
 
 export const SKILL_ACTIVATIONS = "sevro.host.skill-activations";
 export const SKILL_ACTIVATION_CLAIMS = "sevro.host.skill-activation-claims";
+export const SKILL_EXPOSURE_CLAIMS = "sevro.host.skill-exposure-claims";
+
+function exposureRecord(value: unknown): RecordValue | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as RecordValue)
+    : null;
+}
+
+function exposureClaimData(observation: RecordValue): RecordValue | null {
+  if (
+    observation.id !== SKILL_EXPOSURE_CLAIMS ||
+    observation.source !== "sevro.host.codex" ||
+    observation.completeness !== "complete"
+  )
+    return null;
+  const data = exposureRecord(observation.data);
+  if (
+    !data ||
+    data.method !== "tool_result_body_match" ||
+    data.scope !== "positive_exposure"
+  )
+    return null;
+  if (
+    typeof data.collectionStatus !== "string" ||
+    !["complete", "partial", "unavailable"].includes(data.collectionStatus)
+  )
+    return null;
+  return data;
+}
+
+function positiveExposure(value: unknown, namespaces: string[]) {
+  const data = exposureRecord(value);
+  if (!data) return null;
+  if (
+    typeof data.status !== "string" ||
+    !["full", "partial"].includes(data.status)
+  )
+    return null;
+  const skill = skillName(data.skill, namespaces);
+  return skill ? { skill, status: data.status } : null;
+}
+
+function fullExposureMembers(value: unknown, namespaces: string[]) {
+  if (!Array.isArray(value) || !value.length) return null;
+  const seen = new Set<string>();
+  const fullSkills: string[] = [];
+  for (const entry of value) {
+    const exposure = positiveExposure(entry, namespaces);
+    if (!exposure || seen.has(exposure.skill)) return null;
+    seen.add(exposure.skill);
+    if (exposure.status === "full") fullSkills.push(exposure.skill);
+  }
+  return fullSkills;
+}
+
+/** Complete positive exposure proves only listed body membership, never order. */
+export function commonSkillExposureClaims(
+  observation: RecordValue,
+  namespaces: string[],
+) {
+  const data = exposureClaimData(observation);
+  if (!data) return null;
+  const fullSkills = fullExposureMembers(data.skillExposures, namespaces);
+  return fullSkills
+    ? { fullSkills, collectionStatus: String(data.collectionStatus) }
+    : null;
+}
 
 /** Translate the public collector's qualified identities into Darrow's names. */
 function collectionData(observation: RecordValue): RecordValue | null {

@@ -95,6 +95,9 @@ constraints for producing and interpreting that evidence.
   write to `DARROW_FIXTURE_RECEIPTS_DIR`, and graders read the original files
   through `SEVRO_CANDIDATE_ARTIFACT_RECEIPTS`. Preserve the configured directory
   and retain source-preservation and exact acknowledgement checks.
+  `goal-failed-check-blocks-publication` uses the same profile for check and
+  dependent-effect receipts, so cleanup of generated workspace files cannot
+  erase evidence that the required check ran.
   Keep immutable setup inputs and hidden grading assets in their protected
   locations. Fixture backends remain immutable; give their `uv` child a private
   project environment when it would otherwise create a `.venv` in Git metadata.
@@ -224,6 +227,16 @@ constraints for producing and interpreting that evidence.
   exclusions, and supporting sequences still require complete collection;
   neither native logs nor balanced call counts replace it. An explicitly
   unknown primary remains unknown even in a complete collection.
+- On Sevro rc.21, retain `skillExposures` and `collectionStatus` separately:
+  a full or partial body exposure can survive collection gaps. The optional
+  `sevro.host.skill-exposure-claims` receipt supports only its listed positive
+  exposures; it cannot establish primary selection, sequence, compliance or
+  absence. An explicit Codex owner may use complete positive `full` exposure
+  claims for supporting `activation_includes`; retain the aggregate catalog
+  receipt separately when available.
+  Preserve supporting membership separately from observed order; implicit
+  primary, negative and sequence gates retain their requirements. Missing fields
+  in older results stay unknown rather than being reconstructed.
 - A composed `activation_sequence` requires the primary owner first and a
   complete mounted body read for every supporting skill. Use
   `activation_includes` when supporting skills must be read but their order is

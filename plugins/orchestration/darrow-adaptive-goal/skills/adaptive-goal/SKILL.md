@@ -44,6 +44,12 @@ authority. Delegation adds no permission, publication, or destructive authority.
 Explicit invocation may request advice rather than engineering work. When the
 user asks only for an explanation, comparison, or next-lifecycle-action answer,
 answer directly without preflight helpers or a goal.
+For assessment or repair advice, first read the
+[verification lifecycle](references/verification-lifecycle.md). Apply its stop
+conditions before considering unused budget: unavailable required evidence
+stops speculative repair even when an attempt remains. Resolve the reference
+beside this `SKILL.md`: on Codex it is
+`<plugin-root>/skills/adaptive-goal/references/verification-lifecycle.md`.
 
 Without authority, make no helper call or mutation and return exactly:
 

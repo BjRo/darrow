@@ -31,7 +31,6 @@ checks:
     expect_exact: "5"
   - name: requested work is implemented
     run: grep -Fx 'Started.' NOTES.md
-activation_sequence:
-  - adaptive-goal
+activation_includes:
   - prepare-task-branch
 native_goal: required

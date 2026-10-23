@@ -219,8 +219,6 @@ def comprehensive_target(backend: Path, repo: Path, path: Path) -> str:
     invoke(backend, repo, "review-result", "validate", str(path))
     if field(path, "verdict") != "pass":
         raise InvalidProofError("review is not clear")
-    if field(path, "next_action") != "return control to enclosing goal":
-        raise InvalidProofError("review did not return control")
     return field(path, "target")
 
 

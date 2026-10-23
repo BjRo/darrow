@@ -180,44 +180,75 @@ def test_installed_combined_lifecycle_and_mutation(repo: Path) -> None:
     state = repo / ".fixture-state"
     history = state / "verification-invocations"
     (repo / ".git/fixture-review-reject-pattern").write_text("RETRY_COUNT = 0\n")
+    missing = str(state / "missing.md")
     assert "current checks" in invoke(
-        repo, "verification", str(repo), "initial", status=1
+        repo, "verification", str(repo), "initial", missing, status=1
     )
     assert not history.exists()
     record_check(repo, subject)
-    out = invoke(repo, "verification", str(repo), "initial")
+    assert "current independent review" in invoke(
+        repo, "verification", str(repo), "initial", missing, status=1
+    )
+
+    def provider(mode: str) -> str:
+        review_mode = "comprehensive" if mode == "initial" else "verify"
+        before = rows(state / "independent-review-invocations")
+        preview = invoke(repo, "review-preview", str(repo), review_mode, CONTRACT)
+        assert preview == invoke(
+            repo, "review-preview", str(repo), review_mode, CONTRACT
+        )
+        assert rows(state / "independent-review-invocations") == before
+        target = invoke(repo, "review", str(repo), "fingerprint").strip()
+        invoke(repo, "review", str(repo), review_mode, CONTRACT, target)
+        return str(state / f"review-result-{len(before)}.md")
+
+    artifact = provider("initial")
+    original = Path(artifact).read_bytes()
+    out = invoke(repo, "verification", str(repo), "initial", artifact)
     assert "Conclusion: progress\n" in out
     assert "Q1, QA/cache, blocking" in out
     assert "Independent review outcome: blocking findings" in out
+    assert Path(artifact).read_bytes() == original
+    assert len(rows(state / "independent-review-invocations")) == 1
+    assert not list(state.glob("review-result.*"))
+    artifact = provider("follow-up")
     assert "Conclusion: no-progress\n" in invoke(
-        repo, "verification", str(repo), "follow-up"
+        repo, "verification", str(repo), "follow-up", artifact
     )
     for flag in ("blocked", "inconclusive"):
         marker = repo / f".git/fixture-review-{flag}"
         marker.touch()
+        artifact = provider("follow-up")
         assert "Conclusion: blocked\n" in invoke(
-            repo, "verification", str(repo), "follow-up"
+            repo, "verification", str(repo), "follow-up", artifact
         )
         marker.unlink()
     before = history.read_bytes()
     write_candidate(repo, 3, 5)
     assert "current checks" in invoke(
-        repo, "verification", str(repo), "follow-up", status=1
+        repo, "verification", str(repo), "follow-up", artifact, status=1
     )
     assert history.read_bytes() == before
     record_check(repo, subject)
-    assert "Conclusion: clear\n" in invoke(repo, "verification", str(repo), "follow-up")
+    assert "current independent review" in invoke(
+        repo, "verification", str(repo), "follow-up", artifact, status=1
+    )
+    artifact = provider("follow-up")
+    assert "Conclusion: clear\n" in invoke(
+        repo, "verification", str(repo), "follow-up", artifact
+    )
     assert rows(history)[-1][1] == checksum(subject.read_bytes())
     assert "already recorded" in invoke(
-        repo, "verification", str(repo), "initial", status=1
+        repo, "verification", str(repo), "initial", artifact, status=1
     )
 
     def mutate() -> None:
         write_candidate(repo, 3, 0)
 
+    artifact = provider("follow-up")
     out = mutate_during(
         repo,
-        ["verification", str(repo), "follow-up"],
+        ["verification", str(repo), "follow-up", artifact],
         state / "verification-events",
         "review-returned",
         mutate,

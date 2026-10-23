@@ -102,6 +102,26 @@ policy preserves explicit route overrides. Codex candidates default to
 
 ### Repository-owned fixture sources
 
+Synthetic independent-review providers preserve the selected verification
+contract's coordinator/reader boundary. Their coordinator launches fresh
+Standards and Acceptance readers on the declared routes. Reader observations
+must not advance the closed assessment history or overwrite canonical reports.
+Only reconciliation records one assessment, bound to the readers' current
+candidate; stale, missing or conflicting reader results cannot clear it.
+A synthetic provider exposes its configured subject's byte-exact snapshot and
+blob identity when needed to ground acceptance beyond its programmed finding.
+Reader observations remain read-only; changed subjects cannot receive clearance.
+Semantic grading context must not add deliverables absent from the authoritative
+participant input.
+Reporting all required steps as successfully finished can establish completion;
+do not require a separate completion phrase or blocker-free declaration.
+Accept reports of completed observable effects without command-by-command narration.
+Keep completion reporting separate from executable content and identity assertions.
+Supply synthetic fixture facts to semantic graders; a declared mock URL is not
+evidence of a failed workflow.
+Cases expecting candidate test execution must explicitly authorize that check in
+the participant prompt; fixture guidance cannot supply user authority.
+
 The regular case-resolution test includes canonical repository-skill,
 plugin-skill, and skill-less experiment cases. Unsupported cases remain named
 failures; omitting a scope cannot produce a valid result.
@@ -487,7 +507,18 @@ fixture effects and semantic acceptance checks. Its native-goal, ownership and
 transcript assertions are separate workflow domain outcomes. Missing workflow
 observations stay unavailable and observed violations stay failed in that
 dimension; neither changes the task verdict or becomes required task evidence.
-Activation remains separate. Other plugins retain their declared task gates.
+Activation remains separate.
+Adaptive Goal outcome cases likewise retain auxiliary transcript assertions as
+workflow diagnostics. Native-goal outcomes, explicitly tested implementation
+routes, and an observed no-mutation-before-user-feedback safeguard remain task
+requirements. A successful final result does not excuse mutation before the
+user supplies required authority. The unchanged-worktree safeguard uses the
+complete, unique continuation observation; missing or incomplete evidence stays
+unavailable. A selection-only case without output,
+state or semantic acceptance keeps its selection assertion as the task under
+test. Missing diagnostic evidence cannot withhold an otherwise established task
+outcome; observed diagnostic violations are never relabeled as passes.
+Other plugins retain their declared task gates.
 When regrading retained trials, preserve the original records and identify the
 new task assessment as a regrade, not fresh candidate execution.
 
@@ -662,12 +693,24 @@ repeating an earlier non-ready finding in the final response.
 The actual-state Codex Doctor case grades its required verbatim source records
 deterministically: checked and used records name the same absolute isolated
 configuration, and `checkout_config_used` is `no`. Keep the concurrency
-and nesting control names in deterministic checks too; their verbatim records
-already state which control governs concurrency and that nesting is V1-only.
+and nesting control names in deterministic checks too. The exact names and
+nesting applicability may appear in prose or helper records; the public skill
+does not require `concurrency_control` or `nesting_control` field labels.
+Preserve the exact control values, including the V1-only nesting qualifier,
+and keep the three source-record checks unchanged.
 Keep the configured concurrency and unknown live free-capacity distinction in
 a separate, small semantic check without requiring a backend conclusion there.
 A valid configured limit does not prove current free slots or resolve an unknown
 backend. A recommendation alone does not report the diagnosed current setting.
+Reporting configured capacity and comparing it with the topology is valid without
+an extra live-capacity disclaimer. Reject an explicit claim that configuration
+proves currently free slots or guarantees immediate spawning; do not infer that
+claim from "adequate" within a configuration assessment.
+For effective Codex configuration, concurrent threads and spawned-agent slots
+describe the same concurrency limit. Accept either term when the completed
+diagnosis reports the correct effective value. Keep that value distinct from the
+topology's required minimum; supplied values or recommendations alone do not
+establish a completed diagnosis.
 Each check
 has a stable name and a plain-language proposition. The runner grades all such
 checks against the candidate's final response in a separate, hidden grader
@@ -1373,6 +1416,22 @@ not prove equivalence or savings.
   declared claims within a partial collection; absence and sequence assertions
   still require complete collection. Retain the cited evidence scope so a
   primary claim is never reported as complete collection coverage.
+  Codex per-skill body exposure and collection health remain distinct. Preserve
+  RC.21's `skillExposures`, `collectionStatus` and positive exposure receipts in
+  retained evidence. Full exposure proves complete prepared-body exposure to a
+  tool caller; partial exposure proves fragments. Neither proves primary
+  selection, order, compliance or absence. Missing fields in older evidence
+  remain unknown; do not backfill them from activation lists.
+  An established explicit Codex invocation may combine with a separately
+  complete RC.21 positive-exposure receipt to establish supporting-skill
+  inclusion. Each required support must have `full` exposure in that receipt.
+  The aggregate catalog observation is a separate diagnostic, not an additional
+  proof requirement. Partial exposure never satisfies a full read;
+  missing positive membership stays unknown. Retain explicit ownership,
+  unordered positive members, aggregate completeness and collection health
+  separately. This receipt supplies no implicit primary, absence or sequence.
+  A passing result cites only the complete receipts that establish its claim;
+  an incomplete aggregate remains diagnostic metadata, outside its evidence refs.
   Claude route observations match the shipped scoped agent names, model IDs,
   and effort levels. An agent name alone does not establish goal ownership or
   successful route application.

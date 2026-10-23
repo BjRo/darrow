@@ -49,7 +49,11 @@ test("isEven inputs", () => {
   }
   const result = await runFixtureChecks({
     source,
-    fixtureAssets: new URL("./", source),
+    fixtureAssets: new URL(
+      "../../plugins/orchestration/darrow-adaptive-goal/",
+      import.meta.url,
+    ),
+    fixtureAssetFiles: ["backend/tests/evals/verification_cadence.py"],
     runtimeConfig: new URL(
       "../sevro-extension/runtime-repository-skills.json",
       import.meta.url,

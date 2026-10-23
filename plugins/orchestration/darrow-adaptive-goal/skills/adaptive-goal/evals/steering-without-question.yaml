@@ -11,7 +11,7 @@ prompt: >-
   Preserve the configured DARROW_FIXTURE_RECEIPTS_DIR directory.
 follow_up_prompt: >-
   The implementation window is open. Use the existing parser, leave src/legacy.js alone,
-  and stop before committing. Finish the requested normalize function.
+  and stop before committing. Finish the requested normalize function and run bash check.sh.
 fixture:
   commits:
     - message: "chore: init"

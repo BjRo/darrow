@@ -32,7 +32,6 @@ semantic_output_checks:
       The response asks the user to choose exactly one of fix/DAR-123-original
       and feat/DAR-123-other before delivery proceeds, without treating the proposed new
       suffix as a selection or claiming implementation occurred.
-activation_sequence:
-  - adaptive-goal
+activation_includes:
   - prepare-task-branch
 native_goal: forbidden

@@ -12,8 +12,9 @@ from . import install, proof, readiness, review
 USAGE = """usage: adaptive-goal-fixture <operation> [arguments]
   install readiness|review|verification REPO FIXTURE_DIR codex|claude|both
   readiness REPO [record|render-only]
-  review REPO comprehensive|verify|fingerprint [contract]
-  verification REPO initial|follow-up
+  review REPO comprehensive|verify|fingerprint [contract [expected-target]]
+  review-preview REPO comprehensive|verify contract
+  verification REPO initial|follow-up REVIEW_REPORT
   proof complete ARTIFACT|artifact|current
 """
 
@@ -26,18 +27,20 @@ def dispatch(args: list[str]) -> str:
         return install.install(rest[0], Path(rest[1]), Path(rest[2]), rest[3])
     if command == "readiness" and 1 <= len(rest) <= 2:
         return readiness.assess(Path(rest[0]), rest[1] if len(rest) == 2 else "record")
+    if command == "review-preview" and len(rest) == 3:
+        return review.preview(Path(rest[0]), rest[1], rest[2])
     return assess(command, rest)
 
 
 def assess(command: str, args: list[str]) -> str:
-    if command == "review" and 2 <= len(args) <= 3:
-        return review.assess(Path(args[0]), args[1], args[2] if len(args) == 3 else "")
-    if command == "verification" and len(args) == 2:
+    if command == "review" and 2 <= len(args) <= 4:
+        return review.assess(Path(args[0]), args[1], *args[2:])
+    if command == "verification" and len(args) == 3:
         if not Path(__file__).with_name("verification.py").is_file():
             raise RefusalError("verification fixture is not installed")
         from . import verification
 
-        return verification.assess(Path(args[0]), args[1])
+        return verification.assess(Path(args[0]), args[1], Path(args[2]))
     if command == "proof" and 1 <= len(args) <= 2:
         return proof.validate(Path.cwd(), args[0], args[1] if len(args) == 2 else "")
     raise RefusalError(USAGE.rstrip())

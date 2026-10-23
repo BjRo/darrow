@@ -8,6 +8,13 @@ const source = new URL(
 const correctNotes =
   "# Notes\nCapability routing survives file-backed goals.\n";
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
+const reviewAssets = {
+  fixtureAssets: new URL(
+    "../../plugins/orchestration/darrow-adaptive-goal/",
+    import.meta.url,
+  ),
+  fixtureAssetFiles: ["backend/tests/evals/review_receipts.py"],
+};
 
 for (const scenario of [
   "correct",
@@ -25,6 +32,7 @@ for (const scenario of [
     const notes =
       scenario === "wrong-content" ? "# Notes\nWrong line.\n" : correctNotes;
     const result = await runFixtureChecks({
+      ...reviewAssets,
       source,
       fixture: canonical.fixture,
       checks: [
@@ -77,22 +85,22 @@ for (const scenario of ["current", "missing", "duplicate", "stale"] as const) {
       duplicate: `cat ${record} >.git/original-review && cat .git/original-review >>${record}`,
       stale: `printf '%s\\tclear\\tcomprehensive\\n' 'WORKTREE@stale' >${record}`,
     }[scenario];
-    const diagnosis =
-      scenario === "current"
-        ? []
-        : [
-            {
-              name: "rejection explains the selected evidence defect",
-              run: check.run,
-              exit_code: 1,
-              expect_regex: {
-                missing: "Missing independent review evidence",
-                duplicate: "Expected one review record; observed 2",
-                stale: "Expected reviewed target:",
-              }[scenario],
-            },
-          ];
+    const passes = scenario === "current" || scenario === "duplicate";
+    const diagnosis = passes
+      ? []
+      : [
+          {
+            name: "rejection explains the selected evidence defect",
+            run: check.run,
+            exit_code: 1,
+            expect_regex: {
+              missing: "Missing independent review evidence",
+              stale: "Expected reviewed target:",
+            }[scenario],
+          },
+        ];
     const result = await runFixtureChecks({
+      ...reviewAssets,
       source,
       checks: [
         {
@@ -104,7 +112,6 @@ for (const scenario of ["current", "missing", "duplicate", "stale"] as const) {
         ...diagnosis,
       ],
     });
-    const passes = scenario === "current";
     expect(result.exitCode, result.diagnostic).toBe(passes ? 0 : 1);
     expect(result.value.execution.status).toBe("completed");
     expect(result.value.grading.status).toBe("completed");
@@ -114,6 +121,6 @@ for (const scenario of ["current", "missing", "duplicate", "stale"] as const) {
       "passed",
     ]);
     expect(result.checks[2]?.status).toBe(passes ? "passed" : "failed");
-    if (scenario !== "current") expect(result.checks[3]?.status).toBe("passed");
+    if (!passes) expect(result.checks[3]?.status).toBe("passed");
   }, 20_000);
 }

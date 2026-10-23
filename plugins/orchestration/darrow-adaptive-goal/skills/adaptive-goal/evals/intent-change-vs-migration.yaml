@@ -125,9 +125,10 @@ semantic_output_checks:
     proposition: >-
       The response reports the requested local implementation as complete with
       passing checks and no unresolved implementation blocker. The request is
-      for compatible code and rollout documentation, not a production rollout
-      or conversion of live records. Leaving deployment or live migration
-      unexecuted is allowed. Reject a plan-only response, an unfinished local
+      for a local compatible v1-to-v2 configuration migration. Production rollout,
+      conversion of live records and a separate rollout document were not
+      requested. Leaving deployment or live migration unexecuted is allowed.
+      Reject a plan-only response, an unfinished local
       implementation, or remaining failing checks.
   - name: completion reports the semantic review outcome
     proposition:

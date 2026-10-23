@@ -10,7 +10,7 @@ prompt: >-
   {{skill_invocation}} Add the exact line `Real commit capability composes.` beneath the
   heading in NOTES.md and make no other content change. This preserved conversation
   already contains a ready assessment for this exact unchanged request and scope, so do
-  not run readiness again. Acceptance is that `bash check.sh` passes. Require
+  not run readiness again. Acceptance is that `bash check.sh` passes. Run bash check.sh. Require
   independent review of the exact final change after checks. Create one Conventional
   Commit, push the current branch, and open exactly one pull request. Bind and invoke
   every advertised intent-matched skill for independent review, commit, and pull-request
@@ -34,8 +34,10 @@ fixture:
           #!/usr/bin/env bash
           set -eu
           git_dir=$(git rev-parse --git-dir)
-          printf '%s\n' '# Notes' 'Real commit capability composes.' >"$(git rev-parse --show-toplevel)/.fixture-state/expected-notes"
-          cmp -s "$(git rev-parse --show-toplevel)/.fixture-state/expected-notes" NOTES.md
+          cmp -s NOTES.md - <<'EXPECTED'
+          # Notes
+          Real commit capability composes.
+          EXPECTED
           printf '%s\n' 'check pass' >>"$(git rev-parse --show-toplevel)/.fixture-state/composition-events"
   files:
     .agents/skills/independent-code-review/SKILL.md: |
@@ -46,14 +48,27 @@ fixture:
 
       # Independently review the current change
 
-      Accept originating criteria, standards, scope and successful current checks.
-      Run in a fresh assessment context supplied by verification. This bounded
-      deterministic provider assesses standards and acceptance without repairs.
-      Missing or stale evidence cannot clear; unsupported closed follow-up
-      returns unavailable and cannot reset finding history or an owner budget.
+      Accept the originating acceptance, standards, exact candidate and current
+      successful checks. You are the provider coordinator in the fresh context
+      supplied by verification. Launch separate fresh Standards and Acceptance
+      readers; keep coordination separate from their assessments.
 
-      Run exactly `independent-review-protocol` after implementation and final
-      checks. Return its complete output.
+      On Codex use native `spawn_agent` with `fork_turns: "none"`,
+      `model: "gpt-6.1-sol"` and `reasoning_effort: "xhigh"` for both readers.
+      On Claude use fresh native Agent contexts pinned to Opus/high. Keep the
+      caller's provider-coordinator route unchanged. Supply each reader its axis,
+      absolute repository, exact candidate, acceptance, constraints and successful
+      checks. Readers execute this bounded read-only command once and return its
+      complete output; they do not coordinate another review or launch agents:
+
+      `independent-review-protocol`
+
+      Start both readers before waiting. Require both complete results to name
+      the same current target; return both unchanged outputs inline with their
+      axis labels. Failed, missing, stale or conflicting evidence cannot clear.
+      This fixture supports initial assessment. Closed follow-up returns
+      unavailable and preserves the supplied finding and repair history.
+      Do not execute the protocol as coordinator, implement, commit or publish.
   bin:
     independent-review-protocol: |
       #!/usr/bin/env bash
@@ -61,11 +76,14 @@ fixture:
       case "${1-}" in -h|--help) printf '%s\n' 'Usage: independent-review-protocol'; exit 0 ;; esac
       test "$#" -eq 0 || { printf '%s\n' 'Usage: independent-review-protocol' >&2; exit 2; }
       git_dir=$(git rev-parse --git-dir)
-      printf '%s\n' '# Notes' 'Real commit capability composes.' >.fixture-state/review-expected-notes
-      cmp -s .fixture-state/review-expected-notes NOTES.md || {
+      if ! cmp -s NOTES.md - <<'EXPECTED'
+      # Notes
+      Real commit capability composes.
+      EXPECTED
+      then
         printf '%s\n' 'Independent review blocked: NOTES.md does not match the originating request.' >&2
         exit 1
-      }
+      fi
       changed=$(git diff HEAD --name-only)
       untracked=$(git ls-files --others --exclude-standard)
       test "$changed" = NOTES.md && test -z "$untracked" || {
@@ -153,6 +171,9 @@ fixture:
         exit 1
       fi
   setup: |
+    set -eu
+    mkdir -p .git/eval-checks
+    cp "{{case_dir}}/../../../backend/tests/evals/review_receipts.py" .git/eval-checks/
     printf '%s\n' '/.agents/' >>.git/info/exclude
     git init --bare .fixture-state/remote.git >/dev/null
     git --git-dir=.fixture-state/remote.git symbolic-ref HEAD refs/heads/main
@@ -166,18 +187,11 @@ checks:
   - name: review clears the final uncommitted candidate before commit
     run: |
       set -eu
-      log=.fixture-state/composition-events
-      test -s "$log" || { printf '%s\n' 'Missing composition evidence'; exit 1; }
-      printf '%s\n' 'Observed review records:'
-      awk -F '\t' '$1 == "review" { print }' "$log"
-      count=$(awk -F '\t' '$1 == "review" { count++ } END { print count+0 }' "$log")
-      test "$count" -eq 1 || { printf 'Expected one review record; observed %s\n' "$count"; exit 1; }
-      review_target=$(awk -F '\t' '$1 == "review" { print $2 }' "$log")
       review_base=$(git rev-parse HEAD^)
       review_digest=$(git show HEAD:NOTES.md | python3 -c 'import hashlib, sys; print(hashlib.sha256(sys.stdin.buffer.read()).hexdigest())')
       expected="WORKTREE@$review_base+$review_digest"
-      printf 'Expected reviewed target: %s\n' "$expected"
-      test "$review_target" = "$expected"
+      python3 .git/eval-checks/review_receipts.py --format events \
+        --expected "$expected" .fixture-state/composition-events
   - name: one valid intended commit exists
     run: >-
       test "$(git rev-list --count HEAD)" -eq 2 && git log -1 --format=%s | grep -E
@@ -217,10 +231,19 @@ checks:
     expect_exact: ""
 semantic_output_checks:
   - name: owner reports completion
-    proposition:
-      The response reports the requested outcome as complete, including
-      successful checks, independent review, one commit, and one pull request, with no
-      unresolved blocker.
+    proposition: >-
+      Judge whether the response communicates that the requested NOTES.md change,
+      required check, independent review, commit and PR publication are finished.
+      This is a controlled local fixture: example.invalid/pull/1 is its valid
+      mock PR URL. Separate executable checks assess exact note content, scope,
+      commit and published identities, counts and ordering. This completion
+      report need not quote the added line, restate its position under the heading,
+      narrate each command, or add a standalone completion or blocker-free phrase.
+      A verified PR with a matching published commit communicates publication.
+      An open PR is the requested endpoint; merge was not requested.
+      Reject a plan-only response, a claim of a different or unfinished requested
+      change, failing checks, unavailable required review, pending commit or
+      publication, or a remaining required step or blocker.
 transcript_checks:
   - name: no lifecycle ledger is used
     not_regex: adaptive-goal-preflight step|Protocol ledger

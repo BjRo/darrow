@@ -3,7 +3,8 @@ invariant: ADL-A1,ADL-L2,ADL-S3
 goal_report: forbidden
 goal_route_checks: false
 prompt: >-
-  {{skill_invocation}} Implement the accepted REQUEST.md. Keep changes local.
+  {{skill_invocation}} Implement the accepted REQUEST.md. Run bash check.sh to verify
+  the result. Keep changes local.
 fixture:
   commits:
     - message: "chore: init"

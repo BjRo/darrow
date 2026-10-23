@@ -5,13 +5,14 @@ goal_route_checks: false
 prompt: >-
   Assess the authoritative accepted plan in REQUEST.md for implementation readiness
   using the exact advertised readiness capability. Return its complete result. Do not
-  implement the plan or launch orchestration yet.
+  implement the plan or launch orchestration yet. Once I authorize implementation,
+  run bash check.sh to verify it.
 follow_up_prompt: >-
   {{skill_invocation}} Implement the exact REQUEST.md scope that the readiness result
   you just returned marked ready. Nothing in REQUEST.md, its acceptance check,
   constraints, permissions, or repository state has changed since that assessment.
   Acceptance is that `bash check.sh` passes. Reuse the preserved same-scope result
-  rather than reassessing it. Keep the result local.
+  rather than reassessing it. Run bash check.sh. Keep the result local.
 fixture:
   commits:
     - message: "chore: init"

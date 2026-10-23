@@ -57,10 +57,19 @@ checks:
 semantic_output_checks:
   - name: completion preserves the combined conclusion
     proposition:
-      The response reports completion after repairing the retry-count and
-      cache-size blockers, with clear independent review and QA-like assessment of the
-      repaired candidate. It accounts for all three originating criteria. The fixture
-      establishes the attempt count; the response need not repeat that count explicitly.
+      The originating criteria are TIMEOUT_MS = 2500, RETRY_COUNT = 3 and CACHE_SIZE = 5.
+      The initial combined review and QA/cache assessment found retry-count and
+      cache-size blockers. The response conveys completion of those repairs,
+      satisfaction of the three criteria, and combined follow-up clearance of the
+      repaired candidate. Listing those target values or collectively reporting that
+      all three criteria are met is valid coverage. Combined follow-up clearing both original findings
+      after repair is a sufficient current closed-clearance summary, even without the
+      words "fresh", "closed", "current", or "independent" and without repeating provider
+      names or assessment details. The fixture checks establish the actual provider
+      results, candidate binding and assessment history; do not demand extra narrative
+      proof of those facts. A plan alone, an unresolved criterion, missing or unavailable
+      selected assurance, waived QA, or explicitly stale clearance fails. The fixture
+      establishes the attempt count; the response need not repeat it.
   - name: no provider-specific repair allowance is claimed
     proposition:
       The response does not claim a budget reset when switching providers, extra

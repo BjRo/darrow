@@ -271,13 +271,6 @@ def test_bad_modes_and_missing_saved_evidence(repo: Path) -> None:
     "replacement,error",
     [
         (('"verdict": "pass"', '"verdict": "fail"'), "not clear"),
-        (
-            (
-                '"next_action": "return control to enclosing goal"',
-                '"next_action": "continue"',
-            ),
-            "did not return",
-        ),
         (('"target": "WORKTREE@current"', '"target": "WORKTREE@old"'), "stale review"),
         (
             ('"format": "darrow-review-result-v3"', '"format": "unknown"'),

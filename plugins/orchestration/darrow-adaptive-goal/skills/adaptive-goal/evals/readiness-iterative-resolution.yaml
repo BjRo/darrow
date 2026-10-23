@@ -11,6 +11,7 @@ follow_up_prompt: >-
   Choose safe mode. That is my resolution of the readiness finding for this same
   unchanged request; assess the now-resolved scope again and, if ready, continue the
   same explicitly invoked adaptive goal. Acceptance is that bash check.sh passes.
+  Run bash check.sh.
   Keep the result local.
 fixture:
   commits:

@@ -5,8 +5,8 @@ goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Implement the authoritative specification in REQUEST.md. The
   specification has not previously been assessed for implementation readiness.
-  Acceptance is that `bash check.sh` passes. Select and apply the policy route. Keep the
-  result local; commits, pushes, pull requests, and other publication are not
+  Acceptance is that `bash check.sh` passes. Run bash check.sh. Select and apply the
+  policy route. Keep the result local; commits, pushes, pull requests, and other publication are not
   authorized.
 fixture:
   commits:

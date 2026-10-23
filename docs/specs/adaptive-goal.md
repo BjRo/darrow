@@ -947,6 +947,11 @@ owner, nested host process or runtime is authorized.
     concurrency and nesting distinct, derives baseline and full-path capacity
     from the topology above, refuses unreadable or malformed required input,
     and never exposes unrelated values or credentials.
+    Its three source records remain verbatim. Exact concurrency and nesting
+    control names and their applicability may appear in ordinary prose without
+    the helper's field labels.
+    A configured-capacity conclusion need not add a live-capacity disclaimer;
+    it must not claim that configuration proves currently free slots.
 
 ## Packaging and portability
 
@@ -1061,6 +1066,10 @@ The following invariants govern adaptation and evidence provenance:
   controller is added. A same-candidate assessment correction requires fresh
   evidence and retained history and neither consumes nor resets that limit.
   Clear verification ends repair immediately; unused attempts are not required.
+  Evaluate continuation in this order: clear result, exhausted limits, evidence
+  sufficiency, then eligible progress. Compare consumed attempts directly with
+  the authorized maximum before considering progress. Equality exhausts the
+  budget; progress never authorizes an attempt beyond that maximum.
   Without an explicit override, an uncleared second verification exhausts the
   budget even when it shows progress. An unbounded request does not raise it.
 - **ADL-V1 — Verification boundary.** Preserve routine review omission and required
@@ -1119,12 +1128,21 @@ may validate a human report against its retained canonical source without making
 callers reconstruct a provider's private serialization. Completion consumes an explicitly selected,
 validated clear artifact covering current content; a verification retains its
 binding to the original comprehensive finding set. Nonblocking advisories do
-not prevent completion. Artifact filename ordering is not evidence of recency
+not prevent completion. The completion gate must not require an exact
+`next_action` sentence from a clear canonical review. Trusted setup initializes
+the declared Review artifact directory even when the candidate stops before
+review; absent reports then fail ordinary checks rather than artifact access.
+Artifact filename ordering is not evidence of recency
 or authority. A closed follow-up binds its original by both target and complete
 ordered finding set, using the review provider's public validator. Another
 report for that target must not invalidate an otherwise matching original;
 identical copies of the same validated finding set are equivalent evidence.
 Missing or changed original findings still fail the completion proof.
+
+Composition receipt grading belongs to a shared hidden Python oracle in the
+owning backend. Cases supply the expected target and receipt format explicitly.
+One or repeated current clear assessments are valid; missing, malformed, stale
+or uncleared assessment records fail, even among otherwise valid records.
 
 Synthetic review providers used in composition evals may return a faithful
 inline explanation with an absolute reference to their complete retained
@@ -1143,6 +1161,9 @@ and observed report read establish a sufficient handoff.
 Verification-cadence evals preserve required focused-before-final ordering and
 successful final evidence without inventing an exact invocation count. Repeated
 or repaired checks remain valid when their latest relevant evidence succeeds.
+An earlier failed focused check is not required unless a selected test-first
+contract requires it. Successful focused feedback followed by successful final
+verification is valid without manufacturing a failure.
 An earlier repository-gate run used as a baseline is not a substitute for, nor
 a prohibition on, the required successful final-tree verification.
 Repair-budget advice evals assess the next authorized action without demanding
@@ -1150,6 +1171,36 @@ that the answer restate supplied budget arithmetic or label the remaining
 attempt as final. They still reject authorization beyond the supplied budget,
 reopening unrelated findings, or bypassing required verification and publication
 gates.
+
+Advice-only invocation does not bypass the verification lifecycle. Before
+advising on assessment or repair, read that lifecycle and apply its stop
+conditions before the remaining budget. Unavailable required evidence stops
+speculative implementation repair even when an attempt remains; investigating
+the evidence gap under existing authority is a separate action.
+For a next-action question with a selected QA assessment still running, waiting
+for its complete result before deciding or assigning repair is sufficient.
+Do not require hypothetical QA-outcome branches or an advance promise to repair.
+Label given scenario facts as context, not additional facts the answer must repeat.
+Explicit advice to repair early, ignore selected QA, transfer goal ownership or
+complete without its required result still fails.
+No-progress and exhausted-budget advice likewise accepts an unambiguous stop
+without the literal status "blocked". Read-only investigation or a request for
+a concrete decision or finite override does not itself authorize another repair.
+Do not reject that permitted next action as continuation of implementation.
+The lifecycle reference resolves from the activated skill directory, not the
+plugin root.
+An unambiguous stop on unavailable evidence satisfies the advice decision
+without separate completion and publication disclaimers. Contradictory permission
+for repair, completion or publication still fails.
+
+When repair advice asks whether another attempt and publication are allowed,
+withholding publication until current checks and fix verification clear is
+sufficient. The answer need not discuss unasked completion status. A claim that
+unresolved work is complete still contradicts the verification gate.
+When it asks only for the next repair action, an authorized remaining attempt
+followed by refreshed checks and verification suffices. The answer need not
+describe eventual completion; permission to bypass verification or complete
+uncleared work still fails.
 
 Complete mounted-skill reads have the same activation meaning through the
 host's login and non-login shell wrappers. Preflight evidence still
@@ -1172,9 +1223,84 @@ final expanded-behavior oracle and evidence that reassessment preceded affected
 implementation; clarifying the fixture does not waive the owner readiness gate.
 The later input must name the affected entrypoint and its observable result;
 preserving a separate legacy helper alone must not appear to satisfy that delta.
+The post-launch participant prompt explicitly authorizes its required
+`bash check.sh` execution; repository guidance alone supplies no host-required
+user authorization to run tests.
 Launch-stop evals recognize the public `launch_required` status as a pre-launch
 stop without demanding a redundant explanatory sentence. An actual launch or
 contradictory launch claim does not satisfy that boundary.
+
+Task success uses observable output, repository or fixture effects and semantic
+acceptance. Native-goal outcomes, explicitly tested implementation routes, and
+the observed unchanged-worktree boundary before required user feedback remain
+task requirements. Final functional success cannot erase a demonstrated mutation
+before user authority. Missing boundary evidence remains unavailable.
+Auxiliary transcript read, ledger and generic
+delegation observations are separate workflow diagnostics. Incomplete diagnostics
+do not withhold a task outcome established by its acceptance checks. Cases whose
+only purpose is skill selection keep that selection assertion as their task.
+Explicit Codex compositions may establish required supporting skill reads with
+RC.21's complete positive full-exposure claims. Retain any aggregate catalog
+receipt as a separate diagnostic rather than an additional positive-proof gate.
+The explicit invocation establishes the owner separately. Partial owner or
+sibling fragments do not erase full supporting exposure, and exposure claims
+do not establish order, absence or an implicit primary selection.
+Ticket-branch compositions require exposure of `prepare-task-branch`, not a
+particular order of skill-body reads. Their branch and mutation checks establish
+the required operation boundary. Declare supporting `activation_includes` while
+retaining the explicit owner's positive activation requirement.
+
+The failed-check publication fixture retains check and dependent-effect receipts
+outside the worktree through the declared candidate artifact grant. Cleaning
+generated workspace outputs must not erase proof that a check ran. Missing check
+execution and review, commit or publication after failure must still fail.
+Setup initializes the declared `.darrow/fixture-receipts` subtree through its
+candidate-shared `HOME`; commands use the configured receipt variable and graders
+use the original candidate artifact grant.
+Its semantic reporting check accepts a clear failed-check blocker without
+enumerating each withheld review or publication operation. Claims that a
+dependent effect proceeded despite the failed check still fail; deterministic
+checks independently guard those effects.
+
+The capability-binding fixture accepts one or more clear comprehensive review
+records for the exact current candidate when no assessment-count limit was
+supplied. Every record must match that candidate and retain its clear disposition;
+missing, stale, malformed or uncleared records fail. Repeating a valid read-only
+assessment does not create another commit or publication allowance.
+Its completion proposition states the requested endpoint: implement, check,
+review, commit, push and open one pull request. An open pull request is the
+authorized completed endpoint, not a pending merge decision. A blocked or
+unfinished requested step still fails; merging is outside this request.
+The proposition also preserves the supplied ready assessment for this exact
+unchanged ticket and scope; it must not invent another readiness requirement.
+When this fixture uses the real verification capability, its synthetic review
+provider owns separate fresh Standards and Acceptance readers. The provider
+coordinates; readers run the deterministic assessment protocol. Codex readers
+use GPT-6.1 Sol/xhigh and the provider retains the caller's coordinator route.
+Shared fixture comparisons must support concurrent readers without shared
+temporary expected-content files.
+The combined synthetic verification fixture delegates review to that provider
+workflow and consumes its complete canonical report. Its helper combines an
+already returned, current-target review with QA; it never performs another review
+inside the verification context. Require the matching comprehensive or closed
+follow-up mode, current checks and unchanged candidate binding before combining
+results. Preserve the original report rather than copying or replacing it.
+Its completion grader accepts a faithful summary of both original blockers,
+all three satisfied criteria and fresh closed combined clearance. Collective
+wording or listing the target values is valid. The proposition supplies the
+originating values (`TIMEOUT_MS = 2500`, `RETRY_COUNT = 3`, `CACHE_SIZE = 5`),
+because the semantic grader does not receive the participant prompt.
+Repeated provider names or the adjective "independent" add
+no proof. Combined follow-up clearing both original findings after repair is a
+valid summary of current closed clearance without the words "fresh" or "closed".
+The fixture retains candidate binding and assessment history independently.
+Missing, stale or unavailable selected assurance and unresolved
+criteria still fail. Retain observed coordinator-route or reader-workflow
+violations separately from this completion-summary judgment.
+The same provider contract applies to failed-check and real-commit composition
+fixtures that install real verification. These synthetic providers support the
+initial assessment; unsupported closed follow-up returns unavailable. Real-commit
+review receipts also accept repeated current assessments without a fixed count.
 
 Behavior evals verify outcomes and public boundaries rather than private
 reasoning or bookkeeping. Placement checks accept alert objects regardless of
@@ -1182,7 +1308,13 @@ property insertion order while preserving required fields, values and array
 ordering. Single-options-object call checks accept variables, whitespace and
 multiline literals, and reject positional calls through observable call behavior
 rather than a source-shape regex. Hidden probes exercise the fixture's known
-callers independently of participant-maintained test coverage. At minimum, cover:
+callers independently of participant-maintained test coverage.
+Concurrency reporting accepts a report of actual parallel implementation,
+including a placement statement of concurrent assignments, concurrent agents
+or parallel workers. No particular worker noun is required. It need not repeat
+the module names or map each worker to a module. Planned parallelism, parallel review alone,
+or a report of sequential implementation does not establish this outcome.
+At minimum, cover:
 
 - direct explicit invocation;
 - delegation from an explicitly invoked orchestration entrypoint;

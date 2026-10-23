@@ -8,8 +8,9 @@ prompt: >-
   changed materially: the current plan adds `Second revised line.` and another
   observable acceptance condition that were not assessed. NOTES.md is local
   documentation with no callers or compatibility impact. A new readiness request adds
-  value for this current scope. Acceptance is that `bash check.sh` passes. Select and
-  apply the policy route. Keep the result local; publication is not authorized.
+  value for this current scope. Acceptance is that `bash check.sh` passes. Run bash
+  check.sh. Select and apply the policy route. Keep the result local; publication is
+  not authorized.
 fixture:
   commits:
     - message: "chore: init"

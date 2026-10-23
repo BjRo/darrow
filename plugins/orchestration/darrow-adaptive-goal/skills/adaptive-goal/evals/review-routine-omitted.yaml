@@ -7,7 +7,7 @@ additional_plugins:
 prompt: >-
   {{skill_invocation}} Add the exact line "Retries are bounded." beneath the heading in
   NOTES.md. This is a localized, reversible documentation edit with a complete oracle
-  and limited blast radius. Acceptance is that `bash check.sh` passes. Select and apply
+  and limited blast radius. Acceptance is that `bash check.sh` passes. Run bash check.sh. Select and apply
   the policy route. Keep the result local; commits, pushes, pull requests, and other
   publication are not authorized.
 fixture:

@@ -97,6 +97,143 @@ test("Ticket-to-PR task outcomes are independent of workflow diagnostics", async
   expect(bad.value.task.verdict).toBe("failed");
 }, 30_000);
 
+test("Adaptive Goal separates auxiliary diagnostics from goal and route requirements", async () => {
+  const selected = async (id: string) =>
+    (
+      await resolveCase({
+        projectRoot,
+        selectors: { caseIds: [id] },
+        configuration: {},
+      })
+    ).cases[0]!;
+  const stop = await selected("goal-readiness-required-unavailable");
+  expect(
+    stop.checks.some((check) =>
+      check.id.startsWith("darrow.evals.transcript."),
+    ),
+  ).toBe(false);
+  expect(stop.requiredEvidence).toEqual(["sevro.host.native-goal"]);
+  const graded = await fixtureExtensionRequest<{
+    checks: { id: string; status: string }[];
+    domainOutcomes: { id: string; status: string }[];
+  }>("evaluate", {
+    extensionData: stop.extensionData,
+    observations: [
+      {
+        id: "sevro.host.native-goal",
+        source: "sevro.host.codex",
+        completeness: "complete",
+        data: { threadId: "root", goals: [], goalStatus: null },
+      },
+      {
+        id: "sevro.observation.final-message",
+        source: "sevro.host.codex",
+        completeness: "complete",
+        data: { text: "launch_required: readiness is unavailable" },
+      },
+    ],
+    artifacts: [],
+  });
+  expect(graded.checks.every((check) => check.status === "passed")).toBe(true);
+  expect(graded.domainOutcomes).toContainEqual(
+    expect.objectContaining({
+      id: "darrow.evals.workflow.transcript.1",
+      status: "unavailable",
+    }),
+  );
+  const routing = await selected("goal-preflight-quality-sensitive-localized");
+  expect(routing.checks).toContainEqual(
+    expect.objectContaining({
+      id: "darrow.evals.transcript.1",
+    }),
+  );
+  expect(routing.checks).not.toContainEqual(
+    expect.objectContaining({
+      id: "darrow.evals.transcript.2",
+    }),
+  );
+  const selection = await selected(
+    "doctor-adaptive-goal-nonactivation-delivery",
+  );
+  expect(selection.checks).toContainEqual(
+    expect.objectContaining({
+      id: "darrow.evals.transcript.1",
+    }),
+  );
+}, 30_000);
+
+test("Adaptive Goal retains the user-feedback mutation boundary as a task gate", async () => {
+  for (const id of [
+    "goal-cross-turn-feedback-answer",
+    "goal-steering-without-question",
+  ]) {
+    const { cases } = await resolveCase({
+      projectRoot,
+      selectors: { caseIds: [id] },
+      configuration: {},
+    });
+    const selected = cases[0]!;
+    const details = selected.extensionData["darrow.case"] as {
+      transcriptChecks: { id: string; kind: string }[];
+    };
+    const boundary = details.transcriptChecks.find(
+      (check) => check.kind === "unchanged-before-continuation",
+    )!;
+    expect(selected.checks).toContainEqual(
+      expect.objectContaining({ id: boundary.id }),
+    );
+    const observation = {
+      id: "sevro.codex.continuation",
+      source: "sevro.host.codex",
+      completeness: "complete",
+      data: {
+        method: "same_thread_resume",
+        threadId: "root",
+        preFollowUpWorktreeUnchanged: true,
+      },
+    };
+    const grade = async (observations: unknown[]) => {
+      const result = await fixtureExtensionRequest<{
+        checks: { id: string; status: string }[];
+        domainOutcomes: { id: string; status: string }[];
+      }>("evaluate", {
+        extensionData: selected.extensionData,
+        observations,
+        artifacts: [],
+      });
+      expect(
+        result.domainOutcomes.some(
+          (entry) =>
+            entry.id ===
+            boundary.id.replace("darrow.evals.", "darrow.evals.workflow."),
+        ),
+      ).toBe(false);
+      return result.checks.find((check) => check.id === boundary.id)?.status;
+    };
+    expect(await grade([observation])).toBe("passed");
+    expect(
+      await grade([
+        {
+          ...observation,
+          data: { ...observation.data, preFollowUpWorktreeUnchanged: false },
+        },
+      ]),
+    ).toBe("failed");
+    for (const unavailable of [
+      [],
+      [observation, observation],
+      [{ ...observation, completeness: "partial" }],
+      [
+        {
+          ...observation,
+          data: { ...observation.data, preFollowUpWorktreeUnchanged: null },
+        },
+      ],
+    ])
+      expect(await grade(unavailable)).toBe("unavailable");
+  }
+}, 30_000);
+
 for (const name of [
   "empty-diff",
   "invalid-base",

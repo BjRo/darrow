@@ -65,6 +65,223 @@ function primaryClaims(skills = ["sample:grilling"]) {
   ];
 }
 
+function fullSupportingExposures(collectionStatus = "complete") {
+  const skillExposures = [
+    { skill: "sample:grilling", status: "partial" },
+    { skill: "provider:verify-change", status: "full" },
+    { skill: "provider:code-review", status: "full" },
+  ];
+  const collection = {
+    ...commonActivation(["provider:verify-change", "provider:code-review"]),
+    completeness: "partial",
+    data: {
+      ...commonActivation([]).data,
+      observedSkills: ["provider:verify-change", "provider:code-review"],
+      partialSkills: ["sample:grilling"],
+      primarySkill: null,
+      primarySkillCompleteness: "partial",
+      incompleteReasons: ["partial_skill_bodies"],
+      collectionStatus,
+      skillExposures,
+    },
+  };
+  const claim = {
+    id: "sevro.host.skill-exposure-claims",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: {
+      method: "tool_result_body_match",
+      scope: "positive_exposure",
+      collectionStatus,
+      skillExposures,
+    },
+  };
+  return [collection, claim] as const;
+}
+
+const explicitOwner = {
+  id: "sevro.codex.explicit-invocation",
+  source: "sevro.host.codex",
+  completeness: "complete",
+  data: { method: "explicit_invocation", primarySkill: "grilling" },
+};
+
+const supportingDefinition = {
+  activation: "positive",
+  prompt: "Use {{skill_invocation}}.",
+  additional_plugins: ["plugins/capability/provider"],
+  activation_includes: ["verify-change", "code-review"],
+};
+
+test("rc21 explicit ownership combines with full supporting exposure without inventing order", async () => {
+  const selected = await (await policyProject(supportingDefinition)).resolve();
+  for (const health of ["complete", "partial"]) {
+    const [collection, claim] = fullSupportingExposures(health);
+    const result = await evaluateActivation(selected, [
+      explicitOwner,
+      collection,
+      claim,
+    ]);
+    expect(result).toMatchObject({
+      status: "passed",
+      evidenceRefs: [
+        "sevro.codex.explicit-invocation",
+        "sevro.host.skill-exposure-claims",
+      ],
+      data: {
+        primarySkill: "grilling",
+        observedSkills: ["grilling"],
+        positiveExposureSkills: ["verify-change", "code-review"],
+        evidenceScope: "explicit_invocation_and_positive_full_exposure",
+        supportingSkillOrder: "unverified",
+        aggregateActivationCompleteness: "partial",
+        collectionStatus: health,
+      },
+    });
+    expect(collection.completeness).toBe("partial");
+    expect(collection.data.primarySkill).toBeNull();
+    expect(collection.data.partialSkills).toEqual(["sample:grilling"]);
+  }
+  expect(
+    await evaluateActivation(selected, [
+      explicitOwner,
+      fullSupportingExposures()[1],
+    ]),
+  ).toMatchObject({
+    status: "passed",
+    evidenceRefs: [
+      "sevro.codex.explicit-invocation",
+      "sevro.host.skill-exposure-claims",
+    ],
+    data: {
+      aggregateActivationCompleteness: null,
+      observedSkills: ["grilling"],
+    },
+  });
+  expect(
+    (
+      await evaluateActivation(selected, [
+        {
+          ...explicitOwner,
+          data: { ...explicitOwner.data, primarySkill: "wrong-owner" },
+        },
+        ...fullSupportingExposures(),
+      ])
+    ).status,
+  ).toBe("failed");
+});
+
+test("rc21 full supporting exposure requires bound, unique positive public receipts", async () => {
+  const selected = await (await policyProject(supportingDefinition)).resolve();
+  const [collection, claim] = fullSupportingExposures();
+  const partial = [
+    { skill: "sample:grilling", status: "partial" },
+    { skill: "provider:verify-change", status: "full" },
+    { skill: "provider:code-review", status: "partial" },
+  ];
+  const foreign = [
+    { skill: "provider:verify-change", status: "full" },
+    { skill: "foreign:code-review", status: "full" },
+  ];
+  for (const evidence of [
+    [],
+    [collection],
+    [collection, claim, claim],
+    [collection, { ...claim, source: "sevro.host.claude" }],
+    [collection, { ...claim, completeness: "partial" }],
+    [collection, { ...claim, data: { ...claim.data, scope: "primary" } }],
+    [collection, { ...claim, data: { ...claim.data, method: "unverified" } }],
+    [
+      collection,
+      { ...claim, data: { ...claim.data, collectionStatus: "unknown" } },
+    ],
+    [collection, { ...claim, data: { ...claim.data, skillExposures: [] } }],
+    [
+      collection,
+      {
+        ...claim,
+        data: {
+          ...claim.data,
+          skillExposures: [
+            { skill: "provider:code-review", status: "complete" },
+          ],
+        },
+      },
+    ],
+    [
+      collection,
+      { ...claim, data: { ...claim.data, skillExposures: partial } },
+    ],
+    [
+      { ...collection, data: { ...collection.data, skillExposures: partial } },
+      { ...claim, data: { ...claim.data, skillExposures: partial } },
+    ],
+    [
+      { ...collection, data: { ...collection.data, skillExposures: foreign } },
+      { ...claim, data: { ...claim.data, skillExposures: foreign } },
+    ],
+    [
+      collection,
+      {
+        ...claim,
+        data: {
+          ...claim.data,
+          skillExposures: [
+            ...claim.data.skillExposures,
+            claim.data.skillExposures[1],
+          ],
+        },
+      },
+    ],
+  ])
+    expect(
+      (await evaluateActivation(selected, [explicitOwner, ...evidence])).status,
+    ).toBe("unavailable");
+  for (const dispatch of [
+    { ...explicitOwner, completeness: "partial" },
+    { ...explicitOwner, source: "foreign" },
+  ])
+    expect(
+      (await evaluateActivation(selected, [dispatch, collection, claim]))
+        .status,
+    ).toBe("unavailable");
+  expect(
+    (
+      await evaluateActivation(selected, [
+        {
+          ...explicitOwner,
+          supportingReadScope: "positive_full_exposure",
+          positiveFullSkills: ["verify-change", "code-review"],
+        },
+        collection,
+      ])
+    ).status,
+  ).toBe("unavailable");
+});
+
+test("rc21 supporting exposure cannot supply implicit primary, exclusions or sequence", async () => {
+  const evidence = fullSupportingExposures();
+  for (const definition of [
+    { ...supportingDefinition, prompt: "Do the work." },
+    { ...supportingDefinition, prompt: "Do the work.", activation: "negative" },
+    {
+      ...supportingDefinition,
+      activation_excludes: ["discover-feature"],
+      mount_plugin_skills: true,
+    },
+    {
+      ...supportingDefinition,
+      activation_includes: undefined,
+      activation_sequence: ["grilling", "verify-change", "code-review"],
+    },
+  ]) {
+    const selected = await (await policyProject(definition)).resolve();
+    expect(
+      (await evaluateActivation(selected, [explicitOwner, ...evidence])).status,
+    ).toBe("unavailable");
+  }
+});
+
 test("rc20 primary claims cite complete evidence without upgrading partial collection", async () => {
   const selected = await (
     await policyProject({

@@ -99,8 +99,12 @@ semantic_output_checks:
       The response reports the requested outcome as complete, with no unresolved
       blocker or pending decision preventing completion.
   - name: independent parts ran concurrently
-    proposition:
-      The response reports that the two independent parts were implemented
-      concurrently by separate workers, agents or assignments, rather than one after
-      another.
+    proposition: >-
+      The response reports actual parallel implementation of the requested
+      modules. For example, a placement statement of "concurrent assignments",
+      "concurrent agents" or "parallel workers" in a completed implementation
+      report establishes this. No particular worker noun, module names or
+      per-module worker mapping need be repeated. Reject future plans,
+      explicitly sequential implementation, or parallel work limited to review
+      or research.
 native_goal: required

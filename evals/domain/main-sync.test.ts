@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { fixtureExtensionRequest } from "./fixture-command";
+import { fixtureExtensionRequest, policyOutcomes } from "./fixture-command";
 
 const roots: string[] = [];
 
@@ -140,7 +140,7 @@ test("current implementation routes grade sourced Claude completions on both hos
             },
           ],
         });
-        expect(result.checks).toContainEqual(
+        expect(policyOutcomes(result)).toContainEqual(
           expect.objectContaining({
             id: "darrow.evals.transcript.1",
             status: expected,
@@ -230,7 +230,7 @@ test("current Claude assertions keep malformed tool evidence unavailable", async
       ],
     });
     for (const [index, status] of statuses.entries())
-      expect(result.checks).toContainEqual(
+      expect(policyOutcomes(result)).toContainEqual(
         expect.objectContaining({
           id: `darrow.evals.transcript.${index + 1}`,
           status,
@@ -280,7 +280,7 @@ test("current ordinary engineering distinguishes absence, activation and unavail
       artifacts: [],
       configuration: {},
     });
-    expect(result.checks).toContainEqual(
+    expect(policyOutcomes(result)).toContainEqual(
       expect.objectContaining({
         id: "darrow.evals.native-goal",
         status: expected,
@@ -321,7 +321,7 @@ test("contradictory native goal history remains unavailable", async () => {
       artifacts: [],
       configuration: {},
     });
-    expect(result.checks).toContainEqual(
+    expect(policyOutcomes(result)).toContainEqual(
       expect.objectContaining({
         id: "darrow.evals.native-goal",
         status: "unavailable",
@@ -332,12 +332,9 @@ test("contradictory native goal history remains unavailable", async () => {
 
 test("current native transcript checks declare required host facts", async () => {
   for (const [id, facts] of [
-    [
-      "goal-ordinary-engineering-does-not-activate",
-      ["sevro.host.skill-activations", "sevro.codex.events"],
-    ],
+    ["goal-ordinary-engineering-does-not-activate", ["sevro.host.native-goal"]],
     ["goal-preflight-high-risk-routine", ["sevro.host.native-goal"]],
-    ["claude-readiness-nonready-stops", ["sevro.claude.tool-calls"]],
+    ["claude-readiness-nonready-stops", ["sevro.host.native-goal"]],
   ] as const) {
     const result = await fixtureExtensionRequest<{
       cases: Array<{ requiredEvidence: string[] }>;
@@ -379,7 +376,7 @@ test("native route grading refuses observations attributed to another host", asy
       },
     ],
   });
-  expect(result.checks).toContainEqual(
+  expect(policyOutcomes(result)).toContainEqual(
     expect.objectContaining({
       id: "darrow.evals.transcript.1",
       status: "unavailable",
@@ -530,7 +527,7 @@ test("public extension mounts plugin references and excludes their evals", async
   ).toBe(false);
 });
 
-test("current native goal cases preserve their transcript assertions", async () => {
+test("current native goal cases preserve task and diagnostic transcript assertions", async () => {
   const root = join(import.meta.dir, "../..");
   for (const id of [
     "goal-preflight-bounded-native-goal",
@@ -540,17 +537,33 @@ test("current native goal cases preserve their transcript assertions", async () 
     "goal-review-high-selected-claude",
   ]) {
     const reply = await fixtureExtensionRequest<{
-      cases: Array<{ id: string; checks: Array<{ id: string }> }>;
+      cases: Array<{
+        id: string;
+        checks: Array<{ id: string }>;
+        extensionData: {
+          "darrow.case": {
+            nativeTranscriptChecks?: { id: string }[];
+            transcriptChecks?: { id: string }[];
+            workflowDiagnosticIds?: string[];
+          };
+        };
+      }>;
     }>("resolve", {
       projectRoot: pathToFileURL(root).href,
       selectors: { caseIds: [id] },
       configuration: {},
     });
-    expect(
-      reply.cases[0]!.checks.some((check) =>
-        check.id.startsWith("darrow.evals.transcript."),
-      ),
-    ).toBe(true);
+    const selected = reply.cases[0]!;
+    const details = selected.extensionData["darrow.case"];
+    const transcriptIds = [
+      ...(details.nativeTranscriptChecks ?? []),
+      ...(details.transcriptChecks ?? []),
+    ].map((check) => check.id);
+    expect(transcriptIds.length).toBeGreaterThan(0);
+    expect([
+      ...selected.checks.map((check) => check.id),
+      ...(details.workflowDiagnosticIds ?? []),
+    ]).toEqual(expect.arrayContaining(transcriptIds));
   }
 });
 

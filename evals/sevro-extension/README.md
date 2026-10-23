@@ -143,6 +143,8 @@ Their fixture tools write authentic bookkeeping to `DARROW_FIXTURE_RECEIPTS_DIR`
 outside the repository. Graders read those original files through the read-only
 `SEVRO_CANDIDATE_ARTIFACT_RECEIPTS` grant. The source-preservation, exact answer,
 receipt ordering, and actual continuation-boundary checks still apply.
+`goal-failed-check-blocks-publication` also uses this profile to retain check and
+dependent-effect receipts independently of generated workspace-output cleanup.
 
 For startup diagnosis on Sevro rc.10 or later, add `--retain-host-diagnostics`
 after the caller's `--` separator. The flag applies to selected native roles

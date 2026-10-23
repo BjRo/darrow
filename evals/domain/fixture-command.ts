@@ -30,6 +30,22 @@ export type OracleCheck = {
   expect_regex?: string;
   expect_exact?: string;
 };
+
+/** Inspect the same policy fact after it moves from a task check to diagnostics. */
+export function policyOutcomes<T extends { id: string }>(result: {
+  checks: T[];
+  domainOutcomes?: T[];
+}): T[] {
+  return [
+    ...result.checks,
+    ...(result.domainOutcomes ?? [])
+      .filter((outcome) => outcome.id.startsWith("darrow.evals.workflow."))
+      .map((outcome) => ({
+        ...outcome,
+        id: outcome.id.replace("darrow.evals.workflow.", "darrow.evals."),
+      })),
+  ];
+}
 export type OutputOracleCheck = Omit<OracleCheck, "run" | "exit_code"> & {
   not_regex?: string;
   flags?: string;

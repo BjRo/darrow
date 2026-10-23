@@ -24,9 +24,11 @@ import { pluginHookPolicy, pluginHookChecks } from "./plugin-hook";
 import {
   commonSkillActivation,
   commonSkillActivationClaims,
+  commonSkillExposureClaims,
   commonSkillSource,
   SKILL_ACTIVATION_CLAIMS,
   SKILL_ACTIVATIONS,
+  SKILL_EXPOSURE_CLAIMS,
 } from "./skill-activation";
 import {
   caseWithCondition,
@@ -1457,14 +1459,77 @@ function casePolicy(selected: RecordValue, skillDir: string | null) {
       ? legacyCasePolicy(selected, skillDir)
       : nativeGoalCasePolicy(selected);
   if (
-    skillDir !== "plugins/task-recipe/darrow-ticket-to-pr/skills/ticket-to-pr"
+    skillDir === "plugins/task-recipe/darrow-ticket-to-pr/skills/ticket-to-pr"
+  )
+    return {
+      ...policy,
+      checks: [],
+      requiredEvidence: [],
+      details: { ...policy.details, workflowDiagnostics: true },
+    };
+  return adaptiveGoalDiagnostics(selected, skillDir, policy);
+}
+
+function hasObservableTask(selected: RecordValue) {
+  return [
+    "checks",
+    "output_checks",
+    "semantic_output_checks",
+    "semantic_artifact",
+  ].some((field) =>
+    Array.isArray(selected[field])
+      ? selected[field].length > 0
+      : field === "semantic_artifact" && selected[field] !== undefined,
+  );
+}
+
+function adaptiveGoalDiagnostics(
+  selected: RecordValue,
+  skillDir: string | null,
+  policy:
+    | ReturnType<typeof legacyCasePolicy>
+    | ReturnType<typeof nativeGoalCasePolicy>,
+) {
+  if (
+    !skillDir?.startsWith(
+      "plugins/orchestration/darrow-adaptive-goal/skills/",
+    ) ||
+    !hasObservableTask(selected)
   )
     return policy;
+  const details: RecordValue = policy.details;
+  const current = (details.nativeTranscriptChecks ?? []) as NativeTranscript[];
+  const legacy = (details.transcriptChecks ?? []) as NonNullable<
+    ReturnType<typeof caseTranscriptChecks>
+  >;
+  const taskChecks = [
+    ...current.filter((check) => check.kind === "route"),
+    ...legacy.filter(
+      (check) =>
+        check.kind === "owner-route" ||
+        check.kind === "unchanged-before-continuation",
+    ),
+  ];
+  const taskIds = new Set(taskChecks.map((check) => check.id));
+  const diagnosticIds = [...current, ...legacy]
+    .filter((check) => !taskIds.has(check.id))
+    .map((check) => check.id);
   return {
     ...policy,
-    checks: [],
-    requiredEvidence: [],
-    details: { ...policy.details, workflowDiagnostics: true },
+    checks: policy.checks.filter((check) => !diagnosticIds.includes(check.id)),
+    requiredEvidence: [
+      ...new Set([
+        ...(details.nativeGoal === undefined ? [] : ["sevro.host.native-goal"]),
+        ...nativeTranscriptEvidence(
+          current.filter((check) => taskIds.has(check.id)),
+        ),
+        ...policyEvidence(
+          null,
+          legacy.filter((check) => taskIds.has(check.id)),
+        ),
+      ]),
+    ],
+    details: { ...policy.details, workflowDiagnosticIds: diagnosticIds },
   };
 }
 
@@ -3253,8 +3318,19 @@ function observedActivation(
   return {
     primarySkill,
     observedSkills,
+    positiveSkills: positiveActivationSkills(observation, explicit),
     evidenceRef: string(observation.id, "skill observation ID"),
   };
+}
+
+function positiveActivationSkills(observation: RecordValue, explicit: boolean) {
+  if (
+    !explicit ||
+    observation.id !== "sevro.codex.explicit-invocation" ||
+    observation.supportingReadScope !== "positive_full_exposure"
+  )
+    return [];
+  return skillSequence(observation.positiveFullSkills) ?? [];
 }
 
 function nonemptyString(value: unknown): value is string {
@@ -3276,7 +3352,14 @@ function explicitSupportingActivation(
   const reads = common.observation;
   const observed = observedActivation(reads, false);
   const dispatched = observedActivation(selected, true);
-  if (!observed || !dispatched) return { ...selected, completeness: "partial" };
+  if (!dispatched) return { ...selected, completeness: "partial" };
+  if (!observed)
+    return explicitExposureActivation(
+      selected,
+      dispatched,
+      observations,
+      details,
+    );
   const sequence = [
     dispatched.primarySkill!,
     ...observed.observedSkills.filter(
@@ -3291,6 +3374,48 @@ function explicitSupportingActivation(
       observedSkills: sequence,
     },
     supportingReadEvidence: SKILL_ACTIVATIONS,
+  };
+}
+
+function exposureAggregate(observations: unknown) {
+  const aggregate = uniqueObservation(observations, SKILL_ACTIVATIONS);
+  return aggregate?.source === "sevro.host.codex" &&
+    ["complete", "partial", "unavailable"].includes(
+      String(aggregate.completeness),
+    )
+    ? aggregate
+    : null;
+}
+
+function explicitExposureActivation(
+  selected: RecordValue,
+  dispatched: NonNullable<ReturnType<typeof observedActivation>>,
+  observations: unknown,
+  details: RecordValue,
+): RecordValue {
+  const unavailable = { ...selected, completeness: "partial" };
+  if (selected.id !== "sevro.codex.explicit-invocation") return unavailable;
+  const expected = activationExpectation(details.activation);
+  const claim = uniqueObservation(observations, SKILL_EXPOSURE_CLAIMS);
+  const exposure = claim
+    ? commonSkillExposureClaims(claim, observationNamespaces(details))
+    : null;
+  if (
+    !exposure ||
+    !claimsCoverExpectation(expected, [
+      dispatched.primarySkill!,
+      ...exposure.fullSkills,
+    ])
+  )
+    return unavailable;
+  const aggregate = exposureAggregate(observations);
+  return {
+    ...selected,
+    positiveFullSkills: exposure.fullSkills,
+    supportingReadEvidence: SKILL_EXPOSURE_CLAIMS,
+    supportingReadScope: "positive_full_exposure",
+    supportingCollectionStatus: exposure.collectionStatus,
+    supportingAggregateCompleteness: aggregate?.completeness ?? null,
   };
 }
 
@@ -3421,7 +3546,9 @@ function explicitDispatchObservation(selected: RecordValue | null) {
   if (!data || !nonemptyString(primarySkill))
     return { ...selected, completeness: "partial" };
   return {
-    ...selected,
+    id: selected.id,
+    source: selected.source,
+    completeness: selected.completeness,
     data: { ...data, primarySkill, observedSkills: [primarySkill] },
   };
 }
@@ -3429,13 +3556,17 @@ function explicitDispatchObservation(selected: RecordValue | null) {
 function matchesSkillExpectations(
   expected: ReturnType<typeof activationExpectation>,
   observedSkills: string[],
+  positiveSkills: string[] = [],
 ) {
   const sequencePassed =
     expected.sequence?.every(
       (skill, index) => observedSkills[index] === skill,
     ) ?? true;
   const includesPassed =
-    expected.includes?.every((skill) => observedSkills.includes(skill)) ?? true;
+    expected.includes?.every(
+      (skill) =>
+        observedSkills.includes(skill) || positiveSkills.includes(skill),
+    ) ?? true;
   const excludesPassed =
     expected.excludes?.every((skill) => !observedSkills.includes(skill)) ??
     true;
@@ -3450,7 +3581,11 @@ function activationStatus(
   const selected = observed.primarySkill === expected.targetSkill;
   const primaryPassed = (expected.activationClass !== "negative") === selected;
   return primaryPassed &&
-    matchesSkillExpectations(expected, observed.observedSkills)
+    matchesSkillExpectations(
+      expected,
+      observed.observedSkills,
+      observed.positiveSkills,
+    )
     ? "passed"
     : "failed";
 }
@@ -3469,17 +3604,45 @@ function activationOutcomeData(
     source: observation?.source ?? null,
     primarySkill: observed?.primarySkill ?? null,
     observedSkills: observed?.observedSkills ?? [],
+    ...positiveExposureOutcome(observed),
     ...activationClaimScope(observation),
   };
 }
 
+function positiveExposureOutcome(
+  observed: ReturnType<typeof observedActivation>,
+) {
+  const skills = observed?.positiveSkills ?? [];
+  return skills.length ? { positiveExposureSkills: skills } : {};
+}
+
 function activationClaimScope(observation: RecordValue | null) {
+  if (observation?.supportingReadScope === "positive_full_exposure")
+    return {
+      evidenceScope: "explicit_invocation_and_positive_full_exposure",
+      supportingSkillOrder: "unverified",
+      aggregateActivationCompleteness:
+        observation.supportingAggregateCompleteness,
+      collectionStatus: observation.supportingCollectionStatus,
+    };
   return observation?.id === SKILL_ACTIVATION_CLAIMS
     ? {
         evidenceScope: "primary_and_positive_presence",
         collectionCompleteness: "partial",
       }
     : {};
+}
+
+function activationDetail(
+  observation: RecordValue | null,
+  observed: ReturnType<typeof observedActivation>,
+) {
+  if (!observed) return "Activation observation unavailable or incomplete";
+  if (observation?.supportingReadScope === "positive_full_exposure")
+    return "Activation graded from explicit invocation and complete positive full-exposure claims; aggregate collection remains separately qualified";
+  return observation?.id === SKILL_ACTIVATION_CLAIMS
+    ? "Activation graded from complete primary/presence claim; collection remains partial"
+    : "Activation graded from complete host observation";
 }
 
 function uniqueObservation(value: unknown, id: string): RecordValue | null {
@@ -5970,6 +6133,28 @@ async function workflowChecks(details: RecordValue, params: RecordValue) {
   ];
 }
 
+function splitWorkflow(
+  details: RecordValue,
+  workflow: Awaited<ReturnType<typeof workflowChecks>>,
+) {
+  const diagnostics = details.workflowDiagnostics === true;
+  const diagnosticIds = new Set(
+    Array.isArray(details.workflowDiagnosticIds)
+      ? details.workflowDiagnosticIds
+      : [],
+  );
+  const diagnostic = (id: string) => diagnostics || diagnosticIds.has(id);
+  return {
+    checks: workflow.filter((check) => !diagnostic(check.id)),
+    domainOutcomes: workflow
+      .filter((check) => diagnostic(check.id))
+      .map((check) => ({
+        ...check,
+        id: check.id.replace("darrow.evals.", "darrow.evals.workflow."),
+      })),
+  };
+}
+
 async function evaluateCase(params: RecordValue) {
   const omitSkills = withoutSkill(params.configuration);
   const extensionData = record(
@@ -5978,20 +6163,17 @@ async function evaluateCase(params: RecordValue) {
   );
   const details = record(extensionData["darrow.case"], "Darrow case data");
   const metrics = caseMetrics(details, params);
-  const workflow = await workflowChecks(details, params);
-  const diagnostics = details.workflowDiagnostics === true;
+  const workflow = splitWorkflow(
+    details,
+    await workflowChecks(details, params),
+  );
   const checks = [
     ...pluginHookChecks(details.requiredPluginHook, params.observations),
     ...guideDisclosureOutcomes(details.disclosureChecks, params.observations),
     ...caseBenchmarkChecks(details, params),
-    ...(diagnostics ? [] : workflow),
+    ...workflow.checks,
   ];
-  const domainOutcomes = diagnostics
-    ? workflow.map((check) => ({
-        ...check,
-        id: check.id.replace("darrow.evals.", "darrow.evals.workflow."),
-      }))
-    : [];
+  const domainOutcomes = workflow.domainOutcomes;
   if (omitSkills || details.activation === undefined)
     return { checks, metrics, domainOutcomes };
   const expected = activationExpectation(details.activation);
@@ -6008,11 +6190,7 @@ async function evaluateCase(params: RecordValue) {
         id: "darrow.evals.activation",
         status,
         evidenceRefs: activationEvidenceRefs(observation),
-        detail: observed
-          ? observation?.id === SKILL_ACTIVATION_CLAIMS
-            ? "Activation graded from complete primary/presence claim; collection remains partial"
-            : "Activation graded from complete host observation"
-          : "Activation observation unavailable or incomplete",
+        detail: activationDetail(observation, observed),
         data: activationOutcomeData(expected, observation, observed),
       },
     ],
@@ -6061,6 +6239,7 @@ if (import.meta.main) {
               "sevro.host.hooks",
               SKILL_ACTIVATIONS,
               SKILL_ACTIVATION_CLAIMS,
+              SKILL_EXPOSURE_CLAIMS,
               "sevro.codex.plugin-marketplace",
               "sevro.codex.explicit-invocation",
               "sevro.codex.repository-invocation",

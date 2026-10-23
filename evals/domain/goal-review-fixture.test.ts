@@ -192,6 +192,26 @@ test("high-risk composition requires verification and supporting review reads", 
   }
 });
 
+test("high-risk setup prepares an empty Review grant before candidate work", async () => {
+  const canonical = await readFixtureCase(source);
+  const home = await mkdtemp(join(tmpdir(), "darrow-review-empty-home-"));
+  try {
+    const result = await captureTestCommand(
+      [
+        "/bin/bash",
+        "-eu",
+        "-c",
+        `${canonical.fixture.setup ?? ""}\ntest -d "$HOME/.darrow/reviews"\ntest -z "$(ls -A "$HOME/.darrow/reviews")"`,
+      ],
+      undefined,
+      { env: { ...process.env, HOME: home } },
+    );
+    expect(result.exitCode, result.stderr).toBe(0);
+  } finally {
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
 function guidance(scenario: RepairScenario, handoff = false): string[] {
   if (handoff && scenario.omittedGuidance) return [];
   return [
@@ -288,6 +308,15 @@ const reviewScenarios = [
     passes: true,
   },
   {
+    name: "clear with ordinary next action",
+    standards: "pass",
+    check: "pass",
+    verdict: "pass",
+    disposition: null,
+    nextAction: "No follow-up required",
+    passes: true,
+  },
+  {
     name: "clear with advisory",
     standards: "pass",
     check: "pass",
@@ -371,7 +400,7 @@ test("high-risk review oracle: valid and invalid artifacts", async () => {
       ],
       verdict: scenario.verdict,
       risks: ["Synthetic risk record"],
-      next_action: "return control to enclosing goal",
+      next_action: scenario.nextAction ?? "return control to enclosing goal",
     };
     const checks = [
       writeRecord("write comprehensive fixture record", record, records),
