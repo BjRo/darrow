@@ -5,7 +5,7 @@ mount_plugin_skills: true
 expect_head_change: false
 prompt: >-
   Prepare either `fix/DAR-123-attribution` or `feat/DAR-123-observability` for
-  canonical token DAR-123, whichever seems better.
+  canonical identifier DAR-123, whichever seems better.
 fixture:
   commits:
     - message: "chore: init"

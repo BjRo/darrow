@@ -1,4 +1,4 @@
-"""Conventional names and opaque ticket-token contracts."""
+"""Conventional names and opaque ticket-id contracts."""
 
 import re
 
@@ -8,35 +8,35 @@ TYPES = "feat|fix|refactor|perf|docs|test|chore|build|ci|style|revert"
 KEBAB = r"[a-z0-9]+(-[a-z0-9]+)*"
 
 
-def validate_token(token: str, *, task: bool = False) -> None:
+def validate_ticket_id(ticket_id: str, *, task: bool = False) -> None:
     require(
-        re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]*", token),
-        f"ticket token contains unsupported branch characters: {token}",
+        re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]*", ticket_id),
+        f"ticket ID contains unsupported branch characters: {ticket_id}",
         5,
     )
     if task:
         require(
-            len(token) <= 55
-            and succeeds("check-ref-format", "--branch", f"ci/{token}-a"),
-            f"ticket token cannot form a valid task branch: {token}",
+            len(ticket_id) <= 55
+            and succeeds("check-ref-format", "--branch", f"ci/{ticket_id}-a"),
+            f"ticket ID cannot form a valid task branch: {ticket_id}",
             5,
         )
 
 
-def validate_suffix(name: str, token: str) -> None:
+def validate_suffix(name: str, ticket_id: str) -> None:
     slug = name.split("/", 1)[1]
     require(
-        slug.startswith(token + "-"),
-        f"branch must lead with the supplied ticket token exactly: {name}",
+        slug.startswith(ticket_id + "-"),
+        f"branch must lead with the supplied ticket ID exactly: {name}",
         5,
     )
     require(
-        slug.count(token) == 1,
-        f"supplied ticket token must occur exactly once: {name}",
+        slug.count(ticket_id) == 1,
+        f"supplied ticket ID must occur exactly once: {name}",
         5,
     )
     require(
-        re.fullmatch(KEBAB, slug[len(token) + 1 :]),
+        re.fullmatch(KEBAB, slug[len(ticket_id) + 1 :]),
         f"branch suffix must be lowercase kebab-case: {name}",
         5,
     )
@@ -58,33 +58,33 @@ def validate_unbound_slug(name: str) -> None:
         )
 
 
-def validate_name(name: str, token: str = "", *, task: bool = False) -> None:
-    if token:
-        validate_token(token, task=task)
-    shape = "<opaque-token>-<kebab-suffix>" if task else "<kebab-slug>"
+def validate_name(name: str, ticket_id: str = "", *, task: bool = False) -> None:
+    if ticket_id:
+        validate_ticket_id(ticket_id, task=task)
+    shape = "<ticket-id>-<kebab-suffix>" if task else "<kebab-slug>"
     require(
         re.fullmatch(f"({TYPES})/.+", name)
         and succeeds("check-ref-format", "--branch", name),
         f"branch name must be <type>/{shape}: {name}",
         5,
     )
-    if token:
-        validate_suffix(name, token)
+    if ticket_id:
+        validate_suffix(name, ticket_id)
     else:
         validate_unbound_slug(name)
     require(len(name) <= 60, f"branch name exceeds 60 chars ({len(name)})", 5)
 
 
-def correlated(name: str, token: str) -> bool:
+def correlated(name: str, ticket_id: str) -> bool:
     try:
-        validate_name(name, token, task=True)
+        validate_name(name, ticket_id, task=True)
     except RefusalError:
         return False
     return True
 
 
-def discover(token: str) -> list[str]:
-    validate_token(token, task=True)
+def discover(ticket_id: str) -> list[str]:
+    validate_ticket_id(ticket_id, task=True)
     try:
         rows = git(
             "for-each-ref",
@@ -97,6 +97,6 @@ def discover(token: str) -> list[str]:
     matches = []
     for row in rows.splitlines():
         name, tip = row.split("\t")
-        if correlated(name, token):
+        if correlated(name, ticket_id):
             matches.append(f"{name} (at {tip})")
     return matches

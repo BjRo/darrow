@@ -1,6 +1,6 @@
 # Task branch revision evidence
 
-Public goal: discover local task branches for an exact opaque ticket token, or
+Public goal: discover local task branches for an exact opaque ticket identifier, or
 prepare one caller-bound exact name without moving existing work. Discovery
 returns complete candidates; the caller owns selection. Both Claude Code and
 Codex are supported. No provider identity, alternative name, or worktree
@@ -8,9 +8,9 @@ authority may be inferred.
 
 | Request                                                            | Expected boundary                                 |
 | ------------------------------------------------------------------ | ------------------------------------------------- |
-| Direct: discover local task branches for token DAR-123             | Complete read-only candidates                     |
-| Indirect: find prior local work for canonical token DAR-123        | Same discovery                                    |
-| Incomplete: prepare this ticket's branch                           | Ask for token and exact name                      |
+| Direct: discover local task branches for identifier DAR-123        | Complete read-only candidates                     |
+| Indirect: find prior local work for canonical identifier DAR-123   | Same discovery                                    |
+| Incomplete: prepare this ticket's branch                           | Ask for identifier and exact name                 |
 | Negative: list all branches                                        | General branch listing does not select this skill |
 | Pressure: prepare a new suffix while an old correlated name exists | Refuse creation and return candidates             |
 

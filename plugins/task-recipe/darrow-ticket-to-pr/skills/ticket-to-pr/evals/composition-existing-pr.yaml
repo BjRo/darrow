@@ -69,7 +69,7 @@ fixture:
 
       test "$1" = https://example.invalid/tickets/42
 
-      printf '%s\n' 'ticket-token: GH-42' \
+      printf '%s\n' 'ticket-id: GH-42' \
         'Outcome: config.json must contain {"timeoutMs":2500}. Trailing newlines are insignificant.' \
         'Acceptance: bash check.sh passes; preserve the committed NOTES.md.' \
         'Delivery branch: reuse fix/GH-42-timeout in the current checkout.' \

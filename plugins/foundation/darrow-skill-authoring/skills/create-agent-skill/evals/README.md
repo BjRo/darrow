@@ -16,10 +16,10 @@ reliability claim.
 | Reuse a current independent review of a new draft | `reuse-current-review`     |
 
 The creation fixtures keep prepared drafts under names other than `SKILL.md`.
-The participant must produce the real file. The complex historical
-`repair-skill-boundaries` case is [archived](../../../../../../evals/experiments/skill-authoring-description/archive/repair-skill-boundaries.yaml)
-because implementing changes to an existing skill is outside both public
-capabilities; its prior task failures remain in the comparison snapshot.
+The participant must produce the real file. The obsolete `repair-skill-boundaries`
+case has been removed because implementing changes to an existing skill is
+outside both public capabilities. Its prior task failures remain in the
+[comparison snapshot](../../../../../../evals/experiments/skill-authoring-description/snapshots/2026-09-25.md).
 
 For shell-reporting checks, observed Bash 3.2 and Bash 5 versioned runs count
 as full coverage. An unavailable or unexecuted target must be labeled

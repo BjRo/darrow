@@ -192,7 +192,7 @@ test("feedback fixture permits readiness reassessment and a valid selected branc
         exit_code: 1,
       },
       {
-        name: "repeated ticket token is rejected",
+        name: "repeated ticket ID is rejected",
         run: "fixture-prepare-branch feature/DAR-42-DAR-42-migration",
         exit_code: 1,
       },

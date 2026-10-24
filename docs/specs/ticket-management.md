@@ -373,14 +373,17 @@ authorized work.
   the tracked work. Separate work keeps the authority in the user's own words:
   a request to inspect and suggest a fix does not authorize editing files.
 - **TM-R3 — Authoritative complete output.** Return the backend, provider-owned
-  `ticket-token: <opaque provider identifier>` sourced from the authoritative
+  `ticket-id: <opaque provider identifier>` sourced from the authoritative
   ticket record, ID, state,
   title, canonical URL, labels, parent and dependency relations, and full
-  description exactly as normalized by the bundled CLI. The token is identical
+  description exactly as normalized by the bundled CLI. The identifier is identical
   whether the accepted input was `N`, `#N`, or the current-project canonical
   URL; it is absent from every refusal or retrieval failure. Consumers preserve
-  it verbatim rather than deriving a token from an input reference or URL. For
-  GitHub Issues the token is its issue number. For a standalone read, relay the
+  it verbatim rather than deriving an identifier from an input reference or URL.
+  This is a non-secret ticket identifier, never an authentication credential.
+  Use `ticket-id` in model-facing records and consumer arguments so secret
+  redactors do not mistake the field for a credential. For GitHub Issues the
+  identifier is its issue number. For a standalone read, relay the
   complete CLI stream unchanged as the final response. For a compound request,
   fetch once for the entire request, retain the complete stream as authoritative
   evidence, and return control to the enclosing task for the separately

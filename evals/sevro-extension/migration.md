@@ -1,6 +1,6 @@
 # Sevro development, updates and rollback
 
-Darrow pins the exact published `@bjoernrochel/sevro` version in
+Darrow pins the published `@bjoernrochel/sevro@1.0.0` version in
 [package.json](../../package.json) and `bun.lock`. Normal direct, guide and
 benchmark callers use that installation. Run `bun install --frozen-lockfile`
 before using them. No source checkout or Git metadata is required.
@@ -37,7 +37,7 @@ SEVRO_PACKAGE_TARBALL=/absolute/path/to/bjoernrochel-sevro-version.tgz bun run t
 ```
 
 The package gate installs the archive without source Git metadata and runs the
-integration, policy and historical-reader groups. It clears the checkout
+integration and policy groups. It clears the checkout
 override. Default-caller checks also clear both overrides and verify Darrow's
 own frozen pin.
 
@@ -48,7 +48,6 @@ own frozen pin.
 | Sevro package        | Sevro tests, typecheck, formatting and package-install gate                    |
 | Darrow integration   | `bun run test:eval-integration` against the installed public boundary          |
 | Darrow policy        | `bun run test:eval-policy` for translation, caller behavior and domain oracles |
-| Historical readers   | `bun run test:eval-history`, including operation without Sevro                 |
 | Complete Darrow gate | `bun run test:evals` with runner overrides cleared                             |
 | Native behavior      | One understood trial at a time on the relevant host                            |
 
@@ -70,12 +69,13 @@ evidence before claiming another host/platform combination.
 
 ## Update the pin
 
-1. Prepare and verify a versioned Sevro candidate using its repository's release
-   instructions. Retain the archive, package inventory, checksum and build identity.
+1. Select an exact published Sevro release. Download its archive and retain the
+   package inventory, checksum and build identity.
 2. Run Darrow's archive gate against that exact tarball. Test the affected
    Darrow policies and native host behavior; inspect any failed checks before
    continuing. Record intentional protocol or command changes separately.
-3. Publish the reviewed package through Sevro's authorized release process.
+3. Resolve intentional protocol or command changes against the release
+   documentation before changing Darrow's dependency.
 4. Update Darrow's exact dependency and frozen lockfile. Refresh expected
    package identities in the default-caller tests. Run
    `bun install --frozen-lockfile` and `bun run test:evals` without overrides.

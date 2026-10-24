@@ -73,9 +73,9 @@ fixture:
 output_checks:
   - name: complete CLI output is relayed
     # Preserve the previous shell grader's optional final rendering newline.
-    expect_regex: "(?<![\\s\\S])backend: github\\nticket-token: 12\\n#12 open — Preserve exact ticket bodies\\nhttps://github\\.test/o/r/issues/12\\nlabels: enhancement, area: tickets\\nparent: #7\\ndepends-on: #3\\n## body\\n## Motivation\\n\\nCallers need TOKEN-ALPHA verbatim\\.\\n\\n## Acceptance criteria\\n\\n- Preserve TOKEN-BETA exactly\\.\\n?(?![\\s\\S])"
+    expect_regex: "(?<![\\s\\S])backend: github\\nticket-id: 12\\n#12 open — Preserve exact ticket bodies\\nhttps://github\\.test/o/r/issues/12\\nlabels: enhancement, area: tickets\\nparent: #7\\ndepends-on: #3\\n## body\\n## Motivation\\n\\nCallers need TOKEN-ALPHA verbatim\\.\\n\\n## Acceptance criteria\\n\\n- Preserve TOKEN-BETA exactly\\.\\n?(?![\\s\\S])"
   - name: exact ticket metadata and body are returned
-    expect_regex: "ticket-token: 12[\\s\\S]*#12 open.*Preserve exact ticket bodies[\\s\\S]*https://github.test/o/r/issues/12[\\s\\S]*TOKEN-ALPHA[\\s\\S]*TOKEN-BETA"
+    expect_regex: "ticket-id: 12[\\s\\S]*#12 open.*Preserve exact ticket bodies[\\s\\S]*https://github.test/o/r/issues/12[\\s\\S]*TOKEN-ALPHA[\\s\\S]*TOKEN-BETA"
   - name: native relations are returned
     expect_regex: "parent: #7[\\s\\S]*depends-on: #3"
 checks:

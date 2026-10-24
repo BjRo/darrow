@@ -18,7 +18,7 @@ git commit -qm 'chore: init' --allow-empty
 git branch fix/DAR-123-original-suffix
 tip=$(git rev-parse HEAD)
 before=$(git show-ref)
-output=$("${ENTRYPOINT[@]}" discover --ticket-token DAR-123) || {
+output=$("${ENTRYPOINT[@]}" discover --ticket-id DAR-123) || {
   printf '%s\n' 'FAIL: complete ticket discovery is unavailable' >&2
   exit 1
 }
@@ -27,13 +27,13 @@ grep -Fx '## matches: 1' <<< "$output"
 grep -Fx "fix/DAR-123-original-suffix (at $tip)" <<< "$output"
 test "$(git branch --show-current)" = main
 test "$(git show-ref)" = "$before"
-"${ENTRYPOINT[@]}" prepare fix/DAR-123-original-suffix --ticket-token DAR-123 --from main
+"${ENTRYPOINT[@]}" prepare fix/DAR-123-original-suffix --ticket-id DAR-123 --from main
 test "$(git rev-parse HEAD)" = "$tip"
 test "$(git branch --show-current)" = fix/DAR-123-original-suffix
 test "$(git show-ref)" = "$before"
 git switch -q main
 status=0
-output=$("${ENTRYPOINT[@]}" prepare feat/DAR-123-different-suffix --ticket-token DAR-123 2>&1) || status=$?
+output=$("${ENTRYPOINT[@]}" prepare feat/DAR-123-different-suffix --ticket-id DAR-123 2>&1) || status=$?
 test "$status" = 9 || {
   printf 'FAIL: creation with a prior correlated branch must refuse (got %s)\n' "$status" >&2
   exit 1
@@ -48,11 +48,11 @@ exclude=$(git rev-parse --git-path info/exclude)
 exclude_before=$(cksum < "$exclude")
 printf '%s\n' preserve >untracked.txt
 dirty=$(git status --porcelain)
-output=$("${ENTRYPOINT[@]}" discover --ticket-token DAR-123)
+output=$("${ENTRYPOINT[@]}" discover --ticket-id DAR-123)
 grep -Fx '## matches: 2' <<< "$output"
 test "$(printf '%s\n' "$output" | sed -n '4p')" = "feat/DAR-123-second (at $tip)"
 status=0
-output=$("${ENTRYPOINT[@]}" prepare feat/DAR-123-third --ticket-token DAR-123 --worktree 2>&1) || status=$?
+output=$("${ENTRYPOINT[@]}" prepare feat/DAR-123-third --ticket-id DAR-123 --worktree 2>&1) || status=$?
 test "$status" = 9
 grep -Fx '## matches: 2' <<< "$output"
 test "$(git show-ref)" = "$before"
@@ -62,7 +62,7 @@ test "$(git status --porcelain)" = "$dirty"
 test ! -e .worktrees
 test "$(git branch --show-current)" = main
 # Explicit selection remains usable even when discovery returned several names.
-"${ENTRYPOINT[@]}" prepare feat/DAR-123-second --ticket-token DAR-123
+"${ENTRYPOINT[@]}" prepare feat/DAR-123-second --ticket-id DAR-123
 test "$(git show-ref)" = "$before"
 git switch -q main
 
@@ -81,35 +81,35 @@ git branch custom/issue-84-type
 git branch fix/issue-84-Upper
 git update-ref refs/remotes/origin/fix/issue-84-remote HEAD
 before=$(git show-ref)
-output=$("${ENTRYPOINT[@]}" discover --ticket-token issue-84)
+output=$("${ENTRYPOINT[@]}" discover --ticket-id issue-84)
 grep -Fx '## matches: 1' <<< "$output"
 grep -Fx "fix/issue-84-original (at $tip)" <<< "$output"
 test "$(git show-ref)" = "$before"
-output=$("${ENTRYPOINT[@]}" discover --ticket-token issue-85)
+output=$("${ENTRYPOINT[@]}" discover --ticket-id issue-85)
 grep -Fx '## matches: 0' <<< "$output"
-"${ENTRYPOINT[@]}" prepare fix/issue-85-new --ticket-token issue-85
+"${ENTRYPOINT[@]}" prepare fix/issue-85-new --ticket-id issue-85
 test "$(git branch --show-current)" = fix/issue-85-new
 test "$(git rev-parse HEAD)" = "$tip"
 test "$(git worktree list --porcelain | grep -c '^worktree ')" = 1
 test "$(git status --porcelain)" = "$dirty"
 
 before=$(git show-ref)
-for bad_token in '' 'issue 84' '-84' 'issue/84' 'a:b' 'a..b' \
+for bad_id in '' 'issue 84' '-84' 'issue/84' 'a:b' 'a..b' \
   '12345678901234567890123456789012345678901234567890123456'; do
   status=0
-  output=$("${ENTRYPOINT[@]}" discover --ticket-token "$bad_token" 2>&1) || status=$?
+  output=$("${ENTRYPOINT[@]}" discover --ticket-id "$bad_id" 2>&1) || status=$?
   test "$status" != 0 || {
-    printf 'FAIL: invalid token must refuse discovery: %s\n' "$bad_token" >&2
+    printf 'FAIL: invalid identifier must refuse discovery: %s\n' "$bad_id" >&2
     exit 1
   }
   if grep -F '## matches:' <<< "$output"; then exit 1; fi
 done
 test "$(git show-ref)" = "$before"
-long_token=1234567890123456789012345678901234567890123456789012345
-output=$("${ENTRYPOINT[@]}" discover --ticket-token "$long_token")
+long_id=1234567890123456789012345678901234567890123456789012345
+output=$("${ENTRYPOINT[@]}" discover --ticket-id "$long_id")
 grep -Fx '## matches: 0' <<< "$output"
-"${ENTRYPOINT[@]}" prepare "ci/${long_token}-a" --ticket-token "$long_token"
-output=$("${ENTRYPOINT[@]}" discover --ticket-token "$long_token")
+"${ENTRYPOINT[@]}" prepare "ci/${long_id}-a" --ticket-id "$long_id"
+output=$("${ENTRYPOINT[@]}" discover --ticket-id "$long_id")
 grep -Fx '## matches: 1' <<< "$output"
 test "$(git rev-parse HEAD)" = "$tip"
 before=$(git show-ref)
@@ -123,7 +123,7 @@ printf '%s\n' '#!/usr/bin/env bash' \
 chmod +x .git/fake-bin/git
 status=0
 output=$(PATH="$repo/.git/fake-bin:$PATH" DISCOVERY_REAL_GIT="$real_git" \
-  "${ENTRYPOINT[@]}" discover --ticket-token issue-84 2>&1) || status=$?
+  "${ENTRYPOINT[@]}" discover --ticket-id issue-84 2>&1) || status=$?
 test "$status" = 3
 if grep -F '## matches:' <<< "$output"; then exit 1; fi
 test "$(git show-ref)" = "$before"

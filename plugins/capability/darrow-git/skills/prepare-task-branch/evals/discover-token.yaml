@@ -5,7 +5,7 @@ mount_plugin_skills: true
 expect_head_change: false
 prompt: >-
   Find all local task branches correlated with the active provider's exact
-  canonical token issue-84 and report their full tips. Keep the checkout as it is.
+  canonical identifier issue-84 and report their full tips. Keep the checkout as it is.
 fixture:
   commits:
     - message: "chore: init"

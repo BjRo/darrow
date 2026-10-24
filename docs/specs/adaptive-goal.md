@@ -381,16 +381,16 @@ operation implicitly due.
 For an explicitly authorized ticket delivery that needs task-branch preparation,
 adaptive goal owns correlation and naming policy. Bind a host-advertised
 Git capability supporting complete read-only discovery by the provider's exact
-opaque canonical token and exact-name preparation. During preflight obtain
+opaque canonical `ticket-id` and exact-name preparation. During preflight obtain
 complete local evidence before binding a proposed name. One match binds that
 exact branch regardless of a proposed type or suffix; multiple matches require
 one explicit user choice and no mutation; zero matches permits one conventional
-`<type>/<token>-<kebab-suffix>` name derived from the settled request (lowercase
-suffix, unchanged token exactly once, at most 60 characters). Preserve an exact
+`<type>/<ticket-id>-<kebab-suffix>` name derived from the settled request (lowercase
+suffix, unchanged identifier exactly once, at most 60 characters). Preserve an exact
 caller-selected existing match; do not infer selection from a merely proposed
 new name. Missing compatible discovery or incomplete evidence stops preparation.
 
-Compile the token, evidence, selected name, and decision into the owner contract.
+Compile the identifier, evidence, selected name, and decision into the owner contract.
 The owner refreshes discovery before preparation; changed candidates require
 reapplying the same rule before mutation. Preparation remains owner work and
 uses the bound capability. Existing tips, local work, conflict refusals, and
@@ -979,8 +979,8 @@ owner, nested host process or runtime is authorized.
     passive observations distinguish main-thread goal activation from bounded
     child acceptance without imposing the former parent-work prohibition.
 
-20. **ADL-B1 — Token-correlated branch choice.** Before authorized ticket
-    branch creation, adaptive goal consumes complete exact-token Git
+20. **ADL-B1 — Ticket-correlated branch choice.** Before authorized ticket
+    branch creation, adaptive goal consumes complete exact-ID Git
     capability evidence and applies the one/many/zero-match policy above. The
     recipe owns no branch choice; the Git capability owns deterministic
     discovery and preparation.

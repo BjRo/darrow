@@ -8,8 +8,8 @@ expect_head_change: false
 additional_plugins:
   - plugins/capability/darrow-git
 prompt: >-
-  {{skill_invocation}} Deliver this already-assessed ready request for canonical ticket
-  token 77: append the exact line `Resumed.` to NOTES.md. The scope and acceptance are
+  {{skill_invocation}} Deliver this already-assessed ready request for canonical
+  ticket ID 77: append the exact line `Resumed.` to NOTES.md. The scope and acceptance are
   unchanged from that assessment. Prepare the ticket task branch first; I suggest
   feat/77-different-suffix. Keep existing branch tips intact, do not commit, publish, or
   create a worktree. The only required check is `grep -Fx 'Resumed.' NOTES.md`.
