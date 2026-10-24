@@ -37,7 +37,6 @@ between capabilities and orchestration, read [`docs/design.md`](docs/design.md).
 - `evals/integration/` — installed Sevro public-interface checks.
 - `evals/sevro-extension/` — Darrow's cases, policy, and public Sevro integration.
 - `evals/domain/` — Darrow fixture, oracle, and policy tests. Results are gitignored.
-- `evals/history/` — standalone historical-reader tests.
 
 ## Plugin README content
 

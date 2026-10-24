@@ -5,7 +5,7 @@ Darrow translates its cases and grades repository policy through
 built-in graders and retained results. This is repository development tooling;
 marketplace plugins have no Sevro, Bun or TypeScript runtime dependency.
 
-Normal callers use the exact `@bjoernrochel/sevro` pin in [package.json](../../package.json).
+Normal callers use the exact `@bjoernrochel/sevro@1.0.0` pin in [package.json](../../package.json).
 Install it with `bun install --frozen-lockfile`. The installed command is `sevro`.
 See [development and release](migration.md), [test ownership](../README.md),
 the [evidence specification](../../docs/specs/skill-evaluation.md), and
@@ -72,7 +72,7 @@ Darrow's callers prepare that environment before launching Sevro:
 - They warm the public UV cache at `~/.darrow/cache/sevro-uv-cache` from the
   registered Python packages' locks, and warm it again only when inputs change.
   Warm-up preserves existing entries and the directory while other runs use it.
-- On Sevro rc.18 or later, all repository runtime profiles use
+- All repository runtime profiles use
   `runtime.sharedCacheDirectories` with `roles: ["candidate", "checks"]`.
   Candidates and UV shell graders use the same persistent cache without per-role
   cache copies. Current hooks and semantic/advisory graders need no UV grant.
@@ -100,9 +100,9 @@ With a runtime file selected, direct and benchmark callers no longer add
 
 Native transcripts are enabled so Adaptive Goal's placement helper can read
 the current session's model and effort, as it does outside Sevro. Hook-free
-guide trials retain them for native control observations and skill-read recovery.
+guide trials retain them for native control observations.
 
-Review artifact cases require Sevro rc.8 or later and the explicit
+Review artifact cases require the explicit
 [`runtime-review-artifacts.json`](runtime-review-artifacts.json) profile. It retains
 the candidate's actual `~/.darrow/reviews` directory through grading and grants
 only read access to it. Shell checks bind `DARROW_REVIEW_STATE_DIR` to the
@@ -128,8 +128,8 @@ remains unavailable. Native reminder delivery is checked separately before live
 threshold runs. Keep earlier hook-disabled results as their own condition.
 Hook-free or without-skill controls need a corresponding hook-free runtime
 profile; do not allowlist a plugin absent from that control.
-Review fixture setup prepares an empty candidate state directory on Sevro
-rc.16, so missing reports fail task checks and negative cases inspect real
+Review fixture setup prepares an empty candidate state directory, so missing
+reports fail task checks and negative cases inspect real
 accessible state. A missing or unsafe declared directory is a grading error, never evidence
 of absence. Artifacts remain temporary and are removed after grading; the grant
 does not persist their contents in the run archive. Do not select this profile
@@ -146,7 +146,7 @@ receipt ordering, and actual continuation-boundary checks still apply.
 `goal-failed-check-blocks-publication` also uses this profile to retain check and
 dependent-effect receipts independently of generated workspace-output cleanup.
 
-For startup diagnosis on Sevro rc.10 or later, add `--retain-host-diagnostics`
+For startup diagnosis, add `--retain-host-diagnostics`
 after the caller's `--` separator. The flag applies to selected native roles
 and retains `sevro.host.diagnostics` even when no session starts. Its private
 artifact contains bounded stage, error, and subprocess evidence. Keep it out of
@@ -177,7 +177,7 @@ its identity between cells.
 Darrow translates `follow_up_prompt`; Sevro owns continuation on the original
 Claude session. The extension grades declared feedback boundaries from complete,
 bound observations. Missing or contradictory evidence remains unavailable.
-See Sevro's [extension protocol](https://github.com/BjRo/sevro/blob/6387cca22609f3463e4558813b5e5e92c1c4f952/docs/extension-protocol-v1.md)
+See Sevro's [extension protocol](https://github.com/BjRo/sevro/blob/v1.0.0/docs/extension-protocol-v1.md)
 for the host capability contract.
 
 Repository-skill trials require the `.claude/skills/<name>` mirror and
@@ -292,52 +292,24 @@ prompt, fixture, host, routes, checks and instrumentation.
 Callers validate results against public schemas shipped by the pinned Sevro
 package. They bind the selected case, process exit and evidence path before
 applying Darrow policy. Public protocol, result and identity mechanics are
-documented in [Sevro](https://github.com/BjRo/sevro/tree/6387cca22609f3463e4558813b5e5e92c1c4f952/docs).
+documented in [Sevro](https://github.com/BjRo/sevro/tree/v1.0.0/docs).
 
-## Historical result interpretation
+## Result reporting
 
-These commands interpret retained archives without Sevro or its source checkout:
-
-```sh
-bun evals/runner/report.ts /absolute/path/to/results.json --json
-bun evals/runner/compare.ts /absolute/path/to/baseline.json /absolute/path/to/candidate.json
-bun evals/runner/ablation.ts /absolute/path/to/suite-run.json
-```
-
-Standalone readers also live in `legacy-report.ts`, `legacy-compare.ts` and
-`legacy-ablation.ts`. Reports preserve input bytes, digests, valid peers and
-diagnostics. Recorded rates and routes are archival claims. Measurements need
-complete executed provenance and matching identity; missing, dry, partial or
-contradictory evidence remains unmeasured.
-
-Report and ablation commands preserve adjacent Markdown output and `--output`.
-They refuse destinations that overwrite input archives or their aliases.
-Interpretation success does not mean the evaluated task passed. The specification
-defines supported formats and comparison eligibility.
-
-### Historical reviewer-routing artifacts
-
-The standalone validators preserve the original TSV proof formats:
+Use Sevro's public report command for current results:
 
 ```sh
-bun evals/sevro-extension/legacy-native-review-proof.ts \
-  --session /absolute/path/to/session.jsonl \
-  --scope /absolute/path/to/scope.tsv \
-  --route-record /absolute/path/to/route.tsv \
-  --standards-record /absolute/path/to/standards.tsv --standards-call call-standards \
-  --spec-record /absolute/path/to/spec.tsv --spec-call call-spec \
-  --output /absolute/path/to/codex-proof.json
-bun evals/sevro-extension/legacy-claude-review-proof.ts \
-  --parent /absolute/path/to/parent.jsonl \
-  --artifact-dir /absolute/path/to/artifacts \
-  --output /absolute/path/to/claude-proof.json
+bunx --no-install sevro report --json --result-file /absolute/path/to/sevro-result.json
 ```
 
-All paths are absolute. Valid evidence atomically writes the original JSON proof
-and exits zero; invalid invocation or evidence exits one without a new proof.
-These readers do not establish current host behavior or evaluator equivalence.
+The suite caller writes separate Darrow activation, quality, and ablation reports.
+Pre-Sevro result readers, comparison commands, reviewer-routing proof validators,
+and their tests have been removed. Retained research preserves its original
+formats and provenance; it does not establish current evaluator equivalence.
 
-On Sevro rc.12, use [`runtime-codex-state.json`](runtime-codex-state.json) for
+## Host-state and local HTTP profiles
+
+Use [`runtime-codex-state.json`](runtime-codex-state.json) for
 `doctor-adaptive-goal-direct-codex` and
 `create-agent-skill-refuse-undefined-skill`. The profile exposes the actual isolated
 configuration and grants graders read-only access to all four original candidate

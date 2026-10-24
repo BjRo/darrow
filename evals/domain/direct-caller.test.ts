@@ -181,6 +181,13 @@ test("direct caller forwards the configured Codex execution timeout", async () =
 
 test("direct Claude caller lets a runtime file control goal settings", async () => {
   const { root, binary, credential, output } = await fixture();
+  await writeFile(
+    credential,
+    JSON.stringify({
+      claudeAiOauth: { accessToken: "synthetic-direct-access" },
+    }),
+    { mode: 0o600 },
+  );
   const runtime = join(root, "runtime.json");
   await writeFile(
     runtime,
@@ -198,7 +205,11 @@ test("direct Claude caller lets a runtime file control goal settings", async () 
   await writeFile(caseFile, JSON.stringify(definition));
   await writeFile(
     binary,
-    `#!/bin/sh\nprintf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"result":"ready"}'\n`,
+    `#!/bin/sh
+test "$CLAUDE_CODE_OAUTH_TOKEN" = synthetic-direct-access || exit 3
+test ! -e "$CLAUDE_CONFIG_DIR/.credentials.json" || exit 4
+printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"result":"ready"}'
+`,
     { mode: 0o700 },
   );
   const run = await invoke(root, [

@@ -6,8 +6,6 @@ Luna/medium comparison of two descriptions for the former combined
 skills. The former suite and variant preparation script are retired because
 their owning skill and plugin layout no longer exist.
 
-The [archived repair case](archive/repair-skill-boundaries.yaml) preserves the
-old revision-workflow benchmark for interpreting those results. It is not part
-of the active plugin evals: implementing findings on an existing skill is now
-ordinary engineering work, with a separate negative activation case in the
-audit suite.
+The obsolete repair case has been removed. Implementing findings on an existing
+skill is now ordinary engineering work, with a separate negative activation case
+in the audit suite. The snapshot preserves the original experiment's evidence.

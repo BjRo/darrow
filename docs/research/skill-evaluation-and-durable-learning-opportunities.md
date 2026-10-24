@@ -79,7 +79,7 @@ and refactor:
 5. add pressure and variation cases that expose remaining loopholes.
 
 Its
-[`testing-skills-with-subagents`](https://github.com/obra/superpowers/blob/main/skills/writing-skills/testing-skills-with-subagents.md)
+[`testing-skills-with-subagents`](https://github.com/obra/superpowers/blob/b739a8af570e10a95898f2bdf6cec97467fa6c12/skills/writing-skills/testing-skills-with-subagents.md)
 reference also separates evaluation shapes. A discipline skill needs pressure
 and rationalization cases; a technique skill needs application and variation;
 a pattern skill needs recognition and counterexamples; a reference skill needs

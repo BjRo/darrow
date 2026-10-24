@@ -150,7 +150,7 @@ Relevant upstream skills:
 Relevant upstream skills:
 
 - [`handoff`](https://github.com/mattpocock/skills/blob/main/skills/productivity/handoff/SKILL.md)
-- [`resolving-merge-conflicts`](https://github.com/mattpocock/skills/blob/main/skills/engineering/resolving-merge-conflicts/SKILL.md)
+- [`resolving-merge-conflicts`](https://github.com/mattpocock/skills/blob/153fc1b93de6584562765cdce299324e1ff9e661/skills/engineering/resolving-merge-conflicts/SKILL.md)
 - [`wizard`](https://github.com/mattpocock/skills/blob/main/skills/engineering/wizard/SKILL.md)
 
 ## Practices worth adapting

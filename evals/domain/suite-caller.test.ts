@@ -1661,7 +1661,16 @@ test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
       .join("\n");
     await Promise.all([
       writeFile(codexAuth, "test-only-auth\n", { mode: 0o600 }),
-      writeFile(claudeAuth, '{"test":"private-login"}', { mode: 0o600 }),
+      writeFile(
+        claudeAuth,
+        JSON.stringify({
+          claudeAiOauth: {
+            accessToken: "synthetic-suite-access",
+            refreshToken: "synthetic-suite-refresh",
+          },
+        }),
+        { mode: 0o600 },
+      ),
       writeFile(
         codexBinary,
         `#!/bin/sh
@@ -1678,7 +1687,8 @@ SEVRO_EVENTS
       writeFile(
         claudeBinary,
         `#!/bin/sh
-test -r "$CLAUDE_CONFIG_DIR/.credentials.json" || exit 3
+test "$CLAUDE_CODE_OAUTH_TOKEN" = synthetic-suite-access || exit 3
+test ! -e "$CLAUDE_CONFIG_DIR/.credentials.json" || exit 4
 printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"result":"ready","usage":{"input_tokens":1,"output_tokens":1},"total_cost_usd":0}'
 `,
         { mode: 0o700 },
