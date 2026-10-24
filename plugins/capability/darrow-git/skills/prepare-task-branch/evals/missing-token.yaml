@@ -5,16 +5,20 @@ mount_plugin_skills: true
 expect_head_change: false
 prompt: >-
   Prepare `fix/request-attribution` for the active ticket, but the ticket
-  provider did not supply its canonical token.
+  provider did not supply its canonical identifier.
 fixture:
   commits:
     - message: "chore: init"
       files:
         README.md: "base\n"
 checks:
-  - name: missing token causes no branch mutation
+  - name: missing identifier causes no branch mutation
     run: git branch --show-current
     expect_exact: "main"
-output_checks:
-  - name: asks for the provider token
-    expect_regex: "token|identifier"
+semantic_output_checks:
+  - name: asks for the provider identifier
+    proposition: >-
+      The response asks for the missing ticket identifier supplied by the active
+      provider without guessing its value or claiming the branch was prepared.
+      Equivalent wording such as ticket ID or canonical identifier is sufficient;
+      no exact field name or clarification phrase is required.

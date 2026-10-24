@@ -8,8 +8,8 @@ expect_head_change: false
 additional_plugins:
   - plugins/capability/darrow-git
 prompt: >-
-  {{skill_invocation}} Deliver this already-assessed ready request for canonical ticket
-  token DAR-123: append `Resumed.` to NOTES.md after preparing its task branch. The
+  {{skill_invocation}} Deliver this already-assessed ready request for canonical
+  ticket ID DAR-123: append `Resumed.` to NOTES.md after preparing its task branch. The
   scope and acceptance are unchanged. I suggest feat/DAR-123-new-suffix. Do not commit
   or publish.
 fixture:

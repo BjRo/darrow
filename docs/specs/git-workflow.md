@@ -17,8 +17,8 @@ capability to allocate an additional linked worktree.
   a clean tree, conflicts, and hook failures remain within the owning skill's
   scope. General inspection and unrelated comments do not select a mutation
   skill. Creating a branch from a work or ticket description stays with
-  `create-branch` while asking for a missing provider token; missing input does
-  not turn that request into exact task-branch preparation.
+  `create-branch` while asking for a missing provider identifier; missing input
+  does not turn that request into exact task-branch preparation.
   Claude receives a plugin-local SessionStart routing reminder through
   its native context hook. The hook supplies static context only: no provider
   calls, prompt classification, workflow execution, state, or authority grants.
@@ -114,8 +114,8 @@ splitting one described change into multiple commits unless asked.
 ## create-branch
 
 A request to create a branch from described ticket work belongs to
-`create-branch` even when it supplies a canonical ticket token. That token does
-not bind a complete branch name or turn creation into task-branch discovery;
+`create-branch` even when it supplies a canonical ticket identifier. That value
+does not bind a complete branch name or turn creation into task-branch discovery;
 derive the new name without asking the caller to supply one.
 
 ### Intent triggers
@@ -134,15 +134,17 @@ new linked worktree instead and the current checkout stays where it is.
 ### Invariants
 
 - **GW-B1 — Traceable naming.** `<type>/<kebab-slug>` with the same types as
-  commits. When an active ticket provider supplies an opaque canonical token,
-  the slug begins with that exact token and contains it exactly once (e.g.
+  commits. The provider's non-secret identifier is carried in `ticket-id:`
+  records and the `--ticket-id` argument; Git preserves that value verbatim.
+  When an active ticket provider supplies an opaque canonical identifier,
+  the slug begins with that exact identifier and contains it exactly once (e.g.
   `feat/DAR-123-retry-logic`, `fix/issue-64-preserve-identifiers`). Generic Git
-  neither maps nor normalizes provider tokens; a ticket-linked request without
-  the token asks one smallest question and performs no Git mutation. Equivalent
-  wording that requests the provider's identifier is valid; no prescribed
-  clarification phrase is required. Work that
-  is not linked to a ticket needs no provider token. Segments
-  lowercase except opaque ticket-token segments.
+  neither maps nor normalizes provider identifiers. A ticket-linked request
+  without the identifier asks one smallest question and performs no Git mutation.
+  Equivalent wording that requests the provider's identifier is valid; no
+  prescribed clarification phrase is required. Work that is not linked to a
+  ticket needs no provider identifier. Segments are lowercase except opaque
+  ticket-ID segments.
 - **GW-B2 — No work lost.** Uncommitted changes are never stashed, reset,
   discarded, or committed to make the operation work. Switching in place
   they travel to the new branch untouched; in worktree mode they stay in
@@ -193,8 +195,8 @@ while leaving the caller's checkout untouched.
 ### Invariants
 
 - **GW-TB1 — Exact preparation input.** The caller supplies one exact conventional
-  branch name and the active ticket provider's opaque canonical token. The slug
-  begins with that token exactly once. Generic Git never derives, normalizes,
+  branch name and the active ticket provider's opaque canonical identifier.
+  The slug begins with that identifier exactly once. Generic Git never derives, normalizes,
   or chooses a correlated name. Supplying multiple candidates and
   delegating the choice (for example, "whichever seems better") remains
   ambiguous; preparation asks for one exact selection before any Git mutation.
@@ -227,19 +229,19 @@ while leaving the caller's checkout untouched.
   intent that an authorized task recipe can request before its readiness gate,
   without assuming that recipe or any observability plugin is installed.
 
-- **GW-TB7 — Complete token discovery.** A read-only discovery operation takes
-  only the exact opaque canonical token and returns every correlated local
+- **GW-TB7 — Complete identifier discovery.** A read-only discovery operation takes
+  only the exact opaque canonical identifier and returns every correlated local
   branch in refname order, its full tip, and a count, without truncation. A
   correlated branch satisfies the same conventional name validation as exact
-  preparation: allowed type, literal case-sensitive `<token>-` slug prefix,
-  exactly one token occurrence, lowercase kebab suffix, and 60-character limit.
+  preparation: allowed type, literal case-sensitive `<ticket-id>-` slug prefix,
+  exactly one identifier occurrence, lowercase kebab suffix, and 60-character limit.
   Never match substrings, normalize spelling, infer provider semantics, or use
-  remote refs. The delimiter is lexical: `fix/84-extra-work` can satisfy token
-  `84` or token `84-extra`; no branch name alone encodes the provider's identity.
-  Invalid tokens or failed enumeration refuse without mutation or a zero-count
+  remote refs. The delimiter is lexical: `fix/84-extra-work` can satisfy identifier
+  `84` or identifier `84-extra`; no branch name alone encodes the provider's identity.
+  Invalid identifiers or failed enumeration refuse without mutation or a zero-count
   claim. This operation is distinct from a bounded general branch listing.
 - **GW-TB8 — Guarded creation.** Immediately before preparing a missing exact
-  name, repeat complete token discovery. Any match refuses creation and returns
+  name, repeat complete ticket-ID discovery. Any match refuses creation and returns
   the candidates for caller selection, without branch or worktree mutation.
   An explicitly bound existing name remains eligible for exact preparation,
   including an explicit choice among multiple matches. The capability does not

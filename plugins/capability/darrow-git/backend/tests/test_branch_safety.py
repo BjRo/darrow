@@ -37,7 +37,7 @@ def test_existing_worktree_and_deliberate_base(
     args = [
         "prepare",
         "fix/181-existing",
-        "--ticket-token",
+        "--ticket-id",
         "181",
         "--worktree",
         "--at",
@@ -59,12 +59,12 @@ def test_absent_exclude_and_case_collision(repository: Path) -> None:
     exclude = repository / ".git" / "info" / "exclude"
     exclude.unlink()
     branch.run(
-        ["prepare", "fix/181-new", "--ticket-token", "181", "--worktree"], task=True
+        ["prepare", "fix/181-new", "--ticket-id", "181", "--worktree"], task=True
     )
     assert exclude.read_text() == "/.worktrees/\n"
     git("branch", "fix/DAR-2-work")
     with pytest.raises(RefusalError, match="only by case"):
-        branch.run(["prepare", "fix/dar-2-work", "--ticket-token", "dar-2"], task=True)
+        branch.run(["prepare", "fix/dar-2-work", "--ticket-id", "dar-2"], task=True)
 
 
 def test_failed_task_worktree_cleans_only_empty_parents(
@@ -80,7 +80,7 @@ def test_failed_task_worktree_cleans_only_empty_parents(
     monkeypatch.setattr(worktree, "git", fail_add)
     with pytest.raises(RefusalError, match="simulated"):
         branch.run(
-            ["prepare", "fix/181-new", "--ticket-token", "181", "--worktree"], task=True
+            ["prepare", "fix/181-new", "--ticket-id", "181", "--worktree"], task=True
         )
     assert not (repository / ".worktrees").exists()
     assert git("symbolic-ref", "--short", "HEAD") == "main"
@@ -128,6 +128,6 @@ def test_byte_valued_exclude_preserved(repository: Path) -> None:
     original = b"# Latin-1 comment: f\xfc r\nlocal-only\n"
     exclude.write_bytes(original)
     branch.run(
-        ["prepare", "fix/181-bytes", "--ticket-token", "181", "--worktree"], task=True
+        ["prepare", "fix/181-bytes", "--ticket-id", "181", "--worktree"], task=True
     )
     assert exclude.read_bytes() == original + b"/.worktrees/\n"

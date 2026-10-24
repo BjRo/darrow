@@ -18,7 +18,7 @@ prompts, and grants no authority. It is declared only in the Claude manifest.
 
 ### `create-branch`
 
-Creates one conventionally named branch for the current work. A ticket token
+Creates one conventionally named branch for the current work. A ticket identifier
 supplied by an active provider stays opaque and leads the slug exactly once. It
 can switch the current checkout or, only when requested, create a linked
 worktree. Existing changes are preserved and existing branch names are never
@@ -28,11 +28,11 @@ Example: _“Create a branch for DAR-123 retry handling.”_
 
 ### `prepare-task-branch`
 
-Discovers every local task branch for an exact opaque token without mutation,
+Discovers every local task branch for an exact opaque identifier without mutation,
 returning complete candidates and tips for the caller to select. It also
 creates or reuses one exact ticket-linked task branch in the current checkout
 or, only on explicit request, in a linked worktree. Existing branch tips stay
-fixed, the active provider's opaque token is required, and compatible
+fixed, the active provider's opaque identifier is required, and compatible
 uncommitted work is preserved without stashing or committing it. A worktree
 result returns the attributed execution path while leaving the caller's
 checkout untouched.
@@ -90,6 +90,10 @@ Each skill uses a frozen UV entrypoint from the contained Python package in
 Git or GitHub operation, and return structured evidence for the skill to
 interpret. They are implementation details of the workflows rather than a
 general Git wrapper. All supported platforms call the UV entrypoints directly.
+
+Ticket-linked commands accept the provider's non-secret identifier through
+`--ticket-id`. Discovery returns it as `ticket-id:`. Update ticket providers and
+Git consumers together; the former argument name is no longer accepted.
 
 ## Design boundaries
 

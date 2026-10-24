@@ -80,11 +80,11 @@ def validate(copy: Path, fixture: Path) -> None:
         "darrow-create-branch",
         "create",
         "fix/181-python-git",
-        "--ticket-token",
+        "--ticket-id",
         "181",
     )
     assert "matches: 1" in runtime(
-        backend, repo, "darrow-prepare-task-branch", "discover", "--ticket-token", "181"
+        backend, repo, "darrow-prepare-task-branch", "discover", "--ticket-id", "181"
     )
     assert "mode: current" in runtime(
         backend,
@@ -92,7 +92,7 @@ def validate(copy: Path, fixture: Path) -> None:
         "darrow-prepare-task-branch",
         "prepare",
         "fix/181-python-git",
-        "--ticket-token",
+        "--ticket-id",
         "181",
     )
     (repo / "tracked.txt").write_text("fresh\n", encoding="utf-8")

@@ -98,7 +98,7 @@ def collisions(options: BranchOptions, task: bool) -> bool:
 def guard_discovery(options: BranchOptions, existing: bool) -> None:
     if existing:
         return
-    matches = discover(options.token)
+    matches = discover(options.ticket_id)
     if matches:
         raise RefusalError(
             "error: correlated local branches exist; bind one exact existing branch before preparation\n"
@@ -119,7 +119,7 @@ def prepare(options: BranchOptions, *, task: bool) -> None:
         "repository has no commits yet — make the first commit before branching",
         3,
     )
-    validate_name(options.name, options.token, task=task)
+    validate_name(options.name, options.ticket_id, task=task)
     existing = collisions(options, task)
     if options.worktree:
         if task and worktree.reuse(options):
@@ -154,22 +154,22 @@ def run(args: list[str], *, task: bool = False) -> None:
         prepare(parse(args[1:], task=task), task=task)
     elif command == "discover" and task:
         require(
-            len(args) == 3 and args[1] == "--ticket-token" and args[2],
-            "discover requires --ticket-token <opaque-token>",
+            len(args) == 3 and args[1] == "--ticket-id" and args[2],
+            "discover requires --ticket-id <ticket-id>",
             2,
         )
         matches = discover(args[2])
         print(
-            f"## mode: discovered\n## ticket token: {args[2]}\n{report_matches(matches)}"
+            f"## mode: discovered\n## ticket-id: {args[2]}\n{report_matches(matches)}"
         )
     else:
         raise RefusalError(
             "usage: "
             + ("darrow-prepare-task-branch " if task else "darrow-create-branch ")
             + (
-                "discover --ticket-token <opaque-token> | inspect | prepare <name> --ticket-token <opaque-token>"
+                "discover --ticket-id <ticket-id> | inspect | prepare <name> --ticket-id <ticket-id>"
                 if task
-                else "inspect | create <name> [--ticket-token <opaque-token>]"
+                else "inspect | create <name> [--ticket-id <ticket-id>]"
             )
             + " [--from <base>] [--worktree [--at <path>]]",
             64,

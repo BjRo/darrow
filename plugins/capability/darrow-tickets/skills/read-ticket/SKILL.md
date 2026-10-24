@@ -76,8 +76,9 @@ tracked work.
 For a standalone read, copy from the first through the last line with no
 preamble, heading, fence, explanation, offer, added punctuation, whitespace
 normalization, or omitted field. Preserve metadata, relations, full body, empty
-fields, and the opaque provider-owned `ticket-token:` exactly as returned.
-Never derive the token from the reference or reconstruct the result from fields.
+fields, and the opaque provider-owned `ticket-id:` exactly as returned.
+This is a non-secret ticket identifier. Never derive it from the reference or
+reconstruct the result from fields.
 
 A successful compound response need not repeat the ticket stream, but all
 follow-on work uses the captured evidence. A failed compound response must
