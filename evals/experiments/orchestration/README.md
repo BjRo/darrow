@@ -288,12 +288,12 @@ bun evals/runner/suite.ts \
   --harness codex --trials 1 --no-judge
 ```
 
-The suite writes one JSON result per cell, `suite-run.json`, and `report.md`
-under `evals/results/orchestration-value/<timestamp>/`. A report can be rebuilt
-without rerunning candidates:
+The suite writes one Sevro JSON result per cell, `suite-run.json`, and reports
+under its printed absolute results directory. Read the per-cell `cells[].result`
+from the manifest to report a retained run without rerunning candidates:
 
 ```sh
-bun evals/runner/report.ts evals/results/orchestration-value/<timestamp>/suite-run.json
+bunx --no-install sevro report --json --result-file /absolute/path/to/cell-result.json
 ```
 
 Raw run bundles are gitignored because candidate and judge payloads are large.

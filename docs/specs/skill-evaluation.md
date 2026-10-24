@@ -62,7 +62,7 @@ yet fail to activate for intended wording, activate for adjacent intent, or
 lose to a neighboring capability. Activation evidence must therefore remain
 distinct from task outcomes and skill-value ablation.
 
-On Sevro rc.15, implicit activation uses the unique complete
+Implicit activation uses the unique complete
 `sevro.host.skill-activations` observation. Codex's `tool_result_body_match`
 reports exposure of prepared skill bodies; Claude's `skill_tool_result` reports
 successful Skill calls. Preserve qualified identities while matching the mounted
@@ -72,12 +72,12 @@ must never fall back to retired read or transcript evidence. Explicit dispatch
 remains sufficient for the invoked owner; supporting inclusion, exclusion, and
 order require the separate complete activation collection.
 
-On Sevro rc.20, a unique complete Codex
+A unique complete Codex
 `sevro.host.skill-activation-claims` receipt may separately establish primary
 selection and positively observed supporting skills while its paired common
 collection remains partial. Cite that complete receipt, preserve the collection's
 partial status and public diagnostics, and normalize only mounted namespaces.
-For this rc.20 claim, the paired collection must explicitly name exactly the
+For this claim, the paired collection must explicitly name exactly the
 `pending_tool_calls` gap. Missing or malformed reasons, or any other gap,
 contradict established primary selection and make the claim unavailable.
 Use it for implicit positive or competition first-selection assertions and
@@ -90,6 +90,17 @@ catalog order is not selection order. Older observations without the new claims
 retain their original interpretation and are never upgraded from native logs.
 
 ## Public contract
+
+### Supported Sevro release
+
+Darrow targets the exact published Sevro `1.0.0` package and its public v1
+protocols and schemas. Current cases use observations emitted by that release;
+cases whose required evidence exists only in a retired runner are removed from
+active suites. Retained research keeps its original provenance and meaning.
+
+Deterministic Claude fixtures provide a valid synthetic saved OAuth login to
+Sevro's parent process. Their trial executable receives only the access token;
+the saved login is not copied into the trial's configuration directory.
 
 ### Repository-owned model routes
 
@@ -497,7 +508,7 @@ skill-read receipts or require retired per-turn or parent-read diagnostics.
 Remove assertions whose only evidence was retired; do not mark them passed or
 reinterpret whole-run observations as counts, ordering, or per-turn absence.
 Use fixture invocation and outcome checks where they independently establish the
-required behavior. Historical readers preserve the original evidence meaning.
+required behavior. Historical research preserves the original evidence meaning.
 Required native control and
 event evidence remains independently complete; a valid skill collection does
 not establish absence of delegation through an incompletely inspected `exec`.
@@ -1095,7 +1106,7 @@ Sevro does not supply `DARROW_CACHE_DIR` to candidates or shell checks. Darrow's
 locked launchers select their documented cache beneath the isolated `HOME`.
 With a selected Sevro runtime policy, each execution role receives a private
 home and writable runtime outside the Git fixture. Candidate and checker homes
-and Darrow caches are separate. On Sevro rc.18 or later, only the explicitly
+and Darrow caches are separate. Only the explicitly
 declared public UV dependency cache is shared across selected roles and runs;
 project environments, homes, temporary files, and Review state remain private.
 Shared-cache identity binds its source, target and roles, not mutable contents;
@@ -1126,7 +1137,7 @@ depend on a declared state-directory grant state that configured state and
 cache paths must be preserved. A different valid private state root remains
 outside that grant; do not claim artifact presence or absence from it.
 
-On Sevro rc.16, fixture setup and candidate commands share the same private
+Fixture setup and candidate commands share the same private
 trial home. Setup initializes required artifact directories and may seed prior
 Review evidence there; its temporary directory remains disposable. Graders
 retain their own homes and access only declared candidate artifact grants.
@@ -1224,115 +1235,14 @@ checks remain inspectable but produce no behavioral success or comparative
 scores. Historical execution mode may be recovered from an explicit suite
 manifest; absent provenance stays unknown.
 
-### Historical legacy interpretation
+### Retained research
 
-Recorded trial success that contradicts a failed harness or named check is
-invalid evidence. Preserve its recorded facts and diagnostic, but publish no
-measured rate for that row.
-Retained semantic assessment names and verdicts must agree with their named
-checks. Contradictory semantic evidence stays visible with diagnostics and no
-measured rates; malformed assessment entries also fail interpretation.
-Semantic facts that lack corresponding check outcomes remain unavailable.
-Duplicate named checks or trial numbers, trial numbers beyond the declared
-planned count, and malformed cell exit codes are invalid archive structure and
-must produce diagnostics and an unsuccessful interpreter exit.
-
-Darrow owns a read-only interpreter for retained legacy result arrays, suite
-manifests, and `darrow-eval-trial-v1` checkpoints. The documented legacy report
-command accepts `--json` for its `darrow-legacy-report-v1` view. The independently
-usable migration entrypoint is `evals/sevro-extension/legacy-report.ts`; it
-reads the same archival inputs and writes JSON or Markdown to standard output.
-Neither path executes a host, requires Sevro or Git metadata, rewrites input
-artifacts, or imports the generic runner to interpret them.
-
-The legacy report command's default Markdown route uses this same interpreter.
-It preserves its adjacent `report.md` output and explicit `--output` destination;
-`--json` writes the versioned view to standard output. The standalone entrypoint
-writes to standard output by default and accepts an explicit Markdown output.
-Neither command may overwrite an input archive, including an aliased path.
-Both human routes expose the historical view's recorded claims, completeness,
-measured rates, diagnostics, input digests, and retained evidence. The old
-cross-cell rollup layout is deliberately retired; its numeric summaries remain
-recorded facts rather than evidence of complete measured runs.
-
-The view identifies every input by absolute path and content digest. It retains
-recorded summary values, named trial checks, exact candidate and grader routes,
-activation, advisory and semantic outcomes, and requested versus observed policy
-assistance separately. Runner revision, dirty state and patch identity are
-legacy facts; absent evaluator metadata stays unknown. The view never supplies
-a current Sevro package, protocol or evaluator identity and does not establish
-comparison eligibility.
-
-Historical trials retain their legacy `routeApplication` and
-`orchestrationMetrics` under trial `recorded` data. Route applications preserve
-the recorded selected and effective harness/provider/model/effort tuples,
-profile and workflow/risk labels, application boundary, and child usage counts.
-Only the known legacy metadata fields are exposed; unrelated private payloads
-are omitted. Missing metadata and counters remain null. Present counters must
-be nonnegative safe integers; malformed provided metadata produces an archive
-diagnostic while valid peer inputs remain visible.
-
-These fields are archival claims. They do not supply native owner acceptance,
-populate `effectiveOwnerRoute`, change execution or measured task outcomes, or
-repair evaluator comparison eligibility. The historical interpreter does not
-reconstruct private goal contracts or execute their removed runtime machinery.
-
-Execution comes only from consistent case/trial declarations and an explicitly
-linked suite manifest's `dry` boolean. Empty responses, zero timing and successful
-checks do not establish execution. Missing or conflicting declarations stay
-unknown. Case completeness requires a manifest's planned trial count, all unique
-trial numbers, and a finished cell exit of zero or one. Standalone arrays with no
-planned count remain unknown; checkpoints remain partial even when their retained
-single trial matches `plannedTrials`. A partial attempt is not a completed
-threshold run.
-
-Recorded rates remain visible as archival claims. Measured task quality and
-protocol rates require known executed and complete evidence; dry, unknown,
-partial or unavailable required trial facts leave their rates null. Legacy task
-quality excludes only the two exact bookkeeping check names. Bookkeeping
-requires both named checks; missing policy or outcomes stay unknown. Activation,
-semantic gates and advisory assessments do not become interchangeable rates.
-Malformed, unreadable or contradictory inputs retain a diagnostic and make the
-interpreter unsuccessful. Other valid inputs remain visible. Original snapshots,
-transcripts and comparison inputs remain preserved in their own recorded formats.
-
-The documented `evals/runner/compare.ts` command delegates historical array
-comparison to Darrow-owned standalone tooling. It retains recorded metric
-deltas and requires explicit matching invariant, evaluation digest, threshold,
-host/version, candidate model/effort, and trial count. Two absent identity fields
-cannot establish a match. Dry, unknown, contradictory, or invalid evidence is
-incomparable and exits unsuccessfully. Comparison of archival summaries does
-not silently equate different recorded policy assistance, token accounting,
-grader routes, effective owner routes, or named check instrumentation. Missing
-grading or instrumentation facts remain visibly unknown. Archival comparison does
-not establish a complete run boundary, current evaluator equivalence, or live
-behavioral stability. It must retain that limitation rather than manufacture
-Sevro identity or measured success.
-
-The documented `evals/runner/ablation.ts` command delegates historical suite
-ablation to Darrow-owned standalone tooling. It preserves adjacent `ablation.md`
-and explicit `--output` destinations, resolves relative result paths beside the
-manifest, and needs no generic runner or Sevro installation. The interpreter
-requires a versioned suite manifest, a bound `modeDefinitions` snapshot, matched mode definitions, known matching
-case identities and instrumentation, and complete executed cells before showing
-recorded task-level deltas. Incomplete, contradictory, duplicate, or unmatched
-evidence makes the report invalid; valid peer comparisons remain visible. A
-consistent dry suite is successful preparation but remains explicitly unmeasured.
-Unknown token and cost values stay unknown. The report preserves input digests
-and diagnostics and does not establish current evaluator equivalence or live
-stability. Neither command may replace an input archive, including an alias.
-The legacy suite producer retains its mode-name list and adds the definition
-snapshot. Older manifests without that snapshot retain unknown mode settings;
-the interpreter must not recover them from a mutable current suite file or
-claim an eligible ablation. Their result arrays remain readable as archives.
-
-Before Darrow switches to a packaged runner, the same command-level
-compatibility cases must run against the in-repository runner and the candidate
-package through their public commands. Compare case selection, named check
-outcomes, requested and observed policy-assistance modes, evidence completeness,
-artifact lifecycle, and exit categories. Normalize timestamps, temporary
-paths, attempt IDs, and other variable fields. Record deliberate contract
-changes separately; a changed result must not be hidden by normalization.
+Darrow no longer ships interpreters or comparison commands for pre-Sevro result
+arrays, suite manifests, trial checkpoints, or reviewer-routing proof formats.
+Their tests and compatibility entrypoints are removed. Historical snapshots and
+research remain in their recorded formats with their original provenance; they
+do not establish current evaluator equivalence or live behavioral stability.
+Current reporting uses Sevro's public report command and Darrow's suite reports.
 
 Equivalent runs have one verifiable process owner. A live owner prevents a
 duplicate; a confirmed abandoned owner can be reclaimed atomically without
@@ -1706,7 +1616,7 @@ not prove equivalence or savings.
 Test ownership follows the runner boundary. Sevro proves scheduling, isolation,
 host continuation, built-in graders, cancellation, and evidence persistence in
 its own repository. Darrow tests case translation, caller option forwarding and
-response handling, repository policy, and historical interpretation. A small
+response handling and repository policy. A small
 installed-package integration suite checks the connection. Darrow does not
 repeat the engine's implementation matrix or compare against a retired runner.
 

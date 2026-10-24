@@ -10,8 +10,7 @@ constraints for producing and interpreting that evidence.
 - Keep independent Darrow oracle and repository-tooling tests under
   `evals/domain/`. Invoke the owning oracle directly or use Sevro's public CLI
   and protocol; do not import generic runner implementation or its private types.
-- Keep installed public-interface checks under `evals/integration/` and
-  standalone historical-reader tests under `evals/history/`. Sevro owns the
+- Keep installed public-interface checks under `evals/integration/`. Sevro owns the
   scheduling, isolation, host, built-in grading and persistence test matrix.
 - Check suite selection, route declarations, mode expansion, and seeded order
   through `planSuite` in `evals/sevro-extension/suite.ts`. It runs the same
@@ -106,7 +105,7 @@ constraints for producing and interpreting that evidence.
   Bind an ignore-preservation baseline to that declared list; preserve the
   original user configuration and reject missing, repeated, or undeclared rules.
   Do not infer permitted additions from candidate files or exempt a whole directory.
-- On Sevro rc.18 or later, repository profiles share the prepared public UV cache
+- Repository profiles share the prepared public UV cache
   through `runtime.sharedCacheDirectories` with only `candidate` and `checks`
   roles. Shell graders using UV require explicit `checks` selection. Do not seed
   a copy per role or grant the cache to current hooks and semantic/advisory hosts.
@@ -118,7 +117,7 @@ constraints for producing and interpreting that evidence.
   Sevro cleans disposable checker state after passed and failed grading, without
   deleting shared sources or retained evidence. Prune public caches only between
   evaluations; upgrading does not clean old retained result directories.
-- On Sevro rc.16 or later, setup shares the candidate commands' private home; its
+- Setup shares the candidate commands' private home; its
   temporary directory remains disposable. Initialize candidate-home state in
   setup instead of asking the candidate to prepare grading prerequisites.
   Review repair fixtures invoke their bundled frozen launcher during setup;
@@ -126,7 +125,7 @@ constraints for producing and interpreting that evidence.
   across workers with different temporary homes and interpreter installations.
   Go corpus launchers share `.fixture-state/go/` caches across setup, candidate
   commands, and grading instead of downloading into that discarded home.
-- On Sevro rc.12, actual host-state cases select
+- Actual host-state cases select
   `evals/sevro-extension/runtime-codex-state.json`. Doctor diagnoses the absolute
   isolated CODEX_HOME config, preserving the seeded UV cache. User-skill absence
   checks require all four candidate-bound skill directory grants, excluding only
@@ -134,7 +133,7 @@ constraints for producing and interpreting that evidence.
   These two cases declare `harnesses: [codex]` because those actual-state grants
   are Codex-specific. They do not establish native Claude user-state coverage.
 - Express and Requests socket corpus cases select
-  `evals/sevro-extension/runtime-local-http.json` on rc.12. Local HTTP access
+  `evals/sevro-extension/runtime-local-http.json`. Local HTTP access
   remains an explicit per-run opt-in; retain the original tests and assertions.
 - Review artifact cases select `evals/sevro-extension/runtime-review-artifacts.json`
   explicitly. Current code-review and real-provider composition cases declare
@@ -153,7 +152,7 @@ constraints for producing and interpreting that evidence.
   retain the earlier catalog-only cohorts. Other Tickets cases keep their
   declared installation condition; do not treat those earlier results as
   measurements of the new reminder.
-  With Sevro rc.8 or later, graders read the original candidate
+  Graders read the original candidate
   `~/.darrow/reviews` subtree through `SEVRO_CANDIDATE_ARTIFACT_REVIEWS`, then
   bind that path to the owning oracle's `DARROW_REVIEW_STATE_DIR`. Preserve
   configured runtime and dependency-cache paths. The participant prompt states
@@ -207,7 +206,7 @@ constraints for producing and interpreting that evidence.
   transcript-visible `SKILL.md` load.
 - A Codex case without the placeholder remains an implicit-discovery probe and
   requires complete prepared-body exposure in the unique
-  `sevro.host.skill-activations` observation on Sevro rc.15. Do not use explicit
+  `sevro.host.skill-activations` observation. Do not use explicit
   dispatch to make implicit selection pass. The `tool_result_body_match`
   collector matches tool results independently of shell syntax and can combine
   exact pages within one session and turn. Identical copies can match; this
@@ -219,7 +218,7 @@ constraints for producing and interpreting that evidence.
   normalize only declared plugin namespaces to Darrow's unique mounted skill
   names. Do not recover missing common collection from retired observations or
   native transcripts. Keep task and activation outcomes separate.
-- On Sevro rc.20, use a unique complete
+- Use a unique complete
   `sevro.host.skill-activation-claims` receipt only for primary selection and
   established positive membership in positive or competition cases. Keep its
   paired collection partial and retain `incompleteReasons` and `collection`
@@ -227,7 +226,7 @@ constraints for producing and interpreting that evidence.
   exclusions, and supporting sequences still require complete collection;
   neither native logs nor balanced call counts replace it. An explicitly
   unknown primary remains unknown even in a complete collection.
-- On Sevro rc.21, retain `skillExposures` and `collectionStatus` separately:
+- Retain `skillExposures` and `collectionStatus` separately:
   a full or partial body exposure can survive collection gaps. The optional
   `sevro.host.skill-exposure-claims` receipt supports only its listed positive
   exposures; it cannot establish primary selection, sequence, compliance or
@@ -310,7 +309,7 @@ completion feedback. The normal result array is published atomically only after
 the entire run finishes.
 
 On error or interruption, inspect the printed diagnostic and evidence paths.
-With Sevro rc.10 or later, forward `--retain-host-diagnostics` after `--` to
+Forward `--retain-host-diagnostics` after `--` to
 retain bounded native stage, error, and subprocess receipts, including failures
 before a session exists. Resolve `sevro.host.diagnostics` through the trial's
 artifact references. Keep these private files out of Git. The flag changes run
@@ -345,33 +344,15 @@ boolean supply missing provenance. Standalone historical results without such
 provenance remain unknown; empty responses and zero timings do not establish
 execution mode.
 
-For read-only historical interpretation, run
-`bun evals/sevro-extension/legacy-report.ts /absolute/path/to/input.json [--json]`.
-The standalone reader handles legacy arrays, suite manifests, and trial
-checkpoints without Sevro or the generic runner. It preserves archive bytes,
-separates recorded claims from complete executed measurements, and keeps
-unknown provenance and partial attempts unmeasured. The legacy report command
-uses the same view for Markdown and `--json`. Its default remains adjacent
-`report.md`; `--output` selects another Markdown destination. The standalone
-reader defaults to stdout. Both refuse input archives and their aliases as
-output. The human layout deliberately replaces the old rollups with the
-historical view's recorded facts and explicit measurement boundaries. See the
-[historical reader contract](../evals/sevro-extension/README.md#historical-result-interpretation)
-and [validation](research/sevro-extraction.md#history-validation), plus
-[report-command validation](research/sevro-extraction.md#legacy-report-command-validation).
+Use Sevro's public report command for current retained results:
 
-Historical skill ablation uses
-`bun evals/runner/ablation.ts /absolute/path/to/suite-run.json` or
-`bun evals/sevro-extension/legacy-ablation.ts /absolute/path/to/suite-run.json`.
-Both preserve adjacent `ablation.md` and `--output`, resolve relative result
-paths beside the manifest, and run without the generic runner or Sevro.
-Recorded deltas require matched mode definitions and complete executed cells;
-unknown identity, unfinished cells, contradictory evidence, and changed
-instrumentation are ineligible. Valid peer comparisons remain visible. A dry
-suite is unmeasured preparation. Input digests and diagnostics remain in the
-report, and no output may replace an archive or its alias. See the
-[historical ablation contract](../evals/sevro-extension/README.md#historical-result-interpretation)
-and [validation](research/sevro-extraction.md#legacy-ablation-validation).
+```sh
+bunx --no-install sevro report --json --result-file /absolute/path/to/sevro-result.json
+```
+
+Darrow's suite caller also writes activation, quality, and ablation reports.
+Pre-Sevro result readers and their tests have been removed. Retained historical
+research keeps its original formats and provenance; it is not current-run evidence.
 
 Shell checks, including dry checks, use the same outer isolation mechanism as
 candidate execution with a separate credential-free home and environment.
@@ -516,7 +497,7 @@ explicitly.
 
 ## Installed Sevro verification
 
-Install the exact published development dependency before running the public
+Install the exact published Sevro `1.0.0` development dependency before running the public
 integration and Darrow domain gate. Python fixture tools use a UV-managed Python
 3.13 copy so both UV entrypoints and direct Python oracles use the same isolated
 runtime. System and framework installations may depend on paths outside their
@@ -529,9 +510,11 @@ env -u SEVRO_CHECKOUT -u SEVRO_PACKAGE_BIN bun run test:evals
 ```
 
 This command exercises Sevro's installed public CLI, versioned extension
-protocol, Darrow callers, domain oracles, and standalone historical readers.
+protocol, Darrow callers, and domain oracles.
 It uses controlled native executables and credentials for deterministic host
-fixtures. Generic engine and host implementation tests belong to Sevro. No
+fixtures. Claude fixtures supply a valid synthetic saved OAuth login; Sevro
+keeps that login in the parent and passes only its access token to the trial.
+Generic engine and host implementation tests belong to Sevro. No
 integration fixture copies the former runner or imports private implementation
 or types.
 
@@ -540,8 +523,8 @@ isolated CLI fixtures. A test's explicit timeout still takes precedence.
 Pass explicit `./evals/...` directory paths to Bun. Bare paths are substring
 filters and can scan retained fixture trees outside the intended test scope.
 
-The [test ownership guide](../evals/README.md) separates installed integration,
-Darrow policy and historical readers. The source-copy launcher and comparison
+The [test ownership guide](../evals/README.md) separates installed integration
+from Darrow policy. The source-copy launcher and comparison
 against the retired runner are gone. Their evidence and deliberate command
 changes are preserved in the [research record](research/sevro-extraction.md).
 
@@ -559,7 +542,7 @@ SEVRO_PACKAGE_TARBALL=/absolute/path/to/bjoernrochel-sevro-version.tgz bun run t
 ```
 
 The package gate installs the archive in a temporary consumer and runs the
-integration, policy and historical-reader groups with its checkout override
+integration and policy groups with its checkout override
 cleared. Default-caller checks also verify Darrow's own frozen pin with both
 overrides cleared. An explicit checkout retains its revision and patch identity;
 it is development evidence. Upgrade and rollback instructions are in the

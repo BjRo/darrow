@@ -35,10 +35,11 @@ the same harness, model, effort, fixtures, prompts, checks, and trial count:
 cd evals
 bun runner/run.ts --case readiness- --harness codex --trials 3 --without-skill
 bun runner/run.ts --case readiness- --harness codex --trials 3
-bun runner/compare.ts <baseline-result.json> <candidate-result.json>
+bunx --no-install sevro report --json --result-file <baseline-sevro-result.json> --result-file <candidate-sevro-result.json>
 ```
 
-Repeat the pair with `--harness claude`. Report trial count, verdict accuracy,
+Use each selection manifest's per-case Sevro result path for reporting. Repeat
+the pair with `--harness claude`. Report trial count, verdict accuracy,
 false-ready and false-not-ready cases, tokens, wall time, and limitations. The
 current shared runner records ordinary pass/fail, token, cost, and wall-time
 metrics; classify verdict errors from the per-case checks until dedicated

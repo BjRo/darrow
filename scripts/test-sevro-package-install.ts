@@ -63,7 +63,6 @@ try {
       "30000",
       "./evals/integration",
       "./evals/domain",
-      "./evals/history",
     ],
     projectRoot,
     env,
