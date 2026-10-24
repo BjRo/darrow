@@ -65,8 +65,12 @@ Example: _“Which open bugs are in the next milestone?”_
 ### `read-ticket`
 
 Retrieves one exact current-project ticket by ID or canonical URL. It returns
-the authoritative metadata, a provider-owned `ticket-token:`, tracker-native relations, and full description
+the authoritative metadata, a provider-owned `ticket-id:`, tracker-native relations, and full description
 without summarizing, interpreting, or changing tracker state.
+
+`ticket-id` is a non-secret identifier; GitHub supplies its issue number.
+Consumers must preserve it exactly. Update ticket and Git consumers together:
+ticket reads return `ticket-id:`, and Git branch commands accept `--ticket-id`.
 
 Example: _“What does ticket #42 say?”_
 
@@ -147,7 +151,7 @@ does not silently use a bundled default when a repository has not adopted it.
   applies only the single mutation requested.
 - A selected adapter is the only tracker contacted. Adding another adapter must
   preserve exact target validation, honest pagination and failure reporting,
-  and the provider-owned opaque `ticket-token:` value.
+  and the provider-owned opaque `ticket-id:` value.
 - GitHub calls use the origin repository's host even when `GH_HOST` or
   `GH_REPO` names another target in the caller's environment.
 - Parent relations are supported within the current repository. An existing

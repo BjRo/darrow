@@ -49,7 +49,7 @@ owns its provider coordination; review owns its independent readers. Their
 internals stay inside those capabilities.
 
 Ticket delivery discovers local branches using the provider's exact opaque
-token through a compatible Git capability. One match is reused, several require
+identifier through a compatible Git capability. One match is reused, several require
 an explicit choice, and no matches permits one conventional new name. The recipe
 supplies authority; Adaptive Goal chooses and the Git capability prepares.
 

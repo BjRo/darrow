@@ -227,10 +227,10 @@ omit that field. A trace records
 `darrow.work_item_id`, `git.branch`, and `git.head` when those values are
 available. Explicit attribution, including an explicit unattributed gap, wins
 over configuration and branch inference. Branch inference recognizes only the
-exact leading ticket token after a conventional branch type, such as
+exact leading ticket ID after a conventional branch type, such as
 `feat/DAR-123-retry`, `fix/issue-45-retry`, or `fix/45-retry`. It never selects
 a later ticket-like substring. Detached HEAD, unreadable Git state, malformed
-identifiers, and branches without a leading token yield no inferred value.
+identifiers, and branches without a leading identifier yield no inferred value.
 Inference is local mechanics and does not call a tracker or require a ticket
 plugin.
 

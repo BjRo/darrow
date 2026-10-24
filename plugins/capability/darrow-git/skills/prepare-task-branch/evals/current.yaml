@@ -5,7 +5,7 @@ mount_plugin_skills: true
 expect_head_change: false
 prompt: >-
   Prepare the exact task branch `fix/DAR-123-attribution` for the active
-  provider's canonical token DAR-123. That exact branch is already active;
+  provider's canonical identifier DAR-123. That exact branch is already active;
   keep its tip unchanged and report its current state.
 fixture:
   commits:

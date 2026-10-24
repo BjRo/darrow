@@ -5,7 +5,7 @@ mount_plugin_skills: true
 expect_head_change: false
 prompt: >-
   Prepare the exact task branch feat/issue-84-new-suffix for canonical ticket
-  token issue-84 in this checkout. Preserve existing work and do not make a worktree.
+  identifier issue-84 in this checkout. Preserve existing work and do not make a worktree.
 fixture:
   commits:
     - message: "chore: init"

@@ -44,7 +44,7 @@ def get_ticket(args: Arguments) -> None:
     body = normalize_body(body_value)
     relation_report = relations.report(provider, number)
     print(
-        f"backend: github\nticket-token: {authoritative}\n#{authoritative} {state} — {title}\n{url}\nlabels: {labels}"
+        f"backend: github\nticket-id: {authoritative}\n#{authoritative} {state} — {title}\n{url}\nlabels: {labels}"
     )
     print(relation_report)
     print(f"## body\n{body}")

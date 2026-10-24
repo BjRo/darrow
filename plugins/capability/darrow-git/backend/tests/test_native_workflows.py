@@ -1,5 +1,6 @@
 """Observable native-platform acceptance at each public workflow seam."""
 
+import re
 from pathlib import Path
 
 import pytest
@@ -9,19 +10,46 @@ from darrow_git.process import RefusalError, git
 from forge import Forge
 
 
+@pytest.mark.parametrize("ticket_id", ["181", "Dar-123", "ABC_42", "X" * 32])
+def test_ticket_id_survives_output_redaction(
+    repository: Path, capsys: pytest.CaptureFixture[str], ticket_id: str
+) -> None:
+    name = f"fix/{ticket_id}-work"
+    branch.run(["create", name, "--ticket-id", ticket_id])
+    capsys.readouterr()
+    tip = git("rev-parse", "HEAD")
+    git("switch", "main")
+    branch.run(["discover", "--ticket-id", ticket_id], task=True)
+    output = capsys.readouterr().out
+    # Both historic lean-ctx key/value rules must leave the discovery intact.
+    for pattern in (
+        r"(?i)((?:api[_-]?key|apikey|access[_-]?key|secret[_-]?key|token|password|passwd|pwd|secret)\s*[=:]\s*)[^\s\r\n,;&\"']+",
+        r"(?i)(?:key|token|secret|password|credential|auth)\s*[=:]\s*['\"]?([a-zA-Z0-9+/=\-_]{32,})['\"]?",
+    ):
+        assert re.sub(pattern, "[REDACTED]", output) == output
+    assert output == (
+        f"## mode: discovered\n## ticket-id: {ticket_id}\n"
+        f"## matches: 1\n{name} (at {tip})\n"
+    )
+    preserved_id = output.splitlines()[1].removeprefix("## ticket-id: ")
+    branch.run(["prepare", name, "--ticket-id", preserved_id], task=True)
+    assert git("symbolic-ref", "--short", "HEAD") == name
+    assert git("rev-parse", "HEAD") == tip
+
+
 def test_task_discovery_and_exact_reuse(
     repository: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    branch.run(["prepare", "fix/181-first", "--ticket-token", "181"], task=True)
+    branch.run(["prepare", "fix/181-first", "--ticket-id", "181"], task=True)
     tip = git("rev-parse", "HEAD")
     git("switch", "main")
-    branch.run(["discover", "--ticket-token", "181"], task=True)
+    branch.run(["discover", "--ticket-id", "181"], task=True)
     assert f"fix/181-first (at {tip})" in capsys.readouterr().out
     with pytest.raises(RefusalError, match="correlated local branches"):
-        branch.run(["prepare", "fix/181-second", "--ticket-token", "181"], task=True)
-    branch.run(["prepare", "fix/181-first", "--ticket-token", "181"], task=True)
+        branch.run(["prepare", "fix/181-second", "--ticket-id", "181"], task=True)
+    branch.run(["prepare", "fix/181-first", "--ticket-id", "181"], task=True)
     assert git("rev-parse", "HEAD") == tip
-    branch.run(["prepare", "fix/181-first", "--ticket-token", "181"], task=True)
+    branch.run(["prepare", "fix/181-first", "--ticket-id", "181"], task=True)
     assert "## mode: current" in capsys.readouterr().out
 
 
@@ -32,7 +60,7 @@ def test_worktree_keeps_caller_work(
     (repository / "tracked.txt").write_text("dirty\n")
     operation = "prepare" if task else "create"
     branch.run(
-        [operation, "fix/181-tree", "--ticket-token", "181", "--worktree"], task=task
+        [operation, "fix/181-tree", "--ticket-id", "181", "--worktree"], task=task
     )
     tree = repository / ".worktrees" / "fix" / "181-tree"
     assert tree.is_dir()
@@ -41,7 +69,7 @@ def test_worktree_keeps_caller_work(
     assert git("check-ignore", str(tree))
     if task:
         branch.run(
-            [operation, "fix/181-tree", "--ticket-token", "181", "--worktree"],
+            [operation, "fix/181-tree", "--ticket-id", "181", "--worktree"],
             task=task,
         )
         assert "worktree-current" in capsys.readouterr().out

@@ -2,22 +2,22 @@ id: create-branch-missing-provider-token
 invariant: GW-B1
 activation: positive
 mount_plugin_skills: true
-prompt: "Start a branch for the active ticket provider's ticket about preserving identifiers, but no canonical provider token was supplied."
+prompt: "Start a branch for the active ticket provider's ticket about preserving identifiers, but no canonical provider identifier was supplied."
 fixture:
   commits:
     - message: "chore: init"
       files:
         README.md: "# Fixture\n"
 checks:
-  - name: no branch mutation without the provider token
+  - name: no branch mutation without the provider identifier
     run: git rev-parse --abbrev-ref HEAD
     expect_regex: "^main$"
 semantic_output_checks:
-  - name: asks for the missing canonical token
+  - name: asks for the missing canonical identifier
     proposition: >-
       The response asks the user for the missing ticket identifier to use from
       the active provider, without inventing its value or claiming a branch was
       already created. Saying the branch will be created after receiving that
       input is valid. Equivalent question wording is sufficient; the words
-      exact and canonical need not be repeated. Clearly labeled example tokens
+      exact and canonical need not be repeated. Clearly labeled example identifiers
       are not claims about the actual ticket.

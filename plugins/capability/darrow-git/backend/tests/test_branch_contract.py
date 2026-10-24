@@ -27,7 +27,7 @@ def test_create_preserves_work(
     repository: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     (repository / "outside.txt").write_text("local work", encoding="utf-8")
-    run(["create", "refactor/181-python-git", "--ticket-token", "181"])
+    run(["create", "refactor/181-python-git", "--ticket-id", "181"])
     assert capsys.readouterr().out == "refactor/181-python-git (from main)\n"
     assert git("symbolic-ref", "--short", "HEAD") == "refactor/181-python-git"
     assert (repository / "outside.txt").read_text() == "local work"

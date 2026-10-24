@@ -68,12 +68,12 @@ fixture:
     .claude/skills/prepare-task-branch/SKILL.md: &prepare_branch |
       ---
       name: prepare-task-branch
-      description: Discover local branches for exact ticket token DAR-42 read-only, or prepare a caller-selected exact branch while preserving local work.
+      description: Discover local branches for exact ticket ID DAR-42 read-only, or prepare a caller-selected exact branch while preserving local work.
       ---
 
       # Prepare the fixture branch
 
-      For read-only token discovery, run `fixture-discover-branches DAR-42` and
+      For read-only ticket-ID discovery, run `fixture-discover-branches DAR-42` and
       return the complete list. For exact preparation, run
       `fixture-prepare-branch fix/DAR-42-migration` exactly once after the
       caller selected that name. Never prepare a branch during discovery.
@@ -107,7 +107,7 @@ fixture:
       test "$1" = https://example.invalid/tickets/42
       printf '%s\n' "$1" >>.fixture-state/read-ticket-invocations
       printf '%s\n' \
-        'ticket-token: DAR-42' \
+        'ticket-id: DAR-42' \
         'ticket: https://example.invalid/tickets/42' \
         'outcome: Export migrationMode() from src/migration.js using the policy selected through the repository decision process.' \
         'scope: Add a pure string selector used only by the tests in this repository. There are no external callers, data conversions, persisted-format changes, deployments, or migration execution in this task.' \
@@ -140,7 +140,7 @@ fixture:
       set -eu
       test "$#" -eq 1
       test "$1" = DAR-42
-      printf '%s\n' 'Token: DAR-42' 'Matching local branches (complete list):'
+      printf '%s\n' 'ticket-id: DAR-42' 'Matching local branches (complete list):'
       branches=$(git for-each-ref --format='%(refname:short)' refs/heads)
       while IFS= read -r branch; do
         case "$branch" in */DAR-42|*/DAR-42-*) printf '%s\n' "$branch" ;; esac

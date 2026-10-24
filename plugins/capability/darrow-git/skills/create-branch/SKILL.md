@@ -1,6 +1,6 @@
 ---
 name: create-branch
-description: Always use for new branch or worktree creation from a work description or an explicit valid name. Derive a conventional name. Require a canonical provider token only when the request is actually ticket-linked; ticket-free work needs no token. Ticket-linked creation with a missing token stays here. Exclude switching to or reusing an existing branch, and exact task-branch preparation whose complete name and token are already bound by an authorized delivery workflow.
+description: Always use for new branch or worktree creation from a work description or an explicit valid name. Derive a conventional name. Require a canonical provider identifier only when the request is actually ticket-linked; ticket-free work needs no identifier. Ticket-linked creation with a missing identifier stays here. Exclude switching to or reusing an existing branch, and exact task-branch preparation whose complete name and identifier are already bound by an authorized delivery workflow.
 ---
 
 # Create a branch
@@ -43,13 +43,14 @@ Use `<type>/<kebab-slug>`:
 - Choose the eventual Conventional Commit type: `feat`, `fix`, `refactor`,
   `perf`, `docs`, `test`, `chore`, `build`, `ci`, `style`, or `revert`.
 - Use 2–5 short lowercase words that name the work.
-- When an active ticket provider supplies its opaque canonical token, lead with
-  that exact token once, such as `feat/DAR-123-retry-logic` or
+- When an active ticket provider supplies its opaque canonical identifier,
+  lead with that exact identifier once, such as `feat/DAR-123-retry-logic` or
   `fix/issue-64-preserve-identifiers`. Do not normalize, map, or derive a
-  provider token. If the work is ticket-linked but no token was supplied, ask
-  one smallest question for it and make no Git mutation.
+  provider identifier. Use its `ticket-id:` value unchanged. If the work is
+  ticket-linked but no identifier was supplied, ask one smallest question for
+  it and make no Git mutation.
 - For work that is not linked to a ticket, derive the name without requesting
-  a provider token.
+  a provider identifier.
 - Follow a clear recent repository convention when one exists.
 
 Honor an explicit valid name exactly. If that name already exists, stop with
@@ -64,17 +65,17 @@ Default—in the current checkout:
 
 ```sh
 uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-create-branch create <type>/<slug> \
-  [--ticket-token <opaque-provider-token>] [--from <base>]
+  [--ticket-id <ticket-id>] [--from <base>]
 ```
 
 Worktree—only on explicit request:
 
 ```sh
 uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-create-branch create <type>/<slug> --worktree \
-  [--at <path>] [--ticket-token <opaque-provider-token>] [--from <base>]
+  [--at <path>] [--ticket-id <ticket-id>] [--from <base>]
 ```
 
-Pass `--ticket-token` only when an active provider supplied the token; it makes
+Pass `--ticket-id` only when an active provider supplied the identifier; it makes
 the portable script enforce its exact leading, single occurrence. Pass `--from`
 only for a user-named base; otherwise use current `HEAD`. Pass
 `--at` only for a user-named worktree path; if rejected, preserve that refusal

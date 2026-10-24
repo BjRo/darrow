@@ -7,7 +7,7 @@ const source = new URL(
 );
 const response = [
   "backend: github",
-  "ticket-token: 12",
+  "ticket-id: 12",
   "#12 open — Preserve exact ticket bodies",
   "https://github.test/o/r/issues/12",
   "labels: enhancement, area: tickets",
@@ -28,6 +28,16 @@ for (const [name, finalMessage, expected] of [
   ["with one terminal newline", response + "\n", "passed"],
   ["with a preamble", "Here is the ticket:\n" + response, "failed"],
   ["with appended commentary", response + "\nPlease review it.", "failed"],
+  [
+    "with a redacted ticket identifier",
+    response.replace("ticket-id: 12", "ticket-id: [REDACTED:API key param]"),
+    "failed",
+  ],
+  [
+    "with the former ticket field",
+    response.replace("ticket-id: 12", "ticket-token: 12"),
+    "failed",
+  ],
   [
     "with a changed body token",
     response.replace("TOKEN-BETA", "TOKEN-OTHER"),

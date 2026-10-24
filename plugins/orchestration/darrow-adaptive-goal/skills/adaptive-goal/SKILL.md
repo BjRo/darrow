@@ -138,9 +138,9 @@ before launch. Input gathering grants no mutation authority.
 ## 3. Resolve readiness before launch
 
 When authorized ticket delivery needs task-branch preparation, first preserve
-the provider's exact opaque canonical token and discover all correlated local
-branches through a compatible host-advertised Git capability's read-only token
-operation. Require complete token-filtered evidence; a truncated general
+the provider's exact opaque canonical `ticket-id` and discover all correlated local
+branches through a compatible host-advertised Git capability's read-only identifier
+operation. Require complete identifier-filtered evidence; a truncated general
 listing is insufficient. If compatible discovery is unavailable or refuses,
 stop dependent preparation without raw Git fallback.
 
@@ -150,13 +150,13 @@ Adaptive goal owns the choice:
   differs; preserve its tip;
 - multiple matches: ask for one explicit exact choice before mutation or
   launch, unless the caller already selected one of those existing branches;
-- zero matches: bind one `<type>/<token>-<kebab-suffix>` name from the settled
-  request, using a lowercase descriptive suffix, the unchanged token exactly
+- zero matches: bind one `<type>/<ticket-id>-<kebab-suffix>` name from the settled
+  request, using a lowercase descriptive suffix, the unchanged identifier exactly
   once, and at most 60 characters. Preserve a valid exact caller-bound name.
 
 A proposed new name is not a choice among existing matches. Missing ticket
-identity asks the smallest question. Do not normalize tokens or infer provider
-semantics from names. Compile the token, complete evidence, exact selection,
+identity asks the smallest question. Do not normalize identifiers or infer provider
+semantics from names. Compile the identifier, complete evidence, exact selection,
 and this decision rule into the delivery context. Bind discovery refresh and
 exact preparation to the compatible Git capability. The main thread refreshes
 discovery immediately before preparation and reapplies this rule if candidates

@@ -5,7 +5,7 @@ mount_plugin_skills: true
 expect_head_change: false
 prompt: >-
   Use {{skill_invocation}} to prepare `fix/DAR-123-attribution` for the active
-  provider's canonical token DAR-123 in a linked worktree. I explicitly want a
+  provider's canonical identifier DAR-123 in a linked worktree. I explicitly want a
   worktree and did not name a custom path. Leave this checkout and its dirty
   change untouched, and report the execution path.
 fixture:

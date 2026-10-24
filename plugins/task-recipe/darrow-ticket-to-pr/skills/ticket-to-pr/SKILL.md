@@ -22,7 +22,7 @@ for Adaptive Goal or report its availability before that choice. Merely saying
 that one ticket is required does not ask the user to supply it.
 
 Treat the single exact reference as opaque input: do not read or validate the
-ticket, derive a provider token, inspect the repository, choose a branch name,
+ticket, derive a provider identifier, inspect the repository, choose a branch name,
 run readiness, or mutate anything.
 
 For local Artificer, require the host's saved recurring human-grant receipt:

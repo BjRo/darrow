@@ -45,28 +45,28 @@ name60="feat/$(printf 'a%.0s' $(seq 1 55))"
 "${ENTRYPOINT[@]}" create "$name60" > /dev/null 2>&1
 check "exactly 60 chars accepted" 0 $?
 fresh_repo
-out=$("${ENTRYPOINT[@]}" create fix/issue-64-preserve-ticket-identifiers --ticket-token issue-64)
-check "issue token preserved at slug start" 0 $?
-check "issue token branch exact" "fix/issue-64-preserve-ticket-identifiers (from main)" "$out"
+out=$("${ENTRYPOINT[@]}" create fix/issue-64-preserve-ticket-identifiers --ticket-id issue-64)
+check "issue identifier preserved at slug start" 0 $?
+check "issue identifier branch exact" "fix/issue-64-preserve-ticket-identifiers (from main)" "$out"
 fresh_repo
-out=$("${ENTRYPOINT[@]}" create feat/DAR-123-retry-logic --ticket-token DAR-123)
-check "opaque provider token preserved" 0 $?
-check "opaque provider token branch exact" "feat/DAR-123-retry-logic (from main)" "$out"
+out=$("${ENTRYPOINT[@]}" create feat/DAR-123-retry-logic --ticket-id DAR-123)
+check "opaque provider identifier preserved" 0 $?
+check "opaque provider identifier branch exact" "feat/DAR-123-retry-logic (from main)" "$out"
 fresh_repo
-out=$("${ENTRYPOINT[@]}" create feat/ABC_42-retry-logic --ticket-token ABC_42)
-check "underscore provider token preserved" 0 $?
-check "underscore provider token branch exact" "feat/ABC_42-retry-logic (from main)" "$out"
+out=$("${ENTRYPOINT[@]}" create feat/ABC_42-retry-logic --ticket-id ABC_42)
+check "underscore provider identifier preserved" 0 $?
+check "underscore provider identifier branch exact" "feat/ABC_42-retry-logic (from main)" "$out"
 fresh_repo
-out=$("${ENTRYPOINT[@]}" create feat/Dar-123-retry-logic --ticket-token Dar-123)
-check "mixed-case provider token preserved" 0 $?
-check "mixed-case provider token branch exact" "feat/Dar-123-retry-logic (from main)" "$out"
+out=$("${ENTRYPOINT[@]}" create feat/Dar-123-retry-logic --ticket-id Dar-123)
+check "mixed-case provider identifier preserved" 0 $?
+check "mixed-case provider identifier branch exact" "feat/Dar-123-retry-logic (from main)" "$out"
 fresh_repo
-"${ENTRYPOINT[@]}" create fix/preserve-issue-64 --ticket-token issue-64 > /dev/null 2>&1
-check "refuse non-leading token" 5 $?
+"${ENTRYPOINT[@]}" create fix/preserve-issue-64 --ticket-id issue-64 > /dev/null 2>&1
+check "refuse non-leading identifier" 5 $?
 check "refusal creates no branch" 1 "$(git for-each-ref refs/heads | wc -l | tr -d ' ')"
 fresh_repo
-"${ENTRYPOINT[@]}" create fix/issue-64-preserve-issue-64 --ticket-token issue-64 > /dev/null 2>&1
-check "refuse repeated token" 5 $?
+"${ENTRYPOINT[@]}" create fix/issue-64-preserve-issue-64 --ticket-id issue-64 > /dev/null 2>&1
+check "refuse repeated identifier" 5 $?
 check "repeat refusal creates no branch" 1 "$(git for-each-ref refs/heads | wc -l | tr -d ' ')"
 
 echo "# N2: invalid names rejected (exit 5)"

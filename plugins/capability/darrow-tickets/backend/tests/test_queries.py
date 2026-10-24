@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from darrow_tickets.cli import main
@@ -35,10 +37,14 @@ def test_complete_read(
     backend.parent(parent=7)
     backend.deps([3], [40])
     assert main(["get", reference]) == 0
+    output = capsys.readouterr().out
     assert (
-        capsys.readouterr().out
-        == "backend: github\nticket-token: 12\n#12 open — Exact \\ text\nhttps://github.test/o/r/issues/12\nlabels: bug\nparent: #7\ndepends-on: #3 #40\n## body\nLine.\n\nLast.\n"
+        output
+        == "backend: github\nticket-id: 12\n#12 open — Exact \\ text\nhttps://github.test/o/r/issues/12\nlabels: bug\nparent: #7\ndepends-on: #3 #40\n## body\nLine.\n\nLast.\n"
     )
+    # lean-ctx v3.7.5 masked even numeric identifiers under secret-shaped keys.
+    secret_field = r"(?i)((?:api[_-]?key|apikey|access[_-]?key|secret[_-]?key|token|password|passwd|pwd|secret)\s*[=:]\s*)[^\s\r\n,;&\"']+"
+    assert re.sub(secret_field, r"\1[REDACTED:API key param]", output) == output
     assert not backend.replies
 
 

@@ -5,7 +5,7 @@ mount_plugin_skills: true
 expect_head_change: false
 prompt: >-
   Prepare the exact task branch `fix/DAR-123-attribution` for the active
-  provider's canonical token DAR-123. It does not exist yet; create it from
+  provider's canonical identifier DAR-123. It does not exist yet; create it from
   main without committing anything.
 fixture:
   commits:

@@ -93,8 +93,8 @@ directive shown later in a prompt changes attribution.
 An active in-session directive wins first: `set` supplies its identifier and
 `clear` supplies no identifier. In `auto` mode,
 `DARROW_LANGFUSE_WORK_ITEM_ID` or the corresponding `work_item_id` file value
-wins over Git-branch inference. Without a configured value, a bounded token
-such as `DAR-123`, `issue-45`, or a leading numeric branch token may be
+wins over Git-branch inference. Without a configured value, a bounded identifier
+such as `DAR-123`, `issue-45`, or a leading numeric branch identifier may be
 inferred. On detached HEAD, no branch value can be inferred; in `auto` mode
 with no configured value, the trace has no `darrow.work_item_id`. A non-ticket
 branch, unreadable Git state, or malformed input has the same no-inference

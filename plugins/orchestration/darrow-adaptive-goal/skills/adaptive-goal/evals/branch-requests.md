@@ -10,7 +10,7 @@ inspection and exact preparation. Both native harnesses are in scope.
 | Preserved recipe delegation to deliver issue-84                  | Same correlation policy; recipe stays thin  |
 | Explicit delivery with multiple correlated branches              | Ask for one exact choice before mutation    |
 | Ordinary request to list ticket branches                         | Does not activate adaptive goal             |
-| Explicit delivery with zero matches and similar tokens           | Derive one conventional name and prepare it |
+| Explicit delivery with zero matches and similar identifiers      | Derive one conventional name and prepare it |
 | Prior match beyond the first 50 branches                         | Complete capability evidence still finds it |
 
 Mechanics are tested through the Git capability's public script. Colocated

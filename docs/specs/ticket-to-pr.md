@@ -60,7 +60,7 @@ request describing the same delivery outcome does not grant recipe authority,
 even when its wording closely matches the recipe's delegated request.
 
 The recipe accepts the exact reference as opaque input. It does not read the
-ticket, validate its provider, derive a token, inspect the repository, choose a
+ticket, validate its provider, derive an identifier, inspect the repository, choose a
 branch name, or run readiness before delegation. A missing or ambiguous
 reference produces one small request for an exact ID or URL and no delegation
 or mutation.
@@ -289,7 +289,7 @@ intended commit and one-PR publication requirements remain intact.
 
 ## Non-goals
 
-- Ticket-provider resolution, canonical-token handling, or branch naming.
+- Ticket-provider resolution, canonical-ID handling, or branch naming.
 - Recipe-owned readiness, repository preflight, workflow or risk selection.
 - Direct implementation, verification, review, Git, or forge operations.
 - A phase graph, lifecycle ledger, retry or waiver policy, recovery handoff,
