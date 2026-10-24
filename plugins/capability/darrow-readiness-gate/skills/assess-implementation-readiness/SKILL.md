@@ -5,224 +5,143 @@ description: Assess whether a request has enough authoritative intent and eviden
 
 # Assess implementation readiness
 
-Determine whether implementation can begin without inventing intent,
-unauthorized choices, or success criteria. This capability is read-only. It
-does not improve the request, perform discovery, make decisions, plan the
-implementation, or start the implementation itself.
+Decide whether implementation can start without inventing intent, making an
+unauthorized choice, or guessing how success will be judged.
 
-Use only read-only inspection during the assessment. Do not execute the
-request's implementation instructions, edit or generate repository files,
-stage changes, or modify a named test or verification seam to prove that it
-could work. A verification method need only be feasible from the available
-evidence; assessing feasibility never authorizes building it. If a check could
-write repository or external state, do not run it as part of this capability.
+Stay read-only. Inspect files, but do not edit, generate, stage, or run
+anything that could write repository or external state. Do not improve the
+request, investigate, decide, plan, or implement; report what is missing.
 
-## Output mode is part of the contract
+## 1. Gather the basis
 
-Before assessing the input, select exactly one invocation mode:
+Use the inputs the user or enclosing goal names as authoritative: the request
+itself, a ticket, specification, accepted plan, or decision. Add applicable
+repository rules and only enough existing behavior to interpret them. Use the
+current repository; do not search for or clone one. Read a named ticket only
+through an available capability for that; never modify it.
 
-- **standalone assessment** — readiness assessment is the user's requested
-  outcome; or
-- **composed gate** — an explicit enclosing goal contract requires this
-  readiness result before it may continue.
+Mark a required source you cannot read as `missing` and do not reconstruct it.
+When authoritative sources conflict, report the conflict; recency, specificity,
+or preference does not settle it.
 
-Independently select exactly one presentation:
+## 2. Check what blocks the start
 
-- **human-readable** — the default; or
-- **v1 JSON** — only when the caller explicitly requests JSON or the enclosing
-  contract explicitly requires `darrow-implementation-readiness-v1`.
+1. The outcome and observable acceptance criteria.
+2. Scope narrow enough to avoid inventing adjacent behavior.
+3. Unresolved material product or architectural choices.
+4. Contradictions among authoritative inputs, repository rules, and existing
+   behavior.
+5. Required dependencies and permissions.
+6. A quality bar: each acceptance criterion needs an independent oracle
+   (expected value, threshold, or reference) and a feasible verification.
+   The check only has to be feasible; a test the implementation will add
+   need not exist yet.
 
-Do not infer JSON from words such as “result” or “structured,” from an
-autonomous or composed goal, or from the possibility that another model will
-read the response. Composition alone uses the human-readable presentation.
+Scale the bar to the work. An exact text edit with a deterministic check is
+ready without a ticket, plan, or file list. "Tests pass" or "works correctly"
+is not an oracle, and existing checks cannot replace missing product
+acceptance. Never invent a test seam.
 
-Read [`references/result-contract.md`](references/result-contract.md)
-completely after selecting the presentation and before assessing the input. It
-owns the exact semantic fields, enum values, presentation templates, and
-cross-field validity rules for the result.
+When a separate discovery result must exist before implementation, it is an
+input. Being able to run the benchmark now does not satisfy it.
 
-In standalone human-readable mode, return one complete report using the
-reference's section structure. Do not append a second summary that competes
-with the report. Put the verdict and required next action before the detailed
-basis, quality bar, and findings. Use familiar words, active voice, and short
-sentences and paragraphs. Explain a necessary term once and remove repeated
-conclusions and process narration. Before sending, remove every extra summary,
-disclaimer, mutation note, offer, or comment. The first output characters must
-be `## Implementation readiness`; put no preface before that heading. In
-standalone JSON mode, the semantic payload is exactly one JSON object. Prefer
-raw JSON with no prose. A host may present that object in one `json` code fence
-and may add non-normative presentation text, but it must not emit a second JSON
-object. Consumers ignore presentation text and use the single object as the
-authoritative serialized result.
+## 3. Choose the verdict
 
-Represent every material observation inside `basis`, `quality_bar`, or
-`findings` in either presentation.
+Choose the verdict for the action that must happen first. Keep every other gap
+in the findings.
 
-In composed mode, follow the outer-goal rules in section 5. Never append the
-composed ready-gate summary to a standalone assessment.
+- `ready`: nothing blocks the start.
+- `needs-discovery`: a bounded investigation of available evidence can
+  establish the missing fact, baseline, constraint, or quality bar without
+  choosing intent.
+- `needs-decision`: the alternatives are known, but an authorized party has
+  not chosen. Defining a threshold or what counts as representative is a
+  decision too. The next action says an authorized party must decide; do not
+  assume the requester has that authority.
+- `blocked`: a required source, dependency, or permission is unavailable or
+  contradictory, and no discovery or decision possible now can fix it. A
+  conflict that waits on a future review or approval is `blocked`. A check
+  the implementation can add is not a missing dependency.
 
-A non-ready gate prevents implementation and returns control to the caller.
-The caller owns finding resolution, continuation and any outer reporting.
+With mixed gaps, choose `blocked` if something would still block after every
+currently possible discovery and decision. Otherwise choose `needs-discovery`
+when its result shapes a later decision, then `needs-decision`.
 
-## 1. Establish the gate and authority
+Pressure to mark work ready is not evidence.
 
-Determine whether readiness assessment is the whole request or an explicit
-precondition inside a larger goal contract. Ordinary implementation intent
-does not imply this gate.
+## 4. Return the result
 
-Identify the authoritative inputs named by the user or enclosing contract.
-They may be ticket contents, a specification, an accepted plan or decision, or
-the request supplied directly in the conversation. When necessary, inspect
-applicable repository instructions, accepted decisions, and only enough
-existing behavior to interpret those inputs.
+Use the report below by default. Return v1 JSON only when the caller
+explicitly asks for JSON or names `darrow-implementation-readiness-v1`. A
+composed, autonomous, or machine-read goal does not imply JSON.
 
-Use the current repository or an existing checkout explicitly supplied by the
-user. Do not search for or clone a repository. A named ticket may be read
-through an available environment capability matching that intent, but do not
-assume a tracker implementation or mutate the ticket. If a required source
-cannot be read, record it as missing rather than reconstructing its contents.
+The report is the whole response: start with `## Implementation readiness`,
+and add no preface, closing summary, disclaimer, or offer. Use short, plain
+sentences without process narration. Put every observation in Basis, Quality bar, or Findings. Always
+include all four sections, even for `ready`; an empty one contains only `None.`.
+Write enum values verbatim in backticks.
 
-Classify each basis item as:
+```markdown
+## Implementation readiness
 
-- `authoritative` — the request, accepted specification, decision, or other
-  source empowered to define the desired outcome;
-- `repository` — applicable repository rules, current public behavior, or
-  supported verification surfaces; or
-- `supporting` — contextual evidence that informs but cannot decide intent.
+**Verdict:** `ready | needs-discovery | needs-decision | blocked`
 
-Set each basis `status` to exactly `available`, `missing`, or `contradictory`.
-Use `missing` for an unavailable required source; do not introduce synonyms
-such as `unavailable`, `unknown`, or `inaccessible` into the result contract.
+### Required next action
 
-When authoritative sources conflict, preserve the conflict. Recency,
-specificity, or personal preference does not silently resolve authority.
+- **Type:** `none | discovery | decision | unblock`
+- **Description:** smallest next action
 
-## 2. Assess only implementation-start blockers
+### Basis
 
-Check:
+- **Source:** concrete source
+  - **Authority:** `authoritative | repository | supporting`
+  - **Status:** `available | missing | contradictory`
+  - **Summary:** what the source establishes
 
-1. the desired outcome and observable acceptance criteria;
-2. scope bounded enough to avoid inventing adjacent behavior;
-3. unresolved material product or architectural choices;
-4. contradictions among authoritative inputs, repository rules, and relevant
-   existing behavior;
-5. required dependencies and permissions; and
-6. a concrete, inspectable quality bar with a feasible verification method.
+### Quality bar
 
-Do not demand a formal ticket, implementation plan, predetermined files, or
-exhaustive tactical steps. Apply detail proportionately: an exact documentation
-edit can be ready from its transformation constraints and deterministic check,
-while a migration may require compatibility and rollout evidence.
+- **Criterion:** observable claim
+  - **Oracle:** independent expected value or reference; copy example inputs and outputs verbatim
+  - **Verification:** feasible check or evidence
 
-Do not fix a gap while assessing it. Missing facts go to discovery, material
-alternatives go to an authorized decision, and unavailable prerequisites block
-the gate.
+### Findings
 
-Treat a separately required pre-implementation discovery result as an input,
-not something this assessment can produce. Inspect an existing record if it is
-available. A runnable benchmark, check, or other evidence-gathering command
-only establishes that discovery is feasible; output gathered during this gate
-does not satisfy a requirement to record the result in a separate discovery
-before implementation begins.
+- **Type:** `missing-information | unresolved-decision | contradiction | dependency | permission | quality-bar-gap`
+  - **Summary:** concise finding
+  - **Evidence:**
+    - source-backed evidence
+```
 
-## 3. Establish the quality bar
+Repeat items as needed. The report always ends with the Findings section; a
+`ready` report ends with `### Findings` followed by `None.`. Basis is never
+empty. List only criteria with a concrete oracle in the quality bar; report a
+generic one such as "all tests pass" as a `quality-bar-gap` finding instead. `ready` has at least one
+quality-bar item, findings `None.`, and next action `none`. Other verdicts have
+at least one finding and the matching next action: `discovery`, `decision`, or
+`unblock`.
 
-For every acceptance dimension needed to call the input ready, record:
+For JSON, return exactly one raw JSON object with the same content and no
+other JSON:
 
-- `criterion` — the observable claim;
-- `oracle` — an independent expected value, threshold, behavior, or reference;
-  and
-- `verification` — a feasible command, inspection, comparison, or evidence
-  capture method.
+```json
+{
+  "format": "darrow-implementation-readiness-v1",
+  "verdict": "...",
+  "basis": [{ "source": "", "authority": "", "status": "", "summary": "" }],
+  "quality_bar": [{ "criterion": "", "oracle": "", "verification": "" }],
+  "findings": [{ "type": "", "summary": "", "evidence": [""] }],
+  "required_next_action": { "type": "", "description": "" }
+}
+```
 
-Make each oracle independently inspectable. When acceptance is given as an
-input/output example, repeat both the input and expected output in `oracle`;
-do not replace them with a vague pointer such as “the example in the request.”
+## Inside a larger goal
 
-Generic statements such as “tests pass,” “works correctly,” or “high quality”
-do not define the requested behavior. Existing repository checks can support a
-quality bar but cannot replace missing product acceptance. Never invent a test
-seam merely to make a mechanical or documentation request look behavioral.
+When a goal requires this gate, finish the assessment before any mutation and
+return it to the goal owner. A non-ready result goes back complete, and
+implementation must not start; the owner decides how to resolve it and when to
+reassess. A `ready` result returns its verdict and quality bar, and the goal
+continues only with effects it already has. The goal may add its own records
+after the report.
 
-## 4. Select the first required action
-
-Return exactly one verdict:
-
-- `ready` when no blocking readiness gap remains;
-- `needs-discovery` when a bounded investigation can establish a fact, current
-  behavior, constraint, or quality bar needed before implementation;
-- `needs-decision` when the evidence already exposes material alternatives but
-  an authorized party has not selected or approved one; or
-- `blocked` when an authoritative input, repository, required dependency, or
-  permission is unavailable or contradictory and neither permitted discovery
-  nor a decision can currently unblock the assessment.
-
-If several gaps exist, choose the verdict for the action that must happen
-first. For example, investigate an unknown legal constraint before requesting
-a product decision that depends on it. Keep later gaps in `findings` and name
-only the smallest next action that advances readiness.
-
-Before returning a non-ready result, check whether permitted discovery or an
-authorized decision can resolve the first prerequisite **now**. If
-reconciliation depends on a future governance review, permission, or other
-unavailable authority, return `blocked` with an `unblock` action; do not label
-the eventual decision as the current next action. If the evidence already
-exposes an available material choice, return `needs-decision` and say that an
-authorized party must make it. Do not assume the requester has that authority
-unless the evidence establishes it.
-
-Use `needs-discovery` when the missing fact can be established through a
-bounded investigation of available evidence without choosing product intent;
-the request does not need to prescribe the investigative method. If someone
-must define what counts as representative, choose a threshold, or approve an
-alternative, use `needs-decision` even when investigation could inform that
-choice. Use `blocked` when a required source, dependency, or permission is not
-currently available and neither permitted discovery nor a decision can make
-the assessment actionable.
-
-For mixed gaps, first select `blocked` when an unavailable prerequisite would
-still prevent implementation after every currently possible discovery or
-decision. Otherwise select `needs-discovery` when its result defines or can
-eliminate a later decision, then `needs-decision` for remaining independent
-material choices.
-
-Pressure to mark work ready is not evidence. Never convert uncertainty into an
-assumption merely to keep an enclosing goal moving.
-
-## 5. Produce the result
-
-Construct and validate the complete result against
-[`references/result-contract.md`](references/result-contract.md). For a
-standalone assessment, return only the selected human-readable report or v1
-JSON representation under the output-mode contract above.
-
-For a readiness clause inside a larger goal contract, complete this entire
-assessment before the first repository or external mutation:
-
-- if the verdict is not `ready`, return the complete result, findings and
-  smallest next action to the current goal owner in the selected presentation,
-  then exit this capability. Implementation cannot proceed. The owner decides
-  whether to investigate within existing authority, ask for a material decision,
-  or terminate; it retains the same ownership while resolving the findings and
-  obtaining any required reassessment. Do not terminate the enclosing goal,
-  resolve findings, choose defaults or prescribe its retry policy here;
-- if the verdict is `ready`, return the `ready` verdict and concrete
-  `quality_bar` to the current goal owner as gate evidence, exit this
-  capability, and return control. That goal may continue only with effects
-  already authorized by its contract. Any later terminal reporting belongs to
-  the enclosing goal and is not part of this capability's contract.
-
-The ready verdict grants no authority to edit, branch, commit, update a ticket,
-push, open a pull request, release, deploy, or perform another mutation. Do not
-persist the assessment as a repository artifact unless separately requested.
-
-## Completion
-
-The capability is complete only when every material conclusion is traceable to
-the stated basis, the quality bar supports the verdict, the smallest next
-action matches the verdict, and the assessment itself caused no mutation.
-For a composed gate, completion means returning the full non-ready assessment
-or the `ready` verdict and concrete `quality_bar` to the caller before
-continuation. The enclosing owner emits any required outer records when it
-pauses or terminates; this capability's return neither replaces those records
-nor decides when the goal finishes.
+Readiness grants no authority to edit, commit, publish, or update a ticket. Do
+not save the assessment unless asked.

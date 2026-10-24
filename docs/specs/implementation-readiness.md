@@ -304,6 +304,9 @@ unavailable.
    resolution belongs to the caller after the capability returns.
 6. **IRG-E6 — Composition.** A ready composed goal may continue under its
    existing authority, while a non-ready composed goal stops before mutation.
+   Caller-resolution cases establish continuation through the same host
+   conversation, complete assessments returned before mutation, and the
+   authorized outcome. Agent-spawn absence is not an acceptance condition.
 7. **IRG-E7 — Cross-harness behavior.** Fresh Claude Code and Codex contexts
    produce compatible verdict and result semantics.
 8. **IRG-E8 — Comparative value.** Matched no-skill and candidate trials record
