@@ -611,10 +611,16 @@ changes. Selected verification and independent review remain separate bounded
 capability assignments with their own routes and provider boundaries; direct
 implementation never permits direct or same-context assessment.
 
-Repairs stay within the same goal and its shared repair allowance. Choose repair
-placement with the same rule. Switching between direct and delegated work,
-reusing or replacing a worker, or splitting a repair across concurrent
-assignments consumes one attempt per combined repair and never resets or
+Placement is decided once per candidate. Repairs return to the implementor
+that produced the candidate: the main thread itself after direct placement, or
+the retained bounded implementor through native follow-up after delegation. The
+retained implementor already holds the task context, so a repair sends it the
+combined findings, changed constraints and checks to rerun; it never launches a
+new implementation child. A replacement is permitted only when the retained
+implementor is unavailable or no longer fits the required route or scope, and
+the main thread states that reason. Repairs stay within the same goal and its
+shared repair allowance: replacing a worker or splitting a repair across
+concurrent parts consumes one attempt per combined repair and never resets or
 multiplies the allowance. Settle all implementation work, including conflicting
 concurrent edits, before candidate-bound checks and assessment.
 
@@ -758,12 +764,13 @@ checks. Pass the complete relevant acceptance, candidate, evidence, provider
 bindings and explicit review-coordinator route. Verification owns its provider
 selection, internal delegation and result contract; review owns its readers.
 
-When implementation is delegated, reuse the retained implementor for subsequent
-work on its assignment, including repairs, unless placement changes. Supply the concrete changes, findings, changed constraints and required
-checks, without transferring orchestration bookkeeping. Start a replacement only
-when the retained agent is unavailable or no longer fits the required route or
-scope, and state the reason. Supply a replacement with the necessary task context
-and prior work; replacement never resets the main thread's repair allowance.
+When implementation is delegated, send later work on its assignment, including
+every repair, to the retained implementor through the host's native follow-up
+control. Supply the concrete findings, changed constraints and required checks,
+without transferring orchestration bookkeeping. Fresh context applies to
+verification, not to the implementor. Supply a permitted replacement with the
+necessary task context and prior work; replacement never resets the main
+thread's repair allowance.
 
 The main thread may inspect state, implement directly under the placement rules,
 run required checks, consume results and coordinate authorized operations. It
@@ -868,8 +875,9 @@ Use native `create_goal` in the main thread, or continue its matching active
 goal. Keep the objective within 4,000 characters and supply no invented budget.
 Use native `spawn_agent` with `fork_turns: none`, an explicit model and effort,
 and a valid lowercase/digit/underscore task name for a new bounded agent.
-Retain its host-returned identity; use native follow-up for continued implementation
-or repair when that implementor remains applicable. Direct placement launches no
+Retain its host-returned identity; continue implementation and every repair
+through `followup_task` for an idle child or `send_message` for a running one,
+addressed to that identity. Direct placement launches no
 implementation agent. Children do not create goals.
 
 Use native goal continuation; an eval client must keep the main session alive
@@ -891,6 +899,9 @@ session; do not claim it ran. A headless client may enter through that native
 command. Do not invent a Skill invocation of a built-in command, launch a nested
 Claude process or add a custom stop hook. Bounded Agent assignments use resolved
 scoped agents and return their own results; they do not own or clear the goal.
+Continue a retained agent with `SendMessage`, addressed to its returned agent
+id. `SendMessage` may be a deferred tool that must be loaded through
+`ToolSearch` first; an unloaded tool is not an unavailable implementor.
 
 ### Unavailable boundary
 
@@ -932,6 +943,9 @@ owner, nested host process or runtime is authorized.
    relation, a justified cheaper assignment, or useful concurrency across
    independent owned parts of one candidate. Placement never changes assurance,
    authority, assessment routes or the shared repair allowance.
+   Placement is decided once: a repair returns to the implementor that produced
+   the candidate and launches no new implementation child unless that
+   implementor is unavailable or no longer fits.
 10. **ADL-L2 — Semantic gates.** Required readiness completes before implementation; every
     applicable current check succeeds before selected verification and every
     dependent commit or publication effect. The owner invokes verification with

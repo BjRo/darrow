@@ -1483,6 +1483,8 @@ function hasObservableTask(selected: RecordValue) {
   );
 }
 
+const TASK_TRANSCRIPT_KINDS = new Set(["route", "repair-reuse"]);
+
 function adaptiveGoalDiagnostics(
   selected: RecordValue,
   skillDir: string | null,
@@ -1503,7 +1505,7 @@ function adaptiveGoalDiagnostics(
     ReturnType<typeof caseTranscriptChecks>
   >;
   const taskChecks = [
-    ...current.filter((check) => check.kind === "route"),
+    ...current.filter((check) => TASK_TRANSCRIPT_KINDS.has(check.kind)),
     ...legacy.filter(
       (check) =>
         check.kind === "owner-route" ||
@@ -6044,6 +6046,7 @@ async function currentNativeTranscriptChecks(
       skills: transcriptSkillObservation(params.observations, details),
       spawns:
         nativeControlEvidence(params.observations)?.acceptedSpawns ?? null,
+      feedback: nativeFeedbackEvidence(params.observations)?.feedback ?? null,
       claudeTools: tools,
       claudeNestedSkills: claudeNestedSkills(params.observations),
       claudeCompletedRoutes: currentClaudeCompletedRoutes(tools, events),

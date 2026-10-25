@@ -54,13 +54,13 @@ before assigning more work. Children do not invoke Adaptive Goal, create
 overall goals, expand authority or decide overall completion. A rejected route
 does not authorize silently switching models.
 
-While delegation remains the chosen placement, reuse the accepted implementor
-for subsequent implementation and repairs. Use
-`followup_task` for an idle child or steer active work through `send_message`,
-targeting its retained identity. Supply concrete changes, findings, constraints
-and checks; keep workflow ordering and repair accounting in the main thread.
-Replace the implementor only for a concrete availability, route or scope mismatch,
-with the necessary context and prior work. Replacement or a placement switch grants no extra attempts.
+Send every repair and later implementation request to the accepted implementor:
+`followup_task` for an idle child, `send_message` for a running one, targeting
+its retained identity. Do not spawn a new implementor for a repair. Supply the
+concrete findings, constraints and checks; keep workflow ordering and repair
+accounting in the main thread. Replace the implementor only for a concrete
+availability, route or scope mismatch, with the necessary context and prior
+work. Replacement grants no extra attempts.
 
 ## Coordination and feedback
 

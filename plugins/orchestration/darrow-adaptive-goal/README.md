@@ -122,10 +122,14 @@ the complete evidence before authorizing a combined repair.
 The default maximum is **two implementation repair attempts total**, shared
 across providers and findings. Each attempt refreshes checks and obtains fresh
 closed-set verification. Preserve finding identities, prior reports, candidate
-history and direct repair-caused regressions. When repairs are delegated, reuse
-the same implementor while it remains available and fits the route and scope. Send concrete
-repair instructions without handing over workflow state or attempt accounting.
-Replacement children and comprehensive
+history and direct repair-caused regressions.
+
+Placement is decided once. A repair goes back to the implementor that produced
+the candidate, which already holds the task context: the main thread after direct
+work, otherwise the retained child through `SendMessage` (Claude) or
+`followup_task`/`send_message` (Codex). Only verification starts fresh. A
+replacement implementor is used only when the retained one is unavailable or no
+longer fits the route or scope. Replacement children and comprehensive
 reassessment never reset the allowance. Clear evidence ends repair immediately;
 further attempts require progress and remaining budget. Explicit finite overrides
 and stricter authority, invocation, time or token limits still apply.

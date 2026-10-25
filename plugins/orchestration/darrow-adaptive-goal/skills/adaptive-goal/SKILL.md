@@ -306,7 +306,7 @@ stronger route requires existing explicit authorization, never automatic escalat
 Read [`references/verification-lifecycle.md`](references/verification-lifecycle.md)
 completely and compile its shared repair rules into the retained delivery context.
 The main thread supplies current successful required checks before assessment. All
-selected results return before one bounded repair assignment addresses their combined
+selected results return before one bounded repair addresses their combined
 eligible blockers. Default to two attempts total across verification, each
 followed by fresh closed-set verification. Finite explicit overrides and the
 strictest invocation, time, token and authority limits apply across providers.
@@ -496,20 +496,21 @@ authority limits and preserved user-owned changes as an assignment. Selected
 verification and review stay separate capability assignments on their own
 routes; direct implementation never permits self-assessment.
 
-Choose repair placement the same way. One combined repair consumes one shared
-attempt regardless of where it runs or how it is split. Switching placement,
-reusing or replacing workers never resets or multiplies the allowance. Settle
-all implementation work before candidate-bound checks and assessment.
+Decide placement once. **A repair goes back to the implementor that produced the
+candidate**: this thread after direct work, otherwise the retained implementor.
+One combined repair consumes one shared attempt however it is split; replacing a
+worker never resets or multiplies the allowance. Settle all implementation work
+before candidate-bound checks and assessment.
 
 ### Delegated assignments
 
 Launch a delegated implementor using the selected model and effort and the host
-guide's native delegation controls. Retain its identity and reuse it for further
-work on that assignment, including repairs, while delegation remains the chosen
-placement. Supply the concrete changes, findings, changed constraints and checks;
-it need not track whether this is the first implementation or a repair attempt.
-Start a replacement only when the retained agent is unavailable or no longer
-fits the required route or scope. State that reason and supply the
+guide's native delegation controls. Retain its identity. Send every later
+request on that assignment, including each repair, to that same implementor
+with the host guide's follow-up control: it already holds the task context, so
+send the combined findings, changed constraints and checks to rerun. Do not
+launch a new implementor for a repair. Replace it only when it is unavailable
+or no longer fits the required route or scope; state that reason and supply the
 replacement's necessary context and prior work. Replacement never resets your
 repair allowance.
 
@@ -564,9 +565,10 @@ complete combined verification. Preserve complete reports and usable absolute
 artifact references when supplied; do not invent mandatory saved artifacts for
 a compatible capability whose complete public result is inline.
 
-Await every selected result before one combined repair assignment. Consume one
-shared attempt for that repair, refresh invalidated checks and arrange fresh
-closed-set reassessment through verification. Carry unchanged original/prior
+Await every selected result before one combined repair. Send it to the
+implementor that produced the candidate, consume one shared attempt, refresh
+invalidated checks and arrange fresh closed-set reassessment through
+verification. Fresh context applies to verification, not to the implementor. Carry unchanged original/prior
 provider artifacts, original finding identities and provenance, prior/current
 targets, repair history and direct-regression lineage. A summary cannot replace
 authoritative records. Apply the shared lifecycle in references/verification-lifecycle.md:

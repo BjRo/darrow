@@ -88,6 +88,8 @@ no unused attempt needs to be consumed. Advisories remain visible and nonblockin
 
 One bounded implementation repair attempt addresses the combined eligible blockers from all
 selected results together, followed by refreshed checks and fresh verification.
+The repair goes to the implementor that produced the candidate; only
+verification starts with fresh context.
 The shared default maximum is two such attempts in total, not two per provider,
 finding, or assessment invocation. Include consumed attempts and any explicit
 user/repository nonnegative integer maximum in the contract. A finite override
