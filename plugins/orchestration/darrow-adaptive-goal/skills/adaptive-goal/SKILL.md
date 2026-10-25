@@ -310,24 +310,17 @@ unsupported QA or evidence operation is a gap, not permission to drop it.
 An explicit user model and effort overrides the implementation route when the
 host supports that concrete tuple. Implementation agents need only their bounded
 assignment's capabilities; they do not need to own overall delivery. Otherwise
-resolve the implementation policy route:
+resolve the implementation policy route and compare it with this thread's
+effective route in one call:
 
 ```sh
 uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" adaptive-goal-preflight route \
   --repo <absolute-repository> --host <codex|claude> --profile <profile> \
-  [--route 'harness|provider|model|effort']
+  [--route 'harness|provider|model|effort'] [--main-route 'harness|provider|model|effort']
 ```
 
 Pass `--route` only for an exact user override. Invalid or unreadable route
 policy stops launch; do not fall back silently.
-
-Compare the selected route with this thread's effective route:
-
-```sh
-uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" adaptive-goal-preflight placement \
-  --repo <absolute-repository> --host <codex|claude> \
-  --selected-route 'harness|provider|model|effort' [--main-route 'harness|provider|model|effort']
-```
 
 The helper observes the active session's model and effort. Pass `--main-route`
 only when the user or host states this thread's route explicitly. Retain the

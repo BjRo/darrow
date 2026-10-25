@@ -31,6 +31,7 @@ test("public ownership grading preserves internal-record exclusions", async () =
   for (const marker of [
     "darrow-native-goal-prepared-v1",
     "darrow-native-goal-route-v2",
+    "darrow-native-goal-route-v3",
     "darrow-native-goal-route-application-v1",
     "darrow-native-goal-objective-v1",
     "darrow-native-goal-staging-release-v1",

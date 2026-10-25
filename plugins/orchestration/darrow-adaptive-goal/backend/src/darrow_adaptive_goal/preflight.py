@@ -13,8 +13,7 @@ from .routes import catalog, validate_tuple
 
 USAGE = """usage:
   adaptive-goal-preflight prepare --repo <path> --host <codex|claude>
-  adaptive-goal-preflight route --repo <path> --host <codex|claude> --profile <profile> [--route <harness|provider|model|effort>]
-  adaptive-goal-preflight placement --repo <path> --host <codex|claude> --selected-route <harness|provider|model|effort> [--main-route <harness|provider|model|effort>]
+  adaptive-goal-preflight route --repo <path> --host <codex|claude> --profile <profile> [--route <harness|provider|model|effort>] [--main-route <harness|provider|model|effort>]
   adaptive-goal-preflight repair-budget --repairs-used <count> [--repair-maximum <count>] [--assessment-used <count> --assessment-maximum <count>]
   adaptive-goal-preflight codex-verification-input --task-name <name> --assignment-file <absolute-utf8-file>
 """
@@ -66,52 +65,43 @@ def explicit_tuple(
     return route
 
 
-def selected(repo: Path, host: str, profile: str, explicit: str, plugin: Path) -> str:
+def selected(
+    repo: Path, host: str, profile: str, values: dict[str, str], plugin: Path
+) -> str:
+    explicit = values.get("route", "")
+    routes = catalog(repo, plugin)
     source = "user" if explicit else "policy"
     provenance = ""
     if explicit:
         route = explicit_tuple(explicit, host)
     else:
-        match = next(
-            (item for item in catalog(repo, plugin) if item.key == (host, profile)),
-            None,
-        )
+        match = next((item for item in routes if item.key == (host, profile)), None)
         if match is None:
             raise RefusalError(f"no route for host={host} profile={profile}")
         route = match.tuple
         provenance = record("policy_route_source", match.source)
+    main: placement.RouteTuple | None
+    if "main-route" in values:
+        main = explicit_tuple(values["main-route"], host, "main route", "--main-route")
+        main_source = "user"
+    else:
+        main, main_source = placement.observed(host, os.environ), "session"
     return (
-        record("format", "darrow-native-goal-route-v2")
+        record("format", "darrow-native-goal-route-v3")
         + record("profile", profile)
         + record("selected_route", *route)
         + record("route_source", source)
         + provenance
+        + placement.records(route, main, main_source, routes)
     )
-
-
-def placed(repo: Path, host: str, values: dict[str, str], plugin: Path) -> str:
-    selected_route = explicit_tuple(
-        values["selected-route"], host, "selected route", "--selected-route"
-    )
-    routes = catalog(repo, plugin)
-    if "main-route" in values:
-        main = explicit_tuple(values["main-route"], host, "main route", "--main-route")
-        return placement.report(selected_route, main, "user", routes)
-    main_route = placement.observed(host, os.environ)
-    return placement.report(selected_route, main_route, "session", routes)
 
 
 COMMANDS = {
     "prepare": (set(), set(), "prepare requires --repo and --host"),
     "route": (
-        {"--profile", "--route"},
+        {"--profile", "--route", "--main-route"},
         {"profile"},
         "route requires --repo, --host, and --profile",
-    ),
-    "placement": (
-        {"--selected-route", "--main-route"},
-        {"selected-route"},
-        "placement requires --repo, --host, and --selected-route",
     ),
 }
 
@@ -149,6 +139,4 @@ def dispatch(command: str, values: dict[str, str], plugin: Path) -> str:
     repo = repository(values["repo"])
     if command == "prepare":
         return prepare(repo, host, plugin)
-    if command == "placement":
-        return placed(repo, host, values, plugin)
-    return selected(repo, host, profile, values.get("route", ""), plugin)
+    return selected(repo, host, profile, values, plugin)

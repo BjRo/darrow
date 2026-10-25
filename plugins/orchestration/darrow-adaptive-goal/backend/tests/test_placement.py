@@ -19,8 +19,8 @@ SESSION = "5b0e-session"
 
 
 def place(repo: Path, host: str, selected: str, main: str | None = None) -> str:
-    args = ["placement", "--repo", str(repo), "--host", host]
-    args += ["--selected-route", selected]
+    args = ["route", "--repo", str(repo), "--host", host, "--profile", "routine"]
+    args += ["--route", selected]
     if main is not None:
         args += ["--main-route", main]
     return preflight.run(args)
@@ -42,12 +42,14 @@ def cli_place(
         "argv",
         [
             "adaptive-goal-preflight",
-            "placement",
+            "route",
             "--repo",
             str(repo),
             "--host",
             host,
-            "--selected-route",
+            "--profile",
+            "routine",
+            "--route",
             selected,
         ],
     )
@@ -98,8 +100,10 @@ def test_claude_relation(repo: Path, selected: str, main: str, expected: str) ->
 def test_explicit_main_route_report(repo: Path) -> None:
     output = place(repo, "codex", LUNA_MEDIUM, "codex|openai|gpt-6.1-sol|medium")
     assert output == (
-        "format\tdarrow-native-goal-placement-v1\n"
+        "format\tdarrow-native-goal-route-v3\n"
+        "profile\troutine\n"
         "selected_route\tcodex\topenai\tgpt-6-luna\tmedium\n"
+        "route_source\tuser\n"
         "main_route\tcodex\topenai\tgpt-6.1-sol\tmedium\n"
         "main_route_source\tuser\n"
         "route_relation\tlower\n"
@@ -137,8 +141,10 @@ def test_model_rank_uses_first_profile_and_ignores_other_profiles(repo: Path) ->
 
 def test_missing_session_reports_unknown(repo: Path) -> None:
     assert fields(place(repo, "codex", LUNA_MEDIUM)) == {
-        "format": "darrow-native-goal-placement-v1",
+        "format": "darrow-native-goal-route-v3",
+        "profile": "routine",
         "selected_route": "codex\topenai\tgpt-6-luna\tmedium",
+        "route_source": "user",
         "main_route": "unknown",
         "main_route_source": "unknown",
         "route_relation": "unknown",
@@ -417,16 +423,27 @@ def test_session_decode_failure_invalidates_previous_route(
 @pytest.mark.parametrize(
     "args,message",
     [
-        ([], "placement requires --repo, --host, and --selected-route"),
-        (["--selected-route", "codex|openai|gpt-6-luna"], "--selected-route must be"),
-        (["--selected-route", "claude|anthropic|claude-opus-5-5|high"], "current host"),
+        ([], "route requires --repo, --host, and --profile"),
         (
-            ["--selected-route", LUNA_MEDIUM, "--main-route", "codex|openai|x|huge"],
+            ["--profile", "routine", "--main-route", "codex|openai|gpt-6-luna"],
+            "--main-route must be",
+        ),
+        (
+            [
+                "--profile",
+                "routine",
+                "--main-route",
+                "claude|anthropic|claude-opus-5-5|high",
+            ],
+            "current host",
+        ),
+        (
+            ["--profile", "routine", "--main-route", "codex|openai|x|huge"],
             "main route has unsupported effort",
         ),
         (
-            ["--selected-route", LUNA_MEDIUM, "--profile", "routine"],
-            "unknown placement",
+            ["--profile", "routine", "--selected-route", LUNA_MEDIUM],
+            "unknown route",
         ),
     ],
 )
@@ -437,7 +454,7 @@ def test_placement_refusals(
     args: list[str],
     message: str,
 ) -> None:
-    command = ["placement", "--repo", str(repo), "--host", "codex", *args]
+    command = ["route", "--repo", str(repo), "--host", "codex", *args]
     monkeypatch.setattr(sys, "argv", ["adaptive-goal-preflight", *command])
     assert cli.preflight() == 2
     captured = capsys.readouterr()
@@ -445,5 +462,7 @@ def test_placement_refusals(
     assert message in captured.err
 
 
-def test_usage_lists_placement() -> None:
-    assert "adaptive-goal-preflight placement --repo" in preflight.run(["--help"])
+def test_usage_lists_main_route_on_route() -> None:
+    usage = preflight.run(["--help"])
+    assert "[--main-route <harness|provider|model|effort>]" in usage
+    assert "adaptive-goal-preflight placement" not in usage

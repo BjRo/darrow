@@ -113,25 +113,21 @@ def relation(main: RouteTuple, selected: RouteTuple, routes: list[Route]) -> str
     )
 
 
-def report(
+def records(
     selected: RouteTuple,
     main: RouteTuple | None,
     source: str,
     routes: list[Route],
 ) -> str:
-    ranked = [route for route in routes if route.host == selected[0]]
-    result = record("format", "darrow-native-goal-placement-v1")
-    result += record("selected_route", *selected)
     if main is None:
         return (
-            result
-            + record("main_route", "unknown")
+            record("main_route", "unknown")
             + record("main_route_source", "unknown")
             + record("route_relation", "unknown")
         )
+    ranked = [route for route in routes if route.host == selected[0]]
     return (
-        result
-        + record("main_route", *main)
+        record("main_route", *main)
         + record("main_route_source", source)
         + record("route_relation", relation(main, selected, ranked))
     )

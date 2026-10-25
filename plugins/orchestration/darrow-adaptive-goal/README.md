@@ -198,8 +198,7 @@ Prefix commands with
 
 ```text
 adaptive-goal-preflight prepare --repo <path> --host <codex|claude>
-adaptive-goal-preflight route --repo <path> --host <codex|claude> --profile <profile> [--route <tuple>]
-adaptive-goal-preflight placement --repo <path> --host <codex|claude> --selected-route <tuple> [--main-route <tuple>]
+adaptive-goal-preflight route --repo <path> --host <codex|claude> --profile <profile> [--route <tuple>] [--main-route <tuple>]
 claude-agent-route --provider anthropic --model <model> --effort <effort>
 host-config-doctor codex --config <path> [--project-root <path>] --backend <v1|v2|unknown> --context <effective|isolated-eval>
 host-config-doctor claude [--version <installed-version>]

@@ -529,15 +529,17 @@ change required evidence, consequence risk, profile, assurance, bindings or auth
 The main thread retains the native goal, acceptance, user decisions, repair
 accounting and completion under every placement.
 
-After resolving the implementation route, compare it with the main thread's
-effective route using the bundled helper:
+One helper call resolves the implementation route and compares it with the
+main thread's effective route:
 
 ```text
-adaptive-goal-preflight placement --repo <path> --host <codex|claude> \
-  --selected-route <harness|provider|model|effort> [--main-route <tuple>]
+adaptive-goal-preflight route --repo <path> --host <codex|claude> \
+  --profile <profile> [--route <tuple>] [--main-route <tuple>]
 ```
 
-Without `--main-route`, the helper observes only the active host session's
+Because the comparison ranks models by the effective route policy, invalid or
+unreadable policy refuses an explicit `--route` too. Without `--main-route`, the
+helper observes only the active host session's
 current model and effort: on Codex, the latest `turn_context` route in the
 `CODEX_THREAD_ID` session file under `CODEX_HOME` (default `~/.codex`); on
 Claude, the latest assistant model in the `CLAUDE_CODE_SESSION_ID` transcript

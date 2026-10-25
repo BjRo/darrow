@@ -91,21 +91,32 @@ def test_prepared_records_and_unchanged_repository(repo: Path) -> None:
     assert "route\troutine\tclaude\tanthropic\tclaude-sonnet-5-5\tlow\n" in output
 
 
+UNKNOWN_PLACEMENT = (
+    "main_route\tunknown\nmain_route_source\tunknown\nroute_relation\tunknown\n"
+)
+
+
 def test_policy_provenance_and_explicit_precedence(repo: Path) -> None:
     args = ["route", "--repo", str(repo), "--host", "codex", "--profile", "routine"]
     output = preflight.run(args)
     assert (
         output
-        == "format\tdarrow-native-goal-route-v2\nprofile\troutine\nselected_route\tcodex\topenai\tgpt-6-luna\tmedium\nroute_source\tpolicy\npolicy_route_source\tbundled\n"
+        == "format\tdarrow-native-goal-route-v3\nprofile\troutine\nselected_route\tcodex\topenai\tgpt-6-luna\tmedium\nroute_source\tpolicy\npolicy_route_source\tbundled\n"
+        + UNKNOWN_PLACEMENT
     )
     path = policy(repo)
     assert "policy_route_source\trepository\n" in preflight.run(args)
     assert "selected_route\tcodex\topenai\tgpt-5.6-sol\thigh\n" in preflight.run(args)
-    path.write_text("not json")
+    explicit = [*args, "--route", "codex|openai|future-model.1|ultra"]
     assert (
-        preflight.run([*args, "--route", "codex|openai|future-model.1|ultra"])
-        == "format\tdarrow-native-goal-route-v2\nprofile\troutine\nselected_route\tcodex\topenai\tfuture-model.1\tultra\nroute_source\tuser\n"
+        preflight.run(explicit)
+        == "format\tdarrow-native-goal-route-v3\nprofile\troutine\nselected_route\tcodex\topenai\tfuture-model.1\tultra\nroute_source\tuser\n"
+        + UNKNOWN_PLACEMENT
     )
+    # Placement ranks routes by policy, so unreadable policy stops an explicit route too.
+    path.write_text("not json")
+    with pytest.raises(RefusalError, match="repository route configuration is invalid"):
+        preflight.run(explicit)
 
 
 @pytest.mark.parametrize(
