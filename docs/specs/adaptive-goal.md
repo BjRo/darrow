@@ -358,11 +358,10 @@ replacement skills by intent rather than plugin identity. A mismatch returns
 to the owner for an authorized compatible path or a blocker; it never licenses
 bypassing the bound operation's refusal through raw tools.
 
-For authorized create-or-reuse publication, require evidence that exactly one
-open PR has the intended repository, head/base and draft state and that its
-forge head and remote branch equal the intended verified commit. An existing
-URL without current-content evidence cannot complete the goal. The capability
-owns publication mechanics; the owner ties its result to final assurance.
+For authorized publication, the publishing capability's own verified result
+establishes what was published; the main thread checks only that it names the
+verified commit. An existing pull-request URL without that evidence cannot
+complete the goal. The capability owns publication mechanics and evidence.
 
 Bindings are derived only from the active host's advertised skills. Do not
 invent a skill, assume a sibling plugin is installed, or bind an unrelated

@@ -378,11 +378,10 @@ commit or publisher. A review-only result leaves this prerequisite unsatisfied,
 even when the assessment call succeeded or its agent was named verification.
 The commit or publisher's local readiness does not check this enclosing gate.
 
-For authorized PR creation or reuse, require the publisher to return evidence
-for the intended verified commit: exactly one open PR, repository, head/base,
-draft state, and matching remote and forge head commit IDs. An existing URL
-alone cannot prove unpublished local commits were delivered. Explicit reuse
-and non-force push authority permits content publication, not metadata updates.
+For authorized publication, the publisher's own verified result establishes
+what was published; check that it names the verified commit. An existing PR URL
+alone does not prove delivery. Explicit reuse and non-force push authority
+permits content publication, not metadata updates.
 
 Do not invent bindings or assume sibling plugins exist. An operation without a
 matching advertised skill remains ordinary bounded work unless the request,
