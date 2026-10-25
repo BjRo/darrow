@@ -202,21 +202,11 @@ Classify the reasoning demand of the implementor's engineering work:
 - `judgment`: unresolved cause across plausible layers or architecture,
   planning, or review judgment.
 
-For `routine-plus`, identify the concrete implementation tradeoff or the user
-or repository instruction that explicitly prioritizes first-pass boundary
-correctness. A security boundary or high cost of a mistake determines risk;
-it does not supply that priority. Fully specified localized work without an
-additional basis stays `routine`. Preserve a brief basis for the selected
-profile in the delivery context.
-
-Selected verification and review providers perform their own assessment work.
-Their presence alone does not raise the implementor's reasoning profile.
-
-| Request | Risk | Profile | Independent review |
-| --- | --- | --- | --- |
-| Exact, fully specified security-policy change | high | routine | required |
-| Localized validation with explicit first-pass correctness priority | routine when consequences are limited | routine-plus | selected by assurance policy |
-| Unresolved diagnosis across plausible layers in a reversible internal utility | routine | judgment | selected by assurance policy |
+Risk and selected verification never raise the profile: an exact security-policy
+change is high risk but `routine`, while an unresolved cause across plausible
+layers is `judgment` even at routine risk. `routine-plus` needs a real
+implementation tradeoff or an explicit first-pass correctness instruction. Keep
+a one-line profile basis.
 
 Select assurance separately, preserving the independent-review policy:
 
