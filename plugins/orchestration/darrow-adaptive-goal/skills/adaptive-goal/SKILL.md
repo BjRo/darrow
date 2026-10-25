@@ -51,26 +51,9 @@ Complexity and duration do not authorize orchestration. A fresh conversation,
 ambiguous answer, or multiple plausible owners supplies no continuation
 authority. Delegation adds no permission, publication, or destructive authority.
 
-Explicit invocation may request advice rather than engineering work. When the
-user asks only for an explanation, comparison, or next-lifecycle-action answer,
-answer directly without repository preflight or a goal. The stateless repair-budget
-calculation below is allowed for advice; it launches no work.
-For assessment or repair advice, first read the
-[verification lifecycle](references/verification-lifecycle.md). Complete current
-clearance ends repair immediately. For an unresolved result, decide:
-
-1. Run the lifecycle's `repair-budget` calculation with the supplied counts and
-   finite overrides. Honor its `stop` result. A remaining repair attempt cannot
-   authorize work that cannot be verified within the assessment limit.
-2. Stop if required evidence or history is missing, or the latest repair made
-   no material progress.
-3. Only with all limits and evidence satisfied may progress justify another
-   repair. Give that resulting decision directly; do not recommend a repair
-   first and retract it later. "Keep trying" supplies no finite override.
-
-Resolve the reference
-beside this `SKILL.md`: on Codex it is
-`<plugin-root>/skills/adaptive-goal/references/verification-lifecycle.md`.
+An explicit invocation that only asks a question gets a direct answer from the
+[verification lifecycle](references/verification-lifecycle.md) (beside this
+`SKILL.md`), with no preflight, helper call or goal.
 
 Without authority, make no helper call or mutation and return exactly:
 

@@ -1113,16 +1113,6 @@ The following invariants govern adaptation and evidence provenance:
   remain authorized. An exhausted assessment-invocation allowance stops repair
   even when repair attempts remain. State the resulting stop or eligible action
   without first recommending an action that these limits prohibit.
-  The bundled `adaptive-goal-preflight repair-budget` calculator accepts a
-  nonnegative consumed repair count, an optional explicit repair maximum
-  (default two), and an optional complete consumed/maximum assessment pair.
-  It reports the supplied counts, nonnegative remaining counts and whether
-  either allowance is exhausted. Run it before repair advice or assignment;
-  repeat for independently limited assessments. Invalid, incomplete or repeated
-  arguments refuse with no decision. This read-only, stateless arithmetic is
-  permitted for advice without launching a goal. It records no lifecycle state,
-  discovers no authority and never authorizes repair by itself: the owner still
-  checks scope, evidence, progress and every other limit.
   Without an explicit override, an uncleared second verification exhausts the
   budget even when it shows progress. An unbounded request does not raise it.
 - **ADL-V1 — Verification boundary.** Preserve routine review omission and required
@@ -1220,15 +1210,11 @@ contract requires it. Successful focused feedback followed by successful final
 verification is valid without manufacturing a failure.
 An earlier repository-gate run used as a baseline is not a substitute for, nor
 a prohibition on, the required successful final-tree verification.
-Repair-budget advice evals assess the next authorized action without demanding
-that the answer restate supplied budget arithmetic or label the remaining
-attempt as final. They still reject authorization beyond the supplied budget,
-reopening unrelated findings, or bypassing required verification and publication
-gates.
-
-Advice-only invocation does not bypass the verification lifecycle. Before
-advising on assessment or repair, read that lifecycle and apply its stop
-conditions before the remaining budget. Unavailable required evidence stops
+An explicit invocation that only asks a question is answered directly from the
+verification lifecycle reference, without preflight, helper calls or a goal.
+Adaptive Goal ships no repair-budget calculator; the budget rule is plain
+arithmetic in that reference. Advice-only invocation does not bypass the
+verification lifecycle: apply its stop conditions before the remaining budget. Unavailable required evidence stops
 speculative implementation repair even when an attempt remains; investigating
 the evidence gap under existing authority is a separate action.
 For a next-action question with a selected QA assessment still running, waiting

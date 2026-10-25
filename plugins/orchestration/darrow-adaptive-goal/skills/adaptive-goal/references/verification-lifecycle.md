@@ -31,20 +31,10 @@ Apply the first matching row. The default maximum is 2 repair attempts in total,
 shared across providers and findings; only an explicit finite user or
 repository override changes it. Progress never raises the maximum.
 
-Before repair advice or another repair, calculate the remaining allowance with
-the bundled read-only helper. Resolve `<plugin-backend>` beside this installed
-skill: `<plugin-root>/backend`. Copy counts from the actual contract and history.
-
-```sh
-uv run --quiet --no-project "<plugin-backend>/scripts/run_locked.py" adaptive-goal-preflight repair-budget \
-  --repairs-used <consumed-count> \
-  [--repair-maximum <explicit-finite-override>] \
-  [--assessment-used <consumed-count> --assessment-maximum <explicit-limit>]
-```
-
-Omit `--repair-maximum` without a finite override. If counts are unknown or the
-helper fails, stop rather than guess. `decision: stop` prohibits another repair;
-`within_limits` establishes only the arithmetic.
+Compare attempts used with the maximum before considering progress; equality
+means no more repairs. Apply the strictest invocation, time, token and authority
+limit too. If counts are unknown, stop rather than guess. Give the resulting
+decision directly, without first recommending a repair it rules out.
 
 | Current result or limit                                                               | Next action                                                                                                                                                                |
 | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
