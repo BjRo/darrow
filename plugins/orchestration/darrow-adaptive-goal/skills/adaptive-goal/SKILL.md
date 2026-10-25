@@ -211,6 +211,12 @@ assessment. Use compatible replacements by intent, never provider identity or
 sibling files. The main thread invokes verification with the review binding; verification
 owns assessment coordination and review owns its independent judgments.
 
+Bind a review skill only by its exact `SKILL.md` path, after reading it and
+confirming it is an independent code-review provider. A bare name is not enough:
+a host built-in such as Claude Code's own `code-review` can share a provider's
+name. If you cannot confirm one, pass the review requirement and let
+verification select the provider.
+
 Bind only the route of the role you launch: the Verification coordinator runs
 on `gpt-6.1-sol/medium` (Codex) or the `claude-opus-5-5/high` scoped agent
 (Claude). Verification owns the routes of everything it launches, including

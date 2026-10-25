@@ -664,7 +664,11 @@ The parent binds compatible advertised verification and required independent
 review before launching an owner whose contract selects assurance. It checks
 both public contracts and passes the review binding through verification.
 An ad hoc prompt, generic subagent, direct-review bypass or same-context judgment
-is not a substitute. Unsupported selected additional assessments also block;
+is not a substitute. Bind a review skill only by its exact `SKILL.md` path after
+reading its contract and confirming it is an independent code-review provider;
+a bare name is not enough, because a host built-in can share a provider's name.
+When the main thread cannot confirm one, it passes the review requirement and
+verification selects the provider. Unsupported selected additional assessments also block;
 absent unselected optional providers do not.
 
 Required verification and review availability is a parent preflight gate. Before

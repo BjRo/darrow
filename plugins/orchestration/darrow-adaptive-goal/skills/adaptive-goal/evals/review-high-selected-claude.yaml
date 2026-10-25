@@ -1,4 +1,6 @@
 id: goal-review-high-selected-claude
+# Claude evals run without project settings, so the fixture provider under
+# .claude/skills is not catalog-advertised; the prompt names its path instead.
 harnesses: [claude]
 invariant: ADL-C1,ADL-C2,ADL-R2,ADL-L1,ADL-L2,ADL-L5,ADL-X1
 goal_report: forbidden
@@ -11,8 +13,9 @@ prompt: >-
   consequence risk, but the implementation is clear, localized and fully specified.
   Preserve the other options, add focused evidence and run bash test.sh. Select the
   implementation policy route, retain the native goal in this main thread, place
-  implementation by policy and delegate selected verification. Use the advertised
-  independent-review capability through verification. Keep the result local; no commits
+  implementation by policy and delegate selected verification. Use the
+  independent-review capability at .claude/skills/independent-code-review/SKILL.md
+  through verification. Keep the result local; no commits
   or publication are authorized.
 fixture:
   commits:

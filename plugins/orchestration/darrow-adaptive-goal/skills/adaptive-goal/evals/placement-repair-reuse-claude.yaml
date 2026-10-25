@@ -1,4 +1,6 @@
 id: goal-placement-repair-reuse-claude
+# Claude evals run without project settings, so the fixture provider under
+# .claude/skills is not catalog-advertised; the prompt names its path instead.
 invariant: ADL-R3,ADL-L2,ADL-L5
 goal_report: forbidden
 goal_route_checks: false
@@ -16,7 +18,8 @@ prompt: >-
   when value is below min; (2) it returns max when value is above max; (3) it
   returns value otherwise; (4) it throws RangeError("min must not exceed max") when
   min is greater than max. Implement it on claude-opus-5-5 with high effort. Use
-  verification with the installed independent-code-review skill before completing,
+  verification with the installed independent-code-review skill at
+  .claude/skills/independent-code-review/SKILL.md before completing,
   and repair in-scope blocking findings under the existing authorization to edit
   src/range.js and test/range.test.js. Acceptance is that bash test.sh passes. Keep
   the result local; commits, pushes and pull requests are not authorized.
