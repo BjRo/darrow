@@ -137,34 +137,10 @@ before launch. Input gathering grants no mutation authority.
 
 ## 3. Resolve readiness before launch
 
-When authorized ticket delivery needs task-branch preparation, first preserve
-the provider's exact opaque canonical `ticket-id` and discover all correlated local
-branches through a compatible host-advertised Git capability's read-only identifier
-operation. Require complete identifier-filtered evidence; a truncated general
-listing is insufficient. If compatible discovery is unavailable or refuses,
-stop dependent preparation without raw Git fallback.
-
-Adaptive goal owns the choice:
-
-- one match: bind that exact existing branch even if a proposed type or suffix
-  differs; preserve its tip;
-- multiple matches: ask for one explicit exact choice before mutation or
-  launch, unless the caller already selected one of those existing branches;
-- zero matches: bind one `<type>/<ticket-id>-<kebab-suffix>` name from the settled
-  request, using a lowercase descriptive suffix, the unchanged identifier exactly
-  once, and at most 60 characters. Preserve a valid exact caller-bound name.
-
-A proposed new name is not a choice among existing matches. Missing ticket
-identity asks the smallest question. Do not normalize identifiers or infer provider
-semantics from names. Compile the identifier, complete evidence, exact selection,
-and this decision rule into the delivery context. Bind discovery refresh and
-exact preparation to the compatible Git capability. The main thread refreshes
-discovery immediately before preparation and reapplies this rule if candidates
-changed; it asks through the same-goal feedback path when selection is needed.
-Preparation remains goal-coordinated work and worktrees require explicit caller authority.
-The delegating task recipe owns neither branch selection nor Git mechanics.
-Fresh explicit delivery can reuse local state without automatic continuation
-across conversations.
+For ticket delivery that needs a task branch, find existing branches through the
+Git capability's exact `ticket-id` discovery, refreshed right before preparing.
+One match: reuse it. Several: ask the user to pick one before any mutation. None:
+prepare the caller's exact name, else let the branch-creation capability name it.
 
 Select readiness semantically:
 

@@ -377,26 +377,16 @@ operation implicitly due.
 
 ## Ticket-correlated task branches
 
-For an explicitly authorized ticket delivery that needs task-branch preparation,
-adaptive goal owns correlation and naming policy. Bind a host-advertised
-Git capability supporting complete read-only discovery by the provider's exact
-opaque canonical `ticket-id` and exact-name preparation. During preflight obtain
-complete local evidence before binding a proposed name. One match binds that
-exact branch regardless of a proposed type or suffix; multiple matches require
-one explicit user choice and no mutation; zero matches permits one conventional
-`<type>/<ticket-id>-<kebab-suffix>` name derived from the settled request (lowercase
-suffix, unchanged identifier exactly once, at most 60 characters). Preserve an exact
-caller-selected existing match; do not infer selection from a merely proposed
-new name. Missing compatible discovery or incomplete evidence stops preparation.
-
-Compile the identifier, evidence, selected name, and decision into the owner contract.
-The owner refreshes discovery before preparation; changed candidates require
-reapplying the same rule before mutation. Preparation remains owner work and
-uses the bound capability. Existing tips, local work, conflict refusals, and
-explicit worktree authority remain intact. A task recipe such as ticket-to-pr
-delegates its authority envelope without choosing names or owning Git mechanics.
-Fresh explicit delivery may reuse repository state but grants no automatic
-cross-conversation continuation or lifecycle ledger.
+For an explicitly authorized ticket delivery that needs a task branch, the main
+thread chooses the branch and the bound Git capabilities do the work. Discover
+existing branches through the Git capability's complete read-only search by the
+exact opaque `ticket-id`, and refresh it right before preparation. One match is
+reused even when a proposed name differs; several matches require one explicit
+user choice before any mutation; with none, an exact caller-supplied name is
+prepared, otherwise the branch-creation capability names a new branch from the
+ticket ID. Missing compatible discovery stops preparation; raw Git is not a
+fallback. Worktrees need explicit authority, and a task recipe such as
+ticket-to-pr delegates its authority without choosing names.
 
 ## Change evidence and risk
 
@@ -984,8 +974,8 @@ owner, nested host process or runtime is authorized.
 20. **ADL-B1 — Ticket-correlated branch choice.** Before authorized ticket
     branch creation, adaptive goal consumes complete exact-ID Git
     capability evidence and applies the one/many/zero-match policy above. The
-    recipe owns no branch choice; the Git capability owns deterministic
-    discovery and preparation.
+    recipe owns no branch choice; Git capabilities own discovery, naming and
+    preparation.
 21. **ADL-D1 — Separate read-only host diagnosis.** Host-configuration doctor
     intent selects `doctor-adaptive-goal`, never activates orchestration,
     and makes no configuration or repository mutation. Its result identifies

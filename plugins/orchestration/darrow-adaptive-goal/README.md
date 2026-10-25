@@ -50,8 +50,9 @@ internals stay inside those capabilities.
 
 Ticket delivery discovers local branches using the provider's exact opaque
 identifier through a compatible Git capability. One match is reused, several require
-an explicit choice, and no matches permits one conventional new name. The recipe
-supplies authority; Adaptive Goal chooses and the Git capability prepares.
+an explicit choice, and with no match the caller's exact name is prepared or the
+branch-creation capability names one. The recipe supplies authority; Adaptive Goal
+chooses and the Git capabilities name and prepare.
 
 ## Evidence, risk and model routes
 
