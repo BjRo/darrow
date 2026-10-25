@@ -18,3 +18,7 @@ The budgeted-repair advice cases and the `repair-budget` calculator were
 removed with advice-mode repair procedure. Ticket-to-PR delegates policy
 selection and preserves explicit caller limits; it does not supply its own
 default.
+
+On Claude, `placement-repair-reuse-claude` is a known harness failure: Sevro
+1.0.0 does not allow `SendMessage` for Claude candidates, so the main thread
+cannot continue a retained implementor ([sevro#157](https://github.com/BjRo/sevro/issues/157)).

@@ -1,6 +1,9 @@
 id: goal-placement-repair-reuse-claude
 # Claude evals run without project settings, so the fixture provider under
 # .claude/skills is not catalog-advertised; the prompt names its path instead.
+# Known harness limitation: Sevro 1.0.0 allows Claude only Bash, Read, Skill,
+# Agent and Edit, so SendMessage is unavailable and this case fails until
+# https://github.com/BjRo/sevro/issues/157 lands.
 invariant: ADL-R3,ADL-L2,ADL-L5
 goal_report: forbidden
 goal_route_checks: false
