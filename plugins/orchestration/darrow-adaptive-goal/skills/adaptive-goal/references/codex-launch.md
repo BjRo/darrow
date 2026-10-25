@@ -40,10 +40,9 @@ Prepare the default Verification call with the bundled
 `adaptive-goal-preflight codex-verification-input` procedure in skill section 7.
 Use its returned native input unchanged; it pins `gpt-6.1-sol/medium` and fresh
 context. A stronger route requires existing explicit authorization.
-Pass `gpt-6-luna/medium` explicitly for review coordination through verification;
-review's independent readers retain their own `gpt-6.1-sol/xhigh` route. Do not
-replace capability internals with generic children or inherit the implementor's
-route into assessment roles.
+Verification owns the routes of the providers it launches, including review
+coordination; do not pass them. Do not replace capability internals with
+generic children or inherit the implementor's route into assessment roles.
 
 A fresh child reads and follows the relevant bound skills. No tool named after
 the skill is required. Include installed absolute public instruction paths;

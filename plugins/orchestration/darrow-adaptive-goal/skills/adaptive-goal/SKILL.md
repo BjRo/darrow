@@ -289,19 +289,14 @@ assessment. Use compatible replacements by intent, never provider identity or
 sibling files. The main thread invokes verification with the review binding; verification
 owns assessment coordination and review owns its independent judgments.
 
-Bind the **launched role**, not the model of its child. On Codex:
-
-| Launcher -> assignment | Explicit model / effort |
-| --- | --- |
-| This main thread -> Verification coordinator | `gpt-6.1-sol` / `medium` |
-| Verification -> Review coordinator | `gpt-6-luna` / `medium` |
-| Review -> independent readers | `gpt-6.1-sol` / `xhigh` |
-
-Keep this main thread's model unchanged. A verification skill's instruction to
-spawn a Luna Review provider applies **inside** Verification; do not use it to
-launch Verification itself on Luna. Compile these separate bindings before
-goal activation and pass the Review coordinator route into Verification. A
-stronger route requires existing explicit authorization, never automatic escalation.
+Bind only the route of the role you launch: the Verification coordinator runs
+on `gpt-6.1-sol/medium` (Codex) or the `claude-opus-5-5/high` scoped agent
+(Claude). Verification owns the routes of everything it launches, including
+review coordination, and review owns its readers; do not pass or restate those
+routes. A verification skill's instruction to spawn a provider on its own route
+applies **inside** Verification, not to Verification itself. Keep this main
+thread's model unchanged. A stronger route requires existing explicit
+authorization, never automatic escalation.
 
 Read [`references/verification-lifecycle.md`](references/verification-lifecycle.md)
 completely and compile its shared repair rules into the retained delivery context.
@@ -529,8 +524,7 @@ to coordinate acceptance verification, using the role bindings from section 4.
 Supply the verification skill's exact installed instruction
 path, compatible review binding, selected providers, originating acceptance,
 scope/base/current candidate, successful checks, constraints and existing evidence.
-Require its complete combined result and provider evidence. Include the separate
-Review coordinator route from section 4 in that handoff.
+Require its complete combined result and provider evidence.
 
 On **Codex**, write that one bounded assignment as UTF-8 to a unique temporary
 file outside product scope. Immediately before launch, use **Adaptive Goal's
@@ -543,15 +537,14 @@ uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" ad
 
 Call native `spawn_agent` with the returned JSON object **unchanged**. The helper
 copies your handoff and fixes Verification's `model`, `reasoning_effort` and
-`fork_turns`; do not substitute the Review-child parameters from the verification
+`fork_turns`; do not substitute a provider-child route from the verification
 skill. It does not launch the agent for you. A rejected helper or native launch
 stops that assignment without fallback. Only an already authorized explicit
 stronger Verification route uses a caller-bound native invocation instead.
 This temporary input holds one assignment, not the goal or its history.
 
-On **Claude**, use the scoped `claude-opus-5-5/high` agent and explicitly pass
-`claude-sonnet-5-5/medium` for review coordination. Neither parent-model inheritance
-nor an implementation route changes these bindings or the provider's reader route.
+On **Claude**, use the scoped `claude-opus-5-5/high` agent. Neither parent-model
+inheritance nor an implementation route changes Verification's internal routes.
 
 The capability owns
 provider selection, its required internal delegation and reader model/effort.

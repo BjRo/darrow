@@ -102,14 +102,15 @@ are permitted with a brief hint about coordination and evidence-handling risks.
 Stronger compatible configurations are allowed. Model selection alone does not
 guarantee reliable coordination or complete evidence.
 
-Verification coordination is explicitly GPT-6.1 Sol/medium or stronger. Review
-coordination stays Luna/medium, while review's independent readers stay GPT-6.1 Sol/xhigh.
-Parent-model inheritance and the implementation route must not change these roles.
+Verification coordination is explicitly GPT-6.1 Sol/medium or stronger.
+Adaptive Goal binds only that route. Verification owns the routes of the
+providers it launches, such as review coordination, and review owns its
+independent readers. Parent-model inheritance and the implementation route must
+not change these roles.
 
 Claude uses the same architecture. Its implementation policy selects scoped
-Sonnet 5.5/low, Sonnet 5.5/medium or Opus 5.5/high agents. Verification coordination uses
-Opus 5.5/high; review coordination uses Sonnet 5.5/medium and preserves review's own
-reader routes. Claude has lighter validation than Codex; these routes are not
+Sonnet 5.5/low, Sonnet 5.5/medium or Opus 5.5/high agents. Verification
+coordination uses Opus 5.5/high; verification chooses its own internal routes. Claude has lighter validation than Codex; these routes are not
 claimed to be measured equivalents.
 
 ## Verification and repairs

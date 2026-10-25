@@ -265,7 +265,7 @@ The skill and main-thread context retain:
 - implementation placement, the observed or unknown main-thread route and the
   placement basis;
 - focused and final checks, readiness evidence and selected capability bindings;
-- separate verification and review coordination routes and provider requirements;
+- the verification coordinator route and selected provider requirements;
 - user decisions, publication limits and any explicit stopping budgets;
 - the repair maximum, its authority, attempts consumed and complete assessment history.
 
@@ -495,14 +495,14 @@ Main-thread coordination is recommended on Codex `gpt-6.1-sol/medium`. A known
 weaker compatible main model receives a brief nonblocking hint; do not switch
 the user's session model or claim reliability for untested stronger routes.
 Verification coordination uses explicit `gpt-6.1-sol/medium` or a stronger
-authorized route. Review coordination remains explicitly
-`gpt-6-luna/medium`; review's independent readers retain `gpt-6.1-sol/xhigh`.
-Neither main-model nor implementation-model inheritance may change those roles.
-Bind these routes by the role being launched before goal activation. A bound
-verification skill's instruction to launch its Review provider on Luna applies
-inside Verification; it does not choose the model of the main thread's
-Verification assignment. Pass the distinct Review coordinator route into that
-assignment, preserving the Review provider's independent-reader route.
+authorized route. Adaptive Goal binds only that route. Verification owns the
+routes of everything it launches, including review coordination and any future
+assessment provider, and review owns its independent readers. Adaptive Goal
+neither passes nor restates those internal routes, and neither main-model nor
+implementation-model inheritance changes them. A bound verification skill's
+instruction to launch an internal provider on its own route applies inside
+Verification; it does not choose the model of the main thread's Verification
+assignment.
 For the default Codex Verification assignment, the bundled
 `adaptive-goal-preflight codex-verification-input` prepares the native
 `spawn_agent` input. It takes one valid task name and an absolute UTF-8 file
@@ -518,13 +518,11 @@ neither provider-child instructions nor model inheritance changes the default.
 
 On Claude, use the same ownership design with native session goals. Bounded
 implementation uses the policy's scoped agents. Verification uses an explicit
-`claude-opus-5-5/high` scoped agent; review coordination uses
-`claude-sonnet-5-5/medium`, preserving the review capability's own reader route.
-The main thread resolves its verification assignment through Adaptive Goal's
-bundled scoped-agent resolver and supplies the bound verification skill. It
-passes the review binding and route into that assignment; verification owns
-launching the review coordinator. A review-coordinator agent does not replace
-the main thread's required Opus/high verification assignment.
+`claude-opus-5-5/high` scoped agent. The main thread resolves its verification
+assignment through Adaptive Goal's bundled scoped-agent resolver and supplies
+the bound verification skill and the review binding; verification owns
+launching the review coordinator on its own route. A review-coordinator agent
+does not replace the main thread's required verification assignment.
 These are host-specific role choices, not a claim of measured equivalence.
 Claude receives lighter smoke validation than Codex.
 
@@ -761,8 +759,8 @@ is not yet an active goal.
 Place implementation by the rules above: directly in the main thread, or as
 bounded assignments on the selected route. Delegate selected verification as a separate capability assignment, after successful current
 checks. Pass the complete relevant acceptance, candidate, evidence, provider
-bindings and explicit review-coordinator route. Verification owns its provider
-selection, internal delegation and result contract; review owns its readers.
+bindings. Verification owns its provider selection, internal delegation,
+internal routes and result contract; review owns its readers.
 
 When implementation is delegated, send later work on its assignment, including
 every repair, to the retained implementor through the host's native follow-up
@@ -935,9 +933,9 @@ owner, nested host process or runtime is authorized.
    per-call model override. Transcript auditing is evaluator-owned and never a
    parent workflow step.
 8. **ADL-L1 — One Darrow owner.** The main thread owns the native goal and complete
-   delivery. Bounded children own assignments, never that goal. Delegated implementation,
-   verification coordination, review coordination and reader routes are explicit
-   and separate.
+   delivery. Bounded children own assignments, never that goal. Delegated
+   implementation and verification coordination routes are explicit and
+   separate; verification owns the routes of the providers it launches.
 9. **ADL-R3 — Benefit-based placement.** Same-route sequential implementation
    runs directly in the main thread. Delegation requires a stronger or unknown
    relation, a justified cheaper assignment, or useful concurrency across
