@@ -291,15 +291,9 @@ thread's model unchanged. A stronger route requires existing explicit
 authorization, never automatic escalation.
 
 Read [`references/verification-lifecycle.md`](references/verification-lifecycle.md)
-completely and compile its shared repair rules into the retained delivery context.
-The main thread supplies current successful required checks before assessment. All
-selected results return before one bounded repair addresses their combined
-eligible blockers. Default to two attempts total across verification, each
-followed by fresh closed-set verification. Finite explicit overrides and the
-strictest invocation, time, token and authority limits apply across providers.
-Clear current-content evidence ends repair immediately; further attempts require
-material progress and remaining budget. Only a complete clear combined conclusion
-permits completion and remaining publication.
+completely and retain its repair rules: two combined repair attempts by default,
+clear ends repair, and no progress or exhausted limits stop it. Only a complete
+clear combined conclusion permits completion and remaining publication.
 
 Never omit review for a high-risk change merely because its implementation is
 clear or localized. A stronger user or repository rule may stop implementation
@@ -418,7 +412,7 @@ focused and final checks; capability bindings; and the shared repair allowance.
 Default maximum is two combined repair attempts, consumed zero unless there is
 existing history. Only an explicit finite override changes that maximum.
 
-You own evidence selection and ordering, assessment history, repair accounting
+You own evidence selection and ordering, assessment order, repair accounting
 and completion. Before another assignment, after native continuation and before
 a terminal response, reconcile issued work, returned evidence, outstanding
 obligations and consumed attempts. Clarify missing task facts with the relevant
@@ -551,21 +545,10 @@ a compatible capability whose complete public result is inline.
 
 Await every selected result before one combined repair. Send it to the
 implementor that produced the candidate, consume one shared attempt, refresh
-invalidated checks and arrange fresh closed-set reassessment through
-verification. Fresh context applies to verification, not to the implementor. Carry unchanged original/prior
-provider artifacts, original finding identities and provenance, prior/current
-targets, repair history and direct-regression lineage. A summary cannot replace
-authoritative records. Apply the shared lifecycle in references/verification-lifecycle.md:
-clear ends repair; further attempts require material progress and remaining
-budget; incomplete or unchanged evidence, exhausted limits or missing authority
-blocks dependent work. An assessment restart cannot reset the allowance.
-
-A concrete assessment error or newly available evidence may justify correcting
-an assessment without changing code. Use the provider's public correction
-contract, retain the previous report and full history, and obtain fresh judgments
-and checks. Explain what error or gap the evidence corrects. Never relabel a
-completed blocked assessment as aborted or omit it to obtain clearance.
-Assessment correction neither consumes nor resets implementation repair attempts.
+invalidated checks and request follow-up through verification, passing its
+prior result references back unchanged. Verification owns finding history and
+assessment correction. Apply the lifecycle reference for whether another repair
+is allowed; an assessment restart cannot reset the allowance.
 
 Before accepting a child's missing-helper or broken-provider diagnosis, require
 its attempted command/path, observed diagnostic and comparison with the loaded

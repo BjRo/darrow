@@ -727,12 +727,14 @@ strictest applicable invocation, time, token, and authority limit. Additional
 attempts require the preceding verification to show resolved original blockers
 or changed evidence narrowing their cause. Only clear current-content evidence
 satisfies the gate. Unchanged, unavailable, inconclusive, out-of-scope, or
-exhausted evidence stops completion and remaining publication. Keep the original
-finding set plus direct repair-caused regressions closed. Preserve original
-finding identities, provider/axis provenance and disposition, target history,
-attempted repairs, prior follow-ups and direct-regression lineage. No comprehensive
+exhausted evidence stops completion and remaining publication. No comprehensive
 assessment resets the budget. Clear ends repair immediately; an uncleared second
 follow-up exhausts the default even with progress.
+
+Verification owns assessment history: finding identity, provenance, target
+history, the closed follow-up set and direct-regression lineage. The main thread
+passes verification's prior result references back unchanged for each
+follow-up and does not restate or reconstruct that history.
 
 No Darrow helper call records assessment targets or outcomes. Verification's
 combined result and complete provider evidence, final content and owner summary are the
@@ -819,13 +821,9 @@ blockers, then successful current checks precede fresh verification. Never reset
 attempts through a new child, new comprehensive review or new goal.
 
 An assessment can be wrong or incomplete even when code is unchanged. With a
-concrete error or new evidence, request a bounded correction through the same
-capability's public contract. Bind the prior report and full history, explain
-what changed in the assessment, and require fresh judgments and checks. A
-completed blocked report is retained, never recast as aborted or replaced by a
-history-free assessment. A correction consumes no implementation repair attempt
-and grants no additional attempts. Repeated unresolved or unsupported conclusions
-remain blocked or no-progress; correction is not a convergence waiver.
+concrete error or new evidence, return it to verification, which owns the
+correction contract. A correction consumes no implementation repair attempt,
+grants no additional attempts and is not a convergence waiver.
 
 Before accepting a child's diagnosis of a missing helper or broken provider,
 the main thread MUST require the attempted command/path, observed diagnostic

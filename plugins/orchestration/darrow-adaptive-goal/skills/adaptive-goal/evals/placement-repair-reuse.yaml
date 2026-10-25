@@ -71,8 +71,9 @@ checks:
 semantic_output_checks:
   - name: owner reports completion after one repair
     proposition: >-
-      The response reports the requested outcome as complete after one repair of a
-      blocking review finding about a missing NaN assertion.
+      The response reports the requested outcome as complete after one repair. The
+      shell checks establish what the repair changed; the response need not name
+      the finding.
 transcript_checks:
   - name: repair returns to the retained implementor
     expect_regex: '"type":"darrow.codex_native_spawn"[^\n]*"model":"gpt-6.1-sol"[^\n]*"reasoning_effort":"high"[^\n]*"agent_ref":"([^"]+)"[\s\S]*"type":"darrow.codex_native_feedback"[^\n]*"agent_ref":"\1"|"name":"Agent"[\s\S]*"name":"SendMessage"'

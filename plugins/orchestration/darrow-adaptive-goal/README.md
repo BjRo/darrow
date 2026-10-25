@@ -122,9 +122,8 @@ thread waits for every selected result, checks criterion coverage, and preserves
 the complete evidence before authorizing a combined repair.
 
 The default maximum is **two implementation repair attempts total**, shared
-across providers and findings. Each attempt refreshes checks and obtains fresh
-closed-set verification. Preserve finding identities, prior reports, candidate
-history and direct repair-caused regressions.
+across providers and findings. Each attempt refreshes checks and requests
+follow-up through verification, which owns finding identity and history.
 
 Placement is decided once. A repair goes back to the implementor that produced
 the candidate, which already holds the task context: the main thread after direct
@@ -136,10 +135,8 @@ reassessment never reset the allowance. Clear evidence ends repair immediately;
 further attempts require progress and remaining budget. Explicit finite overrides
 and stricter authority, invocation, time or token limits still apply.
 
-A concrete assessment error or new evidence can justify a correction at unchanged
-code. Use the provider's public correction contract and retain the earlier report
-and full history. Fresh evidence must support the new conclusion. Correction
-neither spends nor resets implementation repair attempts.
+An assessment that is itself wrong goes back to verification's correction
+contract. Correction neither spends nor resets implementation repair attempts.
 
 Missing, stale, contradictory or inconclusive required evidence blocks completion
 and dependent publication. A passing review alone cannot cover unassessed criteria.
