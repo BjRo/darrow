@@ -31,21 +31,14 @@ Proceed only when:
 - unambiguous same-thread feedback targets the retained preflight or goal,
   including an answer, correction, added constraint, cancellation, or status request.
 
-For a required repository acknowledgement, copy the complete user reply
-unchanged as one argument. Do not extract the chosen option, shorten the reply,
-or reconstruct it from a summary. Keep approval references and all other text.
-Require acknowledgement success before affected work. A rejected or revoked
-approval requires new user authority; never rewrite it or try local replacements.
+When a repository acknowledgement is required, pass the user's complete reply
+unchanged as one argument and require it to succeed before affected work. A
+rejected approval needs new user authority.
 
-**A user-owned wait is an authority boundary.** Record the actions withheld and
-the actual user message that releases them. If asked to activate a goal, inspect
-and wait, do only those authorized actions and return the waiting status. Keep
-that restriction in the goal objective and affected assignments. A host-generated
-"continue working toward the goal" message is automatic continuation, even if
-rendered with a user role; it does not release the gate. Neither elapsed time
-nor a command that changes local readiness supplies the user's permission.
-Keep affected work read-only until the actual release message arrives. Do not
-open the gate yourself or complete the goal while its work is still withheld.
+**A user-owned wait is an authority boundary.** Keep withheld work read-only
+until the user's actual release message arrives. A host-generated "continue
+working toward the goal" message, elapsed time or a changed local state does not
+release it, and you never complete the goal while its work is still withheld.
 
 Complexity and duration do not authorize orchestration. A fresh conversation,
 ambiguous answer, or multiple plausible owners supplies no continuation
@@ -55,7 +48,8 @@ An explicit invocation that only asks a question gets a direct answer from the
 [verification lifecycle](references/verification-lifecycle.md) (beside this
 `SKILL.md`), with no preflight, helper call or goal.
 
-Without authority, make no helper call or mutation and return exactly:
+Without authority, make no helper call or mutation. Your entire response is
+exactly this block, with no explanation before or after it:
 
 ```text
 format: darrow-adaptive-goal-authority-stop-v1
@@ -65,15 +59,12 @@ reason: explicit-orchestration-entrypoint-required
 
 ## 2. Prepare read-only
 
-Discover capabilities in the host's **skill catalog**, including its supplied
-`SKILL.md` paths. Skills are instructions executed with ordinary host tools;
-they need no dedicated tool. Searching `ALL_TOOLS` cannot establish that a skill
-is missing. Read the exact catalog path before declaring a capability unavailable.
-For an alias such as `r2/prepare-task-branch/SKILL.md`, substitute **r2's full root
-from the skill-root table** and append the relative suffix. Preserve every path
-component. On a failed read, compare the attempted path with that expansion and
-correct a mismatch before reporting unavailable. Use the loaded skill's own
-backend instructions; never rebuild an installed path from a plugin name.
+Discover capabilities in the host's **skill catalog** and read the exact
+supplied `SKILL.md` path before declaring one unavailable. Skills are
+instructions executed with ordinary host tools; they need no dedicated tool, so
+searching the tool list (such as `ALL_TOOLS`) cannot prove a skill is missing. Expand an alias such as `r2/prepare-task-branch/SKILL.md`
+with **r2's full root from the skill-root table**. Never rebuild an installed
+path from a plugin name.
 
 Resolve the repository, then bind the bundled helper without searching:
 
@@ -83,15 +74,9 @@ Resolve the repository, then bind the bundled helper without searching:
   `<plugin-root>/skills/adaptive-goal/SKILL.md`, use `<plugin-root>/backend`.
   Starting at the directory containing `SKILL.md`, this is `../../backend`.
 
-Require UV, Git, and readable `pyproject.toml` and `uv.lock` in that backend.
-The frozen commands below let UV select compatible Python; system Python is
-not a separate prerequisite. If the active plugin path or bundled helper is
-unavailable, return `Status: launch_required` with the specific failure. Do not
-search for another installation or mutate the repository.
-
-The examples use Bash line continuations. On native Windows, enter each UV
-command on one PowerShell line, omitting the trailing backslashes and passing
-the same arguments. Helper execution does not require Bash on either host.
+Require UV and Git. If the bundled helper is unavailable, return
+`Status: launch_required` with the specific failure; do not search for another
+installation. On native Windows, enter each command on one PowerShell line.
 
 ```sh
 uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" adaptive-goal-preflight prepare \
@@ -102,21 +87,17 @@ Use the returned repository, working-tree state, instruction and route
 records. Read applicable repository instructions and only the additional files
 needed to understand scope, checks, authority, or a material decision.
 
-During preflight do not edit product or test files or run a test, build, typecheck,
-lint, review or implementation command. Retain those obligations for execution
-after preflight. Preserve all existing work as user-owned.
+Preflight is read-only: no edits and no test, build, lint, review or
+implementation commands. Existing work stays user-owned.
 
 Turn the request into observable acceptance criteria without choosing missing
 product behavior. If a required product, security, destructive-scope,
 publication, or permission decision is missing, ask the smallest concrete
 question and do not launch.
 
-When authoritative input is missing, invoke the necessary host-advertised
-read-only capability before selecting readiness, acceptance, risk, evidence
-or route. For example, retrieve a referenced ticket through its matching read
-skill. Check that the operation is read-only, preserve its complete evidence,
-and stop dependent preflight if it refuses. Resolve the authoritative request
-before launch. Input gathering grants no mutation authority.
+When authoritative input is missing, such as a referenced ticket, retrieve it
+through the matching read-only capability before deciding anything else, and
+stop dependent preflight if it refuses.
 
 ## 3. Resolve readiness before launch
 
@@ -244,17 +225,11 @@ completely and retain its repair rules: two combined repair attempts by default,
 clear ends repair, and no progress or exhausted limits stop it. Only a complete
 clear combined conclusion permits completion and remaining publication.
 
-Never omit review for a high-risk change merely because its implementation is
-clear or localized. A stronger user or repository rule may stop implementation
-before launch, but it does not turn the required review into an omission.
-
-Treat required-provider availability as a main-thread preflight gate. Missing or
-incompatible verification or required review returns `Status: launch_required`
-with each concrete capability gap before goal activation or mutation. Identify
-missing independent review even if verification is also absent. Never delegate work to discover a known absence, bypass verification with direct review, or
-substitute self-review or a generic-agent review. Additional assessments are
-selected only by the goal; installation alone adds no requirement. A selected
-unsupported QA or evidence operation is a gap, not permission to drop it.
+High-risk review is never omitted because the implementation looks clear.
+Missing or incompatible verification or required review returns
+`Status: launch_required` naming each gap before goal activation; never
+substitute self-review or a generic agent. Installation alone selects no
+additional assessment.
 
 An explicit user model and effort overrides the implementation route when the
 host supports that concrete tuple. Implementation agents need only their bounded
@@ -284,41 +259,18 @@ For a file-backed Codex skill, include its installed absolute `SKILL.md` path.
 Common examples include ticket reads and
 updates, TDD, commits, pull requests, and verification with its required review.
 
-Readiness and necessary read-only input gathering are invoked by the main thread
-before launch. Preserve completed input evidence in the contract and bind any
-needed refresh. The main thread coordinates implementation, verification and
-publication assignments; each assignee invokes its relevant bindings when due.
-Assessment-provider bindings travel through
-verification with the same authority and response boundary. A direct shell, Git, forge,
-tracker, or generic-subagent call is not a substitute for a bound skill. If the
-skill refuses or becomes unavailable, stop that operation without expanding
-authority.
+Each assignee invokes its bindings when due; assessment providers are bound
+through verification. A direct shell, Git, forge, tracker or generic-agent call
+is not a substitute for a bound skill, and a refusal stops that operation
+without expanding authority. Pass the exact skill references and task facts in
+every handoff, because a fresh assignment cannot rely on this thread's reads.
 
-Carry public references and relevant task facts through every bounded handoff.
-A fresh assignment cannot rely on this thread's earlier reads. Instruct the
-assignee to read and follow each relevant bound skill using available tools;
-no dedicated tool named after the skill is needed. Read selected verification
-and review instructions before mutation and retain those bindings. Invoke them
-only when current checks and other prerequisites are met. Before declaring a
-provider unavailable, attempt its supplied public instruction reference and
-report the concrete failure. Missing skill-specific tooling is not absence;
-do not reconstruct an installed path from a skill name.
-
-Before an operation becomes due, check the bound skill's public prerequisites,
-effects, returned evidence and stop conditions against the goal. Advertised
-intent alone does not prove behavioral compatibility. Accept differently named
-compatible skills; resolve a known mismatch before mutation. Return a refusal
-to the coordinating thread for an authorized next action, never bypass it through raw tools.
-
-Invoking a bound skill or receiving a zero exit status proves neither that its
-substantive contract was satisfied nor that a dependent operation is due.
-Before invoking each dependent capability, validate its prerequisite results
-against both the bound skill and the goal contract. In particular, the main thread
-must receive verification's complete current-content clear assessment, including
-selected provider evidence and criterion coverage, before invoking a dependent
-commit or publisher. A review-only result leaves this prerequisite unsatisfied,
-even when the assessment call succeeded or its agent was named verification.
-The commit or publisher's local readiness does not check this enclosing gate.
+Check each bound skill's prerequisites, effects, evidence and stop conditions
+against the goal before it is due; compatible skills with other names are fine.
+A successful call or zero exit status does not prove its contract was met.
+Before any dependent commit or publisher, require verification's complete
+current-content clear assessment with criterion coverage; a review-only result
+does not satisfy it.
 
 For authorized publication, the publisher's own verified result establishes
 what was published; check that it names the verified commit. An existing PR URL
@@ -333,19 +285,14 @@ adds commit, push, pull-request, merge, release, or deployment authority.
 
 ## 6. Retain the goal and delivery context
 
-After read-only preflight, activate one native goal in this main thread or
-continue its matching active goal using the host guide. Never replace an unrelated
-goal. A queued proposal is not activation; wait for the native kickoff before
-implementation or assessment.
-An existing code candidate need not have a native goal yet. When all launch
-gates clear and no goal exists, create the first goal here; that does not create
-a replacement owner. An empty goal lookup alone is not missing host support.
-Its objective is at most 4,000 Unicode characters: the bounded outcome, material
-acceptance criteria, selected assurance, authority limits and completion criteria.
-Set a token budget only when the user explicitly supplied one. Keep evidence,
-coordination, routing and repair instructions here in the skill and retained
-conversation; do not pack them into the goal or write a goal ledger.
-Do not create a second goal or put the delivery goal in an implementation agent.
+After read-only preflight, activate one native goal in this main thread, or
+continue its matching active goal, using the host guide. Never replace an
+unrelated goal; when no goal exists, create the first one here. A queued
+proposal is not activation. The objective is at most 4,000 Unicode characters:
+outcome, material acceptance, assurance, authority limits and completion
+criteria. Set a token budget only when the user supplied one. Keep coordination
+instructions in this skill, not in the goal, and never put the goal in an
+implementation agent.
 
 Retain acceptance, constraints and decisions; preserved work and authorized
 effects; required evidence and risk; implementation route, placement and their basis; readiness evidence;
@@ -491,14 +438,10 @@ prior result references back unchanged. Verification owns finding history and
 assessment correction. Apply the lifecycle reference for whether another repair
 is allowed; an assessment restart cannot reset the allowance.
 
-Before accepting a child's missing-helper or broken-provider diagnosis, require
-its attempted command/path, observed diagnostic and comparison with the loaded
-capability's public instructions. A failed lookup at a guessed path does not
-prove an installation defect. Send a demonstrated invocation error back to the
-same capability for bounded correction, preserving its prior result. Do not
-execute assessment internals here or substitute another checkout's helper.
-If the cause remains unverified, report that evidence gap without inventing a
-fixture or installation diagnosis.
+A child's "missing helper" or "broken provider" claim needs the attempted
+path and observed error; a guessed path proves nothing. Send a real invocation
+error back to the same capability, and report an unverified cause as an
+evidence gap.
 
 User feedback belongs to this main thread. Preserve every restriction, product
 decision and implementation property; update affected acceptance and reassess
@@ -510,16 +453,11 @@ Using an existing component means calling it, not
 copying its algorithm. Status requests do not stop work; cancellation stops
 further work and reports effects already performed.
 
-Ask the smallest concrete question for a missing material decision. Stop affected
-mutation, steering or interrupting active children as needed, and preserve this
-same goal and its decisions, evidence and consumed attempts. Resume when the
-required answer arrives. Use host controls truthfully: Codex literal pause
-requires explicit user pause, complete requires achieved outcome, and blocked
-requires the native tool's recurrence condition. Claude uses its supported goal
-question and continuation controls. Never clear and recreate the goal to obtain
-feedback or reset history.
-Do not invent a custom retry or continuation loop. Report concrete host failures
-and evidence gaps; never claim a replacement thread is the same goal.
+Ask the smallest concrete question for a missing material decision, stop
+affected mutation, and resume the same goal with its decisions, evidence and
+consumed attempts when the answer arrives. Use host goal controls truthfully
+(see the host guide); never clear and recreate the goal or build a custom retry
+loop.
 
 Before repeating an ambiguous external effect, observe its current state and
 never duplicate an effect that already completed. Include this rule in affected
