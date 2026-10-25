@@ -26,8 +26,8 @@ commands, hashes, snapshots and artifact paths retain their recorded names.
 ## Why
 
 The useful orchestration work happens before implementation: discovering
-repository constraints, making completion observable, selecting a suitable
-workflow and risk gate, and choosing a proportionate model and effort. The host
+repository constraints, making completion observable, deciding the evidence
+and risk gate the change needs, and choosing a proportionate model and effort. The host
 already knows how to execute tools, recover from errors, delegate bounded work,
 and continue a conversation.
 
@@ -260,7 +260,7 @@ starting. A token budget is supplied only when the user explicitly requests one.
 The skill and main-thread context retain:
 
 - originating authority, acceptance, scope, non-goals and preserved local work;
-- exact workflow identifier and its applicable implementation guidance;
+- the required before-edit and after-edit evidence for the change;
 - consequence risk, implementation profile and concrete implementation route;
 - implementation placement, the observed or unknown main-thread route and the
   placement basis;
@@ -285,11 +285,11 @@ State that it owns its assignment, not the goal, and must return evidence or a
 concrete blocker. Do not copy parent orchestration or goal-creation instructions
 into child tasks. A child return alone never proves overall completion.
 
-Workflow selection, ordering, assessment history, repair accounting and completion
-belong to the main thread. Translate applicable workflow requirements into concrete
-work and evidence requirements for direct work or a delegated implementor, which need not track the workflow
-identifier, delivery status or repair allowance. When the selected workflow requires
-a failing regression or acceptance check before an edit, the main thread must
+Evidence selection, ordering, assessment history, repair accounting and completion
+belong to the main thread. Translate the required evidence into concrete work for
+direct work or a delegated implementor, which need not track delivery status or
+the repair allowance. When the change requires a failing regression or
+acceptance check before an edit, the main thread must
 obtain that evidence or explicitly include it before mutation in the bounded
 assignment. Direct implementation follows the same requirement. A passing check after the edit cannot establish the earlier failure.
 A delegated implementor returns changes, actual check results, relevant evidence
@@ -303,12 +303,12 @@ input changes invalidate affected readiness and verification evidence. Obtain
 required fresh ready evidence before resumed implementation.
 
 Preserve caller ordering. An assessment-before-change request checks and assesses
-the unchanged existing candidate before any repair. Workflow defaults do not
+the unchanged existing candidate before any repair. Evidence defaults do not
 restart completed work or move implementation ahead of that assessment.
 
 No Darrow ledger, objective-file protocol or mandatory serialized contract is
-introduced. Equivalent clear prose is valid; exact host keys, routes, workflow
-identifiers, capability references and evidence bindings remain exact.
+introduced. Equivalent clear prose is valid; exact host keys, routes,
+capability references and evidence bindings remain exact.
 
 ## Capability bindings
 
@@ -399,31 +399,22 @@ delegates its authority envelope without choosing names or owning Git mechanics.
 Fresh explicit delivery may reuse repository state but grants no automatic
 cross-conversation continuation or lifecycle ledger.
 
-## Workflow and risk
+## Change evidence and risk
 
-Select exactly one workflow:
+Adaptive Goal ships no workflow files or workflow identifiers. The main thread
+derives the evidence an implementation needs from the kind of change:
 
-- `fix-bug`: existing promised behavior is incorrect.
-- `implement-feature`: new observable behavior does not exist.
-- `change-feature`: approved existing behavior intentionally changes.
-- `refactor`: observable behavior must remain unchanged.
-- `migration`: consumers or formats require a sequenced transition.
-- `mechanical`: an exact deterministic non-behavioral transformation has a
-  complete oracle.
-- `decision-gated`: implementation requires a missing decision or authority;
-  do not launch.
+| Change                                       | Before the edit                                                                                                          | After the edit                                                                                                            |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| New, changed or broken behavior              | A focused check at a stable public seam fails for the intended reason                                                    | That check passes; affected callers, examples and documentation follow                                                    |
+| Behavior-preserving restructuring            | A passing baseline at stable public seams                                                                                | The same baseline still passes                                                                                            |
+| Sequenced transition of consumers or formats | Each criterion, including record conversion, is mapped to its existing entrypoint and callers, with the transition order | Compatibility checks pass through those original entrypoints; a moved implementation keeps a tested forwarding entrypoint |
+| Exact non-behavioral transformation          | A complete oracle is stated                                                                                              | The oracle passes                                                                                                         |
 
-Apply these tie-breakers in order:
-
-1. `decision-gated` wins for a known missing choice or authority.
-2. `migration` requires a sequenced coexistence or rollout; otherwise an
-   intentional contract change is `change-feature`.
-3. `fix-bug` repairs an existing promise; `change-feature` changes it.
-4. `implement-feature` applies only when equivalent behavior does not exist.
-5. Observable contract changes are not `mechanical`.
-6. `mechanical` requires a complete oracle; judgment-preserving restructuring
-   is `refactor`.
-7. `refactor` preserves observable behavior.
+A known missing decision or authority stops before launch through the
+preflight question path; it is not a separate workflow. Several rows may apply
+to one request, and a delegated implementor receives the resulting concrete
+evidence requirements, not a row name.
 
 Select risk from consequences, taking the highest applicable level:
 
@@ -535,7 +526,7 @@ assignment; do not silently downgrade or invent a separate goal owner.
 ## Implementation placement
 
 Implementation placement decides where implementation work runs. It does not
-change workflow, consequence risk, profile, assurance, bindings or authority.
+change required evidence, consequence risk, profile, assurance, bindings or authority.
 The main thread retains the native goal, acceptance, user decisions, repair
 accounting and completion under every placement.
 
@@ -603,7 +594,7 @@ as a shared interface change across its callers, stays sequential. Concurrent
 assignments are parts of one candidate, never competing whole-task
 implementations or replacement goal owners.
 
-Direct and delegated paths preserve selected workflow requirements, readiness,
+Direct and delegated paths preserve required change evidence, readiness,
 bound capabilities, required checks, authority limits and user-owned local
 changes. Selected verification and independent review remain separate bounded
 capability assignments with their own routes and provider boundaries; direct
@@ -681,12 +672,12 @@ receive the settled constraint before affected work resumes.
 
 Select independent review separately:
 
-| Situation     | Selection                                                                                |
-| ------------- | ---------------------------------------------------------------------------------------- |
-| Routine risk  | omitted by default                                                                       |
-| Elevated risk | selected when compatibility, caller impact, or counterexamples need independent judgment |
-| High risk     | required; an unavailable matching capability stops before owner launch                   |
-| Any risk      | selected when the user or repository requires it                                         |
+| Situation     | Selection                                                                                                                                                 |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Routine risk  | omitted by default                                                                                                                                        |
+| Elevated risk | selected when compatibility, caller impact, or counterexamples need independent judgment; a sequenced consumer or persisted-format transition always does |
+| High risk     | required; an unavailable matching capability stops before owner launch                                                                                    |
+| Any risk      | selected when the user or repository requires it                                                                                                          |
 
 The parent binds compatible advertised verification and required independent
 review before launching an owner whose contract selects assurance. It checks
@@ -920,9 +911,9 @@ owner, nested host process or runtime is authorized.
 4. **ADL-P4 — One bounded contract.** The main thread retains the complete request,
    acceptance, scope, gates, checks and authority. The native goal is at most
    4,000 characters; children receive relevant self-contained assignments.
-5. **ADL-C1 — One workflow and risk.** Classification follows the documented
-   tie-breakers and consequence model. The delivery contract keeps the exact
-   workflow identifier separate from its implementation sequence.
+5. **ADL-C1 — Evidence and risk.** The main thread derives the required
+   before-edit and after-edit evidence from the kind of change and selects one
+   consequence risk. No workflow file or identifier is selected or required.
 6. **ADL-R1 — Concrete selected route.** Policy or an explicit user override
    resolves to one implementation host/provider/model/effort tuple before delegation. Both sources
    pass the same host/provider, concrete-model, and effort validation before
@@ -1190,7 +1181,7 @@ The following invariants govern adaptation and evidence provenance:
   redundant check may be an efficiency defect alongside a correct outcome;
   a recovered intermediate error remains recorded alongside correct final
   evidence. Neither is erased by recovery. A required pre-edit check remains
-  required unless its workflow contract is explicitly changed. Unknown evidence,
+  required unless the change's evidence requirement is explicitly changed. Unknown evidence,
   including encrypted handoffs, remains unknown. Preserve original grades and
   label any later acceptance assessment with its rubric and source trials;
   regrading is not new execution evidence or an unqualified compliance pass.
@@ -1400,7 +1391,7 @@ At minimum, cover:
 - ordinary engineering intent that must not activate;
 - advice-only explicit invocation that must not launch;
 - missing preflight decision that stops before launch;
-- each workflow tie-breaker and risk boundary;
+- before-edit evidence for changed behavior and each risk boundary;
 - native main-thread goal activation and bounded assignments on both hosts;
 - direct implementation at an identical route, justified cheaper delegation,
   useful concurrent implementation, coupled work that stays sequential, and

@@ -115,8 +115,8 @@ uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" ad
   --repo <absolute-repository> --host <codex|claude>
 ```
 
-Use the returned repository, working-tree state, instruction, workflow, and
-route records. Read applicable repository instructions and only the additional files
+Use the returned repository, working-tree state, instruction and route
+records. Read applicable repository instructions and only the additional files
 needed to understand scope, checks, authority, or a material decision.
 
 During preflight do not edit product or test files or run a test, build, typecheck,
@@ -129,7 +129,7 @@ publication, or permission decision is missing, ask the smallest concrete
 question and do not launch.
 
 When authoritative input is missing, invoke the necessary host-advertised
-read-only capability before selecting readiness, acceptance, risk, workflow,
+read-only capability before selecting readiness, acceptance, risk, evidence
 or route. For example, retrieve a referenced ticket through its matching read
 skill. Check that the operation is read-only, preserve its complete evidence,
 and stop dependent preflight if it refuses. Resolve the authoritative request
@@ -204,27 +204,18 @@ launch on a non-ready result. If required readiness has no matching advertised
 skill, return `Status: launch_required` with the missing capability and make no
 mutation.
 
-## 4. Select workflow, risk, profile, and verification
+## 4. Select evidence, risk, profile, and verification
 
-Select exactly one workflow and read its linked document completely:
+Decide the evidence the change needs. Several rows may apply:
 
-- [`fix-bug`](references/workflows/fix-bug.md): repair behavior that violates an
-  existing promise.
-- [`implement-feature`](references/workflows/implement-feature.md): add behavior
-  that does not exist.
-- [`change-feature`](references/workflows/change-feature.md): intentionally
-  change approved existing behavior.
-- [`refactor`](references/workflows/refactor.md): preserve observable behavior.
-- [`migration`](references/workflows/migration.md): sequence coexistence,
-  consumer, or format transition.
-- [`mechanical`](references/workflows/mechanical.md): perform an exact
-  non-behavioral transformation with a complete oracle.
-- `decision-gated`: a required choice or authority is missing; ask before launch.
+| Change | Before the edit | After the edit |
+| --- | --- | --- |
+| New, changed or broken behavior | A focused check at a stable public seam fails for the intended reason | That check passes; update affected callers, examples and docs |
+| Behavior-preserving restructuring | A passing baseline at stable public seams | The same baseline still passes |
+| Sequenced transition of consumers or formats | Each criterion, including record conversion, is mapped to its existing entrypoint and callers, with the transition order | Compatibility checks pass through those original entrypoints, never only a new parallel implementation; a moved implementation keeps a tested forwarding entrypoint |
+| Exact non-behavioral transformation | A complete oracle is stated | The oracle passes |
 
-Tie-break in this order: missing decision; migration over change only for a
-sequence; change over bug when the approved contract changes; feature only when
-equivalent behavior is absent; observable changes are not mechanical;
-mechanical requires a complete oracle; refactor preserves behavior.
+A missing decision or authority is not a change kind: ask before launch.
 
 Keep these three decisions separate:
 
@@ -272,7 +263,8 @@ Select assurance separately, preserving the independent-review policy:
 
 - routine: omit by default;
 - elevated: select when compatibility, caller impact, or counterexamples need
-  independent judgment;
+  independent judgment; a sequenced consumer or persisted-format transition
+  always does;
 - high: required;
 - any risk: select when the user or repository requires it.
 
@@ -415,24 +407,24 @@ gates clear and no goal exists, create the first goal here; that does not create
 a replacement owner. An empty goal lookup alone is not missing host support.
 Its objective is at most 4,000 Unicode characters: the bounded outcome, material
 acceptance criteria, selected assurance, authority limits and completion criteria.
-Set a token budget only when the user explicitly supplied one. Keep workflow,
+Set a token budget only when the user explicitly supplied one. Keep evidence,
 coordination, routing and repair instructions here in the skill and retained
-conversation; do not pack the full workflow into the goal or write a goal ledger.
+conversation; do not pack them into the goal or write a goal ledger.
 Do not create a second goal or put the delivery goal in an implementation agent.
 
 Retain acceptance, constraints and decisions; preserved work and authorized
-effects; workflow and risk; implementation route, placement and their basis; readiness evidence;
+effects; required evidence and risk; implementation route, placement and their basis; readiness evidence;
 focused and final checks; capability bindings; and the shared repair allowance.
 Default maximum is two combined repair attempts, consumed zero unless there is
 existing history. Only an explicit finite override changes that maximum.
 
-You own workflow selection and ordering, assessment history, repair accounting
+You own evidence selection and ordering, assessment history, repair accounting
 and completion. Before another assignment, after native continuation and before
 a terminal response, reconcile issued work, returned evidence, outstanding
 obligations and consumed attempts. Clarify missing task facts with the relevant
 child; do not ask a delegated implementor to reconstruct delivery bookkeeping.
 
-Translate the selected workflow into concrete work and evidence requirements.
+Translate the required evidence into concrete work.
 For behavior that already exists, bind each material criterion to its current
 public entrypoint and carry those paths into assignments. Verify the original callers; moving a test's import to
 a new parallel implementation cannot establish that those callers were fixed.
@@ -440,8 +432,7 @@ When it requires a failing regression or acceptance check before an edit, obtain
 that evidence yourself or explicitly assign the check before mutation. Require
 failure for the intended missing or broken behavior. A passing check after the
 edit does not establish the earlier failure. A delegated implementor needs the
-concrete requirements, not a workflow identifier or responsibility for
-sequencing delivery.
+concrete requirements, not responsibility for sequencing delivery.
 
 For an existing candidate with assessment-before-change intent, obtain current
 successful checks and the selected assessment of that unchanged candidate before
@@ -459,7 +450,7 @@ pipeline. You remain responsible for completion throughout.
 
 ### Place implementation
 
-Placement never changes workflow, risk, assurance, bindings, checks or
+Placement never changes required evidence, risk, assurance, bindings, checks or
 authority. Decide it in two steps and record a one-line basis.
 
 **First, split or not.** Run independent parts of one candidate as concurrent
@@ -486,7 +477,7 @@ Do not spawn an implementor merely to keep a coordinator/implementor split.
 Never implement directly in place of a stronger selected route or with an
 unknown main route.
 
-Direct work follows the same workflow evidence, bound capabilities, checks,
+Direct work follows the same required evidence, bound capabilities, checks,
 authority limits and preserved user-owned changes as an assignment. Selected
 verification and review stay separate capability assignments on their own
 routes; direct implementation never permits self-assessment.
@@ -515,7 +506,7 @@ preserved work and return evidence. It owns that assignment, not the delivery
 goal. It must not invoke Adaptive Goal, create an overall goal, coordinate
 independent assessment, or publish beyond the assignment's explicit authority.
 Ask for changed files, actual check results, relevant evidence and unresolved
-blockers. Keep workflow state, attempt counts and delivery decisions here. Wait for
+blockers. Keep delivery state, attempt counts and delivery decisions here. Wait for
 the result before assigning conflicting work. A rejected route is a concrete
 launch failure, not permission to silently choose another model.
 

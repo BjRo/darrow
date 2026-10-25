@@ -121,7 +121,7 @@ output_checks:
   - name: no lifecycle protocol is reported
     not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
 semantic_output_checks:
-  - name: sequenced transition is classified as migration
+  - name: local compatible migration is complete
     proposition: >-
       The response reports the requested local implementation as complete with
       passing checks and no unresolved implementation blocker. The request is

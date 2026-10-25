@@ -15,7 +15,7 @@ reference. Preserve repository instructions, user-owned changes, scope and
 authority. A direct shell or generic-agent prompt cannot replace a bound skill.
 A refusal returns the concrete gap to the main thread.
 
-For implementation or repair, apply the selected workflow and required checks,
+For implementation or repair, produce the required evidence and checks,
 then return changed files, actual check results and unresolved blockers. Do not
 start independent assessment or publication unless the assignment explicitly
 authorizes that operation and its prerequisites are satisfied.

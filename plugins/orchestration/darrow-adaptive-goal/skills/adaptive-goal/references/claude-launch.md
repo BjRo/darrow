@@ -74,7 +74,7 @@ Send every repair and later implementation request to the retained implementor
 with `SendMessage`, addressed to the agent id the Agent call returned. If
 `SendMessage` is not loaded, load it with `ToolSearch` (`select:SendMessage`)
 first; an unloaded tool does not make the implementor unavailable. Supply the
-concrete findings, constraints and checks; keep workflow ordering and repair
+concrete findings, constraints and checks; keep delivery ordering and repair
 accounting in the main thread. If `SendMessage` fails for that agent or it no
 longer fits the required route or scope, state the concrete reason and launch a
 replacement with the necessary context and prior work. Replacement grants no

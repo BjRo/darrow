@@ -53,17 +53,18 @@ identifier through a compatible Git capability. One match is reused, several req
 an explicit choice, and no matches permits one conventional new name. The recipe
 supplies authority; Adaptive Goal chooses and the Git capability prepares.
 
-## Workflows, risk and model routes
+## Evidence, risk and model routes
 
-Choose one workflow: `fix-bug`, `implement-feature`, `change-feature`,
-`refactor`, `migration` or `mechanical`. Missing decisions stop affected work.
-The main thread translates its workflow into concrete assignments and arranges
-required evidence, including a failing check before an edit when applicable.
-The implementor returns changes, check results and blockers; workflow sequencing
-and delivery bookkeeping remain with the main thread.
+The main thread decides the evidence the change needs: a failing focused check
+before changing or adding behavior, a passing baseline before restructuring,
+mapped original entrypoints for a sequenced migration, or a complete oracle for
+an exact transformation. Missing decisions stop affected work. The implementor
+returns changes, check results and blockers; sequencing and delivery bookkeeping
+remain with the main thread.
 
 Consequence risk controls assurance. Routine work omits independent review by
-default; elevated risk selects it when independent judgment is needed; high risk
+default; elevated risk selects it when independent judgment is needed, which
+always includes a sequenced consumer or persisted-format transition; high risk
 requires it. User or repository requirements can strengthen those gates.
 
 Implementation difficulty controls the bounded implementor:

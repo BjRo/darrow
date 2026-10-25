@@ -9,7 +9,7 @@ Keep overall ownership in this original thread. Use native `create_goal` with
 an objective of at most 4,000 Unicode characters: outcome, material acceptance,
 authority and completion conditions. Supply `token_budget` only if explicitly
 requested. Continue a matching active goal; never overwrite an unrelated one.
-Keep workflow, routing and coordination instructions in the skill and conversation.
+Keep evidence, routing and coordination instructions in the skill and conversation.
 An existing candidate is not an existing native goal. If `get_goal` returns no
 goal, create the first goal after all preflight decisions clear and launch is
 authorized. This retains the original main-thread owner; it is not a replacement.
@@ -56,7 +56,7 @@ does not authorize silently switching models.
 Send every repair and later implementation request to the accepted implementor:
 `followup_task` for an idle child, `send_message` for a running one, targeting
 its retained identity. Do not spawn a new implementor for a repair. Supply the
-concrete findings, constraints and checks; keep workflow ordering and repair
+concrete findings, constraints and checks; keep delivery ordering and repair
 accounting in the main thread. Replace the implementor only for a concrete
 availability, route or scope mismatch, with the necessary context and prior
 work. Replacement grants no extra attempts.

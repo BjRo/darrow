@@ -79,9 +79,7 @@ def test_prepared_records_and_unchanged_repository(repo: Path) -> None:
         "route\troutine\tcodex\topenai\tgpt-6-luna\tmedium\nroute_policy_source\troutine\tbundled\n"
         in output
     )
-    assert output.endswith(
-        f"workflow\tmechanical\t{PLUGIN / 'skills/adaptive-goal/references/workflows/mechanical.md'}\n"
-    )
+    assert "workflow\t" not in output
     assert git(repo, "status", "--porcelain=v1") == before
     (repo / "AGENTS.md").write_text("Instructions\n")
     (repo / "CLAUDE.md").write_text("Claude\n")
@@ -268,12 +266,6 @@ def test_failed_observations(repo: Path, monkeypatch: pytest.MonkeyPatch) -> Non
 def test_missing_resources(repo: Path, tmp_path: Path) -> None:
     plugin = tmp_path / "plugin"
     shutil.copytree(PLUGIN / "config", plugin / "config")
-    with pytest.raises(RefusalError, match="workflow directory is missing"):
-        preflight.prepare(repo, "codex", plugin)
-    workflows = plugin / "skills/adaptive-goal/references/workflows"
-    workflows.mkdir(parents=True)
-    with pytest.raises(RefusalError, match="workflow document is unreadable"):
-        preflight.prepare(repo, "codex", plugin)
     (plugin / "config/routes.json").write_text(
         '{"routes":'
         + json.dumps(

@@ -18,14 +18,6 @@ USAGE = """usage:
   adaptive-goal-preflight repair-budget --repairs-used <count> [--repair-maximum <count>] [--assessment-used <count> --assessment-maximum <count>]
   adaptive-goal-preflight codex-verification-input --task-name <name> --assignment-file <absolute-utf8-file>
 """
-WORKFLOWS = (
-    "fix-bug",
-    "implement-feature",
-    "change-feature",
-    "refactor",
-    "migration",
-    "mechanical",
-)
 
 
 def observation(repo: Path, label: str, *args: str) -> str:
@@ -45,19 +37,7 @@ def instruction_records(repo: Path) -> str:
     return result
 
 
-def workflow_records(directory: Path) -> str:
-    result = ""
-    for name in WORKFLOWS:
-        path = directory / f"{name}.md"
-        read_text(path, "workflow document is unreadable")
-        result += record("workflow", name, str(path))
-    return result
-
-
 def prepare(repo: Path, host: str, plugin: Path) -> str:
-    workflows = plugin / "skills/adaptive-goal/references/workflows"
-    if not workflows.is_dir():
-        raise RefusalError(f"workflow directory is missing: {workflows}")
     revision = observation(repo, "repository revision", "rev-parse", "HEAD")
     status = observation(
         repo, "working tree state", "status", "--porcelain=v1", "--untracked-files=all"
@@ -72,7 +52,7 @@ def prepare(repo: Path, host: str, plugin: Path) -> str:
         result += record("route_policy_source", route.profile, route.source)
     if not routes:
         raise RefusalError(f"no routes for host={host}")
-    return result + workflow_records(workflows)
+    return result
 
 
 def explicit_tuple(
