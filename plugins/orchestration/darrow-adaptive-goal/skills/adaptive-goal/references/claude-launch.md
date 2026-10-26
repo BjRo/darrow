@@ -45,12 +45,12 @@ Delegated implementation and repair use the preflight-selected route. For
 concurrent implementation, issue one Agent call per independent part in the
 same message, each with its owned files and the shared interface, and settle
 all of them before integration or further assignment. Verification
-coordination uses `claude-opus-5-5/high`. Verification owns the routes of the
+coordination uses `claude-sonnet-5-5/medium`. Verification owns the routes of the
 providers it launches, including review coordination; do not pass them or
 assume a sibling plugin's agent is installed.
 
 For the verification assignment, call this resolver with
-`--provider anthropic --model claude-opus-5-5 --effort high`. Launch the returned
+`--provider anthropic --model claude-sonnet-5-5 --effort medium`. Launch the returned
 Adaptive Goal scoped `subagent_type` and give it the bound verification
 skill's exact public reference and the acceptance-verification assignment.
 Supply the review binding to this agent. Verification then selects and

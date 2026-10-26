@@ -218,7 +218,7 @@ name. If you cannot confirm one, pass the review requirement and let
 verification select the provider.
 
 Bind only the route of the role you launch: the Verification coordinator runs
-on `gpt-6.1-sol/medium` (Codex) or the `claude-opus-5-5/high` scoped agent
+on `gpt-6.1-sol/medium` (Codex) or the `claude-sonnet-5-5/medium` scoped agent
 (Claude). Verification owns the routes of everything it launches, including
 review coordination, and review owns its readers; do not pass or restate those
 routes. A verification skill's instruction to spawn a provider on its own route
@@ -422,7 +422,7 @@ stops that assignment without fallback. Only an already authorized explicit
 stronger Verification route uses a caller-bound native invocation instead.
 This temporary input holds one assignment, not the goal or its history.
 
-On **Claude**, use the scoped `claude-opus-5-5/high` agent. Neither parent-model
+On **Claude**, use the scoped `claude-sonnet-5-5/medium` agent. Neither parent-model
 inheritance nor an implementation route changes Verification's internal routes.
 
 The capability owns

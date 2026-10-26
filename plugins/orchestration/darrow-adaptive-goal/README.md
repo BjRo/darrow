@@ -112,7 +112,7 @@ not change these roles.
 
 Claude uses the same architecture. Its implementation policy selects scoped
 Sonnet 5.5/low, Sonnet 5.5/medium or Opus 5.5/high agents. Verification
-coordination uses Opus 5.5/high; verification chooses its own internal routes. Claude has lighter validation than Codex; these routes are not
+coordination uses Sonnet 5.5/medium; verification chooses its own internal routes. Claude has lighter validation than Codex; these routes are not
 claimed to be measured equivalents.
 
 ## Verification and repairs
