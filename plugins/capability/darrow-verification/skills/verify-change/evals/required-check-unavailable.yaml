@@ -1,4 +1,6 @@
 id: verification-required-check-unavailable
+candidate_routes:
+  codex: { model: gpt-6.1-sol, effort: medium }
 invariant: VF-C2,VF-C3,VF-C6
 activation: positive
 prompt: Use {{skill_invocation}} Verify the implementation candidate in this
@@ -38,12 +40,6 @@ checks:
       .git/current-candidate
   - name: no extra commit
     run: test "$(git rev-list --count HEAD)" -eq 1
-  - name: retained report handoff is rendered last
-    run: |
-      test -e .fixture-state/inspect-candidate-report.md || exit 0
-      report=$(cd .fixture-state && pwd -P)/inspect-candidate-report.md
-      last=$(awk 'NF { line=$0 } END { print line }' .git/last-message.md)
-      test "$last" = "Complete provider result: [report](<$report>)"
 semantic_output_checks:
   - name: unavailable required check blocks
     proposition:

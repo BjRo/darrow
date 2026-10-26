@@ -1,4 +1,6 @@
 id: verification-existing-review
+candidate_routes:
+  codex: { model: gpt-6.1-sol, effort: medium }
 required_plugin_hook: darrow-review
 invariant: VF-C2,VF-C3,VF-C4,VF-C6,VF-C7,CR-E18
 activation: positive
@@ -43,14 +45,6 @@ checks:
       .git/current-candidate
   - name: no extra commit
     run: test "$(git rev-list --count HEAD)" -eq 1
-  - name: retained report handoff is rendered last
-    run: |
-      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}"
-      record=$(find "$DARROW_REVIEW_STATE_DIR" -name result.json -type f)
-      test -f "$record" || exit 1
-      report=$(dirname "$record")/review.md
-      last=$(awk 'NF { line=$0 } END { print line }' .git/last-message.md)
-      test "$last" = "Complete provider result: [report](<$report>)"
   - name: existing provider retains a canonical failing current review
     run:
       export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" && record=$(find "$DARROW_REVIEW_STATE_DIR" -name result.json -type f) && test
@@ -72,11 +66,9 @@ checks:
       uv run --quiet --frozen --no-dev --project "${result_tool%/src/darrow_review/result.py}" review-result validate "$record" && uv run --quiet --frozen --no-dev --project "${report_tool%/src/darrow_review/report.py}" review-report render
       "$record" >.git/expected-review.md && cmp .git/expected-review.md
       "$(dirname "$record")/review.md"
-  - name: complete existing report remains accessible to caller
-    run:
-      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}" && record=$(find "$DARROW_REVIEW_STATE_DIR" -name result.json -type f) && test
-      -f "$record" && report=$(dirname
-      "$record")/review.md && grep -F "$report" .git/last-message.md
+output_checks:
+  - name: retained report handoff is rendered last
+    expect_regex: '(?:^|\n)Complete provider result: \[report\]\(</[^\r\n<>]+/review\.md>\)[ \t\r\n]*(?![\s\S])'
 semantic_output_checks:
   - name: consume actual provider finding
     proposition:

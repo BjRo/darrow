@@ -1,4 +1,6 @@
 id: verification-followup-missing-history
+candidate_routes:
+  codex: { model: gpt-6.1-sol, effort: medium }
 invariant: VF-C2,VF-C5,VF-C6,VF-C7
 activation: positive
 prompt: Use {{skill_invocation}} Verify the fixes to my earlier review. Current

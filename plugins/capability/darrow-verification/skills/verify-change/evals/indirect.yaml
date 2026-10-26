@@ -1,4 +1,6 @@
 id: verification-indirect
+candidate_routes:
+  codex: { model: gpt-6.1-sol, effort: medium }
 invariant: VF-C1,VF-C2,VF-C3
 activation: positive
 prompt: Coordinate assurance that the current change meets all its acceptance in
@@ -48,16 +50,11 @@ checks:
       .git/current-candidate
   - name: no extra commit
     run: test "$(git rev-list --count HEAD)" -eq 1
+  - name: complete replacement evidence retained
+    run: test -s .fixture-state/inspect-candidate-report.md
+output_checks:
   - name: retained report handoff is rendered last
-    run: |
-      test -e .fixture-state/inspect-candidate-report.md || exit 0
-      report=$(cd .fixture-state && pwd -P)/inspect-candidate-report.md
-      last=$(awk 'NF { line=$0 } END { print line }' .git/last-message.md)
-      test "$last" = "Complete provider result: [report](<$report>)"
-  - name: complete replacement evidence retained and referenced
-    run:
-      test -s .fixture-state/inspect-candidate-report.md && report=$(cd .fixture-state && pwd
-      -P)/inspect-candidate-report.md && grep -F "$report" .git/last-message.md
+    expect_regex: '(?:^|\n)Complete provider result: \[report\]\(</[^\r\n<>]+/\.fixture-state/inspect-candidate-report\.md>\)[ \t\r\n]*(?![\s\S])'
 semantic_output_checks:
   - name: clear current evidence
     proposition: The response reports a clear current-candidate assessment with

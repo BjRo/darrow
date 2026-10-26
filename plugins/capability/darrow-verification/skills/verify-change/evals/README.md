@@ -17,13 +17,18 @@ by claiming success through self-assessment; the skill trial correctly refused
 missing review.
 This is a narrow development observation, not a broad superiority claim.
 Cases use semantic output checks for conclusions and repository checks for
-effects. Fixture provider templates are inert source files and become skills
+effects. Final report references and advisory identities use the runner's current
+output checks. Shell checks validate retained evidence without a legacy response
+file. Fixture provider templates are inert source files and become skills
 only in isolated repositories. The real-review case mounts the existing plugin
 and requires its own canonical evidence, independently from the replacement
 fixtures. The report renderer has focused example and generated Python tests for
 byte preservation, validation order, absolute references, special-path escaping
 and malformed or unavailable input refusal. Fresh copied-plugin tests exercise
 the locked runtime entrypoint on Linux, macOS and native Windows.
+
+Every case declares `gpt-6.1-sol` at `medium` effort for Codex so standalone
+Verification uses its supported coordinator route instead of the runner default.
 
 Run individual cases sequentially with `--trials 1 --jobs 1`, classify the first
 failure before continuing, and retain host/model/effort/threshold and absolute

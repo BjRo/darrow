@@ -192,6 +192,16 @@ necessary for a complete review-only operation here.
 
 ## Evaluation
 
+Codex cases for this capability MUST declare `gpt-6.1-sol` at `medium` effort as
+their candidate route, including standalone and selection cases. They MUST NOT
+inherit the eval runner's lower-tier default for the Verification coordinator.
+
+Grade outward response text through the current runner's output checks, without
+depending on a retired response-file format. Retained-report cases check the
+final absolute report reference and preserve independent checks of the report's
+existence, content and provider validation. Follow-up cases also preserve
+original advisory identities in the outward response.
+
 Assessable provider composition cases MUST require a fresh provider context and its
 completed independent readers. A valid report produced by readers launched
 directly from the verification coordinator cannot establish the required

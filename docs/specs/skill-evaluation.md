@@ -98,6 +98,13 @@ protocols and schemas. Current cases use observations emitted by that release;
 cases whose required evidence exists only in a retired runner are removed from
 active suites. Retained research keeps its original provenance and meaning.
 
+Current evals grade final responses through Sevro's public output or semantic
+checks. Shell checks inspect repository state and declared artifact grants;
+they must not read a retired runner's response file or materialize a compatibility
+copy. Verification handoff cases check the final absolute report reference in
+the response and validate retained report content separately. Missing references,
+relative references and prose after a required final handoff must fail.
+
 Deterministic Claude fixtures provide a valid synthetic saved OAuth login to
 Sevro's parent process. Their trial executable receives only the access token;
 the saved login is not copied into the trial's configuration directory.

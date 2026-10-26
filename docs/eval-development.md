@@ -41,6 +41,9 @@ constraints for producing and interpreting that evidence.
 - Prefer observable repository state, external effects, and user-visible
   outcomes over prose. When free-form text is the only public seam, assert the
   smallest semantic decision rather than parsing a complete explanation.
+- Grade final responses with `output_checks` or `semantic_output_checks`.
+  Shell checks inspect fixture state, not the retired `.git/last-message.md`
+  response file. Do not recreate that file as a compatibility adapter.
 - For a free-form saved document, use `semantic_artifact` to grade the artifact
   itself. Its repository-relative `path` may contain one `*` in the filename and
   must resolve to exactly one regular file. Keep deterministic checks for file
