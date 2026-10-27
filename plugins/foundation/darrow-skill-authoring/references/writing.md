@@ -29,6 +29,13 @@ End each phase with a criterion the agent can check. Make it demanding where
 thoroughness matters: "every changed entrypoint has a passing test" drives
 more work than "tests added." A vague bound invites the agent to stop early.
 
+Phrase the criterion as the state the phase leaves behind, not as work to do.
+The agent reads a criterion as an instruction: "required inputs are in hand
+and each missing decision has been asked" made agents re-read inputs and ask
+questions the steps did not call for. "Every acceptance criterion is
+observable from inputs already retrieved" sets the same bar without adding
+actions.
+
 ## Steer with the target
 
 State the behavior you want: "Report the absolute `SKILL.md` path," not "Do

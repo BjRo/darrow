@@ -95,7 +95,8 @@ with the outcome and next action while preserving required evidence.
 - **SA-C3 — One bounded workflow.** Each skill serves one recognizable user
   goal. State expected inputs, ordered actions, output, facts that must not be
   inferred, and conditions to ask, stop, or refuse. Every phase ends in a
-  checkable and sufficiently demanding completion criterion. The creation
+  checkable and sufficiently demanding completion criterion, phrased as an
+  observable end state rather than an action to perform. The creation
   workflow may write the new skill under the supplied contract; the audit
   workflow remains read-only and does not perform the target skill's external
   actions. Both assess consequential actions: which user request or delegation
