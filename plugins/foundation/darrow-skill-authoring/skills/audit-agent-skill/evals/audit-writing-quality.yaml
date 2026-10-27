@@ -1,0 +1,69 @@
+id: audit-agent-skill-audit-writing-quality
+invariant: SA-C4,SA-C10
+activation: positive
+mount_plugin_skills: true
+activation_excludes:
+  - create-agent-skill
+prompt: >-
+  Audit the changelog-summary draft at
+  plugins/notes/skills/summarize-changelog/SKILL.draft.md as if promoted to
+  SKILL.md, for Claude Code and Codex. Give findings only; leave the
+  repository unchanged.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        plugins/notes/.claude-plugin/plugin.json: |
+          {"name":"notes","version":"0.1.0","description":"Release note helpers","author":{"name":"Example"}}
+        plugins/notes/.codex-plugin/plugin.json: |
+          {"name":"notes","version":"0.1.0","description":"Release note helpers","author":{"name":"Example"},"skills":"./skills/"}
+        plugins/notes/skills/summarize-changelog/SKILL.draft.md: |
+          ---
+          name: summarize-changelog
+          description: Summarize CHANGELOG.md entries since the last release tag into a short user-facing list. Use when asked for release highlights or a changelog summary. Exclude editing the changelog.
+          ---
+
+          # Summarize a changelog
+
+          Read CHANGELOG.md. Do not edit CHANGELOG.md. Do not invent entries.
+          Do not include internal refactors. Do not use jargon. Do not write
+          long bullets.
+
+          ## 1. Collect entries
+
+          Find the last release tag with `git describe --tags --abbrev=0` and
+          collect every changelog entry added after it. Never edit
+          CHANGELOG.md while collecting entries.
+
+          **Complete when:** you understand the changes.
+
+          ## 2. Summarize
+
+          Group the user-facing entries by feature area and write one short
+          bullet per entry. Remember that CHANGELOG.md must never be edited.
+
+          **Complete when:** the summary looks good.
+checks:
+  - name: audit leaves tracked and untracked state unchanged
+    run: git diff --exit-code HEAD && test -z "$(git ls-files --others --exclude-standard)"
+  - name: audit creates no commit
+    run: git rev-list --all --reflog --count
+    expect_regex: "^1$"
+semantic_output_checks:
+  - name: repeated changelog-edit rule is a finding
+    proposition: >-
+      The draft states three times that CHANGELOG.md must not be edited (in
+      the intro, step 1, and step 2). The response reports this repetition or
+      duplication as a finding and recommends stating the rule once.
+  - name: prohibition-led opening is a finding
+    proposition: >-
+      The draft's opening paragraph is a run of "Do not" prohibitions (no
+      edits, no invented entries, no internal refactors, no jargon, no long
+      bullets). The response reports that steering by prohibition as a writing
+      finding and recommends stating the wanted behavior positively.
+  - name: vague completion criteria are a finding
+    proposition: >-
+      The draft ends its steps with "you understand the changes" and "the
+      summary looks good". The response reports at least one of these
+      completion criteria as vague, subjective, or not checkable and proposes
+      a concrete checkable replacement.

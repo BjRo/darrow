@@ -67,12 +67,20 @@ with the outcome and next action while preserving required evidence.
   narrow the question to one missing input or infer another from a suggestion.
   Existing-skill repair follows the target repository's implementation rules
   and audit findings; it is not a third authoring-skill branch.
+  The contract also records the invocation choice. A model-invoked skill keeps
+  an always-loaded description so the agent or another skill can reach it. An
+  explicit-only skill uses each claimed host's invocation control, costs no
+  always-loaded context, and cannot be composed by another skill. Choose
+  explicit-only only when no agent or skill must reach it on its own, and
+  verify the control on every claimed host.
 - **SA-C2 — Discovery is a tested interface.** Use a lower-case hyphenated,
   verb-led name. Front-load a concise description with the skill's recognizable
   goal and concrete trigger conditions, including meaningful exclusions where
   ambiguity is likely. Keep procedure details in the body so metadata does not
-  become a lossy shortcut. Creation intent selects `create-agent-skill` and
-  read-only audit intent selects `audit-agent-skill` when both are installed.
+  become a lossy shortcut. Write one trigger per distinct request branch;
+  synonyms that rename one branch count as one trigger. Creation intent
+  selects `create-agent-skill` and read-only audit intent selects
+  `audit-agent-skill` when both are installed.
   Creation selects the plugin skill ahead of generic host skill creators,
   including when the user's request leaves required contract inputs missing.
   A request to fix audit findings selects neither Darrow authoring skill.
@@ -101,6 +109,17 @@ with the outcome and next action while preserving required evidence.
   caveats together; remove duplicated, derivable, stale, and behavior-neutral
   prose. Supporting resources are colocated in the skill or plugin and are
   loaded or run only under a stated condition.
+  Each meaning has one source of truth within a skill. Prefer a positive target
+  to a prohibition; keep a prohibition only as a guardrail that has no positive
+  form, paired with its target. A sentence that changes no observed behavior
+  relative to the model's default is removed, and that judgment is settled by
+  evaluation rather than reader preference. Facts the environment already
+  states, such as manifests, scripts, and `--help` output, are restated only
+  when the lookup is expensive. Creation applies the plugin's writing
+  reference while drafting. Audit reports writing defects (duplication,
+  prohibition-led steering, behavior-neutral prose, inlined branch-only
+  detail, restated environment facts, and vague or undemanding completion
+  criteria) separately from discovery, workflow, and packaging findings.
 - **SA-C5 — Mechanics are executable.** Put deterministic, repeatedly needed,
   or error-prone checks in a bundled script with narrow inputs and stable
   machine-readable output. Keep contextual decisions and trade-offs in
@@ -153,6 +172,11 @@ with the outcome and next action while preserving required evidence.
   repository. Prepared target skills in authoring evals use draft filenames
   rather than `SKILL.md`; producing the standard skill file is an observable
   outcome of a creation case. Audit cases never promote a draft.
+  Guidance grows only to close an observed failure. After the focused checks
+  pass, creation runs a pruning pass: it removes candidate sentences that a
+  matched rerun shows to be behavior-neutral and keeps a sentence whose removal
+  turns a check red. When live reruns are unavailable, that limit is reported
+  and the candidates stay.
   Shell-reporting acceptance must allow observed successful runs and
   explicitly unverified coverage; it must not
   assume a required interpreter is unavailable when the fixture inherits the

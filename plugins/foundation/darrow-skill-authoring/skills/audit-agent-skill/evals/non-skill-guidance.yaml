@@ -24,7 +24,7 @@ checks:
     flags: i
   - name: negative-trigger request creates no repository skill
     run: >-
-      test -z "$(find . -path './.git' -prune -o -type f -name SKILL.md -print)"
+      test -z "$(git ls-files --cached --others --exclude-standard -- '*SKILL.md')"
   - name: guidance edit creates no commit
     run: git rev-list --all --reflog --count
     expect_regex: "^1$"

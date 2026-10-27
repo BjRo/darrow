@@ -15,6 +15,14 @@ reliability claim.
 | Missing capability, destination, and runtimes     | `refuse-undefined-skill`   |
 | Reuse a current independent review of a new draft | `reuse-current-review`     |
 
+Run `refuse-undefined-skill` with Codex's app-server entrypoint and
+`--runtime-config-file` pointing at
+[`runtime-codex-state.json`](../../../../../../evals/sevro-extension/runtime-codex-state.json);
+without it, the user-skill check reports its evidence as unavailable.
+`respect-target-toolchain` runs the package's `test` script with
+`node --run test`, because the sandbox has no network for Corepack to fetch
+pnpm.
+
 The creation fixtures keep prepared drafts under names other than `SKILL.md`.
 The participant must produce the real file. The obsolete `repair-skill-boundaries`
 case has been removed because implementing changes to an existing skill is
