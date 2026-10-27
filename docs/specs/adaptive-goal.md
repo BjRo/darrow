@@ -935,9 +935,13 @@ owner, nested host process or runtime is authorized.
 12. **ADL-L4 — Semantic blockage.** A blocker names its condition, evidence,
     and next action without a Darrow retry state machine.
 13. **ADL-L5 — Evidence-supported completion.** The main thread validates and
-    reports changed files, combined verification, selected assessments, criterion
-    coverage, repair accounting, publication and residual risks before completing
-    the native goal. Child returns alone do not establish completion.
+    reports changed files, placement with its route relation, combined
+    verification, selected assessments, criterion coverage, each original
+    finding with its resolving repair, repair accounting, publication and
+    residual risks before completing the native goal. Child returns alone do
+    not establish completion. A selected assessment of earlier content is stale
+    and cannot clear; without selected verification, the required
+    current-content checks gate dependent commit and publication.
 14. **ADL-S1 — No inferred decisions.** Missing product, safety, destructive,
     privacy, or authority choices stop before the affected mutation.
 15. **ADL-S2 — No duplicate external effect.** An ambiguous external result is

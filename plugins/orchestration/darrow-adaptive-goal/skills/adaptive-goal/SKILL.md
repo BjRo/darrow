@@ -62,9 +62,10 @@ direct answer or exactly the authority-stop block.
 ## 2. Prepare read-only
 
 Discover capabilities in the host's **skill catalog** and read the exact
-supplied `SKILL.md` path before declaring one unavailable. Skills are
-instructions executed with ordinary host tools; they need no dedicated tool, so
-searching the tool list (such as `ALL_TOOLS`) cannot prove a skill is missing. Expand an alias such as `r2/prepare-task-branch/SKILL.md`
+supplied `SKILL.md` path before declaring one unavailable. Skills, and the
+commands they name, run with ordinary host tools such as the shell; they need no
+dedicated tool, so searching the tool list (such as `ALL_TOOLS`) cannot prove a
+skill or its command is missing. Only a failed invocation does. Expand an alias such as `r2/prepare-task-branch/SKILL.md`
 with **r2's full root from the skill-root table**. Never rebuild an installed
 path from a plugin name.
 
@@ -107,7 +108,8 @@ retrieved and nothing has changed.
 
 For ticket delivery that needs a task branch, find existing branches through the
 Git capability's exact `ticket-id` discovery, refreshed right before preparing.
-One match: reuse it. Several: ask the user to pick one before any mutation. None:
+One match: reuse it. Several: ask the user to choose one of those exact branches
+before any mutation. None:
 prepare the caller's exact name, else let the branch-creation capability name it.
 
 Select readiness semantically:
@@ -281,9 +283,10 @@ every handoff, because a fresh assignment cannot rely on this thread's reads.
 Check each bound skill's prerequisites, effects, evidence and stop conditions
 against the goal before it is due; compatible skills with other names are fine.
 A successful call or zero exit status does not prove its contract was met.
-Before any dependent commit or publisher, require verification's complete
-current-content clear assessment with criterion coverage; a review-only result
-does not satisfy it.
+When verification is selected, a dependent commit or publisher waits for its
+complete current-content clear assessment with criterion coverage; a review-only
+result does not satisfy it. Without selected verification, the required
+current-content checks are the gate.
 
 For authorized publication, the publisher's own verified result establishes
 what was published; check that it names the verified commit. An existing PR URL
@@ -466,19 +469,23 @@ assignments, and every blocker names its condition, evidence and next action.
 
 Mark the main-thread goal complete only when the requested outcome and every
 required current-content check and selected assessment are supported, blockers
-are resolved, and all authorized required effects are established. Incomplete
-verification blocks completion and dependent commit/publication even if review
-is clear. Goal completion creates no additional publication authority.
+are resolved, and all authorized required effects are established. Selected
+verification that is incomplete, or that assessed earlier content, blocks
+completion and dependent commit/publication even if review is clear. Goal completion creates no additional publication authority.
 
-The self-contained user-facing result includes completion or blockage, implementation
-placement and its basis, changed files, checks,
+The self-contained user-facing result includes completion with no open decision,
+or the blockage; implementation placement, its basis and `route_relation`;
+changed files, checks,
 readiness, combined verification and complete selected results, material criterion
-evidence or gaps, original findings and repair history, attempts used and the
-authorized maximum (a default maximum stays two when one attempt succeeds),
+evidence or gaps, each original finding and the repair that resolved it,
 performed publication effects and remaining risks. Preserve substantive
 provider evidence; missing facts stay gaps rather than implementation-agent
-assertions. Every terminal response, including blocked ones and later native
-continuations of that blocker, reports attempts used and the maximum.
+assertions.
+
+Every terminal response, including blocked ones and later native continuations
+of that blocker, states attempts used and the authorized maximum with its
+source, for example "1 of 2 repair attempts used (default maximum; no override
+supplied)". The default maximum stays two when one attempt succeeds.
 
 **Complete when:** the native goal is marked complete with that result, or the
 result names what blocks completion.

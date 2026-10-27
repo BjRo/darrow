@@ -21,8 +21,11 @@ prove success.
 
 Await every selected result before editing. Clear requires current successful
 checks, sufficient evidence for every material criterion and no unresolved
-eligible blocker; a provider pass alone is not enough. Validate that before any
-dependent commit or publication. Advisories stay visible and nonblocking.
+eligible blocker; a provider pass alone is not enough. Clear also requires every
+selected assessment to cover the current candidate: after any content edit, an
+assessment of earlier content is stale and runs again, even when another
+provider is already clear. Validate that before any dependent commit or
+publication. Advisories stay visible and nonblocking.
 
 ## Decide whether another repair is allowed
 
