@@ -985,6 +985,14 @@ owner, nested host process or runtime is authorized.
     the helper's field labels.
     A configured-capacity conclusion need not add a live-capacity disclaimer;
     it must not claim that configuration proves currently free slots.
+22. **ADL-W1 — One-source skill prose.** Each rule in `adaptive-goal` has one
+    home: the lifecycle reference owns repair-limit arithmetic, section 7 owns
+    returning repairs to the producing implementor, verification's own contract
+    owns its internal routes, and each host guide owns only its native controls
+    and host-only procedures, including the Codex verification-input call.
+    Other locations point to that home. Every numbered section ends with a
+    checkable completion criterion. A prohibition stays only as a guardrail with
+    no positive form or where a matched eval shows it is load-bearing.
 
 ## Packaging and portability
 

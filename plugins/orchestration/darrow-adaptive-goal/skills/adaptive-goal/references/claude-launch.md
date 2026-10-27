@@ -44,10 +44,8 @@ do not launch anyway or silently select another route.
 Delegated implementation and repair use the preflight-selected route. For
 concurrent implementation, issue one Agent call per independent part in the
 same message, each with its owned files and the shared interface, and settle
-all of them before integration or further assignment. Verification
-coordination uses `claude-sonnet-5-5/medium`. Verification owns the routes of the
-providers it launches, including review coordination; do not pass them or
-assume a sibling plugin's agent is installed.
+all of them before integration or further assignment. Use only Adaptive Goal's
+own scoped agents; a sibling plugin's agent may not be installed.
 
 For the verification assignment, call this resolver with
 `--provider anthropic --model claude-sonnet-5-5 --effort medium`. Launch the returned
@@ -73,12 +71,9 @@ accounting and overall completion.
 Send every repair and later implementation request to the retained implementor
 with `SendMessage`, addressed to the agent id the Agent call returned. If
 `SendMessage` is not loaded, load it with `ToolSearch` (`select:SendMessage`)
-first; an unloaded tool does not make the implementor unavailable. Supply the
-concrete findings, constraints and checks; keep delivery ordering and repair
-accounting in the main thread. If `SendMessage` fails for that agent or it no
-longer fits the required route or scope, state the concrete reason and launch a
-replacement with the necessary context and prior work. Replacement grants no
-extra attempts.
+first; an unloaded tool does not make the implementor unavailable. A failed
+`SendMessage` to that agent is a concrete reason for a replacement under skill
+section 7, which also governs what the repair carries.
 
 ## Feedback and completion
 
@@ -95,7 +90,7 @@ foreground Agent prevents immediate delivery or stopping, report that limitation
 do not claim that an in-flight effect was prevented.
 
 The main thread can inspect state and run checks while coordinating. It does not
-absorb review or verification internals. Apply section 8 of the skill before
+absorb review or verification internals. Apply section 9 of the skill before
 claiming completion, give the user substantive results here, and allow native
 goal evaluation to consume that evidence. A child return alone cannot complete
 delivery. Do not claim a native lifecycle transition the host has not confirmed.

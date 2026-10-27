@@ -3,8 +3,7 @@
 Read when assurance is selected. Verification owns the assessment: provider
 selection, finding identity, history, the closed follow-up set and assessment
 correction. This file covers what the main thread owns: when to assess, whether
-another repair is allowed, and when to stop. Selecting independent review alone
-still goes through verification; never invoke review directly.
+another repair is allowed, and when to stop.
 
 ## Assess the current candidate
 
@@ -36,27 +35,27 @@ means no more repairs. Apply the strictest invocation, time, token and authority
 limit too. If counts are unknown, stop rather than guess. Give the resulting
 decision directly, without first recommending a repair it rules out.
 
-| Current result or limit                                                               | Next action                                                                                                                                                                |
-| ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Complete current verification is clear                                                | Stop repairing; unused attempts need not be used.                                                                                                                          |
-| Attempts used **greater than or equal to** the maximum, or another limit is exhausted | Stop. Two used out of two allows **zero** more repairs, even with progress or “keep trying” feedback.                                                                      |
-| Required evidence is missing or inconclusive, or the latest repair made no progress   | Stop speculative repair. Investigate only within existing authority.                                                                                                       |
-| An in-scope, authorized blocker remains, evidence supports action, and budget remains | Make one combined repair, refresh checks and request follow-up. After a prior repair, require provider-observed progress: a resolved original blocker or a narrowed cause. |
+| Current result or limit                                                                | Next action                                                                                                                                                                |
+| -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Complete current verification is clear                                                 | Stop repairing; unused attempts need not be used.                                                                                                                          |
+| Attempts used **greater than or equal to** the maximum, or another limit is exhausted  | Stop. Two used out of two allows **zero** more repairs, even with progress or “keep trying” feedback.                                                                      |
+| Required evidence is missing or inconclusive, or the latest repair made no progress    | Stop speculative repair. Investigate only within existing authority.                                                                                                       |
+| An in-scope, authorized blocker remains, evidence supports action, and attempts remain | Make one combined repair, refresh checks and request follow-up. After a prior repair, require provider-observed progress: a resolved original blocker or a narrowed cause. |
 
 Different wording or a speculative edit is not progress. A singular repair
 request, the number of findings or early clearance does not change the maximum.
 
-## Repair under one budget
+## Repair under one limit
 
 One repair addresses the combined eligible blockers from all selected results.
-Send it to the implementor that produced the candidate; only verification starts
-with fresh context. Repair only blockers inside the originating scope and
+Route it as skill section 7 directs; only verification starts with fresh
+context. Repair only blockers inside the originating scope and
 authority; stronger checks of the same behavior are permitted.
 
 After each repair, rerun invalidated checks to success and request follow-up
 through the same verification boundary. Pass verification's prior result
 references back unchanged; verification decides what history it needs and
-blocks if it is missing. A follow-up never resets the budget, and later content
+blocks if it is missing. A follow-up never resets the attempt count, and later content
 edits invalidate clear evidence.
 
 No progress, blocked or inconclusive evidence, exhausted limits or missing
