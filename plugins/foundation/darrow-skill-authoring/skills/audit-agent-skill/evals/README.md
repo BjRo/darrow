@@ -11,6 +11,7 @@ trials per case for the reliability claim.
 | Read-only audit of vague metadata and unsafe publication | `validate-read-only`              |
 | Authorized, bounded publication is not a defect          | `validate-authorized-publication` |
 | Held-out audit phrasing                                  | `ab-audit-paraphrase`             |
+| Writing quality of an otherwise sound draft              | `audit-writing-quality`           |
 | Ordinary repository guidance                             | `non-skill-guidance`              |
 | Manifest-only packaging                                  | `ab-plugin-packaging`             |
 | Running an existing suite                                | `ab-run-existing-suite`           |

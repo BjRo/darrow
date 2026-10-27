@@ -81,13 +81,26 @@ inspected 2026-08-09.
   concrete triggers, following current Codex guidance, while omitting ordered
   process detail as obra warns. This preserves discovery without making metadata
   a substitute for the body.
-- Matt's model-invoked versus user-invoked trade-off becomes a deliberate
-  cross-runtime decision. The default uses common `name` and `description`
-  metadata; optional host-specific invocation controls require explicit need and
-  compatibility verification.
-- Matt's leading-word technique is used only for established terms that sharpen
-  a repeated concept. The workflow does not require coined vocabulary or treat
-  brevity as more important than an observable boundary.
+- Matt's model-invoked versus user-invoked trade-off becomes an explicit
+  contract choice. Model-invoked is the default. Explicit-only uses Claude
+  `disable-model-invocation: true` and Codex
+  `policy.allow_implicit_invocation: false`; the 2026-08-13
+  skill-composition probe showed that neither host lets another skill compose
+  an explicit-only skill, so that choice fits only skills nothing else must
+  reach.
+- Matt's leading words are pretrained terms that anchor a repeated concept in
+  one token. The workflow reuses established terms and avoids coining new
+  ones, and it never trades an observable boundary for brevity.
+- Matt's writing levers (pointer wording, step and reference placement,
+  completion-criterion demand, positive steering, single source of truth,
+  environment facts, and no-op deletion) are operative in the plugin's
+  `references/writing.md`, which creation drafts with and audit checks
+  against. This file keeps only their provenance.
+- Matt's no-op test becomes an eval-guarded pruning pass. Darrow's
+  2026-10-23 reductions found that many removable sentences were patches for
+  earlier near misses and that some were load-bearing, so each removal is
+  confirmed by a matched rerun, and a load-bearing rule is restored as a
+  positive rule at its point of use.
 - obra's repeated pressure testing is scaled to risk and claim strength. The
   workflow requires fresh evidence and reports sample size, but does not impose a
   universal repetition count when model calls are expensive or a deterministic
