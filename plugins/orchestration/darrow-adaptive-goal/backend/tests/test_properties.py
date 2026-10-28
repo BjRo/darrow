@@ -171,12 +171,14 @@ def test_latest_nonobject_route_is_unknown_through_placement_command(
         }
         args = [
             "adaptive-goal-preflight",
-            "placement",
+            "route",
             "--repo",
             str(PLUGIN),
             "--host",
             host,
-            "--selected-route",
+            "--profile",
+            "routine",
+            "--route",
             f"{host}|{provider}|{model}|{effort}",
         ]
         output = io.StringIO()

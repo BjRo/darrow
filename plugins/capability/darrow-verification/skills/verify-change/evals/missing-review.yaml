@@ -1,4 +1,6 @@
 id: verification-missing-review
+candidate_routes:
+  codex: { model: gpt-6.1-sol, effort: medium }
 invariant: VF-C1,VF-C2,VF-C6
 activation: positive
 prompt: Use {{skill_invocation}} Verify the implementation candidate in this

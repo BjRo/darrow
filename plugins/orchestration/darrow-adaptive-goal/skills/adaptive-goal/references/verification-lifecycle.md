@@ -1,139 +1,71 @@
 # Selected verification lifecycle
 
-Read when assurance is selected. The main thread binds compatible verification
-and its required independent review during preflight and retains these rules.
-The main thread delegates implementation and repairs and decides completion;
-verification returns one bounded combined assessment, with no second controller
-or lifecycle ledger. Review-only is the initial production path. Additional
-providers require a compatible selected operation; installation alone selects none.
-Selecting independent review alone still uses this verification boundary with
-one assessment. The owner does not invoke review directly.
-
-## Decide whether another repair is allowed
-
-Apply the first matching row. Keep the authorized maximum separate from attempts
-already used. The default maximum is 2; only an explicit finite user or repository
-override changes it. Progress never increases the maximum.
-
-Before repair advice or another repair assignment, calculate the remaining
-allowance with the bundled read-only helper. Resolve `<plugin-backend>` beside
-this installed skill: `<plugin-root>/backend`. Copy counts from the actual
-contract and history; do not adjust them for progress.
-
-```sh
-uv run --quiet --no-project "<plugin-backend>/scripts/run_locked.py" adaptive-goal-preflight repair-budget \
-  --repairs-used <consumed-count> \
-  [--repair-maximum <explicit-finite-override>] \
-  [--assessment-used <consumed-count> --assessment-maximum <explicit-limit>]
-```
-
-Omit `--repair-maximum` when no finite override was supplied: the helper applies
-two. Include both assessment options when an assessment limit exists, counting
-its initial invocation too; repeat for each independently limited assessment.
-If counts are unknown or the helper fails, stop rather than guess.
-`decision: stop` (rendered as a tab-separated record) prohibits another repair
-under those limits. `within_limits` establishes only arithmetic: scope,
-evidence, progress, time, tokens and authority must still permit the action.
-The calculator writes no state and creates no goal. Report the resulting
-decision directly, without a contradictory initial instruction to continue.
-
-| Current result or limit                                                                                                       | Next action                                                                                                                                                                                                                          |
-| ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Complete current verification is clear                                                                                        | Stop repairing; unused attempts need not be used.                                                                                                                                                                                    |
-| Attempts used **greater than or equal to** the maximum, or another required limit is exhausted                                | Stop. Two used out of two allows **zero** more repairs, even with material progress or “keep trying” feedback.                                                                                                                       |
-| Required evidence is unavailable, inconclusive or missing; history is missing; or the latest repair made no material progress | Stop speculative repair. Investigate the gap only within existing authority.                                                                                                                                                         |
-| An in-scope, authorized blocker remains, evidence supports action, and budget remains                                         | Make one combined repair, refresh checks and obtain fresh closed-set verification. After a prior repair, require provider-observed progress: resolved original blockers, a narrowed cause, or an evidenced direct repair regression. |
-
-Different wording or a speculative edit is not progress. A singular repair request
-or the number of findings does not override the maximum. Early clearance does
-not change it either.
+Read when assurance is selected. Verification owns the assessment: provider
+selection, finding identity, history, the closed follow-up set and assessment
+correction. This file covers what the main thread owns: when to assess, whether
+another repair is allowed, and when to stop.
 
 ## Assess the current candidate
 
-After implementation and every applicable current required check succeeds,
-invoke the bound verification skill with repository, exact candidate/scope/base,
+After implementation and every applicable required check succeeds, invoke the
+bound verification skill with the repository, exact candidate/scope/base,
 originating objective and every material acceptance criterion, constraints,
-successful checks and existing evidence, selected assessments and review binding.
-The provider's public response must return to this owner before further work;
-use a bounded capability-invocation context when its final response would
-otherwise end the owner turn. This is assessment only, never a replacement owner.
-Give that context the exact bound verification skill and the intent to coordinate
-acceptance verification, with independent review as its selected provider.
-Asking only for an independent review does not invoke the coordinator, regardless
-of the context's name. Require the complete combined assessment back before
-continuing; a returned review report alone is missing verification evidence.
+successful checks, existing evidence and the review binding. Use a bounded
+capability context whose complete result returns to this thread. A returned
+review report alone is missing verification evidence.
 
-A review-ready existing candidate still needs current successful checks. Honor
-an explicit assessment-before-change request by checking and assessing that
-candidate unchanged. Failed checks require authorized repair and refreshed
-evidence or a stop before assessment, commit and publication. Running a check
-does not prove success.
+An explicit assessment-before-change request checks and assesses the unchanged
+candidate first. Failed checks need an authorized repair and refreshed evidence,
+or a stop before assessment, commit and publication. Running a check does not
+prove success.
 
-Await every selected assessment's complete result before editing or unrelated
-repository work. Assessments may run concurrently where practical, but an early
-review finding cannot start repair while a selected QA-like result is pending.
-Missing or unsupported selected results block; unselected optional providers do
-not. Consume verification's combined findings, criterion coverage and conclusion,
-preserving complete provider reports and usable absolute evidence references.
+Await every selected result before editing. Clear requires current successful
+checks, sufficient evidence for every material criterion and no unresolved
+eligible blocker; a provider pass alone is not enough. Clear also requires every
+selected assessment to cover the current candidate: after any content edit, an
+assessment of earlier content is stale and runs again, even when another
+provider is already clear. A selected provider that returned unavailable has
+supplied no assessment, so verification is incomplete, not clear. Validate that
+before any dependent commit or publication. Advisories stay visible and
+nonblocking.
 
-Clear requires current successful checks, sufficient evidence for every material
-criterion and no unresolved eligible blocker or direct regression. A provider
-pass alone is insufficient. Stale, missing, contradictory or inconclusive
-required evidence cannot clear. Validate these prerequisites before invoking a
-dependent commit or publication capability; their own successful checks cannot
-waive the enclosing goal's verification requirement. A clear initial result ends repair immediately;
-no unused attempt needs to be consumed. Advisories remain visible and nonblocking.
+## Decide whether another repair is allowed
 
-## Repair the combined finding set under one budget
+Apply the first matching row. The default maximum is 2 repair attempts in total,
+shared across providers and findings; only an explicit finite user or
+repository override changes it. Progress never raises the maximum.
 
-One bounded implementation repair attempt addresses the combined eligible blockers from all
-selected results together, followed by refreshed checks and fresh verification.
-The shared default maximum is two such attempts in total, not two per provider,
-finding, or assessment invocation. Include consumed attempts and any explicit
-user/repository nonnegative integer maximum in the contract. A finite override
-may raise or lower the maximum, including to zero. Apply the strictest remaining
-invocation, time, token and authority limits across all selected activities.
-An unbounded “keep trying” request never enlarges the default.
+Compare attempts used with the maximum before considering progress; equality
+means no more repairs. Apply the strictest invocation, time, token and authority
+limit too. If counts are unknown, stop rather than guess. Give the resulting
+decision directly, without first recommending a repair it rules out.
 
-Repair only when all unresolved blockers are within the originating scope and
-authority, the combined result supports action and budget remains. Stronger
-checks of the same behavior are permitted. Ineligible blockers stop affected
-work; do not expand product behavior or authority to resolve them.
+| Current result or limit                                                                 | Next action                                                                                                                                                                                     |
+| --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Every selected provider assessed the current candidate and the combined result is clear | Stop repairing; unused attempts need not be used.                                                                                                                                               |
+| Attempts used **greater than or equal to** the maximum, or another limit is exhausted   | Stop. Two used out of two allows **zero** more repairs, even with progress or “keep trying” feedback.                                                                                           |
+| Required evidence is missing, unavailable or inconclusive                               | Stop speculative repair. Report verification blocked as incomplete; the next action is investigating the cause within existing authority or the user's environment decision, then reassessment. |
+| The latest repair made no progress                                                      | Stop repairing and report the remaining blocker. Investigate only within existing authority.                                                                                                    |
+| An in-scope, authorized blocker remains, evidence supports action, and attempts remain  | Make one combined repair, refresh checks and request follow-up. After a prior repair, require provider-observed progress: a resolved original blocker or a narrowed cause.                      |
 
-After each attempt, rerun invalidated checks to success and request fresh-context
-follow-up through the same verification boundary. Preserve original finding
-identities, provider/axis provenance, severity and blocking/advisory disposition;
-original/prior/current candidate identities and history; attempted repairs and
-their evidence; previous follow-up results; and carried direct regressions with
-their causing-original-finding identities. Fresh context does not discard history.
-Pass the complete original provider artifacts and prior follow-up artifacts by
-usable absolute reference. Preserve them unchanged; summaries cannot replace
-the provider's authoritative finding records.
-Missing history blocks instead of authorizing a comprehensive restart.
+Different wording or a speculative edit is not progress. A singular repair
+request, the number of findings or early clearance does not change the maximum.
 
-Follow-up establishes whether the repair actually worked against the original
-findings, affected evidence and direct repair-caused regressions. Keep that set
-closed; no unrelated findings or comprehensive assessment may reset the budget.
-Collect all selected follow-up results before any further repair attempt.
+## Repair under one limit
 
-No-progress (unchanged, repeated or oscillating failure), blocked/inconclusive/
-unavailable evidence, exhausted limits or missing authority stops repair,
-completion and remaining publication. Preserve the combined conclusion and
-findings, gaps, current target, consumed attempts and authorized repair maximum
-in the owner result. Seek a concrete decision or investigate only within existing
-authority; neither is
-permission for another unsupported repair. Later content edits invalidate clear
-evidence and never replenish the budget. Completion grants no publication rights.
+One repair addresses the combined eligible blockers from all selected results.
+Route it as skill section 7 directs; only verification starts with fresh
+context. Repair only blockers inside the originating scope and
+authority; stronger checks of the same behavior are permitted.
 
-## Correct an assessment without resetting history
+After each repair, rerun invalidated checks to success and request follow-up
+through the same verification boundary. Pass verification's prior result
+references back unchanged; verification decides what history it needs and
+blocks if it is missing. A follow-up never resets the attempt count, and later content
+edits invalidate clear evidence.
 
-A concrete assessment error or newly available evidence can justify a bounded
-correction at unchanged code. Ask verification to use the provider's public
-correction contract with the latest completed report, full finding and target
-history, fresh judgments and current checks. Retain the previous artifact and
-explain which error or gap the new evidence corrects.
-
-Never call a completed blocked report aborted or discard it to start clean.
-Missing or unresolved evidence still blocks; correction is not permission to
-repeat a failing assessment until one passes. An evidence correction neither
-consumes an implementation repair attempt nor resets the shared allowance.
+No progress, blocked or inconclusive evidence, exhausted limits or missing
+authority stops repair, completion and remaining publication. Report the
+combined conclusion, findings, gaps, consumed attempts and the authorized
+maximum. If an assessment itself is wrong, return the concrete error to
+verification's correction contract; that neither consumes nor resets attempts.

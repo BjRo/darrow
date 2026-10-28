@@ -8,6 +8,7 @@ const allowedPatterns = new Set([
   "2d668c865b4e4a7bef79675b032261b7a2f1f8cba097b1f334780d0aeabdddb4",
   "477494af9a187a707b1a0294209a427f71fdec078c7535deddb8597f08960d43",
   "4944ca41ef44b3b23773882700d0153d23c5d3e70b03551d6b9da9a5f429aa0d",
+  "529783053bc77eeaf2ab39e8cc4a98627d80928510e1b98a372d3f12315e2210",
   "53308d6805d0dc9f795b3efb0aa60ff819b28ffb29ab0ec63da41aac0a4909ed",
   "59a0afb6b55236dedf7c92857157c6ae23a8d385324c825679cc9dccaf5f97c8",
   "62587f212854141760bc4e63bd727e4a0b879b6290b8d172a6ec9e5e98f8de27",
@@ -60,7 +61,7 @@ function checkKind(check: Row): Omit<NativeTranscript, "id"> | null {
     '"type":"darrow.codex_native_spawn"[^\\n]*"status":"accepted"[\\s\\S]*"type":"darrow.eval.follow_up_turn"'
   )
     return { kind: "no-child-before-feedback" };
-  return positiveKind(check) ?? claudeKind(check);
+  return positiveKind(check) ?? repairReuseKind(check) ?? claudeKind(check);
 }
 
 function positiveKind(check: Row): Omit<NativeTranscript, "id"> | null {
@@ -106,6 +107,23 @@ function implementationClaudeTypes(model: string, pattern: string) {
   ];
 }
 
+// Repairs return to the one implementor that produced the candidate.
+const REPAIR_REUSE_NAME = "repair returns to the retained implementor";
+const REPAIR_REUSE_PATTERN = String.raw`"type":"darrow.codex_native_spawn"[^\n]*"model":"gpt-6.1-sol"[^\n]*"reasoning_effort":"high"[^\n]*"agent_ref":"([^"]+)"[\s\S]*"type":"darrow.codex_native_feedback"[^\n]*"agent_ref":"\1"|"name":"Agent"[\s\S]*"name":"SendMessage"`;
+
+function repairReuseKind(check: Row): Omit<NativeTranscript, "id"> | null {
+  if (
+    check.name !== REPAIR_REUSE_NAME ||
+    check.expect_regex !== REPAIR_REUSE_PATTERN
+  )
+    return null;
+  return {
+    kind: "repair-reuse",
+    model: "gpt-6.1-sol",
+    effort: "high",
+  };
+}
+
 function claudeKind(check: Row): Omit<NativeTranscript, "id"> | null {
   const names: Record<string, string> = {
     "Claude invokes the readiness skill exactly once": "readiness-once",
@@ -149,7 +167,7 @@ export function nativeTranscriptEvidence(checks: NativeTranscript[]): string[] {
         // The check validates the selected host's accepted-child facts itself.
         // Requiring both host receipts, or an unused complete common receipt,
         // would make valid positive route evidence unavailable.
-        if (check.kind === "route") return [];
+        if (SPAWN_KINDS.has(check.kind)) return [];
         if (check.kind === "no-goal-before-feedback")
           return ["sevro.codex.continuation"];
         if (check.kind === "no-child-before-feedback")
@@ -254,15 +272,200 @@ function inactiveStatus(context: NativeContext): Status {
     : "passed";
 }
 
+const FOLLOW_UP_TOOLS = new Set(["followup_task", "send_message"]);
+
+function sameChild(target: unknown, agentRef: string): boolean {
+  return (
+    target === agentRef ||
+    (agentRef.startsWith("/root/") &&
+      !agentRef.slice("/root/".length).includes("/") &&
+      target === agentRef.slice("/root/".length))
+  );
+}
+
+// Codex: one accepted implementor spawn on the implementation route, another
+// accepted spawn (verification) after it, then native follow-up to the same
+// implementor after that spawn.
+function codexRepairReuseStatus(
+  check: NativeTranscript,
+  spawns: Row[] | null,
+  feedback: Row[] | null,
+): Status {
+  if (!spawns || !feedback) return "unavailable";
+  const implementors = spawns.filter(
+    (value) =>
+      value.model === check.model && value.reasoningEffort === check.effort,
+  );
+  if (implementors.length !== 1) return "failed";
+  const implementor = implementors[0]!;
+  const accepted = Number(implementor.acceptedOrdinal);
+  const assessment = spawns
+    .filter(
+      (value) =>
+        value !== implementor && Number(value.acceptedOrdinal) > accepted,
+    )
+    .map((value) => Number(value.acceptedOrdinal));
+  if (!assessment.length) return "failed";
+  const after = Math.min(...assessment);
+  return feedback.some(
+    (call) =>
+      FOLLOW_UP_TOOLS.has(String(call.tool)) &&
+      Number(call.ordinal) > after &&
+      sameChild(call.target, String(implementor.agentRef)),
+  )
+    ? "passed"
+    : "failed";
+}
+
+function claudeBlocks(event: Row): Row[] {
+  const message = row(event.message);
+  const content = message?.content;
+  return Array.isArray(content)
+    ? content.map(row).filter((block): block is Row => !!block)
+    : [];
+}
+
+function claudeResultText(block: Row): string {
+  const content = block.content;
+  if (typeof content === "string") return content;
+  return Array.isArray(content)
+    ? content
+        .map(row)
+        .filter(
+          (item) => item?.type === "text" && typeof item.text === "string",
+        )
+        .map((item) => String(item!.text))
+        .join("\n")
+    : "";
+}
+
+function claudeEvents(text: string | null): Row[] | null {
+  if (text === null) return null;
+  try {
+    const events = text
+      .split("\n")
+      .filter((line) => line.trim())
+      .map((line) => row(JSON.parse(line) as unknown));
+    if (events.some((event) => !event)) return null;
+    return events.some((event) => event!.type === "result")
+      ? (events as Row[])
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+// Claude: one parent Adaptive Goal Agent that is not a verification agent, a
+// later parent Agent call, then a parent SendMessage addressed to the
+// implementor by its returned id or given name. A verification agent launches
+// a Verification review coordinator or invokes the verify-change skill.
+function claudeImplementors(tools: Row[], nested: Row[] | null): Row[] {
+  const verification = new Set([
+    ...tools
+      .filter(
+        (call) =>
+          call.name === "Agent" &&
+          call.actor === "nested" &&
+          String(call.subagentType).startsWith("darrow-verification:"),
+      )
+      .map((call) => call.parentToolUseId),
+    ...(nested ?? [])
+      .filter((call) => call.skill === "verify-change")
+      .map((call) => call.ancestorToolUseId),
+  ]);
+  return tools.filter(
+    (call) =>
+      call.name === "Agent" &&
+      call.actor === "parent" &&
+      String(call.subagentType).startsWith(
+        "darrow-adaptive-goal:adaptive-goal-",
+      ) &&
+      !verification.has(call.toolUseId),
+  );
+}
+
+function sendsTo(block: Row, name: unknown, resultText: string): boolean {
+  if (block.type !== "tool_use" || block.name !== "SendMessage") return false;
+  const target = row(block.input)?.to;
+  return (
+    typeof target === "string" &&
+    target.length > 0 &&
+    (target === name || resultText.includes(target))
+  );
+}
+
+function claudeRepairReuseStatus(
+  tools: Row[] | null,
+  nested: Row[] | null,
+  text: string | null,
+): Status {
+  const events = claudeEvents(text);
+  if (!tools || !events) return "unavailable";
+  const implementors = claudeImplementors(tools, nested);
+  if (implementors.length !== 1) return "failed";
+  const id = implementors[0]!.toolUseId;
+  const blocks = events
+    .filter((event) => !event.parent_tool_use_id)
+    .flatMap(claudeBlocks);
+  const useIndex = blocks.findIndex(
+    (block) => block.type === "tool_use" && block.id === id,
+  );
+  if (useIndex < 0) return "unavailable";
+  const result = blocks.find(
+    (block) => block.type === "tool_result" && block.tool_use_id === id,
+  );
+  const name = row(blocks[useIndex]!.input)?.name;
+  const resultText = result ? claudeResultText(result) : "";
+  const laterAgent = blocks.findIndex(
+    (block, index) =>
+      index > useIndex && block.type === "tool_use" && block.name === "Agent",
+  );
+  if (laterAgent < 0) return "failed";
+  return blocks
+    .slice(laterAgent + 1)
+    .some((block) => sendsTo(block, name, resultText))
+    ? "passed"
+    : "failed";
+}
+
+function repairReuseStatus(
+  check: NativeTranscript,
+  context: NativeContext,
+): Status {
+  return context.eventId === "sevro.claude.events"
+    ? claudeRepairReuseStatus(
+        context.claudeTools,
+        context.claudeNestedSkills,
+        context.events,
+      )
+    : codexRepairReuseStatus(check, context.spawns, context.feedback);
+}
+
 type NativeContext = {
   events: string | null;
   eventId: string;
   skills: { observedSkills: string[]; evidenceRef: string } | null;
   spawns: Row[] | null;
+  feedback: Row[] | null;
   claudeTools: Row[] | null;
   claudeNestedSkills: Row[] | null;
   claudeCompletedRoutes: Row[] | null;
 };
+function hostRouteStatus(
+  check: NativeTranscript,
+  context: NativeContext,
+): Status {
+  if (context.eventId !== "sevro.claude.events")
+    return routeStatus(check, context.spawns);
+  return context.claudeCompletedRoutes === null
+    ? "unavailable"
+    : context.claudeCompletedRoutes.some((call) =>
+          check.claudeTypes?.includes(String(call.subagentType)),
+        )
+      ? "passed"
+      : "failed";
+}
+
 function status(
   check: NativeTranscript,
   values: unknown,
@@ -275,17 +478,8 @@ function status(
       : check.terms!.some((term) => events.includes(term))
         ? "failed"
         : "passed";
-  if (check.kind === "route") {
-    if (context.eventId !== "sevro.claude.events")
-      return routeStatus(check, context.spawns);
-    return context.claudeCompletedRoutes === null
-      ? "unavailable"
-      : context.claudeCompletedRoutes.some((call) =>
-            check.claudeTypes?.includes(String(call.subagentType)),
-          )
-        ? "passed"
-        : "failed";
-  }
+  if (check.kind === "route") return hostRouteStatus(check, context);
+  if (check.kind === "repair-reuse") return repairReuseStatus(check, context);
   if (check.kind === "inactive") return inactiveStatus(context);
   if (check.kind.endsWith("before-feedback"))
     return feedbackStatus(check, values, context.spawns);
@@ -312,9 +506,11 @@ export function nativeTranscriptOutcomes(
   });
 }
 
+const SPAWN_KINDS = new Set(["route", "repair-reuse"]);
+
 function transcriptRefs(check: NativeTranscript, context: NativeContext) {
   const { eventId } = context;
-  if (check.kind === "route")
+  if (SPAWN_KINDS.has(check.kind))
     return eventId === "sevro.claude.events"
       ? ["sevro.claude.tool-calls", eventId]
       : ["sevro.codex.native-calls"];

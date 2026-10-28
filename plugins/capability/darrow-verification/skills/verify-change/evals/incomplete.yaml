@@ -1,4 +1,6 @@
 id: verification-incomplete
+candidate_routes:
+  codex: { model: gpt-6.1-sol, effort: medium }
 invariant: VF-C1,VF-C3
 activation: positive
 prompt: Verify my implementation.

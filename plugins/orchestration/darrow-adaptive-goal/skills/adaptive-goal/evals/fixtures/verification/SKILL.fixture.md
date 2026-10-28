@@ -14,7 +14,7 @@ selection and initial or closed-follow-up mode. Missing required evidence blocks
 Delegate the advertised independent-code-review workflow to a fresh provider
 coordinator, carrying the repository, candidate, acceptance, constraints, current
 successful checks and assessment mode. On Codex use `spawn_agent` with
-`fork_turns: "none"`, `model: "gpt-6-luna"` and `reasoning_effort: "medium"`.
+`fork_turns: "none"`, `model: "gpt-6.1-sol"` and `reasoning_effort: "medium"`.
 The provider owns its independent readers and canonical report; do not execute
 review yourself. Wait for its complete result, read the supplied absolute report,
 and preserve any missing, unavailable or stale evidence as blocked.

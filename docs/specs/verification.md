@@ -4,10 +4,13 @@
 
 When an enclosing owner delegates verification, it selects the verification
 coordinator independently of implementation. Adaptive Goal uses at least
-Codex GPT-6.1 Sol/medium, or the explicit Claude Opus 5.5/high route. Verification's
-review-provider coordinator uses an explicit route: Codex Luna/medium or the
-plugin's Claude Sonnet 5.5/medium scoped agent, unless a compatible explicit caller
-route was supplied. Parent-model inheritance must not change those roles.
+Codex GPT-6.1 Sol/medium, or the explicit Claude Opus 5.5/high route. Verification
+owns the routes of the providers it launches; an enclosing owner does not need
+to pass them. Its review-provider coordinator uses an explicit route: Codex
+GPT-6.1 Sol/medium or the plugin's Claude Sonnet 5.5/medium scoped agent, unless
+a compatible explicit caller route was supplied. Coordination on a lower tier,
+such as Luna or Sonnet/low, is not a supported default. Parent-model inheritance
+must not change those roles.
 Review retains its own independent-reader model selection and internal delegation.
 Claude route binding must refuse conflicting model or effort environment
 overrides; a missing supported agent boundary is an evidence gap, not permission
@@ -188,6 +191,16 @@ storage, retention and required-artifact policy. Neither future capability is
 necessary for a complete review-only operation here.
 
 ## Evaluation
+
+Codex cases for this capability MUST declare `gpt-6.1-sol` at `medium` effort as
+their candidate route, including standalone and selection cases. They MUST NOT
+inherit the eval runner's lower-tier default for the Verification coordinator.
+
+Grade outward response text through the current runner's output checks, without
+depending on a retired response-file format. Retained-report cases check the
+final absolute report reference and preserve independent checks of the report's
+existence, content and provider validation. Follow-up cases also preserve
+original advisory identities in the outward response.
 
 Assessable provider composition cases MUST require a fresh provider context and its
 completed independent readers. A valid report produced by readers launched

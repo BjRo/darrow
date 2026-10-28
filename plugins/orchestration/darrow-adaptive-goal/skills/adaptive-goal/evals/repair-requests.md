@@ -1,21 +1,24 @@
 # Repair-budget request matrix
 
 The default permits at most two authorized repair attempts, with verification
-after each. Every attempt after the first requires material progress. The
-same policy applies to Codex contracts and the shipped Claude owner agents.
+after each. Every attempt after the first requires material progress. Adaptive
+Goal ships no budget calculator; the rule is arithmetic in the lifecycle
+reference.
 
-| Request                                                                        | Expected behavior                                                         |
-| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
-| Direct advice after one default repair resolved a blocker and narrowed another | Permit the second repair; withhold completion and publication until clear |
-| Retained-owner continuation after a repair caused a direct regression          | Permit a second repair within authority and verify the regression         |
-| Advice with unavailable verification evidence                                  | Stop rather than infer progress or spend another attempt                  |
-| Ordinary request to explain a repair without orchestration invocation          | Do not activate adaptive goal                                             |
-| Keep trying after two default attempts with continuing progress                | Stop on exhausted budget                                                  |
-| Explicit maximum of one or zero repairs                                        | Honor the lower limit                                                     |
-| Explicit maximum of three repairs with progress after two                      | Permit the third attempt                                                  |
-| Unchanged blockers after one repair with unused budget                         | Stop on no progress                                                       |
+| Request                                                    | Expected behavior                                      | Evidence                                                           |
+| ---------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------ |
+| Live blocking review, one repair, clear follow-up          | Repair once through the retained implementor, complete | `review-repair-rereview`, `placement-repair-reuse`                 |
+| Advice after the shared default budget is exhausted        | Stop on exhausted budget                               | `verification-shared-exhausted`                                    |
+| Advice with unavailable, stale or oscillating evidence     | Stop rather than infer progress or spend an attempt    | `verification-missing-evidence`, `-stale-evidence`, `-oscillation` |
+| Advice when the first verification is clear                | Stop repairing; unused attempts are not required       | `verification-clear-first`                                         |
+| Placement switch or replacement worker during repair       | No fresh allowance; no self-review                     | `placement-repair-allowance`, `placement-repair-self-review`       |
+| Ordinary request to explain a repair without orchestration | Do not activate adaptive goal                          | `ordinary-engineering-nonactivation`                               |
 
-Colocated advice evals exercise budget decisions. The review-composition eval
-and its fixture tests exercise actual repair/check/verification ordering and
-current-target evidence. Ticket-to-PR delegates policy selection and preserves
-explicit caller limits; it does not supply its own default.
+The budgeted-repair advice cases and the `repair-budget` calculator were
+removed with advice-mode repair procedure. Ticket-to-PR delegates policy
+selection and preserves explicit caller limits; it does not supply its own
+default.
+
+On Claude, `placement-repair-reuse-claude` is a known harness failure: Sevro
+1.0.0 does not allow `SendMessage` for Claude candidates, so the main thread
+cannot continue a retained implementor ([sevro#157](https://github.com/BjRo/sevro/issues/157)).

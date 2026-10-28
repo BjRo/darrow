@@ -1,4 +1,6 @@
 id: verification-negative
+candidate_routes:
+  codex: { model: gpt-6.1-sol, effort: medium }
 invariant: VF-C1
 activation: negative
 prompt: Explain the meaning of timeoutMs in config.json in one sentence.

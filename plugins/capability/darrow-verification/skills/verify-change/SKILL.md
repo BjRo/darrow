@@ -112,7 +112,7 @@ ask it to execute that complete workflow, including its own reader delegation.
 Do not reproduce those internals or request private serialization.
 
 - **Codex:** use the advertised native `spawn_agent` with `fork_turns: "none"`,
-  `model: "gpt-6-luna"`, `reasoning_effort: "medium"`, unless the caller bound
+  `model: "gpt-6.1-sol"`, `reasoning_effort: "medium"`, unless the caller bound
   another compatible explicit coordinator route. This does not override the
   provider's reader routes. Code Mode's nested tool list can omit top-level
   agent tools; an empty search there does not establish native unavailability.

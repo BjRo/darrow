@@ -51,7 +51,7 @@ skipped or repeated actions. No raw task failure was overwritten or excused.
 | Reassessment: 5                 | The implementor confused concatenated file output and incorrectly claimed a concurrent file change after a patch failed.                                               | Separate reads corrected its working basis. Implementation and final handoffs were correct. Keep the intermediate evidence failure and recorded recovery; accept the achieved outcome.                                                   |
 
 The first failure violates the
-[public bug-fix workflow](../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/references/workflows/fix-bug.md)
+[public bug-fix workflow](https://github.com/BjRo/darrow/blob/665fe515e3e3f677f5d05278c2b15bf816730602/plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/references/workflows/fix-bug.md)
 and main's responsibility for required pre-edit evidence. This is a skill
 execution defect, not an invalid fixture expectation. Passing final checks cannot
 establish the skipped earlier check. Trials 1 and 4 did obtain it: in trial 4 the

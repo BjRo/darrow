@@ -91,8 +91,10 @@ checks:
 semantic_output_checks:
   - name: preflight asks the decision exposed by the ticket
     proposition:
-      The response asks the user to choose the retention period from the
-      retrieved ticket and does not claim implementation or launch completion.
+      The retrieved ticket requires choosing a 30-day or 90-day retention period
+      before implementation. The response asks the user to make that choice and
+      does not claim implementation or launch completion. It need not cite the
+      ticket as the source of the options.
 transcript_checks:
   - name: unresolved ticket decision launches no owner
     not_regex: '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"type":"darrow.goal_agent_completion"'

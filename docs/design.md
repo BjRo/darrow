@@ -190,7 +190,7 @@ request + repository -> read-only preflight/readiness -> native goal in the main
 Preflight discovers applicable repository instructions and checks, turns the
 request into observable acceptance criteria and scope, reuses or obtains a
 same-scope readiness result when required, binds matching advertised skills,
-selects a task workflow and risk gate, and chooses proportionate model and
+decides the evidence and risk gate the change needs, and chooses proportionate model and
 effort for bounded implementation. The main thread retains the native goal,
 acceptance criteria, user decisions and completion responsibility. It implements
 directly when the selected route matches its own, and delegates implementation

@@ -1,0 +1,86 @@
+id: goal-placement-repair-reuse-claude
+# Claude evals run without project settings, so the fixture provider under
+# .claude/skills is not catalog-advertised; the prompt names its path instead.
+# Known harness limitation: Sevro 1.0.0 allows Claude only Bash, Read, Skill,
+# Agent and Edit, so SendMessage is unavailable and this case fails until
+# https://github.com/BjRo/sevro/issues/157 lands.
+invariant: ADL-R3,ADL-L2,ADL-L5
+goal_report: forbidden
+goal_route_checks: false
+harnesses: [claude]
+activation: positive
+mount_plugin_skills: true
+activation_includes: [verify-change]
+additional_plugins:
+  - plugins/capability/darrow-verification
+candidate_routes:
+  claude: { model: claude-sonnet-5-5, effort: medium }
+prompt: >-
+  /goal {{skill_invocation}} Add an exported clamp(value, min, max) function to src/range.js
+  with focused tests in test/range.test.js covering every rule: (1) it returns min
+  when value is below min; (2) it returns max when value is above max; (3) it
+  returns value otherwise; (4) it throws RangeError("min must not exceed max") when
+  min is greater than max. Implement it on claude-opus-5-5 with high effort. Use
+  verification with the installed independent-code-review skill at
+  .claude/skills/independent-code-review/SKILL.md before completing,
+  and repair in-scope blocking findings under the existing authorization to edit
+  src/range.js and test/range.test.js. Acceptance is that bash test.sh passes. Keep
+  the result local; commits, pushes and pull requests are not authorized.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Run `bash test.sh` for all changes.
+        package.json: '{"type":"module"}'
+        src/range.js: |
+          // Range helpers belong here.
+        test/range.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import * as range from "../src/range.js";
+          test("range module loads", () => assert.equal(typeof range, "object"));
+        test.sh: |
+          #!/usr/bin/env bash
+          node --test test/range.test.js
+  setup: >-
+    uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend"
+    adaptive-goal-fixture install review "$PWD" "{{case_dir}}/fixtures" claude &&
+    printf 'blocking\t%s\nclear\n' 'test/range.test.js has no assertion that
+    clamp(NaN, 0, 10) returns NaN, which rule 3 requires for a value that is neither
+    below min nor above max' > .git/fixture-review-sequence && printf '%s\n' 'Repair
+    guidance: add a focused assertion that clamp(NaN, 0, 10) returns NaN to
+    test/range.test.js, and make clamp satisfy it if it does not. This strengthens
+    checks of the requested behavior.' > .git/fixture-review-repair-guidance
+checks:
+  - name: clamp behavior is implemented
+    run: >-
+      node --input-type=module -e "import('./src/range.js').then(({clamp}) => { if
+      (clamp(-1, 0, 10) !== 0 || clamp(11, 0, 10) !== 10 || clamp(5, 0, 10) !== 5 ||
+      !Number.isNaN(clamp(NaN, 0, 10))) process.exit(1); try {
+      clamp(1, 5, 0); process.exit(2) } catch (error) { if (!(error instanceof
+      RangeError) || error.message !== 'min must not exceed max') process.exit(3) } })"
+  - name: repair adds the requested NaN assertion
+    run: grep -F 'NaN' test/range.test.js >/dev/null && bash test.sh >/dev/null
+  - name: blocking review is followed by clear fix verification
+    run: |
+      tail -n 20 .fixture-state/independent-review-invocations >&2
+      awk -F '\t' '
+      NR == 1 && ($2 != "blocking" || $3 != "comprehensive") { bad = 1 }
+      NR > 1 && ($2 != "clear" || $3 != "verify") { bad = 1 }
+      END { exit bad || NR < 2 }
+      ' .fixture-state/independent-review-invocations
+  - name: result stays local
+    run: test "$(git rev-list --count HEAD)" -eq 1
+semantic_output_checks:
+  - name: owner reports completion after one repair
+    proposition: >-
+      The response reports the requested outcome as complete after one repair. The
+      shell checks establish what the repair changed; the response need not name
+      the finding.
+transcript_checks:
+  - name: repair returns to the retained implementor
+    expect_regex: '"type":"darrow.codex_native_spawn"[^\n]*"model":"gpt-6.1-sol"[^\n]*"reasoning_effort":"high"[^\n]*"agent_ref":"([^"]+)"[\s\S]*"type":"darrow.codex_native_feedback"[^\n]*"agent_ref":"\1"|"name":"Agent"[\s\S]*"name":"SendMessage"'
+native_goal: required

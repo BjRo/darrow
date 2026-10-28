@@ -28,16 +28,18 @@ Diagnostics do not authorize retries, synthesized user input, model fallback or
 accepting an earlier checkpoint as completion. Unrecoverable host failures stay
 failed, with incomplete evidence labeled unknown.
 
-Current main-thread cases declare `native_goal: required|forbidden`. Grade actual
-native activation separately from child acceptance and task outcomes. A valid
-Codex app-server readback binds the original thread, goal lifecycle and a goal of
-at most 4,000 characters. Missing, malformed or failed observation cannot pass.
-Bounded multiple children and main-thread checks are valid in this architecture;
-the former single-child and parent-inactivity assertions do not apply. Other
-hosts need equivalent observed native evidence. Claude uses original-session
-native `goal_status` attachments, bound to a successful result and the observed
-session ID. A sentinel clear is not assessed completion. Headless Claude cases
-requiring activation enter through the user-visible native `/goal` command;
+Current main-thread cases declare `native_goal: required|forbidden|optional`;
+`optional` accepts either a valid observed goal or a valid observed absence
+when the contract allows both. Grade actual native activation separately from
+child acceptance and task outcomes. A valid Codex app-server readback binds the
+original thread, goal lifecycle and a goal of at most 4,000 characters.
+Missing, malformed or failed observation cannot pass. Bounded multiple children
+and main-thread checks are valid in this architecture; the former single-child
+and parent-inactivity assertions do not apply. Other hosts need equivalent
+observed native evidence. Claude uses original-session native `goal_status`
+attachments, bound to a successful result and the observed session ID. A
+sentinel clear is not assessed completion. Headless Claude cases requiring
+activation enter through the user-visible native `/goal` command;
 the runner never inserts it on the participant's behalf. Absent observation is
 a gap, not evidence of activation or nonactivation. Keep capability consumption
 and candidate correctness as separate checks.
@@ -97,6 +99,13 @@ Darrow targets the exact published Sevro `1.0.0` package and its public v1
 protocols and schemas. Current cases use observations emitted by that release;
 cases whose required evidence exists only in a retired runner are removed from
 active suites. Retained research keeps its original provenance and meaning.
+
+Current evals grade final responses through Sevro's public output or semantic
+checks. Shell checks inspect repository state and declared artifact grants;
+they must not read a retired runner's response file or materialize a compatibility
+copy. Verification handoff cases check the final absolute report reference in
+the response and validate retained report content separately. Missing references,
+relative references and prose after a required final handoff must fail.
 
 Deterministic Claude fixtures provide a valid synthetic saved OAuth login to
 Sevro's parent process. Their trial executable receives only the access token;

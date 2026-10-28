@@ -9,7 +9,7 @@ Keep overall ownership in this original thread. Use native `create_goal` with
 an objective of at most 4,000 Unicode characters: outcome, material acceptance,
 authority and completion conditions. Supply `token_budget` only if explicitly
 requested. Continue a matching active goal; never overwrite an unrelated one.
-Keep workflow, routing and coordination instructions in the skill and conversation.
+Keep evidence, routing and coordination instructions in the skill and conversation.
 An existing candidate is not an existing native goal. If `get_goal` returns no
 goal, create the first goal after all preflight decisions clear and launch is
 authorized. This retains the original main-thread owner; it is not a replacement.
@@ -36,14 +36,28 @@ Delegated implementation and repair use the preflight-selected implementation
 route. For concurrent implementation, spawn one agent per independent part,
 each with a distinct `task_name`, its owned files and the shared interface, then
 wait for all of them before integration or further assignment.
-Prepare the default Verification call with the bundled
-`adaptive-goal-preflight codex-verification-input` procedure in skill section 7.
-Use its returned native input unchanged; it pins `gpt-6.1-sol/medium` and fresh
-context. A stronger route requires existing explicit authorization.
-Pass `gpt-6-luna/medium` explicitly for review coordination through verification;
-review's independent readers retain their own `gpt-6.1-sol/xhigh` route. Do not
-replace capability internals with generic children or inherit the implementor's
-route into assessment roles.
+
+### Verification input
+
+Write the one bounded verification assignment as UTF-8 to a unique temporary
+file outside product scope. Immediately before launch, use **Adaptive Goal's
+backend bound in skill section 2** to prepare the native input:
+
+```sh
+uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" adaptive-goal-preflight codex-verification-input \
+  --task-name <unique_lowercase_name> --assignment-file <absolute-handoff-file>
+```
+
+Call native `spawn_agent` with the returned JSON object **unchanged**. The helper
+copies your handoff and fixes Verification's `model` (`gpt-6.1-sol/medium`),
+`reasoning_effort` and `fork_turns`; a provider-child route from the
+verification skill applies inside Verification only. The helper does not launch
+the agent for you. A rejected helper or native launch stops that assignment
+without fallback. Only an already authorized explicit stronger Verification
+route uses a caller-bound native invocation instead. This temporary input holds
+one assignment, not the goal or its history.
+
+### Children
 
 A fresh child reads and follows the relevant bound skills. No tool named after
 the skill is required. Include installed absolute public instruction paths;
@@ -54,13 +68,10 @@ before assigning more work. Children do not invoke Adaptive Goal, create
 overall goals, expand authority or decide overall completion. A rejected route
 does not authorize silently switching models.
 
-While delegation remains the chosen placement, reuse the accepted implementor
-for subsequent implementation and repairs. Use
-`followup_task` for an idle child or steer active work through `send_message`,
-targeting its retained identity. Supply concrete changes, findings, constraints
-and checks; keep workflow ordering and repair accounting in the main thread.
-Replace the implementor only for a concrete availability, route or scope mismatch,
-with the necessary context and prior work. Replacement or a placement switch grants no extra attempts.
+Send every repair and later implementation request to the accepted implementor:
+`followup_task` for an idle child, `send_message` for a running one, targeting
+its retained identity. Skill section 7 governs what the repair carries and when
+a replacement is allowed.
 
 ## Coordination and feedback
 
@@ -89,7 +100,7 @@ not cancel work. Cancellation stops work and reports already performed effects.
 
 ## Completion
 
-Apply section 8 of the skill before native completion. Consume actual check,
+Apply section 9 of the skill before native completion. Consume actual check,
 capability and publication evidence; resolve missing or contradictory handoffs
 through bounded clarification or correction. A child success message is not
 proof of overall completion. Report substantive conclusions in this session.

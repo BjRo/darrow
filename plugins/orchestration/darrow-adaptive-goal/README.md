@@ -50,20 +50,22 @@ internals stay inside those capabilities.
 
 Ticket delivery discovers local branches using the provider's exact opaque
 identifier through a compatible Git capability. One match is reused, several require
-an explicit choice, and no matches permits one conventional new name. The recipe
-supplies authority; Adaptive Goal chooses and the Git capability prepares.
+an explicit choice, and with no match the caller's exact name is prepared or the
+branch-creation capability names one. The recipe supplies authority; Adaptive Goal
+chooses and the Git capabilities name and prepare.
 
-## Workflows, risk and model routes
+## Evidence, risk and model routes
 
-Choose one workflow: `fix-bug`, `implement-feature`, `change-feature`,
-`refactor`, `migration` or `mechanical`. Missing decisions stop affected work.
-The main thread translates its workflow into concrete assignments and arranges
-required evidence, including a failing check before an edit when applicable.
-The implementor returns changes, check results and blockers; workflow sequencing
-and delivery bookkeeping remain with the main thread.
+The main thread decides the evidence the change needs: a failing focused check
+before changing or adding behavior, a passing baseline before restructuring,
+mapped original entrypoints for a sequenced migration, or a complete oracle for
+an exact transformation. Missing decisions stop affected work. The implementor
+returns changes, check results and blockers; sequencing and delivery bookkeeping
+remain with the main thread.
 
 Consequence risk controls assurance. Routine work omits independent review by
-default; elevated risk selects it when independent judgment is needed; high risk
+default; elevated risk selects it when independent judgment is needed, which
+always includes a sequenced consumer or persisted-format transition; high risk
 requires it. User or repository requirements can strengthen those gates.
 
 Implementation difficulty controls the bounded implementor:
@@ -102,14 +104,15 @@ are permitted with a brief hint about coordination and evidence-handling risks.
 Stronger compatible configurations are allowed. Model selection alone does not
 guarantee reliable coordination or complete evidence.
 
-Verification coordination is explicitly GPT-6.1 Sol/medium or stronger. Review
-coordination stays Luna/medium, while review's independent readers stay GPT-6.1 Sol/xhigh.
-Parent-model inheritance and the implementation route must not change these roles.
+Verification coordination is explicitly GPT-6.1 Sol/medium or stronger.
+Adaptive Goal binds only that route. Verification owns the routes of the
+providers it launches, such as review coordination, and review owns its
+independent readers. Parent-model inheritance and the implementation route must
+not change these roles.
 
 Claude uses the same architecture. Its implementation policy selects scoped
-Sonnet 5.5/low, Sonnet 5.5/medium or Opus 5.5/high agents. Verification coordination uses
-Opus 5.5/high; review coordination uses Sonnet 5.5/medium and preserves review's own
-reader routes. Claude has lighter validation than Codex; these routes are not
+Sonnet 5.5/low, Sonnet 5.5/medium or Opus 5.5/high agents. Verification
+coordination uses Sonnet 5.5/medium; verification chooses its own internal routes. Claude has lighter validation than Codex; these routes are not
 claimed to be measured equivalents.
 
 ## Verification and repairs
@@ -120,20 +123,21 @@ thread waits for every selected result, checks criterion coverage, and preserves
 the complete evidence before authorizing a combined repair.
 
 The default maximum is **two implementation repair attempts total**, shared
-across providers and findings. Each attempt refreshes checks and obtains fresh
-closed-set verification. Preserve finding identities, prior reports, candidate
-history and direct repair-caused regressions. When repairs are delegated, reuse
-the same implementor while it remains available and fits the route and scope. Send concrete
-repair instructions without handing over workflow state or attempt accounting.
-Replacement children and comprehensive
+across providers and findings. Each attempt refreshes checks and requests
+follow-up through verification, which owns finding identity and history.
+
+Placement is decided once. A repair goes back to the implementor that produced
+the candidate, which already holds the task context: the main thread after direct
+work, otherwise the retained child through `SendMessage` (Claude) or
+`followup_task`/`send_message` (Codex). Only verification starts fresh. A
+replacement implementor is used only when the retained one is unavailable or no
+longer fits the route or scope. Replacement children and comprehensive
 reassessment never reset the allowance. Clear evidence ends repair immediately;
 further attempts require progress and remaining budget. Explicit finite overrides
 and stricter authority, invocation, time or token limits still apply.
 
-A concrete assessment error or new evidence can justify a correction at unchanged
-code. Use the provider's public correction contract and retain the earlier report
-and full history. Fresh evidence must support the new conclusion. Correction
-neither spends nor resets implementation repair attempts.
+An assessment that is itself wrong goes back to verification's correction
+contract. Correction neither spends nor resets implementation repair attempts.
 
 Missing, stale, contradictory or inconclusive required evidence blocks completion
 and dependent publication. A passing review alone cannot cover unassessed criteria.
@@ -195,8 +199,7 @@ Prefix commands with
 
 ```text
 adaptive-goal-preflight prepare --repo <path> --host <codex|claude>
-adaptive-goal-preflight route --repo <path> --host <codex|claude> --profile <profile> [--route <tuple>]
-adaptive-goal-preflight placement --repo <path> --host <codex|claude> --selected-route <tuple> [--main-route <tuple>]
+adaptive-goal-preflight route --repo <path> --host <codex|claude> --profile <profile> [--route <tuple>] [--main-route <tuple>]
 claude-agent-route --provider anthropic --model <model> --effort <effort>
 host-config-doctor codex --config <path> [--project-root <path>] --backend <v1|v2|unknown> --context <effective|isolated-eval>
 host-config-doctor claude [--version <installed-version>]
