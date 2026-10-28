@@ -55,6 +55,13 @@ identity. Unsupported or ambiguous cases fail explicitly.
 `bun test evals/domain/case-resolution.test.ts` verifies all canonical cases
 resolve. That check establishes neither host execution nor task success.
 
+An `output_checks` entry with `reported_head: true` compares the commit named
+in the actual final response with Sevro's captured final Git revision. It
+accepts full IDs or prefixes of at least seven hexadecimal characters and
+requires `expect_head_change` so Git evidence is captured. Missing, partial,
+duplicate or malformed observations remain unavailable. Remote publication and
+CI state need their own fixture checks; no response-file adapter is created.
+
 ## Runtime configuration
 
 Sevro reads the repository's [`sevro.json`](../../sevro.json) for every case in

@@ -2,13 +2,14 @@
 
 `ticket-to-pr` is an explicitly invoked shortcut for the request users would
 otherwise give adaptive-goal: read and implement one exact ticket in the
-current repository on a new branch, then open one verified pull request when
-the change is ready.
+current repository on a new branch using TDD, open one verified pull request,
+and hand over with required CI checks green on its final commit. Use a linked
+worktree only when requested.
 
 The recipe owns only that bounded authority envelope and one adaptive-goal
 delegation. `adaptive-goal` owns readiness, capability binding, route selection,
 the main-thread goal, bounded implementation, verification, review, publication, blockage,
-and same-owner human feedback through the main thread. Ticket-to-PR performs no
+CI observation and same-owner human feedback through the main thread. Ticket-to-PR performs no
 ticket read, repository preflight, Git or forge work, lifecycle bookkeeping, or
 post-goal inspection of its own.
 
@@ -17,7 +18,9 @@ override, adaptive-goal supplies its default repair budget; the recipe
 does not define a separate retry policy.
 
 Completion includes the owner's evidence that the remote branch and open PR
-both point at the intended verified commit. Reusing an existing URL therefore
+both point at the intended verified commit, plus passing required CI checks
+for that commit. Pending, failed, unavailable, absent or stale checks cannot
+support a green-CI claim. Reusing an existing URL therefore
 requires publishing any additional intended local commits without force;
 the recipe still chooses no publication command or capability.
 
@@ -29,8 +32,8 @@ stops completion without recipe-owned retry or recovery.
 
 ## When to use
 
-Use this explicit shortcut for one exact ticket, a new branch, implementation,
-verification, and one PR. Do not use it for ticket browsing, bulk delivery,
+Use this explicit shortcut for one exact ticket, a new branch, TDD,
+verification, one PR and green required CI. Do not use it for ticket browsing, bulk delivery,
 or work that lacks an exact ticket reference.
 
 Local Artificer may use the deliberate unattended entry with a saved recurring
@@ -65,13 +68,13 @@ Choose `ticket-to-pr` in Codex's `$` menu, or use
 `/darrow-ticket-to-pr:ticket-to-pr` in Claude Code, and supply the exact ticket:
 
 ```text
-Use ticket-to-pr to implement the ticket reference I supplied and open one PR.
+$ticket-to-pr <ticket-id-or-url>
 ```
 
 ## Expected result
 
 One delegated ticket-delivery outcome, with owner evidence for the intended
-commit, remote branch, and open PR. The recipe itself performs no preflight
+commit, remote branch, open PR and green required CI. The recipe itself performs no preflight
 or publication. Feedback continues through the same owner.
 
 ## Safety boundaries

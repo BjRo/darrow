@@ -17,7 +17,8 @@ checks:
       git diff --exit-code
 output_checks:
   - name: reports the missing adaptive boundary
-    expect_regex: "launch_required[\\s\\S]*adaptive-goal|adaptive-goal[\\s\\S]*launch_required"
+    expect_regex: "launch_required[\\s\\S]*adaptive[ -]goal|adaptive[ -]goal[\\s\\S]*launch_required"
+    flags: i
 transcript_checks:
   - name: recipe does not substitute delivery work for adaptive goal
     not_regex: '(?:"name":"Skill"[^\n]*(?:read-ticket|assess-implementation-readiness|prepare-task-branch)|"type":"darrow.skill_read_probe"[^\n]*"skill":"(?:read-ticket|assess-implementation-readiness|prepare-task-branch)|"tool":"spawn_agent"|"name":"Agent")'

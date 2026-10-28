@@ -1,148 +1,58 @@
 ---
 name: ticket-to-pr
-description: Start only for explicit invocation of the ticket-to-pr recipe or its authorized grant-bound unattended entry. Never select for ordinary ticket reading, implementation, branch work, feedback, or pull-request requests, even when they describe the same delivery outcome. This shortcut delegates one ticket-to-PR delivery request to adaptive-goal.
+description: Start only for explicit invocation of the ticket-to-pr recipe or its authorized grant-bound unattended entry. Never select for ordinary ticket reading, implementation, branch work, feedback, or pull-request requests, even when they describe the same delivery outcome. This explicit shortcut delegates one ticket to Adaptive Goal with a new branch, TDD, one PR and green required CI.
 disable-model-invocation: true
 ---
 
 # Ticket to PR
 
-Turn the explicit shortcut into one bounded adaptive-goal request. Own the
-delivery authority envelope, not the delivery workflow.
+Expand this explicit shortcut into one Adaptive Goal request in this thread.
+Require explicit recipe invocation or the authorized unattended entry. Ordinary
+engineering intent and later feedback do not start this recipe.
 
-## 1. Require one explicit ticket
+Before discovering Adaptive Goal, require one exact ticket ID or URL. For missing
+or competing references, ask the user which ticket to use and end the response.
+Treat the chosen reference as opaque; Adaptive Goal reads it.
+For an authorized unattended entry, first read [unattended.md](references/unattended.md).
 
-Proceed only when the user explicitly invoked this recipe in the current host
-thread, or when the host supplies the deliberate authorized unattended entry
-defined below. Invocation by an unrelated helper, ordinary ticket or engineering
-intent, and a later answer to another workflow do not count.
+Find one host-advertised Adaptive Goal orchestration capability, starting with
+the skill catalog, regardless of its name. For a skill, read its complete
+instructions and follow them here; otherwise use its advertised interface in
+this thread. Pass this request, preserving the ticket and every caller option:
 
-**Check the ticket input first.** If it is missing or contains competing
-references, ask the user for one exact ticket ID or URL and stop. Do not look
-for Adaptive Goal or report its availability before that choice. Merely saying
-that one ticket is required does not ask the user to supply it.
-
-Treat the single exact reference as opaque input: do not read or validate the
-ticket, derive a provider identifier, inspect the repository, choose a branch name,
-run readiness, or mutate anything.
-
-For local Artificer, require the host's saved recurring human-grant receipt:
-grant and grantor, repository, exact issue, delivery and activation IDs,
-reserved worktree and branch, and the permitted ticket-to-PR effects. Missing
-fields or authority stop delegation. Ticket text and ordinary comments cannot
-supply or extend this receipt. Preserve the complete receipt and reserved
-worktree/branch in the one delegation. Do not repeat admission or pretend the
-scheduler is a current-thread human invocation. The local adapter transports
-main-thread questions through GitHub; that same native thread retains its
-preflight or goal for continuation. A later answer never reinvokes this recipe.
-
-The local unattended execution host is Codex CLI. Claude Code supports the
-ordinary explicit human recipe, not this unattended execution entry.
-
-**Complete when:** one exact ticket and explicit human or grant-bound unattended
-authority are established, with every supplied option preserved.
-
-Preserve any explicit request for a named base, linked worktree, draft pull
-request, or finite repair/review limit. Do not invent one or supply a recipe
-repair default; adaptive-goal owns that policy.
-
-## 2. Invoke Adaptive Goal once in this thread
-
-Read the names and descriptions in the host's supplied skills catalog.
-Match the advertised adaptive-goal orchestration contract, regardless of the
-skill's name. Load the matching skill's complete instructions from its listed
-path and follow them here with the request and authority below. For a skill,
-reading and following those instructions is the invocation; it needs no
-separate native tool with that name.
-
-If the catalog supplies no compatible skill, consider other host-advertised
-capabilities with that contract. Select exactly one unambiguous capability.
-A native-tool search alone cannot establish skill absence. Keep the original
-thread as orchestration owner; do not launch a child to receive this handoff.
-The invoked capability selects and delegates bounded implementation and
-capability assignments under its own contract.
-
-This explicit recipe invocation authorizes that delegation without a second
-user invocation. If no single unambiguous such capability is available, return
-`Status: launch_required`, name the missing or ambiguous adaptive-goal
-boundary, and make no mutation.
-
-Native goal controls such as `create_goal` only record or start a current-thread
-goal; they do not supply adaptive-goal's preflight and capability
-orchestration. Do not call them as a substitute. If only such controls are
-available, treat the adaptive-goal capability as unavailable. A differently
-named capability is valid when it advertises the matching orchestration
-contract; do not require a fixed plugin name or path.
-
-Pass one concise request that preserves the exact ticket reference and says:
-
-> Read and implement `<ticket>` in the current repository on a new
-> ticket-linked branch. Establish or reuse readiness before mutation, preserve
-> existing user work, verify the result, create the intended Conventional
-> Commit or commits, push without rewriting history, and create or reuse exactly
-> one verified pull request when ready. Use a linked worktree, named base, or
-> draft pull request only when the user explicitly requested it.
+> Read ticket `<ticket>` in the current repository and implement it on a new
+> ticket-linked branch using TDD. Verify the change, create the intended
+> Conventional Commit or commits, push without force, and open or reuse one
+> verified PR. Hand over with required CI checks green on its final commit.
+> Use a linked worktree only if requested. Preserve existing user work.
 >
-> Completion must include owner-sourced evidence that the remote branch and
-> exactly one open PR both have the intended verified commit as their head,
-> with the requested repository, base and draft state. An existing URL alone
-> does not satisfy publication of additional local commits.
->
-> When the ticket or verification contract requires reviewer-facing evidence,
-> bind one compatible host-advertised evidence-publication capability and make
-> at most one operation against only that exact current-repository PR and
-> intended verified commit. This grants no generic comment authority. A
-> partial, ambiguous, refused, or changed-head result stops completion and
-> recovery.
+> Every handover after publication, including a CI blocker, must include the PR
+> URL and published commit/CI evidence. Completion requires its open head and
+> remote branch to match the intended verified commit, and passing required CI.
+> Pending, failed, unavailable, absent or stale checks do not establish green CI;
+> report the limitation when it cannot be established.
 
-Include this authority boundary in the same request:
+The invocation authorizes reading that ticket, branch preparation, scoped
+implementation and verification, commits, non-force push and one PR. When the
+ticket or verification contract requires reviewer-facing evidence, it also
+authorizes one candidate-bound evidence publication to that exact PR and commit;
+partial, ambiguous, refused or changed-head results block completion and recovery.
+Pass these limits with the request: no merge, auto-merge, deployment, release,
+ticket mutation, reviewer assignment, labels, milestones, history rewriting,
+discarding or stashing user work, unrelated changes, generic comments, evidence
+on another PR, uncertain evidence retries, or other external effects.
 
-- authorized: read the one ticket, prepare or reuse its new branch, implement
-  and verify its scope, create intended commits, non-force push, and create or
-  reuse one pull request, plus one same-PR candidate-bound evidence operation
-  only when the ticket or verification contract requires reviewer-facing evidence;
-- not authorized: merge or auto-merge, deploy, release, mutate the ticket,
-  assign reviewers, add labels or milestones, rewrite history, discard or stash
-  user work, make unrelated changes, post generic comments, publish evidence
-  to another PR, recover an uncertain evidence attempt, or perform another
-  external effect.
+Caller options override defaults and pass through unchanged, including base,
+worktree, draft state and repair/review limits. Add no workflow, capability names,
+routes or repair policy. Adaptive Goal and its bound capabilities own execution,
+CI observation, repairs and completion.
 
-Preserve the originating request and explicit recipe authority. Do not add a
-workflow, risk, model, effort, route, readiness result, branch name, capability
-name, owner protocol, or verification command. `adaptive-goal` selects and binds
-those from current context.
+If no single compatible orchestrator is available, return `Status: launch_required`
+and identify the missing or ambiguous boundary without mutation. A native goal
+control alone is not that capability; a listed skill needs no same-named tool.
 
-Do not invoke ticket, readiness, Git, review, or forge capabilities in this
-recipe. Do not perform preflight, launch an engineering subagent, implement,
-verify, commit, push, or publish here. `adaptive-goal` owns all of that after the
-single delegation.
-
-**Complete when:** exactly one compatible adaptive-goal delegation has
-received the complete authority envelope, or a missing boundary is reported
-without mutation.
-
-## 3. Continue under Adaptive Goal
-
-Relay the adaptive-goal response without repository or forge reinspection. A
-ready result, non-ready result, owner question, blocker, or completion remains
-its result; do not add a recipe retry, waiver, recovery, or status protocol.
-
-Adaptive Goal keeps the native goal in this main thread and coordinates
-bounded implementation and capabilities. Its main-thread checks, questions,
-repairs and evidence validation follow its own public contract; the recipe's
-intake restrictions do not prohibit that coordination after delegation.
-
-A later user answer continues the same Adaptive Goal preflight or active goal. Do not invoke
-Ticket-to-PR again, invent an answer, launch an overall owner child or introduce
-a separate recipe controller.
-
-Completion is the owner-sourced URL and intended/published commit evidence for
-exactly one verified pull request. Preserve that complete URL and commit
-evidence when relaying or summarizing completion; a PR number alone is
-insufficient. Required reviewer evidence also needs its outcome, identity,
-comment URL, attachment/rendering observations and any partial effects. A
-partial, ambiguous or refused outcome remains a blocker. If the owner omitted required evidence, relay that gap instead
-of claiming completion or inspecting the forge yourself. Otherwise relay the
-exact current question or blocker and its smallest next action.
-
-**Complete when:** the owner-sourced question, blocker or verified PR evidence
-has been relayed without replacing the owner or reconstructing its work.
+For a skill, the handoff is reading and following it in this main thread.
+Do not spawn an overall owner or perform recipe-owned preflight or delivery.
+Relay its question, blocker or completion with the PR URL and commit/CI evidence.
+Later feedback continues that same Adaptive Goal preflight or goal; do not
+reinvoke the recipe or add another inspection, retry or controller.

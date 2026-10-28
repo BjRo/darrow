@@ -1,5 +1,5 @@
 id: ticket-to-pr-feedback-relay
-invariant: TPR-C2,TPR-C3,TPR-C4,TPR-C5,TPR-C6,TPR-C7,TPR-P2
+invariant: TPR-C2,TPR-C3,TPR-C4,TPR-C5,TPR-C6,TPR-C7,TPR-C9,TPR-P2
 expect_head_change: true
 adaptive_goal_composition: true
 activation: positive
@@ -9,6 +9,7 @@ activation_sequence:
   - adaptive-goal
 additional_plugins:
   - plugins/orchestration/darrow-adaptive-goal
+  - plugins/capability/darrow-tdd
 prompt: >-
   {{skill_invocation}} https://example.invalid/tickets/42
   Verify the change by running `bash test.sh`.
@@ -223,6 +224,7 @@ fixture:
       printf '%s\n' 'Pull request: https://example.invalid/pull/42' 'Repository: fixture/repository' "Head: $branch" 'Base: main' 'Draft: false' 'Open pull requests: 1'
       printf 'Remote head: %s\nForge head: %s\n' "$remote_head" "$remote_head"
   setup: |
+    bash "{{case_dir}}/fixtures/setup-ci.sh" "{{case_dir}}/fixtures"
     git init --bare .fixture-state/remote.git >/dev/null
     git remote add origin "$PWD/.fixture-state/remote.git"
     { git rev-parse HEAD; git diff --binary HEAD; git ls-files --others --exclude-standard; } >.git/feedback-product-before
@@ -301,6 +303,10 @@ checks:
     run: test -s .fixture-state/feedback-product-unchanged && test "$(cat
       .fixture-state/feedback-product-unchanged)" = "$(printf
       'discover\nacknowledge')"
+  - name: required CI was observed for the final commit
+    run: |
+      expected=$(git rev-parse HEAD)
+      grep -Fx "$(printf '%s\t%s' "$expected" success)" .fixture-state/ci-observations
 output_checks:
   - name: completion identifies the one pull request
     expect_regex: "https://example\\.invalid/pull/42"

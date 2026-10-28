@@ -27,6 +27,11 @@ import {
   reviewOutputOutcomes,
 } from "./review-output";
 import {
+  reportedHeadCheck,
+  reportedHeadPolicy,
+  reportedHeadOutcomes,
+} from "./reported-head";
+import {
   commonSkillActivation,
   commonSkillActivationClaims,
   commonSkillExposureClaims,
@@ -399,6 +404,11 @@ async function outputCheck(
   skillDir: string | null,
 ) {
   const check = record(entry, `output check ${index + 1}`);
+  const reportedHead = reportedHeadCheck(check, index);
+  if (reportedHead) {
+    string(check.name, `output check ${index + 1} name`);
+    return reportedHead;
+  }
   const review = reviewOutputCheck(check, index);
   if (review) {
     string(check.name, `output check ${index + 1} name`);
@@ -1705,6 +1715,7 @@ async function caseAssessment(
     configuration.withoutSkill,
   );
   const reviewOutput = reviewOutputPolicy(selected);
+  const reportedHead = reportedHeadPolicy(selected);
   return {
     policy: {
       ...policy,
@@ -1714,6 +1725,7 @@ async function caseAssessment(
           ...benchmark.requiredEvidence,
           ...hooks.requiredEvidence,
           ...reviewOutput.requiredEvidence,
+          ...reportedHead.requiredEvidence,
         ]),
       ],
       details: {
@@ -1721,6 +1733,7 @@ async function caseAssessment(
         ...benchmark.details,
         ...hooks.details,
         ...reviewOutput.details,
+        ...reportedHead.details,
       },
     },
     checks: [
@@ -6192,6 +6205,7 @@ async function evaluateCase(params: RecordValue) {
     ...guideDisclosureOutcomes(details.disclosureChecks, params.observations),
     ...caseBenchmarkChecks(details, params),
     ...reviewOutputOutcomes(details.reviewOutputChecks, params.observations),
+    ...reportedHeadOutcomes(details.reportedHeadChecks, params.observations),
     ...workflow.checks,
   ];
   const domainOutcomes = workflow.domainOutcomes;
@@ -6277,6 +6291,7 @@ if (import.meta.main) {
               "darrow.evals.benchmark",
               "darrow.evals.plugin-hook",
               "darrow.evals.review-output",
+              "darrow.evals.reported-head",
             ],
             taskVerdictPolicies: [],
           }

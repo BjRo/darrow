@@ -17,6 +17,32 @@ const plugin = new URL(
 );
 const cases = new URL("skills/ticket-to-pr/evals/", plugin);
 
+test("unavailable orchestration oracle accepts the advertised name and rejects missing boundary evidence", async () => {
+  const source = new URL("adaptive-goal-unavailable.yaml", cases);
+  const canonical = await readFixtureCase(source);
+  for (const [finalMessage, passes] of [
+    [
+      "Status: launch_required. I could not find a host-advertised Adaptive Goal orchestration skill. Native goal controls alone do not meet that boundary.",
+      true,
+    ],
+    [
+      "Status: launch_required. The adaptive-goal capability is unavailable.",
+      true,
+    ],
+    ["Status: launch_required. Supply a ticket reference.", false],
+    ["The Adaptive Goal capability is available; work will continue.", false],
+  ] as const) {
+    const result = await runFixtureChecks({
+      source,
+      checks: [],
+      outputChecks: canonical.output_checks,
+      finalMessage,
+    });
+    expect(result.exitCode, result.diagnostic).toBe(passes ? 0 : 1);
+    expect(result.value.task.verdict).toBe(passes ? "passed" : "failed");
+  }
+}, 20_000);
+
 function assertPassed(result: Awaited<ReturnType<typeof runFixtureChecks>>) {
   expect(
     result.exitCode,
@@ -173,6 +199,7 @@ test("feedback fixture permits readiness reassessment and a valid selected branc
   const result = await runFixtureChecks({
     source,
     fixture,
+    fixtureAssets: plugin,
     checks: [
       {
         name: "authoritative ticket is read",
@@ -206,7 +233,7 @@ test("feedback fixture permits readiness reassessment and a valid selected branc
       },
       {
         name: "scoped implementation is committed and published",
-        run: "printf '%s\\n' 'export const identity = (value) => value;' 'export const migrationMode = () => \"strict\";' >src/migration.js && fixture-create-commit && fixture-create-pr",
+        run: "printf '%s\\n' 'export const identity = (value) => value;' 'export const migrationMode = () => \"strict\";' >src/migration.js && fixture-create-commit && fixture-create-pr && bash .git/fixture-bin/fixture-ci \"$(git rev-parse HEAD)\"",
       },
       ...checks,
       {
