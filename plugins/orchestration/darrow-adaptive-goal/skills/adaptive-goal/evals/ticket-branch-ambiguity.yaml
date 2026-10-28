@@ -29,9 +29,10 @@ checks:
 semantic_output_checks:
   - name: asks for explicit selection among existing matches
     proposition:
-      The response asks the user to choose exactly one of fix/DAR-123-original
-      and feat/DAR-123-other before delivery proceeds, without treating the proposed new
-      suffix as a selection or claiming implementation occurred.
+      The response asks the user to choose one of fix/DAR-123-original and
+      feat/DAR-123-other. It neither adopts nor offers the proposed
+      feat/DAR-123-new-suffix as an option and does not claim implementation
+      occurred.
 activation_includes:
   - prepare-task-branch
 native_goal: forbidden

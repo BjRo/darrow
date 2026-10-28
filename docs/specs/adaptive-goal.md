@@ -384,8 +384,7 @@ exact opaque `ticket-id`, and refresh it right before preparation. One match is
 reused even when a proposed name differs; several matches require one explicit
 user choice before any mutation. A suggested new name is not that choice and
 is not offered as an option: before any native goal exists, the response asks
-the user to pick one listed match and states that delivery resumes after that
-answer. With none, an exact caller-supplied name is
+the user to pick one listed match. With none, an exact caller-supplied name is
 prepared, otherwise the branch-creation capability names a new branch from the
 ticket ID. Missing compatible discovery stops preparation; raw Git is not a
 fallback. Worktrees need explicit authority, and a task recipe such as
