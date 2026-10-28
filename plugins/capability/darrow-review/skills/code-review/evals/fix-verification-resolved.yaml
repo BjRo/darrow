@@ -64,10 +64,10 @@ fixture:
     cp .git/verification-input .fixture-state/verification-input
     git status --porcelain --untracked-files=all >.git/status-before
     git hash-object src/config.js >.git/config-before
-checks:
+output_checks:
   - name: human response excludes machine JSON
-    run: python3 .git/eval-checks/review/tests/evals/assert_records.py
-      .git/last-message.md human-response
+    review_format: human
+checks:
   - name: verification preserves the repair bytes
     run:
       git hash-object src/config.js >.git/config-after; cmp .git/config-before

@@ -35,10 +35,10 @@ fixture:
     cp .git/verification-input .fixture-state/verification-input
     git hash-object config.env >.git/config-before
     git status --porcelain --untracked-files=all >.git/status-before
-checks:
+output_checks:
   - name: human response excludes machine JSON
-    run: python3 .git/eval-checks/review/tests/evals/assert_records.py
-      .git/last-message.md human-response
+    review_format: human
+checks:
   - name: second verification remains read only
     run: >-
       git hash-object config.env >.git/config-after && cmp .git/config-before

@@ -19,10 +19,10 @@ fixture:
     git add main-only.txt
     git commit -qm 'feat: main side'
     git checkout -q feature
-checks:
+output_checks:
   - name: human response excludes machine JSON
-    run: python3 .git/eval-checks/review/tests/evals/assert_records.py
-      .git/last-message.md human-response
+    review_format: human
+checks:
   - name: branch review remains read-only
     run: test -z "$(git status --porcelain --untracked-files=all)"
   - name: canonical JSON is retained beneath the review scope artifact

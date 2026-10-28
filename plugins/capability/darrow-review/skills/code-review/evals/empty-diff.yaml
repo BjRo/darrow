@@ -10,10 +10,10 @@ fixture:
         README.md: "# Clean fixture\n"
   setup: |
     bash "{{case_dir}}/fixtures/prepare-grading.sh" "{{case_dir}}"
-checks:
+output_checks:
   - name: human response excludes machine JSON
-    run: python3 .git/eval-checks/review/tests/evals/assert_records.py
-      .git/last-message.md human-response
+    review_format: human
+checks:
   - name: clean repository remains clean
     run: test -z "$(git status --porcelain --untracked-files=all)"
   - name: canonical JSON is retained beneath the review scope artifact

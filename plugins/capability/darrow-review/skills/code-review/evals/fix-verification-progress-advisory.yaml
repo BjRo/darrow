@@ -52,10 +52,10 @@ fixture:
     cp .git/verification-input .fixture-state/verification-input
     git status --porcelain --untracked-files=all >.git/status-before
     git hash-object src/value.js >.git/value-before
-checks:
+output_checks:
   - name: human response excludes machine JSON
-    run: python3 .git/eval-checks/review/tests/evals/assert_records.py
-      .git/last-message.md human-response
+    review_format: human
+checks:
   - name: progress verification remains read only
     run: >-
       git status --porcelain --untracked-files=all >.git/status-after && diff -u

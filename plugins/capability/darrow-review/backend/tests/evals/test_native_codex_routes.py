@@ -20,8 +20,16 @@ def prepared(tmp_path: Path) -> Path:
     return view
 
 
-def test_current_capture_accepts_bound_completed_readers(tmp_path: Path) -> None:
-    verify_codex(prepared(tmp_path), AGENTS, ROUTE)
+@pytest.mark.parametrize("version", ["v1", "v2"])
+def test_current_capture_accepts_bound_completed_readers(
+    tmp_path: Path, version: str
+) -> None:
+    view = prepared(tmp_path)
+    index_path = view / "index.json"
+    index = json.loads(index_path.read_text())
+    index["format"] = f"sevro.native-transcripts.{version}"
+    index_path.write_text(json.dumps(index))
+    verify_codex(view, AGENTS, ROUTE)
 
 
 def earlier_events(tmp_path: Path, *, inherited: bool = False) -> list[dict[str, Any]]:
@@ -83,6 +91,7 @@ def test_unrelated_implementation_child_in_earlier_turn_is_allowed(
         "bad hash",
         "duplicate file",
         "escaping path",
+        "unknown version",
     ],
 )
 def test_current_capture_rejects_invalid_index(tmp_path: Path, mutation: str) -> None:
@@ -95,6 +104,7 @@ def test_current_capture_rejects_invalid_index(tmp_path: Path, mutation: str) ->
         "bad hash": lambda: index["files"][0].update(sha256="0" * 64),
         "duplicate file": lambda: index["files"].append(index["files"][0]),
         "escaping path": lambda: index["files"][0].update(path="../../outside.jsonl"),
+        "unknown version": lambda: index.update(format="sevro.native-transcripts.v9"),
     }
     actions[mutation]()
     (view / "index.json").write_text(json.dumps(index))

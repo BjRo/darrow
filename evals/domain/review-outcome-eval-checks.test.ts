@@ -236,8 +236,8 @@ function render(record: string, bindPrevious = false): OracleCheck[] {
     ),
     ...(bindPrevious ? [bindPreviousVerification()] : []),
     {
-      name: "render the canonical report and final response",
-      run: `${state}\n${renderCommand} ${artifactPath(`${artifacts}/verification.json`)} >${artifactPath(`${artifacts}/verification.md`)} && cp ${artifactPath(`${artifacts}/verification.md`)} .git/last-message.md`,
+      name: "render the canonical report",
+      run: `${state}\n${renderCommand} ${artifactPath(`${artifacts}/verification.json`)} >${artifactPath(`${artifacts}/verification.md`)}`,
     },
   ];
 }
@@ -358,7 +358,7 @@ for (const shell of ["bash", "/bin/bash"]) {
         const actions: OracleCheck[] = [];
         for (const variant of [
           "canonical",
-          "matching summaries",
+          "summary reports",
           "empty reports",
           "stale artifact",
         ] as const) {
@@ -389,7 +389,7 @@ for (const shell of ["bash", "/bin/bash"]) {
               file === "fix-verification-regression-second-round",
             ),
           );
-          if (variant === "matching summaries" || variant === "empty reports") {
+          if (variant === "summary reports" || variant === "empty reports") {
             const summary =
               variant === "empty reports"
                 ? "\n"
@@ -398,11 +398,6 @@ for (const shell of ["bash", "/bin/bash"]) {
               write(
                 "replace report with a summary",
                 `${artifacts}/verification.md`,
-                summary,
-              ),
-              write(
-                "replace final response with the same summary",
-                ".git/last-message.md",
                 summary,
               ),
             );
@@ -417,12 +412,6 @@ for (const shell of ["bash", "/bin/bash"]) {
                 ? [bindPreviousVerification()]
                 : []),
             );
-          } else {
-            // Existing presentation gates intentionally ignore blank lines.
-            actions.push({
-              name: "remove blank lines from the final response",
-              run: "awk 'NF' .git/last-message.md >.git/normalized-message && mv .git/normalized-message .git/last-message.md",
-            });
           }
           actions.push(
             await oracleCheck(
