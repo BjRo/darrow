@@ -313,6 +313,14 @@ branch and published branch rather than imposing an unrequested fixed name.
 The exact feedback acknowledgement, mutation boundary, scoped implementation,
 intended commit and one-PR publication requirements remain intact.
 
+The successful-feedback fixture advertises branch creation separately from
+exact-name preparation. Its creation capability documents the conventional
+ticket-linked format and permits correcting input rejected before mutation.
+Validation failures explain the accepted format and create no branch or success
+receipt. One successful branch creation is required; failed validation is not
+another creation. Safety refusals and Git failures still stop the operation,
+and an exact caller-bound preparation name is not silently replaced.
+
 ## Non-goals
 
 - Ticket-provider resolution, canonical-ID handling, or branch naming.
