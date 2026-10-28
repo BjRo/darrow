@@ -59,12 +59,12 @@ checks:
         printf '%s\n' "$invalid" >.git/invalid.json
         ! node "$mechanic" .git/invalid.json
       done
-  - name: package tests pass with the target toolchain
+  - name: package test script passes without a network package-manager shim
     run: |
       plugin=plugins/schema-helper
       tests=$(find "$plugin" \( -name node_modules -o -name .pnpm -o -name dist -o -name build \) -prune -o -type f \( -name '*.test.js' -o -name '*.test.mjs' -o -path '*/test/*.js' -o -path '*/test/*.mjs' -o -path '*/tests/*.js' -o -path '*/tests/*.mjs' \) -print)
       test -n "$tests"
-      cd "$plugin" && pnpm test
+      cd "$plugin" && node --run test
   - name: workflow keeps semantic judgment in the skill
     run: cat plugins/schema-helper/skills/validate-capability-manifest/SKILL.md
     expect_regex: "clear|specific|audience|semantic|meaning|quality"

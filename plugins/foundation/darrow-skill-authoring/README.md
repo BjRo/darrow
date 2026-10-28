@@ -8,6 +8,10 @@ Claude Code and Codex:
 - `audit-agent-skill` reviews an existing skill or named draft without edits and
   returns findings with evidence and repair acceptance criteria.
 
+Both skills share [`references/writing.md`](references/writing.md), the
+plugin's guide to writing agent-facing prose. Creation drafts and prunes with
+it; audit reports writing findings against it.
+
 ## When to use
 
 Use creation when you need a new reusable agent skill. Use audit when you need

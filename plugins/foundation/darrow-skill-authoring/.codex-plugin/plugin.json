@@ -1,6 +1,6 @@
 {
   "name": "darrow-skill-authoring",
-  "version": "0.3.3",
+  "version": "0.4.1",
   "description": "Create and audit reliable cross-runtime agent skills",
   "author": {
     "name": "Björn Rochel",

@@ -34,6 +34,19 @@ narrow public entrypoints, declare the supported runtime range, and separate
 runtime dependencies from quality and test tools according to the target's
 established conventions.
 
+### UV packages
+
+When the target uses a UV package, put its actual runtime command in the
+created `SKILL.md`: `uv` with
+`run --frozen --no-dev --project <contained-package> <entrypoint>`. Decide the
+package location before scaffolding. When the package serves only the new
+skill and the target rules put one-skill packages inside the skill, place it
+under that skill directory rather than at plugin root. Check the path against
+those rules and the documented command, not only an equivalent ad hoc test
+command. Declare the test runner in the development dependency group, lock
+it, and run tests from the contained package environment; a globally
+installed runner is not evidence that the packaged tests work.
+
 Invoke public operations through the target's locked package command. Prefer a
 host-provided installed skill directory when one skill owns the helper, and do
 not add a launcher solely to calculate that package location. Retain a small
