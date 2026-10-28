@@ -1131,7 +1131,11 @@ The following invariants govern adaptation and evidence provenance:
   the owner a direct-review bypass. Every material acceptance
   criterion needs current evidence or an explicit gap; missing selected evidence,
   stale candidates and provider passes without complete coverage cannot clear
-  completion or remaining publication. Unselected optional providers add no gate.
+  completion or remaining publication. A selected provider that returns
+  unavailable leaves verification incomplete, not clear, even when the others
+  are clear; the next action investigates the cause within existing authority or
+  obtains the user's environment decision before reassessment, never a
+  speculative repair. Unselected optional providers add no gate.
   Compile this dependency inline before launch: the owner receives and validates
   the bound verification capability's complete, current-content clear assessment
   before invoking a dependent commit or publisher. Their local readiness cannot
