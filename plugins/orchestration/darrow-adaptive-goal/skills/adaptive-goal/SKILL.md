@@ -108,9 +108,8 @@ retrieved and nothing has changed.
 
 For ticket delivery that needs a task branch, find existing branches through the
 Git capability's exact `ticket-id` discovery, refreshed right before preparing.
-One match: reuse it. Several: before creating the native goal, end the turn
-asking the user to pick one of those exact branches. A suggested or new name is
-not among the options, and nothing is mutated. None:
+One match: reuse it. Several: ask the user to pick one of those exact branches
+before any mutation; a suggested or new name is not among the options. None:
 prepare the caller's exact name, else let the branch-creation capability name it.
 
 Select readiness semantically:

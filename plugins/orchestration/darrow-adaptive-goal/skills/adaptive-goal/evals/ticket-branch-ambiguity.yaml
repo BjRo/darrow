@@ -35,4 +35,4 @@ semantic_output_checks:
       occurred.
 activation_includes:
   - prepare-task-branch
-native_goal: forbidden
+native_goal: optional

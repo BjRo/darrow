@@ -28,16 +28,18 @@ Diagnostics do not authorize retries, synthesized user input, model fallback or
 accepting an earlier checkpoint as completion. Unrecoverable host failures stay
 failed, with incomplete evidence labeled unknown.
 
-Current main-thread cases declare `native_goal: required|forbidden`. Grade actual
-native activation separately from child acceptance and task outcomes. A valid
-Codex app-server readback binds the original thread, goal lifecycle and a goal of
-at most 4,000 characters. Missing, malformed or failed observation cannot pass.
-Bounded multiple children and main-thread checks are valid in this architecture;
-the former single-child and parent-inactivity assertions do not apply. Other
-hosts need equivalent observed native evidence. Claude uses original-session
-native `goal_status` attachments, bound to a successful result and the observed
-session ID. A sentinel clear is not assessed completion. Headless Claude cases
-requiring activation enter through the user-visible native `/goal` command;
+Current main-thread cases declare `native_goal: required|forbidden|optional`;
+`optional` accepts either a valid observed goal or a valid observed absence
+when the contract allows both. Grade actual native activation separately from
+child acceptance and task outcomes. A valid Codex app-server readback binds the
+original thread, goal lifecycle and a goal of at most 4,000 characters.
+Missing, malformed or failed observation cannot pass. Bounded multiple children
+and main-thread checks are valid in this architecture; the former single-child
+and parent-inactivity assertions do not apply. Other hosts need equivalent
+observed native evidence. Claude uses original-session native `goal_status`
+attachments, bound to a successful result and the observed session ID. A
+sentinel clear is not assessed completion. Headless Claude cases requiring
+activation enter through the user-visible native `/goal` command;
 the runner never inserts it on the participant's behalf. Absent observation is
 a gap, not evidence of activation or nonactivation. Keep capability consumption
 and candidate correctness as separate checks.
