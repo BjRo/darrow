@@ -88,7 +88,7 @@ attempted original key and receives the verifier's own guidance. Resolution
 depends on required behavior, including valid alternative repairs, rather than
 adoption of the original suggestion. Advisories never keep the gate open.
 
-In **step 3**, pass raw fix-reader records and `--original "$original_input"`
+In the main skill's **finalization phase**, pass raw fix-reader records and `--original "$original_input"`
 to finalization. It preserves findings and checks, carries permitted prior
 states, copies verifier evidence, assigns stable regression identities/order,
 and saves `verification.json` plus `verification.md`. No coordinator-written

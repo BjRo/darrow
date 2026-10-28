@@ -13,8 +13,6 @@ fixture:
 checks:
   - name: ordinary edit intent is fulfilled
     run: grep -F 'DEFAULT_TIMEOUT_MS = 2500' src/config.js
-  - name: no review artifact was returned
-    run: "! grep -F 'darrow-review-result-v3' .git/last-message.md"
   - name: no coordinated review artifact is created
     run: |
       export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}"

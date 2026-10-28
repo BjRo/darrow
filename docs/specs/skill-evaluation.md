@@ -107,6 +107,18 @@ copy. Verification handoff cases check the final absolute report reference in
 the response and validate retained report content separately. Missing references,
 relative references and prose after a required final handoff must fail.
 
+Review presentation output checks consume the complete public final-message
+observation. Human checks reject embedded canonical review or verification JSON.
+Machine checks compare the parsed response with the canonical artifact through
+the digest of a named successful shell check's normalized JSON output. Object
+key order and whitespace do not affect equality; array order and field values
+do. Missing, duplicate, partial, foreign or failed evidence remains unavailable.
+The shell check reads only the original artifact grant and never writes a
+response compatibility file.
+Review route oracles accept the published native transcript view versions 1
+and 2. They validate the materialized files against the index hashes and retain
+the same completeness, identity, route and completion requirements.
+
 Deterministic Claude fixtures provide a valid synthetic saved OAuth login to
 Sevro's parent process. Their trial executable receives only the access token;
 the saved login is not copied into the trial's configuration directory.

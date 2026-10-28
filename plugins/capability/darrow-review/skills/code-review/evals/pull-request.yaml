@@ -25,10 +25,10 @@ fixture:
     bash "{{case_dir}}/fixtures/prepare-grading.sh" "{{case_dir}}"
     git status --porcelain --untracked-files=all >.git/status-before
     test ! -s .git/status-before
-checks:
+output_checks:
   - name: human response excludes machine JSON
-    run: python3 .git/eval-checks/review/tests/evals/assert_records.py
-      .git/last-message.md human-response
+    review_format: human
+checks:
   - name: pull-request review does not mutate Git state
     run: |
       git status --porcelain --untracked-files=all >.git/status-after

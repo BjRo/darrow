@@ -22,6 +22,11 @@ import { TICKETCTL } from "../fixture-ticket";
 import { caseCandidateRoutes } from "./suite-routes";
 import { pluginHookPolicy, pluginHookChecks } from "./plugin-hook";
 import {
+  reviewOutputCheck,
+  reviewOutputPolicy,
+  reviewOutputOutcomes,
+} from "./review-output";
+import {
   commonSkillActivation,
   commonSkillActivationClaims,
   commonSkillExposureClaims,
@@ -394,6 +399,11 @@ async function outputCheck(
   skillDir: string | null,
 ) {
   const check = record(entry, `output check ${index + 1}`);
+  const review = reviewOutputCheck(check, index);
+  if (review) {
+    string(check.name, `output check ${index + 1} name`);
+    return review;
+  }
   keys(
     check,
     [
@@ -1694,6 +1704,7 @@ async function caseAssessment(
     skillDir,
     configuration.withoutSkill,
   );
+  const reviewOutput = reviewOutputPolicy(selected);
   return {
     policy: {
       ...policy,
@@ -1702,9 +1713,15 @@ async function caseAssessment(
           ...policy.requiredEvidence,
           ...benchmark.requiredEvidence,
           ...hooks.requiredEvidence,
+          ...reviewOutput.requiredEvidence,
         ]),
       ],
-      details: { ...policy.details, ...benchmark.details, ...hooks.details },
+      details: {
+        ...policy.details,
+        ...benchmark.details,
+        ...hooks.details,
+        ...reviewOutput.details,
+      },
     },
     checks: [
       ...(await caseChecks(selected, root, skillDir)),
@@ -6174,6 +6191,7 @@ async function evaluateCase(params: RecordValue) {
     ...pluginHookChecks(details.requiredPluginHook, params.observations),
     ...guideDisclosureOutcomes(details.disclosureChecks, params.observations),
     ...caseBenchmarkChecks(details, params),
+    ...reviewOutputOutcomes(details.reviewOutputChecks, params.observations),
     ...workflow.checks,
   ];
   const domainOutcomes = workflow.domainOutcomes;
@@ -6258,6 +6276,7 @@ if (import.meta.main) {
               "darrow.evals.disclosure",
               "darrow.evals.benchmark",
               "darrow.evals.plugin-hook",
+              "darrow.evals.review-output",
             ],
             taskVerdictPolicies: [],
           }

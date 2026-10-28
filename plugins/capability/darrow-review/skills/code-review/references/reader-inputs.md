@@ -93,6 +93,6 @@ a desired finding/verdict, new scope or other-axis reasoning.
 
 Keep initial acceptance evidence and validate the corrected record through the
 same gates. On Claude reverify the continued child's transcript route using new
-observed/application filenames as described in `reader-routing.md`.
+observed/application filenames as described in [claude-readers.md](claude-readers.md).
 Unavailable continuation, changed route/input, or another invalid record blocks
 that axis; no replacement reader or second correction is permitted.

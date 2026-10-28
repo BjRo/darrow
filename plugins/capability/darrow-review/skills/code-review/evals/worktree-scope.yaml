@@ -20,10 +20,10 @@ fixture:
     printf 'staged\nunstaged\n' >staged.txt
     printf 'untracked\n' >untracked.txt
     git status --porcelain --untracked-files=all >.git/status-before
-checks:
+output_checks:
   - name: human response excludes machine JSON
-    run: python3 .git/eval-checks/review/tests/evals/assert_records.py
-      .git/last-message.md human-response
+    review_format: human
+checks:
   - name: every declared layer remains unchanged
     run: |
       git status --porcelain --untracked-files=all >.git/status-after

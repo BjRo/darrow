@@ -558,6 +558,16 @@ axis and report `not_available`. Do not invent requirements.
     native delegation authority at the launch step and keeps schemas and rare
     failure details out of that required reading path. A partial tool read is
     incomplete instruction exposure, never proof that the workflow was followed.
+    Each phase ends with a checkable state for its bound inputs, independent
+    evidence, or retained result. Host-specific launch mechanics and recovery
+    commands live behind conditional references. Shared rules have one owner;
+    generated launch fields need no second prose inventory. Presentation follows
+    CR-C16 on normal and exceptional paths, including faithful paraphrases.
+    Standards inputs retain applicable repository agent instructions; the bundled
+    heuristic baseline applies where those instructions are silent.
+    Native acceptance binds one child for that axis through completion or its
+    permitted same-child diagnostic correction; cancellation does not reopen
+    that axis for another launch.
     The coordinator chooses scope, authoritative sources, applicable authorized
     checks, and the next action; independent readers retain every review judgment.
     Successful scope preparation and check capture are inputs, not a completed

@@ -29,11 +29,8 @@ Materialize `review.md` beside `result.json` using the bundled renderer and
 confirm that it is readable and nonempty. This artifact preserves every field
 and escapes hostile content. The default session response is a self-contained
 inline review grounded in those validated artifacts. Follow the main skill's
-presentation gate: preserve findings, outcome, advisory constraints, and
-important gaps while allowing concise paraphrases and ordinary Markdown.
-An artifact link does not replace the explanation, and no link is required.
-Only an explicit raw JSON, v3, or machine request returns the complete validated
-JSON, without prose. This applies to passing, failing, and blocked outcomes.
+[presentation rule](../SKILL.md#4-finalize-and-present) for passing, failing and
+blocked outcomes.
 
 In composed use, return the findings and outcome to the goal owner. When you
 also own that goal, retain the report and resume its authorized continuation

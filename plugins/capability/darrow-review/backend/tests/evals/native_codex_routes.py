@@ -38,7 +38,10 @@ def payloads(rows: list[dict[str, Any]], kind: str) -> list[tuple[int, dict[str,
 
 def sessions(view: Path) -> tuple[str, dict[str, list[dict[str, Any]]]]:
     index = decode((view / "index.json").read_text(encoding="utf-8"))
-    assert index.get("format") == "sevro.native-transcripts.v1"
+    assert index.get("format") in {
+        "sevro.native-transcripts.v1",
+        "sevro.native-transcripts.v2",
+    }, "unsupported native transcript view"
     assert (index.get("host"), index.get("role")) == ("codex", "candidate")
     assert index.get("completeness") == "complete" and index.get("issues") == []
     root = index.get("rootSessionId")
