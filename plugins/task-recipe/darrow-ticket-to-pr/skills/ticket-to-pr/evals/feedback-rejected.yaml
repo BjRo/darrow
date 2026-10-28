@@ -1,4 +1,8 @@
 id: ticket-to-pr-feedback-rejected
+candidate_routes:
+  codex:
+    model: gpt-6.1-sol
+    effort: medium
 invariant: TPR-C2,TPR-C3,TPR-C4,TPR-C5,TPR-C6,TPR-C7,TPR-P2
 expect_head_change: false
 adaptive_goal_composition: true

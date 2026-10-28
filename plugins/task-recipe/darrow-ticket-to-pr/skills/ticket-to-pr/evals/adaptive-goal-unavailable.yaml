@@ -1,4 +1,8 @@
 id: ticket-to-pr-adaptive-goal-unavailable
+candidate_routes:
+  codex:
+    model: gpt-6.1-sol
+    effort: medium
 activation: positive
 invariant: TPR-C2,TPR-C4,TPR-C7
 goal_report: forbidden

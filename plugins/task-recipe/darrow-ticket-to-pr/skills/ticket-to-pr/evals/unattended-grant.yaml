@@ -1,4 +1,8 @@
 id: ticket-to-pr-unattended-grant
+candidate_routes:
+  codex:
+    model: gpt-6.1-sol
+    effort: medium
 harnesses: [codex]
 activation: positive
 mount_plugin_skills: true

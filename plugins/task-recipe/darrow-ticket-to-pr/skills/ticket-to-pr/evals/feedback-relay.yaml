@@ -1,4 +1,8 @@
 id: ticket-to-pr-feedback-relay
+candidate_routes:
+  codex:
+    model: gpt-6.1-sol
+    effort: medium
 invariant: TPR-C2,TPR-C3,TPR-C4,TPR-C5,TPR-C6,TPR-C7,TPR-C9,TPR-P2
 expect_head_change: true
 adaptive_goal_composition: true

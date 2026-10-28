@@ -1,4 +1,8 @@
 id: ticket-to-pr-compatible-command
+candidate_routes:
+  codex:
+    model: gpt-6.1-sol
+    effort: medium
 activation: positive
 mount_plugin_skills: true
 invariant: TPR-C2,TPR-C3,TPR-C4,TPR-C6,TPR-C7,TPR-C9,TPR-P1
@@ -47,7 +51,7 @@ semantic_artifact:
         one verified PR and required CI green on the final commit. It excludes
         merge, deployment, release, ticket mutation, destructive Git operations,
         unrelated changes and generic comments. A worktree is optional unless
-        requested. Adaptive Goal owns delivery.
+        requested.
 output_checks:
   - name: command blocker is relayed
     expect_regex: compatible-command-observed

@@ -197,6 +197,9 @@ despite that unresolved prerequisite.
 4. **TPR-C4 — Adaptive ownership.** `adaptive-goal` alone owns preflight,
    readiness, capability bindings, role routes, bounded implementation,
    review, publication execution, blockage, and completion.
+   The delegated request need not repeat ownership already established by the
+   receiving capability's advertised contract; evaluate the actual handoff and
+   recipe behavior instead.
 5. **TPR-C5 — Main-thread human loop.** Questions reach the user through the
    main thread and answers return to the same retained preflight or active goal
    without recipe reinvocation or a replacement owner. An unresolved preflight
