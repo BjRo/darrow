@@ -62,10 +62,14 @@ still apply. Deterministic fixtures make no live model claim.
 
 CI uses [.github/workflows/sevro-integration.yml](../../.github/workflows/sevro-integration.yml).
 The automatic job installs the frozen pin and runs the complete Darrow gate on
-macOS with Node 24, Bun 1.3.13, UV and the pinned Codex sandbox prerequisite.
+Ubuntu 24.04 with Node 24, Bun 1.3.13, UV and the pinned native Codex sandbox.
+The runner setup installs and probes bubblewrap isolation and provisions
+ripgrep, socat and zsh. Native checks also execute on supported macOS hosts;
+missing prerequisites fail instead of silently omitting those checks.
 It retains installed-package and lock identity plus verification logs.
 The manual job downloads an exact published version, checks its reviewed SHA-256
-and runs the archive gate. It publishes nothing and runs no live models.
+and runs the archive gate on the same Ubuntu environment. It publishes nothing
+and runs no live models. See the [runner setup guidance](../../docs/eval-development.md#installed-sevro-verification).
 
 Native isolation checks require the relevant host sandbox. Unsupported or
 skipped platform combinations are not verified. Extend the matrix and retain
