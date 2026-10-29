@@ -1,0 +1,61 @@
+id: ticket-to-pr-compatible-command
+candidate_routes:
+  codex:
+    model: gpt-6.1-sol
+    effort: medium
+activation: positive
+mount_plugin_skills: true
+invariant: TPR-C2,TPR-C3,TPR-C4,TPR-C6,TPR-C7,TPR-C9,TPR-P1
+goal_report: forbidden
+expect_head_change: false
+prompt: >-
+  {{skill_invocation}} https://example.invalid/tickets/42
+  This host advertises the executable bounded-delivery on PATH as an Adaptive
+  Goal orchestration interface, not a skill. Its public contract is available
+  through `bounded-delivery --describe`. No matching orchestration skill is
+  installed. Preserve the same main-thread handoff and authority.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+  bin:
+    bounded-delivery: |
+      #!/usr/bin/env bash
+      set -eu
+      test "$#" -eq 1
+      if test "$1" = --describe; then
+        printf '%s\n' \
+          'Contract: Adaptive Goal orchestration for one bounded delivery in the original main thread, owning preflight, native goal, implementation, verification and completion.' \
+          'Interface: bounded-delivery <complete-request-as-one-argument>' \
+          'This fixture accepts one recipe delegation and returns a blocker before preflight or goal activation. Do not launch a child or perform delivery.'
+        exit 0
+      fi
+      printf '%s\n' "$1" >.fixture-state/command-request.md
+      printf '%s\n' accepted >>.fixture-state/command-delegations
+      printf '%s\n' 'Status: blocked' 'Reason: compatible-command-observed'
+checks:
+  - name: compatible command receives one delegation
+    run: test "$(wc -l <.fixture-state/command-delegations | tr -d ' ')" -eq 1
+  - name: recipe remains read-only
+    run: >-
+      test "$(git branch --show-current)" = main &&
+      test "$(git rev-list --count HEAD)" -eq 1 && git diff --exit-code
+semantic_artifact:
+  path: .fixture-state/command-request.md
+  checks:
+    - name: command receives the complete delivery envelope
+      proposition: >-
+        The request preserves https://example.invalid/tickets/42, new-branch
+        delivery using TDD, verification, intended commits, non-force push,
+        one verified PR and required CI green on the final commit. It excludes
+        merge, deployment, release, ticket mutation, destructive Git operations,
+        unrelated changes and generic comments. A worktree is optional unless
+        requested.
+output_checks:
+  - name: command blocker is relayed
+    expect_regex: compatible-command-observed
+transcript_checks:
+  - name: no engineering owner is launched for the fixture handoff
+    not_regex: '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"name":"Agent"'
+native_goal: forbidden

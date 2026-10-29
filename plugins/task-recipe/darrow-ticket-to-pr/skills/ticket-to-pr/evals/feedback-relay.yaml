@@ -1,5 +1,9 @@
 id: ticket-to-pr-feedback-relay
-invariant: TPR-C2,TPR-C3,TPR-C4,TPR-C5,TPR-C6,TPR-C7,TPR-P2
+candidate_routes:
+  codex:
+    model: gpt-6.1-sol
+    effort: medium
+invariant: TPR-C2,TPR-C3,TPR-C4,TPR-C5,TPR-C6,TPR-C7,TPR-C9,TPR-P2
 expect_head_change: true
 adaptive_goal_composition: true
 activation: positive
@@ -9,6 +13,7 @@ activation_sequence:
   - adaptive-goal
 additional_plugins:
   - plugins/orchestration/darrow-adaptive-goal
+  - plugins/capability/darrow-tdd
 prompt: >-
   {{skill_invocation}} https://example.invalid/tickets/42
   Verify the change by running `bash test.sh`.
@@ -76,10 +81,30 @@ fixture:
 
       For read-only ticket-ID discovery, run `fixture-discover-branches DAR-42` and
       return the complete list. For exact preparation, run
-      `fixture-prepare-branch '<selected branch>'` once after the coordinator
-      selected that complete ticket-linked name. Preserve that choice.
+      `fixture-prepare-branch '<selected branch>'` for an already bound exact
+      name of the form `<type>/DAR-42-<lowercase-kebab-suffix>`, at most 60
+      characters. Preserve the caller's exact name; relay a refusal and stop.
+      For new work without an exact bound name, use the branch-creation skill.
       Never prepare a branch during discovery.
     .agents/skills/prepare-task-branch/SKILL.md: *prepare_branch
+    .claude/skills/create-branch/SKILL.md: &create_branch |
+      ---
+      name: create-branch
+      description: Create one new ticket-linked branch from a work description, choosing its conventional name and preserving existing work.
+      ---
+
+      # Create the fixture branch
+
+      Choose `<type>/DAR-42-<lowercase-kebab-suffix>` for the requested work,
+      preserving the exact ticket ID DAR-42 once. Types: feat, fix, refactor,
+      perf, docs, test, chore, build, ci, style, revert. The complete name must
+      be at most 60 characters. Honor an explicitly supplied valid name.
+      Run `fixture-create-branch '<selected branch>'` from the repository root.
+      Correct invalid input and retry: validation exits 5 before mutation.
+      A safety refusal or Git failure stops the operation; do not choose a
+      variant to bypass an existing branch or discard, stash, or rewrite work.
+      Create exactly one branch successfully and return its complete output.
+    .agents/skills/create-branch/SKILL.md: *create_branch
     .claude/skills/create-commit/SKILL.md: &create_commit |
       ---
       name: create-commit
@@ -150,11 +175,20 @@ fixture:
     fixture-prepare-branch: |
       #!/usr/bin/env bash
       set -eu
-      test "$#" -eq 1
-      test "${#1}" -le 60
-      grep -Eq '^[a-z][a-z0-9-]*/DAR-42-[a-z0-9]+(-[a-z0-9]+)*$' <<< "$1"
-      git check-ref-format --branch "$1" >/dev/null
-      test ! -e .fixture-state/branch-invocations
+      if test "$#" -ne 1; then
+        printf '%s\n' 'Invalid input: provide one complete branch name.' >&2
+        exit 5
+      fi
+      if test "${#1}" -gt 60 ||
+        ! grep -Eq '^(feat|fix|refactor|perf|docs|test|chore|build|ci|style|revert)/DAR-42-[a-z0-9]+(-[a-z0-9]+)*$' <<< "$1" ||
+        ! git check-ref-format --branch "$1" >/dev/null; then
+        printf '%s\n' 'Invalid branch name: expected <type>/DAR-42-<lowercase-kebab-suffix>, at most 60 characters. Preserve DAR-42 exactly once.' >&2
+        exit 5
+      fi
+      if test -e .fixture-state/branch-invocations; then
+        printf '%s\n' 'Safety refusal: a branch was already prepared; preserve it.' >&2
+        exit 1
+      fi
       if git show-ref --verify --quiet "refs/heads/$1"; then
         git switch "$1"
       else
@@ -162,6 +196,18 @@ fixture:
       fi
       printf '%s\n' "$1" >>.fixture-state/branch-invocations
       printf 'branch: %s\n' "$1"
+    fixture-create-branch: |
+      #!/usr/bin/env bash
+      set -eu
+      if test "$#" -ne 1; then
+        printf '%s\n' 'Invalid input: provide one complete branch name.' >&2
+        exit 5
+      fi
+      if git show-ref --verify --quiet "refs/heads/$1"; then
+        printf '%s\n' 'Safety refusal: the requested branch already exists; do not choose a variant.' >&2
+        exit 1
+      fi
+      fixture-prepare-branch "$1"
     decisionctl: |
       #!/usr/bin/env bash
       set -eu
@@ -223,6 +269,7 @@ fixture:
       printf '%s\n' 'Pull request: https://example.invalid/pull/42' 'Repository: fixture/repository' "Head: $branch" 'Base: main' 'Draft: false' 'Open pull requests: 1'
       printf 'Remote head: %s\nForge head: %s\n' "$remote_head" "$remote_head"
   setup: |
+    bash "{{case_dir}}/fixtures/setup-ci.sh" "{{case_dir}}/fixtures"
     git init --bare .fixture-state/remote.git >/dev/null
     git remote add origin "$PWD/.fixture-state/remote.git"
     { git rev-parse HEAD; git diff --binary HEAD; git ls-files --others --exclude-standard; } >.git/feedback-product-before
@@ -252,7 +299,7 @@ checks:
           exit 1
         }
       ' .fixture-state/ticket-feedback-trace
-  - name: delivery prepares the exact ticket branch once
+  - name: delivery records one successful ticket branch preparation
     run: |
       cat .fixture-state/branch-invocations
       test "$(wc -l <.fixture-state/branch-invocations | tr -d ' ')" -eq 1
@@ -301,6 +348,10 @@ checks:
     run: test -s .fixture-state/feedback-product-unchanged && test "$(cat
       .fixture-state/feedback-product-unchanged)" = "$(printf
       'discover\nacknowledge')"
+  - name: required CI was observed for the final commit
+    run: |
+      expected=$(git rev-parse HEAD)
+      grep -Fx "$(printf '%s\t%s' "$expected" success)" .fixture-state/ci-observations
 output_checks:
   - name: completion identifies the one pull request
     expect_regex: "https://example\\.invalid/pull/42"

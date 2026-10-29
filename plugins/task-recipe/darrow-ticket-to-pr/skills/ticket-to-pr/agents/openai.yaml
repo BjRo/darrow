@@ -1,6 +1,6 @@
 interface:
   display_name: "Ticket to PR"
-  short_description: "Delegate one ticket-to-PR shortcut"
+  short_description: "One ticket, TDD, a PR and green CI"
   default_prompt: "Use $ticket-to-pr with one ticket ID or URL."
 policy:
   allow_implicit_invocation: false

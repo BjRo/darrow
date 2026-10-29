@@ -1,4 +1,8 @@
 id: ticket-to-pr-explicit-options-delegation
+candidate_routes:
+  codex:
+    model: gpt-6.1-sol
+    effort: medium
 activation: positive
 mount_plugin_skills: true
 activation_sequence:

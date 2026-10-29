@@ -1,0 +1,123 @@
+id: ticket-to-pr-ci-failure
+candidate_routes:
+  codex:
+    model: gpt-6.1-sol
+    effort: medium
+invariant: TPR-C3,TPR-C4,TPR-C6,TPR-C7,TPR-C9,LC-C1,LC-C3,LC-C4,GW-P9
+expect_head_change: true
+adaptive_goal_composition: true
+activation: positive
+mount_plugin_skills: true
+activation_sequence:
+  - ticket-to-pr
+  - adaptive-goal
+additional_plugins:
+  - plugins/orchestration/darrow-adaptive-goal
+  - plugins/capability/darrow-readiness-gate
+  - plugins/capability/darrow-git
+  - plugins/capability/darrow-tdd
+prompt: >-
+  {{skill_invocation}} https://example.invalid/tickets/42
+  Reuse fix/GH-42-timeout and its existing PR; publish the additional intended commits.
+  Verify the change by running `bash check.sh`.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          Run `bash check.sh` for this local configuration change.
+          Preserve NOTES.md, which contains committed delivery notes.
+        config.json: '{"timeoutMs":1000}'
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          test "$(cat config.json)" = '{"timeoutMs":2500}'
+  files:
+    .agents/skills/fetch-work-item/SKILL.md: >
+      ---
+
+      name: fetch-work-item
+
+      description: Read one exact authoritative ticket for the current repository
+      without mutation. Use when ticket content is needed for assessment or
+      implementation.
+
+      ---
+
+
+      # Fetch the work item
+
+
+      Run `fetch-work-item <exact-reference>` and return the complete output.
+    .claude/skills/fetch-work-item/SKILL.md: >
+      ---
+
+      name: fetch-work-item
+
+      description: Read one exact authoritative ticket for the current repository
+      without mutation. Use when ticket content is needed for assessment or
+      implementation.
+
+      ---
+
+
+      # Fetch the work item
+
+
+      Run `fetch-work-item <exact-reference>` and return the complete output.
+  bin:
+    fetch-work-item: >
+      #!/usr/bin/env bash
+
+      set -eu
+
+      test "$#" = 1
+
+      test "$1" = https://example.invalid/tickets/42
+
+      printf '%s\n' 'ticket-id: GH-42' \
+        'Outcome: config.json must contain {"timeoutMs":2500}. Trailing newlines are insignificant.' \
+        'Acceptance: bash check.sh passes; preserve the committed NOTES.md.' \
+        'Delivery branch: reuse fix/GH-42-timeout in the current checkout.' \
+        'Existing open PR: https://github.com/fixture/repo/pull/42, into main, ready for review.' \
+        'Publication provider: use the advertised ship-proposal capability for this delivery.'
+  setup: |
+    bash "{{case_dir}}/fixtures/setup-composition.sh" "{{case_dir}}/fixtures" replacement
+    printf '%s\n' failure >.git/fixture-ci-state
+checks:
+  - name: ticket implementation meets acceptance
+    run: bash check.sh
+  - name: additional commits and intended implementation reach the existing PR branch
+    run:
+      test "$(git rev-parse HEAD)" = "$(git --git-dir=.fixture-state/remote.git rev-parse
+      refs/heads/fix/GH-42-timeout)" && git merge-base --is-ancestor "$(cat
+      .git/original-local-head)" HEAD && test "$(git --git-dir=.fixture-state/remote.git show
+      fix/GH-42-timeout:config.json)" = '{"timeoutMs":2500}' && test "$(git
+      --git-dir=.fixture-state/remote.git show fix/GH-42-timeout:NOTES.md)" = "$(cat NOTES.md)"
+  - name: forge observation proves the intended final commit
+    run: grep -Fx "$(git rev-parse HEAD)" .fixture-state/forge-observations
+  - name: failed required CI was observed on the final published commit
+    run: |
+      expected=$(git rev-parse HEAD)
+      grep -Fx "$(printf '%s\t%s' "$expected" failure)" .fixture-state/ci-observations
+  - name: no duplicate PR or unauthorized forge effect
+    run: test ! -e .fixture-state/forbidden-forge-effects
+  - name: compatible replacement publishes the same intended commit
+    run: grep -Fx "$(git rev-parse HEAD)" .fixture-state/replacement-publications
+output_checks:
+  - name: owner reports the intended commit evidence
+    reported_head: true
+semantic_output_checks:
+  - name: failed remote CI blocks handover
+    proposition: >-
+      The response identifies https://github.com/fixture/repo/pull/42 but
+      reports delivery blocked or incomplete because required remote CI failed
+      due to an unavailable runner requiring maintainer action. It does not
+      claim green CI or completed delivery merely because local checks passed
+      and the PR was published.
+# Composition is gated by accepted handoff, executed publication and artifacts.
+# Full supporting-skill activation remains a separate reported observation.
+transcript_checks:
+  - name: bound publisher is invoked
+    expect_regex: (?:"type":"darrow.skill_read_probe"[^\n]*"skill":"ship-proposal"[^\n]*"status":"completed"|"name":"Skill"[^\n]*"skill":"[^"]*ship-proposal")
+native_goal: required

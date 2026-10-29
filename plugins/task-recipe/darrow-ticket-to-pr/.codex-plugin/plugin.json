@@ -1,12 +1,12 @@
 {
   "name": "darrow-ticket-to-pr",
-  "version": "0.5.20",
-  "description": "Delegate one explicit ticket-to-PR delivery, including required same-PR reviewer evidence",
+  "version": "0.6.2",
+  "description": "Delegate one ticket to Adaptive Goal: new branch, TDD, one PR and green required CI",
   "skills": "./skills/",
   "interface": {
     "displayName": "Darrow -> Ticket to PR",
     "shortDescription": "Deliver one ticket as one pull request",
-    "longDescription": "Ticket to PR preserves one ticket-delivery authority envelope and delegates it once to adaptive-goal, including at most one candidate-bound reviewer-evidence publication when the ticket or verification contract requires it.",
+    "longDescription": "A thin Adaptive Goal shortcut: implement one exact ticket on a new branch using TDD, open one verified PR, and hand over with required CI green on its final commit. Use a worktree only when requested.",
     "developerName": "Björn Rochel",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],

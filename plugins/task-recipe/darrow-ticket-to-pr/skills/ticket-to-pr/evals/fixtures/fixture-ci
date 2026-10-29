@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+test "$#" = 1
+repo=$(git rev-parse --show-toplevel)
+branch=$(git branch --show-current)
+head=$(git rev-parse HEAD)
+remote=$(git ls-remote origin "refs/heads/$branch" | awk '{print $1}')
+test "$1" = "$head"
+test "$remote" = "$head"
+IFS= read -r state <"$repo/.git/fixture-ci-state"
+printf '%s\t%s\n' "$head" "$state" >>"$repo/.fixture-state/ci-observations"
+printf 'required-ci: %s\ncommit: %s\n' "$state" "$head"
+case "$state" in
+  success) printf '%s\n' 'check: fixture-unit-tests' 'result: passed' ;;
+  failure)
+    printf '%s\n' 'check: fixture-unit-tests' \
+      'reason: remote CI runner is unavailable; maintainer action is required'
+    exit 1
+    ;;
+  pending|unavailable|absent|stale) exit 1 ;;
+  *) printf '%s\n' 'invalid fixture CI state' >&2; exit 64 ;;
+esac

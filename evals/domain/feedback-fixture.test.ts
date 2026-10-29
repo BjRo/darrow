@@ -10,6 +10,7 @@ const source = new URL(
   import.meta.url,
 );
 const rejectionSource = new URL("feedback-rejected.yaml", source);
+const plugin = new URL("../../../", source);
 const evalCase = await readFixtureCase(source);
 const deliveryChecks = evalCase.checks.filter((check) =>
   check.name.startsWith("delivery "),
@@ -21,6 +22,7 @@ test.each([source, rejectionSource])(
   async (caseSource) => {
     const result = await runFixtureChecks({
       source: caseSource,
+      fixtureAssets: plugin,
       checks: [
         {
           name: "discovery accepts unchanged product state",

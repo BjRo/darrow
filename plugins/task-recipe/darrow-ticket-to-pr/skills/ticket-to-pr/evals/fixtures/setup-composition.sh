@@ -6,6 +6,7 @@ mkdir -p .git/fixture-bin .fixture-state
 printf '/.fixture-state/\n' >>.git/info/exclude
 cp "$fixtures/composition-gh" .git/fixture-bin/gh
 chmod +x .git/fixture-bin/gh
+bash "$fixtures/setup-ci.sh" "$fixtures"
 git init -q --bare .fixture-state/remote.git
 git --git-dir=.fixture-state/remote.git symbolic-ref HEAD refs/heads/main
 git remote add origin "$PWD/.fixture-state/remote.git"

@@ -1,4 +1,8 @@
 id: ticket-to-pr-ordinary-engineering-nonactivation
+candidate_routes:
+  codex:
+    model: gpt-6.1-sol
+    effort: medium
 activation: negative
 mount_plugin_skills: true
 additional_plugins:

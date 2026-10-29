@@ -17,6 +17,32 @@ const plugin = new URL(
 );
 const cases = new URL("skills/ticket-to-pr/evals/", plugin);
 
+test("unavailable orchestration oracle accepts the advertised name and rejects missing boundary evidence", async () => {
+  const source = new URL("adaptive-goal-unavailable.yaml", cases);
+  const canonical = await readFixtureCase(source);
+  for (const [finalMessage, passes] of [
+    [
+      "Status: launch_required. I could not find a host-advertised Adaptive Goal orchestration skill. Native goal controls alone do not meet that boundary.",
+      true,
+    ],
+    [
+      "Status: launch_required. The adaptive-goal capability is unavailable.",
+      true,
+    ],
+    ["Status: launch_required. Supply a ticket reference.", false],
+    ["The Adaptive Goal capability is available; work will continue.", false],
+  ] as const) {
+    const result = await runFixtureChecks({
+      source,
+      checks: [],
+      outputChecks: canonical.output_checks,
+      finalMessage,
+    });
+    expect(result.exitCode, result.diagnostic).toBe(passes ? 0 : 1);
+    expect(result.value.task.verdict).toBe(passes ? "passed" : "failed");
+  }
+}, 20_000);
+
 function assertPassed(result: Awaited<ReturnType<typeof runFixtureChecks>>) {
   expect(
     result.exitCode,
@@ -163,61 +189,121 @@ test("unattended handoff recorder and oracle require the exact ticket", async ()
   assertPassed(result);
 }, 20_000);
 
-test("feedback fixture permits readiness reassessment and a valid selected branch", async () => {
-  const source = new URL("feedback-relay.yaml", cases);
-  const { fixture, checks } = await readFixtureCase(source);
-  const runtime = await prepareUvFixtureRuntime(true);
-  fixture.bin = { ...fixture.bin, ...runtime.bin };
-  const branchCheck = checks[3];
-  if (!branchCheck) throw new Error("feedback branch oracle is missing");
-  const result = await runFixtureChecks({
-    source,
-    fixture,
-    checks: [
-      {
-        name: "authoritative ticket is read",
-        run: "fixture-read-ticket https://example.invalid/tickets/42",
-      },
-      {
-        name: "first readiness assessment succeeds",
-        run: "fixture-readiness https://example.invalid/tickets/42",
-      },
-      {
-        name: "additional read-only readiness assessment succeeds",
-        run: "fixture-readiness https://example.invalid/tickets/42",
-      },
-      {
-        name: "another ticket branch is rejected",
-        run: "fixture-prepare-branch feature/DAR-99-migration",
-        exit_code: 1,
-      },
-      {
-        name: "repeated ticket ID is rejected",
-        run: "fixture-prepare-branch feature/DAR-42-DAR-42-migration",
-        exit_code: 1,
-      },
-      {
-        name: "decision is discovered and exact answer acknowledged",
-        run: "decisionctl discover && decisionctl acknowledge migration-policy 'Use the strict migration policy. Approval reference: cobalt-7391.'",
-      },
-      {
-        name: "coordinator selects a valid ticket-linked branch",
-        run: "fixture-prepare-branch feature/DAR-42-migration-policy",
-      },
-      {
-        name: "scoped implementation is committed and published",
-        run: "printf '%s\\n' 'export const identity = (value) => value;' 'export const migrationMode = () => \"strict\";' >src/migration.js && fixture-create-commit && fixture-create-pr",
-      },
-      ...checks,
-      {
-        name: "changed selected branch fails the canonical binding check",
-        run: `printf '%s\\n' feature/DAR-42-other >.fixture-state/branch-invocations && (${branchCheck.run})`,
-        exit_code: 1,
-      },
-    ],
-  });
-  assertPassed(result);
-}, 20_000);
+test.each(["bash", "/bin/bash"])(
+  "feedback fixture validates branch creation without consuming it (%s)",
+  async (shell) => {
+    const source = new URL("feedback-relay.yaml", cases);
+    const { fixture, checks } = await readFixtureCase(source);
+    const runtime = await prepareUvFixtureRuntime(true);
+    fixture.bin = { ...fixture.bin, ...runtime.bin };
+    const branchCheck = checks[3];
+    if (!branchCheck) throw new Error("feedback branch oracle is missing");
+    const create = `${shell} .git/fixture-bin/fixture-create-branch`;
+    const result = await runFixtureChecks({
+      source,
+      fixture,
+      fixtureAssets: plugin,
+      checks: [
+        {
+          name: "authoritative ticket is read",
+          run: "fixture-read-ticket https://example.invalid/tickets/42",
+        },
+        {
+          name: "first readiness assessment succeeds",
+          run: "fixture-readiness https://example.invalid/tickets/42",
+        },
+        {
+          name: "additional read-only readiness assessment succeeds",
+          run: "fixture-readiness https://example.invalid/tickets/42",
+        },
+        {
+          name: "retain initial branch state",
+          run: "git for-each-ref --format='%(refname) %(objectname)' refs/heads >.fixture-state/branches-before",
+        },
+        {
+          name: "the observed lowercase ticket name explains the valid format",
+          run: `${create} dar-42-strict-migration-policy 2>&1`,
+          exit_code: 5,
+          expect_regex: "Invalid branch name: expected <type>/DAR-42-",
+        },
+        {
+          name: "the observed missing type is rejected before mutation",
+          run: `${shell} .git/fixture-bin/fixture-prepare-branch DAR-42-strict-migration-policy 2>&1`,
+          exit_code: 5,
+          expect_regex: "Invalid branch name",
+        },
+        {
+          name: "another ticket branch is rejected",
+          run: `${create} feat/DAR-99-migration 2>&1`,
+          exit_code: 5,
+        },
+        {
+          name: "repeated ticket ID is rejected",
+          run: `${create} feat/DAR-42-DAR-42-migration 2>&1`,
+          exit_code: 5,
+        },
+        {
+          name: "unsupported conventional type is rejected",
+          run: `${create} feature/DAR-42-migration 2>&1`,
+          exit_code: 5,
+        },
+        {
+          name: "overlong name is rejected",
+          run: `suffix=$(printf '%049d' 0); ${create} "feat/DAR-42-$suffix" 2>&1`,
+          exit_code: 5,
+        },
+        {
+          name: "invalid input leaves branches and product state unchanged",
+          run: "git for-each-ref --format='%(refname) %(objectname)' refs/heads >.fixture-state/branches-after && cmp .fixture-state/branches-before .fixture-state/branches-after && test \"$(git branch --show-current)\" = main && test ! -e .fixture-state/branch-invocations && git diff --exit-code",
+        },
+        {
+          name: "prepare a known existing branch for refusal",
+          run: "git branch feat/DAR-42-existing",
+        },
+        {
+          name: "creation refuses an existing branch instead of reusing it",
+          run: `${create} feat/DAR-42-existing 2>&1`,
+          exit_code: 1,
+          expect_regex: "Safety refusal: the requested branch already exists",
+        },
+        {
+          name: "existing-branch refusal preserves the active checkout",
+          run: 'test "$(git branch --show-current)" = main && test ! -e .fixture-state/branch-invocations && test "$(git rev-parse feat/DAR-42-existing)" = "$(git rev-parse HEAD)"',
+        },
+        {
+          name: "decision is discovered and exact answer acknowledged",
+          run: "decisionctl discover && decisionctl acknowledge migration-policy 'Use the strict migration policy. Approval reference: cobalt-7391.'",
+        },
+        {
+          name: "valid corrected input creates the intended branch",
+          run: `${create} feat/DAR-42-migration-policy`,
+        },
+        {
+          name: "another successful preparation is refused",
+          run: `${create} fix/DAR-42-other 2>&1`,
+          exit_code: 1,
+          expect_regex: "Safety refusal: a branch was already prepared",
+        },
+        {
+          name: "refusal does not create another branch or receipt",
+          run: 'test "$(git branch --show-current)" = feat/DAR-42-migration-policy && test "$(cat .fixture-state/branch-invocations)" = feat/DAR-42-migration-policy && ! git show-ref --verify --quiet refs/heads/fix/DAR-42-other',
+        },
+        {
+          name: "scoped implementation is committed and published",
+          run: "printf '%s\\n' 'export const identity = (value) => value;' 'export const migrationMode = () => \"strict\";' >src/migration.js && fixture-create-commit && fixture-create-pr && bash .git/fixture-bin/fixture-ci \"$(git rev-parse HEAD)\"",
+        },
+        ...checks,
+        {
+          name: "changed selected branch fails the canonical binding check",
+          run: `printf '%s\\n' feat/DAR-42-other >.fixture-state/branch-invocations && (${branchCheck.run})`,
+          exit_code: 1,
+        },
+      ],
+    });
+    assertPassed(result);
+  },
+  20_000,
+);
 
 for (const variant of ["existing-pr", "replacement"]) {
   test(`composition ${variant} ticket and oracle agree on trailing newlines`, async () => {

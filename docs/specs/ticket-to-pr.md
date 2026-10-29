@@ -3,7 +3,9 @@
 Darrow provides one explicitly invoked shortcut that turns one exact ticket
 reference into the bounded delivery request a user would otherwise give
 `adaptive-goal`: read and implement the ticket in the current repository on a
-new branch, then open one verified pull request when the change is ready.
+new branch using TDD, then open one verified pull request and hand over with
+required CI checks green on its final commit. Use a linked worktree only when
+the caller requests one.
 
 Plugin: `darrow-ticket-to-pr`  
 Skill: `ticket-to-pr`
@@ -101,11 +103,24 @@ adaptive goal to:
 3. implement the ready ticket while preserving existing user work;
 4. create or reuse a new ticket-linked branch, or use a linked worktree only
    when explicitly requested;
-5. run the applicable focused and final verification and any selected review;
+5. implement using TDD, run the applicable focused and final verification and
+   any selected review;
 6. create the intended Conventional Commit or commits;
 7. push the branch without rewriting remote history; and
 8. create or reuse exactly one pull request whose current content satisfies the
-   ticket, ready for review unless draft was explicitly requested.
+   ticket, ready for review unless draft was explicitly requested; and
+9. wait for required CI checks on the final PR commit, repair in-scope failures
+   within the caller's authority and the owner's repair policy, and complete
+   only when those checks pass. Pending, failed, unavailable or stale checks do
+   not establish green CI. If no required checks exist, report that limitation
+   rather than claim CI passed. CI does not grant merge, deployment or release
+   authority.
+
+The recipe expresses these requirements as one concise request. TDD owns its
+red/green method; Adaptive Goal owns capability selection, execution, repair
+and completion; the publication capability owns publication mechanics. The
+recipe must not restate their procedures. Keep unattended-entry mechanics in
+a separate reference loaded only for that entry.
 
 When the ticket or selected verification contract requires reviewer-facing
 evidence, the explicit recipe invocation also supplies enclosing-contract
@@ -177,11 +192,14 @@ despite that unresolved prerequisite.
    capability invocation.
 3. **TPR-C3 — Complete envelope.** Delegation preserves the exact reference,
    current repository, ready implementation outcome, new-branch intent,
-   verification, intended commits, non-force push, exactly one verified pull
+   TDD, verification, intended commits, non-force push, exactly one verified pull
    request, explicit user options (including repair/review limits), and all publication exclusions.
 4. **TPR-C4 — Adaptive ownership.** `adaptive-goal` alone owns preflight,
    readiness, capability bindings, role routes, bounded implementation,
    review, publication execution, blockage, and completion.
+   The delegated request need not repeat ownership already established by the
+   receiving capability's advertised contract; evaluate the actual handoff and
+   recipe behavior instead.
 5. **TPR-C5 — Main-thread human loop.** Questions reach the user through the
    main thread and answers return to the same retained preflight or active goal
    without recipe reinvocation or a replacement owner. An unresolved preflight
@@ -191,11 +209,19 @@ despite that unresolved prerequisite.
    request, and it preserves pre-existing work.
 7. **TPR-C7 — Owner-sourced result.** The recipe relays completion, feedback, or
    blockage without post-goal inspection, repair, retry, or reconstruction.
+   After publication, a blocked handover also retains the PR URL and published
+   commit/CI evidence so the user can identify the incomplete delivery.
+   Composition evals compare the reported commit with Sevro's captured final
+   Git revision, separately from remote/PR and CI state. They grade the actual
+   final response, not a candidate-written response file.
 8. **TPR-C8 — Same-PR evidence envelope.** Reviewer-facing evidence authority
    exists only when the ticket or verification contract requires it, permits at
    most one focused publication attempt, and binds the current-repository PR
    and intended verified commit. `partial`, `ambiguous`, or `refused` remains
    owner-visible and stops completion and automatic recovery.
+9. **TPR-C9 — Green final CI.** Completion requires passing required CI checks
+   for the final PR commit. Pending, failed, unavailable, absent or stale checks
+   cannot support a green-CI claim. CI grants no deployment authority.
 
 ## Packaging and evaluation
 
@@ -286,6 +312,14 @@ exact ticket-linked choice; checks bind that recorded choice to the current
 branch and published branch rather than imposing an unrequested fixed name.
 The exact feedback acknowledgement, mutation boundary, scoped implementation,
 intended commit and one-PR publication requirements remain intact.
+
+The successful-feedback fixture advertises branch creation separately from
+exact-name preparation. Its creation capability documents the conventional
+ticket-linked format and permits correcting input rejected before mutation.
+Validation failures explain the accepted format and create no branch or success
+receipt. One successful branch creation is required; failed validation is not
+another creation. Safety refusals and Git failures still stop the operation,
+and an exact caller-bound preparation name is not silently replaced.
 
 ## Non-goals
 
