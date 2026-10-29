@@ -188,6 +188,9 @@ constraints for producing and interpreting that evidence.
   Read existing canonical records from the grant. A current-worktree comparison
   creates its new scope only in separate private temporary state, then compares
   the owning backend's exact target fingerprint without changing the granted tree.
+- Shell check declarations run under `/bin/sh`; use portable syntax or invoke
+  an explicitly required shell. macOS `/bin/sh` accepting Bash syntax does not
+  establish Ubuntu compatibility.
 - Graders use declared host tools or portable system commands. Tools injected
   from a Codex credential directory are removed from the inherited runtime
   `PATH` and must not become an undeclared grading dependency.
