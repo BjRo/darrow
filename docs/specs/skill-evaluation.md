@@ -1680,6 +1680,8 @@ sandbox can read without shadowing the selected Node runtime. Verify Node 24.13.
 or newer before running the installed gate. Domain oracle repositories configure
 their own deterministic Git identity before setup; commits must not depend on
 host identity discovery.
+Cancellation fixtures publish readiness receipts atomically, so observing the
+receipt also establishes that its complete contents are ready to read.
 
 The requirements below describe needed evidence across both repositories.
 Engine and host mechanics belong to Sevro; Darrow retains the corresponding
