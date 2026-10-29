@@ -1645,6 +1645,10 @@ matrices check the exit category and absence of effects after every invocation
 in their shared fixture; matching test names alone does not establish overlap.
 Response-only examples exercise the canonical output declarations without
 synthesizing retired response files.
+Ticket response variants check their canonical complete-output declaration
+directly, retaining the zero/one/two trailing-newline boundary and all metadata,
+body-preservation, preamble, and commentary counterexamples. Installed grading
+still exercises both permitted newline forms and rejects the extra newline.
 
 Unchanged executable packages may be prepared once per test file and reused by
 direct oracle checks. Each invocation still owns its repository, home, scratch

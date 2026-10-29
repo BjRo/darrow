@@ -34,6 +34,10 @@ constraints for producing and interpreting that evidence.
   protocol usage in one fixture, checking exit status and absence of effects
   after each invocation. Test response-only examples against their canonical
   output declarations, with passing and failing installed CLI checks.
+  Ticket response examples use their canonical complete-output regex directly;
+  installed grading retains both permitted newline forms and the extra-newline
+  rejection. Keep the exact declaration shape guarded so new grading fields
+  require corresponding coverage.
 - Run review-record validation and presentation checks through the owning
   frozen Python CLI. The domain helper prepares only its package and record
   files; canonical fixture-setup tests retain the installed Sevro connection.
