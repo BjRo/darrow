@@ -52,8 +52,11 @@ function safeTree(path: string) {
   const stat = lstatSync(path);
   if (stat.isSymbolicLink() || (!stat.isFile() && !stat.isDirectory()))
     throw new Error("symlink or unsupported file in attempt");
+  let modified = stat.mtimeMs;
   if (stat.isDirectory())
-    for (const name of readdirSync(path)) safeTree(join(path, name));
+    for (const name of readdirSync(path))
+      modified = Math.max(modified, safeTree(join(path, name)));
+  return modified;
 }
 function references(value: unknown, root: string) {
   if (typeof value === "string" && isAbsolute(value) && !contained(root, value))
@@ -67,9 +70,8 @@ function absoluteReferences(value: unknown): string[] {
   if (!value || typeof value !== "object") return [];
   return Object.values(value).flatMap(absoluteReferences);
 }
-function publication(path: string) {
-  if (!existsSync(join(path, "retention.json")))
-    throw new Error("legacy attempt: terminal publication unknown");
+function publication(path: string, legacyModified: number) {
+  if (!existsSync(join(path, "retention.json"))) return legacyModified;
   const metadata = record(join(path, "retention.json"));
   if (metadata.format !== "darrow-retention-v1")
     throw new Error("unsupported retention metadata");
@@ -108,11 +110,11 @@ function eligibility(
   age: number | null,
   now: number,
 ) {
-  safeTree(path);
-  const published = publication(path);
+  const modified = safeTree(path);
+  const published = publication(path, modified);
   ownedManifest(path, root);
   if (age !== null && published >= now - age)
-    return "publication is not older than cutoff";
+    return "attempt is not older than cutoff";
   return null;
 }
 function request() {

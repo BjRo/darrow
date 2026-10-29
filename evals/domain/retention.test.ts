@@ -7,6 +7,7 @@ import {
   rm,
   realpath,
   symlink,
+  utimes,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -69,6 +70,80 @@ async function attempt(
   await writeFile(join(root, "selection-run.json"), JSON.stringify(manifest));
   return path;
 }
+test("legacy attempts are previewed and deleted by default as whole attempts", async () => {
+  const root = await fixture();
+  const path = await attempt(root, "legacy");
+  await rm(join(path, "retention.json"));
+  await writeFile(join(path, "captured-output.txt"), "retained evidence");
+  const preview = await prune(root, "--results-root", root);
+  expect(preview.code, preview.stderr).toBe(0);
+  expect(JSON.parse(preview.stdout).remove).toEqual([
+    path,
+    join(root, "selection-run.json"),
+  ]);
+  expect(await Bun.file(join(path, "captured-output.txt")).exists()).toBe(true);
+
+  const applied = await prune(root, "--results-root", root, "--apply");
+  expect(applied.code, applied.stderr).toBe(0);
+  expect(await Bun.file(join(path, "captured-output.txt")).exists()).toBe(
+    false,
+  );
+  expect(await Bun.file(join(root, "selection-run.json")).exists()).toBe(false);
+});
+test("legacy age uses the newest nested file or directory modification", async () => {
+  const root = await fixture();
+  const oldDate = new Date("2020-01-01T00:00:00.000Z");
+  const paths: Record<string, string> = {};
+  for (const id of ["old", "file-fresh", "directory-fresh"]) {
+    const path = await attempt(root, id);
+    paths[id] = path;
+    await rm(join(path, "retention.json"));
+    const nested = join(path, "cases", "nested");
+    await mkdir(nested, { recursive: true });
+    const capture = join(nested, "cli-result.json");
+    await writeFile(capture, "historical evidence");
+    for (const entry of [
+      join(path, "selection-run.json"),
+      capture,
+      nested,
+      join(path, "cases"),
+      path,
+    ])
+      await utimes(entry, oldDate, oldDate);
+    const recent = new Date();
+    if (id === "file-fresh") await utimes(capture, recent, recent);
+    if (id === "directory-fresh") await utimes(nested, recent, recent);
+  }
+  const preview = await prune(
+    root,
+    "--results-root",
+    root,
+    "--older-than",
+    "1d",
+  );
+  expect(preview.code, preview.stderr).toBe(0);
+  expect(JSON.parse(preview.stdout).remove).toEqual([paths.old]);
+  const applied = await prune(
+    root,
+    "--results-root",
+    root,
+    "--older-than",
+    "1d",
+    "--apply",
+  );
+  expect(applied.code, applied.stderr).toBe(0);
+  expect(await Bun.file(join(paths.old!, "selection-run.json")).exists()).toBe(
+    false,
+  );
+  for (const id of ["file-fresh", "directory-fresh"])
+    expect(
+      await Bun.file(join(paths[id]!, "selection-run.json")).exists(),
+    ).toBe(true);
+  expect(
+    JSON.parse(await readFile(join(root, "selection-run.json"), "utf8"))
+      .attemptId,
+  ).toBe("directory-fresh");
+});
 test("an inconsistent alias for a retained owner refuses cleanup before deleting referenced evidence", async () => {
   const root = await fixture();
   const eligible = await attempt(root, "eligible");
@@ -192,7 +267,7 @@ test("apply deletes all eligible attempts and only their matching root alias", a
 async function unsafeAttempt(root: string, id: string) {
   const path = await attempt(root, id);
   const metadata = join(path, "retention.json");
-  if (id === "legacy") await rm(metadata);
+  if (["linked", "external", "wrong-owner"].includes(id)) await rm(metadata);
   if (id === "active")
     await writeFile(
       metadata,
@@ -235,14 +310,13 @@ async function unsafeAttempt(root: string, id: string) {
   }
   return path;
 }
-test("ambiguous, active, exported, unsafe and legacy attempts are preserved with reasons", async () => {
+test("ambiguous, active, exported and unsafe attempts including legacy are preserved with reasons", async () => {
   const root = await fixture();
   const paths: string[] = [];
   for (const id of [
     "active",
     "exported",
     "malformed",
-    "legacy",
     "linked",
     "external",
     "wrong-owner",
