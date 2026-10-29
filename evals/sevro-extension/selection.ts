@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, rename, writeFile } from "node:fs/promises";
+import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join } from "node:path";
 import Ajv2020 from "ajv/dist/2020";
 import cliResultSchema from "@bjoernrochel/sevro/schemas/cli-result-v1.schema.json";
@@ -11,6 +12,7 @@ import {
   type CaseRoutes,
 } from "./suite-routes";
 import type { ActivationGate } from "./activation";
+import { retentionTransaction } from "./retention-lock";
 
 const validateCliResult = new Ajv2020({ strict: false }).compile(
   cliResultSchema,
@@ -289,8 +291,32 @@ async function atomicWrite(path: string, contents: string) {
 
 async function publishManifest(manifest: SelectionManifest) {
   const contents = JSON.stringify(manifest, null, 2);
-  await atomicWrite(manifest.manifestPath, contents);
-  await atomicWrite(join(manifest.resultsRoot, "selection-run.json"), contents);
+  retentionTransaction(manifest.resultsRoot, () => {
+    atomicWriteSync(manifest.manifestPath, contents);
+    atomicWriteSync(join(manifest.resultsRoot, "selection-run.json"), contents);
+  });
+}
+
+function atomicWriteSync(path: string, contents: string) {
+  const temporary = `${path}.${randomUUID()}.tmp`;
+  writeFileSync(temporary, contents, { flag: "wx" });
+  renameSync(temporary, path);
+}
+
+function retentionMetadata(
+  attemptRoot: string,
+  status: string,
+  outputPath?: string,
+) {
+  atomicWriteSync(
+    join(attemptRoot, "retention.json"),
+    JSON.stringify({
+      format: "darrow-retention-v1",
+      status,
+      publishedAt: status === "active" ? null : new Date().toISOString(),
+      outputPath: outputPath ?? null,
+    }),
+  );
 }
 
 /** Select cases for the requested host with their declared default routes. */
@@ -309,7 +335,7 @@ async function selectedCases(
 }
 
 /** Retain each selected public CLI result without combining its outcome axes. */
-export async function runSelection(argv: string[], options: SelectionOptions) {
+async function prepareSelection(argv: string[], options: SelectionOptions) {
   const roots = selectionRoots(options);
   const selection = await selectedCases(argv, roots.projectRoot, options);
   const caseIds = selection.ids;
@@ -332,8 +358,37 @@ export async function runSelection(argv: string[], options: SelectionOptions) {
       options.humanReviewMinutes === undefined ? null : "user_supplied",
   };
   await mkdir(join(roots.resultsRoot, "attempts"), { recursive: true });
-  await mkdir(attemptRoot);
+  retentionTransaction(roots.resultsRoot, () => {
+    mkdirSync(attemptRoot);
+    retentionMetadata(attemptRoot, "active", options.outputPath);
+  });
   await publishManifest(manifest);
+  return { manifest, cells, attemptRoot, roots };
+}
+
+function selectionExitCode(
+  manifest: SelectionManifest,
+  interruptedExit: number | undefined,
+) {
+  if (manifest.interrupted) return interruptedExit ?? 130;
+  return manifest.runs.every(
+    (run) =>
+      run.exitCode === 0 &&
+      run.resultError === null &&
+      !run.activationError &&
+      run.activation?.status !== "failed" &&
+      run.activation?.status !== "unavailable",
+  )
+    ? 0
+    : 1;
+}
+
+/** Retain each selected public CLI result without combining its outcome axes. */
+export async function runSelection(argv: string[], options: SelectionOptions) {
+  const { manifest, cells, attemptRoot, roots } = await prepareSelection(
+    argv,
+    options,
+  );
   const interruptedExit = await runCells(
     cells,
     manifest,
@@ -346,16 +401,17 @@ export async function runSelection(argv: string[], options: SelectionOptions) {
     await atomicWrite(options.outputPath, output);
   }
   process.stdout.write(output);
-  return manifest.interrupted
-    ? (interruptedExit ?? 130)
-    : manifest.runs.every(
-          (run) =>
-            run.exitCode === 0 &&
-            run.resultError === null &&
-            !run.activationError &&
-            run.activation?.status !== "failed" &&
-            run.activation?.status !== "unavailable",
-        )
-      ? 0
-      : 1;
+  const exitCode = selectionExitCode(manifest, interruptedExit);
+  retentionTransaction(roots.resultsRoot, () => {
+    retentionMetadata(
+      attemptRoot,
+      manifest.interrupted
+        ? "interrupted"
+        : exitCode === 0
+          ? "completed"
+          : "failed",
+      options.outputPath,
+    );
+  });
+  return exitCode;
 }
