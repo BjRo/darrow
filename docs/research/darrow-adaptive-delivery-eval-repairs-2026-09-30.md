@@ -203,9 +203,10 @@ Darrow's [current decision](../decisions/ADR-0004-use-native-goal-ownership-for-
 requires a native subagent and forbids nested host processes. The Codex launch
 contract also forbids `create_goal` for the owner. A deliberate app-server
 owner path therefore needs an explicit architecture decision, even though
-host-owned continuation fits the broader design direction. The older
-[N=1 persistence study](codex-native-goal-persistence-validation.md) is useful
-feasibility evidence, not code to restore or a reliability result for 0.159.2.
+host-owned continuation fits the broader design direction. This was a historical separate-owner proposal. The adopted
+[main-thread ownership model](adaptive-delivery-main-thread-adoption-2026-10-02.md)
+now supersedes it; follow the [current contract](../specs/adaptive-goal.md),
+not this investigation, for ownership and native goal control.
 
 ### Proposed ownership boundary
 
