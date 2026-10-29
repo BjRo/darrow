@@ -1635,6 +1635,54 @@ response handling and repository policy. A small
 installed-package integration suite checks the connection. Darrow does not
 repeat the engine's implementation matrix or compare against a retired runner.
 
+Domain regression matrices share fixture preparation when only oracle input
+changes, resetting input and retained evidence between variants. Identical
+checks and fixtures across case declarations need one behavioral matrix plus
+an equality assertion binding every declaration to it. Keep representative
+passing and failing installed public-command checks, real provider composition,
+and distinct setup, source, host, or lifecycle regressions. Protocol usage
+matrices check the exit category and absence of effects after every invocation
+in their shared fixture; matching test names alone does not establish overlap.
+Response-only examples exercise the canonical output declarations without
+synthesizing retired response files.
+Ticket response variants check their canonical complete-output declaration
+directly, retaining the zero/one/two trailing-newline boundary and all metadata,
+body-preservation, preamble, and commentary counterexamples. Installed grading
+still exercises both permitted newline forms and rejects the extra newline.
+
+Unchanged executable packages may be prepared once per test file and reused by
+direct oracle checks. Each invocation still owns its repository, home, scratch
+space, and retained records. Installation, cold-cache, changed-source, and
+conflicting-provider regressions retain independent preparation.
+
+Route permutations may reuse the owning route validator against actual retained
+public-command evidence. Keep installed runs for both hosts, successful and
+contradictory routes, task-versus-caller exits, and ablation rejection. Reducing
+executed cells must preserve every model and effort counterexample at that seam.
+
+The installed-pin gate runs the complete integration and domain suite in one
+job with two isolated file workers. Tests within each file remain sequential;
+workers must not share mutable fixture repositories, homes, or result state.
+Parallel execution preserves the selected tests, assertions, and retained CI
+evidence rather than selecting a subset of the suite.
+Prepare the repository runtime's shared dependency cache before starting either
+worker. A fresh-home fixture must succeed independently of another test warming
+that cache; missing runtime prerequisites must still fail rather than be skipped.
+The required installed gate runs on Ubuntu 24.04 with working native filesystem,
+process, and network isolation. Provision and probe its bubblewrap, Codex sandbox,
+socat, ripgrep, and zsh prerequisites explicitly. Native caller, corpus protection,
+and plugin installation checks execute on both supported macOS and Linux hosts;
+missing prerequisites on a supported host fail instead of omitting coverage.
+Changing the CI platform must preserve the executed behavior and retained evidence,
+including native checks inside otherwise platform-independent tests.
+CI must expose native fixture interpreters in public system tool roots that the
+sandbox can read without shadowing the selected Node runtime. Verify Node 24.13.0
+or newer before running the installed gate. Domain oracle repositories configure
+their own deterministic Git identity before setup; commits must not depend on
+host identity discovery.
+Cancellation fixtures publish readiness receipts atomically, so observing the
+receipt also establishes that its complete contents are ready to read.
+
 The requirements below describe needed evidence across both repositories.
 Engine and host mechanics belong to Sevro; Darrow retains the corresponding
 request translation and domain-policy checks.

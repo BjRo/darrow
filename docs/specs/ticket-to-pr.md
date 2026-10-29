@@ -287,6 +287,9 @@ does not fail this contract. Repeating a rejected approval remains prohibited
 when the decision provider states that retries cannot restore its authority.
 Fixture commit operations include the implementation and allowed focused test
 changes; unrelated committed paths remain failures.
+The committed-path oracle runs under portable `/bin/sh` on macOS and Ubuntu;
+it preserves path diagnostics and rejects unrelated or missing implementation
+changes without relying on Bash-only input redirection.
 
 Composition fixtures install supporting plugins with their complete mechanics
 at their own plugin boundaries. An explicitly selected replacement publisher

@@ -179,6 +179,11 @@ async function prepareOracle(root: string, options: OracleOptions) {
   }
   if (options.setupPrefix !== undefined)
     fixture.setup = [options.setupPrefix, fixture.setup ?? ""].join("\n");
+  fixture.setup = [
+    'git config user.name "Sevro Fixture"',
+    'git config user.email "fixture@sevro.invalid"',
+    fixture.setup ?? "",
+  ].join("\n");
   await writeFile(
     join(caseDir, "oracle.yaml"),
     JSON.stringify({

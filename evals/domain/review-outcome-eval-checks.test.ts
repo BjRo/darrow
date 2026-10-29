@@ -106,6 +106,27 @@ ${axes
   }, 30_000);
 }
 
+test("ordinary verification cases share the canonical report oracle", async () => {
+  const checks = await Promise.all(
+    [
+      "fix-verification-resolved",
+      "fix-verification-regression-scope",
+      "fix-verification-unavailable",
+      "fix-verification-progress-advisory",
+    ].map(async (file) => {
+      const canonical = await readFixtureCase(new URL(`${file}.yaml`, cases));
+      const check = canonical.checks.find(
+        (entry) =>
+          entry.name ===
+          "retained verification report preserves the complete canonical evidence",
+      );
+      if (!check) throw new Error(`Missing canonical report oracle: ${file}`);
+      return check;
+    }),
+  );
+  for (const check of checks.slice(1)) expect(check).toEqual(checks[0]!);
+});
+
 for (const shell of ["bash", "/bin/bash"]) {
   test(`Review setup exposes empty state without candidate cooperation: ${shell}`, async () => {
     const root = await mkdtemp(join(tmpdir(), "darrow-review-home-oracle-"));
@@ -349,9 +370,6 @@ for (const shell of ["bash", "/bin/bash"]) {
     }, 30_000);
     for (const file of [
       "fix-verification-resolved",
-      "fix-verification-regression-scope",
-      "fix-verification-unavailable",
-      "fix-verification-progress-advisory",
       "fix-verification-regression-second-round",
     ]) {
       test(`${file}: canonical and invalid presentation variants`, async () => {

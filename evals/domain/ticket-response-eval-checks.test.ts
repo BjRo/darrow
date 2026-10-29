@@ -51,12 +51,37 @@ for (const [name, finalMessage, expected] of [
       (check) => check.name === "complete CLI output is relayed",
     );
     if (!completeOutput) throw new Error("ticket output oracle missing");
+    // Bind this classifier to the declaration instead of copying Sevro's grader.
+    expect(completeOutput).toEqual({
+      name: "complete CLI output is relayed",
+      expect_regex: expect.any(String),
+    });
+    expect(new RegExp(completeOutput.expect_regex!).test(finalMessage)).toBe(
+      expected === "passed",
+    );
+  });
+}
+
+for (const [name, finalMessage, expected] of [
+  ["without a terminal newline", response, "passed"],
+  ["with one terminal newline", response + "\n", "passed"],
+  ["with two terminal newlines", response + "\n\n", "failed"],
+] as const) {
+  test(`installed ticket response grading ${name}`, async () => {
+    const canonical = await readFixtureCase(source);
+    const completeOutput = canonical.output_checks?.find(
+      (check) => check.name === "complete CLI output is relayed",
+    );
+    if (!completeOutput) throw new Error("ticket output oracle missing");
     const result = await runFixtureChecks({
       source,
       checks: [],
       outputChecks: [completeOutput],
       finalMessage,
     });
+    expect(result.exitCode, result.diagnostic).toBe(
+      expected === "passed" ? 0 : 1,
+    );
     expect(result.value.execution.status, result.diagnostic).toBe("completed");
     expect(result.value.grading.status, result.diagnostic).toBe("completed");
     expect(

@@ -17,7 +17,7 @@
     "check:python:performance": "plugins/capability/darrow-observability-langfuse/tests/performance.test.sh",
     "eval": "bun evals/runner/run.ts",
     "eval:prune": "bun evals/sevro-extension/prune.ts",
-    "test:evals": "bun test --timeout 30000 ./evals/integration ./evals/domain",
+    "test:evals": "bun ./evals/prepare-test-runtime.ts && bun test --parallel=2 --timeout 30000 ./evals/integration ./evals/domain",
     "test:eval-integration": "bun test --timeout 30000 ./evals/integration",
     "test:eval-policy": "bun test --timeout 30000 ./evals/domain",
     "test:eval-package": "bun scripts/test-sevro-package-install.ts",

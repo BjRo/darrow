@@ -14,45 +14,41 @@ const localEdit: OracleCheck = {
   run: "printf '%s\\n' '# Notes' 'Verification precedes publication.' > NOTES.md",
 };
 
-for (const protocol of [
-  "inspect-delivery-protocol",
-  "assess-delivery-protocol",
-  "create-commit-protocol",
-  "create-pr-protocol",
-]) {
-  for (const [argument, exitCode] of [
-    ["--help", 0],
-    ["-h", 0],
-    ["unexpected", 2],
-  ] as const) {
-    test(`${protocol} ${argument} performs no effects`, async () => {
-      const result = await runFixtureChecks({
-        source,
-        checks: [
-          localEdit,
-          {
-            name: "protocol usage",
-            run: `${protocol} ${argument}`,
-            exit_code: exitCode,
-          },
-          {
-            name: "usage has no effects",
-            run: 'test ! -e .fixture-state/gate-events && test ! -e .fixture-state/pull-request && test "$(git rev-list --count HEAD)" -eq 1 && test -z "$(git --git-dir=.fixture-state/remote.git for-each-ref --format=\'%(refname)\' refs/heads)"',
-          },
-        ],
-      });
-      expect(result.exitCode, result.diagnostic).toBe(0);
-      expect(result.value.execution.status).toBe("completed");
-      expect(result.value.grading.status).toBe("completed");
-      expect(result.value.task.verdict).toBe("passed");
-      expect(result.checks.map((check) => check.status)).toEqual([
-        "passed",
-        "passed",
-        "passed",
-      ]);
-    }, 20_000);
+test("verification protocol usage has no effects after every invocation", async () => {
+  const checks: OracleCheck[] = [localEdit];
+  for (const protocol of [
+    "inspect-delivery-protocol",
+    "assess-delivery-protocol",
+    "create-commit-protocol",
+    "create-pr-protocol",
+  ]) {
+    for (const [argument, exitCode] of [
+      ["--help", 0],
+      ["-h", 0],
+      ["unexpected", 2],
+    ] as const) {
+      checks.push(
+        {
+          name: `${protocol} ${argument}: usage`,
+          run: `${protocol} ${argument}`,
+          exit_code: exitCode,
+        },
+        {
+          name: `${protocol} ${argument}: no effects`,
+          run: 'test ! -e .fixture-state/gate-events && test ! -e .fixture-state/pull-request && test "$(git rev-list --count HEAD)" -eq 1 && test -z "$(git --git-dir=.fixture-state/remote.git for-each-ref --format=\'%(refname)\' refs/heads)"',
+        },
+      );
+    }
   }
-}
+  const result = await runFixtureChecks({ source, checks });
+  expect(result.exitCode, result.diagnostic).toBe(0);
+  expect(result.value.execution.status).toBe("completed");
+  expect(result.value.grading.status).toBe("completed");
+  expect(result.value.task.verdict).toBe("passed");
+  expect(result.checks.map((check) => check.status)).toEqual(
+    checks.map(() => "passed"),
+  );
+}, 30_000);
 
 for (const effect of ["none", "commit", "publication"] as const) {
   test(`incomplete verification rejects dependent effects: ${effect}`, async () => {
