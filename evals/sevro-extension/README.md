@@ -5,8 +5,9 @@ Darrow translates its cases and grades repository policy through
 built-in graders and retained results. This is repository development tooling;
 marketplace plugins have no Sevro, Bun or TypeScript runtime dependency.
 
-Normal callers use the exact `@bjoernrochel/sevro@1.0.0` pin in [package.json](../../package.json).
+Normal callers use the exact `@bjoernrochel/sevro@1.1.1` pin in [package.json](../../package.json).
 Install it with `bun install --frozen-lockfile`. The installed command is `sevro`.
+It requires Node.js 24.13.0 or newer on `PATH`; Darrow tooling uses Bun 1.3.13.
 See [development and release](migration.md), [test ownership](../README.md),
 the [evidence specification](../../docs/specs/skill-evaluation.md), and
 [historical extraction evidence](../../docs/research/sevro-extraction.md).
@@ -66,7 +67,7 @@ CI state need their own fixture checks; no response-file adapter is created.
 
 Sevro reads the repository's [`sevro.json`](../../sevro.json) for every case in
 this project. It inherits `PATH` and `UV_PYTHON_INSTALL_DIR`, grants the
-uv-managed Python installations read-only, seeds a private UV cache, enables
+uv-managed Python installations read-only, shares a prepared public UV cache, enables
 native goals, and exposes the trial's own native transcripts read-only. Sevro discovers Homebrew and Apple developer support folders from
 the inherited `PATH`; the file names no machine-specific folders.
 
@@ -81,8 +82,10 @@ Darrow's callers prepare that environment before launching Sevro:
   Warm-up preserves existing entries and the directory while other runs use it.
 - All repository runtime profiles use
   `runtime.sharedCacheDirectories` with `roles: ["candidate", "checks"]`.
+  The Tickets profile also selects `hooks` for its Claude SessionStart handler,
+  which invokes the frozen Python backend and needs cached build dependencies.
   Candidates and UV shell graders use the same persistent cache without per-role
-  cache copies. Current hooks and semantic/advisory graders need no UV grant.
+  cache copies. Other current hooks and semantic/advisory graders need no UV grant.
   `UV_PYTHON_DOWNLOADS=never` requires the declared Python installation;
   Sevro keeps dependency installation offline during trials.
 - Shared cache contents are mutable across evaluations and excluded from content
@@ -184,7 +187,7 @@ its identity between cells.
 Darrow translates `follow_up_prompt`; Sevro owns continuation on the original
 Claude session. The extension grades declared feedback boundaries from complete,
 bound observations. Missing or contradictory evidence remains unavailable.
-See Sevro's [extension protocol](https://github.com/BjRo/sevro/blob/v1.0.0/docs/extension-protocol-v1.md)
+See Sevro's [extension protocol](https://github.com/BjRo/sevro/blob/v1.1.1/docs/extension-protocol-v1.md)
 for the host capability contract.
 
 Repository-skill trials require the `.claude/skills/<name>` mirror and
@@ -299,7 +302,7 @@ prompt, fixture, host, routes, checks and instrumentation.
 Callers validate results against public schemas shipped by the pinned Sevro
 package. They bind the selected case, process exit and evidence path before
 applying Darrow policy. Public protocol, result and identity mechanics are
-documented in [Sevro](https://github.com/BjRo/sevro/tree/v1.0.0/docs).
+documented in [Sevro](https://github.com/BjRo/sevro/tree/v1.1.1/docs).
 
 ## Result reporting
 

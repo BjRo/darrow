@@ -95,10 +95,16 @@ retain their original interpretation and are never upgraded from native logs.
 
 ### Supported Sevro release
 
-Darrow targets the exact published Sevro `1.0.0` package and its public v1
+Darrow targets the exact published Sevro `1.1.1` package and its public v1
 protocols and schemas. Current cases use observations emitted by that release;
 cases whose required evidence exists only in a retired runner are removed from
 active suites. Retained research keeps its original provenance and meaning.
+
+Synthetic adapter modules loaded by Sevro must use runtime-neutral Node.js
+APIs so they execute under both its installed Node.js command and Bun.
+Cancellation fixtures must keep an active event-loop handle until abort and
+release it on cancellation; an unresolved promise alone does not keep Node.js
+running. Preserve the same task, evidence, isolation and exit assertions.
 
 Current evals grade final responses through Sevro's public output or semantic
 checks. Shell checks inspect repository state and declared artifact grants;
@@ -858,6 +864,9 @@ delete or replace a cache that another evaluation may be using. Runtime profiles
 select `runtime.sharedCacheDirectories` rather than copying the UV cache into
 per-role seeds, and set `UV_PYTHON_DOWNLOADS=never`. Hooks and semantic/advisory
 graders receive no cache grant unless their declared work actually needs UV.
+The Tickets runtime profile also selects the `hooks` role: its Claude
+SessionStart handler invokes the frozen Python backend and must resolve its
+build dependencies from the prepared cache while network access is disabled.
 Repository-skill guide trials select a hook-free runtime file because Claude
 project settings conflict with native-goal hooks. It retains native transcripts
 for complete control observations and skill-read recovery. With the repository's

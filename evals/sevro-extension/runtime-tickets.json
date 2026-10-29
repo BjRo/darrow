@@ -16,7 +16,7 @@
       {
         "source": "~/.darrow/cache/sevro-uv-cache",
         "target": "uv-cache",
-        "roles": ["candidate", "checks"]
+        "roles": ["candidate", "checks", "hooks"]
       }
     ]
   },

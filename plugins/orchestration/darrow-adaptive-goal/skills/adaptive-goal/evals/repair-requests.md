@@ -19,6 +19,8 @@ removed with advice-mode repair procedure. Ticket-to-PR delegates policy
 selection and preserves explicit caller limits; it does not supply its own
 default.
 
-On Claude, `placement-repair-reuse-claude` is a known harness failure: Sevro
-1.0.0 does not allow `SendMessage` for Claude candidates, so the main thread
-cannot continue a retained implementor ([sevro#157](https://github.com/BjRo/sevro/issues/157)).
+Sevro 1.1.1 permits `SendMessage` for Claude candidates, resolving the tool
+restriction tracked in [sevro#157](https://github.com/BjRo/sevro/issues/157).
+The `placement-repair-reuse-claude` case still requires a native Claude trial
+to establish retained-implementor repair behavior. Earlier failures retain
+their original Sevro version and meaning.

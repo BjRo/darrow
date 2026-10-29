@@ -1,9 +1,13 @@
 # Sevro development, updates and rollback
 
-Darrow pins the published `@bjoernrochel/sevro@1.0.0` version in
+Darrow pins the published `@bjoernrochel/sevro@1.1.1` version in
 [package.json](../../package.json) and `bun.lock`. Normal direct, guide and
 benchmark callers use that installation. Run `bun install --frozen-lockfile`
 before using them. No source checkout or Git metadata is required.
+The installed command uses compiled JavaScript and requires Node.js 24.13.0
+or newer on `PATH`. Darrow tooling continues to use Bun 1.3.13. Installed build
+identity includes Sevro's compiled output; retain older build identities as
+original evidence rather than expecting them to match this release.
 
 Sevro owns package releases, generic execution and host mechanics. Darrow owns
 the extension, cases, policy, exact dependency pin and integration checks.

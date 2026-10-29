@@ -421,7 +421,10 @@ export default {
   async run({ signal }) {
     await writeFile(${JSON.stringify(ready)}, JSON.stringify({ pid: process.pid }));
     await new Promise((_resolve, reject) => {
-      signal.addEventListener("abort", () => reject(new Error("cancelled")), { once: true });
+      const keepAlive = setInterval(() => {}, 1000);
+      const cancel = () => { clearInterval(keepAlive); reject(new Error("cancelled")); };
+      if (signal.aborted) cancel();
+      else signal.addEventListener("abort", cancel, { once: true });
     });
   },
 };\n`,
