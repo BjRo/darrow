@@ -19,6 +19,10 @@ constraints for producing and interpreting that evidence.
   or task outcomes. Keep subprocess coverage for execution, cancellation,
   retained evidence, and the installed package. Test ablation calculations
   through `analyzeAblations`, which the report writer also uses.
+  Check model and effort mismatch permutations with `candidateRouteMatches`
+  against retained public-command routes. One contradictory suite can exercise
+  a model mismatch on Codex and an effort mismatch on Claude while retaining
+  unaffected control cells and the separate ablation rejection run.
 - Prepare copied executable runtimes once per test file and clean them after
   the file completes. Keep Git workspaces and result directories case-local.
   Group variants that differ only in oracle input into one prepared fixture;

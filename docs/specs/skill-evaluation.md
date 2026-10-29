@@ -1651,6 +1651,11 @@ direct oracle checks. Each invocation still owns its repository, home, scratch
 space, and retained records. Installation, cold-cache, changed-source, and
 conflicting-provider regressions retain independent preparation.
 
+Route permutations may reuse the owning route validator against actual retained
+public-command evidence. Keep installed runs for both hosts, successful and
+contradictory routes, task-versus-caller exits, and ablation rejection. Reducing
+executed cells must preserve every model and effort counterexample at that seam.
+
 The installed-pin gate runs the complete integration and domain suite in one
 job with two isolated file workers. Tests within each file remain sequential;
 workers must not share mutable fixture repositories, homes, or result state.

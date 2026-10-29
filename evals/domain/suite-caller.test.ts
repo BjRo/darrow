@@ -14,6 +14,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { selectCaseIds } from "../sevro-extension/index";
 import { analyzeAblations, planSuite } from "../sevro-extension/suite";
 import { sevroCommand } from "../sevro-extension/sevro-command";
+import { candidateRouteMatches } from "../sevro-extension/suite-routes";
 import { captureTestCommand, spawnTestCommand } from "../test-command";
 
 const roots: string[] = [];
@@ -1828,6 +1829,23 @@ printf '%s\\n' '{"type":"result","subtype":"success","is_error":false,"result":"
       model: "claude-variant",
       effort: "high",
     });
+    // Exercise every mismatch against real retained routes without rerunning cells.
+    for (const harness of ["codex", "claude"] as const) {
+      const cell = manifest.cells.find(
+        (cell: { mode: string; harness: string }) =>
+          cell.mode === "overridden" && cell.harness === harness,
+      );
+      const actual = cell.provenance.routes[0];
+      const expected = { harness, requestedRoute: cell.requestedRoute };
+      expect(candidateRouteMatches(actual, expected)).toBeTrue();
+      for (const field of ["model", "effort"])
+        expect(
+          candidateRouteMatches(
+            { ...actual, [field]: "contradictory" },
+            expected,
+          ),
+        ).toBeFalse();
+    }
     const route = sevroCommand();
     const contradictorySevro = join(binRoot, "contradictory-sevro");
     await writeFile(
@@ -1842,8 +1860,10 @@ if (code === 0 && args[0] === "run") {
   const result = JSON.parse(stdout);
   const evidence = JSON.parse(await readFile(result.evidencePath, "utf8"));
   for (const actual of evidence.routes) {
-    if (actual.role === "candidate" && actual.model.endsWith("-variant"))
-      actual[process.env.SEVRO_TEST_BAD_ROUTE_FIELD] = "contradictory";
+    if (actual.role === "candidate" && actual.model.endsWith("-variant")) {
+      const field = actual.host === "sevro.host.codex" ? "model" : "effort";
+      actual[field] = "contradictory";
+    }
   }
   await writeFile(result.evidencePath, JSON.stringify(evidence));
 }
@@ -1852,27 +1872,21 @@ process.exitCode = code;
 `,
       { mode: 0o700 },
     );
-    for (const field of ["model", "effort"]) {
-      const mismatchedRoot = join(results, field);
-      const mismatch = await invoke(
-        args.map((arg) => (arg === results ? mismatchedRoot : arg)),
-        {
-          SEVRO_CHECKOUT: undefined,
-          SEVRO_PACKAGE_BIN: contradictorySevro,
-          SEVRO_TEST_BAD_ROUTE_FIELD: field,
-        },
-      );
-      expect(mismatch.code, `${mismatch.stderr}\n${mismatch.stdout}`).toBe(1);
-      const retained = JSON.parse(
-        await readFile(join(mismatchedRoot, "suite-run.json"), "utf8"),
-      );
-      expect(
-        retained.cells.map((cell: { exitCode: number }) => cell.exitCode),
-      ).toEqual([0, 0, 70, 70]);
-      expect(retained.cells[2].provenance).toBeNull();
-      const result = JSON.parse(
-        await readFile(retained.cells[2].result, "utf8"),
-      );
+    const mismatchedRoot = join(results, "contradictory");
+    const mismatch = await invoke(
+      args.map((arg) => (arg === results ? mismatchedRoot : arg)),
+      { SEVRO_CHECKOUT: undefined, SEVRO_PACKAGE_BIN: contradictorySevro },
+    );
+    expect(mismatch.code, `${mismatch.stderr}\n${mismatch.stdout}`).toBe(1);
+    const retained = JSON.parse(
+      await readFile(join(mismatchedRoot, "suite-run.json"), "utf8"),
+    );
+    expect(
+      retained.cells.map((cell: { exitCode: number }) => cell.exitCode),
+    ).toEqual([0, 0, 70, 70]);
+    for (const cell of retained.cells.slice(2)) {
+      expect(cell.provenance).toBeNull();
+      const result = JSON.parse(await readFile(cell.result, "utf8"));
       expect(result.task.verdict).toBe("passed");
       expect(result.exitCode).toBe(0);
     }
