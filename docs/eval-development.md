@@ -540,9 +540,11 @@ protection, and plugin installation fixtures also run on macOS. A supported host
 with missing prerequisites fails; platform changes must not turn these checks
 into skips or omit native portions of a test. These deterministic fixtures do
 not establish authenticated model success.
-The setup also installs Bun under `/usr/local/bin`, a public system tool root
-readable by native sandboxes. Synthetic host scripts use that executable in
-their shebangs. Domain oracle repositories set a local fixture Git identity
+The setup also installs Bun under `/usr/local/lib/darrow-ci/bin`, a dedicated
+public system tool root readable by native sandboxes. Its PATH entry preserves
+the selected Node runtime; CI verifies Node 24.13.0 or newer before testing.
+Synthetic host scripts use that Bun executable in their shebangs.
+Domain oracle repositories set a local fixture Git identity
 before setup so commit checks do not depend on the runner's account or hostname.
 
 ```sh

@@ -1676,8 +1676,10 @@ missing prerequisites on a supported host fail instead of omitting coverage.
 Changing the CI platform must preserve the executed behavior and retained evidence,
 including native checks inside otherwise platform-independent tests.
 CI must expose native fixture interpreters in public system tool roots that the
-sandbox can read. Domain oracle repositories configure their own deterministic
-Git identity before setup; commits must not depend on host identity discovery.
+sandbox can read without shadowing the selected Node runtime. Verify Node 24.13.0
+or newer before running the installed gate. Domain oracle repositories configure
+their own deterministic Git identity before setup; commits must not depend on
+host identity discovery.
 
 The requirements below describe needed evidence across both repositories.
 Engine and host mechanics belong to Sevro; Darrow retains the corresponding

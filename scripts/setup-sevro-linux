@@ -2,8 +2,10 @@
 set -euo pipefail
 
 # Native host fixtures use Bun shebangs; runner-home executables stay private.
-sudo install -m 755 "$(command -v bun)" /usr/local/bin/bun
-printf '%s\n' /usr/local/bin >> "$GITHUB_PATH"
+bun_bin=/usr/local/lib/darrow-ci/bin
+sudo mkdir -p "$bun_bin"
+sudo install -m 755 "$(command -v bun)" "$bun_bin/bun"
+printf '%s\n' "$bun_bin" >> "$GITHUB_PATH"
 
 # Keep executable tools outside the hosted runner's protected home and caches.
 tools_root=$(mktemp -d /tmp/darrow-ci-tools.XXXXXX)
