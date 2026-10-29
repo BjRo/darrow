@@ -32,9 +32,8 @@ target, and current deterministic-check evidence. Fix verification is not a
 second comprehensive review: it examines only the attempted findings and
 direct regressions caused by those repairs.
 
-The skill reviews and reports. It does not edit, repair, commit, publish, or
-merge the change unless the user separately requests a capability authorized to
-do so.
+The read-only boundary and preservation of authority are defined by
+[CR-C11 and CR-C12](#invariants).
 
 ## Contract
 
@@ -53,15 +52,14 @@ inconsistent binding evidence blocks verification rather than widening scope.
 
 Output:
 
-- one self-contained inline Markdown review by default, leading with the aggregate
-  `pass`, `fail`, or `blocked` verdict and finding counts;
+- the complete inline report defined by [CR-C16](#invariants), including its
+  result-first verdict, counts, scope, findings, evidence, risks and next action;
 - the exact review scope, Standards and Spec sources and statuses, each
   finding's axis, severity, disposition, changed location, violated source,
   and evidence, deterministic checks or an explicit evidence gap, risks, and
   next action;
-- the validated `darrow-review-result-v3` JSON only when the requester
-  explicitly asks for the machine format. JSON remains the canonical
-  mechanical artifact beneath the review scope artifact directory.
+- the canonical artifact and explicit machine-output alternative defined by
+  [CR-C15](#invariants) and [Result shape and presentation](#result-shape-and-presentation).
 
 Review JSON is parsed as named objects and validated against its format schema
 before semantic checks. The backend uses those named fields directly; it does
@@ -123,9 +121,7 @@ its own completion response.
 ### Standards
 
 Determine whether the change follows relevant repository instructions,
-documented coding standards, and established local design. Tool-enforced style,
-formatting, types, and tests are settled by those tools rather than repeated as
-model preferences.
+documented coding standards, and established local design. Apply [CR-C7](#invariants) to tool-enforced style, formatting, types and tests.
 
 When repository guidance is silent, a small bundled design-smell baseline may
 surface high-signal concerns such as duplication, speculative generality,
@@ -144,6 +140,12 @@ When no spec or objective exists after reasonable local discovery, skip this
 axis and report `not_available`. Do not invent requirements.
 
 ## Invariants
+
+Each identifier remains a normative coverage target. A linked entry incorporates
+the named contract section rather than defining a second copy of its rules.
+Evaluation requirements below specify evidence obligations, not alternative
+behavior. The [consolidation map](../research/repository-guidance-consolidation-277.md)
+records the removed repetitions and their retained authority.
 
 1. **CR-C1 — Intent mapping only.** The skill is model-invoked from explicit
    review intent. It MUST NOT require a router skill, external orchestrator, or
@@ -261,7 +263,9 @@ axis and report `not_available`. Do not invent requirements.
     field values, and the absence of surrounding prose remain contractual.
     A response never contains both presentations.
 16. **CR-C16 — Useful inline review and complete retained evidence.** The
-    session response states the verdict or verification outcome and next action,
+    self-contained inline Markdown session response leads with the aggregate
+    `pass`, `fail`, or `blocked` verdict (or verification outcome) and finding
+    counts, states the next action,
     describes each actionable finding with its location, violated requirement,
     concrete failure and cause, advisory repair guidance, and resolution
     behavior, and summarizes scope, checks, risks, and evidence gaps relevant
@@ -642,9 +646,8 @@ risks[]
 next_action
 ```
 
-The default user-facing result is a complete Markdown rendering of that
-artifact. The raw `darrow-review-result-v3` is user-facing only when explicitly
-requested as a machine format; the two forms are never concatenated.
+Render the complete artifact using the presentation selection in
+[CR-C15](#invariants) and the inline content rules in [CR-C16](#invariants).
 
 The additive fix-verification artifact includes:
 

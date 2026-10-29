@@ -1,8 +1,11 @@
 # Unified discovery probe — 2026-09-24
 
-This is an isolated Codex experiment, not a replacement for the shipped
-`darrow-discovery` plugin. Candidate:
-[`work-through-decisions`](../plugin/skills/work-through-decisions/SKILL.md).
+This historical Codex probe preceded the shipped single-entry discovery skill.
+Its prototype is retired. Current authority is the
+[Discovery specification](../specs/discovery.md); the
+[shipped validation](../../evals/experiments/discovery/snapshots/2026-09-24-unified-shipped.md)
+records the later adoption. The candidate and limits below describe the
+2026-09-24 experimental state, not current behavior.
 
 ## Observed result
 
@@ -42,7 +45,7 @@ the skill. The remaining first-turn probes used both required plugin manifests.
   missing.
 - Natural-language standalone grilling intentionally changes the shipped
   manual-only invocation contract. This needs an explicit product decision and
-  a revision of [`docs/specs/discovery.md`](../../../../docs/specs/discovery.md)
+  a revision of [Discovery specification](../specs/discovery.md)
   if adopted.
 - These four cases cover only first responses. They do not establish parity
   for dependent rounds, completed briefs and plans, confirmation, missing
