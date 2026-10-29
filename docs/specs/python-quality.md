@@ -135,6 +135,10 @@ Each package owns its coverage source and branch configuration. The repository
 quality infrastructure owns the shared percentage calculation, threshold, and
 failure behavior so packages do not copy or weaken that policy.
 
+Packages exercising their public commands in child processes enable Coverage's
+subprocess patch. The canonical gate erases stale measurements and combines
+parallel process data before enforcing the same statement and branch thresholds.
+
 ## Commands and enforcement
 
 `bun run check:python` is the canonical local and CI command. For every

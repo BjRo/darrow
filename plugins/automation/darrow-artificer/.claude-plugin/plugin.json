@@ -1,10 +1,10 @@
 {
   "name": "darrow-artificer",
-  "version": "0.3.3",
-  "description": "Explicit local admission and native Codex continuation for nominated GitHub tickets",
+  "version": "0.4.0",
+  "description": "Explicit local single-ticket workers around native Claude Code or Codex recipe sessions",
   "license": "BUSL-1.1",
   "author": {
-    "name": "Bj\u00f6rn Rochel",
+    "name": "Björn Rochel",
     "email": "bjoern@bjro.de"
   }
 }

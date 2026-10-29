@@ -1,8 +1,7 @@
 # Authorized unattended entry
 
-Local Artificer may invoke this recipe on Codex CLI with a saved recurring
-human-grant receipt. This entry is unavailable on Claude Code; explicit human
-invocation works on both hosts.
+Local Artificer may invoke this recipe on Claude Code or Codex with a saved
+recurring human-grant receipt. The host uses its existing profile and plugins.
 
 Require the grant and grantor, repository, exact issue, delivery and activation
 IDs, reserved worktree and branch, and permitted ticket-to-PR effects. Missing
@@ -14,7 +13,8 @@ explicitly identify its unattended, recurring human-grant provenance. Preserve
 the reserved target. Its worktree and branch take precedence over new-branch
 defaults. Do not repeat admission or create a recurring grant.
 
-The local adapter transports main-thread questions through GitHub. Replies
-resume the same retained Adaptive Goal preflight or native goal; they do not
-reinvoke this recipe. All ordinary authority, verification and CI requirements
-still apply.
+Missing product intent or specification stops delivery with a blocker for the
+local adapter to report on the source issue. Discovery and specification happen
+outside Artificer; do not wait for an issue-comment answer. Technical recovery
+resumes the same native session without reinvoking this recipe. All ordinary
+authority, verification and CI requirements still apply.

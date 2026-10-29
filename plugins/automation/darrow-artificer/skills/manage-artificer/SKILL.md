@@ -6,82 +6,71 @@ disable-model-invocation: true
 
 # Manage local Artificer
 
-Use the bundled frozen command for one explicitly requested local operation.
-Artificer admits nominated issues; a task recipe and its original native Codex
-owner perform the engineering. This entry never implements a ticket itself.
+Manage one local worker through its bundled frozen command. One worker admits
+one ready ticket at a time and wraps one native Claude Code or Codex session.
+The task recipe, Adaptive Goal, verification and review own engineering.
+Other plugins are optional and remain the session's concern.
 
-## 1. Establish the requested operation
+## Establish the operation
 
-Require explicit invocation. Determine the operation and absolute installation
-state path. If either is missing, ask for that input before changing anything.
-For status, use only the read-only status command and report delivery IDs, issue
-numbers, current state and the smallest needed action.
+Require explicit invocation, a requested operation and an absolute worker state
+path. Ask for missing inputs before mutation. For `status`, use only the read-only
+command and report its worker/ticket/session mapping, PRs, blockers and next actions.
 
-For enabling or changing a schedule, read [operations](references/operations.md).
-Establish the exact repository, controlling checkout, ticket scope (explicit
-IDs or all authorized `artificer:ready` nominations), recipe, grantor, permitted
-effects, credential location and independently installed delivery plugins. Explain
-that the grant persists until revoked. Require explicit authority for recurring
-claims, question comments, worktrees, intended commits, non-force pushes and one
-verified PR per delivery. Never infer this grant from a request to implement
-one ticket, inspect status, or explain automation.
+For setup or scheduling, read [operations](references/operations.md). Establish
+the repository, controlling checkout, selected host, writer grantor, ticket scope
+and recurring authority. Explain allowed recurring reads, claims, blocker reports,
+worktrees, recipe invocation, scoped commits, non-force pushes and one verified PR
+per delivery. Never infer that grant from an ordinary implementation request.
+The grant persists until revoked. Installation alone enables nothing.
 
-The initial host is macOS with Codex CLI 0.159.2, UV, Git and GitHub CLI.
-ChatGPT login must be persistent. The recurring grant must accept normal account
-usage, including available credits after included allowance is exhausted. Codex
-enforces availability under the account's billing settings; a credit balance or
-automatic reload setting does not block Artificer. Never purchase credits, change
-billing settings or switch to an API key. If the user requires zero paid usage,
-explain that this policy cannot guarantee it and resolve that requirement before
-enabling. A point-in-time allowance check is insufficient. If necessary authority
-is missing, ask for it and stop.
+The first version runs locally on macOS with the host's existing profiles,
+plugins and login. Account usage follows that configuration; do not promise zero
+additional cost, change billing/authentication or buy credits. Missing required
+authority stops setup. Workers in the same repository share host selection and
+WIP, but each worker has its own state path and revocation.
 
-**Complete when:** the exact operation, installation and its required authority
-are known. Read-only status requires no new recurring grant.
+## Execute the bounded command
 
-## 2. Run the bounded command
-
-Let `<skill-dir>` be the absolute directory containing this file. The package is
-at `<skill-dir>/../../backend`. Invoke:
+Let `<skill-dir>` be the directory containing this file. Invoke:
 
 ```text
-uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-artificer --state <absolute-state-path> <operation>
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-artificer --state <absolute-worker-state> <operation>
 ```
 
-Use [operations](references/operations.md) for exact arguments. Run only the
-requested operation. A configured installation does not authorize enabling its
-schedule unless recurring operation was requested. Creating this plugin does
-not enable it in the development repository.
+Use the linked operations reference for exact arguments. Execute only the
+requested operation. Scheduling needs recurring authority; creating or installing
+this plugin does not authorize a live installation in the development repository.
 
-An individual cancellation requires its exact delivery ID. If ambiguous, show
-the status mapping and ask which delivery. `WORK_IN_PROGRESS_LIMIT=0` pauses new
-admissions but permits outstanding replies and completion. Revocation stops
-subsequent admissions and continuations; neither operation cancels running
-deliveries. Cancellation preserves claims and published effects.
+Shared WIP counts running reservations and open Artificer PRs once, excluding
+unrelated PRs. WIP zero pauses admission while permitting reconciliation.
+Each worker runs one active ticket; add workers for parallel delivery.
 
-Never clear a claim, reapply readiness, relaunch a delivery, or invent a fresh
-owner to resolve failure. Recovery requires the original main thread,
-authoritative reconciliation of existing execution/worktree/branch/PR effects,
-and an explicit human instruction. Treat a failed command as potentially
-partially applied. Inspect its reported local state before proposing any retry.
+Recoverable technical interruptions resume the original native session at most
+twice per interruption. Useful native progress resets the budget; restart alone
+does not. Missing product intent stops for preparation outside Artificer, with a
+source-issue blocker report. Do not start discovery or an issue-comment reply loop.
 
-**Complete when:** the command has an observed result or a precise failure with
-partial effects retained. No prohibited recovery or unrelated operation ran.
+Cancellation requires the exact delivery ID. Revocation disables that worker's
+future admissions and continuations; it does not cancel existing execution.
+Neither operation undoes published effects. A failed command may be partially
+applied: inspect its evidence before retrying.
 
-## 3. Report the result
+Recovery requires the original session ID and reconciliation of existing effects.
+Never create a fresh owner to recover a delivery or clear an uncertain claim to
+manufacture capacity. Use native storage/resume, not copied archives. If native
+state or execution/publication evidence is unavailable, retain ownership and
+explain the required human reconciliation. Legacy installations are refused;
+do not silently convert, delete, relaunch or release their records.
 
-Lead with the observed outcome and next action. Include the absolute state
-path, affected repository and delivery/issue IDs, effective limits or schedule
-when changed, and any needs-attention reason. Preserve the exact reply syntax
-when a human answer is pending. Never present an admission, question, open PR,
-archive save, or mock test as completed ticket delivery.
+## Report the result
 
-When the original native owner identity or archives are unavailable, report
-recovery blocked and the claim retained. Explain that a human must reconcile
-the existing execution and published effects before recovery can proceed.
+Lead with the observed outcome and next action. Include the absolute state path,
+repository and affected delivery/ticket IDs. Report changed shared WIP or schedule,
+native session and recovery attempts when relevant. A reservation, open PR or mock
+result is not verified completed delivery.
 
-After revocation, state that future admissions and continuations are disabled;
-existing execution and published effects were not cancelled or undone.
-
-**Complete when:** the user can identify what changed and what remains, without
-an unsupported claim of native restoration, zero extra cost, or delivery success.
+After revocation, state that future admissions and continuations are disabled
+for this worker, while existing execution and published effects remain.
+After a recovery failure, identify the retained claim and explain that a human
+must reconcile original execution and effects before another recovery attempt.

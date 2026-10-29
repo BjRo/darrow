@@ -95,6 +95,8 @@ Historical grades remain tied to their original contracts and observation limits
 
 ## Local Artificer
 
+- [Native-session worker revamp and TDD evidence](artificer-worker-revamp-2026-10-29.md)
+
 Current authority: [Local Artificer](../specs/artificer.md).
 The implementation is explicit recurring admission with native continuation;
 these records retain delivery and account-usage observations.

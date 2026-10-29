@@ -1,146 +1,84 @@
 # Local Artificer
 
-Artificer admits explicitly nominated GitHub issues to one native Codex delivery
-each. Issues [#126](https://github.com/BjRo/darrow/issues/126) and
-[#157](https://github.com/BjRo/darrow/issues/157) define its shared and local
-acceptance. This specification defines the local implementation boundary.
+Artificer is an explicitly authorized unattended worker around a normal,
+plugin-equipped Claude Code or Codex session. It owns admission and execution
+supervision. Task recipes and their native session own engineering.
 
-## Entry and authority
+- **ART-C1 — Entry and authority.** Installation starts nothing. Enabling binds
+  a repository, writer grantor, recurring authority, effect envelope and revocation.
+  Initially invoke only `ticket-to-pr` for ready GitHub issues. Preserve recipe
+  verification, commit, non-force push and PR requirements. No merge, deploy,
+  release, billing changes or unrelated mutations.
+- **ART-C2 — Composition.** Require Adaptive Goal, verification and review in
+  the session before engineering. Other plugins (TDD, Git, tickets, etc.) are
+  optional; use applicable installed capabilities and retain their refusals.
+  If no standalone readiness provider is installed, the caller omits that
+  default standalone gate while retaining read-only preflight and the prohibition
+  on implementing missing material intent.
+  Artificer never runs engineering phases, discovery or specification. Missing
+  product intent stops with a blocker; it does not start a question/reply loop.
+- **ART-C3 — Worker.** One worker runs one active ticket in one fresh native
+  session. Scale by starting more workers. The session owns internal subagents.
+  Each delivery has an isolated worktree from freshly fetched main/master,
+  never a preceding delivery branch. Configure the host per repository.
+- **ART-C4 — Native state.** Initially run locally on macOS, inheriting the
+  host's existing profiles, plugins, guidance and login. Store only operational
+  correlation in Artificer. Use exact-identity native resume, without copied
+  plugins, credentials, conversation archives or archive expiry. Missing native
+  state is a blocker, never permission to substitute a fresh owner.
+  Operational traces retain protocol identities and status, not prompts,
+  conversation messages or tool-result bodies. Blocker/status data and the
+  owner's goal identity may be retained for correlation.
+  A headless Claude client enters the recipe's explicit native command first.
+  After read-only preflight, the original owner may request client-side native
+  goal activation with its complete objective. The adapter enters `/goal` once
+  in that same session; it never frames the engineering goal or reinvokes the
+  recipe. Do not nest a user-only recipe command inside an unprepared goal.
+- **ART-C5 — Nomination.** Admit oldest open `artificer:ready` issues nominated
+  by a human writer and without unresolved blocking dependencies. Unreadable or
+  ambiguous evidence admits nothing. Preserve explicit ticket-scope restrictions.
+- **ART-C6 — Shared coordination.** Workers share repository-wide locking,
+  host/WIP configuration and durable reservations. Persist reservation before
+  effects; consume readiness and apply `artificer:claimed` to the source issue.
+  Mark correlated delivery PRs with the same ownership label. Discover open
+  labeled Artificer PRs even when no local delivery record remains, and correlate
+  them by repository/branch so reservations and their PRs consume one slot.
+  Missing labels and uncertain launches do not erase ownership.
+- **ART-C7 — Capacity.** Count each active reservation or open Artificer PR
+  once; ignore unrelated PRs. WIP defaults to one. Zero pauses admission but
+  permits reconciliation. Open PRs hold capacity until closed/merged and
+  execution ended. A finished worker may take new work if capacity permits.
+  Lowering WIP does not cancel existing work.
+- **ART-C8 — Stopped work.** Release only after execution has ended and
+  authoritative publication reconciliation finds no open PR. Retain capacity
+  while execution/publication is uncertain. Never automatically renominate
+  stopped work. Preserve worktrees, branches and published effects.
+- **ART-C9 — Recovery.** Resume the original session for recoverable technical
+  interruptions, with two attempts per interruption. Immediate recurrence is
+  the same interruption; restarting alone does not reset the counter. Observed
+  successful native progress establishes recovery. Explicit recovery consumes
+  the remaining incident budget and refuses an exhausted incident. Missing intent/state,
+  exhausted retries, malformed results and ambiguous effects require attention.
+- **ART-C10 — Operations.** Provide explicit skill/CLI setup, status, scheduling,
+  pause, revocation, cancellation and native recovery. Show ticket, worker,
+  native session, recovery attempts, PR, blocker and next action. Report stopped
+  work on its source issue too, including any PR. An ambiguous comment must
+  remain locally visible rather than automatically being posted again.
+- **ART-C11 — Local scheduling.** Retain launchd with absolute executables and
+  a default 900-second tick, independent of Desktop/terminal. Revocation prevents
+  later admission and continuation. Cancellation targets only its identified
+  process group and does not undo effects.
+- **ART-C12 — Legacy state.** Refuse legacy archive-based state with an explicit
+  reconciliation instruction. Never silently convert, relaunch or release it.
 
-- **ART-C1 — Explicit entry.** `manage-artificer` starts only when explicitly
-  invoked. Both host metadata controls disable implicit invocation. Installing
-  the plugin neither creates a schedule nor grants delivery authority.
-- **ART-C2 — Recurring grant.** Enabling requires an exact repository, controlling
-  checkout, grantor with write access, ticket scope, named ticket-to-PR recipe,
-  permitted effects, and revocation command. The saved grant authorizes recurring
-  reads, claim/release labels and correlation comments, question comments,
-  worktrees, encrypted archives, and recipe invocation. Its recipe envelope
-  permits intended commits, non-force push, and one verified PR per delivery;
-  it excludes merge, auto-merge, deployment, release, and unrelated mutations.
-  Activation provenance identifies the grant and each reservation. Revocation
-  prevents subsequent admissions and continuations; it does not undo effects.
-- **ART-C3 — Ownership.** Automation owns admission and process/storage mechanics.
-  The recipe owns its permission envelope. Adaptive goal owns readiness and
-  the original main thread's native goal. That thread retains readiness,
-  acceptance, decisions, bounded delegation and completion. A scheduler supplies a deliberate grant-bound
-  unattended entry, never an impersonated human invocation. Failed readiness
-  permits no implementation. The same main thread retains all continuation.
-  The initial route is `gpt-6-sol`/`medium`; implementation and assurance routes
-  remain selected by Adaptive Goal and its bound capabilities.
+## Acceptance evidence
 
-## Admission and reconciliation
+Exercise the documented CLI with real filesystem, Git and process state,
+substituting only external host/GitHub services. Cover concurrent workers,
+claims and WIP/PR lifetimes; latest-main worktrees; profile/session preservation;
+core versus optional plugins; readiness blockers; recovery reset/exhaustion;
+uncertain effects; reporting; cancellation and revocation. Native protocol
+fixtures do not prove live account compatibility: report live limits separately.
 
-- **ART-C4 — Limits.** `WORK_IN_PROGRESS_LIMIT` defaults to 1 and accepts
-  nonnegative integers. `MAX_STARTS_PER_ACTIVATION` defaults to 1 and accepts
-  positive integers. Invalid configuration admits nothing. Under the repository
-  lock, reserve `min(max(0, WIP - outstanding), starts, eligible)` issues. A
-  missed tick never accumulates allowance. Lowering WIP never cancels deliveries.
-- **ART-C5 — Eligibility.** Select oldest open, unclaimed issues whose current
-  `artificer:ready` nomination was made by a person with write access or higher,
-  and which have no unresolved GitHub blocking dependencies. Ambiguous or
-  unreadable nomination/dependency evidence is ineligible.
-- **ART-C6 — Reservation.** One OS advisory lock at the repository's common Git
-  directory protects all admissions. One controlling installation is bound to
-  that repository. Persist correlation before any GitHub write or launch;
-  consume `artificer:ready`, establish `artificer:claimed`, and correlate issue,
-  delivery, activation, grant, worktree and original thread. Local unreleased
-  reservations and external claims occupy capacity, counted once per issue.
-  Partial writes and failed/ambiguous launches retain reservations and consume
-  allowance. Never admit replacement work for them during that activation.
-- **ART-C7 — Completion.** Every activation reconciles replies and PR status,
-  including at WIP zero. An open PR holds capacity. Normal release requires a
-  verified delivery PR merged/closed and ended execution. Cancellation, failed
-  readiness, interrupted/ambiguous execution or missing state retains ownership
-  for human recovery. Missing labels and expiry do not release claims. A closed
-  unmerged PR does not reapply readiness.
-  When the original native owner identity or archives are unavailable, report
-  recovery blocked, the retained claim, and the need for a human to reconcile
-  existing execution and published effects. A status listing alone does not
-  supply that next action.
-
-## Human loop and local execution
-
-- **ART-C8 — Replies.** Questions are issue comments with a delivery and question
-  identifier. `/artificer reply <delivery> <question>` followed by a newline and
-  the answer resumes only that pending question's original owner. A write-access
-  author is required. Preserve the entire answer payload. Record comment
-  consumption before launch; duplicates, multiple competing answers, ordinary
-  discussion and unauthorized comments never execute. Explicit
-  `/artificer resume <delivery>` requests recovery after needs-attention; it
-  cannot authorize a replacement owner or bypass unresolved questions.
-- **ART-C9 — Native continuation.** Support must be established against an exact
-  Codex version. A contained app-server client hosts the original main thread
-  through native continuation. After process exit, resume its exact thread ID
-  and deliver the complete authorized feedback there, preserving native history,
-  goal and route. Retain an observed goal's objective across process exits and
-  refuse its later disappearance or replacement. A host snapshot with no goal
-  is valid before the first goal is created. Questions before goal creation
-  also retain that same thread.
-  Never use forks, fresh owners, summary reconstruction, synthetic continuation
-  prompts or an engineering phase loop. Persist the accepted identity before
-  submitting the first turn. Serialize authority checks, native resume and turn
-  submission with grant revocation. Release the lock while observing execution.
-  Later delivery requires observed native completion
-  and a validated result with a verified PR; an intermediate final response or
-  a child result cannot establish completion. Preserve malformed results, host
-  errors and uncertain handoffs for recovery without automatic retries.
-  Earlier separate-owner records are not converted or relaunched.
-  Production execution has no overall elapsed-time limit. Observe healthy native
-  continuation until completion, a user question, cancellation or a host failure.
-  Individual protocol requests and process shutdown remain bounded. Experiment
-  duration limits belong only to test/eval entrypoints; they never become an
-  implicit delivery budget or automatic retry policy.
-- **ART-C10 — Account usage.** Use persistent normal ChatGPT login and Codex token
-  refresh. Force ChatGPT authentication and the OpenAI provider; exclude API-key,
-  custom-provider, and API-base overrides. The recurring grant explicitly accepts
-  account usage, including available credits after included allowance is exhausted.
-  Credit balances and automatic reload settings do not block execution. Codex
-  enforces account availability; Artificer does not impose a subscription-only
-  allowance gate or promise zero additional cost. Never purchase credits, change
-  billing settings or introduce API-key fallback. A stricter user requirement
-  such as zero paid usage must be resolved before enabling; it is not satisfied
-  by a point-in-time allowance check. An access/allowance failure retains native
-  state and the claim, reports needs-attention, and cannot be restarted by a tick without an explicit
-  authorized human resume. Polling itself invokes no model.
-- **ART-C11 — Scheduler and cancellation.** The initial local host is macOS with
-  launchd, absolute executables, no terminal dependency, and a configurable
-  900-second interval. A scheduled invocation works independently of Desktop.
-  Status maps each delivery ID to its issue, native identities and status.
-  Cancellation stops only the target delivery's identified process group,
-  retains its claim, and leaves published effects and other deliveries intact.
-- **ART-C12 — Archives.** Encrypt saved native continuation state with
-  authenticated encryption and a separate local key. Exclude credentials.
-  `SESSION_RETENTION_DAYS` defaults to 5, measured from the latest successful
-  save. Expiry removes the archive without releasing ownership. Do not silently
-  restore corrupt, missing, expired or mismatched native state.
-  Exclude regenerable native temporary launchers from archives; unexpected
-  symbolic links in persistent state remain errors. Archive only after the host
-  process has stopped so native databases and histories are settled. Restore
-  executable helpers' permission bits without restoring elevated permissions.
-
-## Evidence required
-
-Mechanical tests cover all admission combinations, concurrent processes, partial
-effects, replies while paused, competing/duplicate replies, cancellation,
-completion, encryption, expiry, malformed configuration, and fresh installation.
-Live Codex evidence must prove original main-thread restoration, goal, history,
-model and effort after process exit. Live launchd evidence must show nonterminal
-activation and the configured interval. Explicit-entry evals cover a direct
-request, missing authority, status, revocation and a request to bypass recovery.
-The recovery-boundary fixture contains the existing grant and claimed delivery
-with its original native identity and archives unavailable. Its checks preserve
-that claim and grant; a missing installation cannot substitute for lost-owner
-recovery evidence.
-Revocation grading accepts equivalent wording for the revoked recurring grant
-when the operation and state path are clear. It still requires the report to
-explain that future admissions and continuations are disabled; quoting a raw
-command return value alone does not establish that outcome.
-Account-boundary grading accepts a concrete explanation that available credits
-may be consumed after the included allowance. It does not require repeating every
-billing setting when the response clearly rejects a zero-paid-usage guarantee
-and leaves enabling pending resolution of that requirement.
-No implicit-positive activation is required. Packaging must disable implicit
-selection and preserve ordinary engineering requests outside this entry.
-
-An implementation and its mock tests do not establish native integration
-acceptance. Record observed evidence and unresolved limitations separately.
+Cloud execution, epic recipes and dispatch by subissues/labels are deferred.
+Initial dispatch always selects `ticket-to-pr`.

@@ -5,12 +5,23 @@ from collections.abc import Callable
 from pathlib import Path
 from uuid import uuid4
 
-from .github import GitHub, number_value
+from .github import GitHub, number_value, object_value
 from .installation import Installation
 from .models import Claim, Grant
 from .policy import Limits, allowance
+from .processes import alive
 
 Launch = Callable[[Installation, Claim], None]
+
+
+def unreserved_pr_count(forge: GitHub, claims: list[Claim]) -> int:
+    branches = {(claim.branch, forge.repository) for claim in claims}
+    unmatched = 0
+    for pr in forge.owned_prs():
+        head = object_value(pr["head"])
+        identity = (head.get("ref"), object_value(head["repo"]).get("full_name"))
+        unmatched += identity not in branches
+    return unmatched
 
 
 def eligible(forge: GitHub, grant: Grant, occupied: set[int]) -> list[int]:
@@ -61,18 +72,30 @@ def handoff(site: Installation, forge: GitHub, claim: Claim, launch: Launch) -> 
         site.save(claim)
 
 
+def worker_occupied(site: Installation, ignored_delivery: str = "") -> bool:
+    return any(
+        claim.status in {"reserved", "running", "needs-attention", "cancelled"}
+        or alive(claim.process)
+        for claim in site.claims()
+        if claim.status != "released" and claim.id != ignored_delivery
+    )
+
+
 def admit(
     site: Installation, forge: GitHub, activation: str, launch: Launch
 ) -> list[str]:
     """Caller holds the repository lock for observations, reservations and launches."""
     grant = site.grant
+    if worker_occupied(site):
+        return []
     limits = Limits.from_mapping(grant.model_dump())
-    occupied = {claim.issue for claim in site.claims() if claim.status != "released"}
+    claims = [claim for claim in site.repository_claims() if claim.status != "released"]
+    occupied = {claim.issue for claim in claims}
     occupied.update(
         number_value(issue["number"])
         for issue in forge.issues("artificer:claimed", "all")
     )
-    available = allowance(limits, len(occupied), limits.starts)
+    available = allowance(limits, len(occupied) + unreserved_pr_count(forge, claims), 1)
     if not available:
         return []
     selected = eligible(forge, grant, occupied)[:available]

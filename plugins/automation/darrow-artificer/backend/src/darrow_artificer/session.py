@@ -5,8 +5,10 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from .github import object_value, text_value
+from .github import array_value, object_value, text_value
 from .models import Grant, Native, Outcome
+from .native import check_error as native_error
+from .native import require_capabilities
 from .rpc import Rpc
 
 
@@ -22,8 +24,10 @@ class Session:
         self.rpc, self.grant, self.cwd = rpc, grant, cwd
         self.thread = ""
         self.resuming = False
+        self.resuming_active = False
         self.objective = previous_goal
         self.observed_goal = observed_goal
+        self.observed_progress: Callable[[], None] = lambda: None
 
     def start(
         self, previous: Native | None, accepted: Callable[[Native], None]
@@ -37,46 +41,59 @@ class Session:
             },
         )
         self.rpc.send({"method": "initialized", "params": {}})
+        self.require_capabilities()
         params: dict[str, object] = {
             "cwd": str(self.cwd),
-            "model": self.grant.model,
-            "modelProvider": "openai",
-            "config": {"model_reasoning_effort": self.grant.effort},
-            "approvalPolicy": "never",
-            "sandbox": "danger-full-access",
         }
         if previous:
             params["threadId"] = previous.thread
         else:
             params.update({"ephemeral": False, "allowProviderModelFallback": False})
         result = self.rpc.call("thread/resume" if previous else "thread/start", params)
-        self.thread = text_value(object_value(result["thread"])["id"])
+        thread = object_value(result["thread"])
+        self.thread = text_value(thread["id"])
+        turns = array_value(thread.get("turns", []))
+        self.resuming_active = bool(
+            turns and object_value(turns[-1]).get("status") == "inProgress"
+        )
         observed = Native(
             thread=self.thread,
             model=text_value(result["model"]),
-            effort=text_value(result["reasoningEffort"]),
+            effort="default"
+            if result.get("reasoningEffort") is None
+            else text_value(result["reasoningEffort"]),
         )
-        if (observed.model, observed.effort, result.get("modelProvider")) != (
-            self.grant.model,
-            self.grant.effort,
-            "openai",
-        ):
-            raise ValueError("App-server effective main-thread route changed")
         if previous is not None and previous != observed:
             raise ValueError("App-server resumed a different native identity")
         accepted(observed)
         self.rpc.record({"type": "thread.started", "thread_id": self.thread})
         self.goal_status()
 
+    def require_capabilities(self) -> None:
+        result = self.rpc.call(
+            "skills/list", {"cwds": [str(self.cwd)], "forceReload": True}
+        )
+        names: list[str] = []
+        for entry in array_value(result["data"]):
+            group = object_value(entry)
+            if group["errors"]:
+                raise ValueError(f"Unreadable native skills: {group['errors']}")
+            names.extend(
+                text_value(object_value(skill)["name"])
+                for skill in array_value(group["skills"])
+                if object_value(skill)["enabled"] is True
+            )
+        require_capabilities(names)
+
     def submit(self, prompt: str) -> None:
         params: dict[str, object] = {
             "threadId": self.thread,
-            "model": self.grant.model,
-            "effort": self.grant.effort,
             "input": [{"type": "text", "text": prompt, "text_elements": []}],
         }
         if not self.resuming:
-            params["outputSchema"] = Outcome.model_json_schema()
+            schema = Outcome.model_json_schema()
+            schema["required"] = list(schema["properties"])
+            params["outputSchema"] = schema
         self.rpc.call("turn/start", params)
 
     def wait(self) -> Outcome:
@@ -92,11 +109,26 @@ class Session:
         if params.get("threadId") != self.thread:
             return None
         method = message.get("method")
+        return self.notification(method, params)
+
+    def notification(self, method: object, params: dict[str, object]) -> Outcome | None:
+        if method == "item/completed":
+            self.progress(params)
         self.check_notification(method, params)
         if method == "thread/goal/updated":
             self.remember_goal(object_value(params["goal"]))
         if method == "turn/completed":
             return self.completed(object_value(params["turn"]))
+        return None
+
+    def progress(self, params: dict[str, object]) -> None:
+        item = object_value(params["item"])
+        if (
+            item.get("type")
+            in {"commandExecution", "fileChange", "mcpToolCall", "collabAgentToolCall"}
+            and item.get("status") == "completed"
+        ):
+            self.observed_progress()
         return None
 
     def question(self, message: dict[str, object]) -> Outcome:
@@ -262,4 +294,5 @@ def render_question(value: dict[str, object]) -> str:
 
 def check_error(method: object, params: dict[str, object]) -> None:
     if method == "error" and params.get("willRetry") is not True:
+        native_error(object_value(params.get("error")))
         raise RuntimeError(f"Codex fatal error: {params.get('error')}")

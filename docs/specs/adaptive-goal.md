@@ -837,9 +837,10 @@ through `followup_task` for an idle child or `send_message` for a running one,
 addressed to that identity. Direct placement launches no
 implementation agent. Children do not create goals.
 
-Use native goal continuation; an eval client must keep the main session alive
-through it. App-server is an evaluation entrypoint, not a separate production
-execution-owner transport or a custom turn-driving loop.
+Use native goal continuation; a client must keep the original main session alive
+through it. App-server is a native client transport for evaluation and explicitly
+authorized unattended entry. It must not become a separate engineering owner
+or a custom turn-driving loop.
 
 ### Claude
 
@@ -853,7 +854,13 @@ yield until native activation is confirmed.
 An already active matching goal can continue. When model-side activation is
 unavailable, surface the exact native `/goal <condition>` entry needed in this
 session; do not claim it ran. A headless client may enter through that native
-command. Do not invent a Skill invocation of a built-in command, launch a nested
+command. When the host explicitly supplies a client activation interface, return
+the prepared objective through that interface only after read-only preflight is
+complete, and yield for the native kickoff in this same session. The client
+transports the owner's objective; it does not frame the engineering goal, choose
+workflow or infer readiness. Without such a client, preserve the ordinary
+`launch_required` result and exact native command.
+Do not invent a Skill invocation of a built-in command, launch a nested
 Claude process or add a custom stop hook. Bounded Agent assignments use resolved
 scoped agents and return their own results; they do not own or clear the goal.
 Continue a retained agent with `SendMessage`, addressed to its returned agent

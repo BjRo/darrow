@@ -19,19 +19,10 @@ def parser() -> argparse.ArgumentParser:
     init = commands.add_parser("init")
     init.add_argument("--repository", required=True)
     init.add_argument("--checkout", type=Path, required=True)
-    init.add_argument("--plugin", action="append", required=True)
-    init.add_argument("--credential-home", type=Path, default=Path.home() / ".codex")
-    init.add_argument("--model", default="gpt-6-sol")
-    init.add_argument("--effort", default="medium")
+    init.add_argument("--host", choices=("codex", "claude"), default="codex")
     init.add_argument("--issue", type=int, action="append", default=[])
     init.add_argument(
         "--authorize-recurring-delivery", action="store_true", required=True
-    )
-    init.add_argument(
-        "--accept-chatgpt-account-usage",
-        action="store_true",
-        required=True,
-        help="Allow subscription usage and available credits under the account's billing settings",
     )
     for name in ("tick", "status", "revoke", "schedule", "unschedule"):
         commands.add_parser(name)
@@ -42,8 +33,6 @@ def parser() -> argparse.ArgumentParser:
     configure = commands.add_parser("configure")
     for name in (
         "WORK_IN_PROGRESS_LIMIT",
-        "MAX_STARTS_PER_ACTIVATION",
-        "SESSION_RETENTION_DAYS",
         "SCHEDULE_SECONDS",
     ):
         configure.add_argument(f"--{name}", type=int)
@@ -55,11 +44,8 @@ def initialize(site: Installation, args: argparse.Namespace) -> object:
         site,
         args.checkout,
         args.repository,
-        args.plugin,
-        args.credential_home,
-        args.model,
-        args.effort,
         args.issue,
+        args.host,
     )
     setup.labels(site)
     return grant.model_dump()
@@ -77,6 +63,7 @@ def configure(site: Installation, args: argparse.Namespace) -> object:
             }
         )
         grant = Grant.model_validate(values)
+        site.configure_capacity(grant.WORK_IN_PROGRESS_LIMIT)
         site.save_grant(grant)
         return grant.model_dump()
 
@@ -87,8 +74,12 @@ def dispatch(site: Installation, args: argparse.Namespace) -> object:
         "configure": lambda: configure(site, args),
         "tick": lambda: {"admitted": operations.tick(site)},
         "status": lambda: {
+            "worker": site.grant.id,
+            "state": str(site.root),
             "repository": site.grant.repository,
             "enabled": site.grant.enabled,
+            "host": site.grant.host,
+            "WORK_IN_PROGRESS_LIMIT": site.grant.WORK_IN_PROGRESS_LIMIT,
             "deliveries": [claim.model_dump() for claim in site.claims()],
         },
         "cancel": lambda: operations.cancel(site, args.delivery).model_dump(),

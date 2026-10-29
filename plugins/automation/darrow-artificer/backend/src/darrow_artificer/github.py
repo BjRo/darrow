@@ -92,6 +92,15 @@ class GitHub:
             return False
         return self.human_writer(object_value(relevant[-1]["actor"]))
 
+    def owned_prs(self) -> list[dict[str, object]]:
+        return [
+            self.pr(number_value(item["number"]))
+            for item in self.collection(
+                "issues?state=open&labels=artificer:claimed&per_page=100"
+            )
+            if "pull_request" in item
+        ]
+
     def human_writer(self, author: dict[str, object]) -> bool:
         return author.get("type") == "User" and self.writable(
             text_value(author["login"])
@@ -105,12 +114,15 @@ class GitHub:
 
     def reserve(self, issue: int, correlation: str) -> None:
         self.comment(issue, correlation)
+        self.mark_owned(issue)
+        self.request(self.route(f"issues/{issue}/labels/artificer%3Aready"), "DELETE")
+
+    def mark_owned(self, number: int) -> None:
         self.request(
-            self.route(f"issues/{issue}/labels"),
+            self.route(f"issues/{number}/labels"),
             "POST",
             {"labels": ["artificer:claimed"]},
         )
-        self.request(self.route(f"issues/{issue}/labels/artificer%3Aready"), "DELETE")
 
     def comment(self, issue: int, body: str) -> int:
         result = object_value(

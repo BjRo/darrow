@@ -3,14 +3,13 @@
 import shutil
 import subprocess
 from pathlib import Path
+from typing import Literal
 from uuid import uuid4
-
-from cryptography.fernet import Fernet
 
 from .github import GitHub, object_value
 from .installation import Installation
 from .models import Grant
-from .storage import locked, write_bytes, write_object
+from .storage import locked, write_object
 
 
 def executable(name: str) -> str:
@@ -37,13 +36,10 @@ def initialize(
     site: Installation,
     checkout: Path,
     repository: str,
-    plugins: list[str],
-    credential_home: Path,
-    model: str,
-    effort: str,
     issues: list[int],
+    host: Literal["codex", "claude"] = "codex",
 ) -> Grant:
-    git, gh, codex = executable("git"), executable("gh"), executable("codex")
+    git, gh, codex = executable("git"), executable("gh"), executable(host)
     primary = primary_checkout(git, checkout)
     common = Path(
         git_output(
@@ -54,7 +50,7 @@ def initialize(
     grantor = forge.login()
     if not forge.writable(grantor):
         raise ValueError("Recurring grantor must have repository write access")
-    remote = git_output(git, primary, "remote", "get-url", "origin")
+    remote = git_output(git, primary, "config", "--get", "remote.origin.url")
     if remote not in (
         f"git@github.com:{repository}.git",
         f"https://github.com/{repository}.git",
@@ -64,21 +60,17 @@ def initialize(
             "Origin must match the explicitly authorized GitHub repository"
         )
     grant = Grant(
+        host=host,
         id=str(uuid4()),
         repository=repository,
         checkout=str(primary),
         common_git=str(common),
         grantor=grantor,
-        codex=codex,
+        executable=codex,
         gh=gh,
         git=git,
-        model=model,
-        effort=effort,
-        credential_home=str(credential_home.resolve(strict=True)),
-        plugins=[str(Path(plugin).resolve(strict=True)) for plugin in plugins],
         issue_scope=issues,
-        account_usage_accepted=True,
-        effects="claims,questions,worktrees,recipe,commits,push,pr,archives",
+        effects="claims,reports,worktrees,recipe,commits,push,pr",
     )
     bind(site, grant)
     return grant
@@ -87,17 +79,35 @@ def initialize(
 def bind(site: Installation, grant: Grant) -> None:
     directory = Path(grant.common_git) / "artificer"
     with locked(directory / "admission.lock"):
-        if (directory / "installation.json").exists() or (
-            site.root / "grant.json"
-        ).exists():
+        if (directory / "installation.json").exists():
             raise ValueError(
-                "A controlling installation already exists; inspect it before recovery"
+                "Legacy controlling installation: reconcile it before adding workers"
             )
+        if (site.root / "grant.json").exists():
+            raise ValueError("Worker already exists; inspect its state before recovery")
+        bind_repository(directory, grant)
         site.save_grant(grant)
-        write_bytes(site.root / "archive.key", Fernet.generate_key())
         write_object(
-            directory / "installation.json", {"root": str(site.root), "grant": grant.id}
+            directory / "workers" / f"{grant.id}.json",
+            {"root": str(site.root), "grant": grant.id},
         )
+
+
+def bind_repository(directory: Path, grant: Grant) -> None:
+    from .storage import read_object
+
+    path = directory / "repository.json"
+    value = {
+        "repository": grant.repository,
+        "host": grant.host,
+        "WORK_IN_PROGRESS_LIMIT": grant.WORK_IN_PROGRESS_LIMIT,
+    }
+    if not path.exists():
+        write_object(path, value)
+        return
+    existing = read_object(path)
+    if (existing["repository"], existing["host"]) != (grant.repository, grant.host):
+        raise ValueError("Workers must use the same repository and configured host")
 
 
 def labels(site: Installation) -> None:

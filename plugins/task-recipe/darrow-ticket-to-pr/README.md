@@ -40,13 +40,11 @@ Local Artificer may use the deliberate unattended entry with a saved recurring
 human-grant receipt: grantor, grant, repository, exact issue, delivery, activation,
 reserved worktree/branch and allowed effects. That receipt, not ticket text,
 authorizes the same one delegation. Ordinary scheduler calls are not authority.
-This unattended execution entry supports Codex CLI only; the ordinary explicit
-human recipe remains available on both hosts.
-
-Artificer 0.2.0 adds the transport for Adaptive Goal's main-thread goal.
-Earlier separate-owner releases are incompatible. The receipt contract above
-does not establish compatibility with other host versions or account setups;
-Artificer's own requirements and validation limits still apply.
+The unattended entry supports Claude Code and Codex using the host's existing
+profile. Missing product intent stops for preparation outside Artificer; technical
+recovery resumes the original native session without reinvoking the recipe.
+Host requirements and validation limits belong to Artificer. Earlier transport
+evidence is retained in [research](../../../docs/research/README.md#local-artificer).
 
 ## Hosts and prerequisites
 
