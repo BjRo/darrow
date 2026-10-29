@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Native host fixtures use Bun shebangs; runner-home executables stay private.
+sudo install -m 755 "$(command -v bun)" /usr/local/bin/bun
+printf '%s\n' /usr/local/bin >> "$GITHUB_PATH"
+
 # Keep executable tools outside the hosted runner's protected home and caches.
 tools_root=$(mktemp -d /tmp/darrow-ci-tools.XXXXXX)
 npm install --prefix "$tools_root" --ignore-scripts --no-audit --no-fund @openai/codex@0.156.1

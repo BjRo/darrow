@@ -1675,6 +1675,9 @@ and plugin installation checks execute on both supported macOS and Linux hosts;
 missing prerequisites on a supported host fail instead of omitting coverage.
 Changing the CI platform must preserve the executed behavior and retained evidence,
 including native checks inside otherwise platform-independent tests.
+CI must expose native fixture interpreters in public system tool roots that the
+sandbox can read. Domain oracle repositories configure their own deterministic
+Git identity before setup; commits must not depend on host identity discovery.
 
 The requirements below describe needed evidence across both repositories.
 Engine and host mechanics belong to Sevro; Darrow retains the corresponding
