@@ -73,13 +73,14 @@ export default {
   async run({ condition, signal }) {
     if (process.env.SEVRO_SUITE_READY_PATH) {
       await new Promise((_resolve, reject) => {
-        const cancel = () => reject(new Error("cancelled"));
+        const keepAlive = setInterval(() => {}, 1000);
+        const cancel = () => { clearInterval(keepAlive); reject(new Error("cancelled")); };
         if (signal.aborted) {
           cancel();
           return;
         }
         signal.addEventListener("abort", cancel, { once: true });
-        void writeFile(process.env.SEVRO_SUITE_READY_PATH, "ready").catch(reject);
+        void writeFile(process.env.SEVRO_SUITE_READY_PATH, "ready").catch((error) => { clearInterval(keepAlive); reject(error); });
       });
     }
     return { finalMessage: "ready", complete: true, actualCondition: condition,
@@ -966,14 +967,15 @@ test("suite mounts candidate skill overrides without changing experiment selecti
   await writeFile(join(cases, "suite-alpha.yaml"), JSON.stringify(definition));
   await writeFile(
     adapter,
-    `export default {
+    `import { existsSync } from "node:fs";
+export default {
     id: "sevro.host.codex", model: "synthetic", effort: "none",
     async run({ workspace, condition }) {
       const names = [];
       for (const name of ["probe", "rival"]) {
         const path = workspace + "/.agents/skills/" + name;
-        if (await Bun.file(path + "/SKILL.md").exists()) names.push(name);
-        if (await Bun.file(path + "/evals/hidden.txt").exists()) throw new Error("eval leaked");
+        if (existsSync(path + "/SKILL.md")) names.push(name);
+        if (existsSync(path + "/evals/hidden.txt")) throw new Error("eval leaked");
       }
       return { finalMessage: names.join(",") || "none", complete: true, actualCondition: condition };
     }
@@ -1108,13 +1110,15 @@ test("suite packages a Claude candidate override through the public host contrac
   );
   await writeFile(
     adapter,
-    `export default {
+    `import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+export default {
     id: "sevro.host.claude", model: "synthetic", effort: "none", hostCapabilities: ["sevro.claude.plugin-dirs"],
     async run({ workspace, claudePluginDirs, condition }) {
       if (claudePluginDirs?.artifactRoots.length !== 1) throw new Error("plugin route missing");
       const root = workspace + "/" + claudePluginDirs.artifactRoots[0];
-      if (await Bun.file(root + "/skills/probe/SKILL.md").text() !== "Probe body\\n") throw new Error("skill body missing");
-      if (await Bun.file(root + "/skills/probe/evals/hidden.txt").exists()) throw new Error("eval leaked");
+      if (await readFile(root + "/skills/probe/SKILL.md", "utf8") !== "Probe body\\n") throw new Error("skill body missing");
+      if (existsSync(root + "/skills/probe/evals/hidden.txt")) throw new Error("eval leaked");
       return { finalMessage: "ready", complete: true, actualCondition: condition };
     }
   };`,

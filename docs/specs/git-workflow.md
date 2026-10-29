@@ -36,6 +36,8 @@ capability to allocate an additional linked worktree.
   actually read, retaining its final skill-name segment. Correct a guessed
   namespace or parent-directory substitution before declaring the runtime
   unavailable.
+  Branch creation passes the resolved absolute backend path to UV, without
+  `..` components, so native host read checks can validate the bundled helper.
   Command arguments, stable records, refusal statuses, and mutation safeguards
   remain intact. Internal refactoring preserves argument consumption order,
   repeated-option behavior, diagnostic text, and stdout/stderr routing as well

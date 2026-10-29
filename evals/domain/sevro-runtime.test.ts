@@ -131,6 +131,8 @@ test("repository runtime profiles share UV only with its users", async () => {
       "local-http",
       "repository-skills",
       "review-artifacts",
+      "tdd",
+      "tickets",
     ].map((name) => `evals/sevro-extension/runtime-${name}.json`),
   ];
   for (const file of profiles) {
@@ -140,7 +142,10 @@ test("repository runtime profiles share UV only with its users", async () => {
       {
         source: "~/.darrow/cache/sevro-uv-cache",
         target: "uv-cache",
-        roles: ["candidate", "checks"],
+        roles:
+          file === "evals/sevro-extension/runtime-tickets.json"
+            ? ["candidate", "checks", "hooks"]
+            : ["candidate", "checks"],
       },
     ]);
     expect(profile.environment.set.UV_PYTHON_DOWNLOADS).toBe("never");
