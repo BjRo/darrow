@@ -1,3 +1,4 @@
+import { supportsNativeSandbox } from "../native-sandbox";
 import { afterEach, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import {
@@ -283,7 +284,7 @@ function shellQuote(value: string) {
   return "'" + value.replaceAll("'", "'\\''") + "'";
 }
 
-test.skipIf(process.platform !== "darwin")(
+test.skipIf(!supportsNativeSandbox)(
   "custom corpus preparation preserves overlays and protects source worktrees",
   async () => {
     const f = await fixture();

@@ -1668,6 +1668,13 @@ evidence rather than selecting a subset of the suite.
 Prepare the repository runtime's shared dependency cache before starting either
 worker. A fresh-home fixture must succeed independently of another test warming
 that cache; missing runtime prerequisites must still fail rather than be skipped.
+The required installed gate runs on Ubuntu 24.04 with working native filesystem,
+process, and network isolation. Provision and probe its bubblewrap, Codex sandbox,
+socat, ripgrep, and zsh prerequisites explicitly. Native caller, corpus protection,
+and plugin installation checks execute on both supported macOS and Linux hosts;
+missing prerequisites on a supported host fail instead of omitting coverage.
+Changing the CI platform must preserve the executed behavior and retained evidence,
+including native checks inside otherwise platform-independent tests.
 
 The requirements below describe needed evidence across both repositories.
 Engine and host mechanics belong to Sevro; Darrow retains the corresponding

@@ -1,3 +1,4 @@
+import { supportsNativeSandbox, requireCodexSandbox } from "../native-sandbox";
 import { afterEach, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import {
@@ -1641,7 +1642,7 @@ test("suite checks condition-induced invocation only in selected modes", async (
   });
 });
 
-test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
+test.skipIf(!supportsNativeSandbox)(
   "suite executes route overrides for both hosts and rejects contradictory evidence",
   async () => {
     const { root, suite, results } = await fixture();
@@ -1653,7 +1654,7 @@ test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
     const claudeBinary = join(binRoot, "synthetic-claude");
     const codexAuth = join(root, "codex-auth.json");
     const claudeAuth = join(root, "claude-auth.json");
-    const realCodex = `'${Bun.which("codex")!.replaceAll("'", `'"'"'`)}'`;
+    const realCodex = `'${requireCodexSandbox()!.replaceAll("'", `'"'"'`)}'`;
     const events = [
       { type: "thread.started", thread_id: "synthetic-suite-turn" },
       {

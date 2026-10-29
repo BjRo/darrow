@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Keep executable tools outside the hosted runner's protected home and caches.
+tools_root=$(mktemp -d /tmp/darrow-ci-tools.XXXXXX)
+npm install --prefix "$tools_root" --ignore-scripts --no-audit --no-fund @openai/codex@0.156.1
+codex_bin="$tools_root/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin"
+test -x "$codex_bin/codex"
+test "$("$codex_bin/codex" --version)" = 'codex-cli 0.156.1'
+printf '%s\n' "$codex_bin" >> "$GITHUB_PATH"
+
+sudo apt-get update -qq
+sudo apt-get install -y bubblewrap ripgrep socat zsh
+
+# Ubuntu 24.04 requires an AppArmor grant for unprivileged bwrap namespaces.
+if [[ "$(sysctl -n kernel.apparmor_restrict_unprivileged_userns)" == "1" ]]; then
+  sudo tee /etc/apparmor.d/bwrap >/dev/null <<'EOF'
+abi <abi/4.0>,
+include <tunables/global>
+
+profile bwrap /usr/bin/bwrap flags=(unconfined) {
+  userns,
+  include if exists <local/bwrap>
+}
+EOF
+  sudo systemctl reload apparmor
+fi
+
+/usr/bin/bwrap --ro-bind / / --dev-bind /dev /dev --proc /proc \
+  --unshare-user --unshare-pid --unshare-net -- /bin/true
+"$codex_bin/codex" sandbox -- /bin/true

@@ -1,3 +1,4 @@
+import { supportsNativeSandbox, requireCodexSandbox } from "../native-sandbox";
 import { captureTestCommand } from "../test-command";
 import { afterEach, expect, test } from "bun:test";
 
@@ -1396,8 +1397,8 @@ test("explicit Codex skill invocation packages the owning plugin for Sevro", asy
     prepared.value.result.codexMarketplace,
   );
   expect(evidence.trials[0].artifactRefs).toHaveLength(paths.length);
-  const installedCodex = Bun.which("codex");
-  if (process.platform !== "darwin" || !installedCodex) return;
+  if (!supportsNativeSandbox) return;
+  const installedCodex = requireCodexSandbox();
   const fakeRoot = await mkdtemp(join(tmpdir(), "darrow-sevro-plugin-host-"));
   roots.push(fakeRoot);
   const fakeCodex = join(fakeRoot, "fake-codex");

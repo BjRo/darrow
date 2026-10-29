@@ -527,6 +527,17 @@ Python fixture tools use a UV-managed Python
 runtime. System and framework installations may depend on paths outside their
 copied directory.
 
+CI runs the installed pin and manually selected candidate on Ubuntu 24.04.
+`bash scripts/setup-sevro-linux` installs the pinned native Codex executable
+outside protected runner homes and tool caches, plus bubblewrap, ripgrep, socat,
+and zsh. It grants bubblewrap an AppArmor user-namespace
+profile when required, and probes both bubblewrap and Codex isolation. The setup
+requires sudo and is intended for a disposable CI runner. Native caller, corpus
+protection, and plugin installation fixtures also run on macOS. A supported host
+with missing prerequisites fails; platform changes must not turn these checks
+into skips or omit native portions of a test. These deterministic fixtures do
+not establish authenticated model success.
+
 ```sh
 bun install --frozen-lockfile
 uv python install 3.13
