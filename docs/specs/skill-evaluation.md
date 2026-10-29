@@ -1646,6 +1646,11 @@ in their shared fixture; matching test names alone does not establish overlap.
 Response-only examples exercise the canonical output declarations without
 synthesizing retired response files.
 
+Unchanged executable packages may be prepared once per test file and reused by
+direct oracle checks. Each invocation still owns its repository, home, scratch
+space, and retained records. Installation, cold-cache, changed-source, and
+conflicting-provider regressions retain independent preparation.
+
 The installed-pin gate runs the complete integration and domain suite in one
 job with two isolated file workers. Tests within each file remain sequential;
 workers must not share mutable fixture repositories, homes, or result state.

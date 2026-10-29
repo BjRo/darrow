@@ -33,6 +33,9 @@ constraints for producing and interpreting that evidence.
 - Run review-record validation and presentation checks through the owning
   frozen Python CLI. The domain helper prepares only its package and record
   files; canonical fixture-setup tests retain the installed Sevro connection.
+  Reuse its copied package, frozen environment, and UV dependency cache within
+  the file. Each invocation gets a private home, scratch directory, and artifact
+  root, with a link to the unchanged package at the canonical fixture path.
 - Goal-review oracle tests invoke `adaptive-goal-fixture proof` directly and
   reuse its unchanged package within one test file. Keep a fresh Git repository
   and review-provider installation for each repair scenario, including stale
