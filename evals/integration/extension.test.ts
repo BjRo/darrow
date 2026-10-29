@@ -319,9 +319,10 @@ test("Darrow rejects invalid condition inputs before candidate execution", async
   const adapter = join(root, "candidate.ts");
   await writeFile(
     adapter,
-    `export default {
+    `import { writeFile } from "node:fs/promises";
+export default {
     id: "sevro.host.codex", model: "candidate", effort: "low",
-    async run() { await Bun.write(${JSON.stringify(marker)}, "started"); return { finalMessage: "ready", complete: true }; }
+    async run() { await writeFile(${JSON.stringify(marker)}, "started"); return { finalMessage: "ready", complete: true }; }
   };`,
   );
   const invalid = [
@@ -801,11 +802,12 @@ test("Darrow mounts sibling skills for a competition activation case", async () 
   const adapter = join(root, "candidate.ts");
   await writeFile(
     adapter,
-    `export default {
+    `import { existsSync } from "node:fs";
+export default {
   id: "darrow.host.synthetic", model: "synthetic-v1", effort: "none",
   async run({ workspace }) {
     for (const name of ["primary", "rival", "spare"])
-      if (!(await Bun.file(workspace + "/.agents/skills/" + name + "/SKILL.md").exists())) throw new Error("sibling missing");
+      if (!existsSync(workspace + "/.agents/skills/" + name + "/SKILL.md")) throw new Error("sibling missing");
     return { finalMessage: "ready", complete: true, observations: [{ id: "darrow.activation", completeness: "complete", data: { primarySkill: "primary", observedSkills: ["primary", "rival"] } }] };
   },
 };
@@ -1003,7 +1005,9 @@ test("Darrow extension mounts a plugin skill without exposing its evals", async 
   await writeFile(commandFile, JSON.stringify([process.execPath, extension]));
   await writeFile(
     adapter,
-    `import { readFile } from "node:fs/promises";
+    `import { existsSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 export default {
   id: "darrow.host.synthetic", model: "synthetic-v1", effort: "none",
@@ -1013,9 +1017,9 @@ export default {
     if (!(await readFile(join(skill, "SKILL.md"), "utf8")).includes("Example skill")) throw new Error("skill missing");
     if ((await readFile(join(skill, "references/guide.md"), "utf8")) !== "Visible guidance.\\n") throw new Error("reference missing");
     if ((await readFile(join(skill, "../../README.md"), "utf8")) !== "Bundled installation guidance.\\n") throw new Error("plugin README missing");
-    if (await Bun.file(join(skill, "evals/hidden.txt")).exists()) throw new Error("eval criteria exposed");
-    const script = Bun.spawn([join(skill, "scripts/run.sh")], { stdout: "pipe" });
-    if ((await new Response(script.stdout).text()) !== "ready\\n" || (await script.exited) !== 0) throw new Error("script not executable");
+    if (existsSync(join(skill, "evals/hidden.txt"))) throw new Error("eval criteria exposed");
+    const script = spawnSync(join(skill, "scripts/run.sh"), [], { encoding: "utf8" });
+    if (script.stdout !== "ready\\n" || script.status !== 0) throw new Error("script not executable");
     return { finalMessage: "ready", complete: true, observations: [{ id: "darrow.activation", completeness: "complete", data: { primarySkill: "example", observedSkills: ["example"] } }] };
   },
 };
@@ -1556,10 +1560,11 @@ test("Darrow fixture setup runs through Sevro and rejects changed source", async
   const adapter = join(root, "candidate.ts");
   await writeFile(
     adapter,
-    `export default {
+    `import { readFile } from "node:fs/promises";
+export default {
   id: "darrow.host.synthetic", model: "synthetic-v1", effort: "none",
   async run({ workspace }) {
-    if ((await Bun.file(workspace + "/SETUP.txt").text()) !== "setup\\n") throw new Error("setup missing");
+    if ((await readFile(workspace + "/SETUP.txt", "utf8")) !== "setup\\n") throw new Error("setup missing");
     return { finalMessage: "ready", complete: true };
   },
 };
@@ -1734,16 +1739,19 @@ test("Darrow runs implicit and explicit repository skills without a plugin wrapp
   const adapter = join(root, "candidate.ts");
   await writeFile(
     adapter,
-    `export default {
+    `import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+export default {
   id: "sevro.host.codex", model: "synthetic-v1", effort: "none",
   hostCapabilities: ["sevro.codex.repository-invocation"],
   async run({ workspace, fixtureBinDir, prompt, explicitSkillInvocation, codexMarketplace }) {
-    if ((await Bun.file(workspace + "/.agents/skills/probe/SKILL.md").text()) !== ${JSON.stringify(skillBody)}) throw new Error("skill mount differs");
-    if (await Bun.file(workspace + "/.agents/skills/probe/evals/probe.yaml").exists()) throw new Error("eval exposed");
+    if ((await readFile(workspace + "/.agents/skills/probe/SKILL.md", "utf8")) !== ${JSON.stringify(skillBody)}) throw new Error("skill mount differs");
+    if (existsSync(workspace + "/.agents/skills/probe/evals/probe.yaml")) throw new Error("eval exposed");
     if (codexMarketplace) throw new Error("repository skill was packaged as a plugin");
     if (explicitSkillInvocation && (prompt !== "Use $probe to return ready." || JSON.stringify(explicitSkillInvocation) !== JSON.stringify({ skillName: "probe", scope: "repository", token: "$probe" }))) throw new Error("repository invocation differs");
-    const child = Bun.spawn(["sevro-probe"], { cwd: workspace, env: { PATH: fixtureBinDir + ":/usr/bin:/bin" }, stdout: "pipe" });
-    if ((await new Response(child.stdout).text()).trim() !== "fixture-bin-ready" || await child.exited !== 0) throw new Error("fixture tool unavailable");
+    const child = spawnSync("sevro-probe", [], { cwd: workspace, env: { PATH: fixtureBinDir + ":/usr/bin:/bin" }, encoding: "utf8" });
+    if (child.stdout.trim() !== "fixture-bin-ready" || child.status !== 0) throw new Error("fixture tool unavailable");
     return {
       finalMessage: "ready", complete: true,
       observations: [{ id: explicitSkillInvocation ? "sevro.codex.explicit-invocation" : "sevro.host.skill-activations", source: "sevro.host.codex", completeness: "complete", data: { method: explicitSkillInvocation ? "explicit_invocation" : "tool_result_body_match", visibility: "tool_result", scope: "prepared_skill_bodies", catalogComplete: true, partialSkills: [], ambiguousSkills: [], calls: [], truncated: false, primarySkill: "probe", observedSkills: ["probe"] } }],
@@ -1842,13 +1850,15 @@ test("Darrow runs native Claude repository skills using their required mirror", 
   const adapter = join(root, "candidate.ts");
   await writeFile(
     adapter,
-    `export default {
+    `import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+export default {
     id: "sevro.host.claude", model: "synthetic-v1", effort: "none",
     hostCapabilities: ["sevro.claude.repository-invocation"],
     async run({ workspace, prompt, explicitSkillInvocation, claudePluginDirs }) {
-      if ((await Bun.file(workspace + "/.claude/skills/probe/SKILL.md").text()) !== ${JSON.stringify(body)}) throw new Error("Claude mirror differs");
-      if (await Bun.file(workspace + "/.claude/skills/probe/evals/hidden.txt").exists()) throw new Error("eval exposed");
-      if (await Bun.file(workspace + "/.agents/skills/probe/SKILL.md").exists() || claudePluginDirs) throw new Error("repository scope changed");
+      if ((await readFile(workspace + "/.claude/skills/probe/SKILL.md", "utf8")) !== ${JSON.stringify(body)}) throw new Error("Claude mirror differs");
+      if (existsSync(workspace + "/.claude/skills/probe/evals/hidden.txt")) throw new Error("eval exposed");
+      if (existsSync(workspace + "/.agents/skills/probe/SKILL.md") || claudePluginDirs) throw new Error("repository scope changed");
       if (explicitSkillInvocation && (prompt !== "/probe Return ready." || explicitSkillInvocation.scope !== "repository" || explicitSkillInvocation.token !== "/probe")) throw new Error("native invocation differs");
       return { finalMessage: "ready", complete: true, observations: [
         { id: "sevro.host.skill-activations", completeness: "complete", data: { method: "skill_tool_result", visibility: "skill_tool", observedSkills: ["probe"], truncated: false, calls: [{ sessionId: "probe-session", toolUseId: "skill-1", parentToolUseId: null, invocation: "probe", status: "succeeded" }] } },
@@ -2079,11 +2089,12 @@ test("Darrow Git hook fixtures run through Sevro before candidate commits", asyn
   const adapter = join(root, "candidate.ts");
   await writeFile(
     adapter,
-    `export default {
+    `import { spawnSync } from "node:child_process";
+export default {
   id: "darrow.host.synthetic", model: "synthetic-v1", effort: "none",
   async run({ workspace }) {
-    const proc = Bun.spawn(["git", "-c", "user.name=Candidate", "-c", "user.email=candidate@example.invalid", "commit", "-m", "Try"], { cwd: workspace, stdout: "pipe", stderr: "pipe" });
-    const [stderr, code] = await Promise.all([new Response(proc.stderr).text(), proc.exited]);
+    const proc = spawnSync("git", ["-c", "user.name=Candidate", "-c", "user.email=candidate@example.invalid", "commit", "-m", "Try"], { cwd: workspace, encoding: "utf8" });
+    const { stderr, status: code } = proc;
     if (code === 0 || !stderr.includes("fixture hook failed")) throw new Error("fixture hook was not applied");
     return { finalMessage: "ready", complete: true };
   },
@@ -2161,12 +2172,13 @@ test("Darrow fixture binaries reach the host and hidden checks", async () => {
   const adapter = join(root, "candidate.ts");
   await writeFile(
     adapter,
-    `export default {
+    `import { spawnSync } from "node:child_process";
+export default {
   id: "darrow.host.synthetic", model: "synthetic-v1", effort: "none",
   async run({ workspace, fixtureBinDir }) {
     if (fixtureBinDir !== workspace + "/.git/fixture-bin") throw new Error("fixture bin missing");
-    const proc = Bun.spawn(["fixture-tool"], { cwd: workspace, env: { PATH: fixtureBinDir + ":/usr/bin:/bin" }, stdout: "pipe", stderr: "pipe" });
-    const [stdout, code] = await Promise.all([new Response(proc.stdout).text(), proc.exited]);
+    const proc = spawnSync("fixture-tool", [], { cwd: workspace, env: { PATH: fixtureBinDir + ":/usr/bin:/bin" }, encoding: "utf8" });
+    const { stdout, status: code } = proc;
     if (code !== 0 || stdout !== "fixture tool\\n") throw new Error("fixture tool unavailable");
     return { finalMessage: "ready", complete: true };
   },
@@ -2270,20 +2282,22 @@ test("Darrow local ticket works through Sevro and binds its source", async () =>
   const adapter = join(root, "candidate.ts");
   await writeFile(
     adapter,
-    `export default {
+    `import { spawnSync } from "node:child_process";
+import { readFile, writeFile } from "node:fs/promises";
+export default {
   id: "darrow.host.synthetic", model: "synthetic-v1", effort: "none",
   async run({ workspace, fixtureBinDir }) {
-    const proc = Bun.spawn(["ticketctl", "get", "17", "--body-file", ".git/requested.md"], {
-      cwd: workspace, env: { PATH: fixtureBinDir + ":/usr/bin:/bin" }, stdout: "pipe", stderr: "pipe"
+    const proc = spawnSync("ticketctl", ["get", "17", "--body-file", ".git/requested.md"], {
+      cwd: workspace, env: { PATH: fixtureBinDir + ":/usr/bin:/bin" }, encoding: "utf8"
     });
-    const [code, stderr] = await Promise.all([proc.exited, new Response(proc.stderr).text()]);
+    const { status: code, stderr } = proc;
     if (code !== 0) throw new Error("ticketctl get failed: " + stderr);
-    if ((await Bun.file(workspace + "/.git/requested.md").text()) !== "Original's {{note}}\\n") throw new Error("wrong ticket body");
-    await Bun.write(workspace + "/.git/replacement.md", "Updated note\\n");
-    const updated = Bun.spawn(["ticketctl", "describe", "17", "--body-file", ".git/replacement.md"], {
-      cwd: workspace, env: { PATH: fixtureBinDir + ":/usr/bin:/bin" }, stdout: "pipe", stderr: "pipe"
+    if ((await readFile(workspace + "/.git/requested.md", "utf8")) !== "Original's {{note}}\\n") throw new Error("wrong ticket body");
+    await writeFile(workspace + "/.git/replacement.md", "Updated note\\n");
+    const updated = spawnSync("ticketctl", ["describe", "17", "--body-file", ".git/replacement.md"], {
+      cwd: workspace, env: { PATH: fixtureBinDir + ":/usr/bin:/bin" }, encoding: "utf8"
     });
-    if ((await updated.exited) !== 0) throw new Error("ticketctl describe failed");
+    if (updated.status !== 0) throw new Error("ticketctl describe failed");
     return { finalMessage: "ready", complete: true };
   },
 };
@@ -2553,14 +2567,15 @@ test("additional plugins and selected skills remain independent Codex packages",
   const candidate = join(root, "repository-candidate.ts");
   await writeFile(
     candidate,
-    `export default {
+    `import { existsSync } from "node:fs";
+export default {
     id: "sevro.host.codex", model: "synthetic-v1", effort: "none",
     hostCapabilities: ["sevro.codex.plugin-marketplace", "sevro.codex.repository-invocation"],
     async run({ prompt, workspace, explicitSkillInvocation, codexMarketplace }) {
       if (prompt !== "Use $owner with the provider and selective skills to report ready." || explicitSkillInvocation?.scope !== "repository") throw new Error("native repository dispatch lost");
       if (JSON.stringify(codexMarketplace.pluginNames) !== JSON.stringify(["provider", "selective"])) throw new Error("provider packages differ");
       for (const path of [".agents/skills/owner/SKILL.md", ".sevro-marketplace/plugins/0-provider/skills/provider/SKILL.md", ".sevro-marketplace/plugins/1-selective/skills/selective/SKILL.md"]) {
-        if (!(await Bun.file(workspace + "/" + path).exists())) throw new Error("composed mount missing");
+        if (!existsSync(workspace + "/" + path)) throw new Error("composed mount missing");
       }
       return { finalMessage: "ready", complete: true, observations: [
         { id: "sevro.codex.explicit-invocation", source: "sevro.host.codex", completeness: "complete", data: { method: "explicit_invocation", primarySkill: "owner", observedSkills: ["owner", "provider", "selective"] } },

@@ -109,9 +109,11 @@ constraints for producing and interpreting that evidence.
   original user configuration and reject missing, repeated, or undeclared rules.
   Do not infer permitted additions from candidate files or exempt a whole directory.
 - Repository profiles share the prepared public UV cache
-  through `runtime.sharedCacheDirectories` with only `candidate` and `checks`
-  roles. Shell graders using UV require explicit `checks` selection. Do not seed
-  a copy per role or grant the cache to current hooks and semantic/advisory hosts.
+  through `runtime.sharedCacheDirectories` with `candidate` and `checks`
+  roles. The Tickets profile also selects `hooks` because its Claude
+  SessionStart handler invokes the frozen Python backend. Shell graders using
+  UV require explicit `checks` selection. Do not seed a copy per role or grant
+  the cache to other hooks and semantic/advisory hosts without a UV dependency.
   Keep `UV_CACHE_DIR={{sevro.runtime}}/uv-cache` and
   `UV_PYTHON_DOWNLOADS=never`; warm registered dependencies before evaluation.
   Warm-up preserves the shared source directory and entries instead of replacing
@@ -500,8 +502,10 @@ explicitly.
 
 ## Installed Sevro verification
 
-Install the exact published Sevro `1.0.0` development dependency before running the public
-integration and Darrow domain gate. Python fixture tools use a UV-managed Python
+Install the exact published Sevro `1.1.1` development dependency before running the public
+integration and Darrow domain gate. Its installed command requires Node.js
+24.13.0 or newer on `PATH`; Darrow tooling uses Bun 1.3.13.
+Python fixture tools use a UV-managed Python
 3.13 copy so both UV entrypoints and direct Python oracles use the same isolated
 runtime. System and framework installations may depend on paths outside their
 copied directory.

@@ -9,7 +9,7 @@
         "ajv-formats": "3.0.1",
       },
       "devDependencies": {
-        "@bjoernrochel/sevro": "1.0.0",
+        "@bjoernrochel/sevro": "1.1.1",
         "@eslint/js": "^10.0.1",
         "@types/bun": "^1.2.0",
         "eslint": "^10.8.1",
@@ -25,7 +25,7 @@
     },
   },
   "packages": {
-    "@bjoernrochel/sevro": ["@bjoernrochel/sevro@1.0.0", "", { "dependencies": { "ajv": "8.20.0", "smol-toml": "1.8.0", "typescript": "5.9.3" }, "bin": { "sevro": "src/cli.ts" } }, "sha512-VJq1Qe6/5KuN8jW2uO3aKVxk6xuJO/ceM0Pn5tbpsDNKG3w+vkR2rh8b5qFqMsRuy+mkGHc/99prmJqSVIBRuA=="],
+    "@bjoernrochel/sevro": ["@bjoernrochel/sevro@1.1.1", "", { "dependencies": { "ajv": "8.20.0", "smol-toml": "1.8.0", "typescript": "5.9.3", "yaml": "2.9.1" }, "bin": { "sevro": "dist/src/cli.js" } }, "sha512-/pzrF2wwxAEMTm7cVxoaPp3C41JggdtfDaNV5vZRSojuHMQwnL6SMltq/V8UlbYKpmN0R0BZXl7WKOyusSZ6sg=="],
 
     "@eslint-community/eslint-utils": ["@eslint-community/eslint-utils@4.10.1", "", { "dependencies": { "eslint-visitor-keys": "^3.4.3" }, "peerDependencies": { "eslint": "^6.0.0 || ^7.0.0 || >=8.0.0" } }, "sha512-cuadcxVFE8sDK6iWJbs8Sn0av2Nrh2QSGQhVlBW9AaAHqHwjWsZHT8LJ4hFGPh7ASBV2deFdM7H/DPjulmh8rg=="],
 
@@ -282,6 +282,8 @@
     "yaml": ["yaml@2.9.0", "", { "bin": { "yaml": "bin.mjs" } }, "sha512-2AvhNX3mb8zd6Zy7INTtSpl1F15HW6Wnqj0srWlkKLcpYl/gMIMJiyuGq2KeI2YFxUPjdlB+3Lc10seMLtL4cA=="],
 
     "yocto-queue": ["yocto-queue@0.1.0", "", {}, "sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q=="],
+
+    "@bjoernrochel/sevro/yaml": ["yaml@2.9.1", "", { "bin": { "yaml": "bin.mjs" } }, "sha512-3NxN8+78OdzbT7C/WjGsyfPAtJaN3FNDsWxv7Y7mcDsT/oOmgW8BpyQQFFBnvZE3j9Y2Sdz1ULFLezL7Eb2yFw=="],
 
     "@eslint-community/eslint-utils/eslint-visitor-keys": ["eslint-visitor-keys@3.4.3", "", {}, "sha512-wpc+LXeiyiisxPlEkUzU6svyS1frIO3Mgxj1fdy7Pm8Ygzguax2N3Fa/D/ag1WqbOprdI+uY6wMUl8/a2G+iag=="],
 
