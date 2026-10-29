@@ -524,6 +524,11 @@ env -u SEVRO_CHECKOUT -u SEVRO_PACKAGE_BIN bun run test:evals
 
 This command exercises Sevro's installed public CLI, versioned extension
 protocol, Darrow callers, and domain oracles.
+It runs every integration and domain file with two isolated Bun workers in one
+job. Tests within a file stay sequential. Keep mutable fixture state private to
+each case; file workers may reuse only their own prepared executable packages.
+For serial diagnosis, invoke
+`bun test --timeout 30000 ./evals/integration ./evals/domain` directly.
 It uses controlled native executables and credentials for deterministic host
 fixtures. Claude fixtures supply a valid synthetic saved OAuth login; Sevro
 keeps that login in the parent and passes only its access token to the trial.
