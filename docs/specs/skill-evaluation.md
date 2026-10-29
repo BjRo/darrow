@@ -468,7 +468,9 @@ Uncovered invariants are reported evidence gaps, not proof of runner failure.
 Unknown references and duplicate normative definitions are integrity failures.
 An optional strict coverage gate may also fail when any invariant is uncovered.
 Unreadable inputs, invalid YAML, missing required case fields, or an empty scan
-must fail explicitly rather than appear as successful empty coverage.
+must fail explicitly rather than appear as successful empty coverage. Coverage
+inspection is read-only: it does not modify specifications, eval cases, result
+bundles, repository refs, tracked files, or untracked files.
 
 ### Matched skill ablation
 
@@ -1265,11 +1267,8 @@ research remain in their recorded formats with their original provenance; they
 do not establish current evaluator equivalence or live behavioral stability.
 Current reporting uses Sevro's public report command and Darrow's suite reports.
 
-Equivalent runs have one verifiable process owner. A live owner prevents a
-duplicate; a confirmed abandoned owner can be reclaimed atomically without
-discarding evidence. Process identity includes protection against PID reuse.
-Ownerless legacy or unverifiable records require explicit diagnosed recovery,
-never automatic expiry based only on age.
+Equivalent-run recovery follows [SE-C22](#invariants); process identity includes
+protection against PID reuse. Recovery never discards retained evidence.
 
 Raw result bundles remain gitignored. A reviewed tracked snapshot may preserve
 the suite definition, pinned harnesses and models, effort, trial count,
@@ -1299,38 +1298,33 @@ remains copyable and useful when hyperlinks are unavailable.
 
 ## Invariants
 
-`adaptive-goal` trials record requested evaluation mode and actual per-trial
-policy assistance separately. Passive observation installs no product-policy
-guard, rewrites no launch inputs, and disables no tools for adaptive-goal
-compliance. Fixture isolation remains identical. Enforced trials evaluate the
-skill plus eval assistance; missing historical provenance is unknown. Reports
-must expose this distinction. Matched framing comparisons hold fixture,
-acceptance checks, harness, and model/effort routes constant; comparisons that
-change routes measure a separate effect. Missing route or token evidence does
-not prove equivalence or savings.
+Each identifier remains a normative coverage target. A linked entry incorporates
+the named contract section rather than defining a second copy of its rules.
+Evaluation requirements below specify evidence obligations, not alternative
+behavior. The [consolidation map](../research/repository-guidance-consolidation-277.md)
+records the removed repetitions and their retained authority.
 
-- **SE-C1 — Complete traceability scan.** Coverage reports every invariant,
-  case reference, uncovered invariant, unknown reference, and duplicate
-  normative definition within the selected scope.
-- **SE-C2 — Coverage is not correctness.** The report distinguishes an
-  exercised invariant from a passing live result and does not fail merely
-  because honest uncovered gaps exist unless strict coverage was requested.
-- **SE-C3 — Fail closed on invalid evidence.** Unreadable or empty inputs,
-  malformed cases, unknown invariant references, and duplicate normative IDs
-  cannot produce a successful integrity result.
-- **SE-C4 — Read-only inspection.** Coverage does not modify specifications,
-  eval cases, result bundles, repository refs, tracked files, or untracked
-  files.
-- **SE-C5 — Ablation isolates skill presence.** A named skill ablation requires
-  a no-skill baseline and rejects differences in prompts, conditions, cases,
-  fixtures, checks, harness versions, models, efforts, trial counts, or
-  thresholds.
-- **SE-C6 — Task-level comparative evidence.** Ablation output preserves every
-  matched case per harness and reports baseline, candidate, and delta values
-  without allowing an aggregate to hide a regression.
-- **SE-C7 — Unknown stays unknown.** Missing cost, token, judge, or other
-  optional measurements are reported as unavailable and never coerced to zero
-  or silently dropped from one side.
+For `adaptive-goal` policy-assistance provenance and matched framing comparisons,
+follow [ADL-E2](adaptive-goal.md#adaptation-and-evaluation-fidelity-102).
+Record requested mode and actual per-trial assistance separately and expose both
+in reports. Enforced trials measure the skill plus eval assistance; missing
+historical provenance stays unknown. Missing route or token evidence does not
+prove equivalence or savings. Matched framing comparisons also hold acceptance
+checks and harness constant.
+
+- **SE-C1 — Complete traceability scan.** See the complete report inventory in [Invariant coverage](#invariant-coverage).
+- **SE-C2 — Coverage is not correctness.** See the distinction between coverage gaps and integrity failures in
+  [Invariant coverage](#invariant-coverage). An exercised invariant does not
+  establish a passing live result.
+- **SE-C3 — Fail closed on invalid evidence.** See the refusal conditions in [Invariant coverage](#invariant-coverage).
+- **SE-C4 — Read-only inspection.** See the read-only boundary in [Invariant coverage](#invariant-coverage).
+- **SE-C5 — Ablation isolates skill presence.** See the matched dimensions and no-skill baseline in
+  [Matched skill ablation](#matched-skill-ablation).
+- **SE-C6 — Task-level comparative evidence.** See the per-case, per-harness results and invalid-comparison rules in
+  [Matched skill ablation](#matched-skill-ablation).
+- **SE-C7 — Unknown stays unknown.** Missing cost, token, judge, or other optional measurements remain
+  unavailable, never coerced to zero or silently dropped from one side; apply the reporting rule in
+  [Matched skill ablation](#matched-skill-ablation), including outside ablations.
 - **SE-C8 — Reproducible suite evidence.** A suite manifest records the named
   modes and ablations, runner revision and patch state, harnesses, models,
   effort, trial count, threshold, result paths, and cell exit states needed to
@@ -1364,7 +1358,9 @@ not prove equivalence or savings.
   A passing result cites only the complete receipts that establish its claim;
   an incomplete aggregate remains diagnostic metadata, outside its evidence refs.
   Claude route observations match the shipped scoped agent names, model IDs,
-  and effort levels. An agent name alone does not establish goal ownership or
+  and effort levels. Static route selection, accepted launch, and candidate
+  self-report do not establish the applied model and effort; use correlated
+  native evidence. An agent name alone does not establish goal ownership or
   successful route application.
 - **SE-C11 — Separate activation reporting.** Reports preserve per-case and
   per-class activation results and compute recall and precision only from a
@@ -1384,13 +1380,7 @@ not prove equivalence or savings.
 - **SE-C15 — Fail-closed semantic evidence.** The runner rejects unavailable,
   malformed, incomplete, duplicate, or unexpected semantic grader results and
   retains the grader route, verdicts, reasons, raw result, tokens, and cost.
-- **SE-C16 — Legible terminal feedback.** The direct runner shows bounded live
-  progress, its configured positive worker count, visually distinct task and
-  activation outcomes, a repeated-trial case summary, and an absolute result
-  artifact link. `--jobs` bounds simultaneous trials and defaults to three.
-  Color, symbols, and animation are independently disableable, respect terminal
-  conventions, and degrade to stable outcome-bearing text outside an
-  interactive terminal.
+- **SE-C16 — Legible terminal feedback.** See [Terminal experience](#terminal-experience).
 - **SE-C17 — Role-specific Codex defaults.** Candidate execution, advisory
   quality judging, and gating semantic-output grading resolve independent
   GPT-5.6 model defaults, preserve explicit model and effort overrides, and
@@ -1431,7 +1421,8 @@ not prove equivalence or savings.
 - **SE-C22 — Recoverable run ownership.** Equivalent-run ownership is acquired
   and reclaimed atomically using verifiable process identity. Live or unknown
   ownership blocks duplicates; confirmed abandonment permits retry while
-  preserving prior evidence.
+  preserving prior evidence. Ownerless legacy or unverifiable records require
+  explicit diagnosed recovery, never automatic expiry based only on age.
 - **SE-C23 — Complete explicit composition evidence.** Explicit Codex
   observations retain the invoked primary first and all verified supporting
   reads in order, without duplicate skills. Every supporting observation
@@ -1498,11 +1489,8 @@ not prove equivalence or savings.
   observation as unavailable, rather than infer failure to return. Complete
   evidence of missing required readers or inherited context still fails.
 
-- **SE-C25 — Select cases by owning skill.** The direct runner's `--skill`
-  filter selects every discovered case colocated with the exact named skill,
-  independently of case-ID naming and mounted-skill overrides. Case filters
-  narrow that set, skill-less cases are excluded, and an empty selection
-  fails explicitly.
+- **SE-C25 — Select cases by owning skill.** See exact skill ownership, case filters, mounting independence and
+  empty-selection refusal in [Direct case selection](#direct-case-selection).
 
 - **SE-C34 — Case-declared hosts and routes.** Filtered and ownership
   selection omits cases whose `harnesses` exclude the requested host and
@@ -1510,11 +1498,8 @@ not prove equivalence or savings.
   each declared host, below explicit per-case routes. Grader routes are
   unaffected; malformed declarations fail resolution.
 
-- **SE-C26 — Select cases by owning plugin.** The direct runner's `--plugin`
-  filter selects every discovered case colocated under all skills of the exact
-  named plugin, across plugin kinds and independently of case IDs or mounting
-  configuration. Skill and case filters narrow that set, skill-less experiments
-  are excluded, and an empty selection fails explicitly.
+- **SE-C26 — Select cases by owning plugin.** See exact plugin ownership across kinds, intersecting filters and
+  empty-selection refusal in [Direct case selection](#direct-case-selection).
 
 - **SE-C27 — Native repository-skill cases.** The runner discovers canonical
   `.agents/skills/<name>/evals/*.yaml` cases alongside plugin and experiment

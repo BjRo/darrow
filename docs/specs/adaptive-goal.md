@@ -178,7 +178,7 @@ the retained delivery contract. It does not authorize work before the goal is ac
 Pre-existing working-tree changes are user-owned and must be named in the
 contract when they overlap the task.
 
-If a material product choice, permission, destructive scope, security policy,
+If a material product choice, permission, destructive scope, safety or privacy choice, security policy,
 or publication authority is missing before launch, ask the smallest concrete
 question and do not start implementation.
 
@@ -591,10 +591,9 @@ retained implementor already holds the task context, so a repair sends it the
 combined findings, changed constraints and checks to rerun; it never launches a
 new implementation child. A replacement is permitted only when the retained
 implementor is unavailable or no longer fits the required route or scope, and
-the main thread states that reason. Repairs stay within the same goal and its
-shared repair allowance: replacing a worker or splitting a repair across
-concurrent parts consumes one attempt per combined repair and never resets or
-multiplies the allowance. Settle all implementation work, including conflicting
+the main thread states that reason. Apply [ADL-A4](#adaptation-and-evaluation-fidelity-102)
+when accounting for retained, replacement or concurrent implementors.
+Settle all implementation work, including conflicting
 concurrent edits, before candidate-bound checks and assessment.
 
 Placement is a proportionate per-assignment judgment, not a controller,
@@ -690,34 +689,17 @@ does not satisfy this dependency. If a required check fails, the owner repairs
 within existing authority and reruns invalidated checks, or stops before
 assessment, commit, and publication. It supplies the repository and exact current
 candidate/scope/base, originating authority and every material acceptance criterion,
-constraints, successful check evidence and selected provider bindings. All selected
-assessment results must return before repair; concurrent assessment is permitted.
+constraints, successful check evidence and selected provider bindings.
+Concurrent assessment is permitted; repair follows
+[ADL-A4](#adaptation-and-evaluation-fidelity-102).
 Clear requires complete current evidence for every criterion and selected result,
 not a provider pass alone. Missing, stale or unsupported evidence blocks completion.
 
-When existing authority covers all eligible blockers, default to at most two
-closed-set implementation repair attempts across verification as a whole. One attempt
-addresses the combined blockers together, followed by fresh follow-up after
-successful invalidated checks. Provider count never increases this budget.
-An explicit finite nonnegative
-integer user or repository repair budget may change that limit. Apply the
-same authorized maximum in the launch contract and owner report; consumed
-attempts are a separate count. Finishing after one repair does not change the
-default maximum to one or create an implicit override. Resolve the maximum,
-its authority source and the consumed count before launch. Before each subsequent
-assignment, after native continuation and before a terminal response, the main
-thread reconciles its issued assignments, returned evidence, outstanding obligations
-and consumed allowance. Missing or contradictory facts require bounded clarification
-from the relevant assignment; the implementor does not calculate the delivery's
-repair count. Obtaining clarification authorizes no additional repair or assessment.
-Apply the
-strictest applicable invocation, time, token, and authority limit. Additional
-attempts require the preceding verification to show resolved original blockers
-or changed evidence narrowing their cause. Only clear current-content evidence
-satisfies the gate. Unchanged, unavailable, inconclusive, out-of-scope, or
-exhausted evidence stops completion and remaining publication. No comprehensive
-assessment resets the budget. Clear ends repair immediately; an uncleared second
-follow-up exhausts the default even with progress.
+Apply the complete repair policy in
+[ADL-A4](#adaptation-and-evaluation-fidelity-102) when consuming verification
+results: it owns eligibility, the shared allowance, accounting and reconciliation,
+follow-up evidence, and termination. This section owns verification selection,
+inputs and provider-history handoff.
 
 Verification owns assessment history: finding identity, provenance, target
 history, the closed follow-up set and direct-regression lineage. The main thread
@@ -748,8 +730,8 @@ every repair, to the retained implementor through the host's native follow-up
 control. Supply the concrete findings, changed constraints and required checks,
 without transferring orchestration bookkeeping. Fresh context applies to
 verification, not to the implementor. Supply a permitted replacement with the
-necessary task context and prior work; replacement never resets the main
-thread's repair allowance.
+necessary task context and prior work, with accounting governed by
+[ADL-A4](#adaptation-and-evaluation-fidelity-102).
 
 The main thread may inspect state, implement directly under the placement rules,
 run required checks, consume results and coordinate authorized operations. It
@@ -790,7 +772,9 @@ only for an explicit user pause request. A pending question can stop affected
 work without fabricating a pause transition. Blocked and complete states must
 satisfy the native tool's own conditions. On Claude, use the native goal's
 question/continuation behavior and supported user controls. Never clear and
-recreate a goal merely to get feedback or reset budgets.
+recreate a goal merely to get feedback. Apply
+[ADL-A4](#adaptation-and-evaluation-fidelity-102) to repair accounting across native
+goal controls.
 
 Corrections and constraints apply before the next affected action. A status
 question does not cancel execution. Cancellation stops work and reports effects
@@ -803,15 +787,13 @@ ambiguous effect. No Darrow retry state machine is added.
 
 ### Repair and assessment correction
 
-The main thread retains the shared default maximum of two implementation repair
-attempts across all providers. A bounded repair addresses the combined eligible
-blockers, then successful current checks precede fresh verification. Never reset
-attempts through a new child, new comprehensive review or new goal.
+Apply the shared repair allowance and closed-set reassessment rules in
+[ADL-A4](#adaptation-and-evaluation-fidelity-102).
 
 An assessment can be wrong or incomplete even when code is unchanged. With a
 concrete error or new evidence, return it to verification, which owns the
-correction contract. A correction consumes no implementation repair attempt,
-grants no additional attempts and is not a convergence waiver.
+correction contract; [ADL-A4](#adaptation-and-evaluation-fidelity-102) governs its
+repair accounting and evidence requirements.
 
 Before accepting a child's diagnosis of a missing helper or broken provider,
 the main thread MUST require the attempted command/path, observed diagnostic
@@ -887,19 +869,19 @@ owner, nested host process or runtime is authorized.
 
 ## Invariants
 
-1. **ADL-P1 — Explicit activation.** Ordinary engineering intent never starts
-   adaptive-goal orchestration.
-2. **ADL-P2 — Read-only preflight.** Product mutation and verification begin
-   only after required readiness and native main-thread goal activation. Preflight evidence belongs to the explicitly
-   requested working tree and cannot be redirected by ambient Git selectors.
+Each identifier remains a normative coverage target. A linked entry incorporates
+the named contract section rather than defining a second copy of its rules.
+Evaluation requirements below specify evidence obligations, not alternative
+behavior. The [consolidation map](../research/repository-guidance-consolidation-277.md)
+records the removed repetitions and their retained authority.
+
+1. **ADL-P1 — Explicit activation.** See [Invocation authority](#invocation-authority).
+2. **ADL-P2 — Read-only preflight.** See [Read-only preflight](#read-only-preflight) and
+   [Activation and assignments](#activation-and-assignments).
 3. **ADL-P3 — Preserved authority.** Delegation and activation add no
    permissions or publication authority.
-4. **ADL-P4 — One bounded contract.** The main thread retains the complete request,
-   acceptance, scope, gates, checks and authority. The native goal is at most
-   4,000 characters; children receive relevant self-contained assignments.
-5. **ADL-C1 — Evidence and risk.** The main thread derives the required
-   before-edit and after-edit evidence from the kind of change and selects one
-   consequence risk. No workflow file or identifier is selected or required.
+4. **ADL-P4 — One bounded contract.** See [Goal contract](#goal-contract).
+5. **ADL-C1 — Evidence and risk.** See [Change evidence and risk](#change-evidence-and-risk).
 6. **ADL-R1 — Concrete selected route.** Policy or an explicit user override
    resolves to one implementation host/provider/model/effort tuple before delegation. Both sources
    pass the same host/provider, concrete-model, and effort validation before
@@ -934,8 +916,7 @@ owner, nested host process or runtime is authorized.
     and status requests remain with the main thread's same goal. Preserve every
     affected instruction and constraint in child updates, confirm required
     acknowledgements, and do not reset acceptance or repair history.
-12. **ADL-L4 — Semantic blockage.** A blocker names its condition, evidence,
-    and next action without a Darrow retry state machine.
+12. **ADL-L4 — Semantic blockage.** See [Human feedback and blockers](#human-feedback-and-blockers).
 13. **ADL-L5 — Evidence-supported completion.** The main thread validates and
     reports changed files, placement with its route relation, combined
     verification, selected assessments, criterion coverage, each original
@@ -944,17 +925,15 @@ owner, nested host process or runtime is authorized.
     not establish completion. A selected assessment of earlier content is stale
     and cannot clear; without selected verification, the required
     current-content checks gate dependent commit and publication.
-14. **ADL-S1 — No inferred decisions.** Missing product, safety, destructive,
-    privacy, or authority choices stop before the affected mutation.
+14. **ADL-S1 — No inferred decisions.** See the missing-decision stop in [Read-only preflight](#read-only-preflight)
+    and [Human feedback and blockers](#human-feedback-and-blockers).
 15. **ADL-S2 — No duplicate external effect.** An ambiguous external result is
     observed before another attempt. An observed existing publication is
     validated for reuse before claiming completion; further read-only
     verification does not authorize another creation request.
 16. **ADL-S3 — No derived publication.** Completion or review clearance adds no
     commit, push, pull-request, merge, release, or deployment authority.
-17. **ADL-C2 — Intent-bound capabilities.** Every authorized operation with a
-    matching advertised skill is bound before launch and must use that skill;
-    direct tools are not a substitute.
+17. **ADL-C2 — Intent-bound capabilities.** See [Capability bindings](#capability-bindings).
 18. **ADL-X1 — No lifecycle ledger.** `adaptive-goal` ships no required run
     ledger, lifecycle hook, blocker protocol, canonical helper report, or
     model-operated transition sequence.
@@ -1093,25 +1072,42 @@ The following invariants govern adaptation and evidence provenance:
   parent may invoke necessary advertised read-only capabilities to retrieve
   authoritative input, including a referenced ticket. Preserve their evidence
   and bind future operations by intent. Retrieval grants no mutation authority.
-- **ADL-A4 — Budgeted closed-set repair.** Collect every selected assessment result
-  before owner repair. One attempt addresses the combined eligible blockers
+- **ADL-A4 — Budgeted closed-set repair.** When existing authority covers all
+  eligible blockers, collect every selected assessment result before owner repair.
+  One attempt addresses the combined eligible blockers
   together, then obtains successful current checks and fresh-context verification
   of original findings, affected evidence and direct repair-caused regressions.
   Default to at most two implementation repair attempts across verification as a whole;
-  extra providers do not add budgets. An explicit finite user or repository budget
-  may raise or lower this maximum;
-  each additional attempt requires changed evidence showing material progress
-  against the original blockers or direct repair regressions. Preserve finding
+  extra providers do not add budgets. An explicit finite nonnegative integer user
+  or repository budget may raise or lower this maximum. Resolve the maximum,
+  its authority source and the consumed count before launch. Apply the same
+  authorized maximum in the launch contract and owner report; consumed attempts
+  are a separate count. Finishing after one repair does not change the default
+  maximum to one or create an implicit override.
+  Before each subsequent assignment, after native continuation and before a
+  terminal response, the main thread reconciles issued assignments, returned
+  evidence, outstanding obligations and consumed allowance. Missing or
+  contradictory facts require bounded clarification from the relevant assignment;
+  the implementor does not calculate the delivery's repair count. Clarification
+  authorizes no additional repair or assessment.
+  Repairs stay within the same goal and its shared allowance. Replacing a worker
+  or splitting a repair across concurrent parts consumes one
+  attempt per combined repair and never resets or multiplies the allowance.
+  A new child, comprehensive reassessment or new goal cannot reset the budget.
+  Each additional attempt requires the preceding verification to show material
+  progress against original blockers or direct repair regressions through resolved
+  original blockers or changed evidence narrowing their cause. Preserve finding
   identities, provider provenance, dispositions, target and repair history, prior
   follow-ups and direct-regression lineage. The finding set stays closed except
-  for direct repair-caused regressions; a comprehensive reassessment cannot reset
-  the budget. Apply the strictest invocation, time, token and authority limits.
+  for direct repair-caused regressions. Apply the strictest invocation, time,
+  token and authority limits.
   Unchanged, oscillating,
   inconclusive, unavailable, out-of-scope, or exhausted evidence stops affected
-  work and publication. Only clear verification of current content clears the
+  work, completion and remaining publication. Only clear verification of current content clears the
   gate. The main thread applies the limit using native delegation; no custom repair
   controller is added. A same-candidate assessment correction requires fresh
-  evidence and retained history and neither consumes nor resets that limit.
+  evidence and retained history. It consumes no implementation repair attempt,
+  neither resets the limit nor grants additional attempts, and is not a convergence waiver.
   Clear verification ends repair immediately; unused attempts are not required.
   Evaluate continuation in this order: clear result, exhausted limits, evidence
   sufficiency, then eligible progress. Compare consumed attempts directly with
@@ -1122,7 +1118,7 @@ The following invariants govern adaptation and evidence provenance:
   remain authorized. An exhausted assessment-invocation allowance stops repair
   even when repair attempts remain. State the resulting stop or eligible action
   without first recommending an action that these limits prohibit.
-  Without an explicit override, an uncleared second verification exhausts the
+  Without an explicit override, an uncleared second follow-up verification exhausts the
   budget even when it shows progress. An unbounded request does not raise it.
 - **ADL-V1 — Verification boundary.** Preserve routine review omission and required
   high-risk review. Selected assurance requires compatible host-advertised

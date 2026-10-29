@@ -1,5 +1,10 @@
 # Explicit-only skill composition snapshot — 2026-08-13
 
+Historical evidence from a concluded host-feasibility probe. Current authority:
+[Adaptive Goal invocation](../specs/adaptive-goal.md#invocation-authority).
+The prototype implementation and synthetic sentinel cases are retired; this
+record preserves their observations and limits.
+
 ## Outcome
 
 On the observed Claude Code and Codex versions, an explicitly invoked parent
