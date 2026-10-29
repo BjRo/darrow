@@ -428,7 +428,7 @@ test("Darrow extension resolves supported cases and rejects unsupported fixtures
 });
 
 test("Darrow preserves case host restrictions and ignores diagnostic goal policy", async () => {
-  const codexOnly = await command<ExtensionReply>(
+  const recipe = await command<ExtensionReply>(
     [process.execPath, extension],
     request("resolve", {
       projectRoot: pathToFileURL(projectRoot).href,
@@ -436,10 +436,10 @@ test("Darrow preserves case host restrictions and ignores diagnostic goal policy
       configuration: {},
     }),
   );
-  expect(codexOnly.code, codexOnly.stderr).toBe(0);
-  const selected = codexOnly.value.result.cases[0]!;
+  expect(recipe.code, recipe.stderr).toBe(0);
+  const selected = recipe.value.result.cases[0]!;
   expect(selected.extensionData["darrow.case"]).toMatchObject({
-    hostIds: ["sevro.host.codex"],
+    hostIds: ["sevro.host.codex", "sevro.host.claude"],
   });
   const refused = await command<ExtensionReply>(
     [process.execPath, extension],
