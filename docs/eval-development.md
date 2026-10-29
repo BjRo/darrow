@@ -24,6 +24,12 @@ constraints for producing and interpreting that evidence.
   Group variants that differ only in oracle input into one prepared fixture;
   reset each variant's input and retained evidence before checking its outcome.
   Keep separate fixtures when a variant changes setup, source, or host state.
+- When case declarations share identical fixtures and oracles, bind them with
+  equality assertions and run one behavioral matrix. Keep distinct successor
+  selection, real-provider, cold-cache, and lifecycle coverage. Batch read-only
+  protocol usage in one fixture, checking exit status and absence of effects
+  after each invocation. Test response-only examples against their canonical
+  output declarations, with passing and failing installed CLI checks.
 - Run review-record validation and presentation checks through the owning
   frozen Python CLI. The domain helper prepares only its package and record
   files; canonical fixture-setup tests retain the installed Sevro connection.

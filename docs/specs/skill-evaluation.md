@@ -1650,6 +1650,17 @@ response handling and repository policy. A small
 installed-package integration suite checks the connection. Darrow does not
 repeat the engine's implementation matrix or compare against a retired runner.
 
+Domain regression matrices share fixture preparation when only oracle input
+changes, resetting input and retained evidence between variants. Identical
+checks and fixtures across case declarations need one behavioral matrix plus
+an equality assertion binding every declaration to it. Keep representative
+passing and failing installed public-command checks, real provider composition,
+and distinct setup, source, host, or lifecycle regressions. Protocol usage
+matrices check the exit category and absence of effects after every invocation
+in their shared fixture; matching test names alone does not establish overlap.
+Response-only examples exercise the canonical output declarations without
+synthesizing retired response files.
+
 The requirements below describe needed evidence across both repositories.
 Engine and host mechanics belong to Sevro; Darrow retains the corresponding
 request translation and domain-policy checks.

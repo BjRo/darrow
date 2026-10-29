@@ -11,6 +11,6 @@ checks:
   - name: subjectless request remains read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
+output_checks:
   - name: response is exactly the canonical subject question
-    run: cat .git/last-message.md
-    expect_exact: "What subject would you like me to grill?"
+    expect_regex: '^What subject would you like me to grill\?\n?(?![\s\S])'
