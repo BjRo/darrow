@@ -1665,6 +1665,9 @@ job with two isolated file workers. Tests within each file remain sequential;
 workers must not share mutable fixture repositories, homes, or result state.
 Parallel execution preserves the selected tests, assertions, and retained CI
 evidence rather than selecting a subset of the suite.
+Prepare the repository runtime's shared dependency cache before starting either
+worker. A fresh-home fixture must succeed independently of another test warming
+that cache; missing runtime prerequisites must still fail rather than be skipped.
 
 The requirements below describe needed evidence across both repositories.
 Engine and host mechanics belong to Sevro; Darrow retains the corresponding

@@ -9,16 +9,65 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { sevroEnvironment } from "../sevro-extension/sevro-command";
 import { invocation } from "../sevro-extension/run";
+import { captureTestCommand } from "../test-command";
+import { runFixtureChecks } from "./fixture-command";
 import {
   prepareUvSeedCache,
   repositorySkillRuntimeFile,
   uvSeedDigest,
+  uvSeedCacheDir,
 } from "../sevro-extension/uv-seed-cache";
 
 const repository = resolve(import.meta.dir, "../..");
 const roots: string[] = [];
+
+test("fresh test preparation makes runtime fixtures independent of file order", async () => {
+  const home = await scratch();
+  const environment = {
+    ...sevroEnvironment(),
+    HOME: home,
+    UV_PYTHON_DOWNLOADS: "never",
+  };
+  const marker = join(uvSeedCacheDir(home), ".darrow-seed-digest");
+  expect(await Bun.file(marker).exists()).toBeFalse();
+  const preparation = await captureTestCommand(
+    [process.execPath, resolve(import.meta.dir, "../prepare-test-runtime.ts")],
+    undefined,
+    { env: environment },
+  );
+  expect(preparation.exitCode, preparation.stderr).toBe(0);
+  expect(await readFile(marker, "utf8")).toBe(uvSeedDigest());
+  const profile = JSON.parse(
+    await readFile(repositorySkillRuntimeFile(repository)!, "utf8"),
+  );
+  profile.runtime.sharedCacheDirectories[0].source = uvSeedCacheDir(home);
+  const configuration = join(home, "runtime.json");
+  await writeFile(configuration, JSON.stringify(profile));
+  const fixture = await runFixtureChecks({
+    source: new URL(
+      "../../plugins/capability/darrow-readiness-gate/skills/assess-implementation-readiness/evals/caller-resolution-continuation.yaml",
+      import.meta.url,
+    ),
+    fixture: {
+      commits: [
+        { message: "chore: fixture", files: { "README.md": "ready\n" } },
+      ],
+    },
+    runtimeConfig: pathToFileURL(configuration),
+    checks: [
+      {
+        name: "prepared dependencies reach the isolated checker",
+        run: 'test -s "$UV_CACHE_DIR/.darrow-seed-digest"',
+      },
+    ],
+  });
+  expect(fixture.exitCode, fixture.diagnostic).toBe(0);
+  expect(fixture.value.grading.status, fixture.diagnostic).toBe("completed");
+  expect(fixture.checks[0]?.status, fixture.diagnostic).toBe("passed");
+}, 90_000);
 
 test("repository goal policy selects app-server without changing explicit routes", async () => {
   const results = await scratch();

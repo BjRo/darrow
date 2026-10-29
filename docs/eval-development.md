@@ -538,6 +538,9 @@ protocol, Darrow callers, and domain oracles.
 It runs every integration and domain file with two isolated Bun workers in one
 job. Tests within a file stay sequential. Keep mutable fixture state private to
 each case; file workers may reuse only their own prepared executable packages.
+The command prepares the shared repository runtime cache before starting the
+workers, so fixtures do not depend on another file running first. The fresh-home
+regression covers preparation followed by an actual runtime fixture.
 For serial diagnosis, invoke
 `bun test --timeout 30000 ./evals/integration ./evals/domain` directly.
 It uses controlled native executables and credentials for deterministic host
