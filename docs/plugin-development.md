@@ -19,6 +19,9 @@ The Codex manifest must point at `./skills/`.
 
 ## Runtime mechanics
 
+Plugin helpers must refuse unreadable configuration with a clear error rather
+than silently skipping it.
+
 Use a contained Python package managed by UV for substantial deterministic
 plugin mechanics when Python materially improves clarity or native Windows
 support. Commit `pyproject.toml` and `uv.lock`, keep runtime and development
