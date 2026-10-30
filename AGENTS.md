@@ -1,117 +1,38 @@
 # darrow — Agent Instructions
 
-Darrow is a marketplace of independently adoptable plugins for Claude Code and
-Codex. Its product architecture separates intent-matched capabilities from
-explicit orchestration, with each plugin serving as an optionality boundary.
-Capabilities are model-invoked in response to matching user intent, though a
-user may also name one explicitly. Orchestration starts only through explicit
-user invocation; never infer it from task complexity or duration.
-`darrow-adaptive-goal` is the core orchestration helper: it frames a bounded native
-goal and then leaves execution to the host. `darrow-ticket-pipeline` is retained
-only as a reference implementation of the former static phase approach and as a
-benchmark baseline. Neither is a daemon, queue, general workflow runtime, or
-license to restore the removed runtime experiments. Do not reconstruct other
-runtime machinery from Git history unless the user explicitly requests it.
+## Always
 
-## Writing style
-
-- Lead with the result and the next action.
-- Use familiar words, active voice, and short sentences and paragraphs.
-- Explain a necessary Darrow term the first time it appears.
-- Remove repetition and unnecessary process narration.
-- Preserve technical meaning, safety rules, evidence, exact commands and
-  identifiers, and required protocol fields while simplifying prose.
-
-Before changing plugin boundaries, the orchestration model, or the relationship
-between capabilities and orchestration, read [`docs/design.md`](docs/design.md).
-
-## Layout
-
-- `plugins/<kind>/<name>/` — self-contained plugins grouped as `foundation`,
-  `capability`, `orchestration`, `task-recipe`, or `automation`. Skills live in `skills/<skill>/SKILL.md`
-  with colocated scripts and evals. Never reference files outside a plugin or
-  assume a sibling plugin is installed.
-- `docs/specs/` — normative capability invariants.
-- `docs/decisions/` — accepted decisions for the surviving plugin/eval surface.
-- `evals/runner/` — thin evaluation callers.
-- `evals/integration/` — installed Sevro public-interface checks.
-- `evals/sevro-extension/` — Darrow's cases, policy, and public Sevro integration.
-- `evals/domain/` — Darrow fixture, oracle, and policy tests. Results are gitignored.
-
-## Plugin README content
-
-Keep plugin entry READMEs focused on current behavior, installation, usage,
-prerequisites, developer test commands, and actionable limitations. Record
-historical eval results, trial counts, pass rates, experiment comparisons, and
-investigation narratives in `docs/research/` or colocated eval/test documentation.
-Keep eval-runner internals in development documentation. Preserve historical
-evidence when cleaning a README; a short link may point to it without repeating
-the results. State current compatibility and reliability limits as practical
-guidance without recounting the trials that established them.
-
-## Skill development
-
-For new skill creation, follow
-[`create-agent-skill`](plugins/foundation/darrow-skill-authoring/skills/create-agent-skill/SKILL.md).
-For a read-only skill audit, follow
-[`audit-agent-skill`](plugins/foundation/darrow-skill-authoring/skills/audit-agent-skill/SKILL.md).
-Implement audit findings or other changes to an existing skill as ordinary
-engineering work against the findings and this repository's instructions.
-Add or adjust the applicable invariant under `docs/specs/` before implementation.
-Keep contextual judgment in the skill. Put repeatable, error-prone command and
-tool-protocol mechanics behind narrow bundled scripts so the model supplies
-intent-level inputs instead of reproducing call details.
-
-Review agents must not run Git or GitHub commands against this repository.
-
-## Plugin mechanics
-
-- Use a contained Python package managed by UV for substantial deterministic
-  plugin mechanics when Python materially improves clarity or native Windows
-  support. Commit `pyproject.toml` and `uv.lock`, keep runtime and development
-  dependencies separate, invoke runtime entrypoints with frozen resolution, and
-  register the package in `python-packages.txt`.
-- For Python conversions, preserve required public behavior rather than
-  translating Bash verbatim. Simplify the design with idiomatic Python,
-  standard-library operations, and focused reuse within the owning package.
-  Remove unnecessary Bash shims, obsolete aliases, and compatibility branches;
-  update callers and tests to invoke the frozen package entrypoints directly.
-  Retain an adapter only for an explicitly required external contract or an
-  actual host protocol, not merely because the old script path existed.
-- Keep genuinely small host-specific launchers and command glue in portable
-  Bash, using baseline Unix utilities and the host CLIs the capability wraps.
-  Do not introduce JavaScript/TypeScript, Ruby, JVM, compiled, or shared Darrow
-  runtime dependencies inside a plugin.
-- Avoid early-exit pipelines under `pipefail`; use here-strings for bounded
-  matching.
-- Avoid `${var//pat/}` on unbounded input and `awk -v` for backslash-bearing
-  values.
-- Support old BSD awk and Bash 3.2 in plugin shell scripts.
+- Start orchestration only on explicit user invocation; never infer it from
+  task complexity or duration. Do not reconstruct removed runtime machinery
+  from Git history unless explicitly requested.
+- Keep plugins independently installable and self-contained. Never reference
+  files outside a plugin or assume a sibling plugin is installed.
+- Add or adjust the applicable invariant under `docs/specs/` before implementation.
+- Review agents must not run Git or GitHub commands against this repository.
 - Refuse unreadable configuration rather than silently skipping it.
-- Use absolute paths in model-facing output.
-- Resolve the primary repository via the first `git worktree list --porcelain`
-  entry when linked worktrees matter.
+- Use absolute paths in model-facing output. When linked worktrees matter,
+  resolve the primary repository from the first `git worktree list --porcelain` entry.
 
-## Tests and evals
+Lead with the result and next action. Use familiar words, active voice, and
+short sentences and paragraphs. Explain necessary Darrow terms on first use.
+Remove repetition and process narration while preserving technical meaning,
+safety rules, evidence, exact commands and identifiers, and required protocol fields.
 
-Before creating, changing, or running evals,
-read [`docs/eval-development.md`](docs/eval-development.md).
+## Read when relevant
 
-All Python packages follow [`docs/specs/python-quality.md`](docs/specs/python-quality.md).
-Run `bun run check:python` after changing Python source, tests, project metadata,
-or locks.
+- Before changing plugin boundaries, orchestration, or the relationship between capabilities and orchestration, read [docs/design.md](docs/design.md).
+- Before changing any plugin, read [docs/plugin-development.md](docs/plugin-development.md).
+- Before creating or editing documentation, including plugin READMEs, read [docs/documentation-quality.md](docs/documentation-quality.md).
+- Before creating, changing, or running evals, read [docs/eval-development.md](docs/eval-development.md).
+- Before changing Python source, tests, project metadata, or locks, read [docs/specs/python-quality.md](docs/specs/python-quality.md). Run `bun run check:python` after the change.
+- For new skill creation, read and follow [create-agent-skill](plugins/foundation/darrow-skill-authoring/skills/create-agent-skill/SKILL.md).
+- For a read-only skill audit, read and follow [audit-agent-skill](plugins/foundation/darrow-skill-authoring/skills/audit-agent-skill/SKILL.md).
+
+Implement changes to existing skills, including audit findings, as ordinary
+engineering work under this repository's instructions.
 
 ## Git
 
 - Use imperative Conventional Commits without trailing periods.
 - Do not add AI attribution or `Co-authored-by` trailers.
 - Never push unless explicitly asked.
-
-## Plugin format
-
-- Marketplace: `.claude-plugin/marketplace.json`.
-- Every plugin has `.claude-plugin/plugin.json` and
-  `.codex-plugin/plugin.json`; the Codex manifest points at `./skills/`.
-- Whenever a plugin changes, increment its semantic version in both manifests
-  and keep the versions identical.
-- Keep each plugin independently installable and self-contained.

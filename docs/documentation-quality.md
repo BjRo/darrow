@@ -40,6 +40,15 @@ Keep useful internals and unique examples. Do not replace local safety guidance
 with generic boilerplate or copy every manifest field into central pages.
 Increment both manifest versions together for each changed plugin.
 
+Keep plugin entry READMEs focused on current behavior, installation, usage,
+prerequisites, developer test commands, and actionable limitations. Record
+historical eval results, trial counts, pass rates, experiment comparisons, and
+investigation narratives in `docs/research/` or colocated eval/test documentation.
+Keep eval-runner internals in development documentation. Preserve historical
+evidence when cleaning a README; link to it without repeating the results.
+State current compatibility and reliability limits as practical guidance without
+recounting the trials that established them.
+
 ## Deterministic local checks
 
 Run `bun run check:docs`. It checks Markdown links and heading anchors,
