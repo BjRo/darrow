@@ -21,6 +21,17 @@ async function outputChecks(name: string): Promise<OutputOracleCheck[]> {
   return canonical.output_checks;
 }
 
+function declaredPatterns(checks: OutputOracleCheck[]) {
+  return checks.map((check) => {
+    // These cases declare regexes only; additional grading rules need coverage.
+    expect(check).toEqual({
+      name: expect.any(String),
+      expect_regex: expect.any(String),
+    });
+    return new RegExp(check.expect_regex!);
+  });
+}
+
 test("Verification shell checks have no retired response-file dependency", async () => {
   for (const name of await readdir(cases)) {
     if (!name.endsWith(".yaml")) continue;
@@ -35,6 +46,7 @@ test("Verification shell checks have no retired response-file dependency", async
 test("current output checks require an absolute final report handoff", async () => {
   const source = new URL("existing-review.yaml", cases);
   const checks = await outputChecks("existing-review.yaml");
+  const patterns = declaredPatterns(checks);
   const footer =
     "Complete provider result: [report](</tmp/reviews/run/review.md>)";
   const examples: [string, boolean][] = [
@@ -45,7 +57,13 @@ test("current output checks require an absolute final report handoff", async () 
     [`${footer}\nMore assessment text.`, false],
     [footer.replace("[report]", "[evidence]"), false],
   ];
-  for (const [finalMessage, passes] of examples) {
+  for (const [index, [finalMessage, passes]] of examples.entries()) {
+    expect(
+      patterns.every((pattern) => pattern.test(finalMessage)),
+      finalMessage,
+    ).toBe(passes);
+    // The first passing and failing examples also exercise installed grading.
+    if (index > 1) continue;
     const result = await runFixtureChecks({
       source,
       fixture,
@@ -61,6 +79,7 @@ test("current output checks require an absolute final report handoff", async () 
 test("current follow-up output checks preserve the report and advisory identity", async () => {
   const source = new URL("followup-regression.yaml", cases);
   const checks = await outputChecks("followup-regression.yaml");
+  const patterns = declaredPatterns(checks);
   const footer =
     "Complete provider result: [report](</tmp/candidate/.fixture-state/inspect-candidate-report.md>)";
   const examples: [string, boolean][] = [
@@ -69,7 +88,13 @@ test("current follow-up output checks preserve the report and advisory identity"
     [`A10 remains.\n\n${footer}`, false],
     ["A1 remains a nonblocking advisory.", false],
   ];
-  for (const [finalMessage, passes] of examples) {
+  for (const [index, [finalMessage, passes]] of examples.entries()) {
+    expect(
+      patterns.every((pattern) => pattern.test(finalMessage)),
+      finalMessage,
+    ).toBe(passes);
+    // The first passing and failing examples also exercise installed grading.
+    if (index > 1) continue;
     const result = await runFixtureChecks({
       source,
       fixture,

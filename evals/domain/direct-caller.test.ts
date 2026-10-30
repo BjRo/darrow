@@ -1,3 +1,4 @@
+import { supportsNativeSandbox, requireCodexSandbox } from "../native-sandbox";
 import { captureTestCommand } from "../test-command";
 import { CODEX_SKILL_HOOK_FIXTURE } from "./codex-hook-fixture";
 import { afterEach, expect, test } from "bun:test";
@@ -405,7 +406,7 @@ touch '${called.replaceAll("'", "'\\''")}'
   expect(evidence.configuration.redacted.condition).toBe("enforced");
 }, 30_000);
 
-test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
+test.skipIf(!supportsNativeSandbox)(
   "direct caller forwards interruption and retains the cancelled prefix",
   async () => {
     for (const signal of ["SIGINT", "SIGTERM"] as const) {
@@ -415,7 +416,7 @@ test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
         binary,
         `#!${process.execPath}
 if (process.argv[2] === "sandbox") {
-  const child = Bun.spawn([${JSON.stringify(Bun.which("codex"))}, ...process.argv.slice(2)], { stdout: "inherit", stderr: "inherit" });
+  const child = Bun.spawn([${JSON.stringify(requireCodexSandbox())}, ...process.argv.slice(2)], { stdout: "inherit", stderr: "inherit" });
   process.exit(await child.exited);
 }
 if (process.argv[2] === "--version") { console.log("synthetic-direct-host"); process.exit(0); }
@@ -504,7 +505,7 @@ await new Promise(() => setInterval(() => {}, 1000));
   180_000,
 );
 
-test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
+test.skipIf(!supportsNativeSandbox)(
   "direct caller retains failed tasks and protects fresh output storage",
   async () => {
     const { root, binary, credential } = await fixture();
@@ -535,7 +536,7 @@ test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
       `#!${process.execPath}
 const argv = process.argv.slice(2);
 if (argv[0] === "sandbox") {
-  const child = Bun.spawn([${JSON.stringify(Bun.which("codex"))}, ...argv], { stdout: "inherit", stderr: "inherit" });
+  const child = Bun.spawn([${JSON.stringify(requireCodexSandbox())}, ...argv], { stdout: "inherit", stderr: "inherit" });
   process.exit(await child.exited);
 }
 if (argv[0] === "--version") { console.log("synthetic-direct-codex"); process.exit(0); }
@@ -818,7 +819,7 @@ test("direct caller preserves per-case candidate routes and independent graders"
   }
 }, 30_000);
 
-test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
+test.skipIf(!supportsNativeSandbox)(
   "direct caller gates activation independently from task success",
   async () => {
     const scenarios = [
@@ -858,7 +859,7 @@ test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
 ${CODEX_SKILL_HOOK_FIXTURE}
 const argv = process.argv.slice(2);
 if (argv[0] === "sandbox") {
-  const child = Bun.spawn([${JSON.stringify(Bun.which("codex"))}, ...argv], { stdout: "inherit", stderr: "inherit" });
+  const child = Bun.spawn([${JSON.stringify(requireCodexSandbox())}, ...argv], { stdout: "inherit", stderr: "inherit" });
   process.exit(await child.exited);
 }
 if (argv[0] === "--version") { console.log("synthetic-activation"); process.exit(0); }
@@ -933,7 +934,7 @@ for (const event of events) console.log(JSON.stringify(event));
   180_000,
 );
 
-test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
+test.skipIf(!supportsNativeSandbox)(
   "direct caller protects the whole external results root",
   async () => {
     for (const withOutput of [false, true]) {
@@ -977,7 +978,7 @@ test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
         binary,
         `#!${process.execPath}
 const argv = process.argv.slice(2);
-const codex = ${JSON.stringify(Bun.which("codex"))};
+const codex = ${JSON.stringify(requireCodexSandbox())};
 if (argv[0] === "sandbox") {
   const child = Bun.spawn([codex, ...argv], { stdout: "inherit", stderr: "inherit" });
   process.exit(await child.exited);

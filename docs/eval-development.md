@@ -19,14 +19,31 @@ constraints for producing and interpreting that evidence.
   or task outcomes. Keep subprocess coverage for execution, cancellation,
   retained evidence, and the installed package. Test ablation calculations
   through `analyzeAblations`, which the report writer also uses.
+  Check model and effort mismatch permutations with `candidateRouteMatches`
+  against retained public-command routes. One contradictory suite can exercise
+  a model mismatch on Codex and an effort mismatch on Claude while retaining
+  unaffected control cells and the separate ablation rejection run.
 - Prepare copied executable runtimes once per test file and clean them after
   the file completes. Keep Git workspaces and result directories case-local.
   Group variants that differ only in oracle input into one prepared fixture;
   reset each variant's input and retained evidence before checking its outcome.
   Keep separate fixtures when a variant changes setup, source, or host state.
+- When case declarations share identical fixtures and oracles, bind them with
+  equality assertions and run one behavioral matrix. Keep distinct successor
+  selection, real-provider, cold-cache, and lifecycle coverage. Batch read-only
+  protocol usage in one fixture, checking exit status and absence of effects
+  after each invocation. Test response-only examples against their canonical
+  output declarations, with passing and failing installed CLI checks.
+  Ticket response examples use their canonical complete-output regex directly;
+  installed grading retains both permitted newline forms and the extra-newline
+  rejection. Keep the exact declaration shape guarded so new grading fields
+  require corresponding coverage.
 - Run review-record validation and presentation checks through the owning
   frozen Python CLI. The domain helper prepares only its package and record
   files; canonical fixture-setup tests retain the installed Sevro connection.
+  Reuse its copied package, frozen environment, and UV dependency cache within
+  the file. Each invocation gets a private home, scratch directory, and artifact
+  root, with a link to the unchanged package at the canonical fixture path.
 - Goal-review oracle tests invoke `adaptive-goal-fixture proof` directly and
   reuse its unchanged package within one test file. Keep a fresh Git repository
   and review-provider installation for each repair scenario, including stale
@@ -171,6 +188,9 @@ constraints for producing and interpreting that evidence.
   Read existing canonical records from the grant. A current-worktree comparison
   creates its new scope only in separate private temporary state, then compares
   the owning backend's exact target fingerprint without changing the granted tree.
+- Shell check declarations run under `/bin/sh`; use portable syntax or invoke
+  an explicitly required shell. macOS `/bin/sh` accepting Bash syntax does not
+  establish Ubuntu compatibility.
 - Graders use declared host tools or portable system commands. Tools injected
   from a Codex credential directory are removed from the inherited runtime
   `PATH` and must not become an undeclared grading dependency.
@@ -510,6 +530,23 @@ Python fixture tools use a UV-managed Python
 runtime. System and framework installations may depend on paths outside their
 copied directory.
 
+CI runs the installed pin and manually selected candidate on Ubuntu 24.04.
+`bash scripts/setup-sevro-linux` installs the pinned native Codex executable
+outside protected runner homes and tool caches, plus bubblewrap, ripgrep, socat,
+and zsh. It grants bubblewrap an AppArmor user-namespace
+profile when required, and probes both bubblewrap and Codex isolation. The setup
+requires sudo and is intended for a disposable CI runner. Native caller, corpus
+protection, and plugin installation fixtures also run on macOS. A supported host
+with missing prerequisites fails; platform changes must not turn these checks
+into skips or omit native portions of a test. These deterministic fixtures do
+not establish authenticated model success.
+The setup also installs Bun under `/usr/local/lib/darrow-ci/bin`, a dedicated
+public system tool root readable by native sandboxes. Its PATH entry preserves
+the selected Node runtime; CI verifies Node 24.13.0 or newer before testing.
+Synthetic host scripts use that Bun executable in their shebangs.
+Domain oracle repositories set a local fixture Git identity
+before setup so commit checks do not depend on the runner's account or hostname.
+
 ```sh
 bun install --frozen-lockfile
 uv python install 3.13
@@ -518,6 +555,14 @@ env -u SEVRO_CHECKOUT -u SEVRO_PACKAGE_BIN bun run test:evals
 
 This command exercises Sevro's installed public CLI, versioned extension
 protocol, Darrow callers, and domain oracles.
+It runs every integration and domain file with two isolated Bun workers in one
+job. Tests within a file stay sequential. Keep mutable fixture state private to
+each case; file workers may reuse only their own prepared executable packages.
+The command prepares the shared repository runtime cache before starting the
+workers, so fixtures do not depend on another file running first. The fresh-home
+regression covers preparation followed by an actual runtime fixture.
+For serial diagnosis, invoke
+`bun test --timeout 30000 ./evals/integration ./evals/domain` directly.
 It uses controlled native executables and credentials for deterministic host
 fixtures. Claude fixtures supply a valid synthetic saved OAuth login; Sevro
 keeps that login in the parent and passes only its access token to the trial.

@@ -1,3 +1,4 @@
+import { supportsNativeSandbox, requireCodexSandbox } from "../native-sandbox";
 import { afterEach, expect, test } from "bun:test";
 
 import {
@@ -102,7 +103,7 @@ async function invoke(
   return { stdout, stderr, code };
 }
 
-test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
+test.skipIf(!supportsNativeSandbox)(
   "benchmark caller keeps grader routes separate and continues after task failure",
   async () => {
     const { root, binary, credential, output } = await fixture();
@@ -111,7 +112,7 @@ test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
       `#!${process.execPath}
 const argv = process.argv.slice(2);
 if (argv[0] === "sandbox") {
-  const child = Bun.spawn([${JSON.stringify(Bun.which("codex"))}, ...argv], { stdout: "inherit", stderr: "inherit" });
+  const child = Bun.spawn([${JSON.stringify(requireCodexSandbox())}, ...argv], { stdout: "inherit", stderr: "inherit" });
   process.exit(await child.exited);
 }
 if (argv[0] === "--version") { console.log("synthetic-benchmark-codex"); process.exit(0); }
@@ -324,7 +325,7 @@ console.log("synthetic-benchmark-host");
   expect(result.task.verdict).toBe("not_assessed");
 });
 
-test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
+test.skipIf(!supportsNativeSandbox)(
   "benchmark caller forwards cancellation and retains the cancelled prefix",
   async () => {
     const { root, suite, binary, credential, output } = await fixture();
@@ -333,7 +334,7 @@ test.skipIf(process.platform !== "darwin" || !Bun.which("codex"))(
       binary,
       `#!${process.execPath}
 if (process.argv[2] === "sandbox") {
-  const child = Bun.spawn([${JSON.stringify(Bun.which("codex"))}, ...process.argv.slice(2)], { stdout: "inherit", stderr: "inherit" });
+  const child = Bun.spawn([${JSON.stringify(requireCodexSandbox())}, ...process.argv.slice(2)], { stdout: "inherit", stderr: "inherit" });
   process.exit(await child.exited);
 }
 if (process.argv[2] === "--version") { console.log("synthetic-benchmark-host"); process.exit(0); }

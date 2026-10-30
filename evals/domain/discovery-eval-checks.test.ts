@@ -14,7 +14,6 @@ const planningRoot = new URL(
   "../../plugins/capability/darrow-discovery/skills/work-through-decisions/evals/",
   import.meta.url,
 );
-const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 type PlanningCase = {
   checks: OracleCheck[];
   semantic_output_checks?: { name: string; proposition: string }[];
@@ -32,8 +31,23 @@ describe("discovery eval loopholes", () => {
   test("subjectless grilling accepts only the canonical question", async () => {
     const canonical = await readFixtureCase(questionSource);
     const name = "response is exactly the canonical subject question";
-    const check = canonical.checks.find((entry) => entry.name === name);
+    const check = canonical.output_checks?.find((entry) => entry.name === name);
     if (!check) throw new Error("canonical subject-question oracle is missing");
+    expect(canonical.output_checks).toEqual([
+      {
+        name,
+        expect_regex:
+          "^What subject would you like me to grill\\?\\n?(?![\\s\\S])",
+      },
+    ]);
+    expect(canonical.checks).toEqual([
+      {
+        name: "subjectless request remains read-only",
+        run: "git status --porcelain --untracked-files=all",
+        expect_exact: "",
+      },
+    ]);
+    const question = new RegExp(check.expect_regex!);
     const messages = [
       "What subject would you like me to grill?\n\nHappy to help.",
       "What topic would you like grilled?\n\nQ3 — What scale?",
@@ -53,26 +67,40 @@ describe("discovery eval loopholes", () => {
     ];
     for (const [index, message] of messages.entries()) {
       const passes = index === messages.length - 1;
+      expect(question.test(message), message).toBe(passes);
+    }
+    const exact = messages.at(-1)!;
+    expect(question.test(`${exact}\n`)).toBe(true);
+    for (const message of [
+      `${exact}\n\n`,
+      ` ${exact}`,
+      `${exact} `,
+      `${exact}\r\n`,
+    ])
+      expect(question.test(message), message).toBe(false);
+  });
+
+  test("subjectless grilling grades final responses through the installed CLI", async () => {
+    const canonical = await readFixtureCase(questionSource);
+    for (const [finalMessage, passes] of [
+      ["What subject would you like me to grill?", true],
+      ["What subject would you like me to grill?\n", true],
+      ["What subject would you like me to grill?\n\n", false],
+      ["What subject would you like me to grill?\n\nHappy to help.", false],
+    ] as const) {
       const result = await runFixtureChecks({
         source: questionSource,
-        checks: [
-          {
-            name: "write controlled response",
-            run: `printf '%s' ${quote(message)} >.git/last-message.md`,
-          },
-          check,
-        ],
+        checks: canonical.checks,
+        outputChecks: canonical.output_checks,
+        finalMessage,
       });
       expect(result.exitCode, result.diagnostic).toBe(passes ? 0 : 1);
       expect(result.value.execution.status).toBe("completed");
       expect(result.value.grading.status).toBe("completed");
       expect(result.value.task.verdict).toBe(passes ? "passed" : "failed");
-      expect(result.checks.map((entry) => entry.status)).toEqual([
-        "passed",
-        passes ? "passed" : "failed",
-      ]);
+      expect(result.checks[0]?.status).toBe("passed");
     }
-  }, 120_000);
+  }, 30_000);
 
   test("unresolved planning keeps prose judgment in semantic checks", async () => {
     const evalCase = await planningCase("direct-unknowns");

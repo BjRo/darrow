@@ -330,7 +330,9 @@ checks:
           test/*|test.sh) ;;
           *) exit 1 ;;
         esac
-      done <<< "$changes"
+      done <<EOF
+      $changes
+      EOF
       test "$implementation" = true
   - name: exact current branch is published once
     run: >-

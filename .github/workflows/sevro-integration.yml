@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   installed-pin:
-    runs-on: macos-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -35,8 +35,8 @@ jobs:
           version: 0.11.21
       - name: Install the relocatable Python fixture runtime
         run: uv python install 3.13
-      - name: Install deterministic sandbox prerequisite
-        run: npm install --global --ignore-scripts @openai/codex@0.156.1
+      - name: Prepare and probe native Linux isolation
+        run: bash scripts/setup-sevro-linux
       - run: bun install --frozen-lockfile
       - name: Retain and verify the installed pin
         shell: bash
@@ -51,6 +51,9 @@ jobs:
           import { existsSync, readFileSync, writeFileSync } from 'node:fs';
           import { join } from 'node:path';
           const name = '@bjoernrochel/sevro';
+          const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(Number);
+          if (nodeMajor < 24 || (nodeMajor === 24 && nodeMinor < 13))
+            throw new Error('installed Sevro checks require Node.js 24.13.0 or newer');
           const declared = JSON.parse(readFileSync('package.json', 'utf8')).devDependencies[name];
           if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*)?$/.test(declared))
             throw new Error('Sevro must be pinned to an exact version');
@@ -89,7 +92,7 @@ jobs:
 
   installed-candidate:
     if: github.event_name == 'workflow_dispatch'
-    runs-on: macos-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       SEVRO_VERSION: ${{ inputs.version }}
@@ -107,8 +110,8 @@ jobs:
           version: 0.11.21
       - name: Install the relocatable Python fixture runtime
         run: uv python install 3.13
-      - name: Install deterministic sandbox prerequisite
-        run: npm install --global --ignore-scripts @openai/codex@0.156.1
+      - name: Prepare and probe native Linux isolation
+        run: bash scripts/setup-sevro-linux
       - run: bun install --frozen-lockfile
       - name: Prepare retained evidence directory
         shell: bash
@@ -137,6 +140,9 @@ jobs:
           import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
           import { basename, join } from 'node:path';
           const root = process.env.SEVRO_ARTIFACT_DIR;
+          const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(Number);
+          if (nodeMajor < 24 || (nodeMajor === 24 && nodeMinor < 13))
+            throw new Error('installed Sevro checks require Node.js 24.13.0 or newer');
           const records = JSON.parse(readFileSync(join(root, 'npm-pack.json'), 'utf8'));
           if (!Array.isArray(records) || records.length !== 1)
             throw new Error('npm must return one package');

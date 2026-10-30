@@ -55,41 +55,40 @@ done`,
   );
 }, 20_000);
 
-for (const protocol of [
-  "independent-review-protocol",
-  "create-commit-protocol",
-  "create-pr-protocol",
-]) {
-  for (const [arg, exitCode] of [
-    ["--help", 0],
-    ["-h", 0],
-    ["unexpected", 2],
-  ] as const) {
-    test(`${protocol} ${arg} performs no effects`, async () => {
-      const result = await runChecks([
-        localEdit,
+test("failed-check protocol usage has no effects after every invocation", async () => {
+  const checks: OracleCheck[] = [localEdit];
+  for (const protocol of [
+    "independent-review-protocol",
+    "create-commit-protocol",
+    "create-pr-protocol",
+  ]) {
+    for (const [arg, exitCode] of [
+      ["--help", 0],
+      ["-h", 0],
+      ["unexpected", 2],
+    ] as const) {
+      checks.push(
         {
-          name: "protocol usage",
+          name: `${protocol} ${arg}: usage`,
           run: `${protocol} ${arg}`,
           exit_code: exitCode,
         },
         {
-          name: "usage has no effects",
+          name: `${protocol} ${arg}: no effects`,
           run: 'test ! -e "$SEVRO_CANDIDATE_ARTIFACT_RECEIPTS/gate-events" && test ! -e .fixture-state/pull-requests && test "$(git rev-list --count HEAD)" -eq 1 && test -z "$(git --git-dir=.fixture-state/remote.git for-each-ref --format=\'%(refname)\' refs/heads)"',
         },
-      ]);
-      expect(result.exitCode, result.diagnostic).toBe(0);
-      expect(result.value.execution.status).toBe("completed");
-      expect(result.value.grading.status).toBe("completed");
-      expect(result.value.task.verdict).toBe("passed");
-      expect(result.checks.map((check) => check.status)).toEqual([
-        "passed",
-        "passed",
-        "passed",
-      ]);
-    }, 20_000);
+      );
+    }
   }
-}
+  const result = await runChecks(checks);
+  expect(result.exitCode, result.diagnostic).toBe(0);
+  expect(result.value.execution.status).toBe("completed");
+  expect(result.value.grading.status).toBe("completed");
+  expect(result.value.task.verdict).toBe("passed");
+  expect(result.checks.map((check) => check.status)).toEqual(
+    checks.map(() => "passed"),
+  );
+}, 30_000);
 
 for (const effect of ["none", "review", "commit", "publication"] as const) {
   test(`failed-check fixture rejects dependent effects: ${effect}`, async () => {

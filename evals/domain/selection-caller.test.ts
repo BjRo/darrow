@@ -415,11 +415,13 @@ async function cancellation(
   const adapter = join(root, "adapter.ts");
   await writeFile(
     adapter,
-    `import { writeFile } from "node:fs/promises";
+    `import { rename, writeFile } from "node:fs/promises";
 export default {
   id: "test.selection-wait", model: "synthetic", effort: "low", capabilities: ["sevro.host.exec"],
   async run({ signal }) {
-    await writeFile(${JSON.stringify(ready)}, JSON.stringify({ pid: process.pid }));
+    const ready = ${JSON.stringify(ready)};
+    await writeFile(ready + ".pending", JSON.stringify({ pid: process.pid }));
+    await rename(ready + ".pending", ready);
     await new Promise((_resolve, reject) => {
       const keepAlive = setInterval(() => {}, 1000);
       const cancel = () => { clearInterval(keepAlive); reject(new Error("cancelled")); };

@@ -20,8 +20,6 @@ const reviewAssets = {
   ),
   fixtureAssetFiles: ["backend/tests/evals/review_receipts.py"],
 };
-const reviewCheck =
-  "review clears the final uncommitted candidate before commit";
 const commit =
   "uv run --quiet --frozen --no-dev --project .git/eval-plugin/backend darrow-create-commit";
 
@@ -58,104 +56,42 @@ function publicationActions(): OracleCheck[] {
   ];
 }
 
-for (const scenario of [
-  "normal",
-  "help",
-  "missing",
-  "duplicate",
-  "stale",
-] as const) {
-  test(`real commit composition review evidence: ${scenario}`, async () => {
-    const canonical = await readFixtureCase(source);
-    const check = canonical.checks.find((entry) => entry.name === reviewCheck);
-    if (!check)
-      throw new Error("canonical composition review oracle is missing");
-    const actions = publicationActions();
-    if (scenario === "help")
-      actions.unshift({
-        name: "read-only help before implementation",
-        run: "independent-review-protocol --help",
-      });
-    const log = ".fixture-state/composition-events";
-    const alteration = {
-      normal: "true",
-      help: "true",
-      missing: `awk -F '\\t' '$1 != "review" { print }' ${log} >.git/altered-events && mv .git/altered-events ${log}`,
-      duplicate: `awk -F '\\t' '{ print; if ($1 == "review" && !duplicated++) print }' ${log} >.git/altered-events && mv .git/altered-events ${log}`,
-      stale: `awk -F '\\t' '$1 == "review" { print "review\\tWORKTREE@stale"; next } { print }' ${log} >.git/altered-events && mv .git/altered-events ${log}`,
-    }[scenario];
-    actions.push({
-      name: "select review evidence counterexample",
-      run: alteration,
-    });
-    const passes = ["normal", "help", "duplicate"].includes(scenario);
-    const diagnosis: OracleCheck[] = passes
-      ? []
-      : [
-          {
-            name: "rejection explains the review evidence defect",
-            run: check.run,
-            exit_code: 1,
-            expect_regex: "Expected reviewed target:",
-          },
-        ];
-    const result = await runFixtureChecks({
-      ...reviewAssets,
-      source,
-      fixture: await realCommitFixture(),
-      checks: [...actions, ...canonical.checks, ...diagnosis],
-    });
-    expect(result.exitCode, result.diagnostic).toBe(passes ? 0 : 1);
-    expect(result.value.execution.status).toBe("completed");
-    expect(result.value.grading.status).toBe("completed");
-    expect(result.value.task.verdict).toBe(passes ? "passed" : "failed");
-    expect(
-      result.checks.slice(0, actions.length).map((entry) => entry.status),
-    ).toEqual(actions.map(() => "passed"));
-    if (passes)
-      expect(result.checks.every((entry) => entry.status === "passed")).toBe(
-        true,
-      );
-    else {
-      expect(
-        result.checks.find((entry) => entry.name === reviewCheck)?.status,
-      ).toBe("failed");
-      expect(result.checks.at(-1)?.status).toBe("passed");
-    }
-  }, 30_000);
-}
-
-for (const [arg, exitCode] of [
-  ["--help", 0],
-  ["-h", 0],
-  ["unexpected", 2],
-] as const) {
-  test(`real commit reviewer ${arg} has no assessment effects`, async () => {
-    const result = await runFixtureChecks({
-      ...reviewAssets,
-      source,
-      checks: [
-        {
-          name: "usage",
-          run: `independent-review-protocol ${arg}`,
-          exit_code: exitCode,
-        },
-        {
-          name: "no assessment or mutation",
-          run: 'test ! -e .fixture-state/composition-events && test ! -e .fixture-state/pull-requests && test "$(git rev-list --count HEAD)" -eq 1 && test -z "$(git status --porcelain)"',
-        },
-      ],
-    });
-    expect(result.exitCode, result.diagnostic).toBe(0);
-    expect(result.value.execution.status).toBe("completed");
-    expect(result.value.grading.status).toBe("completed");
-    expect(result.value.task.verdict).toBe("passed");
-    expect(result.checks.map((entry) => entry.status)).toEqual([
-      "passed",
-      "passed",
-    ]);
-  }, 30_000);
-}
+test("real commit composes after read-only reviewer usage", async () => {
+  const canonical = await readFixtureCase(source);
+  const usage: OracleCheck[] = [];
+  for (const [arg, exitCode] of [
+    ["--help", 0],
+    ["-h", 0],
+    ["unexpected", 2],
+  ] as const) {
+    usage.push(
+      {
+        name: `reviewer usage: ${arg}`,
+        run: `independent-review-protocol ${arg}`,
+        exit_code: exitCode,
+      },
+      {
+        name: `${arg} has no assessment or mutation`,
+        run: 'test ! -e .fixture-state/composition-events && test ! -e .fixture-state/pull-requests && test "$(git rev-list --count HEAD)" -eq 1 && test -z "$(git status --porcelain)"',
+      },
+    );
+  }
+  // Receipt counterexamples share the dedicated fixture-state matrix.
+  const checks = [...usage, ...publicationActions(), ...canonical.checks];
+  const result = await runFixtureChecks({
+    ...reviewAssets,
+    source,
+    fixture: await realCommitFixture(),
+    checks,
+  });
+  expect(result.exitCode, result.diagnostic).toBe(0);
+  expect(result.value.execution.status).toBe("completed");
+  expect(result.value.grading.status).toBe("completed");
+  expect(result.value.task.verdict).toBe("passed");
+  expect(result.checks.map((entry) => entry.status)).toEqual(
+    checks.map(() => "passed"),
+  );
+}, 30_000);
 
 for (const scenario of [
   "correct",
