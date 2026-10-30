@@ -2,7 +2,6 @@
 
 ## Always
 
-- Review agents must not run Git or GitHub commands against this repository.
 - Refuse unreadable configuration rather than silently skipping it.
 - Use absolute paths in model-facing output. When linked worktrees matter,
   resolve the primary repository from the first `git worktree list --porcelain` entry.
