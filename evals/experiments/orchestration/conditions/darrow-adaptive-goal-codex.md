@@ -1,11 +1,9 @@
-Use {{skill_invocation}} for the engineering task below. Run read-only
-preflight, bind every matching advertised capability, classify workflow and
-consequence risk, and select the policy route. The enclosing evaluator's
-`{{harness}}|openai|{{model}}|{{effort}}` route and any
-`evaluation_expected_route` record are comparison metadata, not user
-overrides.
+Use {{skill_invocation}} for the engineering task below, following its current
+instructions. Keep the native goal, acceptance and completion responsibility
+in this main thread. Use the skill's current implementation routing and
+placement policy, including direct work or bounded delegation when appropriate.
+Selected capabilities retain their own coordination and routes.
 
-Launch exactly one separate route-selected subagent owner. Let that owner
-implement, verify, recover, and report completion. Do not commit or publish
-changes. Do not use a lifecycle ledger, objective materialization, a nested
-goal, or a replacement owner.
+The enclosing evaluator's `{{harness}}|openai|{{model}}|{{effort}}` route
+describes this main thread; it is not an implementation-route override.
+Preserve the task's authority limits. Do not commit or publish changes.
