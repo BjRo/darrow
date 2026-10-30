@@ -2,11 +2,10 @@
 
 ## Purpose
 
-Python in this repository must remain readable, typed, deterministic, and safe
-to release across its declared support range. These rules apply to every Python
-package listed in [`python-packages.txt`](../../python-packages.txt). A new
-Python source file, `pyproject.toml`, or UV lock outside a registered package is
-an error until its package is added to that inventory.
+These rules apply to every package in [`python-packages.txt`](../../python-packages.txt).
+Every Python source file, `pyproject.toml`, and UV lock must belong to a
+registered package. Code must remain readable, typed, deterministic, and safe
+to release across its declared support range.
 
 ## Installed runtime environments
 
@@ -60,26 +59,23 @@ five. Mypy runs in strict mode over production code, tests, and package tooling.
 Development tools belong in a locked development dependency group and must not
 enter the runtime dependency set.
 
-Names describe the domain concept or action they represent. A module owns one
-coherent responsibility; a function performs one focused operation at one
-level of abstraction. Boundary code validates untrusted input and reports a
-specific error. An exception may be translated when the new error adds useful
-domain context, but it must retain its cause. Broad catches are allowed only at
-an explicit process or protocol boundary with documented failure semantics.
+Use names that describe domain concepts or actions. Each module owns one
+coherent responsibility; each function performs one focused operation at one
+level of abstraction. Validate untrusted input at boundaries and report specific
+errors. Translate exceptions only to add useful domain context, retaining the
+cause. Catch broadly only at explicit process or protocol boundaries with
+documented failure semantics.
 
-Automation cannot judge every aspect of those rules. Reviewers inspect names,
-module cohesion, function focus, error boundaries, and whether assertions
-verify observable behavior rather than implementation details.
+Review names, cohesion, function focus, error boundaries, and whether tests
+assert observable behavior rather than implementation details.
 
 ## Converting existing mechanics
 
-Treat a Bash implementation as evidence of required behavior, not a Python
-design template. Establish the public inputs, outputs, refusals, side effects,
-and ordering constraints before refactoring. Prefer idiomatic Python and
-standard-library operations over hand-written equivalents; replace shell-style
-control flow and duplicated mechanics with direct operations and focused reuse
-within the owning module or package. Keep abstractions proportional to their
-actual callers and keep plugins independently installable.
+Before refactoring Bash, establish its public inputs, outputs, refusals, side
+effects, and ordering constraints. Preserve those contracts with idiomatic
+Python, standard-library operations, direct control flow, and focused reuse
+within the owning module or package. Keep abstractions proportional to actual
+callers and plugins independently installable.
 
 Audit the complete invocation surface during the conversion. Remove unnecessary
 Bash shims, obsolete aliases, and backward-compatibility branches. Update skill
@@ -89,9 +85,9 @@ external contract or actual host protocol needs it; an old script path alone
 is not such a requirement. Keep shell regression tests as tests, not runtime
 entrypoints, and verify the copied plugin without the removed paths.
 
-Use behavioral and differential checks to preserve the required interface while
-changing the internals. High coverage is a guard for simplification, not a reason
-to keep redundant code or mirror the old implementation in new tests.
+Use behavioral and differential checks for interface compatibility. Coverage
+supports simplification; it does not justify redundant code or tests that mirror
+the old implementation.
 
 Behavior-preserving simplifications retain literal argument values, diagnostic
 precedence, serialized bytes, and resource lifetimes. Standard-library replacements
@@ -131,9 +127,8 @@ must fail when statement coverage passes but branch coverage does not. Coverage
 exclusions require a concrete unreachable-platform or interpreter reason in
 the source and review.
 
-Each package owns its coverage source and branch configuration. The repository
-quality infrastructure owns the shared percentage calculation, threshold, and
-failure behavior so packages do not copy or weaken that policy.
+Each package owns its coverage source and branch configuration; repository
+quality infrastructure owns the shared calculation, thresholds, and failures.
 
 ## Commands and enforcement
 
@@ -164,9 +159,8 @@ rollout reads and exporter batching, and reports peak memory. A numeric
 regression threshold may be added only after representative measurements make
 the budget defensible.
 
-Plugin-specific benchmark workloads, comparison rules, and executable entrypoints
-live inside the plugin that owns the behavior. Repository commands and CI may
-invoke those entrypoints, but do not reproduce the plugin's internal path
+Keep benchmark workloads, comparison rules, and entrypoints in the owning
+plugin. Repository commands and CI invoke them without copying internal path
 resolution or benchmark logic.
 
 Release validation installs each Python-backed plugin from a fresh copied

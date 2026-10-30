@@ -76,13 +76,10 @@ on top of the host's skill discovery. If an optional skill is unavailable, the
 consumer follows its own documented stop or fallback behavior instead of
 reaching into another plugin.
 
-Provider-specific integrations may name both the capability and provider, such
-as `darrow-observability-langfuse`. Ticket management instead uses one
-`darrow-tickets` plugin with four operation skills and contained tracker
-adapters. Its metadata names supported trackers; consumers honor the user's
-tracker choice or established project context and clarify unresolved provider
-ambiguity before tracker access. Adding a tracker does not require another
-public ticket skill or a sibling runtime dependency.
+Integrations may name a provider in the plugin identity or use contained
+provider adapters. Consumers honor the user's provider choice or established
+project context and resolve ambiguity before access. Adding a provider does
+not require another public skill or a sibling runtime dependency.
 
 Advertised intent identifies a potential provider; the caller must also check
 its prerequisites, effects, returned evidence and stop conditions. A capability
@@ -106,43 +103,29 @@ ledger, queue, or durable workflow runtime.
 
 ## Scripts hide tool mechanics from the model
 
-Skills should expose the intent, decisions, and evidence that require model
-judgment—not the plumbing of every underlying command or tool protocol. When a
-workflow depends on repeatable, error-prone mechanics, a bundled script provides
-a narrow interface. The invoking model supplies intent-level inputs; the script
-owns command construction, tool discovery, escaping, validation, parsing,
-and normalization, then returns compact, stable, machine-readable evidence.
+Skills own intent, judgment, authority, and material choices. Narrow bundled
+helpers own repeatable, error-prone command construction, tool discovery,
+escaping, validation, parsing, and normalization. They return compact, stable,
+machine-readable evidence. This makes mechanics
+deterministic and testable without asking the model to reconstruct a protocol
+on every run.
 
-This boundary reduces tool-call chatter and model context while making the
-mechanics deterministic and directly testable. It is the same general pattern
-used by command wrappers and context-compression tools: the invoker works with a
-small purpose-built operation instead of reconstructing a low-level call
-sequence on every run.
-
-The script may hide protocol details, but it must not hide authority or
-consequences. Its interface and result still identify the operation, target,
-material side effects, inspected evidence, failure, and any required next
-decision.
+A helper must still identify its operation, target, material side effects,
+inspected evidence, failure, and any required next decision. Hiding mechanics
+must not hide authority or consequences.
 
 ## Plugin mechanics use contained Python or portable Bash
 
-Substantial deterministic mechanics may use a contained Python package managed
-by UV when that materially improves clarity, testability, or native Windows
-support. The package, lock, entrypoints, dependencies, and state stay inside the
-owning plugin. Runtime and development dependencies remain separate, and frozen
-entrypoints never rely on a sibling plugin or shared Darrow runtime.
+Contained Python packages managed by UV support substantial deterministic
+mechanics when they improve clarity, testability, or native Windows support.
+Portable Bash remains appropriate for small host-specific launchers and command
+glue. Adoption is incremental; each plugin owns its prerequisites and remains
+independently installable.
 
-Genuinely small host-specific launchers and command glue use portable Bash,
-baseline Unix utilities, and the host CLIs that the capability explicitly
-wraps. Darrow targets Bash 5 and the macOS `/bin/bash` 3.2 boundary for those
-scripts, so they avoid GNU-only assumptions and newer Bash-only syntax.
-
-Each plugin declares its own runtime prerequisites and remains independently
-installable. Python adoption is incremental rather than a requirement that all
-plugins carry a Python package. Plugins do not introduce JavaScript or
-TypeScript, Ruby, a JVM, compiled binaries, or shared language-runtime
-infrastructure for their helpers. Repository-level development infrastructure
-remains outside this plugin-runtime boundary.
+The [plugin development guide](plugin-development.md) owns runtime restrictions
+and shell compatibility. The [Python standard](specs/python-quality.md) owns
+packaging, locked execution, migration, and quality gates. Repository-level
+development tooling remains outside the plugin-runtime boundary.
 
 ## Evals make development evidence-based
 
@@ -232,21 +215,3 @@ set Darrow's future product direction. Changes to it should preserve its value
 as a faithful reference and reproducible benchmark, not expand it into a daemon,
 queue, or general workflow runtime. Its frozen behavior and comparison contract
 are specified in [Capability: Ticket Pipeline](specs/ticket-pipeline.md).
-
-## Consequences
-
-- Add focused, reusable behavior as an intent-matched capability.
-- Introduce orchestration only when work needs an explicit continuation and
-  completion contract and the user invokes it explicitly.
-- Use Adaptive Goal as the default orchestration helper for bounded
-  engineering work.
-- Treat the ticket pipeline as historical reference and comparative evidence,
-  not as a template for new orchestration features.
-- Keep every plugin independently adoptable and avoid rebuilding a general
-  runtime around the marketplace.
-- Hide repeatable tool mechanics behind narrow, testable scripts without hiding
-  their authority or effects.
-- Use contained Python plus UV for substantial cross-platform plugin mechanics,
-  and portable Bash for small host-specific launchers and command glue.
-- Give every skill functional evals and compare behavior-changing variants with
-  matched controls before claiming an improvement.

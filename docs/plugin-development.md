@@ -23,12 +23,10 @@ Plugin helpers must refuse unreadable configuration with a clear error rather
 than silently skipping it.
 
 Use a contained Python package managed by UV for substantial deterministic
-plugin mechanics when Python materially improves clarity or native Windows
-support. Commit `pyproject.toml` and `uv.lock`, keep runtime and development
-dependencies separate, invoke runtime entrypoints with frozen resolution, and
-register the package in `python-packages.txt`.
-
-For Python conversions, follow `docs/specs/python-quality.md`.
+mechanics when Python materially improves clarity or native Windows support.
+Before adding, changing, or converting Python helpers, read `docs/specs/python-quality.md`.
+It owns package registration, locks, dependency separation, installed runtime
+environments, conversions, tests, and release checks.
 
 Keep genuinely small host-specific launchers and command glue in portable
 Bash, using baseline Unix utilities and the host CLIs the capability wraps.
