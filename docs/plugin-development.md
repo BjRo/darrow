@@ -35,6 +35,16 @@ Bash, using baseline Unix utilities and the host CLIs the capability wraps.
 Do not introduce JavaScript/TypeScript, Ruby, JVM, compiled, or shared Darrow
 runtime dependencies inside a plugin.
 
+## Paths and worktrees
+
+Plugin helpers must emit absolute paths in model-facing output so callers can
+use them from any working directory.
+
+Use `git rev-parse --show-toplevel` for the checkout being inspected or changed.
+Only when an operation specifically needs the primary checkout, resolve it from
+the first `git worktree list --porcelain` entry. Keep worktree-local inspection
+and edits in the requested checkout.
+
 ## Shell compatibility
 
 - Support old BSD awk and Bash 3.2 in plugin shell scripts.

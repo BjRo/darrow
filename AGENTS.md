@@ -1,9 +1,6 @@
 # darrow — Agent Instructions
 
-## Always
-
-- Use absolute paths in model-facing output. When linked worktrees matter,
-  resolve the primary repository from the first `git worktree list --porcelain` entry.
+## Writing style
 
 Lead with the result and next action. Use familiar words, active voice, and
 short sentences and paragraphs. Explain necessary Darrow terms on first use.
