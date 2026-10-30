@@ -5,6 +5,8 @@ Implementation constraints for changes to plugin content.
 Keep plugins independently installable and self-contained. Never reference
 files outside a plugin or assume a sibling plugin is installed.
 
+Add or adjust the applicable invariant under `docs/specs/` before implementation.
+
 ## Skills and versions
 
 Keep contextual judgment in the skill. Put repeatable, error-prone command and

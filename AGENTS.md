@@ -2,7 +2,6 @@
 
 ## Always
 
-- Add or adjust the applicable invariant under `docs/specs/` before implementation.
 - Review agents must not run Git or GitHub commands against this repository.
 - Refuse unreadable configuration rather than silently skipping it.
 - Use absolute paths in model-facing output. When linked worktrees matter,
