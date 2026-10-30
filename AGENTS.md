@@ -2,8 +2,6 @@
 
 ## Always
 
-- Keep plugins independently installable and self-contained. Never reference
-  files outside a plugin or assume a sibling plugin is installed.
 - Add or adjust the applicable invariant under `docs/specs/` before implementation.
 - Review agents must not run Git or GitHub commands against this repository.
 - Refuse unreadable configuration rather than silently skipping it.
