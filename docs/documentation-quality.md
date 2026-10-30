@@ -36,59 +36,53 @@ useful introduction describing what it provides, followed by these sections:
 - `Troubleshooting`: known symptoms, safe checks, and recovery/escalation.
 - `License`: preserve existing licensing text and link to the local license.
 
-Keep useful internals and unique examples. Do not replace local safety guidance
-with generic boilerplate or copy every manifest field into central pages.
-Increment both manifest versions together for each changed plugin.
+Keep useful plugin internals, unique examples, developer test commands, and
+actionable compatibility and reliability limits. Preserve local safety
+guidance; avoid generic boilerplate and manifest inventories.
+
+Put historical eval results, trial counts, pass rates, comparisons, and
+investigation narratives in `docs/research/` or colocated eval/test documentation.
+Link to that evidence without repeating it in a README. Put eval-runner
+internals in development documentation.
 
 ## Deterministic local checks
 
-Run `bun run check:docs`. It checks Markdown links and heading anchors,
-image alternatives, fenced-code languages, required plugin README sections,
-marketplace/catalog/manifests, and exact guide-entrypoint synchronization.
-It also checks inventory-to-case coverage and the inventory's source and static
-destinations, and verifies that plugin skill directories are readable.
-Checks use a Markdown parser and GitHub heading slugs; code examples are not
-treated as live links. Repository-only guide cases and inactive eval fixtures
-are kept distinct. A local check needs no network connection.
+Run `bun run check:docs` for local documentation and repository-structure
+checks. Their implementation lives in `scripts/check-docs.ts`; keep the check
+inventory there. Code examples are not live links. This gate needs no network.
 
-Run `bun run check:docs:external` separately. It retries transient network
-failures twice and reports the affected URL and referring page. A permanent
-HTTP error needs a corrected destination; rate limits, authentication walls,
-timeouts, and bot blocks need human triage and a later retry. Do not suppress
+Run `bun run check:docs:external` separately. Correct permanent HTTP failures;
+triage rate limits, authentication walls, timeouts, and bot blocks before retrying.
+Do not suppress
 local failures or rewrite a working link merely to make a network job green.
 External link checks do not establish that a source's claims are correct.
 
 ## Human review rubric
 
-- Can a new reader reach first success, selection, architecture, troubleshooting,
-  and contributing from the landing page without guessing?
-- Does each page answer one reader need in plain language, with short paragraphs
-  and terms defined or linked in the glossary?
-- Does it lead with the result or next action, use active voice, and avoid
-  repeated points or unnecessary process narration?
-- Do headings form a meaningful hierarchy, without skipped levels or labels
-  that make sense only in context?
-- Do links describe their destination when read alone? Avoid “click here”.
-- Do tables remain readable on a narrow screen? Avoid wide prose catalogs.
-- Does the source order make sense to a screen reader, including diagrams and
-  their explanations? Does every complex diagram have a short alternative and
-  adjacent or linked text communicating the same relationships?
-- Are distinctions conveyed in words or structure, without relying on color?
-- Are code fences labelled, commands copy/paste-safe, and shell commands clearly
-  separate from commands typed inside an agent session?
-- Are prerequisites, expected results, verification limits, recovery paths,
-  mutation effects, and the actual supported hosts explicit?
-- Did contraction preserve authoritative rules and unique safety knowledge,
-  with question mappings and passing cross-host evidence for each removal?
-- When detail is long, is the outcome easy to find without hiding or dropping
-  the complete evidence?
+- Can readers reach first success, selection, architecture, troubleshooting,
+  and contributing from the landing page without guessing? Does each page serve
+  one primary need and follow the plain-language standard above, with terms
+  defined or linked in the glossary?
+- Do headings form a meaningful hierarchy without skipped levels or labels
+  that need extra context? Do links describe their destination without “click
+  here”? Are tables readable on narrow screens?
+- Are distinctions clear without relying on color? Do complex diagrams have
+  useful alternatives and adjacent or linked explanations in source order that
+  makes sense to a screen reader?
+- Are fenced-code languages labelled, commands copy/paste-safe, and shell
+  commands distinguished from commands typed inside an agent session?
+- Are prerequisites, supported hosts, expected results, verification limits,
+  recovery paths, and mutation effects explicit?
+- Did pruning preserve authoritative rules and unique safety knowledge, with
+  question mappings and passing cross-host evidence for each removal?
+- Is the outcome easy to find, with complete evidence retained or linked?
 
 The [layer explanation](choosing-plugins.md#understand-the-layers) supplies the
-long description for the landing-page diagram. Preserve its SVG title and
-description metadata as well as its image alternative.
+landing-page diagram's long description. Preserve its SVG title, description
+metadata, and image alternative.
 
 This rubric follows W3C guidance on
 [complex image alternatives](https://www.w3.org/WAI/tutorials/images/complex/),
 [meaningful headings and labels](https://www.w3.org/WAI/WCAG22/Understanding/headings-and-labels.html),
 and [unusual words](https://www.w3.org/WAI/WCAG22/Understanding/unusual-words.html).
-Automated checks are evidence for the mechanical rules, not an accessibility audit.
+Mechanical checks do not establish accessibility.

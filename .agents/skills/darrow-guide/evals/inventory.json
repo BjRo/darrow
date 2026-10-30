@@ -144,7 +144,7 @@
       ],
       "sources": [
         "docs/design.md",
-        "docs/decisions/ADR-0004-use-native-goal-ownership-for-core-orchestration.md",
+        "docs/decisions/ADR-0012-keep-native-goal-ownership-in-the-main-thread.md",
         "docs/specs/ticket-pipeline.md"
       ],
       "answer_points": [

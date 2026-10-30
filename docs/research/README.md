@@ -9,7 +9,7 @@ historical even when their original text says “current” or “proposed.”
 ## Native goals, ownership and host boundaries
 
 Current authority: [Adaptive Goal](../specs/adaptive-goal.md) and
-[accepted ownership decision](../decisions/ADR-0004-use-native-goal-ownership-for-core-orchestration.md).
+[accepted ownership decision](../decisions/ADR-0012-keep-native-goal-ownership-in-the-main-thread.md).
 The adopted main thread owns acceptance and completion; bounded children own assignments.
 
 - [Adopted main-thread ownership](adaptive-delivery-main-thread-adoption-2026-10-02.md)

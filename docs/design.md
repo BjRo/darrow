@@ -76,13 +76,10 @@ on top of the host's skill discovery. If an optional skill is unavailable, the
 consumer follows its own documented stop or fallback behavior instead of
 reaching into another plugin.
 
-Provider-specific integrations may name both the capability and provider, such
-as `darrow-observability-langfuse`. Ticket management instead uses one
-`darrow-tickets` plugin with four operation skills and contained tracker
-adapters. Its metadata names supported trackers; consumers honor the user's
-tracker choice or established project context and clarify unresolved provider
-ambiguity before tracker access. Adding a tracker does not require another
-public ticket skill or a sibling runtime dependency.
+Integrations may name a provider in the plugin identity or use contained
+provider adapters. Consumers honor the user's provider choice or established
+project context and resolve ambiguity before access. Adding a provider does
+not require another public skill or a sibling runtime dependency.
 
 Advertised intent identifies a potential provider; the caller must also check
 its prerequisites, effects, returned evidence and stop conditions. A capability
@@ -106,43 +103,29 @@ ledger, queue, or durable workflow runtime.
 
 ## Scripts hide tool mechanics from the model
 
-Skills should expose the intent, decisions, and evidence that require model
-judgment—not the plumbing of every underlying command or tool protocol. When a
-workflow depends on repeatable, error-prone mechanics, a bundled script provides
-a narrow interface. The invoking model supplies intent-level inputs; the script
-owns command construction, tool discovery, escaping, validation, parsing,
-and normalization, then returns compact, stable, machine-readable evidence.
+Skills own intent, judgment, authority, and material choices. Narrow bundled
+helpers own repeatable, error-prone command construction, tool discovery,
+escaping, validation, parsing, and normalization. They return compact, stable,
+machine-readable evidence. This makes mechanics
+deterministic and testable without asking the model to reconstruct a protocol
+on every run.
 
-This boundary reduces tool-call chatter and model context while making the
-mechanics deterministic and directly testable. It is the same general pattern
-used by command wrappers and context-compression tools: the invoker works with a
-small purpose-built operation instead of reconstructing a low-level call
-sequence on every run.
-
-The script may hide protocol details, but it must not hide authority or
-consequences. Its interface and result still identify the operation, target,
-material side effects, inspected evidence, failure, and any required next
-decision.
+A helper must still identify its operation, target, material side effects,
+inspected evidence, failure, and any required next decision. Hiding mechanics
+must not hide authority or consequences.
 
 ## Plugin mechanics use contained Python or portable Bash
 
-Substantial deterministic mechanics may use a contained Python package managed
-by UV when that materially improves clarity, testability, or native Windows
-support. The package, lock, entrypoints, dependencies, and state stay inside the
-owning plugin. Runtime and development dependencies remain separate, and frozen
-entrypoints never rely on a sibling plugin or shared Darrow runtime.
+Contained Python packages managed by UV support substantial deterministic
+mechanics when they improve clarity, testability, or native Windows support.
+Portable Bash remains appropriate for small host-specific launchers and command
+glue. Adoption is incremental; each plugin owns its prerequisites and remains
+independently installable.
 
-Genuinely small host-specific launchers and command glue use portable Bash,
-baseline Unix utilities, and the host CLIs that the capability explicitly
-wraps. Darrow targets Bash 5 and the macOS `/bin/bash` 3.2 boundary for those
-scripts, so they avoid GNU-only assumptions and newer Bash-only syntax.
-
-Each plugin declares its own runtime prerequisites and remains independently
-installable. Python adoption is incremental rather than a requirement that all
-plugins carry a Python package. Plugins do not introduce JavaScript or
-TypeScript, Ruby, a JVM, compiled binaries, or shared language-runtime
-infrastructure for their helpers. Repository-level development infrastructure
-remains outside this plugin-runtime boundary.
+The [plugin development guide](plugin-development.md) owns runtime restrictions
+and shell compatibility. The [Python standard](specs/python-quality.md) owns
+packaging, locked execution, migration, and quality gates. Repository-level
+development tooling remains outside the plugin-runtime boundary.
 
 ## Evals make development evidence-based
 
@@ -168,18 +151,15 @@ claims carry their evidence, uncertainty, and limitations.
 
 ## Adaptive Goal is the core orchestration helper
 
-The core path for bounded engineering work is the `adaptive-goal` skill in
-[`darrow-adaptive-goal`](../plugins/orchestration/darrow-adaptive-goal/README.md).
+[Adaptive Goal](../plugins/orchestration/darrow-adaptive-goal/README.md) makes
+acceptance, repository constraints, evidence, and implementation placement
+explicit before native execution. The main thread owns the goal, user decisions,
+and completion, as recorded in [ADR-0012](decisions/ADR-0012-keep-native-goal-ownership-in-the-main-thread.md).
+The host supplies execution, recovery, and continuation.
 
-Long-running native agent work often begins with a request that leaves
-completion criteria, repository constraints, verification depth, or reasoning
-effort implicit. A custom planner/executor/verifier controller can make those
-choices explicit, but it also duplicates the host's own goal execution,
-recovery, and completion machinery. Darrow's earlier orchestration benchmark
-found no incremental value from that duplication and measured substantial
-wall-time and child-invocation overhead.
-
-Adaptive Goal keeps the useful part and removes the duplicate runtime:
+Darrow's earlier orchestration benchmark found no incremental value from a
+duplicate controller and measured substantial wall-time and child-invocation
+overhead. Adaptive Goal keeps preflight without adding another execution runtime:
 
 ```text
 request + repository -> read-only preflight/readiness -> native goal in the main thread
@@ -187,32 +167,14 @@ request + repository -> read-only preflight/readiness -> native goal in the main
                                                         -> selected capabilities
 ```
 
-Preflight discovers applicable repository instructions and checks, turns the
-request into observable acceptance criteria and scope, reuses or obtains a
-same-scope readiness result when required, binds matching advertised skills,
-decides the evidence and risk gate the change needs, and chooses proportionate model and
-effort for bounded implementation. The main thread retains the native goal,
-acceptance criteria, user decisions and completion responsibility. It implements
-directly when the selected route matches its own, and delegates implementation
-only when a cheaper route, a stronger or unknown route, or independent
-concurrent parts justify the handoff. Selected verification is always a separate
-assignment. The main thread consumes evidence, requests authorized repairs and
-arranges reassessment. Capabilities
-retain their own delegation and model selection; the implementor's route never
-overrides a reviewer route.
+Implementation may be direct or delegated. Selected verification remains a
+separate assignment, and capabilities retain their own protocols, delegation,
+and reviewer routes. The helper adds no fixed phase pipeline, lifecycle ledger,
+daemon, queue, or publication authority.
 
-The goal stays within 4,000 characters and states the outcome and completion
-criteria. Coordination instructions stay in the skill. Native continuation and
-delegation keep the work moving on both Codex and Claude; Darrow adds no fixed
-phase pipeline or custom goal runtime. Codex coordination is recommended on
-Sol/medium, and verification coordination is explicitly routed to at least
-Sol/medium. These choices follow bounded experiments, not a claim that every
-task or stronger model configuration has been proven reliable.
-
-The helper therefore improves the initial conditions for an adaptive run; it is
-not a second adaptive loop, multi-agent controller, lifecycle ledger, daemon,
-queue, publication mechanism, or general workflow runtime. The normative
-contract is in [Capability: Adaptive Goal](specs/adaptive-goal.md).
+Before changing Adaptive Goal, read `docs/specs/adaptive-goal.md`.
+The [normative contract](specs/adaptive-goal.md) owns preflight, goal limits,
+route selection, placement, verification, repair, and completion.
 
 ## The ticket pipeline is a reference and benchmark baseline
 
@@ -232,21 +194,3 @@ set Darrow's future product direction. Changes to it should preserve its value
 as a faithful reference and reproducible benchmark, not expand it into a daemon,
 queue, or general workflow runtime. Its frozen behavior and comparison contract
 are specified in [Capability: Ticket Pipeline](specs/ticket-pipeline.md).
-
-## Consequences
-
-- Add focused, reusable behavior as an intent-matched capability.
-- Introduce orchestration only when work needs an explicit continuation and
-  completion contract and the user invokes it explicitly.
-- Use Adaptive Goal as the default orchestration helper for bounded
-  engineering work.
-- Treat the ticket pipeline as historical reference and comparative evidence,
-  not as a template for new orchestration features.
-- Keep every plugin independently adoptable and avoid rebuilding a general
-  runtime around the marketplace.
-- Hide repeatable tool mechanics behind narrow, testable scripts without hiding
-  their authority or effects.
-- Use contained Python plus UV for substantial cross-platform plugin mechanics,
-  and portable Bash for small host-specific launchers and command glue.
-- Give every skill functional evals and compare behavior-changing variants with
-  matched controls before claiming an improvement.

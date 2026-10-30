@@ -4,6 +4,7 @@ This scoped guidance applies when creating, changing, diagnosing, or running
 Darrow evals. The normative evidence model remains at the repository-root path
 `docs/specs/skill-evaluation.md`; this file owns the repository-specific
 constraints for producing and interpreting that evidence.
+Before changing evidence interpretation, read `docs/specs/skill-evaluation.md`.
 
 ## Case contracts
 
@@ -125,20 +126,12 @@ constraints for producing and interpreting that evidence.
   Bind an ignore-preservation baseline to that declared list; preserve the
   original user configuration and reject missing, repeated, or undeclared rules.
   Do not infer permitted additions from candidate files or exempt a whole directory.
-- Repository profiles share the prepared public UV cache
-  through `runtime.sharedCacheDirectories` with `candidate` and `checks`
-  roles. The Tickets profile also selects `hooks` because its Claude
-  SessionStart handler invokes the frozen Python backend. Shell graders using
-  UV require explicit `checks` selection. Do not seed a copy per role or grant
-  the cache to other hooks and semantic/advisory hosts without a UV dependency.
-  Keep `UV_CACHE_DIR={{sevro.runtime}}/uv-cache` and
-  `UV_PYTHON_DOWNLOADS=never`; warm registered dependencies before evaluation.
-  Warm-up preserves the shared source directory and entries instead of replacing
-  a live cache. Shared content is mutable and excluded from cache-content identity;
-  use fingerprinted private seeds when dependency independence is contractual.
-  Sevro cleans disposable checker state after passed and failed grading, without
-  deleting shared sources or retained evidence. Prune public caches only between
-  evaluations; upgrading does not clean old retained result directories.
+- Before changing runtime profiles or shared-cache setup, read `evals/sevro-extension/README.md`.
+  Its runtime-configuration section owns role grants, cache warming, offline
+  dependencies, and cleanup. Preserve shared sources and retained evidence;
+  prune only between evaluations. Use fingerprinted private seeds when
+  dependency independence is contractual.
+
 - Setup shares the candidate commands' private home; its
   temporary directory remains disposable. Initialize candidate-home state in
   setup instead of asking the candidate to prepare grading prerequisites.
@@ -197,9 +190,9 @@ constraints for producing and interpreting that evidence.
   Review's independent route oracle uses only the Python standard library and
   runs directly with `python3`; it does not bootstrap the Review runtime.
   Canonical result validation still uses the owning frozen backend.
-- Keep fixture skills inert in the source tree: never name an eval fixture
-  `SKILL.md`. Use a non-discoverable template filename and materialize it as
-  `SKILL.md` only inside the isolated eval repository during setup.
+- Keep fixture skills inert in source with a non-discoverable template filename.
+  Materialize the native SKILL.md entrypoint only inside the isolated eval
+  repository during setup.
 - Quote YAML prompts containing `#` and make fixture binaries succeed on valid
   empty state.
 
@@ -226,61 +219,33 @@ constraints for producing and interpreting that evidence.
   owning skill. The runner treats that placeholder as the source of truth for
   explicit versus implicit activation; do not duplicate the distinction in
   case metadata.
-- On Codex, an explicit case uses the exact rendered host-native invocation
-  token delivered once to a successfully completed turn. It does not require a
-  transcript-visible `SKILL.md` load.
-- A Codex case without the placeholder remains an implicit-discovery probe and
-  requires complete prepared-body exposure in the unique
-  `sevro.host.skill-activations` observation. Do not use explicit
-  dispatch to make implicit selection pass. The `tool_result_body_match`
-  collector matches tool results independently of shell syntax and can combine
-  exact pages within one session and turn. Identical copies can match; this
-  proves body exposure to the tool caller, not which file was opened or whether
-  Code Mode forwarded the result to the model. Changed, short, transformed, and
-  unanchored text lies outside the prepared matching scope.
-- Missing, repeated, malformed, partial, truncated, or ambiguous collection stays
-  unknown, including in negative cases. Retain qualified host identities and
-  normalize only declared plugin namespaces to Darrow's unique mounted skill
-  names. Do not recover missing common collection from retired observations or
-  native transcripts. Keep task and activation outcomes separate.
-- Use a unique complete
-  `sevro.host.skill-activation-claims` receipt only for primary selection and
-  established positive membership in positive or competition cases. Keep its
-  paired collection partial and retain `incompleteReasons` and `collection`
-  diagnostics. Missing claimed membership remains unknown. Negative cases,
-  exclusions, and supporting sequences still require complete collection;
-  neither native logs nor balanced call counts replace it. An explicitly
-  unknown primary remains unknown even in a complete collection.
-- Retain `skillExposures` and `collectionStatus` separately:
-  a full or partial body exposure can survive collection gaps. The optional
-  `sevro.host.skill-exposure-claims` receipt supports only its listed positive
-  exposures; it cannot establish primary selection, sequence, compliance or
-  absence. An explicit Codex owner may use complete positive `full` exposure
-  claims for supporting `activation_includes`; retain the aggregate catalog
-  receipt separately when available.
-  Preserve supporting membership separately from observed order; implicit
-  primary, negative and sequence gates retain their requirements. Missing fields
-  in older results stay unknown rather than being reconstructed.
-- A composed `activation_sequence` requires the primary owner first and a
-  complete mounted body read for every supporting skill. Use
-  `activation_includes` when supporting skills must be read but their order is
-  not contractual; complete observations and mounted skills remain required.
-  Use `activation_excludes` when a negative case must prove that a named skill was
-  absent from the entire observed sequence rather than merely absent as the
-  primary selection.
-  Excluded skills must actually be available in the case's mounted skill set;
-  that includes independently installed `additional_plugins` and explicitly
-  selected `additional_skills`, not just siblings of the owning skill.
-  Claude uses the common collector's `skill_tool_result` method: only successful
-  structured Skill calls establish selection. Direct Read calls and explicit
-  native command expansion do not add observed skills. Repository skill names
-  remain unqualified; a foreign plugin with the same skill name cannot substitute.
-- Explicit Codex probes retain the invoked owner first, then verified supporting
-  activations from the common collector. The dispatch receipt contains only the
-  invoked owner; it cannot establish supporting inclusion, exclusion, or order.
-  Incomplete collection cannot establish an exclusion. Retired per-turn read
-  observations remain unavailable for policies that still require that distinct
-  evidence; a whole-run collector cannot silently acquire per-turn meaning.
+- An explicit Codex probe delivers the exact rendered host-native invocation
+  token once to a successfully completed turn; it needs no transcript-visible
+  skill-file read. The dispatch receipt establishes only the invoked owner.
+- Implicit Codex discovery requires the unique complete
+  `sevro.host.skill-activations` observation. Do not replace implicit selection
+  with explicit dispatch or missing observations with native transcripts.
+  Prepared-body matching proves exposure to a tool caller, not forwarding into
+  the model's context. Identical copies can match, so exposure does not identify
+  the opened file. Transformed, short, or unanchored text is outside its scope.
+- Before interpreting partial activation collections, read `docs/specs/skill-evaluation.md`.
+  Use only its explicitly permitted primary-selection, positive-membership,
+  and exposure receipt exceptions. Preserve each receipt's claim scope,
+  collection diagnostics, and unknowns. A positive claim cannot establish
+  absence, exclusion, order, or compliance; older fields stay unknown.
+- Use `activation_sequence` only for contractual order, with the primary owner
+  first and complete supporting body reads. Use `activation_includes` for
+  unordered support and `activation_excludes` for absence from the complete
+  observed sequence. Excluded skills must be mounted, including independent
+  `additional_plugins` and selected `additional_skills`.
+- Claude's `skill_tool_result` requires successful structured Skill calls.
+  Direct reads and native command expansion do not add observed skills.
+  Repository skill names stay unqualified; a foreign plugin's same-named skill
+  cannot substitute. Normalize only declared mounted plugin namespaces.
+- Keep exposure, primary selection, supporting membership, observed order,
+  collection health, and task outcomes separate. Incomplete collection cannot
+  establish exclusion or sequence; whole-run evidence cannot silently replace
+  a retired per-turn observation.
 
 - Recipe composition evidence must positively establish the accepted agent and
   the bound supporting capability. Absence of a prohibited action alone cannot
@@ -325,13 +290,11 @@ not establish goal-creation success or adaptive-owner acceptance. They never
 retain the submitted code, goal text, arguments, or tool output, and their
 absence is not proof of non-use through aliases or other dynamic code.
 
-Each attempt has a unique directory under `evals/results/attempts/`. Its
-`run.json` records ownership, lifecycle status, and absolute per-trial artifact
-paths. Each trial artifact contains the complete bounded `CaseResult` for that
-trial, including response, checks, transcript, activation and grader evidence,
-plus the configured trial count. It is persisted before fixture cleanup and
-completion feedback. The normal result array is published atomically only after
-the entire run finishes.
+Each attempt retains ownership, lifecycle status, and absolute per-trial paths
+in `evals/results/attempts/<attempt>/run.json`. Complete bounded `CaseResult`
+artifacts, including the configured trial count, persist before fixture cleanup
+and completion feedback. The normal result array is published atomically only
+after the entire run finishes.
 
 On error or interruption, inspect the printed diagnostic and evidence paths.
 Forward `--retain-host-diagnostics` after `--` to
@@ -350,9 +313,8 @@ SIGINT and SIGTERM stop additional trial work and terminate tracked candidate
 and grading process groups before finalizing interruption evidence. A retry
 checks the recorded host, PID, and process start time, so a live runner still
 blocks duplicates and an exited owner can be reclaimed without losing the old
-attempt. Short ownership updates use Bun's built-in SQLite transaction lock;
-the OS releases that lock after abrupt process death. No lock is held for the
-duration of model execution.
+attempt. Ownership storage and lock mechanics belong to the public runner;
+do not infer a live process from an ownership record alone.
 
 A legacy active record without process identity, an unreadable record, or an
 owner whose liveness cannot be verified is not automatically expired. Confirm
@@ -375,9 +337,9 @@ Use Sevro's public report command for current retained results:
 bunx --no-install sevro report --json --result-file /absolute/path/to/sevro-result.json
 ```
 
-Darrow's suite caller also writes activation, quality, and ablation reports.
-Pre-Sevro result readers and their tests have been removed. Retained historical
-research keeps its original formats and provenance; it is not current-run evidence.
+The [caller reference](../evals/sevro-extension/README.md#result-reporting) owns
+the separate Darrow reports. Historical research retains its original formats
+and provenance; it is not current-run evidence.
 
 Shell checks, including dry checks, use the same outer isolation mechanism as
 candidate execution with a separate credential-free home and environment.
@@ -408,22 +370,13 @@ Coverage includes canonical repository cases by default.
 
 The guide's versioned inventory lives beside its cases. Run
 `bun evals/repository-guide.ts` for sequential cross-host, single-trial
-evaluation that stops at the first failure. `--only <question-id>` and
-`--harness codex|claude` narrow diagnosis; `--dry` prepares fixtures and
-`--without-skill` selects a matched unmounted control. Inspect each failure
-before continuing. Fixtures snapshot current public documentation, manifests,
-and relevant code while excluding inventory, hidden checks, and delivery
-conclusions from the participant repository.
-The guide driver pins semantic grading to Codex `gpt-6-luna` / high;
-the shared runner uses the same gating grader default.
+evaluation that stops at the first failure. Inspect each failure before
+continuing. Fixtures exclude inventory, hidden checks, and delivery conclusions.
 
-That same command uses Darrow's exact installed Sevro dependency and retains
-separate task and activation outcomes. `SEVRO_CHECKOUT` or `SEVRO_PACKAGE_BIN`
-selects an explicit development or candidate override. Its per-cell
-JSON uses the Sevro format. Optional absolute project and results roots and
-forwarded host options are documented in the
-[guide caller migration](../evals/sevro-extension/README.md#repository-guide-caller).
-Normal execution requires `bun install --frozen-lockfile`.
+The [guide caller reference](../evals/sevro-extension/README.md#repository-guide-caller)
+owns selectors, controls, host options, grading routes, and retained outputs.
+Use the exact installed dependency unless an explicit `SEVRO_CHECKOUT` or
+`SEVRO_PACKAGE_BIN` override is part of the intended condition.
 
 ## Live-run controls
 
@@ -452,30 +405,10 @@ same-target message attempts but leaves delivery and encrypted role/contract con
 unverified. Combine it with task and authority evidence; do not infer missing
 contract or route-selection facts.
 
-For a matched Codex comparison, pass `--assert-effective-owner-routes` with
-a JSON object mapping case IDs to `{model, effort}`, or set the suite mode's
-`effective_owner_routes` mapping. Missing, ambiguous, or wrong native route
-evidence fails the assertion. The case retains the expected route and the
-trial retains the independently observed effective route. Suite
-`model_by_harness` overrides the candidate model for that condition, while a
-top-level `harnesses: [codex]` restricts both default and explicit host selection.
-
-Select all colocated cases for every skill in one plugin with
-`--plugin <plugin-name>`, for example
-`bun evals/runner/run.ts --plugin darrow-git --harness codex` from the repository
-root. The plugin name matches its directory exactly across plugin kinds,
-regardless of case IDs, and excludes skill-less experiments. Add `--skill` to
-narrow the selection to one skill in that plugin, or repeatable `--case` filters
-to narrow it to IDs matching any supplied substring.
-
-Select all colocated cases for one skill with `--skill <skill-name>`, for
-example `bun evals/runner/run.ts --skill create-commit --harness codex` from
-the repository root. The skill name matches its directory exactly, regardless
-of case IDs. Add repeatable `--case <substring>` options to narrow that skill's
-cases to IDs matching any supplied substring. An unmatched selection fails
-with `No cases matched.` The separate `--skill-dir <path>` option overrides
-the mounted skill after selection; `--without-skill` disables mounting while
-preserving the selected cases.
+Before changing caller selection, mounting, or route handling, read `evals/sevro-extension/README.md`.
+The [caller reference](../evals/sevro-extension/README.md) owns plugin/skill
+selectors, case filters, skill overrides, independent role routes, and
+`--assert-effective-owner-routes`.
 
 For a frozen plugin copy passed through `--skill-dir`, preserve the owning
 plugin directory name: `<snapshot>/<plugin-name>/skills/<skill-name>`. The
@@ -486,66 +419,43 @@ installed manifest before a live run. A copy renamed `candidate` or `plugin`
 can produce a mismatched invocation; retain such runs separately from valid
 explicit-invocation evidence.
 
-Codex runs use independent defaults for each eval role:
+Current role defaults live in `evals/sevro-extension/model-defaults.ts`.
+Keep candidate, semantic-grader, and advisory-grader routes independent;
+retain each role's resolved model and effort in comparison evidence.
 
-- candidate: `gpt-6-luna` at `medium` effort;
-- advisory quality judge: `gpt-5.6-sol` at `low` effort;
-- gating semantic-output grader: `gpt-6-luna` at `high` effort.
+Use `--no-color`, `--no-emoji`, or `--no-progress` to disable terminal features
+independently. `NO_COLOR` also disables color; redirected output stays stable
+and unanimated. Every completed run prints the absolute raw-result path.
+Use `--jobs <positive integer>` to bound simultaneous trials within a case
+(default three); `--jobs 1` gives serial diagnosis. Parallel runs use per-trial
+status lines instead of one active-trial animation.
 
-Use `--model` and `--effort`, `--judge-model` and `--judge-effort`, or
-`--semantic-check-model` and `--semantic-check-effort` to override the
-corresponding role. Suite runs use `--codex-model` for the candidate and retain
-the same role-specific judge and semantic-check options. The runner records the
-resolved model and effort for every role in suite manifests, JSON result
-evidence, and generated reports.
-
-The direct runner uses color, status symbols, terminal hyperlinks, and an
-updating progress bar when stdout is an interactive terminal. Use
-`--no-color`, `--no-emoji`, or `--no-progress` to disable those dimensions
-independently; `NO_COLOR` also disables color. Redirected output is stable and
-unanimated. Every completed run prints the absolute raw-result path even when
-terminal hyperlinks are unavailable. Use `--jobs <positive integer>` to bound
-simultaneous trials within each case; the default is `--jobs 3`. Use `--jobs 1`
-for serial diagnosis or rate-limit-sensitive runs. Runs with more than one job
-use per-trial status lines instead of the single active-trial animation.
-
-Codex processes import only `agents.max_concurrent_threads_per_session` from
-this repository's `.codex/config.toml` into their isolated config. Other
-repository settings and user settings remain excluded. The runner captures
-the limit once per process and includes it in the evaluation digest for each
-Codex role. Case and trial results retain `codexAgentConcurrencyLimit`; null
-means the host default, while absent historical evidence remains unknown.
-This limits subagents within one trial and is separate from `--jobs`, which
-limits simultaneous trials. Missing configuration uses the host default;
-unreadable configuration, invalid TOML, or a nonpositive/noninteger limit fails
-explicitly.
+Only `agents.max_concurrent_threads_per_session` from the selected repository's
+`.codex/config.toml` is imported into isolated Codex configuration. Other project
+and user settings remain excluded. Capture the limit once per process and
+retain it in role identity and results as `codexAgentConcurrencyLimit`.
+Missing configuration and null use the host default; absent historical evidence
+stays unknown. This limits subagents within one trial; `--jobs` controls trials.
+Unreadable config, invalid TOML, or a nonpositive or noninteger limit fails explicitly.
 
 ## Installed Sevro verification
 
-Install the exact published Sevro `1.1.1` development dependency before running the public
-integration and Darrow domain gate. Its installed command requires Node.js
-24.13.0 or newer on `PATH`; Darrow tooling uses Bun 1.3.13.
+Use the exact installed Sevro dependency and runtime prerequisites documented in
+the [test ownership guide](../evals/README.md) and repository manifests.
 Python fixture tools use a UV-managed Python
 3.13 copy so both UV entrypoints and direct Python oracles use the same isolated
 runtime. System and framework installations may depend on paths outside their
 copied directory.
 
-CI runs the installed pin and manually selected candidate on Ubuntu 24.04.
-`bash scripts/setup-sevro-linux` installs the pinned native Codex executable
-outside protected runner homes and tool caches, plus bubblewrap, ripgrep, socat,
-and zsh. It grants bubblewrap an AppArmor user-namespace
-profile when required, and probes both bubblewrap and Codex isolation. The setup
-requires sudo and is intended for a disposable CI runner. Native caller, corpus
-protection, and plugin installation fixtures also run on macOS. A supported host
-with missing prerequisites fails; platform changes must not turn these checks
-into skips or omit native portions of a test. These deterministic fixtures do
-not establish authenticated model success.
-The setup also installs Bun under `/usr/local/lib/darrow-ci/bin`, a dedicated
-public system tool root readable by native sandboxes. Its PATH entry preserves
-the selected Node runtime; CI verifies Node 24.13.0 or newer before testing.
-Synthetic host scripts use that Bun executable in their shebangs.
-Domain oracle repositories set a local fixture Git identity
-before setup so commit checks do not depend on the runner's account or hostname.
+On disposable Linux CI, `bash scripts/setup-sevro-linux` installs and probes
+native prerequisites and isolation; it requires sudo. Its implementation owns
+the tool and path inventory. Native caller, corpus-protection, and plugin
+installation fixtures also run on macOS. Missing prerequisites on a supported
+host must fail rather than skip native checks. These deterministic fixtures
+do not establish authenticated model success.
+
+Set a local fixture Git identity before preparing oracle repositories so commit
+checks do not depend on the runner's account or hostname.
 
 ```sh
 bun install --frozen-lockfile
@@ -553,27 +463,21 @@ uv python install 3.13
 env -u SEVRO_CHECKOUT -u SEVRO_PACKAGE_BIN bun run test:evals
 ```
 
-This command exercises Sevro's installed public CLI, versioned extension
-protocol, Darrow callers, and domain oracles.
-It runs every integration and domain file with two isolated Bun workers in one
-job. Tests within a file stay sequential. Keep mutable fixture state private to
-each case; file workers may reuse only their own prepared executable packages.
-The command prepares the shared repository runtime cache before starting the
-workers, so fixtures do not depend on another file running first. The fresh-home
-regression covers preparation followed by an actual runtime fixture.
+The command exercises the installed public CLI, extension protocol, Darrow
+callers, and domain oracles. Keep mutable state private to each case and reuse
+only unchanged prepared packages within a file. Shared runtime preparation
+must work from a fresh home without depending on another test file.
+
 For serial diagnosis, invoke
 `bun test --timeout 30000 ./evals/integration ./evals/domain` directly.
-It uses controlled native executables and credentials for deterministic host
-fixtures. Claude fixtures supply a valid synthetic saved OAuth login; Sevro
-keeps that login in the parent and passes only its access token to the trial.
-Generic engine and host implementation tests belong to Sevro. No
-integration fixture copies the former runner or imports private implementation
-or types.
+Tests use controlled native tools and credentials. Claude fixtures keep a
+synthetic saved OAuth login in the parent and pass only its access token to the trial.
+Generic engine and host tests belong to Sevro; do not copy the retired runner
+or import private implementation or types.
 
-Integration commands allow 30 seconds per test for frozen backend startup and
-isolated CLI fixtures. A test's explicit timeout still takes precedence.
-Pass explicit `./evals/...` directory paths to Bun. Bare paths are substring
-filters and can scan retained fixture trees outside the intended test scope.
+Size explicit test timeouts for frozen backend startup and isolated fixtures.
+Pass explicit `./evals/...` directory paths to Bun: bare paths are substring
+filters and can scan retained fixture trees outside the intended scope.
 
 The [test ownership guide](../evals/README.md) separates installed integration
 from Darrow policy. The source-copy launcher and comparison
@@ -600,27 +504,14 @@ overrides cleared. An explicit checkout retains its revision and patch identity;
 it is development evidence. Upgrade and rollback instructions are in the
 [development and release guide](../evals/sevro-extension/migration.md).
 
-Normal direct, guide, and benchmark callers use the frozen installed pin. The
-suite caller retains selectors, route options, seeded ordering, and
-cancellation, with JSON summaries and separate reports. The direct caller
-retains selection and route options and writes its selection manifest to stdout
-and optional `--output`. Its `--human-review-minutes` annotation is supplied
-by the user; omitted values stay unknown and dry runs stay unassessed.
-See the [public caller contracts](../evals/sevro-extension/README.md).
+Normal callers use the frozen installed pin. An override is candidate or
+development evidence; preserve its revision and patch identity and keep it
+separate from the default-pin checks. The [caller contracts](../evals/sevro-extension/README.md)
+own selection manifests, reports, user-supplied annotations, and unknowns.
 
-The suite's Darrow-owned quality report stays separate from Sevro's generic
-report. It distinguishes non-record task checks, bookkeeping completeness, and
-the public task verdict. Dry or unavailable evidence keeps rates unknown.
-See the [quality contract](../evals/sevro-extension/README.md#suites).
+## Iterative development
 
-Bundled hosts explicitly reject enforced execution. Generic adapters can
-negotiate that capability for deterministic identity checks; these checks do
-not establish bundled-host enforcement. Native observational comparisons select
-the named passive modes explicitly. Neither those modes nor this extraction
-actively correct benchmark execution.
-
-- Use one trial per invocation while diagnosing so stop-at-first-failure is
-  real:
+- Use one trial per invocation while diagnosing:
 
   ```sh
   cd evals && bun runner/run.ts --case <substring> \
