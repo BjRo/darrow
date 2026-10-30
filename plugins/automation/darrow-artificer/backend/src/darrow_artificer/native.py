@@ -40,6 +40,7 @@ def require_capabilities(names: list[str]) -> None:
 
 
 def progress(site: Installation, claim: Claim) -> None:
+    """A successfully completed native turn closes the transport incident."""
     if claim.recovery_attempts == 0:
         return
     with locked(site.lock):

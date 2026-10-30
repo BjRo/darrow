@@ -217,6 +217,9 @@ def claude(root: Path) -> None:
     emit(
         {
             "type": "result",
+            "subtype": "error_during_execution"
+            if mode == "error-result"
+            else "success",
             "is_error": mode == "error-result",
             "session_id": identifier,
             "structured_output": {} if mode == "invalid-result" else result,
@@ -270,7 +273,15 @@ def goal_outcome(root: Path, identity: str, resuming: bool) -> dict[str, object]
                 "pr": None,
             }
         return prepared_goal()
-    if os.environ.get("ARTIFICER_GOAL_MODE") == "always":
+    if os.environ.get("ARTIFICER_GOAL_MODE") in {"always", "prepared-on-resume"}:
+        return resumed_goal(trace)
+    return goal_continued()
+
+
+def resumed_goal(trace: list[dict[str, Any]]) -> dict[str, object]:
+    if os.environ.get("ARTIFICER_GOAL_MODE") == "always" or not any(
+        item["prompt"].startswith("/goal ") for item in trace
+    ):
         return prepared_goal()
     return goal_continued()
 

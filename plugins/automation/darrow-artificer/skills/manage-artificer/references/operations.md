@@ -47,6 +47,8 @@ delivery records: issue, original session, attempts, PR, detail and next action.
 Capacity is released on reconciliation only when execution has ended and no
 open delivery PR exists. Missing execution/publication evidence retains it.
 Worktrees, branches and published effects are preserved.
+Cancelling resumable released work makes that delivery terminal without taking
+capacity or changing issue/PR ownership.
 
 `revoke` prevents this worker's future admissions and continuations. It does not
 cancel already running work or revoke other workers.
@@ -59,15 +61,29 @@ recover DELIVERY_UUID --thread ORIGINAL_NATIVE_SESSION_ID
 
 Inspect the original session, process group, worktree, branch and any PR first.
 This explicit operation resumes that exact session; it never binds a replacement
-identity. Running, released, revoked and unknown-session deliveries are refused.
+identity. Running, revoked and unknown-session deliveries are refused.
 Recovery also refuses another active or uncertain delivery in the same worker.
 Never repeat uncertain publication or use a fresh summary-based owner.
+For confirmed unfinished released work, recovery reacquires shared WIP and issue
+ownership under the repository lock. It rechecks writer authority, grant/scope,
+publication and conflicts before launch. WIP zero/full, another delivery owning
+the issue, completed/cancelled work and historical records with unknown recovery
+eligibility are refused. Resolving a missing-intent blocker outside Artificer
+does not automatically resume it; use this explicit command with the original ID.
 
 Recovery is limited to two attempts per technical interruption, including explicit
 recovery. An exhausted incident requires inspection in the original host session.
-Repeated immediate failure uses the same budget. Useful native tool progress
-resets it. Product/specification questions stop and are reported on the source
+Repeated immediate failure uses the same budget. Successful completion of a
+native turn resets it; successful tools, incidental reads and diagnostics do not.
+This bounds execution interruptions, not attempts at an engineering operation
+inside a healthy turn. Product/specification questions stop and are reported on the source
 issue for preparation elsewhere. Source-issue comments do not resume work.
+
+Codex requires observed native goal completion before accepting delivery success.
+Claude must enter its owner-prepared `/goal` before a PR completion report, but
+its supported stream has no independent goal completion evidence. Such PRs are
+retained, marked owned and reported as needing attention. Inspect the original
+Claude session; a valid PR or model completion report alone cannot clear this gap.
 
 Legacy archive installations and unavailable native state require human
 reconciliation. Preserve their claims, original state and effects; no archive

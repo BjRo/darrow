@@ -108,7 +108,7 @@ def test_incomplete_pr_result_cannot_establish_completion(
     monkeypatch.setenv("ARTIFICER_COMPLETE", "1")
     monkeypatch.setenv("ARTIFICER_PR_RESULT", mode)
     state = tmp_path / "worker"
-    site = initialize(repository, state, monkeypatch, capsys)
+    site = initialize(repository, state, monkeypatch, capsys, host="codex")
     invoke(monkeypatch, capsys, state, "tick")
     assert expected in wait_stopped(site).detail
 
@@ -152,12 +152,21 @@ def test_recovery_never_recreates_missing_worktree(
     claim = wait_stopped(site)
     assert claim.native is not None
     shutil.rmtree(claim.worktree)
-    invoke(
-        monkeypatch, capsys, state, "recover", claim.id, "--thread", claim.native.thread
-    )
-    current = wait_stopped(site)
-    assert "Original worktree unavailable" in current.detail
+    with pytest.raises(SystemExit):
+        invoke(
+            monkeypatch,
+            capsys,
+            state,
+            "recover",
+            claim.id,
+            "--thread",
+            claim.native.thread,
+        )
+    assert "Original worktree unavailable" in capsys.readouterr().err
+    current = site.claim(claim.id)
     assert current.native == claim.native
+    assert current.process == claim.process
+    assert current.total_recovery_attempts == claim.total_recovery_attempts
     assert not Path(claim.worktree).exists()
 
 

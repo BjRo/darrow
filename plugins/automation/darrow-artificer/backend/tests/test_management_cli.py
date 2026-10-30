@@ -22,6 +22,7 @@ def initialize(
     state: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
+    host: str = "claude",
 ) -> Installation:
     invoke(
         monkeypatch,
@@ -33,7 +34,7 @@ def initialize(
         "--checkout",
         str(repository),
         "--host",
-        "claude",
+        host,
         "--authorize-recurring-delivery",
     )
     return Installation(state)
@@ -48,7 +49,7 @@ def test_open_artificer_pr_holds_wip_until_closed(
 ) -> None:
     monkeypatch.setenv("ARTIFICER_COMPLETE", "1")
     state = tmp_path / "worker"
-    site = initialize(repository, state, monkeypatch, capsys)
+    site = initialize(repository, state, monkeypatch, capsys, host="codex")
     invoke(monkeypatch, capsys, state, "tick")
     claim = wait_stopped(site)
     assert claim.status == "pr-open"

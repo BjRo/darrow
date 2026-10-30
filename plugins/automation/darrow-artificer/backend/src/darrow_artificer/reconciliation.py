@@ -24,7 +24,7 @@ def verified_pr(claim: Claim, forge: GitHub) -> dict[str, object]:
     return pr
 
 
-def publication(claim: Claim, forge: GitHub) -> dict[str, object] | None:
+def observe_publication(claim: Claim, forge: GitHub) -> dict[str, object] | None:
     if claim.pr is None:
         head = quote(f"{forge.repository.split('/')[0]}:{claim.branch}", safe="")
         candidates = forge.collection(f"pulls?state=all&head={head}&per_page=100")
@@ -33,7 +33,13 @@ def publication(claim: Claim, forge: GitHub) -> dict[str, object] | None:
         if not candidates:
             return None
         claim.pr = number_value(candidates[0]["number"])
-    pr = verified_pr(claim, forge)
+    return verified_pr(claim, forge)
+
+
+def publication(claim: Claim, forge: GitHub) -> dict[str, object] | None:
+    pr = observe_publication(claim, forge)
+    if pr is None:
+        return None
     if pr.get("state") == "open":
         forge.mark_owned(number_value(pr["number"]))
     return pr
@@ -53,6 +59,11 @@ def report_stopped(site: Installation, forge: GitHub, claim: Claim) -> None:
     reporting.stopped(site, claim)
 
 
+def retain_open_pr(claim: Claim) -> None:
+    if claim.status not in {"needs-attention", "cancelled"}:
+        claim.status = "pr-open"
+
+
 def reconcile_one(site: Installation, forge: GitHub, claim: Claim) -> None:
     if claim.status == "released" or alive(claim.process):
         return
@@ -61,10 +72,11 @@ def reconcile_one(site: Installation, forge: GitHub, claim: Claim) -> None:
             "Execution identity unavailable; reconcile original launch before releasing capacity"
         )
     pr = publication(claim, forge)
+    claim.reconciliation_error = ""
     if claim.status in {"needs-attention", "cancelled"}:
         reporting.stopped(site, claim)
     if pr is not None and pr.get("state") == "open":
-        claim.status = "pr-open"
+        retain_open_pr(claim)
     else:
         forge.release(claim.issue)
         claim.status = "released"
@@ -77,5 +89,7 @@ def reconcile(site: Installation, forge: GitHub, launch: object = None) -> None:
             reconcile_one(site, forge, claim)
         except Exception as error:
             # Unavailable execution/publication evidence cannot release ownership.
-            claim.needs_attention(f"Reconciliation needs attention: {error}")
+            claim.reconciliation_error = f"Reconciliation needs attention: {error}"
+            if claim.status not in {"pr-open", "cancelled"}:
+                claim.needs_attention(claim.detail or claim.reconciliation_error)
             site.save(claim)

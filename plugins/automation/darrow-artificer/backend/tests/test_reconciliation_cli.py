@@ -35,7 +35,8 @@ def test_reconciliation_finds_a_pr_after_an_incomplete_owner_result(
     forge_path.write_text(json.dumps(forge))
     assert invoke(monkeypatch, capsys, state, "tick")["admitted"] == []
     assert site.claim(claim.id).pr == 9
-    assert site.claim(claim.id).status == "pr-open"
+    assert site.claim(claim.id).status == "needs-attention"
+    assert site.claim(claim.id).detail == claim.detail
 
 
 def test_multiple_possible_delivery_prs_retain_ownership(
@@ -54,7 +55,8 @@ def test_multiple_possible_delivery_prs_retain_ownership(
     forge["duplicate_prs"] = True
     forge_path.write_text(json.dumps(forge))
     invoke(monkeypatch, capsys, state, "tick")
-    assert "Multiple delivery PRs" in site.claim(claim.id).detail
+    assert site.claim(claim.id).detail == claim.detail
+    assert "Multiple delivery PRs" in site.claim(claim.id).reconciliation_error
     assert json.loads(forge_path.read_text())["claimed"] == [1]
 
 

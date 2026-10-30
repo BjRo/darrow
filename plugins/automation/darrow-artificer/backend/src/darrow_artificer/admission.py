@@ -81,6 +81,50 @@ def worker_occupied(site: Installation, ignored_delivery: str = "") -> bool:
     )
 
 
+def require_recovery_capacity(site: Installation, forge: GitHub, claim: Claim) -> None:
+    claims = [
+        item
+        for item in site.repository_claims()
+        if item.status != "released" and item.id != claim.id
+    ]
+    occupied = {item.issue for item in claims}
+    occupied.update(
+        number_value(issue["number"])
+        for issue in forge.issues("artificer:claimed", "all")
+    )
+    occupied.discard(claim.issue)
+    used = len(occupied) + unreserved_pr_count(forge, [claim, *claims])
+    if not allowance(Limits.from_mapping(site.grant.model_dump()), used, 1):
+        raise ValueError("Recovery requires available shared capacity")
+
+
+def require_recovery_ownership(site: Installation, forge: GitHub, claim: Claim) -> None:
+    others = [
+        item
+        for item in site.repository_claims()
+        if item.status != "released" and item.id != claim.id
+    ]
+    if claim.issue in {item.issue for item in others}:
+        raise ValueError("Another delivery holds source-issue ownership")
+    if claim.status == "released":
+        require_unclaimed_issue(forge, claim)
+
+
+def require_unclaimed_issue(forge: GitHub, claim: Claim) -> None:
+    claimed = {
+        number_value(issue["number"])
+        for issue in forge.issues("artificer:claimed", "all")
+    }
+    ready = {
+        number_value(issue["number"])
+        for issue in forge.issues("artificer:ready", "open")
+    }
+    if claim.issue in claimed | ready:
+        raise ValueError(
+            "Source-issue ownership or a new nomination conflicts with recovery"
+        )
+
+
 def admit(
     site: Installation, forge: GitHub, activation: str, launch: Launch
 ) -> list[str]:

@@ -579,7 +579,7 @@ def test_delivery_rejects_unrelated_pr_result(
         "--checkout",
         str(repository),
         "--host",
-        "claude",
+        "codex",
         "--authorize-recurring-delivery",
     )
     invoke(monkeypatch, capsys, state, "tick")
@@ -627,7 +627,7 @@ def test_native_recovery_is_bounded_and_preserves_identity(
 
 
 @pytest.mark.parametrize("host", ["codex", "claude"])
-def test_successful_native_progress_resets_interruption_budget(
+def test_successful_native_turn_resets_interruption_budget(
     host: str,
     repository: Path,
     services: Path,
@@ -636,7 +636,7 @@ def test_successful_native_progress_resets_interruption_budget(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     (services / "interruptions.json").write_text(
-        json.dumps({"failures": 3, "starts": [], "progress_on": 2})
+        json.dumps({"failures": 1, "starts": []})
     )
     state = tmp_path / "worker"
     invoke(
@@ -654,7 +654,8 @@ def test_successful_native_progress_resets_interruption_budget(
     )
     invoke(monkeypatch, capsys, state, "tick")
     claim = wait_stopped(Installation(state))
-    assert claim.total_recovery_attempts == 3
+    assert claim.total_recovery_attempts == 1
+    assert claim.recovery_attempts == 0
     assert "Specification needed" in claim.detail
 
 
@@ -1010,7 +1011,7 @@ def test_delivery_rejects_wrong_pr_base(
         "--checkout",
         str(repository),
         "--host",
-        "claude",
+        "codex",
         "--authorize-recurring-delivery",
     )
     invoke(monkeypatch, capsys, state, "tick")

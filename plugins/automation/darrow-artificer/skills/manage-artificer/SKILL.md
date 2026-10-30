@@ -47,8 +47,10 @@ unrelated PRs. WIP zero pauses admission while permitting reconciliation.
 Each worker runs one active ticket; add workers for parallel delivery.
 
 Recoverable technical interruptions resume the original native session at most
-twice per interruption. Useful native progress resets the budget; restart alone
-does not. Missing product intent stops for preparation outside Artificer, with a
+twice per interruption. Only successful completion of a native turn resets the
+budget; tool success or restart alone does not. This measures execution recovery,
+not retries of engineering operations within a healthy turn.
+Missing product intent stops for preparation outside Artificer, with a
 source-issue blocker report. Do not start discovery or an issue-comment reply loop.
 
 Cancellation requires the exact delivery ID. Revocation disables that worker's
@@ -62,6 +64,12 @@ manufacture capacity. Use native storage/resume, not copied archives. If native
 state or execution/publication evidence is unavailable, retain ownership and
 explain the required human reconciliation. Legacy installations are refused;
 do not silently convert, delete, relaunch or release their records.
+Capacity release preserves explicit recovery eligibility for confirmed unfinished
+work. Recovery must reacquire capacity and issue ownership under current authority
+and refuses completed, cancelled, unknown-eligibility or conflicting deliveries.
+Claude PR reports require the prepared `/goal` handoff but still lack independent
+native completion evidence. Preserve their published PRs and report that gap as
+needing attention; do not describe them as verified completed deliveries.
 
 ## Report the result
 

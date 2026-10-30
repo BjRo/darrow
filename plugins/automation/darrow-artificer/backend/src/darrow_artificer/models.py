@@ -67,6 +67,7 @@ class Claim(Record):
     detail: str = ""
     process: Process | None = None
     execution_ended: bool = False
+    resume_allowed: bool | None = None
     recovery_attempts: int = Field(default=0, ge=0, le=2)
     total_recovery_attempts: int = Field(default=0, ge=0)
     native: Native | None = None
@@ -77,6 +78,7 @@ class Claim(Record):
     report_state: Literal["none", "pending", "posted", "uncertain"] = "none"
     report_comment: int | None = None
     report_error: str = ""
+    reconciliation_error: str = ""
     next_action: str = ""
 
     def needs_attention(self, detail: str) -> None:

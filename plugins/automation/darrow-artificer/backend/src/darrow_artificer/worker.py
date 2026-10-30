@@ -120,6 +120,9 @@ def finish(site: Installation, claim: Claim, outcome: Outcome) -> None:
         claim.process = retained.process
         claim.execution_ended = True
         claim.status = "pr-open" if outcome.status == "pr-open" else "needs-attention"
+        claim.resume_allowed = (
+            retained.resume_allowed is not False and outcome.status != "pr-open"
+        )
         claim.detail = outcome.detail
         if outcome.pr is not None:
             claim.pr = outcome.pr

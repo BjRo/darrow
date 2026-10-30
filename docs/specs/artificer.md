@@ -34,6 +34,14 @@ supervision. Task recipes and their native session own engineering.
   goal activation with its complete objective. The adapter enters `/goal` once
   in that same session; it never frames the engineering goal or reinvokes the
   recipe. Do not nest a user-only recipe command inside an unprepared goal.
+  Successful delivery requires independently observed native goal completion.
+  Claude cannot bypass the prepared `/goal` handoff with a structured `pr-open`
+  result. Where its supported protocol cannot establish goal completion, retain
+  the published PR and report that evidence gap as needing attention; do not
+  present a model's completion report as equivalent to Codex goal evidence.
+  Preserve the established delivery blocker through transient reconciliation
+  failures and recovery. Operational errors must not erase the native completion
+  evidence gap from status or the eventual source-issue report.
 - **ART-C5 — Nomination.** Admit oldest open `artificer:ready` issues nominated
   by a human writer and without unresolved blocking dependencies. Unreadable or
   ambiguous evidence admits nothing. Preserve explicit ticket-scope restrictions.
@@ -53,10 +61,22 @@ supervision. Task recipes and their native session own engineering.
   authoritative publication reconciliation finds no open PR. Retain capacity
   while execution/publication is uncertain. Never automatically renominate
   stopped work. Preserve worktrees, branches and published effects.
+  Capacity release is not loss of recoverability. An unfinished released delivery
+  may explicitly resume its original session after reacquiring shared capacity
+  and source-issue ownership under the repository lock. Recheck current writer
+  authority, grant/scope, worker availability, native state and published effects;
+  refuse conflicting issue ownership, uncertain effects or unavailable capacity.
+  Never automatically resume released work or replace its session/worktree.
+  Completed and cancelled work is terminal. Unknown historical eligibility requires
+  human reconciliation. Explicit cancellation of resumable released work marks it
+  terminal without reacquiring capacity or changing published effects.
 - **ART-C9 — Recovery.** Resume the original session for recoverable technical
   interruptions, with two attempts per interruption. Immediate recurrence is
-  the same interruption; restarting alone does not reset the counter. Observed
-  successful native progress establishes recovery. Explicit recovery consumes
+  the same interruption; restarting alone does not reset the counter. Only a
+  successfully completed native turn establishes execution recovery and resets
+  the incident budget. Successful tool calls, incidental reads and diagnostics
+  do not reset it. This bounds transport/execution interruptions, not retries of
+  engineering operations inside a healthy native turn. Explicit recovery consumes
   the remaining incident budget and refuses an exhausted incident. Missing intent/state,
   exhausted retries, malformed results and ambiguous effects require attention.
 - **ART-C10 — Operations.** Provide explicit skill/CLI setup, status, scheduling,

@@ -96,6 +96,7 @@ Historical grades remain tied to their original contracts and observation limits
 ## Local Artificer
 
 - [Native-session worker revamp and TDD evidence](artificer-worker-revamp-2026-10-29.md)
+- [Lifecycle repair TDD and host-evidence limits](artificer-lifecycle-repairs-2026-10-30.md)
 
 Current authority: [Local Artificer](../specs/artificer.md).
 The implementation is explicit recurring admission with native continuation;

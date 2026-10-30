@@ -51,7 +51,7 @@ def test_new_pr_receives_ownership_marker(
 ) -> None:
     monkeypatch.setenv("ARTIFICER_COMPLETE", "1")
     state = tmp_path / "worker"
-    site = initialize(repository, state, monkeypatch, capsys)
+    site = initialize(repository, state, monkeypatch, capsys, host="codex")
     invoke(monkeypatch, capsys, state, "tick")
     assert wait_stopped(site).status == "pr-open"
     assert "artificer:claimed" in json.loads((services / "forge.json").read_text())[
@@ -77,7 +77,7 @@ def test_reservation_and_labeled_pr_consume_one_slot(
 ) -> None:
     monkeypatch.setenv("ARTIFICER_COMPLETE", "1")
     state = tmp_path / "worker"
-    site = initialize(repository, state, monkeypatch, capsys)
+    site = initialize(repository, state, monkeypatch, capsys, host="codex")
     invoke(monkeypatch, capsys, state, "configure", "--WORK_IN_PROGRESS_LIMIT", "2")
     invoke(monkeypatch, capsys, state, "tick")
     assert wait_stopped(site).pr == 9
@@ -98,7 +98,6 @@ def test_recovery_refuses_another_active_ticket_in_same_worker(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    monkeypatch.setenv("ARTIFICER_COMPLETE", "1")
     state = tmp_path / "worker"
     site = initialize(repository, state, monkeypatch, capsys)
     invoke(monkeypatch, capsys, state, "configure", "--WORK_IN_PROGRESS_LIMIT", "2")
@@ -109,7 +108,6 @@ def test_recovery_refuses_another_active_ticket_in_same_worker(
     forge = json.loads(path.read_text())
     forge["ready"] = [2]
     path.write_text(json.dumps(forge))
-    monkeypatch.delenv("ARTIFICER_COMPLETE")
     monkeypatch.setenv("ARTIFICER_HOLD", "1")
     invoke(monkeypatch, capsys, state, "tick")
     second = next(claim for claim in site.claims() if claim.id != first.id)

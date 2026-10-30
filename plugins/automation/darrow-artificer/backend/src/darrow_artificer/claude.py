@@ -16,6 +16,7 @@ from .storage import locked
 def execute(site: Installation, claim: Claim) -> Outcome:
     prompt = recovery(claim) if claim.native is not None else initial(site, claim)
     outcome = invoke(site, claim, prompt)
+    require_completion_evidence(claim, outcome)
     if outcome.status != "goal-required":
         return outcome
     if outcome.goal is None or claim.goal_objective is not None:
@@ -30,7 +31,20 @@ def execute(site: Installation, claim: Claim) -> Outcome:
         raise ValueError(
             "Native goal activation was not established; reconcile the original session"
         )
+    require_completion_evidence(claim, result)
     return result
+
+
+def require_completion_evidence(claim: Claim, outcome: Outcome) -> None:
+    if outcome.status != "pr-open":
+        return
+    if claim.goal_objective is None:
+        raise ValueError("Claude PR completion requires the prepared /goal handoff")
+    raise ValueError(
+        "Claude delivery lacks independently observed native goal completion; "
+        "the supported stream reports turn results, not goal completion. "
+        "Inspect the original native session and published effects."
+    )
 
 
 def invoke(site: Installation, claim: Claim, prompt: str) -> Outcome:
@@ -105,8 +119,6 @@ class Observer:
 
     def event(self, event: dict[str, object]) -> Outcome | None:
         self.validate(event)
-        if event.get("type") == "user":
-            observe_progress(event, self.progressed)
         if event.get("type") == "system" and event.get("subtype") == "init":
             require_capabilities(
                 [text_value(name) for name in array_value(event["slash_commands"])]
@@ -129,12 +141,7 @@ class Observer:
             raise ValueError("Claude result lacks original native initialization")
         if event.get("is_error"):
             raise RuntimeError(f"Claude execution interrupted: {event}")
-        return Outcome.model_validate(event.get("structured_output"))
-
-
-def observe_progress(event: dict[str, object], progressed: Callable[[], None]) -> None:
-    message = object_value(event["message"])
-    for value in array_value(message["content"]):
-        item = object_value(value)
-        if item.get("type") == "tool_result" and item.get("is_error") is not True:
-            progressed()
+        outcome = Outcome.model_validate(event.get("structured_output"))
+        if event.get("subtype") == "success" and event.get("is_error") is False:
+            self.progressed()
+        return outcome

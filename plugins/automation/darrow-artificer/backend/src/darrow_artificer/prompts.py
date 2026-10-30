@@ -61,7 +61,10 @@ def recovery(claim: Claim) -> str:
     return (
         f"The execution transport for Artificer delivery {claim.id} recovered. "
         "Resume the existing task in this original native session using its retained history, "
-        "goal, authority and evidence. Do not reinvoke the recipe or create a new owner or goal. "
-        "Reconcile existing effects before continuing. Missing product intent remains a blocker. "
+        "goal, authority and evidence. Do not reinvoke the recipe or create a replacement owner or goal. "
+        "Reconcile existing effects and re-read the source ticket before continuing. "
+        "If the original preflight stopped before its first goal, complete that preflight "
+        "using externally supplied intent before activating the first goal in this same session. "
+        "Missing product intent remains a blocker; do not perform discovery or specification. "
         "Return the original status/detail/question/pr JSON result at the terminal boundary."
     )

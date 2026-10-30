@@ -30,6 +30,11 @@ repository must select the same host. The host must support persistent native
 sessions, native goals and the structured streaming protocol used by its adapter.
 Codex uses app-server. Headless Claude enters the recipe explicitly; its prepared
 owner can request native `/goal` activation through the client in that same session.
+Codex completion requires an observed complete native goal. Claude's supported
+stream does not independently establish goal completion: a reported PR without
+the prepared handoff is refused, and a PR reported after handoff remains
+`needs-attention` for native lifecycle reconciliation. Its published PR still
+holds WIP. Use Codex when unattended completion verification is required.
 
 Installed-host protocol support must be checked before unattended use. Fixture
 tests do not establish compatibility with every host version, plugin profile or
@@ -73,7 +78,10 @@ completed delivery.
 ## Safety boundaries
 
 Recoverable technical interruptions get two native resume attempts each.
-Immediate recurrence shares the same budget; useful native progress resets it.
+Immediate recurrence shares the same budget. Only successful completion of a
+native turn resets it; successful tool calls, reads and diagnostics do not.
+This measures execution recovery, not retries of engineering operations within
+a healthy turn.
 Explicit recovery consumes the remaining budget and refuses exhausted incidents
 or another active ticket in the same worker.
 Exhausted retries and missing product intent stop delivery and are reported on
@@ -83,6 +91,10 @@ Artificer. There is no issue-comment answer loop.
 Native session storage belongs to the host. Missing native state requires human
 reconciliation, not a replacement owner. Confirmed stopped deliveries without an
 open PR release capacity; uncertain execution or publication retains it.
+Released unfinished work can explicitly recover the same session after checking
+current authority and reacquiring shared capacity and issue ownership. Recovery
+refuses a busy worker, a conflicting delivery or unavailable capacity. Completed,
+cancelled and historical deliveries with unknown recovery eligibility are refused.
 Cancellation and revocation never undo worktrees, branches or published effects.
 No merge, deployment, release or unrelated mutations are authorized.
 

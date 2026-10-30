@@ -112,23 +112,11 @@ class Session:
         return self.notification(method, params)
 
     def notification(self, method: object, params: dict[str, object]) -> Outcome | None:
-        if method == "item/completed":
-            self.progress(params)
         self.check_notification(method, params)
         if method == "thread/goal/updated":
             self.remember_goal(object_value(params["goal"]))
         if method == "turn/completed":
             return self.completed(object_value(params["turn"]))
-        return None
-
-    def progress(self, params: dict[str, object]) -> None:
-        item = object_value(params["item"])
-        if (
-            item.get("type")
-            in {"commandExecution", "fileChange", "mcpToolCall", "collabAgentToolCall"}
-            and item.get("status") == "completed"
-        ):
-            self.observed_progress()
         return None
 
     def question(self, message: dict[str, object]) -> Outcome:
@@ -198,6 +186,7 @@ class Session:
         outcome = self.read_outcome(text_value(turn["id"]), status)
         if outcome is None:
             return None
+        self.observed_progress()
         if status == "active" and outcome.status != "question":
             return None
         return self.accept_outcome(outcome, status, text_value(turn["id"]))
