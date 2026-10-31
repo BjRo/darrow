@@ -8,7 +8,9 @@ TDD, verification, publication and required CI.
 
 Evaluate model routing separately from the value of the complete workflow.
 The [October Codex first pass](snapshots/2026-10-30-codex-n1.md) measures the
-current design against fresh vanilla controls. The earlier
+current design against fresh vanilla controls. The
+[medium-review follow-up](snapshots/2026-10-30-review-medium-n1.md) reuses those
+controls to examine reviewer effort and completes both current tracks. The earlier
 [adaptation and fidelity study](adaptation-fidelity.md) and its
 [Codex suite](adaptation-fidelity-suite.yaml) compare direct execution with
 matched preflight, separate passive native trials from eval enforcement, and
@@ -109,6 +111,8 @@ candidate reported finding and repairing a defect during verification, and host
 receipts confirm implementation and verification delegates, but this does not
 establish a better final artifact than vanilla's passing implementation. No blind
 judge ran, so comparative maintainability and test quality remain unmeasured.
+The later targeted Click probe below identifies a behavioral difference beyond
+these original acceptance checks.
 
 The original Sevro reports left usage fields null. The
 [native-usage retrospective](snapshots/2026-10-30-codex-n1-usage.json) recovers
@@ -162,8 +166,260 @@ Host receipts establish main-thread native-goal completion in all seven assessed
 Adaptive Goal or recipe trials, and no goal events or accepted subagent spawns
 in any vanilla control. These observations validate the execution conditions;
 they do not prove every capability's internal protocol or a quality benefit.
-Resolve the event-capture limit before retrying Click or replicating. A blind
-comparison of final code and tests is needed to assess quality beyond acceptance.
+The medium-review follow-up uses an isolated capture-budget patch to complete
+Click. Broader blind assessment of final code and tests remains unmeasured.
+
+### Sol 6.1/medium reviewer follow-up
+
+The [follow-up snapshot](snapshots/2026-10-30-review-medium-n1.md) records
+**eight completed cells: 8/8 original acceptance passes, 8/8 completed native
+goals and 8/8 complete usage captures**. All 15 observed independent reader
+sessions used `gpt-6.1-sol/medium`. The main thread remained Sol 6.1/medium;
+implementation routing stayed under the current policy. Vanilla controls are
+reused from the first pass.
+
+| Four-task scope | Condition                     | Mean wall | Mean tokens | Estimated API-equivalent cost/task |
+| --------------- | ----------------------------- | --------: | ----------: | ---------------------------------: |
+| Implementation  | Adaptive Goal, medium readers |    485.9s |   4,645,859 |                             $0.829 |
+| Full delivery   | Ticket to PR, medium readers  |    649.3s |   6,094,186 |                             $1.205 |
+
+Against the archived four-task vanilla controls, these are **3.68× and 3.69×
+the time**, **11.22× and 7.97× the tokens**, and **4.43× and 5.11× the estimated
+cost**, respectively. The different assurance processes described above still
+apply; these are not equal-assurance efficiency ratios.
+
+The old Click captures prevent a complete four-task usage comparison between
+reviewer efforts. Express, Ajv and go-git have complete captures in both:
+
+| Three complete pairs | Xhigh mean wall | Medium mean wall | Xhigh mean tokens | Medium mean tokens | Xhigh estimated cost | Medium estimated cost |
+| -------------------- | --------------: | ---------------: | ----------------: | -----------------: | -------------------: | --------------------: |
+| Implementation       |          384.3s |           473.1s |         3,467,775 |          4,173,253 |               $0.656 |                $0.802 |
+| Full delivery        |          607.0s |           533.1s |         6,230,027 |          4,731,521 |               $1.263 |                $1.024 |
+
+On those three delivery pairs, medium was **12% faster, used 24% fewer tokens
+and cost 19% less**. Its time ratio to the same vanilla controls is **2.83×**,
+versus 3.22× previously. The new four-task 3.69× ratio includes Click, which
+the old assessed comparison omitted; those two headline ratios cover different
+task sets.
+
+Across all four implementation tasks, medium was 13% faster. The aggregate
+improvement comes from Click, where the medium implementation missed a real
+defect that the earlier xhigh workflow discovered and repaired. The other three
+pairs were **23% slower and 22% costlier**. Ajv implementation selected no
+independent review in either run, so reviewer effort cannot explain that pair's
+change.
+
+Independent-reader cost across five complete pairs with readers in both
+conditions averaged **$0.143 at xhigh versus $0.086 at medium: 40% lower**.
+Whole-workflow savings varied. On the three complete implementation pairs,
+main-thread requests rose from 29 to 40 per task. Main and coordinator costs
+increased while reader cost fell slightly. Both efforts use the same unit
+prices; the estimates vary with observed usage. The
+[usage record](snapshots/2026-10-30-review-medium-n1-usage.json) and
+[results JSON](snapshots/2026-10-30-review-medium-n1.json) retain the counters,
+role attribution, actual routes and complete-pair comparisons.
+
+Sevro's copied stream limit was raised from 8 to 128 MiB, with compatible larger
+transcript capture and view budgets. The installed package and shipped reviewer
+catalog remain unchanged. Click delivery completed, and its retained native
+transcripts exceeded the former 5 MiB capture budget. A separate deterministic
+transport probe confirmed that the patched source and executable accept a valid
+stream over 8 MiB that the original rejects; the public run artifacts do not
+report the live cumulative stream byte counter.
+
+One additional Click implementation attempt passed code checks but its goal was
+blocked because fixture-created review storage had mode `0755`. No readers
+launched. A fresh snapshot enforced `0700` before its replacement. The excluded
+attempt's **443.8s, 5,109,566 tokens and $0.632 estimated cost** remain separate
+from valid-cell means. The eight valid cells total $8.139 API-equivalent cost,
+or $8.770 including that attempt; actual Codex charges remain unknown.
+
+These are **N=1** observations. Implementation choices, assurance work, findings
+and repair can vary even under the same routing policy. The temporary observer
+patch removes a previous stopping condition. These results do not isolate a
+causal reviewer-effort effect or establish equal review quality.
+
+### Consequence risk, reasoning profiles and actual implementors
+
+The retained root-thread messages, goal objectives and route-helper arguments
+record two separate classifications. **Consequence risk** controls required
+checks and assurance: `routine` covers localized, reversible work with limited
+blast radius; `elevated` covers compatibility, affected consumers or persisted
+formats; `high` covers security, authorization or similarly serious consequences.
+The **reasoning profile** controls the implementation route: `routine` means
+clear localized work, `routine-plus` adds meaningful implementation tradeoffs or
+an explicit first-pass boundary-correctness priority, and `scaled` means
+straightforward multi-component work. Neither batch selected `repo-wide` or
+`judgment`. Risk and reasoning demand are independent; high risk does not by
+itself require a stronger implementation model.
+
+The latest medium-review batch selected:
+
+| Task                    | Adaptive Goal risk | Adaptive Goal profile | Ticket to PR risk | Ticket to PR profile |
+| ----------------------- | ------------------ | --------------------- | ----------------- | -------------------- |
+| Express header escaping | High               | `routine`             | High              | `routine`            |
+| Click stream capture    | Elevated           | `routine-plus`        | Elevated          | `routine-plus`       |
+| Ajv instance paths      | Routine            | `routine`             | Elevated          | `scaled`             |
+| Go-git `insteadOf`      | Elevated           | `routine`             | Elevated          | `routine`            |
+
+Express's header-injection boundary justified high consequence risk, while its
+explicit localized transformation qualified as routine implementation. Click's
+public API compatibility raised risk, and buffering and chronological write
+ordering supplied the implementation tradeoff for `routine-plus`. Go-git's
+public field and configuration compatibility raised risk despite a localized,
+specified implementation. Both tracks selected independent review for these
+three tasks.
+
+Ajv shows a material classification difference. Adaptive Goal selected routine
+risk and omitted independent assurance; Ticket to PR selected elevated
+compatibility risk, a scaled implementation profile and independent acceptance
+review. This contributes different work to their totals. It is an observed
+decision difference, not evidence that either classification is the uniquely
+correct one.
+
+Profiles also changed between the xhigh and medium batches: Adaptive Goal's Ajv
+changed from `routine-plus` to `routine`, and Ticket to PR's Click changed from
+`routine` to `routine-plus`. The other six selected profiles stayed the same.
+Under the benchmark's Codex catalog, `routine` selects Luna 6/medium,
+`routine-plus` selects Luna 6/high, and `scaled` selects Sol 6.1/medium.
+
+A selected route does not establish which model authored the implementation.
+The Sol 6.1/medium main thread may implement directly when a lower-cost handoff
+does not repay its coordination cost. Actual implementation placement was:
+
+| Task    | Adaptive Goal, xhigh batch | Adaptive Goal, medium batch | Ticket to PR, xhigh batch | Ticket to PR, medium batch |
+| ------- | -------------------------- | --------------------------- | ------------------------- | -------------------------- |
+| Express | Direct Sol 6.1/medium      | Direct Sol 6.1/medium       | Direct Sol 6.1/medium     | Direct Sol 6.1/medium      |
+| Click   | Delegated Luna 6/high      | Delegated Luna 6/high       | Delegated Luna 6/medium   | Delegated Luna 6/high      |
+| Ajv     | Delegated Luna 6/high      | Delegated Luna 6/medium     | Direct Sol 6.1/medium     | Direct Sol 6.1/medium      |
+| Go-git  | Direct Sol 6.1/medium      | Direct Sol 6.1/medium       | Delegated Luna 6/medium   | Direct Sol 6.1/medium      |
+
+The old Click delivery route describes an interrupted attempt, not a completed
+delivery. The [first-pass usage](snapshots/2026-10-30-codex-n1-usage.json) and
+[follow-up usage](snapshots/2026-10-30-review-medium-n1-usage.json) retain actual
+session models; the corresponding result snapshots reference the native
+transcripts containing classification and placement decisions.
+
+Classification and placement are additional variables in this comparison.
+Keeping the main thread and routing policy fixed did not hold the selected
+profile, implementor model or assurance work constant. These runs therefore
+cannot isolate the effect of changing independent readers from xhigh to medium.
+
+### Why full delivery takes longer than implementation
+
+In the medium batch, Ticket to PR averaged **649.3s versus Adaptive Goal's
+485.9s: 34% longer**. It builds on Adaptive Goal but has a broader completion
+condition: ticket retrieval and readiness, branch preparation, commit, push,
+PR publication, required CI and handover, alongside selected assurance. The
+implementation track ends after implementation and its selected verification.
+
+| Task    | Adaptive Goal wall | Ticket to PR wall | Delivery minus implementation |
+| ------- | ------------------ | ----------------- | ----------------------------- |
+| Express | 534.2s             | 481.9s            | -52.3s                        |
+| Click   | 524.5s             | 998.0s            | +473.5s                       |
+| Ajv     | 355.3s             | 606.2s            | +250.9s                       |
+| Go-git  | 529.9s             | 511.1s            | -18.7s                        |
+
+Click accounts for about **72% of the net time difference**. Delivery review
+found a defect that the implementation review missed, triggering repair and
+fresh verification. Ajv delivery selected independent review where the
+implementation trial omitted it, and used direct Sol implementation rather
+than a Luna delegate. Express and go-git deliveries finished faster despite
+their broader scope. These independently authored N=1 candidates do not measure
+a fixed wrapper overhead; the gap includes different implementation, assurance,
+finding and repair decisions as well as the additional delivery work.
+
+### Reviewer effort: Click exposes a quality boundary
+
+The [supplemental Click probe](snapshots/2026-10-30-review-medium-n1-click-probe.json)
+shows that the original acceptance tie missed a real boundary. The earlier
+xhigh Spec reader found that inheriting `io.BytesIO.writelines` bypassed the
+capture class's `write` override. Binary writes reached the separate stream but
+were absent from combined output. The author repaired that finding. In the
+medium-review implementation trial, both independent readers approved an
+implementation with the same defect class. In the medium-review delivery trial,
+the Spec reader caught it, and a fresh medium reader verified the repair.
+
+The same public `CliRunner` probe exercises binary `write` and `writelines` on
+stdout and stderr, interleaved with text without explicit flushing:
+
+| Retained Click source                         | Probe checks passed |
+| --------------------------------------------- | ------------------: |
+| Vanilla implementation                        |                 2/4 |
+| Vanilla full delivery                         |                 2/4 |
+| Adaptive Goal with xhigh review, after repair |                 4/4 |
+| Adaptive Goal with medium review              |                 2/4 |
+| Ticket to PR with medium review, after repair |                 4/4 |
+
+Every source passes the two ordinary `write` checks. Both vanilla sources and
+the medium-reviewed implementation lose the `writelines` content from combined
+output. Both repaired sources preserve it. Independent review contributed useful
+defect discovery beyond same-context self-review and the original hidden checks.
+Medium detected the defect in one trial and missed it in another; this small
+sample does not establish a reliable quality ranking between efforts. A shorter
+workflow can omit useful discovery and repair, so latency savings alone do not
+establish equal quality.
+
+This is a post hoc probe selected from the earlier finding, not a blind judge
+or a detection-rate estimate. Source files were reconstructed from retained
+native diffs against pinned Click 8.0.0; reconstructed Git blob identities match
+the diff indexes. The probe record retains artifact hashes, source identities,
+the executable probe and observed results. Original benchmark verdicts and
+acceptance checks remain unchanged. Old xhigh Click delivery was unassessed,
+so it supplies no completed delivery comparator.
+
+### What the retained implementations teach us
+
+The [source comparison](snapshots/2026-10-30-implementation-comparison.md), with
+[machine-readable evidence](snapshots/2026-10-30-implementation-comparison.json),
+contrasts the October variants across 24 attempts, 23 assessed. It verifies 78
+retained file identities and adds targeted characterization without changing
+original task verdicts or running new model trials.
+
+| Task    | Observed distinction                                                                                                                                       | Learning                                                                     |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Express | Vanilla delivery and medium Adaptive Goal have byte-identical handler code; their tests differ.                                                            | Additional assurance can increase confidence without changing the algorithm. |
+| Click   | Similar buffer-copy designs differ on inherited `writelines`; latest Ticket to PR also preserves the two-stream `isolation()` return shape.                | Exercise alternate entrypoints and account for public API changes.           |
+| Ajv     | Some extend existing specs; the latest Ticket to PR adds a `.test.js` file outside upstream's `.spec.{ts,js}` discovery pattern, though it ran explicitly. | Test creation and direct execution do not establish normal CI discovery.     |
+| Go-git  | Earlier xhigh Ticket to PR uses `SetOption`; the other retained serializers preserve edits to prefix order and multiplicity.                               | Verify helper semantics with stateful edit-and-round-trip checks.            |
+
+The new Go probe runs the same public `Config` sequence against all six retained
+go-git sources: unmarshal, edit `URL.InsteadOf`, marshal, then unmarshal again.
+The xhigh Ticket to PR source passes 2/4 checks: it preserves the old order after
+reordering the public slice, and loses an added duplicate of an existing value.
+The other five sources pass 4/4. Both xhigh readers had cleared that source. This
+is a supplemental observation beyond the original hidden checks, which do not
+exercise these mutations.
+
+Together with Click, this supports independent review's ability to find useful
+defects, but does not establish a dependable quality ordering by reviewer effort.
+Vanilla also produced competent implementations and substantial regressions.
+The useful assurance targets here are alternate API paths, mutable-state
+sequences, and repository test integration. A reviewer-effort comparison on the
+same frozen patch would isolate review behavior more clearly than these separate
+whole-workflow trials.
+
+All eight vanilla controls authored regression tests and ran checks. They also
+self-reviewed and could repair failures found in that context. Their retained
+test changes include:
+
+| Task    | Vanilla implementation                                                          | Vanilla full delivery                                                           |
+| ------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Express | `test/res.links.js`                                                             | `test/res.links.js`                                                             |
+| Click   | `tests/test_testing.py`, with affected-caller changes in `tests/test_termui.py` | `tests/test_testing.py`, with affected-caller changes in `tests/test_termui.py` |
+| Ajv     | New `spec/jtd-parser.spec.js`                                                   | New `spec/jtd-parser-instance-path.spec.js`                                     |
+| Go-git  | `config/url_test.go` and `config/config_test.go`                                | `config/url_test.go` and `config/config_test.go`                                |
+
+The Ajv files were initially untracked and absent from ordinary tracked-file
+diffs; retained file-writing commands and test runs establish their creation.
+Passing suite totals include existing tests and must not be reported as counts
+of newly authored regressions. Vanilla's assurance limitation is the absence of
+independent review and a structured review-finding repair cycle, not an absence
+of tests or self-correction.
+
+The comparison uses identified retained source snapshots, which can precede
+later edits not accompanied by another full diff. It is not a blind final-code
+ranking; the linked record states the scope and reconstruction limits.
 
 ### Historical API pricing basis
 

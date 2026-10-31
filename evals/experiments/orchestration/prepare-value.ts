@@ -98,7 +98,8 @@ export function valueCase(
   result.harnesses = ["codex"];
   result.additional_skills = supportingSkills(track);
   // Controls use the same owner override with --without-skill, removing all plugins.
-  result.fixture.setup += '\nmkdir -p "$HOME/.darrow/reviews"';
+  result.fixture.setup +=
+    '\nmkdir -p "$HOME/.darrow/reviews" && chmod 700 "$HOME/.darrow/reviews"';
   if (track === "delivery") {
     const guidance = original.fixture.files["AGENTS.md"];
     if (guidance === undefined)

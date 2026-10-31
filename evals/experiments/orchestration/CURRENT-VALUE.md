@@ -98,6 +98,53 @@ Sevro 1.1.1 app-server capture has a fixed 8 MiB cumulative event-stream limit;
 the October Click delivery attempt reached it before grading. Resolve that host
 limit and freeze the changed evaluator before retrying that cell.
 
+## Reviewer-effort comparison
+
+Freeze a variant of the original prepared snapshot rather than rebuilding its
+plugins from a later checkout:
+
+```sh
+bun evals/experiments/orchestration/prepare-review-effort.ts \
+  --baseline /absolute/path/to/current-value-n1 \
+  --output /absolute/path/to/review-medium-n1
+SEVRO_PACKAGE_BIN=/absolute/path/to/review-medium-n1/sevro/dist/src/cli.js \
+  bun evals/experiments/orchestration/run-value.ts \
+  --snapshot /absolute/path/to/review-medium-n1 \
+  --output /absolute/path/to/review-medium-n1/dry-delivery-express \
+  --track delivery --mode ticket-to-pr --case express-links --dry
+```
+
+Keep the explicit `SEVRO_PACKAGE_BIN` on every invocation. The preparer copies
+the baseline project and Sevro 1.1.1 into a fresh external directory. It changes
+the independent Codex review readers from Sol 6.1/xhigh to Sol 6.1/medium and
+admits that experimental route in the copied backend. The shipped reviewer
+catalog and admission policy remain unchanged. Main-thread and implementation
+routing, prompts and acceptance checks are inherited from the baseline. The
+variant also gives fixture-owned review storage mode `0700`; the original
+`mkdir -p` inherited permissions and could leave it at `0755`, which the review
+backend correctly refuses. Fixture repairs are recorded separately from the
+reviewer treatment. Preserve any affected attempt as infrastructure-blocked,
+then use a fresh snapshot for its replacement.
+
+The isolated Sevro copy raises the cumulative app-server stream limit from 8 to
+128 MiB. It also raises raw transcript capture and view limits from 5 to 128 MiB,
+and the encoded capture limit from 7 to 192 MiB, so usage recovery can retain
+larger sessions. The 30-minute host timeout remains. Source and executable patch
+hashes, baseline manifest hash and preparer source are retained in the variant.
+This temporary experiment patch is not a Sevro release or production validation.
+
+Run one trial for each of the four cases in both candidate tracks: eight new
+attempts. Reuse the archived vanilla controls. Inspect actual reader efforts,
+assurance selection and repair activity separately from requested routing.
+Optional assurance remains optional. Review coordinators already used medium;
+the effort treatment applies to the independent review readers.
+
+Compare xhigh and medium on assessed task pairs only. The old Click delivery
+attempt was unassessed, so it cannot supply a completed xhigh comparator.
+Implementation routing and assurance choices may vary between trials, and the
+larger observer limits remove a previous stopping condition. N=1 results cannot
+isolate reviewer effort from run variation or establish equal review quality.
+
 The four prompts and upstream pins match the August 7 benchmark. Since then,
 Click gained an unflushed-write check, Ajv gained malformed-value path checks,
 and go-git gained deterministic serialization coverage and a public config seam

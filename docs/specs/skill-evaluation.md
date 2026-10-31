@@ -1134,6 +1134,19 @@ model identities and the dated pricing basis with any reconstruction. API-equiva
 cost estimates remain separate from actual provider charges, and require enough
 evidence to apply cache and per-request context pricing correctly.
 
+Reviewer-effort comparisons freeze their baseline candidate, prompts, fixtures,
+checks and main-thread route before changing the selected reviewer route. An
+explicitly requested experimental route may use a minimal admission exception
+in the frozen review-provider copy; this does not change the shipped catalog.
+Record requested and observed reviewer model/effort separately. Temporary host
+capture-limit patches belong to an isolated evaluator copy with before/after
+hashes and retained patch intent. Preserve finite resource bounds and record
+these observer changes separately from the reviewer treatment and task outcomes.
+Benchmark-provisioned review storage must have private permissions before the
+participant starts. A fixture defect discovered during a comparison requires a
+new frozen snapshot and an explicit exclusion record for any replaced attempt;
+preserve its outcomes, time and usage separately from valid-cell aggregates.
+
 The Darrow Sevro run entrypoint accepts an absolute benchmark condition file
 separately from Sevro's passive or enforced execution condition. It prefixes
 the initial case prompt with the trimmed instruction text and preserves the
