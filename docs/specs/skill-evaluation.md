@@ -95,7 +95,7 @@ retain their original interpretation and are never upgraded from native logs.
 
 ### Supported Sevro release
 
-Darrow targets the exact published Sevro `1.1.1` package and its public v1
+Darrow targets the exact published Sevro `1.1.2` package and its public v1
 protocols and schemas. Current cases use observations emitted by that release;
 cases whose required evidence exists only in a retired runner are removed from
 active suites. Retained research keeps its original provenance and meaning.

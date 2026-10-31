@@ -1,6 +1,6 @@
 # Darrow evaluation tooling
 
-Darrow uses the exact `@bjoernrochel/sevro@1.1.1` dependency from `package.json`.
+Darrow uses the exact `@bjoernrochel/sevro@1.1.2` dependency from `package.json`.
 Install it with `bun install --frozen-lockfile`.
 The installed Sevro command requires Node.js 24.13.0 or newer on `PATH`;
 Darrow's callers and tests use Bun 1.3.13.
