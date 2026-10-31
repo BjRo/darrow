@@ -9,6 +9,7 @@ from collections import deque
 from typing import BinaryIO
 
 from .github import object_value
+from .native import InterruptionError
 
 REQUEST_TIMEOUT_SECONDS = 30.0
 
@@ -24,7 +25,7 @@ class Rpc:
         self.sequence = 0
 
     def record(self, message: dict[str, object]) -> None:
-        self.evidence.write((json.dumps(message) + "\n").encode())
+        self.evidence.write((json.dumps(diagnostic(message)) + "\n").encode())
         self.evidence.flush()
 
     def send(self, message: dict[str, object]) -> None:
@@ -40,7 +41,9 @@ class Rpc:
                 raise TimeoutError("Codex app-server observation timed out")
             chunk = os.read(self.output.fileno(), 65536)
             if not chunk:
-                raise RuntimeError("Codex app-server exited before a settled result")
+                raise InterruptionError(
+                    "Codex app-server exited before a settled result"
+                )
             self.buffer += chunk
         line, self.buffer = self.buffer.split(b"\n", 1)
         message = object_value(json.loads(line))
@@ -72,3 +75,27 @@ def response(message: dict[str, object]) -> dict[str, object]:
     if "error" in message:
         raise RuntimeError(f"Codex app-server request failed: {message['error']}")
     return object_value(message.get("result"))
+
+
+def diagnostic(message: dict[str, object]) -> dict[str, object]:
+    summary = fields(
+        message,
+        ("direction", "type", "method", "id", "thread_id", "turn_id", "goal_status"),
+    )
+    params = message.get("params")
+    if isinstance(params, dict):
+        source = object_value(params)
+        values: dict[str, object] = fields(source, ("threadId", "turnId", "itemId"))
+        turn = source.get("turn")
+        if isinstance(turn, dict):
+            values["turn"] = fields(object_value(turn), ("id", "status"))
+        summary["params"] = values
+    return summary
+
+
+def fields(source: dict[str, object], names: tuple[str, ...]) -> dict[str, object]:
+    return {
+        key: source[key]
+        for key in names
+        if key in source and isinstance(source[key], (str, int, bool))
+    }

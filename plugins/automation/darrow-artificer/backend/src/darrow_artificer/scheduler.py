@@ -33,7 +33,14 @@ def definition(site: Installation, uv: str, backend: Path) -> bytes:
             "StartInterval": site.grant.SCHEDULE_SECONDS,
             "RunAtLoad": False,
             "ProcessType": "Background",
-            "EnvironmentVariables": {"PATH": os.environ.get("PATH", "/usr/bin:/bin")},
+            "EnvironmentVariables": {
+                "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+                **{
+                    key: os.environ[key]
+                    for key in ("CODEX_HOME", "CLAUDE_CONFIG_DIR")
+                    if key in os.environ
+                },
+            },
             "StandardOutPath": str(site.root / "scheduler.log"),
             "StandardErrorPath": str(site.root / "scheduler.stderr"),
         }

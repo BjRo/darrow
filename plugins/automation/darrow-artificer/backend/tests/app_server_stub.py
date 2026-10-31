@@ -53,11 +53,6 @@ class Host:
             }
         claim = json.loads((self.home.parent / "claim.json").read_text())
         assert claim["native"]["thread"] == "original"
-        if self.scenario == "reply":
-            assert (
-                "  violet\\nKeep these bytes.\\n"
-                in message["params"]["input"][0]["text"]
-            )
         return {"turn": {"id": "first"}}
 
     def goal(self, message: dict[str, Any]) -> dict[str, object]:
@@ -163,6 +158,22 @@ class Host:
         if method in self.overrides.get("no_reply", []):
             return
         handlers = {
+            "skills/list": lambda message: {
+                "data": [
+                    {
+                        "skills": [
+                            {"name": name, "enabled": True}
+                            for name in (
+                                "adaptive-goal",
+                                "verify-change",
+                                "code-review",
+                                "ticket-to-pr",
+                            )
+                        ],
+                        "errors": [],
+                    }
+                ]
+            },
             "thread/start": self.thread,
             "thread/resume": self.thread,
             "turn/start": self.turn,

@@ -4,5 +4,6 @@ plugins/*/*/skills/*/SKILL.md
 **/.pytest_cache/**
 **/.hypothesis/**
 **/.coverage
+**/.coverage.*
 **/coverage.json
 .worktrees/

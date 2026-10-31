@@ -1,92 +1,123 @@
 # Local Artificer
 
-Explicitly authorize nominated GitHub issues for local ticket-to-PR delivery.
-Artificer owns admission and local execution/storage mechanics. The independently
-installed ticket recipe and adaptive goal retain engineering ownership.
+Nominate ready GitHub issues and let a local worker run a task recipe in a
+plugin-equipped Claude Code or Codex session. Return to reviewable pull requests.
 
 ## When to use
 
-Use for explicitly authorized local delivery of nominated GitHub issues. Do not
-use it for an ordinary implementation request, general jobs, or GitHub Actions.
+Use for explicitly authorized unattended delivery of ready GitHub issues.
 
-## Usage
+One Artificer runs one ticket at a time. Run additional workers for parallel
+delivery. Workers share repository claims and a WIP limit: each running delivery
+or open Artificer PR occupies one slot. Unrelated PRs do not count. Open PRs
+hold their slots until closed or merged and execution has ended.
 
-Invoke `$manage-artificer` with an operation and absolute installation state
-path. Installation alone starts no automation. See the
-[skill](skills/manage-artificer/SKILL.md) and its
-[commands](skills/manage-artificer/references/operations.md).
+Each new delivery gets a fresh native session and an isolated worktree from the
+latest fetched main/master. The worker can then take another ticket if shared
+capacity allows. Initially every ticket runs `ticket-to-pr`; the recipe and
+native session own engineering, verification and internal subagents.
 
-Implicit invocation is disabled. Claude Code can explicitly invoke
-`/darrow-artificer:manage-artificer` for management; execution still uses Codex.
+Adaptive Goal, verification and review must be installed in the selected host.
+Other plugins, including TDD, Git and ticket capabilities, are optional and used
+when applicable. Existing user/project configuration and authentication are
+inherited. Artificer does not copy plugins, credentials or native histories.
 
 ## Hosts and prerequisites
 
-Initial prerequisites: macOS, Codex CLI 0.159.2 with normal persistent ChatGPT
-login, UV/Python 3.10–3.13, Git, GitHub CLI with repository write access, and the
-independently installed delivery capabilities. The default launchd interval is
-15 minutes. WIP and per-activation limits independently default to one.
+The first version runs locally on macOS with UV/Python 3.10–3.13, Git, GitHub CLI
+write access and a configured Claude Code or Codex executable. Workers in one
+repository must select the same host. The host must support persistent native
+sessions, native goals and the structured streaming protocol used by its adapter.
+Codex uses app-server. Headless Claude enters the recipe explicitly; its prepared
+owner can request native `/goal` activation through the client in that same session.
+Codex completion requires an observed complete native goal. Claude's supported
+stream does not independently establish goal completion: a reported PR without
+the prepared handoff is refused, and a PR reported after handoff remains
+`needs-attention` for native lifecycle reconciliation. Its published PR still
+holds WIP. Use Codex when unattended completion verification is required.
 
-The app-server adapter keeps the original main thread and its native goal alive
-through automatic continuation. New grants default to `gpt-6-sol`/`medium`.
-Adaptive Goal selects bounded implementation and assurance assignments;
-Artificer does not override their routes or run engineering phases.
-Healthy native execution has no overall time limit. Individual protocol requests
-and process shutdown remain bounded; failures retain the claim and native state
-for explicit human recovery. Test/eval entrypoints own their experiment limits.
+Installed-host protocol support must be checked before unattended use. Fixture
+tests do not establish compatibility with every host version, plugin profile or
+account configuration. Account availability and costs follow the existing host
+profile; Artificer does not change authentication, permission or billing settings.
+Configure that profile to permit the intended unattended work. A host permission
+request that cannot be handled noninteractively stops delivery.
 
 ## Installation
 
 Install `darrow-artificer@darrow` using the
 [host installation instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
-Choose the supporting delivery plugins independently. Then explicitly configure
-the recurring grant and schedule using the linked commands; no schedule is
-enabled during plugin installation.
+Install the recipe and core delivery plugins independently. Installation grants
+no recurring authority and enables no schedule.
+
+## Usage
+
+Explicitly invoke `$manage-artificer` (or
+`/darrow-artificer:manage-artificer`) to configure, schedule or inspect a worker.
+See the [skill](skills/manage-artificer/SKILL.md) and its
+[commands](skills/manage-artificer/references/operations.md).
 
 Runtime entrypoint:
 
 ```text
-uv run --quiet --no-project <plugin-root>/backend/scripts/run_locked.py darrow-artificer --state <absolute-path> status
+uv run --quiet --no-project <plugin-root>/backend/scripts/run_locked.py darrow-artificer --state <absolute-worker-state> status
 ```
+
+Nominate issues with `artificer:ready`. A writer's nomination authorizes admission
+under the saved recurring grant. Artificer consumes readiness and applies
+`artificer:claimed` to the source issue and delivery PR. Open labeled PRs also
+hold capacity when no local claim remains. Status shows worker, ticket, native
+session, recovery attempts, PR, blocker and next action.
 
 ## Expected result
 
-An authorized activation reserves eligible issues and hands each to its native
-owner. Status reports the issue, delivery, native identity and next action.
-Questions appear on the issue; a verified open PR remains outstanding until
-closed or merged and execution ends. An admission is not completed delivery.
+One recipe-owned, verified PR ready for review, with required CI green on its
+final commit. A reservation or an intermediate response does not establish
+completed delivery.
 
 ## Safety boundaries
 
-Claims remain occupied while questions or PRs are pending. Cancellation, failed
-launches and expired archives never automatically free capacity or replace an
-owner. Session archives use authenticated encryption with a separate private
-key and exclude authentication credentials. Default retention is five days
-from the last successful save.
+Recoverable technical interruptions get two native resume attempts each.
+Immediate recurrence shares the same budget. Only successful completion of a
+native turn resets it; successful tool calls, reads and diagnostics do not.
+This measures execution recovery, not retries of engineering operations within
+a healthy turn.
+Explicit recovery consumes the remaining budget and refuses exhausted incidents
+or another active ticket in the same worker.
+Exhausted retries and missing product intent stop delivery and are reported on
+the source issue and in local status. Discovery and specification happen outside
+Artificer. There is no issue-comment answer loop.
 
-The recurring grant accepts normal ChatGPT account usage, including available
-credits after included allowance is exhausted. Codex enforces availability under
-the existing account billing settings. The adapter forces ChatGPT authentication
-and the OpenAI provider and removes model API credentials from the child
-environment. Artificer never purchases credits, changes billing settings or
-switches to API-key billing. Access failures require explicit human recovery.
-This policy does not guarantee zero additional cost.
+Native session storage belongs to the host. Missing native state requires human
+reconciliation, not a replacement owner. Confirmed stopped deliveries without an
+open PR release capacity; uncertain execution or publication retains it.
+Released unfinished work can explicitly recover the same session after checking
+current authority and reacquiring shared capacity and issue ownership. Recovery
+refuses a busy worker, a conflicting delivery or unavailable capacity. Completed,
+cancelled and historical deliveries with unknown recovery eligibility are refused.
+Cancellation and revocation never undo worktrees, branches or published effects.
+No merge, deployment, release or unrelated mutations are authorized.
 
 ## Troubleshooting
 
-Run `status` first. For login or allowance failures, restore access and use the
-explicit resume comment; a timer does not retry stopped delivery. Lost state,
-uncertain effects, and unavailable original owners require human reconciliation.
-Use `recover` only with the inspected original main-thread identifier.
-Never remove a claim to manufacture free capacity.
+Run `status` first. Inspect the original session and published effects before
+requesting explicit recovery with its exact native session ID.
 
-Version 0.2.0 changes native storage and recovery to one main-thread identity.
-Earlier separate-owner records require reconciliation with their original
-installation; they are not automatically converted, retried or released. Keep
-their state, worktrees, claims and published effects until reconciled.
+Legacy archive-based installations are refused without conversion or deletion.
+Reconcile their original execution and published effects before setting up new
+workers. Historical implementation evidence remains in
+[research](../../../docs/research/README.md#local-artificer).
 
-Version 0.3.0 replaces subscription-only confirmation with explicit account usage
-acceptance (`--accept-chatgpt-account-usage`, saved as `account_usage_accepted`).
-Existing grants are not silently expanded to authorize credit usage.
+## Development
+
+From the repository root:
+
+```sh
+bun run check:python --package plugins/automation/darrow-artificer/backend
+uv run --frozen --no-dev --project plugins/automation/darrow-artificer/backend python plugins/automation/darrow-artificer/backend/tests/fresh_install.py
+```
+
+Cloud execution, epic recipes and dispatch by subissues or labels are future work.
 
 ## License
 

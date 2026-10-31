@@ -1,84 +1,90 @@
 # Local operations
 
-All commands use the frozen entrypoint in the skill and `--state` before the
-operation. State paths are absolute and outside the working tree. Each
-repository has one controlling installation bound through its common Git
-directory. macOS launchd is the initial scheduler; other native hosts are not
-claimed supported.
+Use the frozen entrypoint in the skill, with `--state` before the operation.
+Worker state paths and reported paths are absolute. The repository's common Git
+directory holds shared admission records and locking. Native conversation state
+stays in the selected host's existing profile.
 
-## Configure and enable
-
-`init --repository OWNER/REPO --checkout PATH --plugin PLUGIN_ROOT ...
---credential-home PATH --authorize-recurring-delivery
---accept-chatgpt-account-usage`
-
-Account usage acceptance includes subscription allowance and available credits
-under the existing account billing settings. Codex enforces availability.
-Artificer never purchases credits, changes billing settings or switches to an
-API key. This is not a zero-additional-cost guarantee.
-
-Use one `--plugin` for each complete independently installed delivery plugin.
-The selected set must advertise the ticket-to-PR recipe, adaptive goal,
-readiness, and its required Git, ticket and assurance capabilities. Artificer
-copies complete runtime plugin contents into each dedicated native home; it
-does not reach into sibling plugin files or install missing capabilities.
-Optional `--issue NUMBER` arguments restrict admission; no issue arguments
-means all authorized ready nominations in this exact repository.
-
-New grants default to `--model gpt-6-sol --effort medium` for the original
-main-thread coordinator. Adaptive Goal retains its implementation and
-assurance routing. Codex app-server owns native goal continuation; Artificer
-does not supply repeat-work prompts or invoke engineering phases.
-
-Normal `codex login` must have populated `auth.json` in the credential home.
-Authentication is stored separately from encrypted session archives; Codex
-refreshes it. The archive key is a private `archive.key` in the state directory.
-Keep that key separate when backing up or transferring `session.enc` archives.
-Losing it makes those archives unusable and does not release ownership.
-
-After an authorized init, `schedule` installs the launchd interval. The default
-is 900 seconds, not a accumulated tick budget. The scheduler works while the
-user is logged into macOS, independently of an open Desktop app or terminal.
-`unschedule` removes that schedule. Inspect command failures before retrying;
-bootstrap may have left the plist in place.
-
-`configure --WORK_IN_PROGRESS_LIMIT N --MAX_STARTS_PER_ACTIVATION N
---SESSION_RETENTION_DAYS N --SCHEDULE_SECONDS N` updates supplied fields only.
-Defaults are 1, 1, 5 and 900. WIP may be zero; other settings must be positive
-integers. After changing the interval, unschedule and schedule to apply the new
-launchd definition. `tick` runs one bounded activation under the same lock.
-
-## Status, replies and cancellation
-
-`status` returns repository, enabled state, and each delivery's issue and native
-identity. `cancel DELIVERY_UUID` stops that delivery's process group and retains
-its claim. `revoke` disables future admissions and continuations. These commands
-do not undo GitHub effects, commits, pushes or PRs.
-
-An authorized repository writer answers a question with an issue comment:
+## Configure and schedule a worker
 
 ```text
-/artificer reply DELIVERY_UUID QUESTION_UUID
-The complete answer, preserved including whitespace and newlines.
+init --repository OWNER/REPO --checkout PATH --host codex|claude --authorize-recurring-delivery [--issue NUMBER ...]
 ```
 
-Ordinary discussion is inert. Multiple competing authorized replies need human
-resolution; do not pick one. After access is restored, a stopped delivery needs
-an explicit issue comment `/artificer resume DELIVERY_UUID` before continuation.
-No scheduled retry happens merely because account access or allowance returns.
+The checkout resolves to the primary repository through Git's worktree listing.
+Origin must match the authorized GitHub repository. The grantor needs write
+access. Omitted issue scope means all eligible writer-nominated `artificer:ready`
+issues. The initial recipe is always `ticket-to-pr`.
 
-## Recovery
+Require that recipe, Adaptive Goal, verification and review in the host. Optional
+plugins are neither required nor copied. Use the existing configured model,
+authentication and plugin profile; Artificer does not select billing providers.
 
-Inspect the saved delivery, native process identity, worktree, branch, commits,
-remote branch and PR. Do not repeat an uncertain publication. Missing or expired
-archives, corrupt state and missing owner identity keep the claim occupied.
+Run `init` with a different state path to add another worker to the same
+repository. Host selection and WIP are shared. Each worker runs one ticket at a
+time; an open PR can hold WIP after its worker moves on.
 
-`recover DELIVERY_UUID --thread NATIVE_THREAD_UUID`
-binds inspected native records only after execution ends. It does not launch
-anything, change the owner, release a claim, or grant new effects. An explicit
-human resume comment is still required. If the original owner is unavailable,
-report human recovery required; a fresh summary-driven agent is not restoration.
+```text
+configure [--WORK_IN_PROGRESS_LIMIT N] [--SCHEDULE_SECONDS N]
+```
 
-Earlier separate-parent/owner records cannot be resumed by this version.
-Preserve them and reconcile through their original installation. Do not relabel
-the old child as a main thread, alter its route or remove its claim.
+WIP defaults to one and accepts nonnegative integers. Zero pauses new admission.
+The schedule defaults to 900 seconds and accepts positive integers. Lowering WIP
+does not cancel existing deliveries. `tick` performs one admission/reconciliation
+activation and starts at most one delivery for this worker.
+
+After explicit recurring authorization, `schedule` installs a launchd interval.
+`unschedule` removes it. After changing the interval, unschedule and schedule to
+apply the new definition. It runs without an open terminal or Desktop. Inspect
+partial launchd failures before retrying.
+
+## Inspect, cancel and revoke
+
+`status` shows this worker's repository, enabled state, host, shared WIP and
+delivery records: issue, original session, attempts, PR, detail and next action.
+
+`cancel DELIVERY_UUID` stops only that delivery's identified process group.
+Capacity is released on reconciliation only when execution has ended and no
+open delivery PR exists. Missing execution/publication evidence retains it.
+Worktrees, branches and published effects are preserved.
+Cancelling resumable released work makes that delivery terminal without taking
+capacity or changing issue/PR ownership.
+
+`revoke` prevents this worker's future admissions and continuations. It does not
+cancel already running work or revoke other workers.
+
+## Native recovery
+
+```text
+recover DELIVERY_UUID --thread ORIGINAL_NATIVE_SESSION_ID
+```
+
+Inspect the original session, process group, worktree, branch and any PR first.
+This explicit operation resumes that exact session; it never binds a replacement
+identity. Running, revoked and unknown-session deliveries are refused.
+Recovery also refuses another active or uncertain delivery in the same worker.
+Never repeat uncertain publication or use a fresh summary-based owner.
+For confirmed unfinished released work, recovery reacquires shared WIP and issue
+ownership under the repository lock. It rechecks writer authority, grant/scope,
+publication and conflicts before launch. WIP zero/full, another delivery owning
+the issue, completed/cancelled work and historical records with unknown recovery
+eligibility are refused. Resolving a missing-intent blocker outside Artificer
+does not automatically resume it; use this explicit command with the original ID.
+
+Recovery is limited to two attempts per technical interruption, including explicit
+recovery. An exhausted incident requires inspection in the original host session.
+Repeated immediate failure uses the same budget. Successful completion of a
+native turn resets it; successful tools, incidental reads and diagnostics do not.
+This bounds execution interruptions, not attempts at an engineering operation
+inside a healthy turn. Product/specification questions stop and are reported on the source
+issue for preparation elsewhere. Source-issue comments do not resume work.
+
+Codex requires observed native goal completion before accepting delivery success.
+Claude must enter its owner-prepared `/goal` before a PR completion report, but
+its supported stream has no independent goal completion evidence. Such PRs are
+retained, marked owned and reported as needing attention. Inspect the original
+Claude session; a valid PR or model completion report alone cannot clear this gap.
+
+Legacy archive installations and unavailable native state require human
+reconciliation. Preserve their claims, original state and effects; no archive
+restoration, expiry, automatic migration or claim deletion is provided.

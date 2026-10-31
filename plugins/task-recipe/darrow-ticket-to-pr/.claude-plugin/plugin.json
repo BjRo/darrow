@@ -1,7 +1,7 @@
 {
   "name": "darrow-ticket-to-pr",
   "description": "Delegate one ticket to Adaptive Goal: new branch, TDD, one PR and green required CI",
-  "version": "0.6.3",
+  "version": "0.7.0",
   "license": "BUSL-1.1",
   "author": {
     "name": "Björn Rochel",

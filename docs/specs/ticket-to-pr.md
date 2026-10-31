@@ -37,8 +37,8 @@ activate this orchestration recipe implicitly.
 
 ### Authorized unattended entry
 
-This local unattended execution entry supports Codex CLI, not Claude Code.
-Explicit human invocation remains available on both hosts.
+The local unattended entry supports Claude Code and Codex. Both use their
+existing profiles and the original native session.
 
 An unattended adapter may invoke the recipe once for one reserved issue under an
 explicit saved recurring human grant. Its host-supplied receipt must identify
@@ -52,10 +52,10 @@ Preserve the receipt and reserved worktree/branch in the one adaptive-goal
 delegation. The adapter has already reserved ownership; the recipe does not
 repeat admission. All existing readiness, main-thread ownership, verification
 and publication requirements still apply. The main thread returns its questions
-and results to the local adapter, which owns GitHub question transport.
-Authorized replies resume that same thread and its retained preflight or native
-goal without recipe reinvocation. Missing authority or unavailable native
-continuation remains a blocker.
+and results to the local adapter. Missing product intent or specification stops
+delivery for preparation outside Artificer. Technical recovery resumes the same
+native session without recipe reinvocation. Missing authority or unavailable
+native continuation remains a blocker.
 
 Explicit invocation names this recipe as the requested shortcut. An ordinary
 request describing the same delivery outcome does not grant recipe authority,
@@ -229,7 +229,8 @@ despite that unresolved prerequisite.
   optional capabilities only by host-advertised intent.
 - **TPR-P2 — Dual-host semantics.** For explicit human invocation, Claude Code
   and Codex expose the same input, authority, delegation, feedback, and completion
-  behavior. Local unattended execution uses the Codex-only entry above.
+  behavior. The local unattended entry also supports both hosts, with product
+  questions returned as blockers rather than an unattended human-answer loop.
 - **TPR-P3 — No runtime.** The plugin ships no controller, ledger, queue,
   lifecycle hooks, retry state, Git/forge implementation, or background work.
 

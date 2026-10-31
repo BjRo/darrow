@@ -1,4 +1,6 @@
 import json
+import os
+import shlex
 import subprocess
 import sys
 import threading
@@ -9,11 +11,11 @@ from typing import cast
 
 import pytest
 
-from darrow_artificer import operations, rpc, worker
+from conftest import existing
+from darrow_artificer import codex, operations, rpc
 from darrow_artificer.installation import Installation
 from darrow_artificer.models import Claim
 from darrow_artificer.rpc import Rpc
-from test_admission import existing
 
 
 def prepare_host(
@@ -25,15 +27,20 @@ def prepare_host(
     installation.save(claim)
     home = installation.delivery_dir(claim.id) / "native"
     home.mkdir()
+    os.environ["CODEX_HOME"] = str(home)
     executable = installation.root / "codex-fixture"
+    script = installation.root / "codex-fixture.py"
+    script.write_text(Path(__file__).with_name("app_server_stub.py").read_text())
     executable.write_text(
-        f"#!{sys.executable}\n"
-        + Path(__file__).with_name("app_server_stub.py").read_text()
+        "#!/bin/sh\nunset COVERAGE_PROCESS_CONFIG COVERAGE_PROCESS_START\nexec "
+        + shlex.quote(sys.executable)
+        + " "
+        + shlex.quote(str(script))
+        + ' "$@"\n'
     )
     executable.chmod(0o700)
     grant = installation.grant
-    grant.codex = str(executable)
-    grant.model = "gpt-6-sol"
+    grant.executable = str(executable)
     installation.save_grant(grant)
     return claim, home
 
@@ -42,7 +49,7 @@ def test_native_continuation_preserves_identity_before_first_turn(
     installation: Installation,
 ) -> None:
     claim, home = prepare_host(installation)
-    events, output = worker.execute(installation, claim, home)
+    events, output = execute(installation, claim, home)
     assert json.loads(output.read_text())["pr"] == 9
     assert installation.claim(claim.id).native is not None
     evidence = [json.loads(line) for line in events.read_text().splitlines()]
@@ -58,15 +65,13 @@ def test_native_question_and_same_thread_answer(installation: Installation) -> N
     claim = installation.claims()[0]
     home = installation.delivery_dir(claim.id) / "native"
     (home / "scenario").write_text("question")
-    claim.pending_answer = "Continue with the retained task."
-    _, output = worker.execute(installation, claim, home)
+    _, output = execute(installation, claim, home)
     outcome = json.loads(output.read_text())
     assert outcome["status"] == "question"
     assert "Choose a color?" in outcome["question"]
     assert "Violet" in outcome["question"]
-    claim.pending_answer = "  violet\nKeep these bytes.\n"
     (home / "scenario").write_text("reply")
-    events, output = worker.execute(installation, claim, home)
+    events, output = execute(installation, claim, home)
     messages = [json.loads(line) for line in events.read_text().splitlines()]
     resumes = [
         message for message in messages if message.get("method") == "thread/resume"
@@ -82,8 +87,7 @@ def test_text_question_while_goal_active(
     claim = installation.claims()[0]
     home = installation.delivery_dir(claim.id) / "native"
     (home / "scenario").write_text("text-question")
-    claim.pending_answer = "Continue the retained task."
-    _, output = worker.execute(installation, claim, home)
+    _, output = execute(installation, claim, home)
     assert json.loads(output.read_text())["question"] == "Choose a scope?"
 
 
@@ -94,9 +98,8 @@ def test_fatal_error_during_result_capture_never_reports_completion(
     claim = installation.claims()[0]
     home = installation.delivery_dir(claim.id) / "native"
     (home / "scenario").write_text("fatal")
-    claim.pending_answer = "Continue the retained task."
     with pytest.raises(RuntimeError, match="Access expired"):
-        worker.execute(installation, claim, home)
+        execute(installation, claim, home)
 
 
 def message(method: str, **params: object) -> dict[str, object]:
@@ -117,7 +120,7 @@ def message(method: str, **params: object) -> dict[str, object]:
                     }
                 }
             },
-            "route",
+            "identity",
         ),
         (
             {
@@ -250,9 +253,8 @@ def test_protocol_refusals_preserve_original_identity(
     original = claim.native
     home = installation.delivery_dir(claim.id) / "native"
     (home / "overrides.json").write_text(json.dumps(overrides))
-    claim.pending_answer = "Continue only the original task."
     with pytest.raises((ValueError, RuntimeError), match=expected):
-        worker.execute(installation, claim, home)
+        execute(installation, claim, home)
     assert installation.claim(claim.id).native == original
 
 
@@ -282,8 +284,7 @@ def test_child_events_and_retriable_host_errors_do_not_complete_root(
             }
         )
     )
-    claim.pending_answer = "Continue the original task."
-    _, output = worker.execute(installation, claim, home)
+    _, output = execute(installation, claim, home)
     assert json.loads(output.read_text())["pr"] == 9
 
 
@@ -292,13 +293,12 @@ def test_host_exit_preserves_thread_and_diagnostics(installation: Installation) 
     claim = installation.claims()[0]
     home = installation.delivery_dir(claim.id) / "native"
     grant = installation.grant
-    grant.codex = "/usr/bin/false"
+    grant.executable = "/usr/bin/false"
     installation.save_grant(grant)
-    claim.pending_answer = "Continue the original task."
     with pytest.raises((BrokenPipeError, RuntimeError)):
-        worker.execute(installation, claim, home)
+        execute(installation, claim, home)
     assert installation.claim(claim.id).native == claim.native
-    assert list(home.parent.glob("*-stderr"))
+    assert list(home.parent.glob("*.stderr"))
 
 
 @pytest.mark.parametrize(
@@ -342,9 +342,8 @@ def test_malformed_completion_is_retained_as_failure(
             }
         )
     )
-    claim.pending_answer = "Continue the original task."
     with pytest.raises(ValueError, match=expected):
-        worker.execute(installation, claim, home)
+        execute(installation, claim, home)
 
 
 def test_simple_native_question_without_options(installation: Installation) -> None:
@@ -368,8 +367,7 @@ def test_simple_native_question_without_options(installation: Installation) -> N
             }
         )
     )
-    claim.pending_answer = "Continue the original task."
-    _, output = worker.execute(installation, claim, home)
+    _, output = execute(installation, claim, home)
     assert json.loads(output.read_text())["question"] == "What scope?"
 
 
@@ -381,15 +379,14 @@ def test_preflight_resume_empty_goal_snapshot_is_not_goal_loss(
     (home / "overrides.json").write_text(
         json.dumps({"responses": {"thread/goal/get": {"goal": None}}})
     )
-    _, output = worker.execute(installation, claim, home)
+    _, output = execute(installation, claim, home)
     assert json.loads(output.read_text())["status"] == "question"
     claim = installation.claim(claim.id)
-    claim.pending_answer = "Violet"
     (home / "scenario").write_text("complete")
     (home / "overrides.json").write_text(
         json.dumps({"before": {"thread/resume": [message("thread/goal/cleared")]}})
     )
-    _, output = worker.execute(installation, claim, home)
+    _, output = execute(installation, claim, home)
     assert json.loads(output.read_text())["status"] == "pr-open"
 
 
@@ -415,7 +412,7 @@ def test_fatal_event_buffered_after_result_prevents_completion(
         )
     )
     with pytest.raises(RuntimeError, match="Buffered fatal error"):
-        worker.execute(installation, claim, home)
+        execute(installation, claim, home)
     assert not list(home.parent.glob("*-result.json"))
 
 
@@ -447,7 +444,7 @@ def test_revocation_serializes_with_native_turn_submission(
 
     monkeypatch.setattr(Rpc, "call", at_submission)
     try:
-        worker.execute(installation, claim, home)
+        execute(installation, claim, home)
     finally:
         revoker.join(timeout=2)
     assert finished.is_set()
@@ -463,10 +460,9 @@ def test_revoked_grant_cannot_resume_a_native_thread(
     grant = installation.grant
     grant.enabled = False
     installation.save_grant(grant)
-    claim.pending_answer = "Continue the original task."
     before = set(home.parent.glob("*-events.jsonl"))
     with pytest.raises(ValueError, match="cancelled or revoked"):
-        worker.execute(installation, claim, home)
+        execute(installation, claim, home)
     (events,) = set(home.parent.glob("*-events.jsonl")) - before
     methods = [
         json.loads(line).get("method") for line in events.read_text().splitlines()
@@ -489,7 +485,7 @@ def test_unresponsive_host_is_stopped_after_result(
         return original(self, 0.05 if timeout == 10 else timeout)
 
     monkeypatch.setattr(subprocess.Popen, "wait", short_wait)
-    _, output = worker.execute(installation, claim, home)
+    _, output = execute(installation, claim, home)
     assert json.loads(output.read_text())["status"] == "pr-open"
 
 
@@ -528,7 +524,7 @@ def test_later_native_question_takes_precedence_over_captured_response(
             }
         )
     )
-    _, output = worker.execute(installation, claim, home)
+    _, output = execute(installation, claim, home)
     assert json.loads(output.read_text())["question"] == "Confirm the revised scope?"
     assert installation.claim(claim.id).goal_objective == "Deliver the bounded task"
 
@@ -541,8 +537,7 @@ def test_feedback_can_join_resumed_native_turn_without_schema_override(
     home = installation.delivery_dir(claim.id) / "native"
     (home / "scenario").write_text("reply")
     (home / "overrides.json").write_text(json.dumps({"active_schema_none": True}))
-    claim.pending_answer = "  violet\nKeep these bytes.\n"
-    events, output = worker.execute(installation, claim, home)
+    events, output = execute(installation, claim, home)
     assert json.loads(output.read_text())["status"] == "pr-open"
     attempts = [json.loads(row) for row in events.read_text().splitlines()]
     assert len([row for row in attempts if row.get("method") == "turn/start"]) == 1
@@ -568,7 +563,7 @@ def test_healthy_native_continuation_can_exceed_one_hour(
         return result
 
     monkeypatch.setattr(Rpc, "call", advance_after_submission)
-    events, output = worker.execute(installation, claim, home)
+    events, output = execute(installation, claim, home)
     assert elapsed[0] > 3600
     assert json.loads(output.read_text())["status"] == "pr-open"
     observed = [json.loads(row) for row in events.read_text().splitlines()]
@@ -590,5 +585,19 @@ def test_individual_protocol_request_still_has_a_timeout(
 
     monkeypatch.setattr(Rpc, "send", limit_goal_request)
     with pytest.raises(TimeoutError, match="observation timed out"):
-        worker.execute(installation, claim, home)
+        execute(installation, claim, home)
     assert installation.claim(claim.id).native is not None
+
+
+@pytest.fixture(autouse=True)
+def profile_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path / "configured-native-profile"))
+
+
+def execute(site: Installation, claim: Claim, home: Path) -> tuple[Path, Path]:
+    before = set(home.parent.glob("*-events.jsonl"))
+    result = codex.execute(site, claim)
+    output = home.parent / "fixture-result.json"
+    output.write_text(result.model_dump_json())
+    events = set(home.parent.glob("*-events.jsonl")) - before
+    return events.pop(), output
