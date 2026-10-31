@@ -19,7 +19,7 @@ fail() {
 
 is_excluded() {
   case "$1" in
-    darrow-ticket-pipeline|darrow-observability-langfuse) return 0 ;;
+    darrow-ticket-pipeline) return 0 ;;
     *) return 1 ;;
   esac
 }
