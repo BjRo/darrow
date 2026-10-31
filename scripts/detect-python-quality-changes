@@ -89,42 +89,42 @@ else
 fi
 
 if [ "$select_all" = false ]; then
-  paths=$(git -C "$repo_root" diff --name-only --no-renames "$base" "$head") || {
-    echo "error: unable to list changed paths" >&2
-    exit 1
-  }
-  while IFS= read -r path; do
-    [ -n "$path" ] || continue
-    case "$path" in
-      docs|docs/*) continue ;;
-    esac
-    name=${path##*/}
-    normalized_name=$(printf '%s' "$name" | tr '[:upper:]' '[:lower:]')
-    case "$normalized_name" in
-      readme|readme.*) continue ;;
-    esac
-    case "$path" in
-      plugins/*) ;;
-      *) installed_pin_required=true ;;
-    esac
-  done <<EOF
-$paths
-EOF
-fi
+  if changed package.json bun.lock bunfig.toml tsconfig.json sevro.json python-packages.txt \
+    scripts/setup-sevro-linux ':(glob)scripts/**/*.ts' evals \
+    .agents/skills/darrow-guide .claude/skills/darrow-guide \
+    plugins/capability/darrow-discovery plugins/capability/darrow-git \
+    plugins/capability/darrow-readiness-gate plugins/capability/darrow-review \
+    plugins/capability/darrow-tdd plugins/capability/darrow-tickets \
+    plugins/capability/darrow-verification plugins/foundation/darrow-skill-authoring \
+    plugins/orchestration/darrow-adaptive-goal plugins/orchestration/darrow-ticket-pipeline \
+    plugins/task-recipe/darrow-ticket-to-pr; then
+    installed_pin_required=true
+  fi
 
-shared=$select_all
-if [ "$shared" = false ] && changed \
-  .github/workflows/python-quality.yml \
-  python-packages.txt \
-  scripts/check-python \
-  scripts/check-python-inventory \
-  scripts/detect-python-quality-changes \
-  scripts/test-python-coverage \
-  scripts/test-python-inventory \
-  scripts/test-python-quality-changes \
-  scripts/verify-python-coverage \
-  scripts/verify-python-quality-results; then
-  shared=true
+  # Scope-only workflow edits are exercised by the selector tests. Changes to
+  # the job, its setup, or the workflow triggers still exercise the pin.
+  workflow=.github/workflows/sevro-integration.yml
+  if changed "$workflow"; then
+    scope_tmp=$(mktemp -d "${TMPDIR:-/tmp}/darrow-sevro-scope.XXXXXX")
+    trap 'rm -rf "$scope_tmp"' EXIT HUP INT TERM
+    for side in base head; do
+      if [ "$side" = base ]; then revision=$base; else revision=$head; fi
+      if ! git -C "$repo_root" show "$revision:$workflow" >"$scope_tmp/workflow" 2>/dev/null; then
+        installed_pin_required=true
+        break
+      fi
+      awk '
+        /^  changes:$/ { scope = 1; next }
+        scope && /^  [a-zA-Z0-9_-]+:$/ { scope = 0 }
+        !scope { print }
+      ' "$scope_tmp/workflow" >"$scope_tmp/$side"
+    done
+    if [ "$installed_pin_required" = false ] && ! cmp -s "$scope_tmp/base" "$scope_tmp/head"; then
+      installed_pin_required=true
+    fi
+    rm -rf "$scope_tmp"
+    trap - EXIT HUP INT TERM
+  fi
 fi
 
 packages_json='[]'
@@ -149,7 +149,11 @@ while IFS= read -r package; do
   esac
   seen_packages="$seen_packages$package|"
 
-  selected=$shared
+  if [ "$select_all" = false ] && changed "$package/pyproject.toml" "$package/uv.lock"; then
+    installed_pin_required=true
+  fi
+
+  selected=$select_all
   if [ "$selected" = false ]; then
     root=$(plugin_root "$package")
     if changed "$root" ':(exclude,icase)**/README' ':(exclude,icase)**/README.*'; then

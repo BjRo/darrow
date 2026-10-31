@@ -5,6 +5,7 @@ repo_root=$(git rev-parse --show-toplevel)
 detector="$repo_root/scripts/detect-python-quality-changes"
 verifier="$repo_root/scripts/verify-python-quality-results"
 sevro_workflow="$repo_root/.github/workflows/sevro-integration.yml"
+python_workflow="$repo_root/.github/workflows/python-quality.yml"
 # shellcheck disable=SC2016
 expected_output_ref='installed_pin_required: ${{ steps.scopes.outputs.installed_pin_required }}'
 if ! grep -Fq "$expected_output_ref" "$sevro_workflow" ||
@@ -23,6 +24,8 @@ git -C "$fixture" config user.email test@example.com
 git -C "$fixture" config user.name "Darrow Tests"
 mkdir -p "$fixture/scripts"
 cp "$detector" "$fixture/scripts/detect-python-quality-changes"
+mkdir -p "$fixture/.github/workflows"
+cp "$sevro_workflow" "$fixture/.github/workflows/sevro-integration.yml"
 chmod +x "$fixture/scripts/detect-python-quality-changes"
 cat >"$fixture/python-packages.txt" <<'EOF'
 plugins/capability/darrow-discovery/skills/work-through-decisions/backend
@@ -98,6 +101,40 @@ if ! grep -Fq 'packages=[]' "$fixture/.git/workflow-output"; then
   exit 1
 fi
 
+# A base branch can advance independently of the PR. Neither workflow should
+# select the base-only plugin or unrelated installed-pin checks for the PR.
+git -C "$fixture" reset -q --hard "$base"
+mkdir -p "$fixture/plugins/foundation/darrow-skill-authoring/backend"
+printf '%s\n' content >"$fixture/plugins/foundation/darrow-skill-authoring/backend/base.py"
+printf '%s\n' content >"$fixture/sevro.json"
+git -C "$fixture" add .
+git -C "$fixture" commit -qm 'test: advance base independently'
+advanced_base=$(git -C "$fixture" rev-parse HEAD)
+git -C "$fixture" reset -q --hard "$base"
+mkdir -p "$fixture/plugins/capability/darrow-verification/backend"
+printf '%s\n' content >"$fixture/plugins/capability/darrow-verification/backend/pr.py"
+git -C "$fixture" add .
+git -C "$fixture" commit -qm 'test: change PR plugin'
+pr_head=$(git -C "$fixture" rev-parse HEAD)
+
+for workflow in "$sevro_workflow" "$python_workflow"; do
+  awk '
+    /^  changes:$/ { in_changes = 1 }
+    in_changes && /^        run: \|$/ { in_run = 1; next }
+    in_run && /^$/ { print; next }
+    in_run && /^          / { sub(/^          /, ""); print; next }
+    in_run { exit }
+  ' "$workflow" >"$scope_script"
+  [ -s "$scope_script" ] || { echo "error: missing scope block in $workflow" >&2; exit 1; }
+  run_workflow_scope pull_request '' "$advanced_base" "$docs_head" false
+  run_workflow_scope pull_request '' "$advanced_base" "$pr_head" true
+  if ! grep -Fxq 'packages=["plugins/capability/darrow-verification/backend"]' "$fixture/.git/workflow-output"; then
+    echo "error: $workflow selected base-only plugin changes" >&2
+    cat "$fixture/.git/workflow-output" >&2
+    exit 1
+  fi
+done
+
 git -C "$fixture" reset -q --hard "$base"
 git -C "$fixture" clean -qfdx
 mkdir -p "$fixture/plugins/capability/darrow-verification/backend" "$fixture/docs"
@@ -106,7 +143,7 @@ printf '%s\n' content >"$fixture/docs/event.md"
 git -C "$fixture" add .
 git -C "$fixture" commit -qm 'test: mixed plugin and documentation event'
 mixed_head=$(git -C "$fixture" rev-parse HEAD)
-run_workflow_scope push "$base" "$base" "$mixed_head" false
+run_workflow_scope push "$base" "$base" "$mixed_head" true
 if ! grep -Fq 'packages=["plugins/capability/darrow-verification/backend"]' \
   "$fixture/.git/workflow-output"; then
   echo 'error: mixed plugin/docs push lost the affected Python package' >&2
@@ -120,7 +157,7 @@ printf '%s\n' content >"$fixture/outside/event.txt"
 git -C "$fixture" add .
 git -C "$fixture" commit -qm 'test: outside event'
 outside_head=$(git -C "$fixture" rev-parse HEAD)
-run_workflow_scope push "$base" "$base" "$outside_head" true
+run_workflow_scope push "$base" "$base" "$outside_head" false
 
 expect_scope() {
   path=$1
@@ -128,7 +165,11 @@ expect_scope() {
   git -C "$fixture" reset -q --hard "$base"
   git -C "$fixture" clean -qfdx
   mkdir -p "$(dirname "$fixture/$path")"
-  printf '%s\n' changed >"$fixture/$path"
+  if [ "$path" = scripts/detect-python-quality-changes ]; then
+    printf '%s\n' '# changed' >>"$fixture/$path"
+  else
+    printf '%s\n' changed >"$fixture/$path"
+  fi
   git -C "$fixture" add "$path"
   git -C "$fixture" commit -qm "test: change $path"
   actual=$(cd "$fixture" && scripts/detect-python-quality-changes "$base" HEAD | sed '/^installed_pin_required=/d')
@@ -203,19 +244,51 @@ verification=false'
 expect_pin_for_path docs/specs/python-quality.md false
 expect_pin_for_path README.md false
 expect_pin_for_path readme.rst false
-expect_pin_for_path plugins/foundation/darrow-skill-authoring/README.md false
-expect_pin_for_path plugins/foundation/darrow-skill-authoring/readme.txt false
-expect_pin_for_path plugins/capability/darrow-verification/skills/verify-change/SKILL.md false
-expect_pin_for_path plugins/capability/darrow-verification/skills/verify-change/evals/case.yaml false
-expect_pin_for_path scripts/check-python true
-expect_pin_for_pair plugins/capability/darrow-verification/backend/example.py docs/note.md false
+expect_pin_for_path plugins/foundation/darrow-skill-authoring/README.md true
+expect_pin_for_path plugins/capability/darrow-verification/skills/verify-change/SKILL.md true
+expect_pin_for_path plugins/capability/darrow-verification/skills/verify-change/evals/case.yaml true
+expect_pin_for_path scripts/check-python false
+expect_pin_for_path scripts/setup-sevro-linux true
+expect_pin_for_path scripts/example.ts true
+expect_pin_for_path evals/domain/example.test.ts true
+expect_pin_for_path package.json true
+expect_pin_for_path bun.lock true
+expect_pin_for_path bunfig.toml true
+expect_pin_for_path tsconfig.json true
+expect_pin_for_path sevro.json true
+expect_pin_for_path plugins/capability/unrelated/backend/example.py false
+for plugin in \
+  capability/darrow-discovery capability/darrow-git capability/darrow-readiness-gate \
+  capability/darrow-review capability/darrow-tdd capability/darrow-tickets \
+  capability/darrow-verification foundation/darrow-skill-authoring \
+  orchestration/darrow-adaptive-goal orchestration/darrow-ticket-pipeline \
+  task-recipe/darrow-ticket-to-pr; do
+  expect_pin_for_path "plugins/$plugin/example.py" true
+done
+expect_pin_for_pair plugins/capability/darrow-verification/backend/example.py docs/note.md true
+
+git -C "$fixture" reset -q --hard "$base"
+sed 's/Select installed-pin scope/Select pin scope/' "$sevro_workflow" >"$fixture/.github/workflows/sevro-integration.yml"
+git -C "$fixture" add .github/workflows/sevro-integration.yml
+git -C "$fixture" commit -qm 'test: change only scope job'
+scope_only=$(cd "$fixture" && scripts/detect-python-quality-changes "$base" HEAD)
+case "$scope_only" in *'installed_pin_required=false'*) ;; *)
+  printf 'error: scope-only workflow change selected installed pin\n' >&2; exit 1 ;;
+esac
+sed 's/timeout-minutes: 30/timeout-minutes: 31/' "$sevro_workflow" >"$fixture/.github/workflows/sevro-integration.yml"
+git -C "$fixture" add .github/workflows/sevro-integration.yml
+git -C "$fixture" commit -qm 'test: change installed job'
+job_change=$(cd "$fixture" && scripts/detect-python-quality-changes "$base" HEAD)
+case "$job_change" in *'installed_pin_required=true'*) ;; *)
+  printf 'error: installed job change skipped installed pin\n' >&2; exit 1 ;;
+esac
 
 git -C "$fixture" reset -q --hard "$base"
 git -C "$fixture" rm -q outside/tracked.txt
 git -C "$fixture" commit -qm 'test: delete outside file'
 deleted_outside=$(cd "$fixture" && scripts/detect-python-quality-changes "$base" HEAD)
-case "$deleted_outside" in *'installed_pin_required=true'*) ;; *)
-  printf 'error: deleting an outside file skipped installed pin\n' >&2
+case "$deleted_outside" in *'installed_pin_required=false'*) ;; *)
+  printf 'error: deleting an unrelated file selected installed pin\n' >&2
   exit 1
   ;;
 esac
@@ -230,8 +303,8 @@ mkdir -p "$fixture/plugins/capability/darrow-verification/backend"
 git -C "$fixture" mv docs/moving.md plugins/capability/darrow-verification/backend/moving.md
 git -C "$fixture" commit -qm 'test: move docs into plugin'
 rename_into=$(cd "$fixture" && scripts/detect-python-quality-changes "$base" HEAD)
-case "$rename_into" in *'installed_pin_required=false'*) ;; *)
-  printf 'error: rename into plugin content selected installed pin\n' >&2
+case "$rename_into" in *'installed_pin_required=true'*) ;; *)
+  printf 'error: rename into plugin content skipped installed pin\n' >&2
   exit 1
   ;;
 esac
@@ -287,13 +360,44 @@ package_selected=true
 skill_authoring=false
 discovery=false
 verification=true'
-expect_scope \
-  scripts/check-python \
-  'packages=["plugins/capability/darrow-discovery/skills/work-through-decisions/backend","plugins/capability/darrow-verification/backend","plugins/foundation/darrow-skill-authoring/backend"]
-package_selected=true
-skill_authoring=true
-discovery=true
-verification=true'
+for path in .github/workflows/python-quality.yml \
+  scripts/check-python scripts/check-python-inventory scripts/detect-python-quality-changes \
+  scripts/test-python-coverage scripts/test-python-inventory scripts/test-python-quality-changes \
+  scripts/verify-python-coverage scripts/verify-python-quality-results; do
+  expect_scope "$path" 'packages=[]
+package_selected=false
+skill_authoring=false
+discovery=false
+verification=false'
+done
+
+git -C "$fixture" reset -q --hard "$base"
+git -C "$fixture" clean -qfdx
+printf '%s\n' '# inventory comment' >>"$fixture/python-packages.txt"
+git -C "$fixture" add python-packages.txt
+git -C "$fixture" commit -qm 'test: change package inventory'
+inventory_scope=$(cd "$fixture" && scripts/detect-python-quality-changes "$base" HEAD)
+case "$inventory_scope" in
+  *'packages=[]'*) ;;
+  *) printf 'error: inventory change selected plugins\n%s\n' "$inventory_scope" >&2; exit 1 ;;
+esac
+case "$inventory_scope" in
+  *'installed_pin_required=true'*) ;;
+  *) printf 'error: inventory change skipped installed pin\n%s\n' "$inventory_scope" >&2; exit 1 ;;
+esac
+
+git -C "$fixture" reset -q --hard "$base"
+git -C "$fixture" clean -qfdx
+mkdir -p "$fixture/plugins/capability/darrow-verification/backend" "$fixture/scripts"
+printf '%s\n' changed >"$fixture/plugins/capability/darrow-verification/backend/change.py"
+printf '%s\n' changed >"$fixture/scripts/check-python"
+git -C "$fixture" add .
+git -C "$fixture" commit -qm 'test: change a plugin and shared infrastructure'
+mixed=$(cd "$fixture" && scripts/detect-python-quality-changes "$base" HEAD)
+case "$mixed" in
+  *'packages=["plugins/capability/darrow-verification/backend"]'*) ;;
+  *) printf 'error: mixed infrastructure/plugin change selected the wrong packages\n%s\n' "$mixed" >&2; exit 1 ;;
+esac
 
 all=$(cd "$fixture" && scripts/detect-python-quality-changes --all | sed '/^installed_pin_required=/d')
 if [ "$all" != 'packages=["plugins/capability/darrow-discovery/skills/work-through-decisions/backend","plugins/capability/darrow-verification/backend","plugins/foundation/darrow-skill-authoring/backend"]
@@ -319,6 +423,14 @@ printf '%s\n' '[project]' 'name = "darrow-third"' > \
 git -C "$fixture" add .
 git -C "$fixture" commit -qm 'test: register third Python package'
 third_base=$(git -C "$fixture" rev-parse HEAD)
+printf '%s\n' '# updated package' >>"$fixture/plugins/capability/darrow-third/backend/pyproject.toml"
+git -C "$fixture" add .
+git -C "$fixture" commit -qm 'test: change registered package metadata'
+third_metadata=$(cd "$fixture" && scripts/detect-python-quality-changes "$third_base" HEAD)
+case "$third_metadata" in *'installed_pin_required=true'*) ;; *)
+  printf 'error: registered package metadata skipped installed pin\n' >&2; exit 1 ;;
+esac
+git -C "$fixture" reset -q --hard "$third_base"
 printf '%s\n' changed >"$fixture/plugins/capability/darrow-third/README.md"
 git -C "$fixture" add .
 git -C "$fixture" commit -qm 'test: change third Python package'

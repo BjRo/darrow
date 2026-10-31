@@ -41,7 +41,8 @@ jobs:
           fi
 
           if [ "$EVENT_NAME" = pull_request ]; then
-            scripts/detect-python-quality-changes "$BASE_SHA" "$HEAD_SHA" >>"$GITHUB_OUTPUT"
+            merge_base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+            scripts/detect-python-quality-changes "$merge_base" "$HEAD_SHA" >>"$GITHUB_OUTPUT"
             exit 0
           fi
 
