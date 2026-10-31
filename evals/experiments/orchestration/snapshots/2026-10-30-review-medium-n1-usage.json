@@ -1,0 +1,1990 @@
+{
+  "format": "darrow-current-value-native-usage-v1",
+  "reconstruction": {
+    "script": "evals/experiments/orchestration/recover-value-usage.ts",
+    "sha256": "850fab11c99108cff5851240de45ea149b91a0ed8790085a87b64a44ffe1be66"
+  },
+  "sourceSnapshot": {
+    "path": "/Users/bjro/Sources/darrow/evals/experiments/orchestration/snapshots/2026-10-30-review-medium-n1.json",
+    "sha256": "bc1465b0b805a694d57208887e8a55d78af18b8dca36746480a58fe12a212dd9"
+  },
+  "pricing": {
+    "date": "2026-10-30",
+    "source": "https://developers.openai.com/api/docs/pricing",
+    "basis": "Standard short-context API equivalent; not a Codex subscription charge",
+    "ratesPerMillionTokens": {
+      "gpt-6.1-sol": {
+        "input": 2,
+        "cached": 0.1,
+        "output": 10
+      },
+      "gpt-6-luna": {
+        "input": 0.1,
+        "cached": 0.01,
+        "output": 0.5
+      }
+    },
+    "cacheWritesObserved": 0,
+    "longContextRequestsObserved": 0,
+    "maxPromptInputTokensObserved": 100728
+  },
+  "methodology": "Final cumulative counters once per distinct retained session; include parent and delegates. Each cumulative increment is reconciled with per-request usage. Cached input and reasoning output are subsets. Partial bundles remain lower bounds. Original Sevro usage fields are unchanged.",
+  "aggregates": [
+    {
+      "track": "implementation",
+      "mode": "vanilla",
+      "sessionGroups": [
+        {
+          "model": "gpt-6.1-sol",
+          "depth": 0,
+          "observedSessions": 4,
+          "meanObservedTokens": 413974.75,
+          "meanStandardApiEquivalentUsd": 0.1872075
+        }
+      ],
+      "mainThreadUsage": {
+        "meanRequestsPerTask": 11.75,
+        "meanPromptInput": 34810.51063829787
+      },
+      "attempts": 4,
+      "completeness": "complete",
+      "meanSeconds": 132.22041831274998,
+      "meanObservedTokens": 413974.75,
+      "meanStandardApiEquivalentUsd": 0.1872075,
+      "observedTokens": {
+        "input_tokens": 1636094,
+        "cached_input_tokens": 1432320,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 19805,
+        "reasoning_output_tokens": 3487,
+        "total_tokens": 1655899
+      }
+    },
+    {
+      "track": "implementation",
+      "mode": "adaptive-goal",
+      "sessionGroups": [
+        {
+          "model": "gpt-6.1-sol",
+          "depth": 0,
+          "observedSessions": 4,
+          "meanObservedTokens": 2077580.5,
+          "meanStandardApiEquivalentUsd": 0.3858794
+        },
+        {
+          "model": "gpt-6.1-sol",
+          "depth": 1,
+          "observedSessions": 3,
+          "meanObservedTokens": 819118.25,
+          "meanStandardApiEquivalentUsd": 0.2214973
+        },
+        {
+          "model": "gpt-6.1-sol",
+          "depth": 2,
+          "observedSessions": 3,
+          "meanObservedTokens": 474016.75,
+          "meanStandardApiEquivalentUsd": 0.1320047
+        },
+        {
+          "model": "gpt-6.1-sol",
+          "depth": 3,
+          "observedSessions": 6,
+          "meanObservedTokens": 193813,
+          "meanStandardApiEquivalentUsd": 0.0715436
+        },
+        {
+          "model": "gpt-6-luna",
+          "depth": 1,
+          "observedSessions": 2,
+          "meanObservedTokens": 1081330,
+          "meanStandardApiEquivalentUsd": 0.01825732
+        }
+      ],
+      "mainThreadUsage": {
+        "meanRequestsPerTask": 38.75,
+        "meanPromptInput": 53403.70322580645
+      },
+      "attempts": 4,
+      "completeness": "complete",
+      "meanSeconds": 485.94817413550004,
+      "meanObservedTokens": 4645858.5,
+      "meanStandardApiEquivalentUsd": 0.8291823199999999,
+      "observedTokens": {
+        "input_tokens": 18482492,
+        "cached_input_tokens": 17728128,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 100942,
+        "reasoning_output_tokens": 16105,
+        "total_tokens": 18583434
+      }
+    },
+    {
+      "track": "delivery",
+      "mode": "vanilla",
+      "sessionGroups": [
+        {
+          "model": "gpt-6.1-sol",
+          "depth": 0,
+          "observedSessions": 4,
+          "meanObservedTokens": 764487.75,
+          "meanStandardApiEquivalentUsd": 0.23579270000000002
+        }
+      ],
+      "mainThreadUsage": {
+        "meanRequestsPerTask": 19,
+        "meanPromptInput": 39887.57894736842
+      },
+      "attempts": 4,
+      "completeness": "complete",
+      "meanSeconds": 175.98450725025,
+      "meanObservedTokens": 764487.75,
+      "meanStandardApiEquivalentUsd": 0.23579270000000002,
+      "observedTokens": {
+        "input_tokens": 3031456,
+        "cached_input_tokens": 2834048,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 26495,
+        "reasoning_output_tokens": 2950,
+        "total_tokens": 3057951
+      }
+    },
+    {
+      "track": "delivery",
+      "mode": "ticket-to-pr",
+      "sessionGroups": [
+        {
+          "model": "gpt-6.1-sol",
+          "depth": 0,
+          "observedSessions": 4,
+          "meanObservedTokens": 3491999,
+          "meanStandardApiEquivalentUsd": 0.621102
+        },
+        {
+          "model": "gpt-6.1-sol",
+          "depth": 1,
+          "observedSessions": 5,
+          "meanObservedTokens": 1179269,
+          "meanStandardApiEquivalentUsd": 0.2972628
+        },
+        {
+          "model": "gpt-6.1-sol",
+          "depth": 2,
+          "observedSessions": 5,
+          "meanObservedTokens": 739271.75,
+          "meanStandardApiEquivalentUsd": 0.18179990000000001
+        },
+        {
+          "model": "gpt-6.1-sol",
+          "depth": 3,
+          "observedSessions": 9,
+          "meanObservedTokens": 273462.25,
+          "meanStandardApiEquivalentUsd": 0.09794930000000002
+        },
+        {
+          "model": "gpt-6-luna",
+          "depth": 1,
+          "observedSessions": 1,
+          "meanObservedTokens": 410183.5,
+          "meanStandardApiEquivalentUsd": 0.00735211
+        }
+      ],
+      "mainThreadUsage": {
+        "meanRequestsPerTask": 50,
+        "meanPromptInput": 69599.5
+      },
+      "attempts": 4,
+      "completeness": "complete",
+      "meanSeconds": 649.29801845825,
+      "meanObservedTokens": 6094185.5,
+      "meanStandardApiEquivalentUsd": 1.20546611,
+      "observedTokens": {
+        "input_tokens": 24256495,
+        "cached_input_tokens": 23416704,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 120247,
+        "reasoning_output_tokens": 12992,
+        "total_tokens": 24376742
+      }
+    }
+  ],
+  "pairedComparisons": [
+    {
+      "track": "implementation",
+      "tasks": [
+        "express-links",
+        "click-streams",
+        "ajv-instance-path",
+        "go-git-insteadof"
+      ],
+      "vanilla": {
+        "sessionGroups": [
+          {
+            "model": "gpt-6.1-sol",
+            "depth": 0,
+            "observedSessions": 4,
+            "meanObservedTokens": 413974.75,
+            "meanStandardApiEquivalentUsd": 0.1872075
+          }
+        ],
+        "mainThreadUsage": {
+          "meanRequestsPerTask": 11.75,
+          "meanPromptInput": 34810.51063829787
+        },
+        "attempts": 4,
+        "completeness": "complete",
+        "meanSeconds": 132.22041831274998,
+        "meanObservedTokens": 413974.75,
+        "meanStandardApiEquivalentUsd": 0.1872075,
+        "observedTokens": {
+          "input_tokens": 1636094,
+          "cached_input_tokens": 1432320,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 19805,
+          "reasoning_output_tokens": 3487,
+          "total_tokens": 1655899
+        }
+      },
+      "candidate": {
+        "sessionGroups": [
+          {
+            "model": "gpt-6.1-sol",
+            "depth": 0,
+            "observedSessions": 4,
+            "meanObservedTokens": 2077580.5,
+            "meanStandardApiEquivalentUsd": 0.3858794
+          },
+          {
+            "model": "gpt-6.1-sol",
+            "depth": 1,
+            "observedSessions": 3,
+            "meanObservedTokens": 819118.25,
+            "meanStandardApiEquivalentUsd": 0.2214973
+          },
+          {
+            "model": "gpt-6.1-sol",
+            "depth": 2,
+            "observedSessions": 3,
+            "meanObservedTokens": 474016.75,
+            "meanStandardApiEquivalentUsd": 0.1320047
+          },
+          {
+            "model": "gpt-6.1-sol",
+            "depth": 3,
+            "observedSessions": 6,
+            "meanObservedTokens": 193813,
+            "meanStandardApiEquivalentUsd": 0.0715436
+          },
+          {
+            "model": "gpt-6-luna",
+            "depth": 1,
+            "observedSessions": 2,
+            "meanObservedTokens": 1081330,
+            "meanStandardApiEquivalentUsd": 0.01825732
+          }
+        ],
+        "mainThreadUsage": {
+          "meanRequestsPerTask": 38.75,
+          "meanPromptInput": 53403.70322580645
+        },
+        "attempts": 4,
+        "completeness": "complete",
+        "meanSeconds": 485.94817413550004,
+        "meanObservedTokens": 4645858.5,
+        "meanStandardApiEquivalentUsd": 0.8291823199999999,
+        "observedTokens": {
+          "input_tokens": 18482492,
+          "cached_input_tokens": 17728128,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 100942,
+          "reasoning_output_tokens": 16105,
+          "total_tokens": 18583434
+        }
+      }
+    },
+    {
+      "track": "delivery",
+      "tasks": [
+        "express-links",
+        "click-streams",
+        "ajv-instance-path",
+        "go-git-insteadof"
+      ],
+      "vanilla": {
+        "sessionGroups": [
+          {
+            "model": "gpt-6.1-sol",
+            "depth": 0,
+            "observedSessions": 4,
+            "meanObservedTokens": 764487.75,
+            "meanStandardApiEquivalentUsd": 0.23579270000000002
+          }
+        ],
+        "mainThreadUsage": {
+          "meanRequestsPerTask": 19,
+          "meanPromptInput": 39887.57894736842
+        },
+        "attempts": 4,
+        "completeness": "complete",
+        "meanSeconds": 175.98450725025,
+        "meanObservedTokens": 764487.75,
+        "meanStandardApiEquivalentUsd": 0.23579270000000002,
+        "observedTokens": {
+          "input_tokens": 3031456,
+          "cached_input_tokens": 2834048,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 26495,
+          "reasoning_output_tokens": 2950,
+          "total_tokens": 3057951
+        }
+      },
+      "candidate": {
+        "sessionGroups": [
+          {
+            "model": "gpt-6.1-sol",
+            "depth": 0,
+            "observedSessions": 4,
+            "meanObservedTokens": 3491999,
+            "meanStandardApiEquivalentUsd": 0.621102
+          },
+          {
+            "model": "gpt-6.1-sol",
+            "depth": 1,
+            "observedSessions": 5,
+            "meanObservedTokens": 1179269,
+            "meanStandardApiEquivalentUsd": 0.2972628
+          },
+          {
+            "model": "gpt-6.1-sol",
+            "depth": 2,
+            "observedSessions": 5,
+            "meanObservedTokens": 739271.75,
+            "meanStandardApiEquivalentUsd": 0.18179990000000001
+          },
+          {
+            "model": "gpt-6.1-sol",
+            "depth": 3,
+            "observedSessions": 9,
+            "meanObservedTokens": 273462.25,
+            "meanStandardApiEquivalentUsd": 0.09794930000000002
+          },
+          {
+            "model": "gpt-6-luna",
+            "depth": 1,
+            "observedSessions": 1,
+            "meanObservedTokens": 410183.5,
+            "meanStandardApiEquivalentUsd": 0.00735211
+          }
+        ],
+        "mainThreadUsage": {
+          "meanRequestsPerTask": 50,
+          "meanPromptInput": 69599.5
+        },
+        "attempts": 4,
+        "completeness": "complete",
+        "meanSeconds": 649.29801845825,
+        "meanObservedTokens": 6094185.5,
+        "meanStandardApiEquivalentUsd": 1.20546611,
+        "observedTokens": {
+          "input_tokens": 24256495,
+          "cached_input_tokens": 23416704,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 120247,
+          "reasoning_output_tokens": 12992,
+          "total_tokens": 24376742
+        }
+      }
+    }
+  ],
+  "rows": [
+    {
+      "track": "implementation",
+      "task": "express-links",
+      "mode": "vanilla",
+      "execution": "completed",
+      "candidateSeconds": 66.10785924999999,
+      "sourceEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v7/implementation-vanilla-express/cell-1/635486f3-9952-4bb5-98a6-a204f31da94d/run.json",
+      "bundle": {
+        "path": "file:///Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v7/implementation-vanilla-express/cell-1/635486f3-9952-4bb5-98a6-a204f31da94d/trial-1-host-sevro.native-transcripts.bundle.bin",
+        "sha256": "5781532035470214507f3852594f1c6aa93610854221cf0190bff8f1f4df7668"
+      },
+      "completeness": "complete",
+      "captureCompleteness": "complete",
+      "captureIssues": [],
+      "observedTokens": {
+        "input_tokens": 223448,
+        "cached_input_tokens": 194688,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2259,
+        "reasoning_output_tokens": 312,
+        "total_tokens": 225707
+      },
+      "standardApiEquivalentUsd": 0.09957880000000001,
+      "rootSessionId": "01a18c06-a024-7450-ad23-69400b7d16ac",
+      "sessions": [
+        {
+          "sessionId": "01a18c06-a024-7450-ad23-69400b7d16ac",
+          "parentId": null,
+          "depth": 0,
+          "agentPath": null,
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 223448,
+            "cached_input_tokens": 194688,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 2259,
+            "reasoning_output_tokens": 312,
+            "total_tokens": 225707
+          },
+          "maxPromptInput": 28442,
+          "requestCount": 9,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T09-56-47-01a18c06-a024-7450-ad23-69400b7d16ac.jsonl",
+          "sha256": "912b83672bdcba0701fea2364c2e6f018baa62c0495798729a79bbd1e38bb5a2",
+          "standardApiEquivalentUsd": 0.09957880000000001
+        }
+      ]
+    },
+    {
+      "track": "implementation",
+      "task": "click-streams",
+      "mode": "vanilla",
+      "execution": "completed",
+      "candidateSeconds": 150.360001542,
+      "sourceEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-vanilla-click-streams/cell-1/ef06eac4-af1c-4a78-aa5a-d8904fd10d24/run.json",
+      "bundle": {
+        "path": "file:///Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-vanilla-click-streams/cell-1/ef06eac4-af1c-4a78-aa5a-d8904fd10d24/trial-1-host-sevro.native-transcripts.bundle.bin",
+        "sha256": "fcc930735761089e5aeb8318a6768d3b162e865b331ca4e9df063926277e2e41"
+      },
+      "completeness": "complete",
+      "captureCompleteness": "complete",
+      "captureIssues": [],
+      "observedTokens": {
+        "input_tokens": 507852,
+        "cached_input_tokens": 476928,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 5611,
+        "reasoning_output_tokens": 1202,
+        "total_tokens": 513463
+      },
+      "standardApiEquivalentUsd": 0.1656508,
+      "rootSessionId": "01a18c21-aabd-72b0-9dc8-fae36f4d3b55",
+      "sessions": [
+        {
+          "sessionId": "01a18c21-aabd-72b0-9dc8-fae36f4d3b55",
+          "parentId": null,
+          "depth": 0,
+          "agentPath": null,
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 507852,
+            "cached_input_tokens": 476928,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 5611,
+            "reasoning_output_tokens": 1202,
+            "total_tokens": 513463
+          },
+          "maxPromptInput": 46367,
+          "requestCount": 14,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T10-26-19-01a18c21-aabd-72b0-9dc8-fae36f4d3b55.jsonl",
+          "sha256": "21452f122832b41bcbfbf575ff284e591d1838928f6d7d02d8bcfbebf356fc8a",
+          "standardApiEquivalentUsd": 0.1656508
+        }
+      ]
+    },
+    {
+      "track": "implementation",
+      "task": "ajv-instance-path",
+      "mode": "vanilla",
+      "execution": "completed",
+      "candidateSeconds": 194.15785679200002,
+      "sourceEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-vanilla-ajv-instance-path/cell-1/c2d67f63-30a3-4f89-957d-4d1303fb2499/run.json",
+      "bundle": {
+        "path": "file:///Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-vanilla-ajv-instance-path/cell-1/c2d67f63-30a3-4f89-957d-4d1303fb2499/trial-1-host-sevro.native-transcripts.bundle.bin",
+        "sha256": "365222f3fc28f98ec516677c6a161d3149d9e21c4598c9d8ae587e14fa37870e"
+      },
+      "completeness": "complete",
+      "captureCompleteness": "complete",
+      "captureIssues": [],
+      "observedTokens": {
+        "input_tokens": 578946,
+        "cached_input_tokens": 509312,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 7049,
+        "reasoning_output_tokens": 1505,
+        "total_tokens": 585995
+      },
+      "standardApiEquivalentUsd": 0.2606892,
+      "rootSessionId": "01a18c35-85f2-7b81-a6d0-9e2c6f860ec4",
+      "sessions": [
+        {
+          "sessionId": "01a18c35-85f2-7b81-a6d0-9e2c6f860ec4",
+          "parentId": null,
+          "depth": 0,
+          "agentPath": null,
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 578946,
+            "cached_input_tokens": 509312,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 7049,
+            "reasoning_output_tokens": 1505,
+            "total_tokens": 585995
+          },
+          "maxPromptInput": 58778,
+          "requestCount": 14,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T10-48-00-01a18c35-85f2-7b81-a6d0-9e2c6f860ec4.jsonl",
+          "sha256": "877b842cbcc41e55562ca24fb0df02f234a9c372804596572a4f98036a87cda9",
+          "standardApiEquivalentUsd": 0.2606892
+        }
+      ]
+    },
+    {
+      "track": "implementation",
+      "task": "go-git-insteadof",
+      "mode": "vanilla",
+      "execution": "completed",
+      "candidateSeconds": 118.255955667,
+      "sourceEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-vanilla-go-git-insteadof/cell-1/bc3c7366-30da-46ed-ae7d-9c373b507608/run.json",
+      "bundle": {
+        "path": "file:///Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-vanilla-go-git-insteadof/cell-1/bc3c7366-30da-46ed-ae7d-9c373b507608/trial-1-host-sevro.native-transcripts.bundle.bin",
+        "sha256": "a091cc15ddf45aac57bb8d6f008c66915a8709b15574f06335cc93eb4d5944d8"
+      },
+      "completeness": "complete",
+      "captureCompleteness": "complete",
+      "captureIssues": [],
+      "observedTokens": {
+        "input_tokens": 325848,
+        "cached_input_tokens": 251392,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 4886,
+        "reasoning_output_tokens": 468,
+        "total_tokens": 330734
+      },
+      "standardApiEquivalentUsd": 0.2229112,
+      "rootSessionId": "01a18c3f-807d-79c2-b61e-2d09c8ffd99b",
+      "sessions": [
+        {
+          "sessionId": "01a18c3f-807d-79c2-b61e-2d09c8ffd99b",
+          "parentId": null,
+          "depth": 0,
+          "agentPath": null,
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 325848,
+            "cached_input_tokens": 251392,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 4886,
+            "reasoning_output_tokens": 468,
+            "total_tokens": 330734
+          },
+          "maxPromptInput": 44063,
+          "requestCount": 10,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T10-58-54-01a18c3f-807d-79c2-b61e-2d09c8ffd99b.jsonl",
+          "sha256": "9126904dee6a45ef0f1e4574314a1c4bcd770ac2162e3858a33d27f9088c11b0",
+          "standardApiEquivalentUsd": 0.2229112
+        }
+      ]
+    },
+    {
+      "track": "delivery",
+      "task": "go-git-insteadof",
+      "mode": "vanilla",
+      "execution": "completed",
+      "candidateSeconds": 197.176230208,
+      "sourceEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-vanilla-go-git-insteadof/cell-1/7cca1ab8-2a90-49b7-8ea2-d342f371eba8/run.json",
+      "bundle": {
+        "path": "file:///Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-vanilla-go-git-insteadof/cell-1/7cca1ab8-2a90-49b7-8ea2-d342f371eba8/trial-1-host-sevro.native-transcripts.bundle.bin",
+        "sha256": "1f964eaad4ef504161ccf33eeb68f79e4c5dd1622853c8829a3880f63a0e1187"
+      },
+      "completeness": "complete",
+      "captureCompleteness": "complete",
+      "captureIssues": [],
+      "observedTokens": {
+        "input_tokens": 791715,
+        "cached_input_tokens": 758656,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 8783,
+        "reasoning_output_tokens": 648,
+        "total_tokens": 800498
+      },
+      "standardApiEquivalentUsd": 0.2298136,
+      "rootSessionId": "01a18c8f-8394-7062-b4bf-2dbf538add68",
+      "sessions": [
+        {
+          "sessionId": "01a18c8f-8394-7062-b4bf-2dbf538add68",
+          "parentId": null,
+          "depth": 0,
+          "agentPath": null,
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 791715,
+            "cached_input_tokens": 758656,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 8783,
+            "reasoning_output_tokens": 648,
+            "total_tokens": 800498
+          },
+          "maxPromptInput": 50457,
+          "requestCount": 21,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T12-26-19-01a18c8f-8394-7062-b4bf-2dbf538add68.jsonl",
+          "sha256": "527c3a037ef275cb6d649471c1681bcb1a5165e9ad7128370bca0545d97b138a",
+          "standardApiEquivalentUsd": 0.2298136
+        }
+      ]
+    },
+    {
+      "track": "delivery",
+      "task": "express-links",
+      "mode": "vanilla",
+      "execution": "completed",
+      "candidateSeconds": 137.81549004200002,
+      "sourceEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-vanilla-express-links/cell-1/39036aff-0bc6-4213-aa57-11f8f837e775/run.json",
+      "bundle": {
+        "path": "file:///Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-vanilla-express-links/cell-1/39036aff-0bc6-4213-aa57-11f8f837e775/trial-1-host-sevro.native-transcripts.bundle.bin",
+        "sha256": "44b602eb93f8328034cb620cb1b106f65ecad8bd5d45cf77bcebdd5da3b64d02"
+      },
+      "completeness": "complete",
+      "captureCompleteness": "complete",
+      "captureIssues": [],
+      "observedTokens": {
+        "input_tokens": 458456,
+        "cached_input_tokens": 399872,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 3909,
+        "reasoning_output_tokens": 622,
+        "total_tokens": 462365
+      },
+      "standardApiEquivalentUsd": 0.1962452,
+      "rootSessionId": "01a18c5d-9f74-7373-ba03-16f8582b2736",
+      "sessions": [
+        {
+          "sessionId": "01a18c5d-9f74-7373-ba03-16f8582b2736",
+          "parentId": null,
+          "depth": 0,
+          "agentPath": null,
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 458456,
+            "cached_input_tokens": 399872,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 3909,
+            "reasoning_output_tokens": 622,
+            "total_tokens": 462365
+          },
+          "maxPromptInput": 34368,
+          "requestCount": 16,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T11-31-48-01a18c5d-9f74-7373-ba03-16f8582b2736.jsonl",
+          "sha256": "3640d07f6336dcab66f285ae0ce3cb125f0ed949913ac008583f71951a956360",
+          "standardApiEquivalentUsd": 0.1962452
+        }
+      ]
+    },
+    {
+      "track": "delivery",
+      "task": "ajv-instance-path",
+      "mode": "vanilla",
+      "execution": "completed",
+      "candidateSeconds": 229.99715270899998,
+      "sourceEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-vanilla-ajv-instance-path/cell-1/3416fbdb-524f-400e-9ea5-438867974a7f/run.json",
+      "bundle": {
+        "path": "file:///Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-vanilla-ajv-instance-path/cell-1/3416fbdb-524f-400e-9ea5-438867974a7f/trial-1-host-sevro.native-transcripts.bundle.bin",
+        "sha256": "bac306d220dc9e99afd5ba1a990ba83cac587cdba4e521a22eb1cd54f28118f3"
+      },
+      "completeness": "complete",
+      "captureCompleteness": "complete",
+      "captureIssues": [],
+      "observedTokens": {
+        "input_tokens": 1132285,
+        "cached_input_tokens": 1079424,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 8520,
+        "reasoning_output_tokens": 1369,
+        "total_tokens": 1140805
+      },
+      "standardApiEquivalentUsd": 0.29886440000000003,
+      "rootSessionId": "01a18c82-055d-7e50-85a5-9c3ca9253536",
+      "sessions": [
+        {
+          "sessionId": "01a18c82-055d-7e50-85a5-9c3ca9253536",
+          "parentId": null,
+          "depth": 0,
+          "agentPath": null,
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 1132285,
+            "cached_input_tokens": 1079424,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 8520,
+            "reasoning_output_tokens": 1369,
+            "total_tokens": 1140805
+          },
+          "maxPromptInput": 60768,
+          "requestCount": 24,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T12-11-34-01a18c82-055d-7e50-85a5-9c3ca9253536.jsonl",
+          "sha256": "9ab12d10436de58a7151add16a6789d8d8c9326519d3513e6921e214454178c6",
+          "standardApiEquivalentUsd": 0.29886440000000003
+        }
+      ]
+    },
+    {
+      "track": "delivery",
+      "task": "click-streams",
+      "mode": "vanilla",
+      "execution": "completed",
+      "candidateSeconds": 138.949156042,
+      "sourceEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-vanilla-click-streams/cell-1/450bf7f4-07b4-4b50-a731-c812a26276b3/run.json",
+      "bundle": {
+        "path": "file:///Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-vanilla-click-streams/cell-1/450bf7f4-07b4-4b50-a731-c812a26276b3/trial-1-host-sevro.native-transcripts.bundle.bin",
+        "sha256": "f84740664c9326bd38fae56c0eb9dab1a8cf082e23fc16d241213d2419825ef4"
+      },
+      "completeness": "complete",
+      "captureCompleteness": "complete",
+      "captureIssues": [],
+      "observedTokens": {
+        "input_tokens": 649000,
+        "cached_input_tokens": 596096,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 5283,
+        "reasoning_output_tokens": 311,
+        "total_tokens": 654283
+      },
+      "standardApiEquivalentUsd": 0.2182476,
+      "rootSessionId": "01a18c68-7bd1-7093-9e8f-5edd91252815",
+      "sessions": [
+        {
+          "sessionId": "01a18c68-7bd1-7093-9e8f-5edd91252815",
+          "parentId": null,
+          "depth": 0,
+          "agentPath": null,
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 649000,
+            "cached_input_tokens": 596096,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 5283,
+            "reasoning_output_tokens": 311,
+            "total_tokens": 654283
+          },
+          "maxPromptInput": 54519,
+          "requestCount": 15,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T11-43-40-01a18c68-7bd1-7093-9e8f-5edd91252815.jsonl",
+          "sha256": "88afac601cc989f270d4322d181fb68ac6c7baea304da3e95736a83701cfaefc",
+          "standardApiEquivalentUsd": 0.2182476
+        }
+      ]
+    },
+    {
+      "track": "implementation",
+      "task": "express-links",
+      "mode": "adaptive-goal",
+      "execution": "completed",
+      "candidateSeconds": 534.165177042,
+      "sourceEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/implementation-adaptive-goal-express-links/cell-1/298b90d5-bc3a-42a7-acc2-d43fba2b4241/run.json",
+      "bundle": {
+        "path": "file:///Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/implementation-adaptive-goal-express-links/cell-1/298b90d5-bc3a-42a7-acc2-d43fba2b4241/trial-1-host-sevro.native-transcripts.bundle.bin",
+        "sha256": "d496d5b110fd9d3979dc64271a85a420699d1e9dd554a034f2a145525f0e2e85"
+      },
+      "completeness": "complete",
+      "captureCompleteness": "complete",
+      "captureIssues": [],
+      "observedTokens": {
+        "input_tokens": 4591149,
+        "cached_input_tokens": 4399616,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 24531,
+        "reasoning_output_tokens": 2048,
+        "total_tokens": 4615680
+      },
+      "standardApiEquivalentUsd": 1.0683376,
+      "rootSessionId": "01a18cf2-62d4-76d0-add3-677f82338fc3",
+      "sessions": [
+        {
+          "sessionId": "01a18cf2-62d4-76d0-add3-677f82338fc3",
+          "parentId": null,
+          "depth": 0,
+          "agentPath": null,
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 2302615,
+            "cached_input_tokens": 2256896,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 9723,
+            "reasoning_output_tokens": 1337,
+            "total_tokens": 2312338
+          },
+          "maxPromptInput": 59512,
+          "requestCount": 45,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T14-14-18-01a18cf2-62d4-76d0-add3-677f82338fc3.jsonl",
+          "sha256": "e2f4b7c05df46ed1c4f44cae1895b621b7895730bed082062e9414c88c8df8f2",
+          "standardApiEquivalentUsd": 0.4143576
+        },
+        {
+          "sessionId": "01a18cf5-45b1-7dc3-b06e-46b61fe82f48",
+          "parentId": "01a18cf2-62d4-76d0-add3-677f82338fc3",
+          "depth": 1,
+          "agentPath": "/root/links_verification",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 1254856,
+            "cached_input_tokens": 1192704,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 7403,
+            "reasoning_output_tokens": 278,
+            "total_tokens": 1262259
+          },
+          "maxPromptInput": 48895,
+          "requestCount": 34,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T14-17-26-01a18cf5-45b1-7dc3-b06e-46b61fe82f48.jsonl",
+          "sha256": "ef9d7beb0bac4e1cb7c0a7f2e36eaaf529bbc623450f33ba704b1008189c91be",
+          "standardApiEquivalentUsd": 0.3176044
+        },
+        {
+          "sessionId": "01a18cf5-ad89-73c0-823b-0b323cf7c3e6",
+          "parentId": "01a18cf5-45b1-7dc3-b06e-46b61fe82f48",
+          "depth": 2,
+          "agentPath": "/root/links_verification/review_provider",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 813506,
+            "cached_input_tokens": 764032,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 5731,
+            "reasoning_output_tokens": 307,
+            "total_tokens": 819237
+          },
+          "maxPromptInput": 48205,
+          "requestCount": 23,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T14-17-53-01a18cf5-ad89-73c0-823b-0b323cf7c3e6.jsonl",
+          "sha256": "84b69bfb7c660fba60e27dfc864903b4f3e8f37f084199474e9e2fbafc81bf67",
+          "standardApiEquivalentUsd": 0.2326612
+        },
+        {
+          "sessionId": "01a18cf6-8ebd-75b3-a01d-6fd4edd1c879",
+          "parentId": "01a18cf5-ad89-73c0-823b-0b323cf7c3e6",
+          "depth": 3,
+          "agentPath": "/root/links_verification/review_provider/review_standards_398906e04cac",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 81699,
+            "cached_input_tokens": 62720,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 513,
+            "reasoning_output_tokens": 29,
+            "total_tokens": 82212
+          },
+          "maxPromptInput": 30483,
+          "requestCount": 3,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T14-18-51-01a18cf6-8ebd-75b3-a01d-6fd4edd1c879.jsonl",
+          "sha256": "f9e307bc5541c4cf5bf7b8be52f8712d4f9b21c929f8364903ebee9c34f5c78c",
+          "standardApiEquivalentUsd": 0.04936
+        },
+        {
+          "sessionId": "01a18cf6-a39b-7ab2-b0ce-914ba8603919",
+          "parentId": "01a18cf5-ad89-73c0-823b-0b323cf7c3e6",
+          "depth": 3,
+          "agentPath": "/root/links_verification/review_provider/review_spec_398906e04cac",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 138473,
+            "cached_input_tokens": 123264,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 1161,
+            "reasoning_output_tokens": 97,
+            "total_tokens": 139634
+          },
+          "maxPromptInput": 30771,
+          "requestCount": 5,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T14-18-56-01a18cf6-a39b-7ab2-b0ce-914ba8603919.jsonl",
+          "sha256": "2a112b3823d714f537e46e41e4dcc6176bb248479fc6165a38d9c527af35ca13",
+          "standardApiEquivalentUsd": 0.054354400000000004
+        }
+      ]
+    },
+    {
+      "track": "implementation",
+      "task": "click-streams",
+      "mode": "adaptive-goal",
+      "execution": "completed",
+      "candidateSeconds": 524.471124667,
+      "sourceEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/implementation-adaptive-goal-click-streams/cell-1/50fe5ad9-55a4-4191-bbce-d46e2d8e6ee2/run.json",
+      "bundle": {
+        "path": "file:///Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/implementation-adaptive-goal-click-streams/cell-1/50fe5ad9-55a4-4191-bbce-d46e2d8e6ee2/trial-1-host-sevro.native-transcripts.bundle.bin",
+        "sha256": "efd86f1d81f427b95724063c2b233153b5d6d3f288054e572ceffad9838ace96"
+      },
+      "completeness": "complete",
+      "captureCompleteness": "complete",
+      "captureIssues": [],
+      "observedTokens": {
+        "input_tokens": 6031489,
+        "cached_input_tokens": 5799168,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 32186,
+        "reasoning_output_tokens": 6734,
+        "total_tokens": 6063675
+      },
+      "standardApiEquivalentUsd": 0.91115594,
+      "rootSessionId": "01a18d0d-54d7-7042-819e-999bf35178cb",
+      "sessions": [
+        {
+          "sessionId": "01a18d0d-54d7-7042-819e-999bf35178cb",
+          "parentId": null,
+          "depth": 0,
+          "agentPath": null,
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 1927342,
+            "cached_input_tokens": 1873280,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 5182,
+            "reasoning_output_tokens": 356,
+            "total_tokens": 1932524
+          },
+          "maxPromptInput": 65286,
+          "requestCount": 35,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T14-43-47-01a18d0d-54d7-7042-819e-999bf35178cb.jsonl",
+          "sha256": "ca1cc8c237cbb88b5557212232c8254e8ad3c774d1cab0628795400af3d4f5fb",
+          "standardApiEquivalentUsd": 0.347272
+        },
+        {
+          "sessionId": "01a18d0e-19e0-7170-98b2-4db439c4bcb8",
+          "parentId": "01a18d0d-54d7-7042-819e-999bf35178cb",
+          "depth": 1,
+          "agentPath": "/root/implement_capture",
+          "model": "gpt-6-luna",
+          "usage": {
+            "input_tokens": 2231167,
+            "cached_input_tokens": 2170624,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 15250,
+            "reasoning_output_tokens": 5496,
+            "total_tokens": 2246417
+          },
+          "maxPromptInput": 64008,
+          "requestCount": 46,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T14-44-34-01a18d0e-19e0-7170-98b2-4db439c4bcb8.jsonl",
+          "sha256": "98112fc5183d5a34b5b4fe681899e34f9689f3d3ca54e4dc39d489867b244f08",
+          "standardApiEquivalentUsd": 0.03538554
+        },
+        {
+          "sessionId": "01a18d11-ccfd-78d3-a3c8-d224f000c306",
+          "parentId": "01a18d0d-54d7-7042-819e-999bf35178cb",
+          "depth": 1,
+          "agentPath": "/root/verify_capture",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 1058284,
+            "cached_input_tokens": 999424,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 6277,
+            "reasoning_output_tokens": 616,
+            "total_tokens": 1064561
+          },
+          "maxPromptInput": 51905,
+          "requestCount": 27,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T14-48-36-01a18d11-ccfd-78d3-a3c8-d224f000c306.jsonl",
+          "sha256": "ea7aa9efdf6cd1eade79ab0288a967772625be21eadac234e23a5d693fb78fe4",
+          "standardApiEquivalentUsd": 0.2804324
+        },
+        {
+          "sessionId": "01a18d12-2d5e-74c2-bdf5-36f6dfe057b4",
+          "parentId": "01a18d11-ccfd-78d3-a3c8-d224f000c306",
+          "depth": 2,
+          "agentPath": "/root/verify_capture/review_provider",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 586321,
+            "cached_input_tokens": 552832,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 4062,
+            "reasoning_output_tokens": 64,
+            "total_tokens": 590383
+          },
+          "maxPromptInput": 45720,
+          "requestCount": 17,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T14-49-01-01a18d12-2d5e-74c2-bdf5-36f6dfe057b4.jsonl",
+          "sha256": "91d076cdcc5a35f7ce7c76f30f9130e884632289ca0209fd2815d3a4e1d340e3",
+          "standardApiEquivalentUsd": 0.1628812
+        },
+        {
+          "sessionId": "01a18d12-d059-7d52-8b5f-df4e76945b5a",
+          "parentId": "01a18d12-2d5e-74c2-bdf5-36f6dfe057b4",
+          "depth": 3,
+          "agentPath": "/root/verify_capture/review_provider/review_standards_e1d078466f52",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 113047,
+            "cached_input_tokens": 101248,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 655,
+            "reasoning_output_tokens": 57,
+            "total_tokens": 113702
+          },
+          "maxPromptInput": 33541,
+          "requestCount": 4,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T14-49-42-01a18d12-d059-7d52-8b5f-df4e76945b5a.jsonl",
+          "sha256": "55f40c30052fae324ac266d5500a549e633765fcae8357881bb70638b42a3d87",
+          "standardApiEquivalentUsd": 0.040272800000000004
+        },
+        {
+          "sessionId": "01a18d12-e21c-71a2-abfb-0f8623dab4f0",
+          "parentId": "01a18d12-2d5e-74c2-bdf5-36f6dfe057b4",
+          "depth": 3,
+          "agentPath": "/root/verify_capture/review_provider/review_spec_e1d078466f52",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 115328,
+            "cached_input_tokens": 101760,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 760,
+            "reasoning_output_tokens": 145,
+            "total_tokens": 116088
+          },
+          "maxPromptInput": 35390,
+          "requestCount": 4,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T14-49-47-01a18d12-e21c-71a2-abfb-0f8623dab4f0.jsonl",
+          "sha256": "940e732a43a2ebd276866cd5fc28323c5d3ac9a6394768d22bd756f7d7ab35fb",
+          "standardApiEquivalentUsd": 0.044912
+        }
+      ]
+    },
+    {
+      "track": "implementation",
+      "task": "ajv-instance-path",
+      "mode": "adaptive-goal",
+      "execution": "completed",
+      "candidateSeconds": 355.28864725000005,
+      "sourceEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/implementation-adaptive-goal-ajv-instance-path/cell-1/7bd95989-179a-4976-b2c4-aa93fd658c2f/run.json",
+      "bundle": {
+        "path": "file:///Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/implementation-adaptive-goal-ajv-instance-path/cell-1/7bd95989-179a-4976-b2c4-aa93fd658c2f/trial-1-host-sevro.native-transcripts.bundle.bin",
+        "sha256": "5187d9e2458ee4ed9aa926d30048a40610968893d1c20a694e8d1f391c6f39b1"
+      },
+      "completeness": "complete",
+      "captureCompleteness": "complete",
+      "captureIssues": [],
+      "observedTokens": {
+        "input_tokens": 3834093,
+        "cached_input_tokens": 3683328,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 22094,
+        "reasoning_output_tokens": 4449,
+        "total_tokens": 3856187
+      },
+      "standardApiEquivalentUsd": 0.37183414,
+      "rootSessionId": "01a18d25-7b80-7981-8799-32c87bc0f7b0",
+      "sessions": [
+        {
+          "sessionId": "01a18d25-7b80-7981-8799-32c87bc0f7b0",
+          "parentId": null,
+          "depth": 0,
+          "agentPath": null,
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 1771164,
+            "cached_input_tokens": 1720704,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 6120,
+            "reasoning_output_tokens": 1091,
+            "total_tokens": 1777284
+          },
+          "maxPromptInput": 62480,
+          "requestCount": 35,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T15-10-06-01a18d25-7b80-7981-8799-32c87bc0f7b0.jsonl",
+          "sha256": "eba18a6e236307e59a621f0373e58eb5235b6712df954740df9765cb7231cc68",
+          "standardApiEquivalentUsd": 0.3341904
+        },
+        {
+          "sessionId": "01a18d26-9127-7602-987e-50247e97e23d",
+          "parentId": "01a18d25-7b80-7981-8799-32c87bc0f7b0",
+          "depth": 1,
+          "agentPath": "/root/implement_parser_paths",
+          "model": "gpt-6-luna",
+          "usage": {
+            "input_tokens": 2062929,
+            "cached_input_tokens": 1962624,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 15974,
+            "reasoning_output_tokens": 3358,
+            "total_tokens": 2078903
+          },
+          "maxPromptInput": 59415,
+          "requestCount": 46,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T15-11-17-01a18d26-9127-7602-987e-50247e97e23d.jsonl",
+          "sha256": "ca2ef4a26d1ee4182f44a4a1dddbfb35e2bce251edd3f66a016bd5decbe24d58",
+          "standardApiEquivalentUsd": 0.03764374
+        }
+      ]
+    },
+    {
+      "track": "implementation",
+      "task": "go-git-insteadof",
+      "mode": "adaptive-goal",
+      "execution": "completed",
+      "candidateSeconds": 529.867747583,
+      "sourceEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/implementation-adaptive-goal-go-git-insteadof/cell-1/09019ec1-7dab-4373-ad3e-c032b714cf0e/run.json",
+      "bundle": {
+        "path": "file:///Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/implementation-adaptive-goal-go-git-insteadof/cell-1/09019ec1-7dab-4373-ad3e-c032b714cf0e/trial-1-host-sevro.native-transcripts.bundle.bin",
+        "sha256": "388119d2882ac8bc450f14a40ec7c3689e3f2a7aae68f1b22aeba78be5255dbd"
+      },
+      "completeness": "complete",
+      "captureCompleteness": "complete",
+      "captureIssues": [],
+      "observedTokens": {
+        "input_tokens": 4025761,
+        "cached_input_tokens": 3846016,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 22131,
+        "reasoning_output_tokens": 2874,
+        "total_tokens": 4047892
+      },
+      "standardApiEquivalentUsd": 0.9654016,
+      "rootSessionId": "01a18d35-198e-7d03-8881-5b016507ff69",
+      "sessions": [
+        {
+          "sessionId": "01a18d35-198e-7d03-8881-5b016507ff69",
+          "parentId": null,
+          "depth": 0,
+          "agentPath": null,
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 2276453,
+            "cached_input_tokens": 2222336,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 11723,
+            "reasoning_output_tokens": 2565,
+            "total_tokens": 2288176
+          },
+          "maxPromptInput": 70683,
+          "requestCount": 40,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T15-27-10-01a18d35-198e-7d03-8881-5b016507ff69.jsonl",
+          "sha256": "e8cba6ef2842366faefeca7be046b16ab6c14a276163c5dc2ea5f857fb72c916",
+          "standardApiEquivalentUsd": 0.4476976
+        },
+        {
+          "sessionId": "01a18d39-6da1-7713-b4e7-46b2cf235e61",
+          "parentId": "01a18d35-198e-7d03-8881-5b016507ff69",
+          "depth": 1,
+          "agentPath": "/root/verify_url",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 944413,
+            "cached_input_tokens": 870144,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 5240,
+            "reasoning_output_tokens": 228,
+            "total_tokens": 949653
+          },
+          "maxPromptInput": 51385,
+          "requestCount": 26,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T15-31-53-01a18d39-6da1-7713-b4e7-46b2cf235e61.jsonl",
+          "sha256": "e5b4f7b61c2017de9f6e47a5a5b26edad3a72c0b6ef7e4dbd8babe5defb858ea",
+          "standardApiEquivalentUsd": 0.2879524
+        },
+        {
+          "sessionId": "01a18d39-d72e-70b1-a5a0-41d508c68968",
+          "parentId": "01a18d39-6da1-7713-b4e7-46b2cf235e61",
+          "depth": 2,
+          "agentPath": "/root/verify_url/review_provider",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 482880,
+            "cached_input_tokens": 457344,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 3567,
+            "reasoning_output_tokens": 0,
+            "total_tokens": 486447
+          },
+          "maxPromptInput": 35484,
+          "requestCount": 16,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T15-32-20-01a18d39-d72e-70b1-a5a0-41d508c68968.jsonl",
+          "sha256": "b9fd9ff3ed019d75269f543760bc1a978a35b262b693f729f9c4c12f8d09486d",
+          "standardApiEquivalentUsd": 0.1324764
+        },
+        {
+          "sessionId": "01a18d3a-81ee-7ec2-9607-1ff48991b6c6",
+          "parentId": "01a18d39-d72e-70b1-a5a0-41d508c68968",
+          "depth": 3,
+          "agentPath": "/root/verify_url/review_provider/review_standards_0d12e2327ffe",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 143614,
+            "cached_input_tokens": 131072,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 620,
+            "reasoning_output_tokens": 18,
+            "total_tokens": 144234
+          },
+          "maxPromptInput": 33731,
+          "requestCount": 5,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T15-33-04-01a18d3a-81ee-7ec2-9607-1ff48991b6c6.jsonl",
+          "sha256": "aa1cebafce60d457fdc9bf9bbdc96408e3ad34a0e7e2b826165b81fafa3b28bb",
+          "standardApiEquivalentUsd": 0.0443912
+        },
+        {
+          "sessionId": "01a18d3a-96c8-7ea2-8500-e1b3ead3b8fd",
+          "parentId": "01a18d39-d72e-70b1-a5a0-41d508c68968",
+          "depth": 3,
+          "agentPath": "/root/verify_url/review_provider/review_spec_0d12e2327ffe",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 178401,
+            "cached_input_tokens": 165120,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 981,
+            "reasoning_output_tokens": 63,
+            "total_tokens": 179382
+          },
+          "maxPromptInput": 35011,
+          "requestCount": 6,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T15-33-09-01a18d3a-96c8-7ea2-8500-e1b3ead3b8fd.jsonl",
+          "sha256": "78705ab90c243bf894d8d5436c7451db9b2674e62baaa055006a80afd1ba3e37",
+          "standardApiEquivalentUsd": 0.052884
+        }
+      ]
+    },
+    {
+      "track": "delivery",
+      "task": "express-links",
+      "mode": "ticket-to-pr",
+      "execution": "completed",
+      "candidateSeconds": 481.86933875,
+      "sourceEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/delivery-ticket-to-pr-express-links/cell-1/97f87d78-eb49-47b9-8d76-5d7bb8d3f673/run.json",
+      "bundle": {
+        "path": "file:///Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/delivery-ticket-to-pr-express-links/cell-1/97f87d78-eb49-47b9-8d76-5d7bb8d3f673/trial-1-host-sevro.native-transcripts.bundle.bin",
+        "sha256": "513f30ac01e6031b09ddddce3259527e555886f1dd821ce62336e735a05f480b"
+      },
+      "completeness": "complete",
+      "captureCompleteness": "complete",
+      "captureIssues": [],
+      "observedTokens": {
+        "input_tokens": 3970479,
+        "cached_input_tokens": 3831552,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 19447,
+        "reasoning_output_tokens": 640,
+        "total_tokens": 3989926
+      },
+      "standardApiEquivalentUsd": 0.8554792,
+      "rootSessionId": "01a18cfa-f35a-7d30-bdd6-63c0f39e7dd6",
+      "sessions": [
+        {
+          "sessionId": "01a18cfa-f35a-7d30-bdd6-63c0f39e7dd6",
+          "parentId": null,
+          "depth": 0,
+          "agentPath": null,
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 2266208,
+            "cached_input_tokens": 2192512,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 8085,
+            "reasoning_output_tokens": 305,
+            "total_tokens": 2274293
+          },
+          "maxPromptInput": 70472,
+          "requestCount": 39,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T14-23-39-01a18cfa-f35a-7d30-bdd6-63c0f39e7dd6.jsonl",
+          "sha256": "0e1a7e5f2d5e8cdc624f1e6a4a2b767d8b15ebbaa9d054b808483da351d5834d",
+          "standardApiEquivalentUsd": 0.44749320000000004
+        },
+        {
+          "sessionId": "01a18cfd-d5e8-7f32-864c-eb86d1b6206f",
+          "parentId": "01a18cfa-f35a-7d30-bdd6-63c0f39e7dd6",
+          "depth": 1,
+          "agentPath": "/root/issue1_verification",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 922519,
+            "cached_input_tokens": 888448,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 5877,
+            "reasoning_output_tokens": 269,
+            "total_tokens": 928396
+          },
+          "maxPromptInput": 46257,
+          "requestCount": 26,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T14-26-48-01a18cfd-d5e8-7f32-864c-eb86d1b6206f.jsonl",
+          "sha256": "a329963fd9a3d692153dbbfba0bcb681f00bfd33ca1b74f9d8bdd39468a94325",
+          "standardApiEquivalentUsd": 0.2157568
+        },
+        {
+          "sessionId": "01a18cfe-3e40-7050-b0b2-f46f4450552e",
+          "parentId": "01a18cfd-d5e8-7f32-864c-eb86d1b6206f",
+          "depth": 2,
+          "agentPath": "/root/issue1_verification/review_provider",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 596105,
+            "cached_input_tokens": 578432,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 4327,
+            "reasoning_output_tokens": 30,
+            "total_tokens": 600432
+          },
+          "maxPromptInput": 40684,
+          "requestCount": 18,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T14-27-14-01a18cfe-3e40-7050-b0b2-f46f4450552e.jsonl",
+          "sha256": "e07e6895fbe5e56c8f83019abbb93b65bd7dba017c909ac2c7b11ae4a0b6ff99",
+          "standardApiEquivalentUsd": 0.1364592
+        },
+        {
+          "sessionId": "01a18cff-1309-7b30-b10f-6e57f4e6ce90",
+          "parentId": "01a18cfe-3e40-7050-b0b2-f46f4450552e",
+          "depth": 3,
+          "agentPath": "/root/issue1_verification/review_provider/review_standards_ddfceba8dce3",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 79710,
+            "cached_input_tokens": 72576,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 560,
+            "reasoning_output_tokens": 10,
+            "total_tokens": 80270
+          },
+          "maxPromptInput": 29645,
+          "requestCount": 3,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T14-28-09-01a18cff-1309-7b30-b10f-6e57f4e6ce90.jsonl",
+          "sha256": "b8175c3c4e2edc85371109a2d0f0d9247205c7e4961173c6440828396269d0cb",
+          "standardApiEquivalentUsd": 0.0271256
+        },
+        {
+          "sessionId": "01a18cff-2ac5-7560-b030-7ede48ec845d",
+          "parentId": "01a18cfe-3e40-7050-b0b2-f46f4450552e",
+          "depth": 3,
+          "agentPath": "/root/issue1_verification/review_provider/review_spec_ddfceba8dce3",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 105937,
+            "cached_input_tokens": 99584,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 598,
+            "reasoning_output_tokens": 26,
+            "total_tokens": 106535
+          },
+          "maxPromptInput": 28782,
+          "requestCount": 4,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T14-28-15-01a18cff-2ac5-7560-b030-7ede48ec845d.jsonl",
+          "sha256": "7fa3eadf90ea668a05f72b74ee0d48d26b0e0738a10613ce5477f2b896b15af9",
+          "standardApiEquivalentUsd": 0.0286444
+        }
+      ]
+    },
+    {
+      "track": "delivery",
+      "task": "click-streams",
+      "mode": "ticket-to-pr",
+      "execution": "completed",
+      "candidateSeconds": 997.9993465420001,
+      "sourceEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/delivery-ticket-to-pr-click-streams/cell-1/f16c9040-2db1-4460-9f3d-4d5d1c5ad509/run.json",
+      "bundle": {
+        "path": "file:///Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/delivery-ticket-to-pr-click-streams/cell-1/f16c9040-2db1-4460-9f3d-4d5d1c5ad509/trial-1-host-sevro.native-transcripts.bundle.bin",
+        "sha256": "c7a8b848ab63f8be9521ed94dbd260bbe5772c70b719e0177b3b4d46c31e23f3"
+      },
+      "completeness": "complete",
+      "captureCompleteness": "complete",
+      "captureIssues": [],
+      "observedTokens": {
+        "input_tokens": 10127780,
+        "cached_input_tokens": 9814272,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 54400,
+        "reasoning_output_tokens": 9062,
+        "total_tokens": 10182180
+      },
+      "standardApiEquivalentUsd": 1.7505852399999997,
+      "rootSessionId": "01a18d15-7b28-7e10-981f-983fa4fb5c42",
+      "sessions": [
+        {
+          "sessionId": "01a18d15-7b28-7e10-981f-983fa4fb5c42",
+          "parentId": null,
+          "depth": 0,
+          "agentPath": null,
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 4588206,
+            "cached_input_tokens": 4501632,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 13304,
+            "reasoning_output_tokens": 1121,
+            "total_tokens": 4601510
+          },
+          "maxPromptInput": 100728,
+          "requestCount": 62,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T14-52-38-01a18d15-7b28-7e10-981f-983fa4fb5c42.jsonl",
+          "sha256": "1d29bc51a77453e4cc62c134db879c92b7e248658041735c061884100db7f563",
+          "standardApiEquivalentUsd": 0.7563512
+        },
+        {
+          "sessionId": "01a18d17-0d00-7611-818f-71b129c0ad12",
+          "parentId": "01a18d15-7b28-7e10-981f-983fa4fb5c42",
+          "depth": 1,
+          "agentPath": "/root/stream_implementation",
+          "model": "gpt-6-luna",
+          "usage": {
+            "input_tokens": 1624366,
+            "cached_input_tokens": 1569024,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 16368,
+            "reasoning_output_tokens": 6708,
+            "total_tokens": 1640734
+          },
+          "maxPromptInput": 60710,
+          "requestCount": 35,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T14-54-20-01a18d17-0d00-7611-818f-71b129c0ad12.jsonl",
+          "sha256": "35c3f0603a713cf067397eb7a6969a856c9a3a6a9b9d724fa9be0f788fd4acc2",
+          "standardApiEquivalentUsd": 0.02940844
+        },
+        {
+          "sessionId": "01a18d1a-620b-75c0-98a4-2dae0726dde8",
+          "parentId": "01a18d15-7b28-7e10-981f-983fa4fb5c42",
+          "depth": 1,
+          "agentPath": "/root/acceptance_verification",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 886780,
+            "cached_input_tokens": 843008,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 5881,
+            "reasoning_output_tokens": 373,
+            "total_tokens": 892661
+          },
+          "maxPromptInput": 56301,
+          "requestCount": 23,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T14-57-58-01a18d1a-620b-75c0-98a4-2dae0726dde8.jsonl",
+          "sha256": "3272dea91ac58d6f73537f3900d37d2c7f96fdcc78b97675fe8520f1ed34db78",
+          "standardApiEquivalentUsd": 0.2306548
+        },
+        {
+          "sessionId": "01a18d1a-cb9d-7ce1-865e-724b2ad9ff9b",
+          "parentId": "01a18d1a-620b-75c0-98a4-2dae0726dde8",
+          "depth": 2,
+          "agentPath": "/root/acceptance_verification/review_provider",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 704858,
+            "cached_input_tokens": 684032,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 4861,
+            "reasoning_output_tokens": 164,
+            "total_tokens": 709719
+          },
+          "maxPromptInput": 45016,
+          "requestCount": 19,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T14-58-25-01a18d1a-cb9d-7ce1-865e-724b2ad9ff9b.jsonl",
+          "sha256": "8b7cd535595661d68e544a891a6182904f1c6c127ab527d5dfa3d555da63821c",
+          "standardApiEquivalentUsd": 0.1586652
+        },
+        {
+          "sessionId": "01a18d1b-7c41-7752-8c90-e9592233f526",
+          "parentId": "01a18d1a-cb9d-7ce1-865e-724b2ad9ff9b",
+          "depth": 3,
+          "agentPath": "/root/acceptance_verification/review_provider/review_standards_16410495957c",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 114090,
+            "cached_input_tokens": 85248,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 534,
+            "reasoning_output_tokens": 28,
+            "total_tokens": 114624
+          },
+          "maxPromptInput": 32818,
+          "requestCount": 4,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T14-59-11-01a18d1b-7c41-7752-8c90-e9592233f526.jsonl",
+          "sha256": "9e4972832de621b1689dbca67bad5efb58af99a9b524c99c773e9495c4772731",
+          "standardApiEquivalentUsd": 0.07154880000000001
+        },
+        {
+          "sessionId": "01a18d1b-9297-7520-a0fe-2caba57f1968",
+          "parentId": "01a18d1a-cb9d-7ce1-865e-724b2ad9ff9b",
+          "depth": 3,
+          "agentPath": "/root/acceptance_verification/review_provider/review_spec_16410495957c",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 181776,
+            "cached_input_tokens": 170240,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 1109,
+            "reasoning_output_tokens": 109,
+            "total_tokens": 182885
+          },
+          "maxPromptInput": 34101,
+          "requestCount": 6,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T14-59-16-01a18d1b-9297-7520-a0fe-2caba57f1968.jsonl",
+          "sha256": "384cddaadf3ea45429a7beaf85626c634acbd950955bbfa144f5404e168d30c1",
+          "standardApiEquivalentUsd": 0.051186
+        },
+        {
+          "sessionId": "01a18d1f-8cdc-76a2-bde1-8b3d3a82abd9",
+          "parentId": "01a18d15-7b28-7e10-981f-983fa4fb5c42",
+          "depth": 1,
+          "agentPath": "/root/repair_verification",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 1242396,
+            "cached_input_tokens": 1211136,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 7235,
+            "reasoning_output_tokens": 355,
+            "total_tokens": 1249631
+          },
+          "maxPromptInput": 54014,
+          "requestCount": 30,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T15-03-37-01a18d1f-8cdc-76a2-bde1-8b3d3a82abd9.jsonl",
+          "sha256": "fabe28b33b44db3692d974cbf3ff6947c5200b7a3f82927c1aae0276ba527ea3",
+          "standardApiEquivalentUsd": 0.25598360000000003
+        },
+        {
+          "sessionId": "01a18d20-10d3-7442-9e7b-ce168115c2b0",
+          "parentId": "01a18d1f-8cdc-76a2-bde1-8b3d3a82abd9",
+          "depth": 2,
+          "agentPath": "/root/repair_verification/provider",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 669258,
+            "cached_input_tokens": 643840,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 4278,
+            "reasoning_output_tokens": 194,
+            "total_tokens": 673536
+          },
+          "maxPromptInput": 49131,
+          "requestCount": 17,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T15-04-11-01a18d20-10d3-7442-9e7b-ce168115c2b0.jsonl",
+          "sha256": "ffb1836e37c65a5213cc89cdee4f1c68eab1967027a76daf7e8676a633a31d8b",
+          "standardApiEquivalentUsd": 0.158
+        },
+        {
+          "sessionId": "01a18d20-f450-7850-8aaa-4e3fbf258295",
+          "parentId": "01a18d20-10d3-7442-9e7b-ce168115c2b0",
+          "depth": 3,
+          "agentPath": "/root/repair_verification/provider/review_spec_fc79b4606e75",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 116050,
+            "cached_input_tokens": 106112,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 830,
+            "reasoning_output_tokens": 10,
+            "total_tokens": 116880
+          },
+          "maxPromptInput": 32580,
+          "requestCount": 4,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T15-05-09-01a18d20-f450-7850-8aaa-4e3fbf258295.jsonl",
+          "sha256": "435a0d56227feeaaa1106f2da4cffa1ffb7989cca75fca3cac2ed7e05a6c9fd3",
+          "standardApiEquivalentUsd": 0.038787199999999994
+        }
+      ]
+    },
+    {
+      "track": "delivery",
+      "task": "ajv-instance-path",
+      "mode": "ticket-to-pr",
+      "execution": "completed",
+      "candidateSeconds": 606.194140791,
+      "sourceEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/delivery-ticket-to-pr-ajv-instance-path/cell-1/73cb0080-7855-417e-aa7c-cce61d79e478/run.json",
+      "bundle": {
+        "path": "file:///Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/delivery-ticket-to-pr-ajv-instance-path/cell-1/73cb0080-7855-417e-aa7c-cce61d79e478/trial-1-host-sevro.native-transcripts.bundle.bin",
+        "sha256": "c1434b7af8a5d53ea15cd51d8996ccbd102375bf7a0fdc82c80763085586d10e"
+      },
+      "completeness": "complete",
+      "captureCompleteness": "complete",
+      "captureIssues": [],
+      "observedTokens": {
+        "input_tokens": 6156210,
+        "cached_input_tokens": 5944064,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 26058,
+        "reasoning_output_tokens": 2400,
+        "total_tokens": 6182268
+      },
+      "standardApiEquivalentUsd": 1.2792784000000001,
+      "rootSessionId": "01a18d2b-a4a7-7500-98e2-7e7ba4dcf563",
+      "sessions": [
+        {
+          "sessionId": "01a18d2b-a4a7-7500-98e2-7e7ba4dcf563",
+          "parentId": null,
+          "depth": 0,
+          "agentPath": null,
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 4464505,
+            "cached_input_tokens": 4366336,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 15637,
+            "reasoning_output_tokens": 1927,
+            "total_tokens": 4480142
+          },
+          "maxPromptInput": 100261,
+          "requestCount": 58,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T15-16-50-01a18d2b-a4a7-7500-98e2-7e7ba4dcf563.jsonl",
+          "sha256": "f984bcc86c0007d27005279b0c9fa2422e91de2bccadd39b310964bcc993eac4",
+          "standardApiEquivalentUsd": 0.7893416000000001
+        },
+        {
+          "sessionId": "01a18d30-7b18-7100-ad63-c9fd67fad7db",
+          "parentId": "01a18d2b-a4a7-7500-98e2-7e7ba4dcf563",
+          "depth": 1,
+          "agentPath": "/root/verify_issue_1",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 998323,
+            "cached_input_tokens": 932096,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 5594,
+            "reasoning_output_tokens": 288,
+            "total_tokens": 1003917
+          },
+          "maxPromptInput": 49512,
+          "requestCount": 26,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T15-22-07-01a18d30-7b18-7100-ad63-c9fd67fad7db.jsonl",
+          "sha256": "a37c70b10cc6fdc7296553f16be60376c19d585e61edbeb5fb2aedec4780bb95",
+          "standardApiEquivalentUsd": 0.28160359999999995
+        },
+        {
+          "sessionId": "01a18d30-d9ef-7853-8fe1-1ec14188fdfa",
+          "parentId": "01a18d30-7b18-7100-ad63-c9fd67fad7db",
+          "depth": 2,
+          "agentPath": "/root/verify_issue_1/review_provider",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 490988,
+            "cached_input_tokens": 467712,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 3465,
+            "reasoning_output_tokens": 0,
+            "total_tokens": 494453
+          },
+          "maxPromptInput": 41531,
+          "requestCount": 14,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T15-22-31-01a18d30-d9ef-7853-8fe1-1ec14188fdfa.jsonl",
+          "sha256": "724b9be8821d3c1b72fb05c46fc82efd15bb6cf7698bd8c3a89871d01bae7484",
+          "standardApiEquivalentUsd": 0.1279732
+        },
+        {
+          "sessionId": "01a18d31-6461-7e62-b902-030d4f00ba67",
+          "parentId": "01a18d30-d9ef-7853-8fe1-1ec14188fdfa",
+          "depth": 3,
+          "agentPath": "/root/verify_issue_1/review_provider/review_standards_1f7f6c80ee07",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 91077,
+            "cached_input_tokens": 77184,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 587,
+            "reasoning_output_tokens": 38,
+            "total_tokens": 91664
+          },
+          "maxPromptInput": 35936,
+          "requestCount": 3,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T15-23-06-01a18d31-6461-7e62-b902-030d4f00ba67.jsonl",
+          "sha256": "20db7ac6679e692ac758813d55e4c79891780cbdef5c30dbe965a81ec435ef04",
+          "standardApiEquivalentUsd": 0.0413744
+        },
+        {
+          "sessionId": "01a18d31-7ad4-7ba2-9a55-bd4c43fe2660",
+          "parentId": "01a18d30-d9ef-7853-8fe1-1ec14188fdfa",
+          "depth": 3,
+          "agentPath": "/root/verify_issue_1/review_provider/review_spec_1f7f6c80ee07",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 111317,
+            "cached_input_tokens": 100736,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 775,
+            "reasoning_output_tokens": 147,
+            "total_tokens": 112092
+          },
+          "maxPromptInput": 32995,
+          "requestCount": 4,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T15-23-12-01a18d31-7ad4-7ba2-9a55-bd4c43fe2660.jsonl",
+          "sha256": "ba8ee2455b7a4d6760807a5d1b2d928741810b35e0b76bd117c42c4046ad128e",
+          "standardApiEquivalentUsd": 0.038985599999999995
+        }
+      ]
+    },
+    {
+      "track": "delivery",
+      "task": "go-git-insteadof",
+      "mode": "ticket-to-pr",
+      "execution": "completed",
+      "candidateSeconds": 511.12924775,
+      "sourceEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/delivery-ticket-to-pr-go-git-insteadof/cell-1/bdc3a87e-a9c4-443e-9112-50c48dbad230/run.json",
+      "bundle": {
+        "path": "file:///Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/delivery-ticket-to-pr-go-git-insteadof/cell-1/bdc3a87e-a9c4-443e-9112-50c48dbad230/trial-1-host-sevro.native-transcripts.bundle.bin",
+        "sha256": "db810c6c198430209e4bc5b4aae151c06ffb30f14540e551d20d7988609e1707"
+      },
+      "completeness": "complete",
+      "captureCompleteness": "complete",
+      "captureIssues": [],
+      "observedTokens": {
+        "input_tokens": 4002026,
+        "cached_input_tokens": 3826816,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 20342,
+        "reasoning_output_tokens": 890,
+        "total_tokens": 4022368
+      },
+      "standardApiEquivalentUsd": 0.9365216000000001,
+      "rootSessionId": "01a18d3d-63de-78c3-9978-de53b1cede4f",
+      "sessions": [
+        {
+          "sessionId": "01a18d3d-63de-78c3-9978-de53b1cede4f",
+          "parentId": null,
+          "depth": 0,
+          "agentPath": null,
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 2600981,
+            "cached_input_tokens": 2537600,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 11070,
+            "reasoning_output_tokens": 574,
+            "total_tokens": 2612051
+          },
+          "maxPromptInput": 79102,
+          "requestCount": 41,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T15-36-13-01a18d3d-63de-78c3-9978-de53b1cede4f.jsonl",
+          "sha256": "15fa67e56e65a741926abf167e6037ac4679a825bc07684c4d0285dd34fe742f",
+          "standardApiEquivalentUsd": 0.491222
+        },
+        {
+          "sessionId": "01a18d41-4373-7720-bd2f-cb739bb44c07",
+          "parentId": "01a18d3d-63de-78c3-9978-de53b1cede4f",
+          "depth": 1,
+          "agentPath": "/root/issue1_verification",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 637982,
+            "cached_input_tokens": 587264,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 4489,
+            "reasoning_output_tokens": 243,
+            "total_tokens": 642471
+          },
+          "maxPromptInput": 44162,
+          "requestCount": 18,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T15-40-27-01a18d41-4373-7720-bd2f-cb739bb44c07.jsonl",
+          "sha256": "623faecfee088ac9488e6a096c8498b7a9b2c7fa2192b29f91f7db75a885c4c9",
+          "standardApiEquivalentUsd": 0.2050524
+        },
+        {
+          "sessionId": "01a18d41-ab59-71f1-a22e-3b74808ed467",
+          "parentId": "01a18d41-4373-7720-bd2f-cb739bb44c07",
+          "depth": 2,
+          "agentPath": "/root/issue1_verification/review_provider",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 475693,
+            "cached_input_tokens": 440960,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 3254,
+            "reasoning_output_tokens": 0,
+            "total_tokens": 478947
+          },
+          "maxPromptInput": 38666,
+          "requestCount": 14,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T15-40-53-01a18d41-ab59-71f1-a22e-3b74808ed467.jsonl",
+          "sha256": "90e0c4cf2c424ddcd0fd262cdedf9219ac9db627ae30added550b6a7b8139d09",
+          "standardApiEquivalentUsd": 0.146102
+        },
+        {
+          "sessionId": "01a18d42-73dd-7830-9143-8c59d1b16fce",
+          "parentId": "01a18d41-ab59-71f1-a22e-3b74808ed467",
+          "depth": 3,
+          "agentPath": "/root/issue1_verification/review_provider/review_standards_d123a4466e71",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 145347,
+            "cached_input_tokens": 129664,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 679,
+            "reasoning_output_tokens": 18,
+            "total_tokens": 146026
+          },
+          "maxPromptInput": 34803,
+          "requestCount": 5,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T15-41-44-01a18d42-73dd-7830-9143-8c59d1b16fce.jsonl",
+          "sha256": "10096ba35e289cba4115a05f925b67c346a2417fc70d69c75b943e37069f82c7",
+          "standardApiEquivalentUsd": 0.0511224
+        },
+        {
+          "sessionId": "01a18d42-8834-7171-afac-88e160fb9556",
+          "parentId": "01a18d41-ab59-71f1-a22e-3b74808ed467",
+          "depth": 3,
+          "agentPath": "/root/issue1_verification/review_provider/review_spec_d123a4466e71",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 142023,
+            "cached_input_tokens": 131328,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 850,
+            "reasoning_output_tokens": 55,
+            "total_tokens": 142873
+          },
+          "maxPromptInput": 33102,
+          "requestCount": 5,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T15-41-50-01a18d42-8834-7171-afac-88e160fb9556.jsonl",
+          "sha256": "94e08a225fb6942b015c729a1359e57cac23fe02f8137a842553ef3c6438a4c8",
+          "standardApiEquivalentUsd": 0.0430228
+        }
+      ]
+    }
+  ],
+  "excludedAttempts": [
+    {
+      "track": "implementation",
+      "task": "click-streams",
+      "reason": "Fixture-created review storage had mode 0755; independent review could not start. Replaced after a frozen fixture repair.",
+      "seconds": 443.836435667,
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/implementation-adaptive-goal-click-streams/cell-1/1df7ca1c-bd47-4442-8280-356d42d8a6cf/run.json",
+      "completeness": "complete",
+      "captureCompleteness": "complete",
+      "captureIssues": [],
+      "observedTokens": {
+        "input_tokens": 5084165,
+        "cached_input_tokens": 4892288,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 25401,
+        "reasoning_output_tokens": 5611,
+        "total_tokens": 5109566
+      },
+      "standardApiEquivalentUsd": 0.6317440000000001,
+      "rootSessionId": "01a18d02-a973-7b53-ba45-8ee20dd19c74",
+      "sessions": [
+        {
+          "sessionId": "01a18d02-a973-7b53-ba45-8ee20dd19c74",
+          "parentId": null,
+          "depth": 0,
+          "agentPath": null,
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 2082072,
+            "cached_input_tokens": 2025984,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 6112,
+            "reasoning_output_tokens": 742,
+            "total_tokens": 2088184
+          },
+          "maxPromptInput": 67360,
+          "requestCount": 39,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T14-32-04-01a18d02-a973-7b53-ba45-8ee20dd19c74.jsonl",
+          "sha256": "1b5ea4265c7a339861b2150848c63b2be0a23c60225137ce5226f15b645b2dd4",
+          "standardApiEquivalentUsd": 0.3758944
+        },
+        {
+          "sessionId": "01a18d03-8552-7612-a7db-f50e02835f9d",
+          "parentId": "01a18d02-a973-7b53-ba45-8ee20dd19c74",
+          "depth": 1,
+          "agentPath": "/root/implement_capture",
+          "model": "gpt-6-luna",
+          "usage": {
+            "input_tokens": 2079033,
+            "cached_input_tokens": 1984640,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 14451,
+            "reasoning_output_tokens": 4647,
+            "total_tokens": 2093484
+          },
+          "maxPromptInput": 55882,
+          "requestCount": 48,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T14-33-00-01a18d03-8552-7612-a7db-f50e02835f9d.jsonl",
+          "sha256": "9fad16b34304eb8ca76bdaa45b3add4d30addc141ffd9c867f5b94786b4b01ac",
+          "standardApiEquivalentUsd": 0.03651120000000001
+        },
+        {
+          "sessionId": "01a18d06-db00-7952-b4b8-485694d85478",
+          "parentId": "01a18d02-a973-7b53-ba45-8ee20dd19c74",
+          "depth": 1,
+          "agentPath": "/root/verify_capture",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 623472,
+            "cached_input_tokens": 597376,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 2807,
+            "reasoning_output_tokens": 180,
+            "total_tokens": 626279
+          },
+          "maxPromptInput": 36733,
+          "requestCount": 19,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T14-36-39-01a18d06-db00-7952-b4b8-485694d85478.jsonl",
+          "sha256": "f3a1d44148496de0226254ca0f0d6c7de6fee3bd6eb822086ffa1ab325e3143a",
+          "standardApiEquivalentUsd": 0.1399996
+        },
+        {
+          "sessionId": "01a18d07-3166-7373-9e22-bd7777fe1b3c",
+          "parentId": "01a18d06-db00-7952-b4b8-485694d85478",
+          "depth": 2,
+          "agentPath": "/root/verify_capture/provider",
+          "model": "gpt-6.1-sol",
+          "usage": {
+            "input_tokens": 299588,
+            "cached_input_tokens": 284288,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 2031,
+            "reasoning_output_tokens": 42,
+            "total_tokens": 301619
+          },
+          "maxPromptInput": 37125,
+          "requestCount": 10,
+          "completed": true,
+          "path": "2026/10/30/rollout-2026-10-30T14-37-01-01a18d07-3166-7373-9e22-bd7777fe1b3c.jsonl",
+          "sha256": "a5e866e985316a2c367cbdb8f8660ac71939c956c519b5bd15cf403c7ccf0e1a",
+          "standardApiEquivalentUsd": 0.0793388
+        }
+      ]
+    }
+  ]
+}

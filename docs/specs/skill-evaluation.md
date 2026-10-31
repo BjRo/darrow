@@ -1103,6 +1103,50 @@ No legacy goal-loop machinery or private completion format is restored.
 
 ### Benchmark conditions
 
+Current-design orchestration value comparisons keep the native goal and delivery
+ownership in the original main thread. Their conditions invoke the shipped skill
+without forcing a separate overall owner, fixed child count, private profile
+records or historical model routes. Direct and bounded delegated implementation
+are both valid. Select passive observation explicitly and retain the selected
+coordinator route and observed execution evidence separately.
+
+Compare implementation outcomes on the four original OSS task contracts
+(Click, Ajv, go-git and Express) with a fresh vanilla control. Full ticket-to-PR
+delivery uses the same engineering requirements with a separately declared
+authority envelope and isolated tracker, Git remote, forge and required-CI
+state. Grade code acceptance independently from delivery completion. Historical
+no-publication results remain historical evidence; full delivery duration is
+not a matched latency comparison with those implementation-only runs.
+
+The delivery CI fixture binds its command to the frozen task input, executes
+candidate code through Sevro's credential-free isolated shell grader, and keeps
+host-owned invocation evidence outside the candidate workspace. A protected
+grading declaration queries that evidence for the exact final commit;
+candidate-written success records or edited fixture inputs cannot establish CI.
+Help queries remain read-only. A per-cell fixture service ends with that cell.
+
+Benchmark retrospectives may recover usage from retained native transcripts while
+preserving the original host-reported fields. Count each parent or child session
+once using its final cumulative token counters; cached input and reasoning output
+remain subsets of input and output. A partial capture supplies an observed lower
+bound, never a complete workflow total. Keep source hashes, capture completeness,
+model identities and the dated pricing basis with any reconstruction. API-equivalent
+cost estimates remain separate from actual provider charges, and require enough
+evidence to apply cache and per-request context pricing correctly.
+
+Reviewer-effort comparisons freeze their baseline candidate, prompts, fixtures,
+checks and main-thread route before changing the selected reviewer route. An
+explicitly requested experimental route may use a minimal admission exception
+in the frozen review-provider copy; this does not change the shipped catalog.
+Record requested and observed reviewer model/effort separately. Temporary host
+capture-limit patches belong to an isolated evaluator copy with before/after
+hashes and retained patch intent. Preserve finite resource bounds and record
+these observer changes separately from the reviewer treatment and task outcomes.
+Benchmark-provisioned review storage must have private permissions before the
+participant starts. A fixture defect discovered during a comparison requires a
+new frozen snapshot and an explicit exclusion record for any replaced attempt;
+preserve its outcomes, time and usage separately from valid-cell aggregates.
+
 The Darrow Sevro run entrypoint accepts an absolute benchmark condition file
 separately from Sevro's passive or enforced execution condition. It prefixes
 the initial case prompt with the trimmed instruction text and preserves the

@@ -1,0 +1,402 @@
+{
+  "format": "darrow-click-writelines-retrospective-v1",
+  "date": "2026-10-30",
+  "status": "supplemental characterization; original benchmark verdicts preserved",
+  "boundary": "CliRunner combined output must contain binary stdout/stderr writelines writes interleaved with text writes, without explicit flushing.",
+  "method": "Extract the latest complete src/click/testing.py diff retained in each native bundle; verify bundle and transcript hashes; apply only that file to pinned Click 8.0.0 source in an isolated copy; verify the reconstructed Git blob against the retained diff index; run the same public CliRunner probe under Python 3.13. No transcript commands are replayed.",
+  "probe": {
+    "path": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/click-quality-probe/probe.py",
+    "sha256": "66024d1b8c1c05e6347a37dd8d480de7f8dd4c3e21c0185e09417ae9f7f5f3e1",
+    "source": "import hashlib\nimport json\nfrom pathlib import Path\nimport sys\n\nimport click\nfrom click.testing import CliRunner\n\nrows = []\nfor selected in (\"stdout\", \"stderr\"):\n    for method in (\"write\", \"writelines\"):\n\n        @click.command()\n        def command():\n            other = sys.stderr if selected == \"stdout\" else sys.stdout\n            other.write(\"before\")\n            stream = click.get_binary_stream(selected)\n            if method == \"write\":\n                stream.write(b\" middle\")\n            else:\n                stream.writelines([b\" middle\"])\n            other.write(\" after\")\n\n        result = CliRunner().invoke(command)\n        expected = b\"before middle after\"\n        rows.append({\n            \"stream\": selected,\n            \"method\": method,\n            \"stdout_bytes\": repr(result.stdout_bytes),\n            \"stderr_bytes\": repr(result.stderr_bytes),\n            \"output_bytes\": repr(result.output_bytes),\n            \"output\": result.output,\n            \"expected_output_bytes\": repr(expected),\n            \"exception\": repr(result.exception),\n            \"passed\": result.exception is None\n            and result.output_bytes == expected\n            and result.output == expected.decode(),\n        })\n\nsource = Path(sys.modules[\"click.testing\"].__file__)\ndata = source.read_bytes()\nprint(json.dumps({\n    \"source\": str(source),\n    \"source_sha256\": hashlib.sha256(source.read_bytes()).hexdigest(),\n    \"source_git_blob_id\": hashlib.sha1(b\"blob \" + str(len(data)).encode() + b\"\\0\" + data).hexdigest(),\n    \"python\": sys.version,\n    \"checks\": rows,\n}, indent=2))\nsys.exit(0 if all(row[\"passed\"] for row in rows) else 1)\n"
+  },
+  "extractor": {
+    "path": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/extract-click-diff.ts",
+    "sha256": "dadbd78989d456f813ff3a9b8739de68608175b211f3b443d9137f0dd0729218"
+  },
+  "limitations": [
+    "Post hoc boundary selected from the earlier xhigh finding; not a blind quality score or representative detection-rate estimate.",
+    "Tests characterize the source identities retained in the diffs; original final workspace directories were removed.",
+    "Original hidden acceptance checks did not cover this boundary. They remain unchanged for all benchmark trials.",
+    "Old xhigh Click delivery was host-aborted and has no completed artifact comparator."
+  ],
+  "rows": [
+    {
+      "track": "implementation",
+      "condition": "vanilla",
+      "probe": "click-vanilla-implementation-quality-probe/result.json",
+      "patch": "click-vanilla-implementation-source.patch",
+      "sourceIdentity": {
+        "sourceEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-vanilla-click-streams/cell-1/ef06eac4-af1c-4a78-aa5a-d8904fd10d24/run.json",
+        "bundle": {
+          "path": "file:///Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-vanilla-click-streams/cell-1/ef06eac4-af1c-4a78-aa5a-d8904fd10d24/trial-1-host-sevro.native-transcripts.bundle.bin",
+          "sha256": "fcc930735761089e5aeb8318a6768d3b162e865b331ca4e9df063926277e2e41"
+        },
+        "selected": {
+          "at": "2026-10-30T09:27:42.664Z",
+          "path": "main",
+          "sessionId": "01a18c21-aabd-72b0-9dc8-fae36f4d3b55",
+          "transcriptSha256": "21452f122832b41bcbfbf575ff284e591d1838928f6d7d02d8bcfbebf356fc8a"
+        },
+        "gitBlobs": ["d19b850", "f717162"],
+        "patchSha256": "7bae8b0c16cd627f57be5137a9da23dd103e03c932d776d49a9ee20f321f726b"
+      },
+      "result": {
+        "source": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/click-vanilla-implementation-quality-probe/src/click/testing.py",
+        "source_sha256": "fe53119dde296606dd8f422c819aea20d954570ace84e9610dc4ec6cc6c3b665",
+        "source_git_blob_id": "f717162c4d6d31c315782f54a0c853705caf62c7",
+        "python": "3.13.14 (main, Jun 11 2026, 03:58:32) [Clang 22.1.3 ]",
+        "checks": [
+          {
+            "stream": "stdout",
+            "method": "write",
+            "stdout_bytes": "b' middle'",
+            "stderr_bytes": "b'before after'",
+            "output_bytes": "b'before middle after'",
+            "output": "before middle after",
+            "expected_output_bytes": "b'before middle after'",
+            "exception": "None",
+            "passed": true
+          },
+          {
+            "stream": "stdout",
+            "method": "writelines",
+            "stdout_bytes": "b' middle'",
+            "stderr_bytes": "b'before after'",
+            "output_bytes": "b'before after'",
+            "output": "before after",
+            "expected_output_bytes": "b'before middle after'",
+            "exception": "None",
+            "passed": false
+          },
+          {
+            "stream": "stderr",
+            "method": "write",
+            "stdout_bytes": "b'before after'",
+            "stderr_bytes": "b' middle'",
+            "output_bytes": "b'before middle after'",
+            "output": "before middle after",
+            "expected_output_bytes": "b'before middle after'",
+            "exception": "None",
+            "passed": true
+          },
+          {
+            "stream": "stderr",
+            "method": "writelines",
+            "stdout_bytes": "b'before after'",
+            "stderr_bytes": "b' middle'",
+            "output_bytes": "b'before after'",
+            "output": "before after",
+            "expected_output_bytes": "b'before middle after'",
+            "exception": "None",
+            "passed": false
+          }
+        ]
+      },
+      "passedChecks": 2,
+      "totalChecks": 4
+    },
+    {
+      "track": "delivery",
+      "condition": "vanilla",
+      "probe": "click-vanilla-delivery-quality-probe/result.json",
+      "patch": "click-vanilla-delivery-source.patch",
+      "sourceIdentity": {
+        "sourceEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-vanilla-click-streams/cell-1/450bf7f4-07b4-4b50-a731-c812a26276b3/run.json",
+        "bundle": {
+          "path": "file:///Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-vanilla-click-streams/cell-1/450bf7f4-07b4-4b50-a731-c812a26276b3/trial-1-host-sevro.native-transcripts.bundle.bin",
+          "sha256": "f84740664c9326bd38fae56c0eb9dab1a8cf082e23fc16d241213d2419825ef4"
+        },
+        "selected": {
+          "at": "2026-10-30T10:44:57.722Z",
+          "path": "main",
+          "sessionId": "01a18c68-7bd1-7093-9e8f-5edd91252815",
+          "transcriptSha256": "88afac601cc989f270d4322d181fb68ac6c7baea304da3e95736a83701cfaefc"
+        },
+        "gitBlobs": ["d19b850", "4b9d55a"],
+        "patchSha256": "ac3c245c447b83f97708a26a75bfd2408e8f132ed9b1968082f47e507c73a14f"
+      },
+      "result": {
+        "source": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/click-vanilla-delivery-quality-probe/src/click/testing.py",
+        "source_sha256": "1234ce5ccde0ca9c5dc18d2e59220e338831cfbc769c2ea2821f3c484e68e256",
+        "source_git_blob_id": "4b9d55a4f40c637d37f155f8732966409ebb8b38",
+        "python": "3.13.14 (main, Jun 11 2026, 03:58:32) [Clang 22.1.3 ]",
+        "checks": [
+          {
+            "stream": "stdout",
+            "method": "write",
+            "stdout_bytes": "b' middle'",
+            "stderr_bytes": "b'before after'",
+            "output_bytes": "b'before middle after'",
+            "output": "before middle after",
+            "expected_output_bytes": "b'before middle after'",
+            "exception": "None",
+            "passed": true
+          },
+          {
+            "stream": "stdout",
+            "method": "writelines",
+            "stdout_bytes": "b' middle'",
+            "stderr_bytes": "b'before after'",
+            "output_bytes": "b'before after'",
+            "output": "before after",
+            "expected_output_bytes": "b'before middle after'",
+            "exception": "None",
+            "passed": false
+          },
+          {
+            "stream": "stderr",
+            "method": "write",
+            "stdout_bytes": "b'before after'",
+            "stderr_bytes": "b' middle'",
+            "output_bytes": "b'before middle after'",
+            "output": "before middle after",
+            "expected_output_bytes": "b'before middle after'",
+            "exception": "None",
+            "passed": true
+          },
+          {
+            "stream": "stderr",
+            "method": "writelines",
+            "stdout_bytes": "b'before after'",
+            "stderr_bytes": "b' middle'",
+            "output_bytes": "b'before after'",
+            "output": "before after",
+            "expected_output_bytes": "b'before middle after'",
+            "exception": "None",
+            "passed": false
+          }
+        ]
+      },
+      "passedChecks": 2,
+      "totalChecks": 4
+    },
+    {
+      "track": "implementation",
+      "condition": "adaptive-goal-xhigh-review",
+      "probe": "click-xhigh-quality-probe/xhigh-probe.json",
+      "patch": "click-xhigh-source.patch",
+      "sourceIdentity": {
+        "sourceEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-adaptive-goal-click-streams/cell-1/d8e1e008-5586-4c84-9b1b-82dbdbcdb6a6/run.json",
+        "bundle": {
+          "path": "file:///Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-adaptive-goal-click-streams/cell-1/d8e1e008-5586-4c84-9b1b-82dbdbcdb6a6/trial-1-host-sevro.native-transcripts.bundle.bin",
+          "sha256": "d3fae671ca1cfb0dbe2a604023fce6a26f649095dea70875ab6ddb3ae0fb387e"
+        },
+        "selected": {
+          "at": "2026-10-30T09:41:01.786Z",
+          "path": "main",
+          "sessionId": "01a18c24-1fc6-7ad0-ae56-50be2c127d69",
+          "transcriptSha256": "670baddc2469687a3f1b9f15edd16aa00a3a04b70a793d043d3d28945ebd0f54"
+        },
+        "gitBlobs": ["d19b850", "b4dc43e"],
+        "patchSha256": "6549105cb8ce0949454b89f693597aa496bf634fc274c20fe39f5c391bf027b4"
+      },
+      "result": {
+        "source": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/click-xhigh-quality-probe/src/click/testing.py",
+        "source_sha256": "75cb86510d997d452c776e66570353354309fd4c43cedd59cbbd2b7acc4d8a90",
+        "source_git_blob_id": "b4dc43e3c4a382251b7974072d53dd4ab848f77b",
+        "python": "3.13.14 (main, Jun 11 2026, 03:58:32) [Clang 22.1.3 ]",
+        "checks": [
+          {
+            "stream": "stdout",
+            "method": "write",
+            "stdout_bytes": "b' middle'",
+            "stderr_bytes": "b'before after'",
+            "output_bytes": "b'before middle after'",
+            "output": "before middle after",
+            "expected_output_bytes": "b'before middle after'",
+            "exception": "None",
+            "passed": true
+          },
+          {
+            "stream": "stdout",
+            "method": "writelines",
+            "stdout_bytes": "b' middle'",
+            "stderr_bytes": "b'before after'",
+            "output_bytes": "b'before middle after'",
+            "output": "before middle after",
+            "expected_output_bytes": "b'before middle after'",
+            "exception": "None",
+            "passed": true
+          },
+          {
+            "stream": "stderr",
+            "method": "write",
+            "stdout_bytes": "b'before after'",
+            "stderr_bytes": "b' middle'",
+            "output_bytes": "b'before middle after'",
+            "output": "before middle after",
+            "expected_output_bytes": "b'before middle after'",
+            "exception": "None",
+            "passed": true
+          },
+          {
+            "stream": "stderr",
+            "method": "writelines",
+            "stdout_bytes": "b'before after'",
+            "stderr_bytes": "b' middle'",
+            "output_bytes": "b'before middle after'",
+            "output": "before middle after",
+            "expected_output_bytes": "b'before middle after'",
+            "exception": "None",
+            "passed": true
+          }
+        ]
+      },
+      "passedChecks": 4,
+      "totalChecks": 4
+    },
+    {
+      "track": "implementation",
+      "condition": "adaptive-goal-medium-review",
+      "probe": "click-quality-probe/medium-probe.json",
+      "patch": "click-medium-source.patch",
+      "sourceIdentity": {
+        "sourceEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/implementation-adaptive-goal-click-streams/cell-1/50fe5ad9-55a4-4191-bbce-d46e2d8e6ee2/run.json",
+        "bundle": {
+          "path": "file:///Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/implementation-adaptive-goal-click-streams/cell-1/50fe5ad9-55a4-4191-bbce-d46e2d8e6ee2/trial-1-host-sevro.native-transcripts.bundle.bin",
+          "sha256": "efd86f1d81f427b95724063c2b233153b5d6d3f288054e572ceffad9838ace96"
+        },
+        "selected": {
+          "at": "2026-10-30T13:49:58.632Z",
+          "path": "/root/verify_capture/review_provider/review_spec_e1d078466f52",
+          "sessionId": "01a18d12-e21c-71a2-abfb-0f8623dab4f0",
+          "transcriptSha256": "940e732a43a2ebd276866cd5fc28323c5d3ac9a6394768d22bd756f7d7ab35fb"
+        },
+        "gitBlobs": [
+          "d19b850fc1e8e91f16dbe604ae70cf681d31b083",
+          "092e52ddd9e1c3d60ec5cbfbb0856dc4dd7295a7"
+        ],
+        "patchSha256": "715a7c712a366e14c8d3be3a420dd4f58c478f25c35adceff6e35e01c2181c02"
+      },
+      "result": {
+        "source": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/click-quality-probe/src/click/testing.py",
+        "source_sha256": "1e94a87143b45caa889e447aa23a8c9911373e62f0b30f2e974d5256165acb55",
+        "source_git_blob_id": "092e52ddd9e1c3d60ec5cbfbb0856dc4dd7295a7",
+        "python": "3.13.14 (main, Jun 11 2026, 03:58:32) [Clang 22.1.3 ]",
+        "checks": [
+          {
+            "stream": "stdout",
+            "method": "write",
+            "stdout_bytes": "b' middle'",
+            "stderr_bytes": "b'before after'",
+            "output_bytes": "b'before middle after'",
+            "output": "before middle after",
+            "expected_output_bytes": "b'before middle after'",
+            "exception": "None",
+            "passed": true
+          },
+          {
+            "stream": "stdout",
+            "method": "writelines",
+            "stdout_bytes": "b' middle'",
+            "stderr_bytes": "b'before after'",
+            "output_bytes": "b'before after'",
+            "output": "before after",
+            "expected_output_bytes": "b'before middle after'",
+            "exception": "None",
+            "passed": false
+          },
+          {
+            "stream": "stderr",
+            "method": "write",
+            "stdout_bytes": "b'before after'",
+            "stderr_bytes": "b' middle'",
+            "output_bytes": "b'before middle after'",
+            "output": "before middle after",
+            "expected_output_bytes": "b'before middle after'",
+            "exception": "None",
+            "passed": true
+          },
+          {
+            "stream": "stderr",
+            "method": "writelines",
+            "stdout_bytes": "b'before after'",
+            "stderr_bytes": "b' middle'",
+            "output_bytes": "b'before after'",
+            "output": "before after",
+            "expected_output_bytes": "b'before middle after'",
+            "exception": "None",
+            "passed": false
+          }
+        ]
+      },
+      "passedChecks": 2,
+      "totalChecks": 4
+    },
+    {
+      "track": "delivery",
+      "condition": "ticket-to-pr-medium-review",
+      "probe": "click-medium-delivery-quality-probe/result.json",
+      "patch": "click-medium-delivery-source.patch",
+      "sourceIdentity": {
+        "sourceEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/delivery-ticket-to-pr-click-streams/cell-1/f16c9040-2db1-4460-9f3d-4d5d1c5ad509/run.json",
+        "bundle": {
+          "path": "file:///Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/delivery-ticket-to-pr-click-streams/cell-1/f16c9040-2db1-4460-9f3d-4d5d1c5ad509/trial-1-host-sevro.native-transcripts.bundle.bin",
+          "sha256": "c7a8b848ab63f8be9521ed94dbd260bbe5772c70b719e0177b3b4d46c31e23f3"
+        },
+        "selected": {
+          "at": "2026-10-30T14:07:50.983Z",
+          "path": "main",
+          "sessionId": "01a18d15-7b28-7e10-981f-983fa4fb5c42",
+          "transcriptSha256": "1d29bc51a77453e4cc62c134db879c92b7e248658041735c061884100db7f563"
+        },
+        "gitBlobs": ["d19b850", "111afef"],
+        "patchSha256": "25825db5f1bea31146a020f0ea0236f1c4fc98a3634c0e591ead545a6b122e6f"
+      },
+      "result": {
+        "source": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/click-medium-delivery-quality-probe/src/click/testing.py",
+        "source_sha256": "a15e00023d653a29586a46d82fff2b69bb6161015f8d8863e2334b63591ef36b",
+        "source_git_blob_id": "111afef7d5792a896bff2c81634b9e391aed7a45",
+        "python": "3.13.14 (main, Jun 11 2026, 03:58:32) [Clang 22.1.3 ]",
+        "checks": [
+          {
+            "stream": "stdout",
+            "method": "write",
+            "stdout_bytes": "b' middle'",
+            "stderr_bytes": "b'before after'",
+            "output_bytes": "b'before middle after'",
+            "output": "before middle after",
+            "expected_output_bytes": "b'before middle after'",
+            "exception": "None",
+            "passed": true
+          },
+          {
+            "stream": "stdout",
+            "method": "writelines",
+            "stdout_bytes": "b' middle'",
+            "stderr_bytes": "b'before after'",
+            "output_bytes": "b'before middle after'",
+            "output": "before middle after",
+            "expected_output_bytes": "b'before middle after'",
+            "exception": "None",
+            "passed": true
+          },
+          {
+            "stream": "stderr",
+            "method": "write",
+            "stdout_bytes": "b'before after'",
+            "stderr_bytes": "b' middle'",
+            "output_bytes": "b'before middle after'",
+            "output": "before middle after",
+            "expected_output_bytes": "b'before middle after'",
+            "exception": "None",
+            "passed": true
+          },
+          {
+            "stream": "stderr",
+            "method": "writelines",
+            "stdout_bytes": "b'before after'",
+            "stderr_bytes": "b' middle'",
+            "output_bytes": "b'before middle after'",
+            "output": "before middle after",
+            "expected_output_bytes": "b'before middle after'",
+            "exception": "None",
+            "passed": true
+          }
+        ]
+      },
+      "passedChecks": 4,
+      "totalChecks": 4
+    }
+  ]
+}
