@@ -6,10 +6,17 @@ current contracts. Dates, models, trial counts, failures and observation gaps
 belong to their recorded conditions. Older ownership and routing proposals are
 historical even when their original text says “current” or “proposed.”
 
+## Native telemetry and plugin retirement
+
+Current authority: [Langfuse plugin retirement](../decisions/ADR-0013-retire-the-langfuse-observability-plugin.md).
+
+- [Native ticket attribution results, limits and migration](native-otel-issue-284.md)
+- [Historical plugin ingestion and performance evidence](langfuse-plugin-issue-77-verification.md)
+
 ## Native goals, ownership and host boundaries
 
 Current authority: [Adaptive Goal](../specs/adaptive-goal.md) and
-[accepted ownership decision](../decisions/ADR-0004-use-native-goal-ownership-for-core-orchestration.md).
+[accepted ownership decision](../decisions/ADR-0012-keep-native-goal-ownership-in-the-main-thread.md).
 The adopted main thread owns acceptance and completion; bounded children own assignments.
 
 - [Adopted main-thread ownership](adaptive-delivery-main-thread-adoption-2026-10-02.md)

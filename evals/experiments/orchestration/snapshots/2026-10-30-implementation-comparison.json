@@ -1,0 +1,991 @@
+{
+  "format": "darrow-retained-implementation-comparison-v1",
+  "date": "2026-10-30",
+  "scope": {
+    "attempts": 24,
+    "assessed": 23,
+    "unassessed": ["delivery--ticket-to-pr--xhigh--click-streams"],
+    "verifiedFileSnapshots": 78
+  },
+  "method": "Read native bundles and verify their SHA-256 and per-transcript SHA-256. Extract complete base-relative unified diffs without executing transcript commands. Apply only those diffs to isolated pinned upstream source copies, and verify reconstructed Git blob identities against the captured indexes. Additional public Config probes run offline on reconstructed go-git source; existing Click probes are reused. No new model trials or original grading changes.",
+  "limitations": [
+    "This is a retrospective comparison, not a blind review or a general model/workflow ranking.",
+    "A latest retained complete diff can precede later edits that did not emit another complete diff; structural observations refer to identified source snapshots.",
+    "The old xhigh Ticket to PR Click run is unassessed and has partial native capture, so it is excluded from completed-artifact comparisons.",
+    "The go-git characterization adds public-slice mutation sequences beyond the original hidden checks; its outcomes remain separate from original verdicts."
+  ],
+  "analysisSources": [
+    {
+      "path": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/extract-comparison.ts",
+      "sha256": "afe0da48e6238862cfdace38df83acb99c4bbcad5c7c38895306b32765f3f52f"
+    },
+    {
+      "path": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/reconstruct-comparison.ts",
+      "sha256": "9542731f6c0b7c994f89c1db598c9a2f29b057b3b8d766b1103dd74ea79c3257"
+    },
+    {
+      "path": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/probe-gogit-comparison.ts",
+      "sha256": "86f0cc7df7f46fe83e682e15c91e7f98d087cede971fb1abb50cd7c80e6384df"
+    },
+    {
+      "path": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/inspect-after-diff.ts",
+      "sha256": "ec30aed882540c85bb0a32a2dae4a9b530f52e62f53777c96d77f855778c7b5b"
+    },
+    {
+      "path": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/save-comparison.ts",
+      "sha256": "2a17dc1542b6096558616959eebb5e3614f506a14fa6ccc00b4944b7c1255061"
+    }
+  ],
+  "rawArchive": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/implementation-comparison",
+  "expressIdentity": [
+    {
+      "condition": "delivery--vanilla--vanilla--express-links",
+      "path": "lib/response.js",
+      "gitBlob": "664c64f69a811d22b915bed4dca3c8ef5f71127f",
+      "sha256": "a8faf068e207f7ce67c5e52fbfbf829e9eac49f23b40d88d7afefe39f0d416c4",
+      "observedAt": "2026-10-30T10:32:38.893Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--medium--express-links",
+      "path": "lib/response.js",
+      "gitBlob": "664c64f69a811d22b915bed4dca3c8ef5f71127f",
+      "sha256": "a8faf068e207f7ce67c5e52fbfbf829e9eac49f23b40d88d7afefe39f0d416c4",
+      "observedAt": "2026-10-30T13:21:03.098Z"
+    }
+  ],
+  "ajvDiscovery": {
+    "packageJson": {
+      "path": "/Users/bjro/Sources/darrow/evals/corpus/orchestration/cache/ajv-8.5.0/package.json",
+      "sha256": "270cf6ca21d1081b95c41aef7f9d894b945a103bbcc3ccd53deec10676110e53"
+    },
+    "normalCommand": "cross-env TS_NODE_PROJECT=spec/tsconfig.json mocha -r ts-node/register \"spec/**/*.spec.{ts,js}\" -R dot -g \\(.recursiveRef.with.no..recursiveAnchor\\|.dynamicRef.with.no..dynamicAnchor\\).in.the.initial.target.schema.resource -i",
+    "pattern": "spec/**/*.spec.{ts,js}",
+    "files": [
+      {
+        "path": "spec/jtd-parser.spec.js",
+        "matched": true
+      },
+      {
+        "path": "spec/jtd-parser-instance-path.spec.js",
+        "matched": true
+      },
+      {
+        "path": "spec/jtd-schema.spec.ts",
+        "matched": true
+      },
+      {
+        "path": "spec/jtd-instance-path.spec.js",
+        "matched": true
+      },
+      {
+        "path": "spec/jtd-instance-path.test.js",
+        "matched": false
+      }
+    ],
+    "affectedCondition": "delivery--ticket-to-pr--medium--ajv-instance-path",
+    "testGitBlob": "c2ee46133fada21b6cbb5f6b70ee7a9aeac5b56a",
+    "observedExplicitCommand": "node --test spec/jtd-instance-path.test.js",
+    "publishedCommit": "98205a3114465d00443c03cce8d11065aaa2d5a7"
+  },
+  "clickProbe": {
+    "path": "/Users/bjro/Sources/darrow/evals/experiments/orchestration/snapshots/2026-10-30-review-medium-n1-click-probe.json",
+    "sha256": "a81f3a54f8c57ae9e47deee1a2f2ee9a8ea7e8a64dfce52ac3f6e0ddbc0d96ee"
+  },
+  "gogitProbe": {
+    "goVersion": "go1.26.1 darwin/arm64",
+    "program": "package main\nimport(\"encoding/json\"; \"fmt\"; \"reflect\"; \"github.com/go-git/go-git/v5/config\")\nfunc main(){\n type Result struct {Name string; Wanted []string; Got []string; Passed bool; Error string}\n results:=[]Result{}\n for _,test:=range []struct{Name string; Before []string; After []string}{\n  {\"reorder existing prefixes\",[]string{\"a:\",\"b:\"},[]string{\"b:\",\"a:\"}},\n  {\"increase duplicate multiplicity\",[]string{\"a:\"},[]string{\"a:\",\"a:\"}},\n  {\"remove existing prefix\",[]string{\"a:\",\"b:\"},[]string{\"b:\"}},\n  {\"preserve existing duplicate entries\",[]string{\"a:\",\"a:\"},[]string{\"a:\",\"a:\"}},\n }{\n  input:=\"[url \\\"ssh://host/\\\"]\\n\"\n  for _,p:=range test.Before{input+=\"  insteadOf = \"+p+\"\\n\"}\n  c:=config.NewConfig();err:=c.Unmarshal([]byte(input));if err!=nil{panic(err)}\n  c.URLs[\"ssh://host/\"].InsteadOf=test.After\n  data,err:=c.Marshal();if err!=nil{panic(err)}\n  next:=config.NewConfig();err=next.Unmarshal(data);if err!=nil{panic(err)}\n  got:=next.URLs[\"ssh://host/\"].InsteadOf\n  results=append(results,Result{Name:test.Name,Wanted:test.After,Got:got,Passed:reflect.DeepEqual(got,test.After)})\n }\n b,err:=json.MarshalIndent(results,\"\",\"  \");if err!=nil{panic(err)};fmt.Println(string(b))\n}\n",
+    "network": "GOPROXY=off, GOSUMDB=off, GOTOOLCHAIN=local, GOFLAGS=-mod=readonly",
+    "results": [
+      {
+        "condition": "implementation--vanilla--vanilla--go-git-insteadof",
+        "checks": [
+          {
+            "Name": "reorder existing prefixes",
+            "Wanted": ["b:", "a:"],
+            "Got": ["b:", "a:"],
+            "Passed": true,
+            "Error": ""
+          },
+          {
+            "Name": "increase duplicate multiplicity",
+            "Wanted": ["a:", "a:"],
+            "Got": ["a:", "a:"],
+            "Passed": true,
+            "Error": ""
+          },
+          {
+            "Name": "remove existing prefix",
+            "Wanted": ["b:"],
+            "Got": ["b:"],
+            "Passed": true,
+            "Error": ""
+          },
+          {
+            "Name": "preserve existing duplicate entries",
+            "Wanted": ["a:", "a:"],
+            "Got": ["a:", "a:"],
+            "Passed": true,
+            "Error": ""
+          }
+        ],
+        "passed": 4,
+        "total": 4,
+        "sourceFiles": [
+          {
+            "path": "config/config.go",
+            "at": "2026-10-30T10:00:19.513Z",
+            "agent": "main",
+            "sessionId": "01a18c3f-807d-79c2-b61e-2d09c8ffd99b",
+            "transcriptSha256": "9126904dee6a45ef0f1e4574314a1c4bcd770ac2162e3858a33d27f9088c11b0",
+            "before": "1aee25a4",
+            "after": "d344f571",
+            "patchSha256": "ad043d9079fedff0977a151a0d53680879690c3f70a5c471ea19f0957ae1f79e"
+          },
+          {
+            "path": "config/url.go",
+            "at": "2026-10-30T10:00:19.513Z",
+            "agent": "main",
+            "sessionId": "01a18c3f-807d-79c2-b61e-2d09c8ffd99b",
+            "transcriptSha256": "9126904dee6a45ef0f1e4574314a1c4bcd770ac2162e3858a33d27f9088c11b0",
+            "before": "114d6b26",
+            "after": "819e3af8",
+            "patchSha256": "1e999b83f7fc4d325780ec0ea3b15f04a599fbbba5e272bd288a25437485866a"
+          }
+        ]
+      },
+      {
+        "condition": "implementation--adaptive-goal--xhigh--go-git-insteadof",
+        "checks": [
+          {
+            "Name": "reorder existing prefixes",
+            "Wanted": ["b:", "a:"],
+            "Got": ["b:", "a:"],
+            "Passed": true,
+            "Error": ""
+          },
+          {
+            "Name": "increase duplicate multiplicity",
+            "Wanted": ["a:", "a:"],
+            "Got": ["a:", "a:"],
+            "Passed": true,
+            "Error": ""
+          },
+          {
+            "Name": "remove existing prefix",
+            "Wanted": ["b:"],
+            "Got": ["b:"],
+            "Passed": true,
+            "Error": ""
+          },
+          {
+            "Name": "preserve existing duplicate entries",
+            "Wanted": ["a:", "a:"],
+            "Got": ["a:", "a:"],
+            "Passed": true,
+            "Error": ""
+          }
+        ],
+        "passed": 4,
+        "total": 4,
+        "sourceFiles": [
+          {
+            "path": "config/config.go",
+            "at": "2026-10-30T10:05:22.663Z",
+            "agent": "/root/url_verification/provider/review_spec_6c171f95913c",
+            "sessionId": "01a18c45-3da0-7763-a594-fc45697613ff",
+            "transcriptSha256": "4fb5f700bb57de4a520a1789df9f6c6170ebd1ce79d18f655f3c4f4cf4198bd5",
+            "before": "1aee25a4c5a9e48c927a3560bd9cff127353e873",
+            "after": "8d1a476d760597cad68b0e1b2fdfb09e280463e7",
+            "patchSha256": "0ba7ec881bf32838491f10d29160ede09edec074b643855967e5f89018b3f417"
+          },
+          {
+            "path": "config/url.go",
+            "at": "2026-10-30T10:05:22.663Z",
+            "agent": "/root/url_verification/provider/review_spec_6c171f95913c",
+            "sessionId": "01a18c45-3da0-7763-a594-fc45697613ff",
+            "transcriptSha256": "4fb5f700bb57de4a520a1789df9f6c6170ebd1ce79d18f655f3c4f4cf4198bd5",
+            "before": "114d6b2662ad8a4c5be50d76efd5669da44e8dec",
+            "after": "0e75122240436023106aba3c11c034cc4be2ad83",
+            "patchSha256": "32323b72828c712e56d01c7bca80a941846c967f0a861acd9fb85f977a9854e0"
+          }
+        ]
+      },
+      {
+        "condition": "delivery--vanilla--vanilla--go-git-insteadof",
+        "checks": [
+          {
+            "Name": "reorder existing prefixes",
+            "Wanted": ["b:", "a:"],
+            "Got": ["b:", "a:"],
+            "Passed": true,
+            "Error": ""
+          },
+          {
+            "Name": "increase duplicate multiplicity",
+            "Wanted": ["a:", "a:"],
+            "Got": ["a:", "a:"],
+            "Passed": true,
+            "Error": ""
+          },
+          {
+            "Name": "remove existing prefix",
+            "Wanted": ["b:"],
+            "Got": ["b:"],
+            "Passed": true,
+            "Error": ""
+          },
+          {
+            "Name": "preserve existing duplicate entries",
+            "Wanted": ["a:", "a:"],
+            "Got": ["a:", "a:"],
+            "Passed": true,
+            "Error": ""
+          }
+        ],
+        "passed": 4,
+        "total": 4,
+        "sourceFiles": [
+          {
+            "path": "config/config.go",
+            "at": "2026-10-30T11:28:36.120Z",
+            "agent": "main",
+            "sessionId": "01a18c8f-8394-7062-b4bf-2dbf538add68",
+            "transcriptSha256": "527c3a037ef275cb6d649471c1681bcb1a5165e9ad7128370bca0545d97b138a",
+            "before": "1aee25a4",
+            "after": "3f08509a",
+            "patchSha256": "ba2802be947122d1a7d0cb980d7b304e4d91e271a11c0bbabf53156597787f22"
+          },
+          {
+            "path": "config/url.go",
+            "at": "2026-10-30T11:28:36.120Z",
+            "agent": "main",
+            "sessionId": "01a18c8f-8394-7062-b4bf-2dbf538add68",
+            "transcriptSha256": "527c3a037ef275cb6d649471c1681bcb1a5165e9ad7128370bca0545d97b138a",
+            "before": "114d6b26",
+            "after": "d4ed51b3",
+            "patchSha256": "2a1fa65c241c1c2276cec395ef61c7a390e29ea5ce904c78108e1088de7169e5"
+          }
+        ]
+      },
+      {
+        "condition": "delivery--ticket-to-pr--xhigh--go-git-insteadof",
+        "checks": [
+          {
+            "Name": "reorder existing prefixes",
+            "Wanted": ["b:", "a:"],
+            "Got": ["a:", "b:"],
+            "Passed": false,
+            "Error": ""
+          },
+          {
+            "Name": "increase duplicate multiplicity",
+            "Wanted": ["a:", "a:"],
+            "Got": ["a:"],
+            "Passed": false,
+            "Error": ""
+          },
+          {
+            "Name": "remove existing prefix",
+            "Wanted": ["b:"],
+            "Got": ["b:"],
+            "Passed": true,
+            "Error": ""
+          },
+          {
+            "Name": "preserve existing duplicate entries",
+            "Wanted": ["a:", "a:"],
+            "Got": ["a:", "a:"],
+            "Passed": true,
+            "Error": ""
+          }
+        ],
+        "passed": 2,
+        "total": 4,
+        "sourceFiles": [
+          {
+            "path": "config/config.go",
+            "at": "2026-10-30T11:39:54.122Z",
+            "agent": "main",
+            "sessionId": "01a18c92-b7be-71b0-9dc8-2a084e42b726",
+            "transcriptSha256": "74d370f9c52c6ef8b6f02f31620e4ef3f7df794306b05041f19e84a0ae70776b",
+            "before": "1aee25a4",
+            "after": "f40dd678",
+            "patchSha256": "a88339ac3f46d62e7581d90381d6b4fd0dc8d06b2d0faaaba9e8d3505d39d876"
+          },
+          {
+            "path": "config/url.go",
+            "at": "2026-10-30T11:39:54.122Z",
+            "agent": "main",
+            "sessionId": "01a18c92-b7be-71b0-9dc8-2a084e42b726",
+            "transcriptSha256": "74d370f9c52c6ef8b6f02f31620e4ef3f7df794306b05041f19e84a0ae70776b",
+            "before": "114d6b26",
+            "after": "269174bd",
+            "patchSha256": "8ade84247a9b592e8107d0cb4e442aa636f18ab3f7a9eb01c5944abdf9cbb28c"
+          }
+        ]
+      },
+      {
+        "condition": "implementation--adaptive-goal--medium--go-git-insteadof",
+        "checks": [
+          {
+            "Name": "reorder existing prefixes",
+            "Wanted": ["b:", "a:"],
+            "Got": ["b:", "a:"],
+            "Passed": true,
+            "Error": ""
+          },
+          {
+            "Name": "increase duplicate multiplicity",
+            "Wanted": ["a:", "a:"],
+            "Got": ["a:", "a:"],
+            "Passed": true,
+            "Error": ""
+          },
+          {
+            "Name": "remove existing prefix",
+            "Wanted": ["b:"],
+            "Got": ["b:"],
+            "Passed": true,
+            "Error": ""
+          },
+          {
+            "Name": "preserve existing duplicate entries",
+            "Wanted": ["a:", "a:"],
+            "Got": ["a:", "a:"],
+            "Passed": true,
+            "Error": ""
+          }
+        ],
+        "passed": 4,
+        "total": 4,
+        "sourceFiles": [
+          {
+            "path": "config/config.go",
+            "at": "2026-10-30T14:34:25.192Z",
+            "agent": "/root/verify_url",
+            "sessionId": "01a18d39-6da1-7713-b4e7-46b2cf235e61",
+            "transcriptSha256": "e5b4f7b61c2017de9f6e47a5a5b26edad3a72c0b6ef7e4dbd8babe5defb858ea",
+            "before": "1aee25a4c5a9e48c927a3560bd9cff127353e873",
+            "after": "2274471cd3692e5dede075782f43a8f5d1db76e6",
+            "patchSha256": "7ac1a69e256617162eb313e4ef3e8afaac87bb934ce8b8ebdedfacec6c66be5a"
+          },
+          {
+            "path": "config/url.go",
+            "at": "2026-10-30T14:34:25.192Z",
+            "agent": "/root/verify_url",
+            "sessionId": "01a18d39-6da1-7713-b4e7-46b2cf235e61",
+            "transcriptSha256": "e5b4f7b61c2017de9f6e47a5a5b26edad3a72c0b6ef7e4dbd8babe5defb858ea",
+            "before": "114d6b2662ad8a4c5be50d76efd5669da44e8dec",
+            "after": "ad119765893d82ff016998e73059876ca6af7764",
+            "patchSha256": "2ce6780b2e8db9d2f971a2e1da52f9297ee3ef49de305bb7ae31b8a438a261aa"
+          }
+        ]
+      },
+      {
+        "condition": "delivery--ticket-to-pr--medium--go-git-insteadof",
+        "checks": [
+          {
+            "Name": "reorder existing prefixes",
+            "Wanted": ["b:", "a:"],
+            "Got": ["b:", "a:"],
+            "Passed": true,
+            "Error": ""
+          },
+          {
+            "Name": "increase duplicate multiplicity",
+            "Wanted": ["a:", "a:"],
+            "Got": ["a:", "a:"],
+            "Passed": true,
+            "Error": ""
+          },
+          {
+            "Name": "remove existing prefix",
+            "Wanted": ["b:"],
+            "Got": ["b:"],
+            "Passed": true,
+            "Error": ""
+          },
+          {
+            "Name": "preserve existing duplicate entries",
+            "Wanted": ["a:", "a:"],
+            "Got": ["a:", "a:"],
+            "Passed": true,
+            "Error": ""
+          }
+        ],
+        "passed": 4,
+        "total": 4,
+        "sourceFiles": [
+          {
+            "path": "config/config.go",
+            "at": "2026-10-30T14:43:42.357Z",
+            "agent": "main",
+            "sessionId": "01a18d3d-63de-78c3-9978-de53b1cede4f",
+            "transcriptSha256": "15fa67e56e65a741926abf167e6037ac4679a825bc07684c4d0285dd34fe742f",
+            "before": "1aee25a4",
+            "after": "e4db527e",
+            "patchSha256": "4bbef6bc10bd6e9b5410a800fffaf5a32a4f1a52ed7c0c0489f079be5a2cf2b9"
+          },
+          {
+            "path": "config/url.go",
+            "at": "2026-10-30T14:43:42.357Z",
+            "agent": "main",
+            "sessionId": "01a18d3d-63de-78c3-9978-de53b1cede4f",
+            "transcriptSha256": "15fa67e56e65a741926abf167e6037ac4679a825bc07684c4d0285dd34fe742f",
+            "before": "114d6b26",
+            "after": "c79e94be",
+            "patchSha256": "94c572da1f6cbf78f16004d0d7c7353949093503c53856d7ed6f0237f7333b5e"
+          }
+        ]
+      }
+    ]
+  },
+  "retainedFileIdentities": [
+    {
+      "condition": "implementation--vanilla--vanilla--express-links",
+      "path": "lib/response.js",
+      "gitBlob": "90a1e3f4b2ce3c8c61c441413c8ad48fabfe2302",
+      "sha256": "e3c116e3cd0b2f594f553ffe1965826360eb9ccab9af77c578fb3ae7085c160e",
+      "observedAt": "2026-10-30T08:57:35.906Z"
+    },
+    {
+      "condition": "implementation--vanilla--vanilla--express-links",
+      "path": "test/res.links.js",
+      "gitBlob": "ed5efe4158af57ff94a6eb9ca47fa07816626d02",
+      "sha256": "7b97e7e2607c07b29754e788ae384e1bb4666a2a1d34ddfe199adea53e77f612",
+      "observedAt": "2026-10-30T08:57:35.906Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--xhigh--express-links",
+      "path": "lib/response.js",
+      "gitBlob": "bd531be571e2c7662d4c8acff0a80a1db3ef160d",
+      "sha256": "bb304d4468bcfca7a273b94263fd5d48c14e858bdbdc914e3b6b13f2645a836c",
+      "observedAt": "2026-10-30T09:21:16.050Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--xhigh--express-links",
+      "path": "test/res.links.js",
+      "gitBlob": "fefb6633c120e42dcf0a4265b2788cabf92a68d2",
+      "sha256": "782fa5a564460ef51a6e78de45d359e36087de91deb905078788dd79e59037bc",
+      "observedAt": "2026-10-30T09:21:16.050Z"
+    },
+    {
+      "condition": "implementation--vanilla--vanilla--click-streams",
+      "path": "CHANGES.rst",
+      "gitBlob": "7f3d4d8f41d4c43095f78b59eaf2eb523345f23d",
+      "sha256": "792ba9faf5e23ab2e96441dfeb7d7f65be4c7fdb1790182e0a2b17b41e61dfad",
+      "observedAt": "2026-10-30T09:27:42.664Z"
+    },
+    {
+      "condition": "implementation--vanilla--vanilla--click-streams",
+      "path": "docs/testing.rst",
+      "gitBlob": "3fff962d46c238a1c20962801b56eeb52b02d8b9",
+      "sha256": "727685d934e148e6302523033a5a2e0f00cf359948ca06cad579815b9ece0cfe",
+      "observedAt": "2026-10-30T09:27:42.664Z"
+    },
+    {
+      "condition": "implementation--vanilla--vanilla--click-streams",
+      "path": "src/click/testing.py",
+      "gitBlob": "f717162c4d6d31c315782f54a0c853705caf62c7",
+      "sha256": "fe53119dde296606dd8f422c819aea20d954570ace84e9610dc4ec6cc6c3b665",
+      "observedAt": "2026-10-30T09:27:42.664Z"
+    },
+    {
+      "condition": "implementation--vanilla--vanilla--click-streams",
+      "path": "tests/test_termui.py",
+      "gitBlob": "eff6f0fb8f1898f6bbfb056182348c71259c6b78",
+      "sha256": "f8ae8776095f981b87637e7b447288dcf8817cca1fe5154761c70e42a37d9bb0",
+      "observedAt": "2026-10-30T09:27:42.664Z"
+    },
+    {
+      "condition": "implementation--vanilla--vanilla--click-streams",
+      "path": "tests/test_testing.py",
+      "gitBlob": "183f30210100220b217e14d511556fa3ce3e5364",
+      "sha256": "710f2f15a6f524a3a0402cd3a46be44e00174ba0b6f7b5cc98f79a679968b4f7",
+      "observedAt": "2026-10-30T09:27:42.664Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--xhigh--click-streams",
+      "path": "CHANGES.rst",
+      "gitBlob": "befd509dd260a2446f4961ee05768bc975f14701",
+      "sha256": "97ec08e8c2ce34c393769830abe20305738242d29c30ba3adfbd9dfbe5d844c8",
+      "observedAt": "2026-10-30T09:42:08.247Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--xhigh--click-streams",
+      "path": "docs/testing.rst",
+      "gitBlob": "adbb69c58f70c1f15065b5445c14a5261f976d4b",
+      "sha256": "e0f722717ed42a9d248ce2ac2555d061a6e913602f68601d652fbd0611b0c53e",
+      "observedAt": "2026-10-30T09:42:08.247Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--xhigh--click-streams",
+      "path": "src/click/testing.py",
+      "gitBlob": "b4dc43e3c4a382251b7974072d53dd4ab848f77b",
+      "sha256": "75cb86510d997d452c776e66570353354309fd4c43cedd59cbbd2b7acc4d8a90",
+      "observedAt": "2026-10-30T09:41:01.786Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--xhigh--click-streams",
+      "path": "tests/test_termui.py",
+      "gitBlob": "eff6f0fb8f1898f6bbfb056182348c71259c6b78",
+      "sha256": "f8ae8776095f981b87637e7b447288dcf8817cca1fe5154761c70e42a37d9bb0",
+      "observedAt": "2026-10-30T09:42:08.247Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--xhigh--click-streams",
+      "path": "tests/test_testing.py",
+      "gitBlob": "5913860754c16f2e889406d1215f4217cd760993",
+      "sha256": "21d435372d6159cf45bf7d78289cb5a57880594eddea2200a82ad83021f10e0b",
+      "observedAt": "2026-10-30T09:41:01.786Z"
+    },
+    {
+      "condition": "implementation--vanilla--vanilla--ajv-instance-path",
+      "path": "lib/compile/jtd/parse.ts",
+      "gitBlob": "5f91dc1b76f9dd33e85c109564ddb1333523b416",
+      "sha256": "047ac1c1f99ef4b93a17c5ceb136afd09a4b02ef801e2988cc51844d563594d0",
+      "observedAt": "2026-10-30T09:51:08.678Z"
+    },
+    {
+      "condition": "implementation--vanilla--vanilla--ajv-instance-path",
+      "path": "lib/types/index.ts",
+      "gitBlob": "c5889dc78fd31731264100546f493e9e5ce44d52",
+      "sha256": "2dfccf02d6074af5370d4724bcca00fa04c66bee03b09ee95b9d38c0b5cf2fed",
+      "observedAt": "2026-10-30T09:51:08.678Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--xhigh--ajv-instance-path",
+      "path": "lib/compile/jtd/parse.ts",
+      "gitBlob": "64090ff21aa7e86538c776dd7a703f23ec1d87be",
+      "sha256": "1ac030cd533a6e771e499889d5e9ed94cf2113cc6dd75eecd67230f9afeb1d8d",
+      "observedAt": "2026-10-30T09:55:48.836Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--xhigh--ajv-instance-path",
+      "path": "lib/types/index.ts",
+      "gitBlob": "c5889dc78fd31731264100546f493e9e5ce44d52",
+      "sha256": "2dfccf02d6074af5370d4724bcca00fa04c66bee03b09ee95b9d38c0b5cf2fed",
+      "observedAt": "2026-10-30T09:55:13.169Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--xhigh--ajv-instance-path",
+      "path": "spec/jtd-schema.spec.ts",
+      "gitBlob": "ea91c84c9ac095ace7df5999375d26fa1dbecb4b",
+      "sha256": "5820bf87bf2b24efdd9de73e412ec17e345dafa675e2b1a7bf8259f7a27fb819",
+      "observedAt": "2026-10-30T09:55:48.836Z"
+    },
+    {
+      "condition": "implementation--vanilla--vanilla--go-git-insteadof",
+      "path": "config/config.go",
+      "gitBlob": "d344f5716dd1e8b8b923322a3a834cb4db4cd1e8",
+      "sha256": "f398621f2a45f1aa9662f55cbe5c72bc6949d610dc8526bcce2bd47d4bbc00f6",
+      "observedAt": "2026-10-30T10:00:19.513Z"
+    },
+    {
+      "condition": "implementation--vanilla--vanilla--go-git-insteadof",
+      "path": "config/url.go",
+      "gitBlob": "819e3af85581eacf6dff2b834f82f599b9f67454",
+      "sha256": "da3217f06f1271618c6453abd6fad782b1cdcb3d9e51421a635c154da07871d6",
+      "observedAt": "2026-10-30T10:00:19.513Z"
+    },
+    {
+      "condition": "implementation--vanilla--vanilla--go-git-insteadof",
+      "path": "config/config_test.go",
+      "gitBlob": "2a656c9415725833fe7109d5b334f78aee5fef33",
+      "sha256": "041e9a82c37cc42b87d213099743cc4436c24bca474f6af99483f5fe5ff91c11",
+      "observedAt": "2026-10-30T10:00:43.431Z"
+    },
+    {
+      "condition": "implementation--vanilla--vanilla--go-git-insteadof",
+      "path": "config/url_test.go",
+      "gitBlob": "7e678ecebffca743192a52af2980fa798a472191",
+      "sha256": "b27e41e6a69b45cbea1f9721c5680ecfa0df5f0930b4253f5242ef343a05e14f",
+      "observedAt": "2026-10-30T10:00:43.431Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--xhigh--go-git-insteadof",
+      "path": "config/config.go",
+      "gitBlob": "8d1a476d760597cad68b0e1b2fdfb09e280463e7",
+      "sha256": "7a29f57e65c7991d39fab718b0ce7f28c88d48e5add4f55031c890eb836c3f41",
+      "observedAt": "2026-10-30T10:05:22.663Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--xhigh--go-git-insteadof",
+      "path": "config/url.go",
+      "gitBlob": "0e75122240436023106aba3c11c034cc4be2ad83",
+      "sha256": "6feb96fa81d1d16108e2f63d1d3223681e37b38eab22d0d83f30edf85b014de6",
+      "observedAt": "2026-10-30T10:05:22.663Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--xhigh--go-git-insteadof",
+      "path": "config/config_test.go",
+      "gitBlob": "2a656c9415725833fe7109d5b334f78aee5fef33",
+      "sha256": "041e9a82c37cc42b87d213099743cc4436c24bca474f6af99483f5fe5ff91c11",
+      "observedAt": "2026-10-30T10:05:22.663Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--xhigh--go-git-insteadof",
+      "path": "config/url_test.go",
+      "gitBlob": "a2d465b4124316aa833ff367df45a2d1ef0e01e4",
+      "sha256": "71580c563b7f8fc80def4fd149adb67e885196f7a5e121265d83855cd64593cc",
+      "observedAt": "2026-10-30T10:05:22.663Z"
+    },
+    {
+      "condition": "delivery--vanilla--vanilla--go-git-insteadof",
+      "path": "config/config.go",
+      "gitBlob": "3f08509a797464b22dde9ba318cfb274b5ea8700",
+      "sha256": "a49cb0f9567c251bfcc30a6bf796b6e614cd98a3bcc7718261d9093674353083",
+      "observedAt": "2026-10-30T11:28:36.120Z"
+    },
+    {
+      "condition": "delivery--vanilla--vanilla--go-git-insteadof",
+      "path": "config/config_test.go",
+      "gitBlob": "2a656c9415725833fe7109d5b334f78aee5fef33",
+      "sha256": "041e9a82c37cc42b87d213099743cc4436c24bca474f6af99483f5fe5ff91c11",
+      "observedAt": "2026-10-30T11:28:36.120Z"
+    },
+    {
+      "condition": "delivery--vanilla--vanilla--go-git-insteadof",
+      "path": "config/url.go",
+      "gitBlob": "d4ed51b3aab1477d9b0ebdd89252c050bbb8fc25",
+      "sha256": "96c15a6665440d141e38dc81a120193b82d216eae40eb43537e908f82357d4b6",
+      "observedAt": "2026-10-30T11:28:36.120Z"
+    },
+    {
+      "condition": "delivery--vanilla--vanilla--go-git-insteadof",
+      "path": "config/url_test.go",
+      "gitBlob": "895a7b2b1c8f95bdbae2ce69773dbf3495a0acab",
+      "sha256": "1174f0d934b517d9e029d0b931cbe97c15c05b8f98048c49246a8c872e5556ee",
+      "observedAt": "2026-10-30T11:29:05.864Z"
+    },
+    {
+      "condition": "delivery--vanilla--vanilla--express-links",
+      "path": "lib/response.js",
+      "gitBlob": "664c64f69a811d22b915bed4dca3c8ef5f71127f",
+      "sha256": "a8faf068e207f7ce67c5e52fbfbf829e9eac49f23b40d88d7afefe39f0d416c4",
+      "observedAt": "2026-10-30T10:32:38.893Z"
+    },
+    {
+      "condition": "delivery--vanilla--vanilla--express-links",
+      "path": "test/res.links.js",
+      "gitBlob": "b0443af7ba2face98c47a95a547ed63197147f30",
+      "sha256": "66174668351eeb4b3cba064a81b3cc4af3b7012217ea24bedb24d87b51011b68",
+      "observedAt": "2026-10-30T10:32:38.893Z"
+    },
+    {
+      "condition": "delivery--vanilla--vanilla--ajv-instance-path",
+      "path": "lib/compile/jtd/parse.ts",
+      "gitBlob": "3c37f252c77ffa62238eabc089c6727302f18129",
+      "sha256": "6b63a936f21f52ae2ce9c9ae65e63ca3f0c46de5743c341926ced0c346116b1b",
+      "observedAt": "2026-10-30T11:14:07.648Z"
+    },
+    {
+      "condition": "delivery--vanilla--vanilla--ajv-instance-path",
+      "path": "docs/api.md",
+      "gitBlob": "ae4553bab9e2042fc434f9abc942ed545a720897",
+      "sha256": "e0e1d6cf43f776adf5ea2faf3f21aeeed9aa80c6e38c3eeec080c7e36f4fc476",
+      "observedAt": "2026-10-30T11:14:37.334Z"
+    },
+    {
+      "condition": "delivery--vanilla--vanilla--ajv-instance-path",
+      "path": "lib/types/index.ts",
+      "gitBlob": "c5889dc78fd31731264100546f493e9e5ce44d52",
+      "sha256": "2dfccf02d6074af5370d4724bcca00fa04c66bee03b09ee95b9d38c0b5cf2fed",
+      "observedAt": "2026-10-30T11:14:37.334Z"
+    },
+    {
+      "condition": "delivery--ticket-to-pr--xhigh--go-git-insteadof",
+      "path": "config/config.go",
+      "gitBlob": "f40dd678476442715350194379b76e70497e7c2d",
+      "sha256": "97fb716c5ef46a67c55f5c2d78226b4e435fc6cc3b3df17682cdfaccabf6550e",
+      "observedAt": "2026-10-30T11:39:54.122Z"
+    },
+    {
+      "condition": "delivery--ticket-to-pr--xhigh--go-git-insteadof",
+      "path": "config/config_test.go",
+      "gitBlob": "2a656c9415725833fe7109d5b334f78aee5fef33",
+      "sha256": "041e9a82c37cc42b87d213099743cc4436c24bca474f6af99483f5fe5ff91c11",
+      "observedAt": "2026-10-30T11:39:54.122Z"
+    },
+    {
+      "condition": "delivery--ticket-to-pr--xhigh--go-git-insteadof",
+      "path": "config/url.go",
+      "gitBlob": "269174bd3c8b25795771c5c6e38a5044d1e1d200",
+      "sha256": "9020658aeff0a00e4fcf920444d81d9363f2517dbd909572f69ec21f18eb2c5c",
+      "observedAt": "2026-10-30T11:39:54.122Z"
+    },
+    {
+      "condition": "delivery--ticket-to-pr--xhigh--go-git-insteadof",
+      "path": "config/url_test.go",
+      "gitBlob": "a50a7a93bd81d07787faf2c5ba3171873e2be908",
+      "sha256": "9d73026395afb5e801fdcb7a0ded8c53aaf4cd4eed71979eac65f8e70e71f6b5",
+      "observedAt": "2026-10-30T11:39:54.122Z"
+    },
+    {
+      "condition": "delivery--ticket-to-pr--xhigh--express-links",
+      "path": "lib/response.js",
+      "gitBlob": "1ee16f8d1610a39d9fa24d1836fea4ff343f86d6",
+      "sha256": "4abb36e64fd758364e7c65f8dbf0e69d08d11fd4b16f75f378848f3fc6da8f6c",
+      "observedAt": "2026-10-30T10:42:02.559Z"
+    },
+    {
+      "condition": "delivery--ticket-to-pr--xhigh--express-links",
+      "path": "test/res.links.js",
+      "gitBlob": "7f407f1f445802bb65d8bbff05b29f46aba4db78",
+      "sha256": "c5abbc3890f92afc9d0d494a0265d1d04439efaf9590ca1538719904c33d9823",
+      "observedAt": "2026-10-30T10:42:02.559Z"
+    },
+    {
+      "condition": "delivery--ticket-to-pr--xhigh--ajv-instance-path",
+      "path": "docs/api.md",
+      "gitBlob": "b3fd9de8913607097f5b1d88295056e434dede4c",
+      "sha256": "c970aa4a9c671dd44f1937fdd03e03502d68b0e03ec113fea68a7e41a35b7103",
+      "observedAt": "2026-10-30T11:24:28.737Z"
+    },
+    {
+      "condition": "delivery--ticket-to-pr--xhigh--ajv-instance-path",
+      "path": "lib/compile/jtd/parse.ts",
+      "gitBlob": "476073760b8c2d8ee57b0c83f9730e58709fbd80",
+      "sha256": "08f082e99e51da3e982fa8f51253070d00cc2ed10bc0470408063c3bc00c9fa0",
+      "observedAt": "2026-10-30T11:23:17.431Z"
+    },
+    {
+      "condition": "delivery--ticket-to-pr--xhigh--ajv-instance-path",
+      "path": "lib/types/index.ts",
+      "gitBlob": "c5889dc78fd31731264100546f493e9e5ce44d52",
+      "sha256": "2dfccf02d6074af5370d4724bcca00fa04c66bee03b09ee95b9d38c0b5cf2fed",
+      "observedAt": "2026-10-30T11:24:28.737Z"
+    },
+    {
+      "condition": "delivery--ticket-to-pr--xhigh--ajv-instance-path",
+      "path": "spec/jtd-instance-path.spec.js",
+      "gitBlob": "25fe6ae20a4c987bcbc70e04b0a054ff16b7106f",
+      "sha256": "be824c852f21a60e5c9b0d5af14357e0fc998331f8b9d8d806c30b516bd917f8",
+      "observedAt": "2026-10-30T11:24:28.737Z"
+    },
+    {
+      "condition": "delivery--vanilla--vanilla--click-streams",
+      "path": "CHANGES.rst",
+      "gitBlob": "ba17aa3bee2f72406c9b7a38076711f96af8311e",
+      "sha256": "1c5cc8fdfdf1b682dc0a9d1fd479523a79cbf3256aa7f62c756667123c2326ba",
+      "observedAt": "2026-10-30T10:44:57.722Z"
+    },
+    {
+      "condition": "delivery--vanilla--vanilla--click-streams",
+      "path": "docs/testing.rst",
+      "gitBlob": "6c8a70e2d49b98a380d43ebdd5003b0a2072f494",
+      "sha256": "fbda6c5a3ea6ba06f11f113bf9c8d148606bcbaaf1ca895bf1ded2a112533fb5",
+      "observedAt": "2026-10-30T10:44:57.722Z"
+    },
+    {
+      "condition": "delivery--vanilla--vanilla--click-streams",
+      "path": "src/click/testing.py",
+      "gitBlob": "4b9d55a4f40c637d37f155f8732966409ebb8b38",
+      "sha256": "1234ce5ccde0ca9c5dc18d2e59220e338831cfbc769c2ea2821f3c484e68e256",
+      "observedAt": "2026-10-30T10:44:57.722Z"
+    },
+    {
+      "condition": "delivery--vanilla--vanilla--click-streams",
+      "path": "tests/test_termui.py",
+      "gitBlob": "eff6f0fb8f1898f6bbfb056182348c71259c6b78",
+      "sha256": "f8ae8776095f981b87637e7b447288dcf8817cca1fe5154761c70e42a37d9bb0",
+      "observedAt": "2026-10-30T10:44:57.722Z"
+    },
+    {
+      "condition": "delivery--vanilla--vanilla--click-streams",
+      "path": "tests/test_testing.py",
+      "gitBlob": "c97d18c77a9578e502d296f3518d70e74967e13e",
+      "sha256": "d36a90f4ae53e5c2e2a71dde5a29bca29c180444c75f685878bea7cb48c9d498",
+      "observedAt": "2026-10-30T10:44:57.722Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--medium--express-links",
+      "path": "lib/response.js",
+      "gitBlob": "664c64f69a811d22b915bed4dca3c8ef5f71127f",
+      "sha256": "a8faf068e207f7ce67c5e52fbfbf829e9eac49f23b40d88d7afefe39f0d416c4",
+      "observedAt": "2026-10-30T13:21:03.098Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--medium--express-links",
+      "path": "test/res.links.js",
+      "gitBlob": "485ad5697742e1bd7fe9fbcc536cc98914e5f8f8",
+      "sha256": "815974aa7c374116adf287a9813a805d5529d740d4cabe9b16d243f7fda72113",
+      "observedAt": "2026-10-30T13:19:07.285Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--medium--click-streams",
+      "path": "src/click/testing.py",
+      "gitBlob": "092e52ddd9e1c3d60ec5cbfbb0856dc4dd7295a7",
+      "sha256": "1e94a87143b45caa889e447aa23a8c9911373e62f0b30f2e974d5256165acb55",
+      "observedAt": "2026-10-30T13:49:58.632Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--medium--click-streams",
+      "path": "CHANGES.rst",
+      "gitBlob": "0c3992ca379939f98a9d57407271c51a8753408d",
+      "sha256": "33d59dde19ccb921f7c816733661d405d5e16ccbc051daf11ef0ddf0782b37ea",
+      "observedAt": "2026-10-30T13:49:58.632Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--medium--click-streams",
+      "path": "docs/testing.rst",
+      "gitBlob": "5cb0c284d29973d92b9f30394bf18befa073ef80",
+      "sha256": "09fce319a662db6fcee0d97e82be6dc002d696077d6bc7c73d6f6a203e8da4b8",
+      "observedAt": "2026-10-30T13:49:58.632Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--medium--click-streams",
+      "path": "tests/test_termui.py",
+      "gitBlob": "eff6f0fb8f1898f6bbfb056182348c71259c6b78",
+      "sha256": "f8ae8776095f981b87637e7b447288dcf8817cca1fe5154761c70e42a37d9bb0",
+      "observedAt": "2026-10-30T13:49:58.632Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--medium--click-streams",
+      "path": "tests/test_testing.py",
+      "gitBlob": "6f783d2a2603875e38870f9e0390e282de0ed359",
+      "sha256": "30f48ad2d56a249921267ef278214c47e1e01e8dd19f47f11e9d4fdb4390b895",
+      "observedAt": "2026-10-30T13:49:58.632Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--medium--ajv-instance-path",
+      "path": "lib/compile/jtd/parse.ts",
+      "gitBlob": "7d64a7f20ceae6e12a118967426872cb74dad210",
+      "sha256": "35856c21323b9b8a5b2a305450f137b9c47ce60392bb4fe35eb3325d5d96e1e1",
+      "observedAt": "2026-10-30T14:14:29.921Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--medium--ajv-instance-path",
+      "path": "lib/types/index.ts",
+      "gitBlob": "c5889dc78fd31731264100546f493e9e5ce44d52",
+      "sha256": "2dfccf02d6074af5370d4724bcca00fa04c66bee03b09ee95b9d38c0b5cf2fed",
+      "observedAt": "2026-10-30T14:14:29.921Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--medium--ajv-instance-path",
+      "path": "spec/jtd-schema.spec.ts",
+      "gitBlob": "62af2d6b34c454f4a18058dcde17a536d82c0c38",
+      "sha256": "966646cea3ef72855b93323435152735604bb199ffb4f6de2781d0e48ed97492",
+      "observedAt": "2026-10-30T14:13:35.400Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--medium--go-git-insteadof",
+      "path": "config/config.go",
+      "gitBlob": "2274471cd3692e5dede075782f43a8f5d1db76e6",
+      "sha256": "5d26aa1fa158b899133f3e181699e981f6a6f9cab26d3018f3ef521522b6a5d4",
+      "observedAt": "2026-10-30T14:34:25.192Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--medium--go-git-insteadof",
+      "path": "config/url.go",
+      "gitBlob": "ad119765893d82ff016998e73059876ca6af7764",
+      "sha256": "54873703687b3a67402a8cba69a34f8402ce955fe99e4241ff7535115f8640bc",
+      "observedAt": "2026-10-30T14:34:25.192Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--medium--go-git-insteadof",
+      "path": "config/config_test.go",
+      "gitBlob": "2a656c9415725833fe7109d5b334f78aee5fef33",
+      "sha256": "041e9a82c37cc42b87d213099743cc4436c24bca474f6af99483f5fe5ff91c11",
+      "observedAt": "2026-10-30T14:34:25.192Z"
+    },
+    {
+      "condition": "implementation--adaptive-goal--medium--go-git-insteadof",
+      "path": "config/url_test.go",
+      "gitBlob": "12d8200b36039e0495672f2fe953a3b9a9bf4cc3",
+      "sha256": "32c7e9aee3348ad6fb19cb52f3a090ea7b9d89ae6494d97e0725a60444af7f1d",
+      "observedAt": "2026-10-30T14:34:25.192Z"
+    },
+    {
+      "condition": "delivery--ticket-to-pr--medium--express-links",
+      "path": "lib/response.js",
+      "gitBlob": "1d56de6bb3432329b74734f247121325813d901e",
+      "sha256": "0f6ed4a683f71217c5f8dd2cdf052499b778bd25af6019aa656081d293f5b17a",
+      "observedAt": "2026-10-30T13:30:49.251Z"
+    },
+    {
+      "condition": "delivery--ticket-to-pr--medium--express-links",
+      "path": "test/res.links.js",
+      "gitBlob": "15edbf4d8ce52c5130b6ef722a916c5cbb9a8a7e",
+      "sha256": "025f1a0cd47fe1b09c891768a6ecde7359abeaced98f8a7b66b27b0835b95b14",
+      "observedAt": "2026-10-30T13:30:49.251Z"
+    },
+    {
+      "condition": "delivery--ticket-to-pr--medium--click-streams",
+      "path": "CHANGES.rst",
+      "gitBlob": "8e5bd7794ba6ef2c9c19807ffeb1b3c939d27c7f",
+      "sha256": "877d3dbff8f98f94d679b3296102304328539536de6debb8136e3144e31fb50b",
+      "observedAt": "2026-10-30T14:07:50.983Z"
+    },
+    {
+      "condition": "delivery--ticket-to-pr--medium--click-streams",
+      "path": "src/click/testing.py",
+      "gitBlob": "111afef7d5792a896bff2c81634b9e391aed7a45",
+      "sha256": "a15e00023d653a29586a46d82fff2b69bb6161015f8d8863e2334b63591ef36b",
+      "observedAt": "2026-10-30T14:07:50.983Z"
+    },
+    {
+      "condition": "delivery--ticket-to-pr--medium--click-streams",
+      "path": "tests/test_testing.py",
+      "gitBlob": "ab35fe0eb4bf0630115fab57a2c96a9aecfcc5b5",
+      "sha256": "515a54c397439f19ddf5dbeaae17b849753b3859e1b581e50347d5c880420681",
+      "observedAt": "2026-10-30T14:07:50.983Z"
+    },
+    {
+      "condition": "delivery--ticket-to-pr--medium--ajv-instance-path",
+      "path": "docs/api.md",
+      "gitBlob": "c9ecc58966a345b7fc1c6574a2b9ff270c71020e",
+      "sha256": "7f307e7d2564395354627a348b2154ad04c81429edf5b20a547d14578ce71312",
+      "observedAt": "2026-10-30T14:25:33.048Z"
+    },
+    {
+      "condition": "delivery--ticket-to-pr--medium--ajv-instance-path",
+      "path": "lib/compile/jtd/parse.ts",
+      "gitBlob": "4afa86be5920bef3ddff26e88f72aab14d49875c",
+      "sha256": "214fe1fff89c01eb171007d5dbe359dfbd6fe8eb66fe4c1c5b87bd5fc486b4c5",
+      "observedAt": "2026-10-30T14:25:33.048Z"
+    },
+    {
+      "condition": "delivery--ticket-to-pr--medium--ajv-instance-path",
+      "path": "lib/types/index.ts",
+      "gitBlob": "c5889dc78fd31731264100546f493e9e5ce44d52",
+      "sha256": "2dfccf02d6074af5370d4724bcca00fa04c66bee03b09ee95b9d38c0b5cf2fed",
+      "observedAt": "2026-10-30T14:25:33.048Z"
+    },
+    {
+      "condition": "delivery--ticket-to-pr--medium--ajv-instance-path",
+      "path": "spec/jtd-instance-path.test.js",
+      "gitBlob": "c2ee46133fada21b6cbb5f6b70ee7a9aeac5b56a",
+      "sha256": "5b32c9f6fb34d0a7b004a1e0a06acb155f32896f0facda9ffcaf178928dbe276",
+      "observedAt": "2026-10-30T14:23:22.973Z"
+    },
+    {
+      "condition": "delivery--ticket-to-pr--medium--go-git-insteadof",
+      "path": "config/config.go",
+      "gitBlob": "e4db527e818f24dc4fc9fbe05aca369df5102646",
+      "sha256": "1cdd09a9fff18e8aab2b0401c92e07b4b2b69d7f1c3440f5fef0057c1c33e176",
+      "observedAt": "2026-10-30T14:43:42.357Z"
+    },
+    {
+      "condition": "delivery--ticket-to-pr--medium--go-git-insteadof",
+      "path": "config/url.go",
+      "gitBlob": "c79e94bef5dc96e8865bd2f27060a454f02bcf00",
+      "sha256": "4acc067cd98b12b5a76d09105abb8e3dd79bd935fdd4d0e362ae1f54277c4267",
+      "observedAt": "2026-10-30T14:43:42.357Z"
+    },
+    {
+      "condition": "delivery--ticket-to-pr--medium--go-git-insteadof",
+      "path": "config/config_test.go",
+      "gitBlob": "2a656c9415725833fe7109d5b334f78aee5fef33",
+      "sha256": "041e9a82c37cc42b87d213099743cc4436c24bca474f6af99483f5fe5ff91c11",
+      "observedAt": "2026-10-30T14:43:42.357Z"
+    },
+    {
+      "condition": "delivery--ticket-to-pr--medium--go-git-insteadof",
+      "path": "config/url_test.go",
+      "gitBlob": "688e09d950f4f6e65f4785a37d590473137a2880",
+      "sha256": "875e6a0913d8aa7699be1319a2734a3f2f442a91cd3ccf58f8a57218113f055c",
+      "observedAt": "2026-10-30T14:43:42.357Z"
+    }
+  ]
+}

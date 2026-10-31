@@ -1,5 +1,5 @@
 id: guide-rationale
-invariant: RG-C1,RG-C2,RG-C4,RG-C8
+invariant: RG-C1,RG-C2,RG-C3,RG-C4,RG-C8
 activation: positive
 prompt: Why doesn't Darrow run a second agent runtime, and why is the ticket pipeline retained?
 fixture:
@@ -32,12 +32,15 @@ semantic_output_checks:
       The response explains that the host supplies execution, recovery, delegation,
       or continuation, so Darrow does not add a second execution runtime. It explains
       that the ticket pipeline remains an executable reference and benchmark baseline
-      for comparisons. A cited conflict between main-thread and subagent ownership
-      does not invalidate that shared host-ownership rationale; the response must not
-      invent which conflicting source prevails. A separate explanation of how to
-      activate orchestration is not required by this rationale question. It stays
-      concise and does not claim to have performed installations, tests, repairs, or
-      environment diagnosis.
+      for comparisons. It does not present ADR-0004's superseded subagent-owner
+      boundary as current or unresolved policy. Citing ADR-0004 for
+      its recorded benchmark rationale is permitted when that supersession is clear.
+      Main-thread and bounded-delegation details, supersession history, and a separate
+      explanation of how to activate orchestration are not required. The response
+      remains focused on this rationale question; brief relevant source context,
+      the required Claude best-effort/primary-Codex disclosure, and one useful next
+      source are permitted. It does not claim to have performed installations,
+      tests, repairs, or environment diagnosis.
 output_checks:
   - name: nearby repository evidence
-    expect_regex: docs/design\.md|docs/decisions/ADR-0004-use-native-goal-ownership-for-core-orchestration\.md|docs/specs/ticket-pipeline\.md
+    expect_regex: docs/design\.md|docs/decisions/ADR-0012-keep-native-goal-ownership-in-the-main-thread\.md|docs/specs/ticket-pipeline\.md

@@ -17,7 +17,6 @@ alone; its README owns its prerequisites, behavior, and safety rules.
 | Read, list, create, or update GitHub issues                             | [Tickets](../plugins/capability/darrow-tickets/README.md)                                            |
 | Install reusable GitHub issue templates                                 | [Tickets](../plugins/capability/darrow-tickets/README.md#install-ticket-templates)                   |
 | Understand technical structure in a compact visual                      | [Explanation](../plugins/capability/darrow-explanation/README.md)                                    |
-| Export Codex turn telemetry to Langfuse                                 | [Langfuse observability](../plugins/capability/darrow-observability-langfuse/README.md)              |
 | Organize repository agent guidance                                      | [Information architecture](../plugins/foundation/darrow-information-architecture/README.md)          |
 | Capture or find accepted decisions                                      | [Decisions](../plugins/foundation/darrow-decisions/README.md)                                        |
 | Create or validate a reusable skill                                     | [Skill authoring](../plugins/foundation/darrow-skill-authoring/README.md)                            |
@@ -31,6 +30,10 @@ This is the complete shipped plugin catalog. Planned names are not installation
 targets; consult the [marketplace manifest](../.claude-plugin/marketplace.json)
 for package identity. In particular, there is no shipped general troubleshooting
 plugin. Local Artificer supplies a specific authorized unattended entry, not a general scheduler framework.
+
+For host telemetry, use configured native exporters. The
+[native ticket-attribution record](research/native-otel-issue-284.md) covers
+launch-time resource attributes, migration and the measured limits.
 
 ### Planned names are not installation targets
 

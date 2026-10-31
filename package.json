@@ -14,7 +14,6 @@
     "check:decisions": "uv run --quiet --frozen --no-dev --project plugins/foundation/darrow-decisions/backend darrow-decision validate --repo .",
     "check:python": "scripts/check-python",
     "check:python:inventory": "scripts/test-python-inventory",
-    "check:python:performance": "plugins/capability/darrow-observability-langfuse/tests/performance.test.sh",
     "eval": "bun evals/runner/run.ts",
     "eval:prune": "bun evals/sevro-extension/prune.ts",
     "test:evals": "bun ./evals/prepare-test-runtime.ts && bun test --parallel=2 --timeout 30000 ./evals/integration ./evals/domain",
@@ -37,7 +36,7 @@
     "ajv-formats": "3.0.1"
   },
   "devDependencies": {
-    "@bjoernrochel/sevro": "1.1.1",
+    "@bjoernrochel/sevro": "1.1.2",
     "@eslint/js": "^10.0.1",
     "@types/bun": "^1.2.0",
     "eslint": "^10.8.1",

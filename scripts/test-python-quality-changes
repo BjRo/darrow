@@ -4,6 +4,18 @@ set -eu
 repo_root=$(git rev-parse --show-toplevel)
 detector="$repo_root/scripts/detect-python-quality-changes"
 verifier="$repo_root/scripts/verify-python-quality-results"
+sevro_workflow="$repo_root/.github/workflows/sevro-integration.yml"
+python_workflow="$repo_root/.github/workflows/python-quality.yml"
+# shellcheck disable=SC2016
+expected_output_ref='installed_pin_required: ${{ steps.scopes.outputs.installed_pin_required }}'
+if ! grep -Fq "$expected_output_ref" "$sevro_workflow" ||
+  ! grep -Fq 'needs: changes' "$sevro_workflow" ||
+  ! grep -Fq "needs.changes.result != 'success'" "$sevro_workflow" ||
+  ! grep -Fq "needs.changes.outputs.installed_pin_required == 'true'" "$sevro_workflow" ||
+  ! grep -Fq "github.event_name == 'workflow_dispatch'" "$sevro_workflow"; then
+  echo 'error: installed-pin job is not wired to conservative change scope' >&2
+  exit 1
+fi
 fixture=$(mktemp -d "${TMPDIR:-/tmp}/darrow-python-quality-changes.XXXXXX")
 trap 'rm -rf "$fixture"' EXIT HUP INT TERM
 
@@ -12,19 +24,163 @@ git -C "$fixture" config user.email test@example.com
 git -C "$fixture" config user.name "Darrow Tests"
 mkdir -p "$fixture/scripts"
 cp "$detector" "$fixture/scripts/detect-python-quality-changes"
+mkdir -p "$fixture/.github/workflows"
+cp "$sevro_workflow" "$fixture/.github/workflows/sevro-integration.yml"
 chmod +x "$fixture/scripts/detect-python-quality-changes"
 cat >"$fixture/python-packages.txt" <<'EOF'
 plugins/capability/darrow-discovery/skills/work-through-decisions/backend
-plugins/capability/darrow-observability-langfuse/backend
 plugins/capability/darrow-verification/backend
 plugins/foundation/darrow-skill-authoring/backend
 EOF
 printf '%s\n' '# Fixture' >"$fixture/README.md"
+mkdir -p "$fixture/plugins/capability/darrow-verification/backend"
+printf '%s\n' content >"$fixture/plugins/capability/darrow-verification/backend/original.md"
+mkdir -p "$fixture/outside"
+printf '%s\n' content >"$fixture/outside/tracked.txt"
 git -C "$fixture" add .
 git -C "$fixture" commit -qm "chore: init"
 base=$(git -C "$fixture" rev-parse HEAD)
 
+scope_script="$fixture/.git/workflow-scope.sh"
+awk '
+  /^  changes:$/ { in_changes = 1 }
+  in_changes && /^  installed-pin:$/ { in_changes = 0 }
+  in_changes && /^        run: \|$/ { in_run = 1; next }
+  in_run && /^$/ { print; next }
+  in_run && /^          / { sub(/^          /, ""); print; next }
+  in_run { exit }
+' "$sevro_workflow" >"$scope_script"
+if [ ! -s "$scope_script" ]; then
+  echo 'error: could not extract installed-pin scope run block from workflow' >&2
+  exit 1
+fi
+
+run_workflow_scope() {
+  event=$1
+  before=$2
+  event_base=$3
+  head=$4
+  expected=$5
+  output="$fixture/.git/workflow-output"
+  : >"$output"
+  if ! (cd "$fixture" && env \
+    EVENT_NAME="$event" \
+    BEFORE_SHA="$before" \
+    BASE_SHA="$event_base" \
+    HEAD_SHA="$head" \
+    GITHUB_SHA="$head" \
+    GITHUB_OUTPUT="$output" \
+    sh -e "$scope_script"); then
+    echo "error: workflow scope block failed for $event" >&2
+    exit 1
+  fi
+  actual=$(sed -n 's/^installed_pin_required=//p' "$output")
+  if [ "$actual" != "$expected" ]; then
+    printf 'error: workflow scope block selected %s for %s, expected %s; output:\n' \
+      "${actual:-<missing>}" "$event" "$expected" >&2
+    cat "$output" >&2
+    exit 1
+  fi
+}
+
+run_workflow_scope workflow_dispatch '' "$base" "$base" true
+zero=0000000000000000000000000000000000000000
+run_workflow_scope push "$zero" "$base" "$base" true
+
+mkdir -p "$fixture/docs"
+printf '%s\n' content >"$fixture/docs/event.md"
+git -C "$fixture" add .
+git -C "$fixture" commit -qm 'test: documentation event'
+printf '%s\n' updated >"$fixture/docs/event.md"
+git -C "$fixture" add docs/event.md
+git -C "$fixture" commit -qm 'test: second documentation event commit'
+docs_head=$(git -C "$fixture" rev-parse HEAD)
+run_workflow_scope pull_request '' "$base" "$docs_head" false
+if ! grep -Fq 'packages=[]' "$fixture/.git/workflow-output"; then
+  echo 'error: docs-only PR workflow scope selected Python packages' >&2
+  exit 1
+fi
+
+# A base branch can advance independently of the PR. Neither workflow should
+# select the base-only plugin or unrelated installed-pin checks for the PR.
+git -C "$fixture" reset -q --hard "$base"
+mkdir -p "$fixture/plugins/foundation/darrow-skill-authoring/backend"
+printf '%s\n' content >"$fixture/plugins/foundation/darrow-skill-authoring/backend/base.py"
+printf '%s\n' content >"$fixture/sevro.json"
+git -C "$fixture" add .
+git -C "$fixture" commit -qm 'test: advance base independently'
+advanced_base=$(git -C "$fixture" rev-parse HEAD)
+git -C "$fixture" reset -q --hard "$base"
+mkdir -p "$fixture/plugins/capability/darrow-verification/backend"
+printf '%s\n' content >"$fixture/plugins/capability/darrow-verification/backend/pr.py"
+git -C "$fixture" add .
+git -C "$fixture" commit -qm 'test: change PR plugin'
+pr_head=$(git -C "$fixture" rev-parse HEAD)
+
+for workflow in "$sevro_workflow" "$python_workflow"; do
+  awk '
+    /^  changes:$/ { in_changes = 1 }
+    in_changes && /^        run: \|$/ { in_run = 1; next }
+    in_run && /^$/ { print; next }
+    in_run && /^          / { sub(/^          /, ""); print; next }
+    in_run { exit }
+  ' "$workflow" >"$scope_script"
+  [ -s "$scope_script" ] || { echo "error: missing scope block in $workflow" >&2; exit 1; }
+  run_workflow_scope pull_request '' "$advanced_base" "$docs_head" false
+  run_workflow_scope pull_request '' "$advanced_base" "$pr_head" true
+  if ! grep -Fxq 'packages=["plugins/capability/darrow-verification/backend"]' "$fixture/.git/workflow-output"; then
+    echo "error: $workflow selected base-only plugin changes" >&2
+    cat "$fixture/.git/workflow-output" >&2
+    exit 1
+  fi
+done
+
+git -C "$fixture" reset -q --hard "$base"
+git -C "$fixture" clean -qfdx
+mkdir -p "$fixture/plugins/capability/darrow-verification/backend" "$fixture/docs"
+printf '%s\n' content >"$fixture/plugins/capability/darrow-verification/backend/event.py"
+printf '%s\n' content >"$fixture/docs/event.md"
+git -C "$fixture" add .
+git -C "$fixture" commit -qm 'test: mixed plugin and documentation event'
+mixed_head=$(git -C "$fixture" rev-parse HEAD)
+run_workflow_scope push "$base" "$base" "$mixed_head" true
+if ! grep -Fq 'packages=["plugins/capability/darrow-verification/backend"]' \
+  "$fixture/.git/workflow-output"; then
+  echo 'error: mixed plugin/docs push lost the affected Python package' >&2
+  exit 1
+fi
+
+git -C "$fixture" reset -q --hard "$base"
+git -C "$fixture" clean -qfdx
+mkdir -p "$fixture/outside"
+printf '%s\n' content >"$fixture/outside/event.txt"
+git -C "$fixture" add .
+git -C "$fixture" commit -qm 'test: outside event'
+outside_head=$(git -C "$fixture" rev-parse HEAD)
+run_workflow_scope push "$base" "$base" "$outside_head" false
+
 expect_scope() {
+  path=$1
+  expected=$2
+  git -C "$fixture" reset -q --hard "$base"
+  git -C "$fixture" clean -qfdx
+  mkdir -p "$(dirname "$fixture/$path")"
+  if [ "$path" = scripts/detect-python-quality-changes ]; then
+    printf '%s\n' '# changed' >>"$fixture/$path"
+  else
+    printf '%s\n' changed >"$fixture/$path"
+  fi
+  git -C "$fixture" add "$path"
+  git -C "$fixture" commit -qm "test: change $path"
+  actual=$(cd "$fixture" && scripts/detect-python-quality-changes "$base" HEAD | sed '/^installed_pin_required=/d')
+  if [ "$actual" != "$expected" ]; then
+    printf 'error: unexpected scopes for %s\nexpected:\n%s\nactual:\n%s\n' \
+      "$path" "$expected" "$actual" >&2
+    exit 1
+  fi
+}
+
+expect_pin_for_path() {
   path=$1
   expected=$2
   git -C "$fixture" reset -q --hard "$base"
@@ -33,12 +189,42 @@ expect_scope() {
   printf '%s\n' changed >"$fixture/$path"
   git -C "$fixture" add "$path"
   git -C "$fixture" commit -qm "test: change $path"
-  actual=$(cd "$fixture" && scripts/detect-python-quality-changes "$base" HEAD)
+  actual=$(cd "$fixture" && scripts/detect-python-quality-changes "$base" HEAD \
+    | sed -n 's/^installed_pin_required=//p')
   if [ "$actual" != "$expected" ]; then
-    printf 'error: unexpected scopes for %s\nexpected:\n%s\nactual:\n%s\n' \
-      "$path" "$expected" "$actual" >&2
+    printf 'error: unexpected installed pin selection for %s: expected %s, got %s\n' \
+      "$path" "$expected" "${actual:-<missing>}" >&2
     exit 1
   fi
+}
+
+expect_pin_for_pair() {
+  first=$1
+  second=$2
+  expected=$3
+  git -C "$fixture" reset -q --hard "$base"
+  git -C "$fixture" clean -qfdx
+  for path in "$first" "$second"; do
+    mkdir -p "$(dirname "$fixture/$path")"
+    printf '%s\n' changed >"$fixture/$path"
+    git -C "$fixture" add "$path"
+  done
+  git -C "$fixture" commit -qm "test: change mixed paths"
+  actual=$(cd "$fixture" && scripts/detect-python-quality-changes "$base" HEAD \
+    | sed -n 's/^installed_pin_required=//p')
+  if [ "$actual" != "$expected" ]; then
+    printf 'error: unexpected installed pin selection for %s and %s: expected %s, got %s\n' \
+      "$first" "$second" "$expected" "${actual:-<missing>}" >&2
+    exit 1
+  fi
+  scopes=$(cd "$fixture" && scripts/detect-python-quality-changes "$base" HEAD)
+  case "$first $second" in
+    *plugins/capability/darrow-verification/backend*)
+      case "$scopes" in *'packages=["plugins/capability/darrow-verification/backend"]'*) ;;
+        *) printf 'error: mixed plugin/doc set lost affected Python package\n' >&2; exit 1 ;;
+      esac
+      ;;
+  esac
 }
 
 expect_scope \
@@ -46,58 +232,186 @@ expect_scope \
   'packages=[]
 package_selected=false
 skill_authoring=false
-observability_langfuse=false
 discovery=false
 verification=false'
+expect_scope \
+  docs/specs/python-quality.md \
+  'packages=[]
+package_selected=false
+skill_authoring=false
+discovery=false
+verification=false'
+expect_pin_for_path docs/specs/python-quality.md false
+expect_pin_for_path README.md false
+expect_pin_for_path readme.rst false
+expect_pin_for_path plugins/foundation/darrow-skill-authoring/README.md true
+expect_pin_for_path plugins/capability/darrow-verification/skills/verify-change/SKILL.md true
+expect_pin_for_path plugins/capability/darrow-verification/skills/verify-change/evals/case.yaml true
+expect_pin_for_path scripts/check-python false
+expect_pin_for_path scripts/setup-sevro-linux true
+expect_pin_for_path scripts/example.ts true
+expect_pin_for_path evals/domain/example.test.ts true
+expect_pin_for_path package.json true
+expect_pin_for_path bun.lock true
+expect_pin_for_path bunfig.toml true
+expect_pin_for_path tsconfig.json true
+expect_pin_for_path sevro.json true
+expect_pin_for_path plugins/capability/unrelated/backend/example.py false
+for plugin in \
+  capability/darrow-discovery capability/darrow-git capability/darrow-readiness-gate \
+  capability/darrow-review capability/darrow-tdd capability/darrow-tickets \
+  capability/darrow-verification foundation/darrow-skill-authoring \
+  orchestration/darrow-adaptive-goal orchestration/darrow-ticket-pipeline \
+  task-recipe/darrow-ticket-to-pr; do
+  expect_pin_for_path "plugins/$plugin/example.py" true
+done
+expect_pin_for_pair plugins/capability/darrow-verification/backend/example.py docs/note.md true
+
+git -C "$fixture" reset -q --hard "$base"
+sed 's/Select installed-pin scope/Select pin scope/' "$sevro_workflow" >"$fixture/.github/workflows/sevro-integration.yml"
+git -C "$fixture" add .github/workflows/sevro-integration.yml
+git -C "$fixture" commit -qm 'test: change only scope job'
+scope_only=$(cd "$fixture" && scripts/detect-python-quality-changes "$base" HEAD)
+case "$scope_only" in *'installed_pin_required=false'*) ;; *)
+  printf 'error: scope-only workflow change selected installed pin\n' >&2; exit 1 ;;
+esac
+sed 's/timeout-minutes: 30/timeout-minutes: 31/' "$sevro_workflow" >"$fixture/.github/workflows/sevro-integration.yml"
+git -C "$fixture" add .github/workflows/sevro-integration.yml
+git -C "$fixture" commit -qm 'test: change installed job'
+job_change=$(cd "$fixture" && scripts/detect-python-quality-changes "$base" HEAD)
+case "$job_change" in *'installed_pin_required=true'*) ;; *)
+  printf 'error: installed job change skipped installed pin\n' >&2; exit 1 ;;
+esac
+
+git -C "$fixture" reset -q --hard "$base"
+git -C "$fixture" rm -q outside/tracked.txt
+git -C "$fixture" commit -qm 'test: delete outside file'
+deleted_outside=$(cd "$fixture" && scripts/detect-python-quality-changes "$base" HEAD)
+case "$deleted_outside" in *'installed_pin_required=false'*) ;; *)
+  printf 'error: deleting an unrelated file selected installed pin\n' >&2
+  exit 1
+  ;;
+esac
+
+git -C "$fixture" reset -q --hard "$base"
+git -C "$fixture" clean -qfdx
+mkdir -p "$fixture/docs"
+printf '%s\n' content >"$fixture/docs/moving.md"
+git -C "$fixture" add .
+git -C "$fixture" commit -qm 'test: add documentation file'
+mkdir -p "$fixture/plugins/capability/darrow-verification/backend"
+git -C "$fixture" mv docs/moving.md plugins/capability/darrow-verification/backend/moving.md
+git -C "$fixture" commit -qm 'test: move docs into plugin'
+rename_into=$(cd "$fixture" && scripts/detect-python-quality-changes "$base" HEAD)
+case "$rename_into" in *'installed_pin_required=true'*) ;; *)
+  printf 'error: rename into plugin content skipped installed pin\n' >&2
+  exit 1
+  ;;
+esac
+case "$rename_into" in *'package_selected=true'*) ;;
+  *) printf 'error: rename into plugin content skipped Python package selection\n' >&2; exit 1 ;;
+esac
+
+git -C "$fixture" reset -q --hard "$base"
+git -C "$fixture" clean -qfdx
+git -C "$fixture" mv plugins/capability/darrow-verification/backend/original.md outside.md
+git -C "$fixture" commit -qm 'test: move plugin content outside'
+rename_out=$(cd "$fixture" && scripts/detect-python-quality-changes "$base" HEAD)
+case "$rename_out" in *'installed_pin_required=true'*) ;; *)
+  printf 'error: rename out of plugin content skipped installed pin\n' >&2
+  exit 1
+  ;;
+esac
+case "$rename_out" in *'package_selected=true'*) ;;
+  *) printf 'error: rename out of plugin content skipped Python package selection\n' >&2; exit 1 ;;
+esac
 expect_scope \
   plugins/foundation/darrow-skill-authoring/README.md \
-  'packages=["plugins/foundation/darrow-skill-authoring/backend"]
-package_selected=true
-skill_authoring=true
-observability_langfuse=false
+  'packages=[]
+package_selected=false
+skill_authoring=false
 discovery=false
 verification=false'
 expect_scope \
-  plugins/capability/darrow-observability-langfuse/README.md \
-  'packages=["plugins/capability/darrow-observability-langfuse/backend"]
-package_selected=true
+  plugins/foundation/darrow-skill-authoring/readme.txt \
+  'packages=[]
+package_selected=false
 skill_authoring=false
-observability_langfuse=true
 discovery=false
 verification=false'
 expect_scope \
   plugins/capability/darrow-discovery/README.md \
-  'packages=["plugins/capability/darrow-discovery/skills/work-through-decisions/backend"]
-package_selected=true
+  'packages=[]
+package_selected=false
 skill_authoring=false
-observability_langfuse=false
-discovery=true
+discovery=false
 verification=false'
 expect_scope \
   plugins/capability/darrow-verification/README.md \
+  'packages=[]
+package_selected=false
+skill_authoring=false
+discovery=false
+verification=false'
+expect_scope \
+  plugins/capability/darrow-verification/skills/verify-change/SKILL.md \
   'packages=["plugins/capability/darrow-verification/backend"]
 package_selected=true
 skill_authoring=false
-observability_langfuse=false
 discovery=false
 verification=true'
-expect_scope \
-  scripts/check-python \
-  'packages=["plugins/capability/darrow-discovery/skills/work-through-decisions/backend","plugins/capability/darrow-observability-langfuse/backend","plugins/capability/darrow-verification/backend","plugins/foundation/darrow-skill-authoring/backend"]
-package_selected=true
-skill_authoring=true
-observability_langfuse=true
-discovery=true
-verification=true'
+for path in .github/workflows/python-quality.yml \
+  scripts/check-python scripts/check-python-inventory scripts/detect-python-quality-changes \
+  scripts/test-python-coverage scripts/test-python-inventory scripts/test-python-quality-changes \
+  scripts/verify-python-coverage scripts/verify-python-quality-results; do
+  expect_scope "$path" 'packages=[]
+package_selected=false
+skill_authoring=false
+discovery=false
+verification=false'
+done
 
-all=$(cd "$fixture" && scripts/detect-python-quality-changes --all)
-if [ "$all" != 'packages=["plugins/capability/darrow-discovery/skills/work-through-decisions/backend","plugins/capability/darrow-observability-langfuse/backend","plugins/capability/darrow-verification/backend","plugins/foundation/darrow-skill-authoring/backend"]
+git -C "$fixture" reset -q --hard "$base"
+git -C "$fixture" clean -qfdx
+printf '%s\n' '# inventory comment' >>"$fixture/python-packages.txt"
+git -C "$fixture" add python-packages.txt
+git -C "$fixture" commit -qm 'test: change package inventory'
+inventory_scope=$(cd "$fixture" && scripts/detect-python-quality-changes "$base" HEAD)
+case "$inventory_scope" in
+  *'packages=[]'*) ;;
+  *) printf 'error: inventory change selected plugins\n%s\n' "$inventory_scope" >&2; exit 1 ;;
+esac
+case "$inventory_scope" in
+  *'installed_pin_required=true'*) ;;
+  *) printf 'error: inventory change skipped installed pin\n%s\n' "$inventory_scope" >&2; exit 1 ;;
+esac
+
+git -C "$fixture" reset -q --hard "$base"
+git -C "$fixture" clean -qfdx
+mkdir -p "$fixture/plugins/capability/darrow-verification/backend" "$fixture/scripts"
+printf '%s\n' changed >"$fixture/plugins/capability/darrow-verification/backend/change.py"
+printf '%s\n' changed >"$fixture/scripts/check-python"
+git -C "$fixture" add .
+git -C "$fixture" commit -qm 'test: change a plugin and shared infrastructure'
+mixed=$(cd "$fixture" && scripts/detect-python-quality-changes "$base" HEAD)
+case "$mixed" in
+  *'packages=["plugins/capability/darrow-verification/backend"]'*) ;;
+  *) printf 'error: mixed infrastructure/plugin change selected the wrong packages\n%s\n' "$mixed" >&2; exit 1 ;;
+esac
+
+all=$(cd "$fixture" && scripts/detect-python-quality-changes --all | sed '/^installed_pin_required=/d')
+if [ "$all" != 'packages=["plugins/capability/darrow-discovery/skills/work-through-decisions/backend","plugins/capability/darrow-verification/backend","plugins/foundation/darrow-skill-authoring/backend"]
 package_selected=true
 skill_authoring=true
-observability_langfuse=true
 discovery=true
 verification=true' ]; then
   printf 'error: --all did not select every Python quality scope\n' >&2
+  exit 1
+fi
+all_pin=$(cd "$fixture" && scripts/detect-python-quality-changes --all \
+  | sed -n 's/^installed_pin_required=//p')
+if [ "$all_pin" != true ]; then
+  printf 'error: --all did not select installed pin\n' >&2
   exit 1
 fi
 
@@ -109,14 +423,21 @@ printf '%s\n' '[project]' 'name = "darrow-third"' > \
 git -C "$fixture" add .
 git -C "$fixture" commit -qm 'test: register third Python package'
 third_base=$(git -C "$fixture" rev-parse HEAD)
+printf '%s\n' '# updated package' >>"$fixture/plugins/capability/darrow-third/backend/pyproject.toml"
+git -C "$fixture" add .
+git -C "$fixture" commit -qm 'test: change registered package metadata'
+third_metadata=$(cd "$fixture" && scripts/detect-python-quality-changes "$third_base" HEAD)
+case "$third_metadata" in *'installed_pin_required=true'*) ;; *)
+  printf 'error: registered package metadata skipped installed pin\n' >&2; exit 1 ;;
+esac
+git -C "$fixture" reset -q --hard "$third_base"
 printf '%s\n' changed >"$fixture/plugins/capability/darrow-third/README.md"
 git -C "$fixture" add .
 git -C "$fixture" commit -qm 'test: change third Python package'
-third=$(cd "$fixture" && scripts/detect-python-quality-changes "$third_base" HEAD)
-if [ "$third" != 'packages=["plugins/capability/darrow-third/backend"]
-package_selected=true
+third=$(cd "$fixture" && scripts/detect-python-quality-changes "$third_base" HEAD | sed '/^installed_pin_required=/d')
+if [ "$third" != 'packages=[]
+package_selected=false
 skill_authoring=false
-observability_langfuse=false
 discovery=false
 verification=false' ]; then
   printf 'error: registered third package was not selected\nactual:\n%s\n' \
@@ -124,11 +445,10 @@ verification=false' ]; then
   exit 1
 fi
 
-third_all=$(cd "$fixture" && scripts/detect-python-quality-changes --all)
-if [ "$third_all" != 'packages=["plugins/capability/darrow-discovery/skills/work-through-decisions/backend","plugins/capability/darrow-observability-langfuse/backend","plugins/capability/darrow-verification/backend","plugins/foundation/darrow-skill-authoring/backend","plugins/capability/darrow-third/backend"]
+third_all=$(cd "$fixture" && scripts/detect-python-quality-changes --all | sed '/^installed_pin_required=/d')
+if [ "$third_all" != 'packages=["plugins/capability/darrow-discovery/skills/work-through-decisions/backend","plugins/capability/darrow-verification/backend","plugins/foundation/darrow-skill-authoring/backend","plugins/capability/darrow-third/backend"]
 package_selected=true
 skill_authoring=true
-observability_langfuse=true
 discovery=true
 verification=true' ]; then
   printf 'error: --all omitted a registered third package\nactual:\n%s\n' \
@@ -140,40 +460,33 @@ if (cd "$fixture" && scripts/detect-python-quality-changes only-one-ref) >/dev/n
   printf 'error: invalid detector invocation succeeded\n' >&2
   exit 1
 fi
+if (cd "$fixture" && scripts/detect-python-quality-changes missing-ref "$base") >/dev/null 2>&1; then
+  printf 'error: detector accepted a missing event reference\n' >&2
+  exit 1
+fi
 
 "$verifier" \
   success success \
   true success \
   true success success \
-  false skipped skipped skipped \
   false skipped skipped \
   false skipped skipped
 "$verifier" \
   success success \
   true success \
   false skipped skipped \
-  true success success success \
-  false skipped skipped \
-  false skipped skipped
-"$verifier" \
-  success success \
-  true success \
-  false skipped skipped \
-  false skipped skipped skipped \
   true success success \
   false skipped skipped
 "$verifier" \
   success success \
   true success \
   false skipped skipped \
-  false skipped skipped skipped \
   false skipped skipped \
   true success success
 "$verifier" \
   success success \
   false skipped \
   false skipped skipped \
-  false skipped skipped skipped \
   false skipped skipped \
   false skipped skipped
 
@@ -181,7 +494,6 @@ if "$verifier" \
   success success \
   false success \
   false skipped skipped \
-  false skipped skipped skipped \
   false skipped skipped \
   false skipped skipped >/dev/null 2>&1; then
   printf 'error: aggregate accepted a job that ran for an unchanged scope\n' >&2
@@ -192,7 +504,6 @@ if "$verifier" \
   success success \
   true failure \
   false skipped skipped \
-  false skipped skipped skipped \
   false skipped skipped \
   false skipped skipped >/dev/null 2>&1; then
   printf 'error: aggregate accepted a failed registered-package job\n' >&2
@@ -203,7 +514,6 @@ if "$verifier" \
   success success \
   true success \
   true failure success \
-  false skipped skipped skipped \
   false skipped skipped \
   false skipped skipped >/dev/null 2>&1; then
   printf 'error: aggregate accepted a failed selected job\n' >&2
@@ -214,7 +524,6 @@ if "$verifier" \
   failure success \
   true success \
   true success success \
-  true success success success \
   true success success \
   true success success >/dev/null 2>&1; then
   printf 'error: aggregate accepted failed change detection\n' >&2

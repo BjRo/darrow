@@ -1,0 +1,1389 @@
+{
+  "format": "darrow-current-value-n1-results-v1",
+  "date": "2026-10-30",
+  "status": "exploratory N=1 first pass",
+  "candidate": {
+    "model": "gpt-6.1-sol",
+    "effort": "medium",
+    "implementationRouting": "current-policy"
+  },
+  "plugins": {
+    "darrow-adaptive-goal": "0.27.1",
+    "darrow-ticket-to-pr": "0.6.3",
+    "darrow-readiness-gate": "0.3.10",
+    "darrow-verification": "0.4.2",
+    "darrow-review": "0.11.29",
+    "darrow-tdd": "0.1.11",
+    "darrow-git": "0.9.1",
+    "darrow-tickets": "0.8.0"
+  },
+  "evaluator": {
+    "sevro": "1.1.1",
+    "codex": "0.165.0",
+    "bun": "1.3.13",
+    "node": "24.13.0",
+    "transport": "app-server",
+    "observation": "passive",
+    "trialsPerTaskAndCondition": 1,
+    "workers": 1,
+    "hostTimeoutMs": 1800000,
+    "advisoryJudge": false
+  },
+  "provenance": {
+    "repositoryRevision": "ab3498c957f80f2ef16341d4b831982230993c7d",
+    "trackedPatchSha256": "d0a1dc4778ef7e03e6c36cdd7e2a300f2b62a556f22308fb2e1cd8be0667d783",
+    "callerSources": [
+      {
+        "path": "prepare-value.ts",
+        "sha256": "b305b97d4aaaf970c5edc4526c8f1a684f547b96c3d78671ed05f134a009dcc1"
+      },
+      {
+        "path": "run-value.ts",
+        "sha256": "2ede661b839fae9fd8f5b31821d996615b3e44658114aee205952f00fb886bfd"
+      },
+      {
+        "path": "fixtures/setup-value.sh",
+        "sha256": "58f6c68d85ad2ede0339f1aa25e52a21fb66fc341d9e28dcf27220c84020c69e"
+      },
+      {
+        "path": "fixtures/value-forge.ts",
+        "sha256": "64f2965c778e44449dec011b2ca5bba17179e583a307a4bedd4d64fabffca4e3"
+      },
+      {
+        "path": "fixtures/value-ci.ts",
+        "sha256": "bbb7a96e1033859c8baf47aa69159f115a9947a72982f441cc6456af556816c8"
+      },
+      {
+        "path": "fixtures/value-ci-host.ts",
+        "sha256": "4ae085860390c77689ea747934aa38b42e7034fc0c7db6964e998d199cbecfd2"
+      }
+    ],
+    "caseSources": [
+      {
+        "id": "orchestration-oss-ajv-instance-path",
+        "sha256": "c91872cf85e5d9955e4f594e50d4eabb35ea8d2c199308c981393697a5a50096"
+      },
+      {
+        "id": "orchestration-oss-click-streams",
+        "sha256": "0b102e20a3afd337e88d70fd35cf4a544f0c7e5f0bf84e889665fac1f5cdcde4"
+      },
+      {
+        "id": "orchestration-oss-express-links",
+        "sha256": "96d727819e4ffc25dcce9bb47bf658a884cbd2f43bb8056907fa4867c4972c09"
+      },
+      {
+        "id": "orchestration-oss-go-git-insteadof",
+        "sha256": "eee55addb0b6c8da05fbea88b0e21c7374612db18751e8999d57630cf092c1c6"
+      }
+    ],
+    "packagingExclusions": [
+      ".venv",
+      "__pycache__",
+      ".pytest_cache",
+      ".mypy_cache",
+      ".ruff_cache",
+      ".coverage",
+      ".hypothesis",
+      "tests",
+      "agents",
+      "evals",
+      "plugin-entry-README.md"
+    ],
+    "implementationSnapshots": [
+      "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v7",
+      "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8"
+    ],
+    "deliverySnapshot": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11"
+  },
+  "expectedAttempts": 16,
+  "finishedAttempts": 16,
+  "assessedTrials": 15,
+  "usageRetrospective": {
+    "path": "2026-10-30-codex-n1-usage.json",
+    "hostReportedFieldsPreserved": true
+  },
+  "aggregates": [
+    {
+      "track": "implementation",
+      "mode": "vanilla",
+      "attempts": 4,
+      "assessedTrials": 4,
+      "codePassed": 4,
+      "codeUnassessed": 0,
+      "deliveryPassed": null,
+      "deliveryUnassessed": null,
+      "meanCompletedSeconds": 132.22041831274998,
+      "meanAttemptSeconds": 132.22041831274998
+    },
+    {
+      "track": "implementation",
+      "mode": "adaptive-goal",
+      "attempts": 4,
+      "assessedTrials": 4,
+      "codePassed": 4,
+      "codeUnassessed": 0,
+      "deliveryPassed": null,
+      "deliveryUnassessed": null,
+      "meanCompletedSeconds": 561.75172172875,
+      "meanAttemptSeconds": 561.75172172875
+    },
+    {
+      "track": "delivery",
+      "mode": "vanilla",
+      "attempts": 4,
+      "assessedTrials": 4,
+      "codePassed": 4,
+      "codeUnassessed": 0,
+      "deliveryPassed": 4,
+      "deliveryUnassessed": 0,
+      "meanCompletedSeconds": 175.98450725025,
+      "meanAttemptSeconds": 175.98450725025
+    },
+    {
+      "track": "delivery",
+      "mode": "ticket-to-pr",
+      "attempts": 4,
+      "assessedTrials": 3,
+      "codePassed": 3,
+      "codeUnassessed": 1,
+      "deliveryPassed": 3,
+      "deliveryUnassessed": 1,
+      "meanCompletedSeconds": 607.0041195556668,
+      "meanAttemptSeconds": 802.638504177
+    }
+  ],
+  "pairedComparisons": [
+    {
+      "track": "implementation",
+      "candidate": "adaptive-goal",
+      "tasks": [
+        "express-links",
+        "click-streams",
+        "ajv-instance-path",
+        "go-git-insteadof"
+      ],
+      "vanillaMeanSeconds": 132.22041831274998,
+      "candidateMeanSeconds": 561.75172172875,
+      "wallRatio": 4.24860039695231
+    },
+    {
+      "track": "delivery",
+      "candidate": "ticket-to-pr",
+      "tasks": ["go-git-insteadof", "express-links", "ajv-instance-path"],
+      "vanillaMeanSeconds": 188.32962431966666,
+      "candidateMeanSeconds": 607.0041195556668,
+      "wallRatio": 3.223094198527954
+    }
+  ],
+  "historicalContext": {
+    "snapshot": "2026-08-07-n1.json",
+    "candidate": {
+      "model": "gpt-5.5",
+      "effort": "medium",
+      "codex": "0.145.0"
+    },
+    "vanilla": {
+      "passed": 4,
+      "total": 4,
+      "meanSeconds": 216.5
+    },
+    "ticketPipeline": {
+      "passed": 3,
+      "total": 4,
+      "meanSeconds": 1110.4
+    },
+    "samePromptsAndUpstreamPins": true,
+    "matchedEvaluatorOrModel": false,
+    "matchedFullDeliveryScope": false
+  },
+  "limits": [
+    "One attempt per task and condition; no statistical reliability claim.",
+    "Current canonical hidden checks differ from August in Click, Ajv and go-git.",
+    "Original Sevro usage fields remain null; the separate native-usage retrospective recovers captured token counters and estimates Standard API-equivalent cost. Actual charges remain unknown.",
+    "No blind advisory judge or retained final diff for implementation-only calibration.",
+    "Forge and Git transport are local fixtures; no GitHub network or hosted CI queue measurement.",
+    "Click recipe delivery was stopped by the fixed 8 MiB Sevro app-server event-stream cap before grading."
+  ],
+  "excludedCompletedHarnessAttempts": [
+    {
+      "result": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v9/delivery-vanilla-express-links/cell-1/result.json",
+      "reason": "Nested CI fixture could not clone the active workspace."
+    },
+    {
+      "result": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v10/delivery-vanilla-express-links/cell-1/result.json",
+      "reason": "Copied executable symlinks referenced the protected source workspace."
+    }
+  ],
+  "rows": [
+    {
+      "track": "implementation",
+      "task": "express-links",
+      "mode": "vanilla",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": null,
+      "candidateSeconds": 66.10785924999999,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "status": null,
+          "clientTurns": 1,
+          "failure": null
+        }
+      ],
+      "delegation": {
+        "completeness": "complete",
+        "childrenTruncated": false,
+        "acceptedMainSpawns": [],
+        "observedNestedSpawns": []
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        }
+      ],
+      "ci": null,
+      "diagnostic": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v7/implementation-vanilla-express/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v7/implementation-vanilla-express/cell-1/635486f3-9952-4bb5-98a6-a204f31da94d/run.json"
+    },
+    {
+      "track": "implementation",
+      "task": "express-links",
+      "mode": "adaptive-goal",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": null,
+      "candidateSeconds": 342.65035691599996,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "status": "complete",
+          "clientTurns": 1,
+          "failure": null
+        }
+      ],
+      "delegation": {
+        "completeness": "complete",
+        "childrenTruncated": false,
+        "acceptedMainSpawns": [
+          {
+            "task": "links_verification",
+            "model": "gpt-6.1-sol",
+            "effort": "medium",
+            "forkTurns": "none"
+          }
+        ],
+        "observedNestedSpawns": [
+          {
+            "task": "review_provider",
+            "model": "gpt-6.1-sol",
+            "effort": "medium",
+            "status": "accepted",
+            "readerResultStatus": "completed"
+          }
+        ]
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        }
+      ],
+      "ci": null,
+      "diagnostic": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-adaptive-express/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-adaptive-express/cell-1/82df1bdd-aa64-4821-a05f-549d4ecd1fde/run.json"
+    },
+    {
+      "track": "implementation",
+      "task": "click-streams",
+      "mode": "vanilla",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": null,
+      "candidateSeconds": 150.360001542,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "status": null,
+          "clientTurns": 1,
+          "failure": null
+        }
+      ],
+      "delegation": {
+        "completeness": "complete",
+        "childrenTruncated": false,
+        "acceptedMainSpawns": [],
+        "observedNestedSpawns": []
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        }
+      ],
+      "ci": null,
+      "diagnostic": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-vanilla-click-streams/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-vanilla-click-streams/cell-1/ef06eac4-af1c-4a78-aa5a-d8904fd10d24/run.json"
+    },
+    {
+      "track": "implementation",
+      "task": "click-streams",
+      "mode": "adaptive-goal",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": null,
+      "candidateSeconds": 1094.1301570420003,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "status": "complete",
+          "clientTurns": 1,
+          "failure": null
+        }
+      ],
+      "delegation": {
+        "completeness": "complete",
+        "childrenTruncated": false,
+        "acceptedMainSpawns": [
+          {
+            "task": "implement_capture",
+            "model": "gpt-6-luna",
+            "effort": "high",
+            "forkTurns": "none"
+          },
+          {
+            "task": "verify_capture",
+            "model": "gpt-6.1-sol",
+            "effort": "medium",
+            "forkTurns": "none"
+          },
+          {
+            "task": "verify_capture_repair",
+            "model": "gpt-6.1-sol",
+            "effort": "medium",
+            "forkTurns": "none"
+          }
+        ],
+        "observedNestedSpawns": [
+          {
+            "task": "provider",
+            "model": "gpt-6.1-sol",
+            "effort": "medium",
+            "status": "accepted",
+            "readerResultStatus": "completed"
+          },
+          {
+            "task": "review_repair",
+            "model": "gpt-6.1-sol",
+            "effort": "medium",
+            "status": "accepted",
+            "readerResultStatus": "unavailable"
+          }
+        ]
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        }
+      ],
+      "ci": null,
+      "diagnostic": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-adaptive-goal-click-streams/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-adaptive-goal-click-streams/cell-1/d8e1e008-5586-4c84-9b1b-82dbdbcdb6a6/run.json"
+    },
+    {
+      "track": "implementation",
+      "task": "ajv-instance-path",
+      "mode": "vanilla",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": null,
+      "candidateSeconds": 194.15785679200002,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "status": null,
+          "clientTurns": 1,
+          "failure": null
+        }
+      ],
+      "delegation": {
+        "completeness": "complete",
+        "childrenTruncated": false,
+        "acceptedMainSpawns": [],
+        "observedNestedSpawns": []
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        }
+      ],
+      "ci": null,
+      "diagnostic": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-vanilla-ajv-instance-path/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-vanilla-ajv-instance-path/cell-1/c2d67f63-30a3-4f89-957d-4d1303fb2499/run.json"
+    },
+    {
+      "track": "implementation",
+      "task": "ajv-instance-path",
+      "mode": "adaptive-goal",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": null,
+      "candidateSeconds": 400.451998291,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "status": "complete",
+          "clientTurns": 1,
+          "failure": null
+        }
+      ],
+      "delegation": {
+        "completeness": "complete",
+        "childrenTruncated": false,
+        "acceptedMainSpawns": [
+          {
+            "task": "parser_diagnostics",
+            "model": "gpt-6-luna",
+            "effort": "high",
+            "forkTurns": "none"
+          }
+        ],
+        "observedNestedSpawns": []
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        }
+      ],
+      "ci": null,
+      "diagnostic": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-adaptive-goal-ajv-instance-path/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-adaptive-goal-ajv-instance-path/cell-1/e574eaf4-5a36-47c6-91ae-b4bb643260db/run.json"
+    },
+    {
+      "track": "implementation",
+      "task": "go-git-insteadof",
+      "mode": "vanilla",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": null,
+      "candidateSeconds": 118.255955667,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "status": null,
+          "clientTurns": 1,
+          "failure": null
+        }
+      ],
+      "delegation": {
+        "completeness": "complete",
+        "childrenTruncated": false,
+        "acceptedMainSpawns": [],
+        "observedNestedSpawns": []
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        }
+      ],
+      "ci": null,
+      "diagnostic": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-vanilla-go-git-insteadof/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-vanilla-go-git-insteadof/cell-1/bc3c7366-30da-46ed-ae7d-9c373b507608/run.json"
+    },
+    {
+      "track": "implementation",
+      "task": "go-git-insteadof",
+      "mode": "adaptive-goal",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": null,
+      "candidateSeconds": 409.774374666,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "status": "complete",
+          "clientTurns": 1,
+          "failure": null
+        }
+      ],
+      "delegation": {
+        "completeness": "complete",
+        "childrenTruncated": false,
+        "acceptedMainSpawns": [
+          {
+            "task": "url_verification",
+            "model": "gpt-6.1-sol",
+            "effort": "medium",
+            "forkTurns": "none"
+          }
+        ],
+        "observedNestedSpawns": [
+          {
+            "task": "provider",
+            "model": "gpt-6.1-sol",
+            "effort": "medium",
+            "status": "accepted",
+            "readerResultStatus": "completed"
+          }
+        ]
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        }
+      ],
+      "ci": null,
+      "diagnostic": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-adaptive-goal-go-git-insteadof/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-adaptive-goal-go-git-insteadof/cell-1/19e91fe7-8235-4b81-a49d-7ad2c99db9c7/run.json"
+    },
+    {
+      "track": "delivery",
+      "task": "go-git-insteadof",
+      "mode": "vanilla",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": true,
+      "candidateSeconds": 197.176230208,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "status": null,
+          "clientTurns": 1,
+          "failure": null
+        }
+      ],
+      "delegation": {
+        "completeness": "complete",
+        "childrenTruncated": false,
+        "acceptedMainSpawns": [],
+        "observedNestedSpawns": []
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.3",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.changed",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.lineage",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.evals.reported-head.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.output.2",
+          "status": "passed"
+        }
+      ],
+      "ci": {
+        "invocations": 1,
+        "successfulInvocations": 1,
+        "heads": ["ecd6b0eae8127e81a6a99d201454ad72a976e264"]
+      },
+      "diagnostic": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-vanilla-go-git-insteadof/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-vanilla-go-git-insteadof/cell-1/7cca1ab8-2a90-49b7-8ea2-d342f371eba8/run.json"
+    },
+    {
+      "track": "delivery",
+      "task": "express-links",
+      "mode": "vanilla",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": true,
+      "candidateSeconds": 137.81549004200002,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "status": null,
+          "clientTurns": 1,
+          "failure": null
+        }
+      ],
+      "delegation": {
+        "completeness": "complete",
+        "childrenTruncated": false,
+        "acceptedMainSpawns": [],
+        "observedNestedSpawns": []
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.3",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.changed",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.lineage",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.evals.reported-head.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.output.2",
+          "status": "passed"
+        }
+      ],
+      "ci": {
+        "invocations": 2,
+        "successfulInvocations": 2,
+        "heads": ["a99427643e70ae8a056baecc548ac5fe55a8e942"]
+      },
+      "diagnostic": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-vanilla-express-links/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-vanilla-express-links/cell-1/39036aff-0bc6-4213-aa57-11f8f837e775/run.json"
+    },
+    {
+      "track": "delivery",
+      "task": "click-streams",
+      "mode": "ticket-to-pr",
+      "execution": "failed",
+      "grading": "not_requested",
+      "taskVerdict": "not_assessed",
+      "codeAccepted": null,
+      "deliveryCompleted": null,
+      "candidateSeconds": 1389.541658041,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "partial",
+          "status": null,
+          "clientTurns": 1,
+          "failure": "App-server stream exceeds limit"
+        }
+      ],
+      "delegation": {
+        "completeness": "complete",
+        "childrenTruncated": false,
+        "acceptedMainSpawns": [
+          {
+            "task": "implement",
+            "model": "gpt-6-luna",
+            "effort": "medium",
+            "forkTurns": "none"
+          },
+          {
+            "task": "verify_issue1",
+            "model": "gpt-6.1-sol",
+            "effort": "medium",
+            "forkTurns": "none"
+          },
+          {
+            "task": "verify_repair1",
+            "model": "gpt-6.1-sol",
+            "effort": "medium",
+            "forkTurns": "none"
+          }
+        ],
+        "observedNestedSpawns": [
+          {
+            "task": "review_provider",
+            "model": "gpt-6.1-sol",
+            "effort": "medium",
+            "status": "accepted",
+            "readerResultStatus": "unavailable"
+          },
+          {
+            "task": "provider",
+            "model": "gpt-6.1-sol",
+            "effort": "medium",
+            "status": "accepted",
+            "readerResultStatus": "completed"
+          }
+        ]
+      },
+      "checks": [],
+      "ci": {
+        "invocations": 0,
+        "successfulInvocations": 0,
+        "heads": []
+      },
+      "diagnostic": {
+        "code": "sevro.host.failed",
+        "message": "App-server stream exceeds limit"
+      },
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-ticket-to-pr-click-streams/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-ticket-to-pr-click-streams/cell-1/b4b4f945-df90-4a7d-946e-de81e7a0d859/run.json"
+    },
+    {
+      "track": "delivery",
+      "task": "ajv-instance-path",
+      "mode": "vanilla",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": true,
+      "candidateSeconds": 229.99715270899998,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "status": null,
+          "clientTurns": 1,
+          "failure": null
+        }
+      ],
+      "delegation": {
+        "completeness": "complete",
+        "childrenTruncated": false,
+        "acceptedMainSpawns": [],
+        "observedNestedSpawns": []
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.3",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.changed",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.lineage",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.evals.reported-head.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.output.2",
+          "status": "passed"
+        }
+      ],
+      "ci": {
+        "invocations": 2,
+        "successfulInvocations": 2,
+        "heads": ["ba82f53bc051f86ced9f0cefbcbfd060d0467314"]
+      },
+      "diagnostic": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-vanilla-ajv-instance-path/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-vanilla-ajv-instance-path/cell-1/3416fbdb-524f-400e-9ea5-438867974a7f/run.json"
+    },
+    {
+      "track": "delivery",
+      "task": "go-git-insteadof",
+      "mode": "ticket-to-pr",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": true,
+      "candidateSeconds": 682.826650375,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "status": "complete",
+          "clientTurns": 1,
+          "failure": null
+        }
+      ],
+      "delegation": {
+        "completeness": "complete",
+        "childrenTruncated": false,
+        "acceptedMainSpawns": [
+          {
+            "task": "implement",
+            "model": "gpt-6-luna",
+            "effort": "medium",
+            "forkTurns": "none"
+          },
+          {
+            "task": "verify_candidate",
+            "model": "gpt-6.1-sol",
+            "effort": "medium",
+            "forkTurns": "none"
+          }
+        ],
+        "observedNestedSpawns": [
+          {
+            "task": "provider_review",
+            "model": "gpt-6.1-sol",
+            "effort": "medium",
+            "status": "accepted",
+            "readerResultStatus": "unavailable"
+          }
+        ]
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.3",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.changed",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.lineage",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.evals.reported-head.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.output.2",
+          "status": "passed"
+        }
+      ],
+      "ci": {
+        "invocations": 1,
+        "successfulInvocations": 1,
+        "heads": ["9b8454366b83fb25d93510ce8a7fe759bd12ac97"]
+      },
+      "diagnostic": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-ticket-to-pr-go-git-insteadof/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-ticket-to-pr-go-git-insteadof/cell-1/c88ff511-039c-4ed8-9e81-50d39f52f800/run.json"
+    },
+    {
+      "track": "delivery",
+      "task": "express-links",
+      "mode": "ticket-to-pr",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": true,
+      "candidateSeconds": 546.15782825,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "status": "complete",
+          "clientTurns": 1,
+          "failure": null
+        }
+      ],
+      "delegation": {
+        "completeness": "complete",
+        "childrenTruncated": false,
+        "acceptedMainSpawns": [
+          {
+            "task": "verify_links",
+            "model": "gpt-6.1-sol",
+            "effort": "medium",
+            "forkTurns": "none"
+          }
+        ],
+        "observedNestedSpawns": [
+          {
+            "task": "review_provider",
+            "model": "gpt-6.1-sol",
+            "effort": "medium",
+            "status": "accepted",
+            "readerResultStatus": "unavailable"
+          }
+        ]
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.3",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.changed",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.lineage",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.evals.reported-head.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.output.2",
+          "status": "passed"
+        }
+      ],
+      "ci": {
+        "invocations": 2,
+        "successfulInvocations": 2,
+        "heads": ["1ac70b79d23699aacee4e029c51cf2df9f65ad49"]
+      },
+      "diagnostic": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-ticket-to-pr-express-links/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-ticket-to-pr-express-links/cell-1/3fbab3d0-d7f1-41bc-9a39-bb17a507ff0f/run.json"
+    },
+    {
+      "track": "delivery",
+      "task": "ajv-instance-path",
+      "mode": "ticket-to-pr",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": true,
+      "candidateSeconds": 592.027880042,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "status": "complete",
+          "clientTurns": 1,
+          "failure": null
+        }
+      ],
+      "delegation": {
+        "completeness": "complete",
+        "childrenTruncated": false,
+        "acceptedMainSpawns": [
+          {
+            "task": "verify_jtd",
+            "model": "gpt-6.1-sol",
+            "effort": "medium",
+            "forkTurns": "none"
+          }
+        ],
+        "observedNestedSpawns": [
+          {
+            "task": "review_provider",
+            "model": "gpt-6.1-sol",
+            "effort": "medium",
+            "status": "accepted",
+            "readerResultStatus": "completed"
+          }
+        ]
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.3",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.changed",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.lineage",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.evals.reported-head.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.output.2",
+          "status": "passed"
+        }
+      ],
+      "ci": {
+        "invocations": 1,
+        "successfulInvocations": 1,
+        "heads": ["4d7a88143fd07392f64999d3c4e487b7294da814"]
+      },
+      "diagnostic": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-ticket-to-pr-ajv-instance-path/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-ticket-to-pr-ajv-instance-path/cell-1/76b1356a-a9ab-4797-8d55-9d5970d15f91/run.json"
+    },
+    {
+      "track": "delivery",
+      "task": "click-streams",
+      "mode": "vanilla",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": true,
+      "candidateSeconds": 138.949156042,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "status": null,
+          "clientTurns": 1,
+          "failure": null
+        }
+      ],
+      "delegation": {
+        "completeness": "complete",
+        "childrenTruncated": false,
+        "acceptedMainSpawns": [],
+        "observedNestedSpawns": []
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.3",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.changed",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.lineage",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.evals.reported-head.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.output.2",
+          "status": "passed"
+        }
+      ],
+      "ci": {
+        "invocations": 2,
+        "successfulInvocations": 2,
+        "heads": ["75333b96049a457152c60987f263408a45be0b94"]
+      },
+      "diagnostic": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-vanilla-click-streams/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-vanilla-click-streams/cell-1/450bf7f4-07b4-4b50-a731-c812a26276b3/run.json"
+    }
+  ]
+}

@@ -1,7 +1,8 @@
 # ADR-0008: Allow Python and UV for Langfuse observability
 
-Status: Accepted
+Status: Superseded
 Date: 2026-08-24
+Superseded by: ADR-0013
 Summary: Permit the independently installable Langfuse observability plugin to use a locked Python backend managed by UV while retaining a portable Bash hook launcher and keeping the exception scoped to that plugin.
 Revisit when: Codex exposes equivalent native Langfuse export, the Langfuse SDK no longer requires Python, or the plugin can meet its rollout-reconstruction and export contract with the portable Bash baseline alone.
 

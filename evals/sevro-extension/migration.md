@@ -1,6 +1,6 @@
 # Sevro development, updates and rollback
 
-Darrow pins the published `@bjoernrochel/sevro@1.1.1` version in
+Darrow pins the published `@bjoernrochel/sevro@1.1.2` version in
 [package.json](../../package.json) and `bun.lock`. Normal direct, guide and
 benchmark callers use that installation. Run `bun install --frozen-lockfile`
 before using them. No source checkout or Git metadata is required.

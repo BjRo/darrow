@@ -115,7 +115,7 @@ marketplace_calls() {
       name = $0
       sub(/^.*"name"[[:space:]]*:[[:space:]]*"/, "", name)
       sub(/".*$/, "", name)
-      if (name == "darrow-ticket-pipeline" || name == "darrow-observability-langfuse")
+      if (name == "darrow-ticket-pipeline")
         next
       print "codex plugin add " name "@darrow"
     }
@@ -129,7 +129,6 @@ run_default_installer "$OUT" --host codex
 check "default manifest drives every Codex call" "$(marketplace_calls)" "$(cat "$CALLS")"
 contains "adaptive goal remains included" "codex plugin add darrow-adaptive-goal@darrow" "$CALLS"
 not_contains "ticket pipeline is excluded" "darrow-ticket-pipeline@darrow" "$CALLS"
-not_contains "Langfuse is excluded" "darrow-observability-langfuse@darrow" "$CALLS"
 
 echo "# marketplace installation success"
 make_fixture
@@ -170,8 +169,7 @@ cat >"$MANIFEST" <<'EOF'
 {
   "plugins": [
     { "name": "darrow-ticket-pipeline", "source": "./plugins/orchestration/darrow-ticket-pipeline" },
-    { "name": "darrow-adaptive-goal", "source": "./plugins/orchestration/darrow-adaptive-goal" },
-    { "name": "darrow-observability-langfuse", "source": "./plugins/capability/darrow-observability-langfuse" }
+    { "name": "darrow-adaptive-goal", "source": "./plugins/orchestration/darrow-adaptive-goal" }
   ]
 }
 EOF
@@ -194,8 +192,7 @@ cat >"$MANIFEST" <<'EOF'
 {
   "plugins": [
     { "name": "darrow-ticket-pipeline", "source": "./plugins/orchestration/darrow-ticket-pipeline" },
-    { "name": "darrow-adaptive-goal", "source": "./plugins/orchestration/darrow-adaptive-goal" },
-    { "name": "darrow-observability-langfuse", "source": "./plugins/capability/darrow-observability-langfuse" }
+    { "name": "darrow-adaptive-goal", "source": "./plugins/orchestration/darrow-adaptive-goal" }
   ]
 }
 EOF

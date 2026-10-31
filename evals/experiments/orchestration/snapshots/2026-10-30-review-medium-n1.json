@@ -1,0 +1,3931 @@
+{
+  "format": "darrow-review-effort-n1-results-v1",
+  "date": "2026-10-30",
+  "status": "exploratory N=1 reviewer-effort comparison",
+  "candidate": {
+    "model": "gpt-6.1-sol",
+    "effort": "medium",
+    "implementationRouting": "current-policy",
+    "reviewer": {
+      "model": "gpt-6.1-sol",
+      "effort": "medium"
+    }
+  },
+  "plugins": {
+    "darrow-adaptive-goal": "0.27.1",
+    "darrow-ticket-to-pr": "0.6.3",
+    "darrow-readiness-gate": "0.3.10",
+    "darrow-verification": "0.4.2",
+    "darrow-review": "0.11.29",
+    "darrow-tdd": "0.1.11",
+    "darrow-git": "0.9.1",
+    "darrow-tickets": "0.8.0"
+  },
+  "evaluator": {
+    "sevro": "1.1.1 with isolated experimental capture-budget patch",
+    "codex": "0.165.0",
+    "bun": "1.3.13",
+    "node": "24.13.0",
+    "transport": "app-server",
+    "observation": "passive",
+    "trialsPerTaskAndCondition": 1,
+    "workers": 1,
+    "hostTimeoutMs": 1800000,
+    "advisoryJudge": false
+  },
+  "expectedNewAttempts": 8,
+  "finishedNewAttempts": 8,
+  "reusedVanillaControls": 8,
+  "provenance": {
+    "baselineResults": {
+      "path": "/Users/bjro/Sources/darrow/evals/experiments/orchestration/snapshots/2026-10-30-codex-n1.json",
+      "sha256": "88ff2b083890ff3d5d7e26888a4368bf5edcd6c6c16ff021a0b8c71ee944b1c5"
+    },
+    "variantManifest": {
+      "path": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/benchmark.json",
+      "sha256": "fc0d3d73d3953910fb8d27ab043b9c4be0bd862710f1cb8faea07fce62772d3e"
+    },
+    "variant": {
+      "name": "review-medium",
+      "baseline": {
+        "directory": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11",
+        "manifestSha256": "ae2aa0f598227ec99816dc23a24ced9f3d37876483b482d25081e3779e1edebd"
+      },
+      "reviewerPatches": [
+        {
+          "path": "plugins/capability/darrow-review/backend/src/darrow_review/routing.py",
+          "beforeSha256": "9a017b3916b4a238a19398e11f97cdb7c384943b3247d7afc12780042b14da3d",
+          "afterSha256": "c44406d620156189aff1a1a2265f32d7d69342838091c4f15ce0faa6c0d43809",
+          "intent": "Admit the explicitly requested experimental Sol 6.1/medium reviewer route only"
+        },
+        {
+          "path": "plugins/capability/darrow-review/config/reviewers.json",
+          "beforeSha256": "445c6baf55cd09b0c026d47120bd0a8293ab3a2ac31230a3bae0732da04c0caf",
+          "afterSha256": "c87a070a92772658deab3b8cb65a261c5a7f443232cb2c32dac1e5b0e0759e44",
+          "intent": "Select Sol 6.1/medium for the independent Codex review readers"
+        }
+      ],
+      "sevro": {
+        "version": "1.1.1",
+        "originalPackage": "/Users/bjro/Sources/darrow/node_modules/@bjoernrochel/sevro",
+        "binary": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/sevro/dist/src/cli.js",
+        "patches": [
+          {
+            "path": "src/hosts/codex-app-server.ts",
+            "beforeSha256": "ed1cdf047d845f9891dfd0ee1e40474b71d66ac232b7c4ce9ac9831135288d47",
+            "afterSha256": "89f7462c2e067135ba482d345fa5444697793720268f7e03121bd872012c8b3e",
+            "intent": "Raise the finite cumulative app-server stream budget from 8 to 128 MiB"
+          },
+          {
+            "path": "dist/src/hosts/codex-app-server.js",
+            "beforeSha256": "a943b9f13590af66f804552f177c1ce6e6d8c7a1acd43b8bd45e8df347ae1a14",
+            "afterSha256": "e5094b909e0b0617095cb9a65a234e296f9707375a1951250cb8936f2cce7d9d",
+            "intent": "Raise the finite cumulative app-server stream budget from 8 to 128 MiB"
+          },
+          {
+            "path": "src/native-transcripts.ts",
+            "beforeSha256": "aa071a8af04258be5bf5b80f2205b44b1b138fb6ee2c07e215ff2e7e3df58318",
+            "afterSha256": "612a25937d2becb647cea63bfbd368d6924ef54eab0cff057d11c35327bf907a",
+            "intent": "Retain up to 128 MiB raw transcripts with a 192 MiB encoded budget"
+          },
+          {
+            "path": "dist/src/native-transcripts.js",
+            "beforeSha256": "db7c893116173a700b2ad48f50ee21a6f7e10944270dbcd4709a598307cc4a2e",
+            "afterSha256": "48bb9ac4a68b08e1be36b4a298adc842685e9d660641cfad4b651af0a10c020a",
+            "intent": "Retain up to 128 MiB raw transcripts with a 192 MiB encoded budget"
+          },
+          {
+            "path": "src/native-transcript-view.ts",
+            "beforeSha256": "6ec9fff96fd4af54483e2df0feb38ec25c0bf5dba65c7120d83a4c780cc67fe4",
+            "afterSha256": "f3be3468dff75579d120e71991002380b5ee37ee417511001ad8fe74086af0cc",
+            "intent": "Keep the isolated grading transcript view compatible with the larger capture"
+          },
+          {
+            "path": "dist/src/native-transcript-view.js",
+            "beforeSha256": "63160b9713cff5d4e461ca98cf579cac4d2a7f2c1eb71b48866187c93905093b",
+            "afterSha256": "a69b1909501963a975a2162ea94340a4a9779bfacdb1ea2a594c75dc977457b0",
+            "intent": "Keep the isolated grading transcript view compatible with the larger capture"
+          }
+        ],
+        "limitsMiB": {
+          "appServerStream": 128,
+          "rawTranscripts": 128,
+          "encodedTranscripts": 192,
+          "transcriptView": 128
+        }
+      },
+      "caller": {
+        "path": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/prepare-review-effort.ts",
+        "sha256": "b805eb94881d30bdd81d116e8f4ef426ee409e70d1d598cfbb127ba998ee957b"
+      },
+      "boundary": "Experimental reviewer admission and observer budgets only; participant prompts, acceptance checks, main-thread and implementation routing are inherited from the frozen baseline"
+    },
+    "repairedVariant": {
+      "manifest": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/benchmark.json",
+      "sha256": "3d13674d5f3ca6a7d8596c8dff310bd1154c1caad47543698dd6b39beb124bf1",
+      "variant": {
+        "name": "review-medium",
+        "baseline": {
+          "directory": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11",
+          "manifestSha256": "ae2aa0f598227ec99816dc23a24ced9f3d37876483b482d25081e3779e1edebd"
+        },
+        "reviewerPatches": [
+          {
+            "path": "plugins/capability/darrow-review/backend/src/darrow_review/routing.py",
+            "beforeSha256": "9a017b3916b4a238a19398e11f97cdb7c384943b3247d7afc12780042b14da3d",
+            "afterSha256": "c44406d620156189aff1a1a2265f32d7d69342838091c4f15ce0faa6c0d43809",
+            "intent": "Admit the explicitly requested experimental Sol 6.1/medium reviewer route only"
+          },
+          {
+            "path": "plugins/capability/darrow-review/config/reviewers.json",
+            "beforeSha256": "445c6baf55cd09b0c026d47120bd0a8293ab3a2ac31230a3bae0732da04c0caf",
+            "afterSha256": "c87a070a92772658deab3b8cb65a261c5a7f443232cb2c32dac1e5b0e0759e44",
+            "intent": "Select Sol 6.1/medium for the independent Codex review readers"
+          }
+        ],
+        "fixturePatches": [
+          {
+            "path": "evals/experiments/current-value/cases/implementation-ajv-instance-path.yaml",
+            "beforeSha256": "35c54ec1e704a9284a85c062bf10516093d008d896c27211f3ce08e837d73cff",
+            "afterSha256": "9c4cfc3f993c22ad5827077002df938fb28f4cac912b6e2d15164366cdb5b8ae",
+            "intent": "Create fixture-owned review storage with the required private permissions"
+          },
+          {
+            "path": "evals/experiments/current-value/cases/implementation-click-streams.yaml",
+            "beforeSha256": "b14ae80ef3d2b6b52ceca65a671a2ba6e47ec6b9278c2651444798b0b922aa1a",
+            "afterSha256": "e50bc5fbb76a053c6a12279677ac8ef0742ce60bb893f80314e4f82d24c35edb",
+            "intent": "Create fixture-owned review storage with the required private permissions"
+          },
+          {
+            "path": "evals/experiments/current-value/cases/implementation-express-links.yaml",
+            "beforeSha256": "55e1442a0f6a428a5a19409fe3cc925a0fcc06b694876f92c8339564c3f4f41e",
+            "afterSha256": "a6508d5258c790bf514e2f6c313b0d3b1ab9df40298f3a7f52eb63ad5e1c414a",
+            "intent": "Create fixture-owned review storage with the required private permissions"
+          },
+          {
+            "path": "evals/experiments/current-value/cases/implementation-go-git-insteadof.yaml",
+            "beforeSha256": "e9265e81699a729914ae63e120a33130b0b874bb9915ad0814756e4b26306573",
+            "afterSha256": "0777a9589dfdef9a926546d4ec8635da6c6f16eb9016476424b524934c99a0a0",
+            "intent": "Create fixture-owned review storage with the required private permissions"
+          },
+          {
+            "path": "evals/experiments/current-value/cases/delivery-ajv-instance-path.yaml",
+            "beforeSha256": "7a5f058a0f1ad7e1c129f92b927b597733d063b412e103e06dd98adebc2a744f",
+            "afterSha256": "102b2b7789db877361e7e06de0142c6392f9e32361e7c1d29a53c31b38d72a8a",
+            "intent": "Create fixture-owned review storage with the required private permissions"
+          },
+          {
+            "path": "evals/experiments/current-value/cases/delivery-click-streams.yaml",
+            "beforeSha256": "f0b513d06890dbb42ad4876f1a6a0af7ddcda52f1030504f173ce51af3b3c379",
+            "afterSha256": "dd8393de670c2813b23b7377c33ee08087c653540e7bbbef25775bf8cf833f7b",
+            "intent": "Create fixture-owned review storage with the required private permissions"
+          },
+          {
+            "path": "evals/experiments/current-value/cases/delivery-express-links.yaml",
+            "beforeSha256": "07cd76f990fcce1576296cdebdab6d53da02045034fcecba2866db024c3b8fcb",
+            "afterSha256": "7bad8c32fef9dd8afe81a72fdca6d059be779d57b0c072800fe1a355f697f920",
+            "intent": "Create fixture-owned review storage with the required private permissions"
+          },
+          {
+            "path": "evals/experiments/current-value/cases/delivery-go-git-insteadof.yaml",
+            "beforeSha256": "1fd9e6d1f25cea2c1d9f081994a75e6dfeb175d9c89be7b180a86da19e33c13f",
+            "afterSha256": "b4575f92c51a501d2c5c0d5fa505405ea48aabd1a342da4935ea257712938ed9",
+            "intent": "Create fixture-owned review storage with the required private permissions"
+          }
+        ],
+        "sevro": {
+          "version": "1.1.1",
+          "originalPackage": "/Users/bjro/Sources/darrow/node_modules/@bjoernrochel/sevro",
+          "binary": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/sevro/dist/src/cli.js",
+          "patches": [
+            {
+              "path": "src/hosts/codex-app-server.ts",
+              "beforeSha256": "ed1cdf047d845f9891dfd0ee1e40474b71d66ac232b7c4ce9ac9831135288d47",
+              "afterSha256": "89f7462c2e067135ba482d345fa5444697793720268f7e03121bd872012c8b3e",
+              "intent": "Raise the finite cumulative app-server stream budget from 8 to 128 MiB"
+            },
+            {
+              "path": "dist/src/hosts/codex-app-server.js",
+              "beforeSha256": "a943b9f13590af66f804552f177c1ce6e6d8c7a1acd43b8bd45e8df347ae1a14",
+              "afterSha256": "e5094b909e0b0617095cb9a65a234e296f9707375a1951250cb8936f2cce7d9d",
+              "intent": "Raise the finite cumulative app-server stream budget from 8 to 128 MiB"
+            },
+            {
+              "path": "src/native-transcripts.ts",
+              "beforeSha256": "aa071a8af04258be5bf5b80f2205b44b1b138fb6ee2c07e215ff2e7e3df58318",
+              "afterSha256": "612a25937d2becb647cea63bfbd368d6924ef54eab0cff057d11c35327bf907a",
+              "intent": "Retain up to 128 MiB raw transcripts with a 192 MiB encoded budget"
+            },
+            {
+              "path": "dist/src/native-transcripts.js",
+              "beforeSha256": "db7c893116173a700b2ad48f50ee21a6f7e10944270dbcd4709a598307cc4a2e",
+              "afterSha256": "48bb9ac4a68b08e1be36b4a298adc842685e9d660641cfad4b651af0a10c020a",
+              "intent": "Retain up to 128 MiB raw transcripts with a 192 MiB encoded budget"
+            },
+            {
+              "path": "src/native-transcript-view.ts",
+              "beforeSha256": "6ec9fff96fd4af54483e2df0feb38ec25c0bf5dba65c7120d83a4c780cc67fe4",
+              "afterSha256": "f3be3468dff75579d120e71991002380b5ee37ee417511001ad8fe74086af0cc",
+              "intent": "Keep the isolated grading transcript view compatible with the larger capture"
+            },
+            {
+              "path": "dist/src/native-transcript-view.js",
+              "beforeSha256": "63160b9713cff5d4e461ca98cf579cac4d2a7f2c1eb71b48866187c93905093b",
+              "afterSha256": "a69b1909501963a975a2162ea94340a4a9779bfacdb1ea2a594c75dc977457b0",
+              "intent": "Keep the isolated grading transcript view compatible with the larger capture"
+            }
+          ],
+          "limitsMiB": {
+            "appServerStream": 128,
+            "rawTranscripts": 128,
+            "encodedTranscripts": 192,
+            "transcriptView": 128
+          }
+        },
+        "caller": {
+          "path": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/prepare-review-effort.ts",
+          "sha256": "7666c85f640399bf389474236689f09840031139a3ffcf77ab40576dac632bea"
+        },
+        "boundary": "Experimental reviewer admission, observer budgets and private fixture review storage; participant prompts, acceptance checks, main-thread and implementation routing are inherited from the frozen baseline"
+      }
+    },
+    "collectorSha256": "94f6b218ca449fc0e638770f395b93d88cf3b5cb72e07a5229a10964b7a96f19",
+    "inspectorSha256": "239284f2b40f424fbd63bbb6fa0a55431290cf16b3363a1c880ef66036cfbb13"
+  },
+  "limitations": [
+    "One trial per case and condition; archived vanilla controls, no fresh vanilla trials.",
+    "Routing and optional assurance may vary. This does not isolate reviewer effort from sampling variation.",
+    "Observer patch removes an old stopping condition; old Click delivery has no completed xhigh comparator.",
+    "Vanilla has same-context self-review; Darrow can add independent review and bounded repair.",
+    "No blind final-artifact quality judge. API-equivalent cost is not an actual Codex charge."
+  ],
+  "aggregates": [
+    {
+      "track": "implementation",
+      "mode": "vanilla",
+      "attempts": 4,
+      "assessed": 4,
+      "passed": 4,
+      "meanAttemptSeconds": 132.22041831274998,
+      "meanAssessedSeconds": 132.22041831274998
+    },
+    {
+      "track": "implementation",
+      "mode": "adaptive-goal",
+      "attempts": 4,
+      "assessed": 4,
+      "passed": 4,
+      "meanAttemptSeconds": 485.94817413550004,
+      "meanAssessedSeconds": 485.94817413550004
+    },
+    {
+      "track": "delivery",
+      "mode": "vanilla",
+      "attempts": 4,
+      "assessed": 4,
+      "passed": 4,
+      "meanAttemptSeconds": 175.98450725025,
+      "meanAssessedSeconds": 175.98450725025
+    },
+    {
+      "track": "delivery",
+      "mode": "ticket-to-pr",
+      "attempts": 4,
+      "assessed": 4,
+      "passed": 4,
+      "meanAttemptSeconds": 649.29801845825,
+      "meanAssessedSeconds": 649.29801845825
+    }
+  ],
+  "rows": [
+    {
+      "track": "implementation",
+      "task": "express-links",
+      "mode": "vanilla",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": null,
+      "candidateSeconds": 66.10785924999999,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "status": null,
+          "clientTurns": 1,
+          "failure": null
+        }
+      ],
+      "delegation": {
+        "completeness": "complete",
+        "childrenTruncated": false,
+        "acceptedMainSpawns": [],
+        "observedNestedSpawns": []
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        }
+      ],
+      "ci": null,
+      "diagnostic": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v7/implementation-vanilla-express/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v7/implementation-vanilla-express/cell-1/635486f3-9952-4bb5-98a6-a204f31da94d/run.json",
+      "trialOrigin": "archived-vanilla-control"
+    },
+    {
+      "track": "implementation",
+      "task": "click-streams",
+      "mode": "vanilla",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": null,
+      "candidateSeconds": 150.360001542,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "status": null,
+          "clientTurns": 1,
+          "failure": null
+        }
+      ],
+      "delegation": {
+        "completeness": "complete",
+        "childrenTruncated": false,
+        "acceptedMainSpawns": [],
+        "observedNestedSpawns": []
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        }
+      ],
+      "ci": null,
+      "diagnostic": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-vanilla-click-streams/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-vanilla-click-streams/cell-1/ef06eac4-af1c-4a78-aa5a-d8904fd10d24/run.json",
+      "trialOrigin": "archived-vanilla-control"
+    },
+    {
+      "track": "implementation",
+      "task": "ajv-instance-path",
+      "mode": "vanilla",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": null,
+      "candidateSeconds": 194.15785679200002,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "status": null,
+          "clientTurns": 1,
+          "failure": null
+        }
+      ],
+      "delegation": {
+        "completeness": "complete",
+        "childrenTruncated": false,
+        "acceptedMainSpawns": [],
+        "observedNestedSpawns": []
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        }
+      ],
+      "ci": null,
+      "diagnostic": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-vanilla-ajv-instance-path/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-vanilla-ajv-instance-path/cell-1/c2d67f63-30a3-4f89-957d-4d1303fb2499/run.json",
+      "trialOrigin": "archived-vanilla-control"
+    },
+    {
+      "track": "implementation",
+      "task": "go-git-insteadof",
+      "mode": "vanilla",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": null,
+      "candidateSeconds": 118.255955667,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "status": null,
+          "clientTurns": 1,
+          "failure": null
+        }
+      ],
+      "delegation": {
+        "completeness": "complete",
+        "childrenTruncated": false,
+        "acceptedMainSpawns": [],
+        "observedNestedSpawns": []
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        }
+      ],
+      "ci": null,
+      "diagnostic": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-vanilla-go-git-insteadof/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-vanilla-go-git-insteadof/cell-1/bc3c7366-30da-46ed-ae7d-9c373b507608/run.json",
+      "trialOrigin": "archived-vanilla-control"
+    },
+    {
+      "track": "delivery",
+      "task": "go-git-insteadof",
+      "mode": "vanilla",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": true,
+      "candidateSeconds": 197.176230208,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "status": null,
+          "clientTurns": 1,
+          "failure": null
+        }
+      ],
+      "delegation": {
+        "completeness": "complete",
+        "childrenTruncated": false,
+        "acceptedMainSpawns": [],
+        "observedNestedSpawns": []
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.3",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.changed",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.lineage",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.evals.reported-head.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.output.2",
+          "status": "passed"
+        }
+      ],
+      "ci": {
+        "invocations": 1,
+        "successfulInvocations": 1,
+        "heads": ["ecd6b0eae8127e81a6a99d201454ad72a976e264"]
+      },
+      "diagnostic": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-vanilla-go-git-insteadof/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-vanilla-go-git-insteadof/cell-1/7cca1ab8-2a90-49b7-8ea2-d342f371eba8/run.json",
+      "trialOrigin": "archived-vanilla-control"
+    },
+    {
+      "track": "delivery",
+      "task": "express-links",
+      "mode": "vanilla",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": true,
+      "candidateSeconds": 137.81549004200002,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "status": null,
+          "clientTurns": 1,
+          "failure": null
+        }
+      ],
+      "delegation": {
+        "completeness": "complete",
+        "childrenTruncated": false,
+        "acceptedMainSpawns": [],
+        "observedNestedSpawns": []
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.3",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.changed",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.lineage",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.evals.reported-head.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.output.2",
+          "status": "passed"
+        }
+      ],
+      "ci": {
+        "invocations": 2,
+        "successfulInvocations": 2,
+        "heads": ["a99427643e70ae8a056baecc548ac5fe55a8e942"]
+      },
+      "diagnostic": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-vanilla-express-links/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-vanilla-express-links/cell-1/39036aff-0bc6-4213-aa57-11f8f837e775/run.json",
+      "trialOrigin": "archived-vanilla-control"
+    },
+    {
+      "track": "delivery",
+      "task": "ajv-instance-path",
+      "mode": "vanilla",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": true,
+      "candidateSeconds": 229.99715270899998,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "status": null,
+          "clientTurns": 1,
+          "failure": null
+        }
+      ],
+      "delegation": {
+        "completeness": "complete",
+        "childrenTruncated": false,
+        "acceptedMainSpawns": [],
+        "observedNestedSpawns": []
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.3",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.changed",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.lineage",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.evals.reported-head.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.output.2",
+          "status": "passed"
+        }
+      ],
+      "ci": {
+        "invocations": 2,
+        "successfulInvocations": 2,
+        "heads": ["ba82f53bc051f86ced9f0cefbcbfd060d0467314"]
+      },
+      "diagnostic": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-vanilla-ajv-instance-path/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-vanilla-ajv-instance-path/cell-1/3416fbdb-524f-400e-9ea5-438867974a7f/run.json",
+      "trialOrigin": "archived-vanilla-control"
+    },
+    {
+      "track": "delivery",
+      "task": "click-streams",
+      "mode": "vanilla",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": true,
+      "candidateSeconds": 138.949156042,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "status": null,
+          "clientTurns": 1,
+          "failure": null
+        }
+      ],
+      "delegation": {
+        "completeness": "complete",
+        "childrenTruncated": false,
+        "acceptedMainSpawns": [],
+        "observedNestedSpawns": []
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.3",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.changed",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.lineage",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.evals.reported-head.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.output.2",
+          "status": "passed"
+        }
+      ],
+      "ci": {
+        "invocations": 2,
+        "successfulInvocations": 2,
+        "heads": ["75333b96049a457152c60987f263408a45be0b94"]
+      },
+      "diagnostic": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-vanilla-click-streams/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-vanilla-click-streams/cell-1/450bf7f4-07b4-4b50-a731-c812a26276b3/run.json",
+      "trialOrigin": "archived-vanilla-control"
+    },
+    {
+      "track": "implementation",
+      "task": "express-links",
+      "mode": "adaptive-goal",
+      "trialOrigin": "new-medium-review-trial",
+      "snapshot": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": null,
+      "candidateSeconds": 534.165177042,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "goalStatus": "complete",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "nativeSessions": [
+        {
+          "id": "01a18cf2-62d4-76d0-add3-677f82338fc3",
+          "path": "main",
+          "depth": 0,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T13:14:19.681Z",
+          "completedAt": "2026-10-30T13:23:09.537Z",
+          "elapsedSeconds": 529.856,
+          "complete": true
+        },
+        {
+          "id": "01a18cf5-45b1-7dc3-b06e-46b61fe82f48",
+          "path": "/root/links_verification",
+          "depth": 1,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T13:17:28.029Z",
+          "completedAt": "2026-10-30T13:22:35.433Z",
+          "elapsedSeconds": 307.404,
+          "complete": true
+        },
+        {
+          "id": "01a18cf5-ad89-73c0-823b-0b323cf7c3e6",
+          "path": "/root/links_verification/review_provider",
+          "depth": 2,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T13:17:54.990Z",
+          "completedAt": "2026-10-30T13:20:41.950Z",
+          "elapsedSeconds": 166.96,
+          "complete": true
+        },
+        {
+          "id": "01a18cf6-8ebd-75b3-a01d-6fd4edd1c879",
+          "path": "/root/links_verification/review_provider/review_standards_398906e04cac",
+          "depth": 3,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T13:18:52.149Z",
+          "completedAt": "2026-10-30T13:19:05.491Z",
+          "elapsedSeconds": 13.342,
+          "complete": true,
+          "readerResult": {
+            "format": "darrow-review-axis-v3",
+            "axis": "standards",
+            "status": "pass",
+            "sources": [
+              "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-SuUooA/AGENTS.md",
+              "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-SuUooA/package.json"
+            ],
+            "findings": []
+          },
+          "readerHistory": [
+            {
+              "format": "darrow-review-axis-v3",
+              "axis": "standards",
+              "status": "pass",
+              "sources": [
+                "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-SuUooA/AGENTS.md",
+                "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-SuUooA/package.json"
+              ],
+              "findings": []
+            }
+          ]
+        },
+        {
+          "id": "01a18cf6-a39b-7ab2-b0ce-914ba8603919",
+          "path": "/root/links_verification/review_provider/review_spec_398906e04cac",
+          "depth": 3,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T13:18:57.515Z",
+          "completedAt": "2026-10-30T13:20:13.740Z",
+          "elapsedSeconds": 76.225,
+          "complete": true,
+          "readerResult": {
+            "format": "darrow-review-axis-v3",
+            "axis": "spec",
+            "status": "pass",
+            "sources": [
+              "Originating request: Harden res.links() so caller-provided relations and targets cannot break RFC 8288 Link structure. Serialize relation names as HTTP quoted strings, escaping double quote and backslash. Reject every C0 byte 0x00-0x1f and DEL including TAB in relation and target; reject < and > in targets. Throw TypeError before setting the header; invalid multi-entry batches must neither create nor alter Link, including after prior valid call. Preserve exact escaped header, existing valid punctuation, target string coercion, multiple entries, repeated calls, return identity/chaining. Add durable focused regressions. Required check npm test -- --grep res.links.",
+              "Corrected originating handoff: The exact required command selects zero tests because of the existing res .links(obj) title; supplemental grep and direct suite execution are authorized to exercise behavior. Existing check evidence records the required command exiting successfully with zero tests, the direct suite passing six tests, and the supplemental res.*links command passing."
+            ],
+            "findings": []
+          },
+          "readerHistory": [
+            {
+              "format": "darrow-review-axis-v3",
+              "axis": "spec",
+              "status": "fail",
+              "sources": [
+                "Originating request: Harden res.links() so caller-provided relations and targets cannot break RFC 8288 Link structure. Serialize relation names as HTTP quoted strings, escaping double quote and backslash. Reject every C0 byte 0x00-0x1f and DEL including TAB in relation and target; reject < and > in targets. Throw TypeError before setting the header; invalid multi-entry batches must neither create nor alter Link, including after prior valid call. Preserve exact escaped header, existing valid punctuation, target string coercion, multiple entries, repeated calls, return identity/chaining. Add durable focused regressions. Required npm test -- --grep res.links; focused and supplemental checks must exercise tests."
+              ],
+              "findings": [
+                {
+                  "severity": "medium",
+                  "disposition": "blocking",
+                  "location": "test/res.links.js:8",
+                  "source": "Originating request: Required npm test -- --grep res.links; focused and supplemental checks must exercise tests.",
+                  "evidence": "The required command exits successfully but reports 0 passing. Mocha combines the enclosing descriptions into 'res .links(obj)', which does not match the supplied res.links regular expression. Consequently, none of the new regressions runs under the required focused command. The direct file run and supplemental res.*links command exercise tests, but do not satisfy the separate focused-check requirement.",
+                  "repair_guidance": "Advisory repair approach: adjust the suite description so its full title contains res.links, preserving all regression cases, then rerun the exact required command and the supplemental check.",
+                  "resolution_evidence": "npm test -- --grep res.links reports a nonzero passing test count and executes the escaping, invalid-character, atomicity, punctuation, coercion, and chaining regressions."
+                }
+              ]
+            },
+            {
+              "format": "darrow-review-axis-v3",
+              "axis": "spec",
+              "status": "pass",
+              "sources": [
+                "Originating request: Harden res.links() so caller-provided relations and targets cannot break RFC 8288 Link structure. Serialize relation names as HTTP quoted strings, escaping double quote and backslash. Reject every C0 byte 0x00-0x1f and DEL including TAB in relation and target; reject < and > in targets. Throw TypeError before setting the header; invalid multi-entry batches must neither create nor alter Link, including after prior valid call. Preserve exact escaped header, existing valid punctuation, target string coercion, multiple entries, repeated calls, return identity/chaining. Add durable focused regressions. Required check npm test -- --grep res.links.",
+                "Corrected originating handoff: The exact required command selects zero tests because of the existing res .links(obj) title; supplemental grep and direct suite execution are authorized to exercise behavior. Existing check evidence records the required command exiting successfully with zero tests, the direct suite passing six tests, and the supplemental res.*links command passing."
+              ],
+              "findings": []
+            }
+          ]
+        }
+      ],
+      "transcriptCapture": {
+        "completeness": "complete",
+        "issues": []
+      },
+      "captureSizes": {
+        "rawNativeBytes": 2497042,
+        "normalizedEventArtifactBytes": 98543
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        }
+      ],
+      "diagnostic": null,
+      "ciReceipts": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/implementation-adaptive-goal-express-links/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/implementation-adaptive-goal-express-links/cell-1/298b90d5-bc3a-42a7-acc2-d43fba2b4241/run.json"
+    },
+    {
+      "track": "implementation",
+      "task": "click-streams",
+      "mode": "adaptive-goal",
+      "trialOrigin": "new-medium-review-trial",
+      "snapshot": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": null,
+      "candidateSeconds": 524.471124667,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "goalStatus": "complete",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "nativeSessions": [
+        {
+          "id": "01a18d0d-54d7-7042-819e-999bf35178cb",
+          "path": "main",
+          "depth": 0,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T13:43:48.845Z",
+          "completedAt": "2026-10-30T13:52:25.700Z",
+          "elapsedSeconds": 516.855,
+          "complete": true
+        },
+        {
+          "id": "01a18d0e-19e0-7170-98b2-4db439c4bcb8",
+          "path": "/root/implement_capture",
+          "depth": 1,
+          "routes": ["gpt-6-luna/high"],
+          "startedAt": "2026-10-30T13:44:35.612Z",
+          "completedAt": "2026-10-30T13:48:07.663Z",
+          "elapsedSeconds": 212.051,
+          "complete": true
+        },
+        {
+          "id": "01a18d11-ccfd-78d3-a3c8-d224f000c306",
+          "path": "/root/verify_capture",
+          "depth": 1,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T13:48:38.011Z",
+          "completedAt": "2026-10-30T13:52:11.055Z",
+          "elapsedSeconds": 213.044,
+          "complete": true
+        },
+        {
+          "id": "01a18d12-2d5e-74c2-bdf5-36f6dfe057b4",
+          "path": "/root/verify_capture/review_provider",
+          "depth": 2,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T13:49:02.277Z",
+          "completedAt": "2026-10-30T13:51:00.118Z",
+          "elapsedSeconds": 117.841,
+          "complete": true
+        },
+        {
+          "id": "01a18d12-d059-7d52-8b5f-df4e76945b5a",
+          "path": "/root/verify_capture/review_provider/review_standards_e1d078466f52",
+          "depth": 3,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T13:49:44.022Z",
+          "completedAt": "2026-10-30T13:50:04.288Z",
+          "elapsedSeconds": 20.266,
+          "complete": true,
+          "readerResult": {
+            "format": "darrow-review-axis-v3",
+            "axis": "standards",
+            "status": "pass",
+            "sources": [
+              "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-sRIMEr/AGENTS.md",
+              "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-sRIMEr/setup.cfg"
+            ],
+            "findings": []
+          },
+          "readerHistory": [
+            {
+              "format": "darrow-review-axis-v3",
+              "axis": "standards",
+              "status": "pass",
+              "sources": [
+                "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-sRIMEr/AGENTS.md",
+                "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-sRIMEr/setup.cfg"
+              ],
+              "findings": []
+            }
+          ]
+        },
+        {
+          "id": "01a18d12-e21c-71a2-abfb-0f8623dab4f0",
+          "path": "/root/verify_capture/review_provider/review_spec_e1d078466f52",
+          "depth": 3,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T13:49:48.608Z",
+          "completedAt": "2026-10-30T13:50:13.356Z",
+          "elapsedSeconds": 24.748,
+          "complete": true,
+          "readerResult": {
+            "format": "darrow-review-axis-v3",
+            "axis": "spec",
+            "status": "pass",
+            "sources": [
+              "Originating request: Originating acceptance: modernize click.testing.CliRunner so stdout and stderr always independently captured. Result.stdout/stdout_bytes stdout only; stderr/stderr_bytes stderr only; output and new output_bytes combine both chronological writes including echoed stdin. Remove mix_stderr constructor option. Preserve newline normalization and invalid-byte replacement. Update public types/docstrings/tests/release notes. Single-threaded. Verify public invoke and isolation entrypoints, affected caller migration, mixed unflushed text/binary writes, empty/stderr-only output, custom charset state, stderr backslashreplace, stream names/modes, input echo/prompts. Assess actual assertion coverage. No repair history."
+            ],
+            "findings": []
+          },
+          "readerHistory": [
+            {
+              "format": "darrow-review-axis-v3",
+              "axis": "spec",
+              "status": "pass",
+              "sources": [
+                "Originating request: Originating acceptance: modernize click.testing.CliRunner so stdout and stderr always independently captured. Result.stdout/stdout_bytes stdout only; stderr/stderr_bytes stderr only; output and new output_bytes combine both chronological writes including echoed stdin. Remove mix_stderr constructor option. Preserve newline normalization and invalid-byte replacement. Update public types/docstrings/tests/release notes. Single-threaded. Verify public invoke and isolation entrypoints, affected caller migration, mixed unflushed text/binary writes, empty/stderr-only output, custom charset state, stderr backslashreplace, stream names/modes, input echo/prompts. Assess actual assertion coverage. No repair history."
+              ],
+              "findings": []
+            }
+          ]
+        }
+      ],
+      "transcriptCapture": {
+        "completeness": "complete",
+        "issues": []
+      },
+      "captureSizes": {
+        "rawNativeBytes": 3291761,
+        "normalizedEventArtifactBytes": 119828
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        }
+      ],
+      "diagnostic": null,
+      "ciReceipts": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/implementation-adaptive-goal-click-streams/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/implementation-adaptive-goal-click-streams/cell-1/50fe5ad9-55a4-4191-bbce-d46e2d8e6ee2/run.json"
+    },
+    {
+      "track": "implementation",
+      "task": "ajv-instance-path",
+      "mode": "adaptive-goal",
+      "trialOrigin": "new-medium-review-trial",
+      "snapshot": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": null,
+      "candidateSeconds": 355.28864725000005,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "goalStatus": "complete",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "nativeSessions": [
+        {
+          "id": "01a18d25-7b80-7981-8799-32c87bc0f7b0",
+          "path": "main",
+          "depth": 0,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T14:10:11.849Z",
+          "completedAt": "2026-10-30T14:15:59.369Z",
+          "elapsedSeconds": 347.52,
+          "complete": true
+        },
+        {
+          "id": "01a18d26-9127-7602-987e-50247e97e23d",
+          "path": "/root/implement_parser_paths",
+          "depth": 1,
+          "routes": ["gpt-6-luna/medium"],
+          "startedAt": "2026-10-30T14:11:18.954Z",
+          "completedAt": "2026-10-30T14:14:39.189Z",
+          "elapsedSeconds": 200.235,
+          "complete": true
+        }
+      ],
+      "transcriptCapture": {
+        "completeness": "complete",
+        "issues": []
+      },
+      "captureSizes": {
+        "rawNativeBytes": 1448566,
+        "normalizedEventArtifactBytes": 108024
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        }
+      ],
+      "diagnostic": null,
+      "ciReceipts": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/implementation-adaptive-goal-ajv-instance-path/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/implementation-adaptive-goal-ajv-instance-path/cell-1/7bd95989-179a-4976-b2c4-aa93fd658c2f/run.json"
+    },
+    {
+      "track": "implementation",
+      "task": "go-git-insteadof",
+      "mode": "adaptive-goal",
+      "trialOrigin": "new-medium-review-trial",
+      "snapshot": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": null,
+      "candidateSeconds": 529.867747583,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "goalStatus": "complete",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "nativeSessions": [
+        {
+          "id": "01a18d35-198e-7d03-8881-5b016507ff69",
+          "path": "main",
+          "depth": 0,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T14:27:13.532Z",
+          "completedAt": "2026-10-30T14:35:56.681Z",
+          "elapsedSeconds": 523.149,
+          "complete": true
+        },
+        {
+          "id": "01a18d39-6da1-7713-b4e7-46b2cf235e61",
+          "path": "/root/verify_url",
+          "depth": 1,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T14:31:54.673Z",
+          "completedAt": "2026-10-30T14:35:26.319Z",
+          "elapsedSeconds": 211.646,
+          "complete": true
+        },
+        {
+          "id": "01a18d39-d72e-70b1-a5a0-41d508c68968",
+          "path": "/root/verify_url/review_provider",
+          "depth": 2,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T14:32:21.735Z",
+          "completedAt": "2026-10-30T14:34:14.256Z",
+          "elapsedSeconds": 112.521,
+          "complete": true
+        },
+        {
+          "id": "01a18d3a-81ee-7ec2-9607-1ff48991b6c6",
+          "path": "/root/verify_url/review_provider/review_standards_0d12e2327ffe",
+          "depth": 3,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T14:33:05.564Z",
+          "completedAt": "2026-10-30T14:33:28.599Z",
+          "elapsedSeconds": 23.035,
+          "complete": true,
+          "readerResult": {
+            "format": "darrow-review-axis-v3",
+            "axis": "standards",
+            "status": "pass",
+            "sources": [
+              "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-lbur0G/AGENTS.md"
+            ],
+            "findings": []
+          },
+          "readerHistory": [
+            {
+              "format": "darrow-review-axis-v3",
+              "axis": "standards",
+              "status": "pass",
+              "sources": [
+                "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-lbur0G/AGENTS.md"
+              ],
+              "findings": []
+            }
+          ]
+        },
+        {
+          "id": "01a18d3a-96c8-7ea2-8500-e1b3ead3b8fd",
+          "path": "/root/verify_url/review_provider/review_spec_0d12e2327ffe",
+          "depth": 3,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T14:33:10.860Z",
+          "completedAt": "2026-10-30T14:33:43.536Z",
+          "elapsedSeconds": 32.676,
+          "complete": true,
+          "readerResult": {
+            "format": "darrow-review-axis-v3",
+            "axis": "spec",
+            "status": "pass",
+            "sources": [
+              "Originating request: Git permits multiple insteadOf values in a [url base] rule but URL currently retains one. Make URL.InsteadOf idiomatic []string; preserve all entries in unmarshal/marshal; reject rules with no usable insteadOf; longest nonempty matching prefix across every rule/value; unmatched unchanged; deterministic roundtrips; update callers/comments/tests repository-wide. Acceptance: (1) Public URL.InsteadOf []string, all callers/comments updated. (2) Unmarshal/Marshal preserve duplicate entries and order; new programmatic rules marshal all entries; repeated roundtrips deterministic across rules. (3) URL.Validate, Config.Validate, parsing reject absent/all-empty values; mixed empty/nonempty usable; empty cannot catch all. (4) URL.ApplyInsteadOf and remote URLs through Config.Unmarshal select longest nonempty prefix within/across rules, require prefix, unmatched unchanged. (5) Marshal retains original remote URLs after rewrite; config tests pass and repo callers compile."
+            ],
+            "findings": []
+          },
+          "readerHistory": [
+            {
+              "format": "darrow-review-axis-v3",
+              "axis": "spec",
+              "status": "pass",
+              "sources": [
+                "Originating request: Git permits multiple insteadOf values in a [url base] rule but URL currently retains one. Make URL.InsteadOf idiomatic []string; preserve all entries in unmarshal/marshal; reject rules with no usable insteadOf; longest nonempty matching prefix across every rule/value; unmatched unchanged; deterministic roundtrips; update callers/comments/tests repository-wide. Acceptance: (1) Public URL.InsteadOf []string, all callers/comments updated. (2) Unmarshal/Marshal preserve duplicate entries and order; new programmatic rules marshal all entries; repeated roundtrips deterministic across rules. (3) URL.Validate, Config.Validate, parsing reject absent/all-empty values; mixed empty/nonempty usable; empty cannot catch all. (4) URL.ApplyInsteadOf and remote URLs through Config.Unmarshal select longest nonempty prefix within/across rules, require prefix, unmatched unchanged. (5) Marshal retains original remote URLs after rewrite; config tests pass and repo callers compile."
+              ],
+              "findings": []
+            }
+          ]
+        }
+      ],
+      "transcriptCapture": {
+        "completeness": "complete",
+        "issues": []
+      },
+      "captureSizes": {
+        "rawNativeBytes": 2383650,
+        "normalizedEventArtifactBytes": 133110
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        }
+      ],
+      "diagnostic": null,
+      "ciReceipts": null,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/implementation-adaptive-goal-go-git-insteadof/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/implementation-adaptive-goal-go-git-insteadof/cell-1/09019ec1-7dab-4373-ad3e-c032b714cf0e/run.json"
+    },
+    {
+      "track": "delivery",
+      "task": "express-links",
+      "mode": "ticket-to-pr",
+      "trialOrigin": "new-medium-review-trial",
+      "snapshot": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": true,
+      "candidateSeconds": 481.86933875,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "goalStatus": "complete",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "nativeSessions": [
+        {
+          "id": "01a18cfa-f35a-7d30-bdd6-63c0f39e7dd6",
+          "path": "main",
+          "depth": 0,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T13:23:41.339Z",
+          "completedAt": "2026-10-30T13:31:38.395Z",
+          "elapsedSeconds": 477.056,
+          "complete": true
+        },
+        {
+          "id": "01a18cfd-d5e8-7f32-864c-eb86d1b6206f",
+          "path": "/root/issue1_verification",
+          "depth": 1,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T13:26:49.530Z",
+          "completedAt": "2026-10-30T13:30:43.709Z",
+          "elapsedSeconds": 234.179,
+          "complete": true
+        },
+        {
+          "id": "01a18cfe-3e40-7050-b0b2-f46f4450552e",
+          "path": "/root/issue1_verification/review_provider",
+          "depth": 2,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T13:27:17.202Z",
+          "completedAt": "2026-10-30T13:29:25.907Z",
+          "elapsedSeconds": 128.705,
+          "complete": true
+        },
+        {
+          "id": "01a18cff-1309-7b30-b10f-6e57f4e6ce90",
+          "path": "/root/issue1_verification/review_provider/review_standards_ddfceba8dce3",
+          "depth": 3,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T13:28:10.332Z",
+          "completedAt": "2026-10-30T13:28:24.493Z",
+          "elapsedSeconds": 14.161,
+          "complete": true,
+          "readerResult": {
+            "format": "darrow-review-axis-v3",
+            "axis": "standards",
+            "status": "pass",
+            "sources": [
+              "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-r6razc/AGENTS.md",
+              "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-r6razc/.eslintrc.yml",
+              "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-r6razc/package.json"
+            ],
+            "findings": []
+          },
+          "readerHistory": [
+            {
+              "format": "darrow-review-axis-v3",
+              "axis": "standards",
+              "status": "pass",
+              "sources": [
+                "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-r6razc/AGENTS.md",
+                "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-r6razc/.eslintrc.yml",
+                "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-r6razc/package.json"
+              ],
+              "findings": []
+            }
+          ]
+        },
+        {
+          "id": "01a18cff-2ac5-7560-b030-7ede48ec845d",
+          "path": "/root/issue1_verification/review_provider/review_spec_ddfceba8dce3",
+          "depth": 3,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T13:28:16.405Z",
+          "completedAt": "2026-10-30T13:28:36.635Z",
+          "elapsedSeconds": 20.23,
+          "complete": true,
+          "readerResult": {
+            "format": "darrow-review-axis-v3",
+            "axis": "spec",
+            "status": "pass",
+            "sources": [
+              "Originating request: Authoritative issue 1 https://fixture.invalid/benchmark/repo/issues/1: Harden res.links() so caller-provided link relations and targets cannot break RFC 8288 Link header structure. Serialize relation names as HTTP quoted strings, escaping double quotes and backslashes. Reject relation names containing control characters. Reject targets containing control characters, <, or >. Throw TypeError before setting the header. Preserve existing valid links, multiple entries, repeated calls, and chaining. Preserve Node >=0.10 callback-era JavaScript style. Add focused regression tests and run npm test -- --grep res.links."
+            ],
+            "findings": []
+          },
+          "readerHistory": [
+            {
+              "format": "darrow-review-axis-v3",
+              "axis": "spec",
+              "status": "pass",
+              "sources": [
+                "Originating request: Authoritative issue 1 https://fixture.invalid/benchmark/repo/issues/1: Harden res.links() so caller-provided link relations and targets cannot break RFC 8288 Link header structure. Serialize relation names as HTTP quoted strings, escaping double quotes and backslashes. Reject relation names containing control characters. Reject targets containing control characters, <, or >. Throw TypeError before setting the header. Preserve existing valid links, multiple entries, repeated calls, and chaining. Preserve Node >=0.10 callback-era JavaScript style. Add focused regression tests and run npm test -- --grep res.links."
+              ],
+              "findings": []
+            }
+          ]
+        }
+      ],
+      "transcriptCapture": {
+        "completeness": "complete",
+        "issues": []
+      },
+      "captureSizes": {
+        "rawNativeBytes": 2389379,
+        "normalizedEventArtifactBytes": 176982
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.3",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.changed",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.lineage",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.evals.reported-head.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.output.2",
+          "status": "passed"
+        }
+      ],
+      "diagnostic": null,
+      "ciReceipts": [
+        {
+          "root": "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-r6razc",
+          "head": "e4042a6a74f3aeaaa8557d934aa93d578520873b",
+          "command": "npx mocha --reporter dot test/res.links.js",
+          "exitCode": 0,
+          "result": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/delivery-ticket-to-pr-express-links/ci-server.jsonl.checks/9ae93432-0769-488b-91b9-d75ed2689e66/cli-result.json"
+        },
+        {
+          "root": "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-r6razc",
+          "head": "e4042a6a74f3aeaaa8557d934aa93d578520873b",
+          "command": "npx mocha --reporter dot test/res.links.js",
+          "exitCode": 0,
+          "result": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/delivery-ticket-to-pr-express-links/ci-server.jsonl.checks/76df6343-f0f8-4ff8-a40a-dbf2ee6ed7e7/cli-result.json"
+        }
+      ],
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/delivery-ticket-to-pr-express-links/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/delivery-ticket-to-pr-express-links/cell-1/97f87d78-eb49-47b9-8d76-5d7bb8d3f673/run.json"
+    },
+    {
+      "track": "delivery",
+      "task": "click-streams",
+      "mode": "ticket-to-pr",
+      "trialOrigin": "new-medium-review-trial",
+      "snapshot": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": true,
+      "candidateSeconds": 997.9993465420001,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "goalStatus": "complete",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "nativeSessions": [
+        {
+          "id": "01a18d15-7b28-7e10-981f-983fa4fb5c42",
+          "path": "main",
+          "depth": 0,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T13:52:40.014Z",
+          "completedAt": "2026-10-30T14:09:12.344Z",
+          "elapsedSeconds": 992.33,
+          "complete": true
+        },
+        {
+          "id": "01a18d17-0d00-7611-818f-71b129c0ad12",
+          "path": "/root/stream_implementation",
+          "depth": 1,
+          "routes": ["gpt-6-luna/high"],
+          "startedAt": "2026-10-30T13:54:21.741Z",
+          "completedAt": "2026-10-30T14:02:49.855Z",
+          "elapsedSeconds": 508.114,
+          "complete": true
+        },
+        {
+          "id": "01a18d1a-620b-75c0-98a4-2dae0726dde8",
+          "path": "/root/acceptance_verification",
+          "depth": 1,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T13:58:00.040Z",
+          "completedAt": "2026-10-30T14:02:14.093Z",
+          "elapsedSeconds": 254.053,
+          "complete": true
+        },
+        {
+          "id": "01a18d1a-cb9d-7ce1-865e-724b2ad9ff9b",
+          "path": "/root/acceptance_verification/review_provider",
+          "depth": 2,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T13:58:27.725Z",
+          "completedAt": "2026-10-30T14:00:53.307Z",
+          "elapsedSeconds": 145.582,
+          "complete": true
+        },
+        {
+          "id": "01a18d1b-7c41-7752-8c90-e9592233f526",
+          "path": "/root/acceptance_verification/review_provider/review_standards_16410495957c",
+          "depth": 3,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T13:59:12.564Z",
+          "completedAt": "2026-10-30T13:59:34.115Z",
+          "elapsedSeconds": 21.551,
+          "complete": true,
+          "readerResult": {
+            "format": "darrow-review-axis-v3",
+            "axis": "standards",
+            "status": "pass",
+            "sources": [
+              "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-gj8zLW/AGENTS.md"
+            ],
+            "findings": []
+          },
+          "readerHistory": [
+            {
+              "format": "darrow-review-axis-v3",
+              "axis": "standards",
+              "status": "pass",
+              "sources": [
+                "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-gj8zLW/AGENTS.md"
+              ],
+              "findings": []
+            }
+          ]
+        },
+        {
+          "id": "01a18d1b-9297-7520-a0fe-2caba57f1968",
+          "path": "/root/acceptance_verification/review_provider/review_spec_16410495957c",
+          "depth": 3,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T13:59:17.938Z",
+          "completedAt": "2026-10-30T13:59:53.314Z",
+          "elapsedSeconds": 35.376,
+          "complete": true,
+          "readerResult": {
+            "format": "darrow-review-axis-v3",
+            "axis": "spec",
+            "status": "fail",
+            "sources": [
+              "Originating request: Modernize click.testing.CliRunner stream capture so stdout and stderr are always captured independently while Result.output and new Result.output_bytes preserve chronological interleaving. Result.stdout/stdout_bytes stdout only, Result.stderr/stderr_bytes stderr only, output/output_bytes both in write order."
+            ],
+            "findings": [
+              {
+                "severity": "medium",
+                "disposition": "blocking",
+                "location": "src/click/testing.py:86",
+                "source": "Originating request: output/output_bytes both in write order; exact alternating combined order including unflushed text/direct binary writes.",
+                "evidence": "_CapturedStream overrides write but inherits BytesIO.writelines, which bypasses that override. A command calling click.get_binary_stream(\"stdout\").writelines([b\"a\", b\"b\"]) followed by click.get_binary_stream(\"stderr\").write(b\"c\") produces stdout_bytes=b\"ab\", stderr_bytes=b\"c\", but output_bytes=b\"c\". The combined result loses successful stdout writes.",
+                "repair_guidance": "Advisory: Override writelines to iterate through the provided lines and call self.write for each item. Preserve iterable ordering and ordinary write validation so binary writes enter both captures consistently.",
+                "resolution_evidence": "Add a regression using binary writelines on stdout and stderr interspersed with ordinary writes. Assert exact independent stream bytes and that output_bytes and output include every item in chronological order."
+              }
+            ]
+          },
+          "readerHistory": [
+            {
+              "format": "darrow-review-axis-v3",
+              "axis": "spec",
+              "status": "fail",
+              "sources": [
+                "Originating request: Modernize click.testing.CliRunner stream capture so stdout and stderr are always captured independently while Result.output and new Result.output_bytes preserve chronological interleaving. Result.stdout/stdout_bytes stdout only, Result.stderr/stderr_bytes stderr only, output/output_bytes both in write order."
+              ],
+              "findings": [
+                {
+                  "severity": "medium",
+                  "disposition": "blocking",
+                  "location": "src/click/testing.py:86",
+                  "source": "Originating request: output/output_bytes both in write order; exact alternating combined order including unflushed text/direct binary writes.",
+                  "evidence": "_CapturedStream overrides write but inherits BytesIO.writelines, which bypasses that override. A command calling click.get_binary_stream(\"stdout\").writelines([b\"a\", b\"b\"]) followed by click.get_binary_stream(\"stderr\").write(b\"c\") produces stdout_bytes=b\"ab\", stderr_bytes=b\"c\", but output_bytes=b\"c\". The combined result loses successful stdout writes.",
+                  "repair_guidance": "Advisory: Override writelines to iterate through the provided lines and call self.write for each item. Preserve iterable ordering and ordinary write validation so binary writes enter both captures consistently.",
+                  "resolution_evidence": "Add a regression using binary writelines on stdout and stderr interspersed with ordinary writes. Assert exact independent stream bytes and that output_bytes and output include every item in chronological order."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "01a18d1f-8cdc-76a2-bde1-8b3d3a82abd9",
+          "path": "/root/repair_verification",
+          "depth": 1,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T14:03:38.583Z",
+          "completedAt": "2026-10-30T14:07:46.246Z",
+          "elapsedSeconds": 247.663,
+          "complete": true
+        },
+        {
+          "id": "01a18d20-10d3-7442-9e7b-ce168115c2b0",
+          "path": "/root/repair_verification/provider",
+          "depth": 2,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T14:04:12.473Z",
+          "completedAt": "2026-10-30T14:06:20.797Z",
+          "elapsedSeconds": 128.324,
+          "complete": true
+        },
+        {
+          "id": "01a18d20-f450-7850-8aaa-4e3fbf258295",
+          "path": "/root/repair_verification/provider/review_spec_fc79b4606e75",
+          "depth": 3,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T14:05:10.646Z",
+          "completedAt": "2026-10-30T14:05:36.680Z",
+          "elapsedSeconds": 26.034,
+          "complete": true,
+          "readerResult": {
+            "format": "darrow-review-fix-axis-v3",
+            "axis": "spec",
+            "originals": [
+              "spec:1:WORKTREE@59ec1cf20c0ab1f076bccdb0253997bb5477b19a+30746562e8f609c4584a21d9612e6f56083fed06"
+            ],
+            "prior_regressions": [],
+            "attempts": [
+              {
+                "key": "spec:1:WORKTREE@59ec1cf20c0ab1f076bccdb0253997bb5477b19a+30746562e8f609c4584a21d9612e6f56083fed06",
+                "status": "resolved",
+                "progress": "resolved",
+                "evidence": "The pinned repair delta adds _CapturedStream.writelines, which iterates the supplied iterable and routes every item through self.write, preserving its independent capture and combined capture behavior. The added public regression intersperses stdout and stderr writelines with ordinary binary writes and asserts stdout_bytes=b\"adeg\", stderr_bytes=b\"bcf\", and output_bytes=b\"abcdefg\". Retained check evidence confirms that this regression and the binary echo/normalization and unflushed text/binary ordering tests pass; all 28 tests in tests/test_testing.py pass. No direct repair-caused spec regression was identified."
+              }
+            ],
+            "regressions": [],
+            "evidence_gaps": []
+          },
+          "readerHistory": [
+            {
+              "format": "darrow-review-fix-axis-v3",
+              "axis": "spec",
+              "originals": [
+                "spec:1:WORKTREE@59ec1cf20c0ab1f076bccdb0253997bb5477b19a+30746562e8f609c4584a21d9612e6f56083fed06"
+              ],
+              "prior_regressions": [],
+              "attempts": [
+                {
+                  "key": "spec:1:WORKTREE@59ec1cf20c0ab1f076bccdb0253997bb5477b19a+30746562e8f609c4584a21d9612e6f56083fed06",
+                  "status": "resolved",
+                  "progress": "resolved",
+                  "evidence": "The pinned repair delta adds _CapturedStream.writelines, which iterates the supplied iterable and routes every item through self.write, preserving its independent capture and combined capture behavior. The added public regression intersperses stdout and stderr writelines with ordinary binary writes and asserts stdout_bytes=b\"adeg\", stderr_bytes=b\"bcf\", and output_bytes=b\"abcdefg\". Retained check evidence confirms that this regression and the binary echo/normalization and unflushed text/binary ordering tests pass; all 28 tests in tests/test_testing.py pass. No direct repair-caused spec regression was identified."
+                }
+              ],
+              "regressions": [],
+              "evidence_gaps": []
+            }
+          ]
+        }
+      ],
+      "transcriptCapture": {
+        "completeness": "complete",
+        "issues": []
+      },
+      "captureSizes": {
+        "rawNativeBytes": 5264582,
+        "normalizedEventArtifactBytes": 267945
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.3",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.changed",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.lineage",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.evals.reported-head.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.output.2",
+          "status": "passed"
+        }
+      ],
+      "diagnostic": null,
+      "ciReceipts": [
+        {
+          "root": "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-gj8zLW",
+          "head": "848d19fa1e7f9ac9715869b5b12438591daa14b6",
+          "command": "PYTHONPATH=src .git/eval-venv/bin/python -m pytest -q tests/test_testing.py",
+          "exitCode": 0,
+          "result": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/delivery-ticket-to-pr-click-streams/ci-server.jsonl.checks/8670526a-b189-4a3b-a162-3ef6ed0525f5/cli-result.json"
+        }
+      ],
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/delivery-ticket-to-pr-click-streams/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/delivery-ticket-to-pr-click-streams/cell-1/f16c9040-2db1-4460-9f3d-4d5d1c5ad509/run.json"
+    },
+    {
+      "track": "delivery",
+      "task": "ajv-instance-path",
+      "mode": "ticket-to-pr",
+      "trialOrigin": "new-medium-review-trial",
+      "snapshot": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": true,
+      "candidateSeconds": 606.194140791,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "goalStatus": "complete",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "nativeSessions": [
+        {
+          "id": "01a18d2b-a4a7-7500-98e2-7e7ba4dcf563",
+          "path": "main",
+          "depth": 0,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T14:16:51.861Z",
+          "completedAt": "2026-10-30T14:26:53.669Z",
+          "elapsedSeconds": 601.808,
+          "complete": true
+        },
+        {
+          "id": "01a18d30-7b18-7100-ad63-c9fd67fad7db",
+          "path": "/root/verify_issue_1",
+          "depth": 1,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T14:22:08.527Z",
+          "completedAt": "2026-10-30T14:25:22.676Z",
+          "elapsedSeconds": 194.149,
+          "complete": true
+        },
+        {
+          "id": "01a18d30-d9ef-7853-8fe1-1ec14188fdfa",
+          "path": "/root/verify_issue_1/review_provider",
+          "depth": 2,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T14:22:32.480Z",
+          "completedAt": "2026-10-30T14:24:18.131Z",
+          "elapsedSeconds": 105.651,
+          "complete": true
+        },
+        {
+          "id": "01a18d31-6461-7e62-b902-030d4f00ba67",
+          "path": "/root/verify_issue_1/review_provider/review_standards_1f7f6c80ee07",
+          "depth": 3,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T14:23:08.104Z",
+          "completedAt": "2026-10-30T14:23:23.993Z",
+          "elapsedSeconds": 15.889,
+          "complete": true,
+          "readerResult": {
+            "format": "darrow-review-axis-v3",
+            "axis": "standards",
+            "status": "pass",
+            "sources": [
+              "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-C58AN5/AGENTS.md",
+              "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-C58AN5/docs/codegen.md",
+              "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-C58AN5/docs/json-type-definition.md"
+            ],
+            "findings": []
+          },
+          "readerHistory": [
+            {
+              "format": "darrow-review-axis-v3",
+              "axis": "standards",
+              "status": "pass",
+              "sources": [
+                "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-C58AN5/AGENTS.md",
+                "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-C58AN5/docs/codegen.md",
+                "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-C58AN5/docs/json-type-definition.md"
+              ],
+              "findings": []
+            }
+          ]
+        },
+        {
+          "id": "01a18d31-7ad4-7ba2-9a55-bd4c43fe2660",
+          "path": "/root/verify_issue_1/review_provider/review_spec_1f7f6c80ee07",
+          "depth": 3,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T14:23:13.681Z",
+          "completedAt": "2026-10-30T14:23:37.055Z",
+          "elapsedSeconds": 23.374,
+          "complete": true,
+          "readerResult": {
+            "format": "darrow-review-axis-v3",
+            "axis": "spec",
+            "status": "pass",
+            "sources": [
+              "Originating request: Authoritative captured GitHub issue 1: Add instancePath to compiled JTD parsers. On failure expose RFC 6901 pointer to value whose schema could not be satisfied, track escaped object property names (~0, ~1), array indexes, values, discriminator mappings, referenced definitions. Preserve existing message and position. Clear instancePath at start every call and leave undefined after successful parse including prior failure. Update public JTDParser and focused tests nested objects arrays escaped names refs success-after-failure; literal pointer assertions. Public seam Ajv.compileParser. Pinned compile plus focused tests required. No behavior outside ticket. Known pre-existing Node24 generic parseJson limitation before discriminator tag must not be fixed; tests tag-first. Assess affected callers and counterexamples."
+            ],
+            "findings": []
+          },
+          "readerHistory": [
+            {
+              "format": "darrow-review-axis-v3",
+              "axis": "spec",
+              "status": "pass",
+              "sources": [
+                "Originating request: Authoritative captured GitHub issue 1: Add instancePath to compiled JTD parsers. On failure expose RFC 6901 pointer to value whose schema could not be satisfied, track escaped object property names (~0, ~1), array indexes, values, discriminator mappings, referenced definitions. Preserve existing message and position. Clear instancePath at start every call and leave undefined after successful parse including prior failure. Update public JTDParser and focused tests nested objects arrays escaped names refs success-after-failure; literal pointer assertions. Public seam Ajv.compileParser. Pinned compile plus focused tests required. No behavior outside ticket. Known pre-existing Node24 generic parseJson limitation before discriminator tag must not be fixed; tests tag-first. Assess affected callers and counterexamples."
+              ],
+              "findings": []
+            }
+          ]
+        }
+      ],
+      "transcriptCapture": {
+        "completeness": "complete",
+        "issues": []
+      },
+      "captureSizes": {
+        "rawNativeBytes": 2842004,
+        "normalizedEventArtifactBytes": 273766
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.3",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.changed",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.lineage",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.evals.reported-head.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.output.2",
+          "status": "passed"
+        }
+      ],
+      "diagnostic": null,
+      "ciReceipts": [
+        {
+          "root": "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-C58AN5",
+          "head": "98205a3114465d00443c03cce8d11065aaa2d5a7",
+          "command": "rm -rf dist && node .git/eval-tools/node_modules/typescript/bin/tsc -p .git/eval-tsconfig.json && cp -R lib/refs dist",
+          "exitCode": 0,
+          "result": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/delivery-ticket-to-pr-ajv-instance-path/ci-server.jsonl.checks/9b7f01b5-79a3-4a7d-8edf-0772f784d0d0/cli-result.json"
+        },
+        {
+          "root": "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-C58AN5",
+          "head": "98205a3114465d00443c03cce8d11065aaa2d5a7",
+          "command": "rm -rf dist && node .git/eval-tools/node_modules/typescript/bin/tsc -p .git/eval-tsconfig.json && cp -R lib/refs dist",
+          "exitCode": 0,
+          "result": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/delivery-ticket-to-pr-ajv-instance-path/ci-server.jsonl.checks/ca37cfd9-ff14-4c77-903b-cb54f54b9494/cli-result.json"
+        }
+      ],
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/delivery-ticket-to-pr-ajv-instance-path/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/delivery-ticket-to-pr-ajv-instance-path/cell-1/73cb0080-7855-417e-aa7c-cce61d79e478/run.json"
+    },
+    {
+      "track": "delivery",
+      "task": "go-git-insteadof",
+      "mode": "ticket-to-pr",
+      "trialOrigin": "new-medium-review-trial",
+      "snapshot": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "codeAccepted": true,
+      "deliveryCompleted": true,
+      "candidateSeconds": 511.12924775,
+      "mainRoutes": [
+        {
+          "role": "candidate",
+          "host": "sevro.host.codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "usage": {
+        "inputTokens": null,
+        "outputTokens": null,
+        "costUsd": null,
+        "complete": false
+      },
+      "nativeGoals": [
+        {
+          "completeness": "complete",
+          "goalStatus": "complete",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "nativeSessions": [
+        {
+          "id": "01a18d3d-63de-78c3-9978-de53b1cede4f",
+          "path": "main",
+          "depth": 0,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T14:36:14.818Z",
+          "completedAt": "2026-10-30T14:44:41.498Z",
+          "elapsedSeconds": 506.68,
+          "complete": true
+        },
+        {
+          "id": "01a18d41-4373-7720-bd2f-cb739bb44c07",
+          "path": "/root/issue1_verification",
+          "depth": 1,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T14:40:28.249Z",
+          "completedAt": "2026-10-30T14:43:36.470Z",
+          "elapsedSeconds": 188.221,
+          "complete": true
+        },
+        {
+          "id": "01a18d41-ab59-71f1-a22e-3b74808ed467",
+          "path": "/root/issue1_verification/review_provider",
+          "depth": 2,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T14:40:55.018Z",
+          "completedAt": "2026-10-30T14:42:33.856Z",
+          "elapsedSeconds": 98.838,
+          "complete": true
+        },
+        {
+          "id": "01a18d42-73dd-7830-9143-8c59d1b16fce",
+          "path": "/root/issue1_verification/review_provider/review_standards_d123a4466e71",
+          "depth": 3,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T14:41:47.281Z",
+          "completedAt": "2026-10-30T14:42:10.596Z",
+          "elapsedSeconds": 23.315,
+          "complete": true,
+          "readerResult": {
+            "format": "darrow-review-axis-v3",
+            "axis": "standards",
+            "status": "pass",
+            "sources": [
+              "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-M1ic1n/AGENTS.md",
+              "config/config.go:205",
+              "config/config.go:350",
+              "config/config.go:530",
+              "config/config.go:651",
+              "config/url.go:14",
+              "config/url_test.go:60"
+            ],
+            "findings": []
+          },
+          "readerHistory": [
+            {
+              "format": "darrow-review-axis-v3",
+              "axis": "standards",
+              "status": "pass",
+              "sources": [
+                "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-M1ic1n/AGENTS.md",
+                "config/config.go:205",
+                "config/config.go:350",
+                "config/config.go:530",
+                "config/config.go:651",
+                "config/url.go:14",
+                "config/url_test.go:60"
+              ],
+              "findings": []
+            }
+          ]
+        },
+        {
+          "id": "01a18d42-8834-7171-afac-88e160fb9556",
+          "path": "/root/issue1_verification/review_provider/review_spec_d123a4466e71",
+          "depth": 3,
+          "routes": ["gpt-6.1-sol/medium"],
+          "startedAt": "2026-10-30T14:41:51.692Z",
+          "completedAt": "2026-10-30T14:42:19.531Z",
+          "elapsedSeconds": 27.839,
+          "complete": true,
+          "readerResult": {
+            "format": "darrow-review-axis-v3",
+            "axis": "spec",
+            "status": "pass",
+            "sources": [
+              "Originating request: Authoritative GitHub issue 1 Preserve multiple insteadOf entries, supplied by owner from one tracker read: Git config permits more than one insteadOf entry in the same url subsection, but config.URL currently retains only one. Change URL.InsteadOf to represent all configured values. Unmarshal and marshal every entry without loss, reject rules with no usable insteadOf value, and make rewriting choose the longest matching prefix across every value in every URL rule. Preserve the unmatched URL unchanged and retain deterministic round trips. Update affected callers, comments, and tests throughout the repository. Keep the public model idiomatic for Go and run config tests. Material acceptance: idiomatic []string public field; preserve all entries including duplicates/order; reject nil/empty/all-empty rules allowing usable nonempty prefixes; longest match within and across rules through Config.Unmarshal remote rewriting and public URL.ApplyInsteadOf; unmatched unchanged; original remote URLs serialize unchanged; deterministic repeated Config.Marshal/Unmarshal; all callers/comments updated. No tracker refetch."
+            ],
+            "findings": []
+          },
+          "readerHistory": [
+            {
+              "format": "darrow-review-axis-v3",
+              "axis": "spec",
+              "status": "pass",
+              "sources": [
+                "Originating request: Authoritative GitHub issue 1 Preserve multiple insteadOf entries, supplied by owner from one tracker read: Git config permits more than one insteadOf entry in the same url subsection, but config.URL currently retains only one. Change URL.InsteadOf to represent all configured values. Unmarshal and marshal every entry without loss, reject rules with no usable insteadOf value, and make rewriting choose the longest matching prefix across every value in every URL rule. Preserve the unmatched URL unchanged and retain deterministic round trips. Update affected callers, comments, and tests throughout the repository. Keep the public model idiomatic for Go and run config tests. Material acceptance: idiomatic []string public field; preserve all entries including duplicates/order; reject nil/empty/all-empty rules allowing usable nonempty prefixes; longest match within and across rules through Config.Unmarshal remote rewriting and public URL.ApplyInsteadOf; unmatched unchanged; original remote URLs serialize unchanged; deterministic repeated Config.Marshal/Unmarshal; all callers/comments updated. No tracker refetch."
+              ],
+              "findings": []
+            }
+          ]
+        }
+      ],
+      "transcriptCapture": {
+        "completeness": "complete",
+        "issues": []
+      },
+      "captureSizes": {
+        "rawNativeBytes": 2409365,
+        "normalizedEventArtifactBytes": 193051
+      },
+      "checks": [
+        {
+          "id": "darrow.shell.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.2",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.shell.3",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.changed",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.head.lineage",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.evals.reported-head.1",
+          "status": "passed"
+        },
+        {
+          "id": "darrow.output.2",
+          "status": "passed"
+        }
+      ],
+      "diagnostic": null,
+      "ciReceipts": [
+        {
+          "root": "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-M1ic1n",
+          "head": "8f74d25da383b40465fb335441f2ee611367e796",
+          "command": "go test ./config",
+          "exitCode": 0,
+          "result": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/delivery-ticket-to-pr-go-git-insteadof/ci-server.jsonl.checks/0557bd0c-12d1-4e9f-a79d-19f495378bfa/cli-result.json"
+        }
+      ],
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/delivery-ticket-to-pr-go-git-insteadof/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1-v2/delivery-ticket-to-pr-go-git-insteadof/cell-1/bdc3a87e-a9c4-443e-9112-50c48dbad230/run.json"
+    }
+  ],
+  "previousCondition": {
+    "reviewer": {
+      "model": "gpt-6.1-sol",
+      "effort": "xhigh"
+    },
+    "rows": [
+      {
+        "track": "implementation",
+        "task": "express-links",
+        "mode": "adaptive-goal",
+        "execution": "completed",
+        "grading": "completed",
+        "taskVerdict": "passed",
+        "codeAccepted": true,
+        "deliveryCompleted": null,
+        "candidateSeconds": 342.65035691599996,
+        "mainRoutes": [
+          {
+            "role": "candidate",
+            "host": "sevro.host.codex",
+            "model": "gpt-6.1-sol",
+            "effort": "medium"
+          }
+        ],
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "costUsd": null,
+          "complete": false
+        },
+        "nativeGoals": [
+          {
+            "completeness": "complete",
+            "status": "complete",
+            "clientTurns": 1,
+            "failure": null
+          }
+        ],
+        "delegation": {
+          "completeness": "complete",
+          "childrenTruncated": false,
+          "acceptedMainSpawns": [
+            {
+              "task": "links_verification",
+              "model": "gpt-6.1-sol",
+              "effort": "medium",
+              "forkTurns": "none"
+            }
+          ],
+          "observedNestedSpawns": [
+            {
+              "task": "review_provider",
+              "model": "gpt-6.1-sol",
+              "effort": "medium",
+              "status": "accepted",
+              "readerResultStatus": "completed"
+            }
+          ]
+        },
+        "checks": [
+          {
+            "id": "darrow.shell.1",
+            "status": "passed"
+          },
+          {
+            "id": "darrow.shell.2",
+            "status": "passed"
+          }
+        ],
+        "ci": null,
+        "diagnostic": null,
+        "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-adaptive-express/cell-1/result.json",
+        "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-adaptive-express/cell-1/82df1bdd-aa64-4821-a05f-549d4ecd1fde/run.json"
+      },
+      {
+        "track": "implementation",
+        "task": "click-streams",
+        "mode": "adaptive-goal",
+        "execution": "completed",
+        "grading": "completed",
+        "taskVerdict": "passed",
+        "codeAccepted": true,
+        "deliveryCompleted": null,
+        "candidateSeconds": 1094.1301570420003,
+        "mainRoutes": [
+          {
+            "role": "candidate",
+            "host": "sevro.host.codex",
+            "model": "gpt-6.1-sol",
+            "effort": "medium"
+          }
+        ],
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "costUsd": null,
+          "complete": false
+        },
+        "nativeGoals": [
+          {
+            "completeness": "complete",
+            "status": "complete",
+            "clientTurns": 1,
+            "failure": null
+          }
+        ],
+        "delegation": {
+          "completeness": "complete",
+          "childrenTruncated": false,
+          "acceptedMainSpawns": [
+            {
+              "task": "implement_capture",
+              "model": "gpt-6-luna",
+              "effort": "high",
+              "forkTurns": "none"
+            },
+            {
+              "task": "verify_capture",
+              "model": "gpt-6.1-sol",
+              "effort": "medium",
+              "forkTurns": "none"
+            },
+            {
+              "task": "verify_capture_repair",
+              "model": "gpt-6.1-sol",
+              "effort": "medium",
+              "forkTurns": "none"
+            }
+          ],
+          "observedNestedSpawns": [
+            {
+              "task": "provider",
+              "model": "gpt-6.1-sol",
+              "effort": "medium",
+              "status": "accepted",
+              "readerResultStatus": "completed"
+            },
+            {
+              "task": "review_repair",
+              "model": "gpt-6.1-sol",
+              "effort": "medium",
+              "status": "accepted",
+              "readerResultStatus": "unavailable"
+            }
+          ]
+        },
+        "checks": [
+          {
+            "id": "darrow.shell.1",
+            "status": "passed"
+          },
+          {
+            "id": "darrow.shell.2",
+            "status": "passed"
+          }
+        ],
+        "ci": null,
+        "diagnostic": null,
+        "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-adaptive-goal-click-streams/cell-1/result.json",
+        "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-adaptive-goal-click-streams/cell-1/d8e1e008-5586-4c84-9b1b-82dbdbcdb6a6/run.json"
+      },
+      {
+        "track": "implementation",
+        "task": "ajv-instance-path",
+        "mode": "adaptive-goal",
+        "execution": "completed",
+        "grading": "completed",
+        "taskVerdict": "passed",
+        "codeAccepted": true,
+        "deliveryCompleted": null,
+        "candidateSeconds": 400.451998291,
+        "mainRoutes": [
+          {
+            "role": "candidate",
+            "host": "sevro.host.codex",
+            "model": "gpt-6.1-sol",
+            "effort": "medium"
+          }
+        ],
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "costUsd": null,
+          "complete": false
+        },
+        "nativeGoals": [
+          {
+            "completeness": "complete",
+            "status": "complete",
+            "clientTurns": 1,
+            "failure": null
+          }
+        ],
+        "delegation": {
+          "completeness": "complete",
+          "childrenTruncated": false,
+          "acceptedMainSpawns": [
+            {
+              "task": "parser_diagnostics",
+              "model": "gpt-6-luna",
+              "effort": "high",
+              "forkTurns": "none"
+            }
+          ],
+          "observedNestedSpawns": []
+        },
+        "checks": [
+          {
+            "id": "darrow.shell.1",
+            "status": "passed"
+          },
+          {
+            "id": "darrow.shell.2",
+            "status": "passed"
+          }
+        ],
+        "ci": null,
+        "diagnostic": null,
+        "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-adaptive-goal-ajv-instance-path/cell-1/result.json",
+        "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-adaptive-goal-ajv-instance-path/cell-1/e574eaf4-5a36-47c6-91ae-b4bb643260db/run.json"
+      },
+      {
+        "track": "implementation",
+        "task": "go-git-insteadof",
+        "mode": "adaptive-goal",
+        "execution": "completed",
+        "grading": "completed",
+        "taskVerdict": "passed",
+        "codeAccepted": true,
+        "deliveryCompleted": null,
+        "candidateSeconds": 409.774374666,
+        "mainRoutes": [
+          {
+            "role": "candidate",
+            "host": "sevro.host.codex",
+            "model": "gpt-6.1-sol",
+            "effort": "medium"
+          }
+        ],
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "costUsd": null,
+          "complete": false
+        },
+        "nativeGoals": [
+          {
+            "completeness": "complete",
+            "status": "complete",
+            "clientTurns": 1,
+            "failure": null
+          }
+        ],
+        "delegation": {
+          "completeness": "complete",
+          "childrenTruncated": false,
+          "acceptedMainSpawns": [
+            {
+              "task": "url_verification",
+              "model": "gpt-6.1-sol",
+              "effort": "medium",
+              "forkTurns": "none"
+            }
+          ],
+          "observedNestedSpawns": [
+            {
+              "task": "provider",
+              "model": "gpt-6.1-sol",
+              "effort": "medium",
+              "status": "accepted",
+              "readerResultStatus": "completed"
+            }
+          ]
+        },
+        "checks": [
+          {
+            "id": "darrow.shell.1",
+            "status": "passed"
+          },
+          {
+            "id": "darrow.shell.2",
+            "status": "passed"
+          }
+        ],
+        "ci": null,
+        "diagnostic": null,
+        "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-adaptive-goal-go-git-insteadof/cell-1/result.json",
+        "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v8/implementation-adaptive-goal-go-git-insteadof/cell-1/19e91fe7-8235-4b81-a49d-7ad2c99db9c7/run.json"
+      },
+      {
+        "track": "delivery",
+        "task": "click-streams",
+        "mode": "ticket-to-pr",
+        "execution": "failed",
+        "grading": "not_requested",
+        "taskVerdict": "not_assessed",
+        "codeAccepted": null,
+        "deliveryCompleted": null,
+        "candidateSeconds": 1389.541658041,
+        "mainRoutes": [
+          {
+            "role": "candidate",
+            "host": "sevro.host.codex",
+            "model": "gpt-6.1-sol",
+            "effort": "medium"
+          }
+        ],
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "costUsd": null,
+          "complete": false
+        },
+        "nativeGoals": [
+          {
+            "completeness": "partial",
+            "status": null,
+            "clientTurns": 1,
+            "failure": "App-server stream exceeds limit"
+          }
+        ],
+        "delegation": {
+          "completeness": "complete",
+          "childrenTruncated": false,
+          "acceptedMainSpawns": [
+            {
+              "task": "implement",
+              "model": "gpt-6-luna",
+              "effort": "medium",
+              "forkTurns": "none"
+            },
+            {
+              "task": "verify_issue1",
+              "model": "gpt-6.1-sol",
+              "effort": "medium",
+              "forkTurns": "none"
+            },
+            {
+              "task": "verify_repair1",
+              "model": "gpt-6.1-sol",
+              "effort": "medium",
+              "forkTurns": "none"
+            }
+          ],
+          "observedNestedSpawns": [
+            {
+              "task": "review_provider",
+              "model": "gpt-6.1-sol",
+              "effort": "medium",
+              "status": "accepted",
+              "readerResultStatus": "unavailable"
+            },
+            {
+              "task": "provider",
+              "model": "gpt-6.1-sol",
+              "effort": "medium",
+              "status": "accepted",
+              "readerResultStatus": "completed"
+            }
+          ]
+        },
+        "checks": [],
+        "ci": {
+          "invocations": 0,
+          "successfulInvocations": 0,
+          "heads": []
+        },
+        "diagnostic": {
+          "code": "sevro.host.failed",
+          "message": "App-server stream exceeds limit"
+        },
+        "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-ticket-to-pr-click-streams/cell-1/result.json",
+        "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-ticket-to-pr-click-streams/cell-1/b4b4f945-df90-4a7d-946e-de81e7a0d859/run.json"
+      },
+      {
+        "track": "delivery",
+        "task": "go-git-insteadof",
+        "mode": "ticket-to-pr",
+        "execution": "completed",
+        "grading": "completed",
+        "taskVerdict": "passed",
+        "codeAccepted": true,
+        "deliveryCompleted": true,
+        "candidateSeconds": 682.826650375,
+        "mainRoutes": [
+          {
+            "role": "candidate",
+            "host": "sevro.host.codex",
+            "model": "gpt-6.1-sol",
+            "effort": "medium"
+          }
+        ],
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "costUsd": null,
+          "complete": false
+        },
+        "nativeGoals": [
+          {
+            "completeness": "complete",
+            "status": "complete",
+            "clientTurns": 1,
+            "failure": null
+          }
+        ],
+        "delegation": {
+          "completeness": "complete",
+          "childrenTruncated": false,
+          "acceptedMainSpawns": [
+            {
+              "task": "implement",
+              "model": "gpt-6-luna",
+              "effort": "medium",
+              "forkTurns": "none"
+            },
+            {
+              "task": "verify_candidate",
+              "model": "gpt-6.1-sol",
+              "effort": "medium",
+              "forkTurns": "none"
+            }
+          ],
+          "observedNestedSpawns": [
+            {
+              "task": "provider_review",
+              "model": "gpt-6.1-sol",
+              "effort": "medium",
+              "status": "accepted",
+              "readerResultStatus": "unavailable"
+            }
+          ]
+        },
+        "checks": [
+          {
+            "id": "darrow.shell.1",
+            "status": "passed"
+          },
+          {
+            "id": "darrow.shell.2",
+            "status": "passed"
+          },
+          {
+            "id": "darrow.shell.3",
+            "status": "passed"
+          },
+          {
+            "id": "darrow.head.changed",
+            "status": "passed"
+          },
+          {
+            "id": "darrow.head.lineage",
+            "status": "passed"
+          },
+          {
+            "id": "darrow.evals.reported-head.1",
+            "status": "passed"
+          },
+          {
+            "id": "darrow.output.2",
+            "status": "passed"
+          }
+        ],
+        "ci": {
+          "invocations": 1,
+          "successfulInvocations": 1,
+          "heads": ["9b8454366b83fb25d93510ce8a7fe759bd12ac97"]
+        },
+        "diagnostic": null,
+        "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-ticket-to-pr-go-git-insteadof/cell-1/result.json",
+        "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-ticket-to-pr-go-git-insteadof/cell-1/c88ff511-039c-4ed8-9e81-50d39f52f800/run.json"
+      },
+      {
+        "track": "delivery",
+        "task": "express-links",
+        "mode": "ticket-to-pr",
+        "execution": "completed",
+        "grading": "completed",
+        "taskVerdict": "passed",
+        "codeAccepted": true,
+        "deliveryCompleted": true,
+        "candidateSeconds": 546.15782825,
+        "mainRoutes": [
+          {
+            "role": "candidate",
+            "host": "sevro.host.codex",
+            "model": "gpt-6.1-sol",
+            "effort": "medium"
+          }
+        ],
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "costUsd": null,
+          "complete": false
+        },
+        "nativeGoals": [
+          {
+            "completeness": "complete",
+            "status": "complete",
+            "clientTurns": 1,
+            "failure": null
+          }
+        ],
+        "delegation": {
+          "completeness": "complete",
+          "childrenTruncated": false,
+          "acceptedMainSpawns": [
+            {
+              "task": "verify_links",
+              "model": "gpt-6.1-sol",
+              "effort": "medium",
+              "forkTurns": "none"
+            }
+          ],
+          "observedNestedSpawns": [
+            {
+              "task": "review_provider",
+              "model": "gpt-6.1-sol",
+              "effort": "medium",
+              "status": "accepted",
+              "readerResultStatus": "unavailable"
+            }
+          ]
+        },
+        "checks": [
+          {
+            "id": "darrow.shell.1",
+            "status": "passed"
+          },
+          {
+            "id": "darrow.shell.2",
+            "status": "passed"
+          },
+          {
+            "id": "darrow.shell.3",
+            "status": "passed"
+          },
+          {
+            "id": "darrow.head.changed",
+            "status": "passed"
+          },
+          {
+            "id": "darrow.head.lineage",
+            "status": "passed"
+          },
+          {
+            "id": "darrow.evals.reported-head.1",
+            "status": "passed"
+          },
+          {
+            "id": "darrow.output.2",
+            "status": "passed"
+          }
+        ],
+        "ci": {
+          "invocations": 2,
+          "successfulInvocations": 2,
+          "heads": ["1ac70b79d23699aacee4e029c51cf2df9f65ad49"]
+        },
+        "diagnostic": null,
+        "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-ticket-to-pr-express-links/cell-1/result.json",
+        "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-ticket-to-pr-express-links/cell-1/3fbab3d0-d7f1-41bc-9a39-bb17a507ff0f/run.json"
+      },
+      {
+        "track": "delivery",
+        "task": "ajv-instance-path",
+        "mode": "ticket-to-pr",
+        "execution": "completed",
+        "grading": "completed",
+        "taskVerdict": "passed",
+        "codeAccepted": true,
+        "deliveryCompleted": true,
+        "candidateSeconds": 592.027880042,
+        "mainRoutes": [
+          {
+            "role": "candidate",
+            "host": "sevro.host.codex",
+            "model": "gpt-6.1-sol",
+            "effort": "medium"
+          }
+        ],
+        "usage": {
+          "inputTokens": null,
+          "outputTokens": null,
+          "costUsd": null,
+          "complete": false
+        },
+        "nativeGoals": [
+          {
+            "completeness": "complete",
+            "status": "complete",
+            "clientTurns": 1,
+            "failure": null
+          }
+        ],
+        "delegation": {
+          "completeness": "complete",
+          "childrenTruncated": false,
+          "acceptedMainSpawns": [
+            {
+              "task": "verify_jtd",
+              "model": "gpt-6.1-sol",
+              "effort": "medium",
+              "forkTurns": "none"
+            }
+          ],
+          "observedNestedSpawns": [
+            {
+              "task": "review_provider",
+              "model": "gpt-6.1-sol",
+              "effort": "medium",
+              "status": "accepted",
+              "readerResultStatus": "completed"
+            }
+          ]
+        },
+        "checks": [
+          {
+            "id": "darrow.shell.1",
+            "status": "passed"
+          },
+          {
+            "id": "darrow.shell.2",
+            "status": "passed"
+          },
+          {
+            "id": "darrow.shell.3",
+            "status": "passed"
+          },
+          {
+            "id": "darrow.head.changed",
+            "status": "passed"
+          },
+          {
+            "id": "darrow.head.lineage",
+            "status": "passed"
+          },
+          {
+            "id": "darrow.evals.reported-head.1",
+            "status": "passed"
+          },
+          {
+            "id": "darrow.output.2",
+            "status": "passed"
+          }
+        ],
+        "ci": {
+          "invocations": 1,
+          "successfulInvocations": 1,
+          "heads": ["4d7a88143fd07392f64999d3c4e487b7294da814"]
+        },
+        "diagnostic": null,
+        "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-ticket-to-pr-ajv-instance-path/cell-1/result.json",
+        "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-current-n1-v11/delivery-ticket-to-pr-ajv-instance-path/cell-1/76b1356a-a9ab-4797-8d55-9d5970d15f91/run.json"
+      }
+    ]
+  },
+  "excludedAttempts": [
+    {
+      "track": "implementation",
+      "task": "click-streams",
+      "mode": "adaptive-goal",
+      "reason": "Fixture-created review storage had mode 0755; independent review could not start. Replaced after a frozen fixture repair.",
+      "execution": "completed",
+      "grading": "completed",
+      "taskVerdict": "passed",
+      "goals": [
+        {
+          "completeness": "complete",
+          "goalStatus": "blocked",
+          "model": "gpt-6.1-sol",
+          "effort": "medium"
+        }
+      ],
+      "seconds": 443.836435667,
+      "rawResult": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/implementation-adaptive-goal-click-streams/cell-1/result.json",
+      "rawEvidence": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/implementation-adaptive-goal-click-streams/cell-1/1df7ca1c-bd47-4442-8280-356d42d8a6cf/run.json",
+      "usage": {
+        "completeness": "complete",
+        "captureCompleteness": "complete",
+        "captureIssues": [],
+        "observedTokens": {
+          "input_tokens": 5084165,
+          "cached_input_tokens": 4892288,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 25401,
+          "reasoning_output_tokens": 5611,
+          "total_tokens": 5109566
+        },
+        "standardApiEquivalentUsd": 0.6317440000000001,
+        "rootSessionId": "01a18d02-a973-7b53-ba45-8ee20dd19c74",
+        "sessions": [
+          {
+            "sessionId": "01a18d02-a973-7b53-ba45-8ee20dd19c74",
+            "parentId": null,
+            "depth": 0,
+            "agentPath": null,
+            "model": "gpt-6.1-sol",
+            "usage": {
+              "input_tokens": 2082072,
+              "cached_input_tokens": 2025984,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 6112,
+              "reasoning_output_tokens": 742,
+              "total_tokens": 2088184
+            },
+            "maxPromptInput": 67360,
+            "requestCount": 39,
+            "completed": true,
+            "path": "2026/10/30/rollout-2026-10-30T14-32-04-01a18d02-a973-7b53-ba45-8ee20dd19c74.jsonl",
+            "sha256": "1b5ea4265c7a339861b2150848c63b2be0a23c60225137ce5226f15b645b2dd4",
+            "standardApiEquivalentUsd": 0.3758944
+          },
+          {
+            "sessionId": "01a18d03-8552-7612-a7db-f50e02835f9d",
+            "parentId": "01a18d02-a973-7b53-ba45-8ee20dd19c74",
+            "depth": 1,
+            "agentPath": "/root/implement_capture",
+            "model": "gpt-6-luna",
+            "usage": {
+              "input_tokens": 2079033,
+              "cached_input_tokens": 1984640,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 14451,
+              "reasoning_output_tokens": 4647,
+              "total_tokens": 2093484
+            },
+            "maxPromptInput": 55882,
+            "requestCount": 48,
+            "completed": true,
+            "path": "2026/10/30/rollout-2026-10-30T14-33-00-01a18d03-8552-7612-a7db-f50e02835f9d.jsonl",
+            "sha256": "9fad16b34304eb8ca76bdaa45b3add4d30addc141ffd9c867f5b94786b4b01ac",
+            "standardApiEquivalentUsd": 0.03651120000000001
+          },
+          {
+            "sessionId": "01a18d06-db00-7952-b4b8-485694d85478",
+            "parentId": "01a18d02-a973-7b53-ba45-8ee20dd19c74",
+            "depth": 1,
+            "agentPath": "/root/verify_capture",
+            "model": "gpt-6.1-sol",
+            "usage": {
+              "input_tokens": 623472,
+              "cached_input_tokens": 597376,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 2807,
+              "reasoning_output_tokens": 180,
+              "total_tokens": 626279
+            },
+            "maxPromptInput": 36733,
+            "requestCount": 19,
+            "completed": true,
+            "path": "2026/10/30/rollout-2026-10-30T14-36-39-01a18d06-db00-7952-b4b8-485694d85478.jsonl",
+            "sha256": "f3a1d44148496de0226254ca0f0d6c7de6fee3bd6eb822086ffa1ab325e3143a",
+            "standardApiEquivalentUsd": 0.1399996
+          },
+          {
+            "sessionId": "01a18d07-3166-7373-9e22-bd7777fe1b3c",
+            "parentId": "01a18d06-db00-7952-b4b8-485694d85478",
+            "depth": 2,
+            "agentPath": "/root/verify_capture/provider",
+            "model": "gpt-6.1-sol",
+            "usage": {
+              "input_tokens": 299588,
+              "cached_input_tokens": 284288,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 2031,
+              "reasoning_output_tokens": 42,
+              "total_tokens": 301619
+            },
+            "maxPromptInput": 37125,
+            "requestCount": 10,
+            "completed": true,
+            "path": "2026/10/30/rollout-2026-10-30T14-37-01-01a18d07-3166-7373-9e22-bd7777fe1b3c.jsonl",
+            "sha256": "a5e866e985316a2c367cbdb8f8660ac71939c956c519b5bd15cf403c7ccf0e1a",
+            "standardApiEquivalentUsd": 0.0793388
+          }
+        ]
+      }
+    }
+  ],
+  "attemptsIncludingExcluded": 9,
+  "comparisons": {
+    "format": "darrow-review-effort-comparison-v1",
+    "wallPairs": [
+      {
+        "track": "implementation",
+        "tasks": [
+          "express-links",
+          "click-streams",
+          "ajv-instance-path",
+          "go-git-insteadof"
+        ],
+        "xhighMeanSeconds": 561.75172172875,
+        "mediumMeanSeconds": 485.94817413550004,
+        "ratio": 0.8650586288192049
+      },
+      {
+        "track": "delivery",
+        "tasks": ["express-links", "ajv-instance-path", "go-git-insteadof"],
+        "xhighMeanSeconds": 607.0041195556668,
+        "mediumMeanSeconds": 533.0642424303334,
+        "ratio": 0.8781888380272309
+      }
+    ],
+    "completeUsagePairs": [
+      {
+        "track": "implementation",
+        "tasks": ["express-links", "ajv-instance-path", "go-git-insteadof"],
+        "xhigh": {
+          "attempts": 3,
+          "meanSeconds": 384.292243291,
+          "meanTokens": 3467774.6666666665,
+          "meanApiEquivalentUsd": 0.6559361666666668,
+          "capture": "complete"
+        },
+        "medium": {
+          "attempts": 3,
+          "meanSeconds": 473.107190625,
+          "meanTokens": 4173253,
+          "meanApiEquivalentUsd": 0.8018577800000001,
+          "capture": "complete"
+        },
+        "timeRatio": 1.2311130367175955,
+        "tokenRatio": 1.203438343360257,
+        "costRatio": 1.2224631309398246
+      },
+      {
+        "track": "delivery",
+        "tasks": ["express-links", "ajv-instance-path", "go-git-insteadof"],
+        "xhigh": {
+          "attempts": 3,
+          "meanSeconds": 607.0041195556668,
+          "meanTokens": 6230027.333333333,
+          "meanApiEquivalentUsd": 1.2631868666666668,
+          "capture": "complete"
+        },
+        "medium": {
+          "attempts": 3,
+          "meanSeconds": 533.0642424303334,
+          "meanTokens": 4731520.666666667,
+          "meanApiEquivalentUsd": 1.0237597333333335,
+          "capture": "complete"
+        },
+        "timeRatio": 0.8781888380272309,
+        "tokenRatio": 0.7594702901785022,
+        "costRatio": 0.8104578668038717
+      }
+    ],
+    "readerSummary": {
+      "tasks": [
+        "implementation/express-links",
+        "implementation/go-git-insteadof",
+        "delivery/express-links",
+        "delivery/ajv-instance-path",
+        "delivery/go-git-insteadof"
+      ],
+      "xhigh": {
+        "meanCostPerTask": 0.14320352,
+        "meanTokensPerTask": 284912,
+        "meanReasoningTokensPerTask": 539,
+        "meanSummedSessionSeconds": 79.79979999999999
+      },
+      "medium": {
+        "meanCostPerTask": 0.08625296,
+        "meanTokensPerTask": 244984.4,
+        "meanReasoningTokensPerTask": 100.2,
+        "meanSummedSessionSeconds": 54.0172
+      }
+    },
+    "readerPairs": [
+      {
+        "track": "implementation",
+        "task": "express-links",
+        "captureComplete": true,
+        "bothSelected": true,
+        "xhigh": {
+          "count": 2,
+          "tokens": 210975,
+          "reasoningTokens": 192,
+          "usd": 0.08290360000000001,
+          "summedSessionSeconds": 43.705,
+          "readers": [
+            {
+              "sessionId": "01a18c1c-c672-7151-bad9-a0d6699ce86a",
+              "path": "/root/links_verification/review_provider/review_standards_f35bee5b5c76",
+              "routes": ["gpt-6.1-sol/xhigh"],
+              "tokens": 106632,
+              "reasoningTokens": 60,
+              "usd": 0.0520368,
+              "requests": 4,
+              "elapsedSeconds": 18.043,
+              "history": [
+                {
+                  "format": "darrow-review-axis-v3",
+                  "axis": "standards",
+                  "status": "pass",
+                  "sources": [
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-APQJXm/AGENTS.md",
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-APQJXm/package.json"
+                  ],
+                  "findings": []
+                }
+              ]
+            },
+            {
+              "sessionId": "01a18c1c-dab5-72d2-b2f7-13da9b50760a",
+              "path": "/root/links_verification/review_provider/review_spec_f35bee5b5c76",
+              "routes": ["gpt-6.1-sol/xhigh"],
+              "tokens": 104343,
+              "reasoningTokens": 132,
+              "usd": 0.030866800000000003,
+              "requests": 4,
+              "elapsedSeconds": 25.662,
+              "history": [
+                {
+                  "format": "darrow-review-axis-v3",
+                  "axis": "spec",
+                  "status": "pass",
+                  "sources": [
+                    "Originating request: Harden res.links() so caller-provided relations/targets cannot break RFC 8288 Link structure. Serialize relation names as HTTP quoted strings escaping double quotes and backslashes. Reject relation names with control characters. Reject targets with control chars, <, >. Preserve existing valid links, multiple entries, repeated calls/chaining. Throw TypeError for invalid input before setting header. Preserve Node >=0.10.0 syntax/style. Add focused regression tests and run npm test -- --grep res.links."
+                  ],
+                  "findings": []
+                }
+              ]
+            }
+          ]
+        },
+        "medium": {
+          "count": 2,
+          "tokens": 221846,
+          "reasoningTokens": 126,
+          "usd": 0.10371440000000001,
+          "summedSessionSeconds": 89.567,
+          "readers": [
+            {
+              "sessionId": "01a18cf6-8ebd-75b3-a01d-6fd4edd1c879",
+              "path": "/root/links_verification/review_provider/review_standards_398906e04cac",
+              "routes": ["gpt-6.1-sol/medium"],
+              "tokens": 82212,
+              "reasoningTokens": 29,
+              "usd": 0.04936,
+              "requests": 3,
+              "elapsedSeconds": 13.342,
+              "history": [
+                {
+                  "format": "darrow-review-axis-v3",
+                  "axis": "standards",
+                  "status": "pass",
+                  "sources": [
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-SuUooA/AGENTS.md",
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-SuUooA/package.json"
+                  ],
+                  "findings": []
+                }
+              ]
+            },
+            {
+              "sessionId": "01a18cf6-a39b-7ab2-b0ce-914ba8603919",
+              "path": "/root/links_verification/review_provider/review_spec_398906e04cac",
+              "routes": ["gpt-6.1-sol/medium"],
+              "tokens": 139634,
+              "reasoningTokens": 97,
+              "usd": 0.054354400000000004,
+              "requests": 5,
+              "elapsedSeconds": 76.225,
+              "history": [
+                {
+                  "format": "darrow-review-axis-v3",
+                  "axis": "spec",
+                  "status": "fail",
+                  "sources": [
+                    "Originating request: Harden res.links() so caller-provided relations and targets cannot break RFC 8288 Link structure. Serialize relation names as HTTP quoted strings, escaping double quote and backslash. Reject every C0 byte 0x00-0x1f and DEL including TAB in relation and target; reject < and > in targets. Throw TypeError before setting the header; invalid multi-entry batches must neither create nor alter Link, including after prior valid call. Preserve exact escaped header, existing valid punctuation, target string coercion, multiple entries, repeated calls, return identity/chaining. Add durable focused regressions. Required npm test -- --grep res.links; focused and supplemental checks must exercise tests."
+                  ],
+                  "findings": [
+                    {
+                      "severity": "medium",
+                      "disposition": "blocking",
+                      "location": "test/res.links.js:8",
+                      "source": "Originating request: Required npm test -- --grep res.links; focused and supplemental checks must exercise tests.",
+                      "evidence": "The required command exits successfully but reports 0 passing. Mocha combines the enclosing descriptions into 'res .links(obj)', which does not match the supplied res.links regular expression. Consequently, none of the new regressions runs under the required focused command. The direct file run and supplemental res.*links command exercise tests, but do not satisfy the separate focused-check requirement.",
+                      "repair_guidance": "Advisory repair approach: adjust the suite description so its full title contains res.links, preserving all regression cases, then rerun the exact required command and the supplemental check.",
+                      "resolution_evidence": "npm test -- --grep res.links reports a nonzero passing test count and executes the escaping, invalid-character, atomicity, punctuation, coercion, and chaining regressions."
+                    }
+                  ]
+                },
+                {
+                  "format": "darrow-review-axis-v3",
+                  "axis": "spec",
+                  "status": "pass",
+                  "sources": [
+                    "Originating request: Harden res.links() so caller-provided relations and targets cannot break RFC 8288 Link structure. Serialize relation names as HTTP quoted strings, escaping double quote and backslash. Reject every C0 byte 0x00-0x1f and DEL including TAB in relation and target; reject < and > in targets. Throw TypeError before setting the header; invalid multi-entry batches must neither create nor alter Link, including after prior valid call. Preserve exact escaped header, existing valid punctuation, target string coercion, multiple entries, repeated calls, return identity/chaining. Add durable focused regressions. Required check npm test -- --grep res.links.",
+                    "Corrected originating handoff: The exact required command selects zero tests because of the existing res .links(obj) title; supplemental grep and direct suite execution are authorized to exercise behavior. Existing check evidence records the required command exiting successfully with zero tests, the direct suite passing six tests, and the supplemental res.*links command passing."
+                  ],
+                  "findings": []
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "track": "implementation",
+        "task": "click-streams",
+        "captureComplete": false,
+        "bothSelected": true,
+        "xhigh": {
+          "count": 2,
+          "tokens": 268514,
+          "reasoningTokens": 795,
+          "usd": 0.1303832,
+          "summedSessionSeconds": 89.852,
+          "readers": [
+            {
+              "sessionId": "01a18c2a-0da6-7131-971c-b336c92459a9",
+              "path": "/root/verify_capture/provider/review_standards_16e93e69573c",
+              "routes": ["gpt-6.1-sol/xhigh"],
+              "tokens": 117470,
+              "reasoningTokens": 190,
+              "usd": 0.0699768,
+              "requests": 4,
+              "elapsedSeconds": 31.811,
+              "history": [
+                {
+                  "format": "darrow-review-axis-v3",
+                  "axis": "standards",
+                  "status": "pass",
+                  "sources": [
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-npSq2M/AGENTS.md",
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-npSq2M/tox.ini"
+                  ],
+                  "findings": []
+                }
+              ]
+            },
+            {
+              "sessionId": "01a18c2a-242e-76e0-8737-03217fe96679",
+              "path": "/root/verify_capture/provider/review_spec_16e93e69573c",
+              "routes": ["gpt-6.1-sol/xhigh"],
+              "tokens": 151044,
+              "reasoningTokens": 605,
+              "usd": 0.0604064,
+              "requests": 5,
+              "elapsedSeconds": 58.041,
+              "history": [
+                {
+                  "format": "darrow-review-axis-v3",
+                  "axis": "spec",
+                  "status": "fail",
+                  "sources": [
+                    "Originating request: Modernize click.testing.CliRunner stream capture so stdout and stderr always captured independently while Result.output and new Result.output_bytes preserve chronological interleaving. Remove mix_stderr constructor option and attribute. Result.stdout/stdout_bytes stdout only; stderr/stderr_bytes stderr only and always available including empty stderr; output/output_bytes both in write order. Alternating text/binary writes without explicit flush must preserve order. Echoed stdin same combined order and preserve existing prompt behavior. Preserve CRLF normalization and invalid-byte replacement only on decoded text properties. Preserve stderr backslashreplace encoding behavior. Public Result and isolation annotations/docstrings must align; affected isolation callers updated. Update tests and release notes in unreleased section for maintainability. Single threaded, no threading. Required focused suite tests/test_testing.py; also tests/test_termui.py tests/test_utils.py and git diff --check. Configured mypy/pre_commit unavailable in pinned environment; do not install/bootstrap infrastructure. Elevated compatibility/caller risk. Return explicit criterion coverage evidence in risks where useful."
+                  ],
+                  "findings": [
+                    {
+                      "severity": "medium",
+                      "disposition": "blocking",
+                      "location": "src/click/testing.py:81",
+                      "source": "Originating request: Result.stdout/stdout_bytes stdout only; stderr/stderr_bytes stderr only and always available including empty stderr; output/output_bytes both in write order.",
+                      "evidence": "_CaptureStream overrides write but inherits io.BytesIO.writelines, which bypasses that override. Binary writelines output consequently appears in its individual stream but is absent from both combined properties. A read-only reproduction invoking sys.stdout.write('before'), click.get_binary_stream('stderr').writelines([b' middle']), and sys.stdout.write(' after') returned stdout_bytes=b'before after', stderr_bytes=b' middle', output_bytes=b'before after', with no exception.",
+                      "repair_guidance": "Advisory: override writelines to forward each supplied buffer through self.write so both captures receive each write in sequence. Preserve the existing binary stream interface and single-threaded implementation.",
+                      "resolution_evidence": "Add regression coverage for binary writelines on both stdout and stderr interleaved with text writes without explicit flushing. The reproduction must produce output_bytes=b'before middle after' and output='before middle after', while preserving the separate stream values."
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "medium": {
+          "count": 2,
+          "tokens": 229790,
+          "reasoningTokens": 202,
+          "usd": 0.0851848,
+          "summedSessionSeconds": 45.013999999999996,
+          "readers": [
+            {
+              "sessionId": "01a18d12-d059-7d52-8b5f-df4e76945b5a",
+              "path": "/root/verify_capture/review_provider/review_standards_e1d078466f52",
+              "routes": ["gpt-6.1-sol/medium"],
+              "tokens": 113702,
+              "reasoningTokens": 57,
+              "usd": 0.040272800000000004,
+              "requests": 4,
+              "elapsedSeconds": 20.266,
+              "history": [
+                {
+                  "format": "darrow-review-axis-v3",
+                  "axis": "standards",
+                  "status": "pass",
+                  "sources": [
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-sRIMEr/AGENTS.md",
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-sRIMEr/setup.cfg"
+                  ],
+                  "findings": []
+                }
+              ]
+            },
+            {
+              "sessionId": "01a18d12-e21c-71a2-abfb-0f8623dab4f0",
+              "path": "/root/verify_capture/review_provider/review_spec_e1d078466f52",
+              "routes": ["gpt-6.1-sol/medium"],
+              "tokens": 116088,
+              "reasoningTokens": 145,
+              "usd": 0.044912,
+              "requests": 4,
+              "elapsedSeconds": 24.748,
+              "history": [
+                {
+                  "format": "darrow-review-axis-v3",
+                  "axis": "spec",
+                  "status": "pass",
+                  "sources": [
+                    "Originating request: Originating acceptance: modernize click.testing.CliRunner so stdout and stderr always independently captured. Result.stdout/stdout_bytes stdout only; stderr/stderr_bytes stderr only; output and new output_bytes combine both chronological writes including echoed stdin. Remove mix_stderr constructor option. Preserve newline normalization and invalid-byte replacement. Update public types/docstrings/tests/release notes. Single-threaded. Verify public invoke and isolation entrypoints, affected caller migration, mixed unflushed text/binary writes, empty/stderr-only output, custom charset state, stderr backslashreplace, stream names/modes, input echo/prompts. Assess actual assertion coverage. No repair history."
+                  ],
+                  "findings": []
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "track": "implementation",
+        "task": "ajv-instance-path",
+        "captureComplete": true,
+        "bothSelected": false,
+        "xhigh": {
+          "count": 0,
+          "tokens": 0,
+          "reasoningTokens": 0,
+          "usd": 0,
+          "summedSessionSeconds": 0,
+          "readers": []
+        },
+        "medium": {
+          "count": 0,
+          "tokens": 0,
+          "reasoningTokens": 0,
+          "usd": 0,
+          "summedSessionSeconds": 0,
+          "readers": []
+        }
+      },
+      {
+        "track": "implementation",
+        "task": "go-git-insteadof",
+        "captureComplete": true,
+        "bothSelected": true,
+        "xhigh": {
+          "count": 2,
+          "tokens": 300649,
+          "reasoningTokens": 436,
+          "usd": 0.1330788,
+          "summedSessionSeconds": 65.099,
+          "readers": [
+            {
+              "sessionId": "01a18c45-2c08-74c2-8907-c4c76c902586",
+              "path": "/root/url_verification/provider/review_standards_6c171f95913c",
+              "routes": ["gpt-6.1-sol/xhigh"],
+              "tokens": 150950,
+              "reasoningTokens": 120,
+              "usd": 0.07476719999999999,
+              "requests": 5,
+              "elapsedSeconds": 28.408,
+              "history": [
+                {
+                  "format": "darrow-review-axis-v3",
+                  "axis": "standards",
+                  "status": "pass",
+                  "sources": [
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-UmLkGf/AGENTS.md"
+                  ],
+                  "findings": []
+                }
+              ]
+            },
+            {
+              "sessionId": "01a18c45-3da0-7763-a594-fc45697613ff",
+              "path": "/root/url_verification/provider/review_spec_6c171f95913c",
+              "routes": ["gpt-6.1-sol/xhigh"],
+              "tokens": 149699,
+              "reasoningTokens": 316,
+              "usd": 0.0583116,
+              "requests": 5,
+              "elapsedSeconds": 36.691,
+              "history": [
+                {
+                  "format": "darrow-review-axis-v3",
+                  "axis": "spec",
+                  "status": "pass",
+                  "sources": [
+                    "Originating request: Git config permits multiple insteadOf entries in the same url subsection. URL.InsteadOf must be idiomatic []string. Unmarshal/marshal every entry losslessly, preserving order, duplicates, mixed empty/nonempty entries. Reject nil, empty and all-empty rules via validation and unmarshal. Ignore empty rewrite prefixes. Rewrite using longest matching prefix across every value in every rule. Preserve unmatched URLs, deterministic URL subsection order and deterministic round trips. Repeated marshal/unmarshal must preserve original remote URLs and rewritten effective URLs. One-value behavior and all callers compile. Update affected callers/comments/tests throughout repository.",
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-UmLkGf/AGENTS.md"
+                  ],
+                  "findings": []
+                }
+              ]
+            }
+          ]
+        },
+        "medium": {
+          "count": 2,
+          "tokens": 323616,
+          "reasoningTokens": 81,
+          "usd": 0.0972752,
+          "summedSessionSeconds": 55.711,
+          "readers": [
+            {
+              "sessionId": "01a18d3a-81ee-7ec2-9607-1ff48991b6c6",
+              "path": "/root/verify_url/review_provider/review_standards_0d12e2327ffe",
+              "routes": ["gpt-6.1-sol/medium"],
+              "tokens": 144234,
+              "reasoningTokens": 18,
+              "usd": 0.0443912,
+              "requests": 5,
+              "elapsedSeconds": 23.035,
+              "history": [
+                {
+                  "format": "darrow-review-axis-v3",
+                  "axis": "standards",
+                  "status": "pass",
+                  "sources": [
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-lbur0G/AGENTS.md"
+                  ],
+                  "findings": []
+                }
+              ]
+            },
+            {
+              "sessionId": "01a18d3a-96c8-7ea2-8500-e1b3ead3b8fd",
+              "path": "/root/verify_url/review_provider/review_spec_0d12e2327ffe",
+              "routes": ["gpt-6.1-sol/medium"],
+              "tokens": 179382,
+              "reasoningTokens": 63,
+              "usd": 0.052884,
+              "requests": 6,
+              "elapsedSeconds": 32.676,
+              "history": [
+                {
+                  "format": "darrow-review-axis-v3",
+                  "axis": "spec",
+                  "status": "pass",
+                  "sources": [
+                    "Originating request: Git permits multiple insteadOf values in a [url base] rule but URL currently retains one. Make URL.InsteadOf idiomatic []string; preserve all entries in unmarshal/marshal; reject rules with no usable insteadOf; longest nonempty matching prefix across every rule/value; unmatched unchanged; deterministic roundtrips; update callers/comments/tests repository-wide. Acceptance: (1) Public URL.InsteadOf []string, all callers/comments updated. (2) Unmarshal/Marshal preserve duplicate entries and order; new programmatic rules marshal all entries; repeated roundtrips deterministic across rules. (3) URL.Validate, Config.Validate, parsing reject absent/all-empty values; mixed empty/nonempty usable; empty cannot catch all. (4) URL.ApplyInsteadOf and remote URLs through Config.Unmarshal select longest nonempty prefix within/across rules, require prefix, unmatched unchanged. (5) Marshal retains original remote URLs after rewrite; config tests pass and repo callers compile."
+                  ],
+                  "findings": []
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "track": "delivery",
+        "task": "express-links",
+        "captureComplete": true,
+        "bothSelected": true,
+        "xhigh": {
+          "count": 2,
+          "tokens": 286091,
+          "reasoningTokens": 379,
+          "usd": 0.15015,
+          "summedSessionSeconds": 152.462,
+          "readers": [
+            {
+              "sessionId": "01a18c64-e6fb-70f1-bf36-13990d7ed6b7",
+              "path": "/root/verify_links/review_provider/review_standards_5f4504a56d1c",
+              "routes": ["gpt-6.1-sol/xhigh"],
+              "tokens": 143851,
+              "reasoningTokens": 115,
+              "usd": 0.076814,
+              "requests": 5,
+              "elapsedSeconds": 75.48,
+              "history": [
+                {
+                  "format": "darrow-review-axis-v3",
+                  "axis": "standards",
+                  "status": "pass",
+                  "sources": [
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-6Bo8FP/AGENTS.md",
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-6Bo8FP/package.json"
+                  ],
+                  "findings": []
+                }
+              ]
+            },
+            {
+              "sessionId": "01a18c64-f7b2-7543-9e84-eb400d8b1c11",
+              "path": "/root/verify_links/review_provider/review_spec_5f4504a56d1c",
+              "routes": ["gpt-6.1-sol/xhigh"],
+              "tokens": 142240,
+              "reasoningTokens": 264,
+              "usd": 0.073336,
+              "requests": 5,
+              "elapsedSeconds": 76.982,
+              "history": [
+                {
+                  "format": "darrow-review-axis-v3",
+                  "axis": "spec",
+                  "status": "pass",
+                  "sources": [
+                    "Originating request: Authoritative GitHub issue 1 https://fixture.invalid/benchmark/repo/issues/1 supplied by enclosing coordinator: Harden res.links() so caller-provided relations and targets cannot break RFC 8288 Link structure. Serialize relation names as HTTP quoted strings escaping quotes and backslashes. Reject all C0 and DEL controls in relations and targets; reject target < and >. TypeError before header mutation including invalid later entry with absent and existing headers. Preserve valid callers, multiple entries, repeated calls, chaining. Node >=0.10 callback-era style. Focused regressions selected by npm test -- --grep res.links. Security high: independently inspect adversarial boundaries and affected callers. Publication/CI is outside implementation scope.",
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-6Bo8FP/AGENTS.md",
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-6Bo8FP/package.json"
+                  ],
+                  "findings": []
+                }
+              ]
+            }
+          ]
+        },
+        "medium": {
+          "count": 2,
+          "tokens": 186805,
+          "reasoningTokens": 36,
+          "usd": 0.05577,
+          "summedSessionSeconds": 34.391,
+          "readers": [
+            {
+              "sessionId": "01a18cff-1309-7b30-b10f-6e57f4e6ce90",
+              "path": "/root/issue1_verification/review_provider/review_standards_ddfceba8dce3",
+              "routes": ["gpt-6.1-sol/medium"],
+              "tokens": 80270,
+              "reasoningTokens": 10,
+              "usd": 0.0271256,
+              "requests": 3,
+              "elapsedSeconds": 14.161,
+              "history": [
+                {
+                  "format": "darrow-review-axis-v3",
+                  "axis": "standards",
+                  "status": "pass",
+                  "sources": [
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-r6razc/AGENTS.md",
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-r6razc/.eslintrc.yml",
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-r6razc/package.json"
+                  ],
+                  "findings": []
+                }
+              ]
+            },
+            {
+              "sessionId": "01a18cff-2ac5-7560-b030-7ede48ec845d",
+              "path": "/root/issue1_verification/review_provider/review_spec_ddfceba8dce3",
+              "routes": ["gpt-6.1-sol/medium"],
+              "tokens": 106535,
+              "reasoningTokens": 26,
+              "usd": 0.0286444,
+              "requests": 4,
+              "elapsedSeconds": 20.23,
+              "history": [
+                {
+                  "format": "darrow-review-axis-v3",
+                  "axis": "spec",
+                  "status": "pass",
+                  "sources": [
+                    "Originating request: Authoritative issue 1 https://fixture.invalid/benchmark/repo/issues/1: Harden res.links() so caller-provided link relations and targets cannot break RFC 8288 Link header structure. Serialize relation names as HTTP quoted strings, escaping double quotes and backslashes. Reject relation names containing control characters. Reject targets containing control characters, <, or >. Throw TypeError before setting the header. Preserve existing valid links, multiple entries, repeated calls, and chaining. Preserve Node >=0.10 callback-era JavaScript style. Add focused regression tests and run npm test -- --grep res.links."
+                  ],
+                  "findings": []
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "track": "delivery",
+        "task": "ajv-instance-path",
+        "captureComplete": true,
+        "bothSelected": true,
+        "xhigh": {
+          "count": 2,
+          "tokens": 289075,
+          "reasoningTokens": 727,
+          "usd": 0.1880924,
+          "summedSessionSeconds": 64.894,
+          "readers": [
+            {
+              "sessionId": "01a18c8c-8a46-7cc2-afc5-4a7ff1ae4ac0",
+              "path": "/root/verify_jtd/review_provider/review_standards_59e923db127b",
+              "routes": ["gpt-6.1-sol/xhigh"],
+              "tokens": 90551,
+              "reasoningTokens": 153,
+              "usd": 0.0810892,
+              "requests": 3,
+              "elapsedSeconds": 17.061,
+              "history": [
+                {
+                  "format": "darrow-review-axis-v3",
+                  "axis": "standards",
+                  "status": "pass",
+                  "sources": [
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-Ckwvaz/AGENTS.md",
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-Ckwvaz/docs/codegen.md",
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-Ckwvaz/docs/json-type-definition.md"
+                  ],
+                  "findings": []
+                }
+              ]
+            },
+            {
+              "sessionId": "01a18c8c-9b55-7c20-9fa8-d08955bcfd74",
+              "path": "/root/verify_jtd/review_provider/review_spec_59e923db127b",
+              "routes": ["gpt-6.1-sol/xhigh"],
+              "tokens": 198524,
+              "reasoningTokens": 574,
+              "usd": 0.10700319999999999,
+              "requests": 6,
+              "elapsedSeconds": 47.833,
+              "history": [
+                {
+                  "format": "darrow-review-axis-v3",
+                  "axis": "spec",
+                  "status": "pass",
+                  "sources": [
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-native-private/candidate-runtime-6U1dqo/home/.darrow/reviews/de593e1b56a84b7d96202da34447f52004620504774ae5099176d32759bd49cc/darrow-review.tnp8b1ex/originating-issue.txt"
+                  ],
+                  "findings": []
+                }
+              ]
+            }
+          ]
+        },
+        "medium": {
+          "count": 2,
+          "tokens": 203756,
+          "reasoningTokens": 185,
+          "usd": 0.08035999999999999,
+          "summedSessionSeconds": 39.263,
+          "readers": [
+            {
+              "sessionId": "01a18d31-6461-7e62-b902-030d4f00ba67",
+              "path": "/root/verify_issue_1/review_provider/review_standards_1f7f6c80ee07",
+              "routes": ["gpt-6.1-sol/medium"],
+              "tokens": 91664,
+              "reasoningTokens": 38,
+              "usd": 0.0413744,
+              "requests": 3,
+              "elapsedSeconds": 15.889,
+              "history": [
+                {
+                  "format": "darrow-review-axis-v3",
+                  "axis": "standards",
+                  "status": "pass",
+                  "sources": [
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-C58AN5/AGENTS.md",
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-C58AN5/docs/codegen.md",
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-C58AN5/docs/json-type-definition.md"
+                  ],
+                  "findings": []
+                }
+              ]
+            },
+            {
+              "sessionId": "01a18d31-7ad4-7ba2-9a55-bd4c43fe2660",
+              "path": "/root/verify_issue_1/review_provider/review_spec_1f7f6c80ee07",
+              "routes": ["gpt-6.1-sol/medium"],
+              "tokens": 112092,
+              "reasoningTokens": 147,
+              "usd": 0.038985599999999995,
+              "requests": 4,
+              "elapsedSeconds": 23.374,
+              "history": [
+                {
+                  "format": "darrow-review-axis-v3",
+                  "axis": "spec",
+                  "status": "pass",
+                  "sources": [
+                    "Originating request: Authoritative captured GitHub issue 1: Add instancePath to compiled JTD parsers. On failure expose RFC 6901 pointer to value whose schema could not be satisfied, track escaped object property names (~0, ~1), array indexes, values, discriminator mappings, referenced definitions. Preserve existing message and position. Clear instancePath at start every call and leave undefined after successful parse including prior failure. Update public JTDParser and focused tests nested objects arrays escaped names refs success-after-failure; literal pointer assertions. Public seam Ajv.compileParser. Pinned compile plus focused tests required. No behavior outside ticket. Known pre-existing Node24 generic parseJson limitation before discriminator tag must not be fixed; tests tag-first. Assess affected callers and counterexamples."
+                  ],
+                  "findings": []
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "track": "delivery",
+        "task": "go-git-insteadof",
+        "captureComplete": true,
+        "bothSelected": true,
+        "xhigh": {
+          "count": 2,
+          "tokens": 337770,
+          "reasoningTokens": 961,
+          "usd": 0.16179280000000001,
+          "summedSessionSeconds": 72.839,
+          "readers": [
+            {
+              "sessionId": "01a18c99-ae50-75d3-9bc4-c49bdfbbe753",
+              "path": "/root/verify_candidate/provider_review/review_standards_2253ba884b78",
+              "routes": ["gpt-6.1-sol/xhigh"],
+              "tokens": 110614,
+              "reasoningTokens": 191,
+              "usd": 0.0585368,
+              "requests": 4,
+              "elapsedSeconds": 22.613,
+              "history": [
+                {
+                  "format": "darrow-review-axis-v3",
+                  "axis": "standards",
+                  "status": "pass",
+                  "sources": [
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-KgGQwm/AGENTS.md",
+                    "config/config.go:205",
+                    "config/config.go:533",
+                    "config/url.go:15",
+                    "config/url_test.go:21"
+                  ],
+                  "findings": []
+                }
+              ]
+            },
+            {
+              "sessionId": "01a18c99-c66c-7770-b182-79c50f9e52ba",
+              "path": "/root/verify_candidate/provider_review/review_spec_2253ba884b78",
+              "routes": ["gpt-6.1-sol/xhigh"],
+              "tokens": 227156,
+              "reasoningTokens": 770,
+              "usd": 0.103256,
+              "requests": 7,
+              "elapsedSeconds": 50.226,
+              "history": [
+                {
+                  "format": "darrow-review-axis-v3",
+                  "axis": "spec",
+                  "status": "pass",
+                  "sources": [
+                    "Originating request: Authoritative originating GitHub issue 1 https://fixture.invalid/benchmark/repo/issues/1 acceptance supplied by owner: Git config permits multiple insteadOf entries in a url base subsection. Change public URL.InsteadOf to represent all values idiomatically in Go; unmarshal/marshal every entry without loss; reject rules with no usable insteadOf; rewriting chooses longest matching prefix across every value in every rule; unmatched URL unchanged; deterministic round trips. Update affected callers/comments/tests throughout repo. Required authorized check go test ./config; independently inspect assertions."
+                  ],
+                  "findings": []
+                }
+              ]
+            }
+          ]
+        },
+        "medium": {
+          "count": 2,
+          "tokens": 288899,
+          "reasoningTokens": 73,
+          "usd": 0.0941452,
+          "summedSessionSeconds": 51.153999999999996,
+          "readers": [
+            {
+              "sessionId": "01a18d42-73dd-7830-9143-8c59d1b16fce",
+              "path": "/root/issue1_verification/review_provider/review_standards_d123a4466e71",
+              "routes": ["gpt-6.1-sol/medium"],
+              "tokens": 146026,
+              "reasoningTokens": 18,
+              "usd": 0.0511224,
+              "requests": 5,
+              "elapsedSeconds": 23.315,
+              "history": [
+                {
+                  "format": "darrow-review-axis-v3",
+                  "axis": "standards",
+                  "status": "pass",
+                  "sources": [
+                    "/private/var/folders/_b/yvzxqsys46l91yf5dtlk7q9w0000gn/T/sevro-workspaces-private/case-M1ic1n/AGENTS.md",
+                    "config/config.go:205",
+                    "config/config.go:350",
+                    "config/config.go:530",
+                    "config/config.go:651",
+                    "config/url.go:14",
+                    "config/url_test.go:60"
+                  ],
+                  "findings": []
+                }
+              ]
+            },
+            {
+              "sessionId": "01a18d42-8834-7171-afac-88e160fb9556",
+              "path": "/root/issue1_verification/review_provider/review_spec_d123a4466e71",
+              "routes": ["gpt-6.1-sol/medium"],
+              "tokens": 142873,
+              "reasoningTokens": 55,
+              "usd": 0.0430228,
+              "requests": 5,
+              "elapsedSeconds": 27.839,
+              "history": [
+                {
+                  "format": "darrow-review-axis-v3",
+                  "axis": "spec",
+                  "status": "pass",
+                  "sources": [
+                    "Originating request: Authoritative GitHub issue 1 Preserve multiple insteadOf entries, supplied by owner from one tracker read: Git config permits more than one insteadOf entry in the same url subsection, but config.URL currently retains only one. Change URL.InsteadOf to represent all configured values. Unmarshal and marshal every entry without loss, reject rules with no usable insteadOf value, and make rewriting choose the longest matching prefix across every value in every URL rule. Preserve the unmatched URL unchanged and retain deterministic round trips. Update affected callers, comments, and tests throughout the repository. Keep the public model idiomatic for Go and run config tests. Material acceptance: idiomatic []string public field; preserve all entries including duplicates/order; reject nil/empty/all-empty rules allowing usable nonempty prefixes; longest match within and across rules through Config.Unmarshal remote rewriting and public URL.ApplyInsteadOf; unmatched unchanged; original remote URLs serialize unchanged; deterministic repeated Config.Marshal/Unmarshal; all callers/comments updated. No tracker refetch."
+                  ],
+                  "findings": []
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "notes": [
+      "Whole-workflow timing and usage include variable implementation and assurance choices. These are observed comparisons, not causal effects of effort.",
+      "Reader session elapsed times overlap and include any follow-up; their sum is not workflow wall time.",
+      "Complete matched usage excludes the old partial Click captures. Old Click delivery was unassessed.",
+      "Reader finding histories can include concerns resolved by clarifying authority or evidence, without a code repair."
+    ]
+  },
+  "roleCostComparisons": {
+    "roleMethod": "Session root identity, then independent-reader path, Luna implementation route, and coordinator depth. This is execution-cost attribution, not causal overhead isolation.",
+    "rows": [
+      {
+        "track": "implementation",
+        "tasks": ["express-links", "ajv-instance-path", "go-git-insteadof"],
+        "xhigh": {
+          "tasks": 3,
+          "meanApiEquivalentUsd": {
+            "main": 0.3320578666666667,
+            "independentReaders": 0.07199413333333333,
+            "implementationDelegate": 0.014067499999999998,
+            "verificationCoordinator": 0.14945413333333335,
+            "reviewCoordinator": 0.08836253333333333,
+            "other": 0
+          },
+          "meanMainRequests": 29,
+          "meanMainPromptInput": 51031.90804597701
+        },
+        "medium": {
+          "tasks": 3,
+          "meanApiEquivalentUsd": {
+            "main": 0.3987485333333333,
+            "independentReaders": 0.06699653333333333,
+            "implementationDelegate": 0.012547913333333334,
+            "verificationCoordinator": 0.20185226666666667,
+            "reviewCoordinator": 0.12171253333333333,
+            "other": 0
+          },
+          "meanMainRequests": 40,
+          "meanMainPromptInput": 52918.6
+        }
+      },
+      {
+        "track": "delivery",
+        "tasks": ["express-links", "ajv-instance-path", "go-git-insteadof"],
+        "xhigh": {
+          "tasks": 3,
+          "meanApiEquivalentUsd": {
+            "main": 0.6362949333333333,
+            "independentReaders": 0.1666784,
+            "implementationDelegate": 0.008097266666666667,
+            "verificationCoordinator": 0.2654030666666667,
+            "reviewCoordinator": 0.1867132,
+            "other": 0
+          },
+          "meanMainRequests": 52,
+          "meanMainPromptInput": 66152.28205128205
+        },
+        "medium": {
+          "tasks": 3,
+          "meanApiEquivalentUsd": {
+            "main": 0.5760189333333333,
+            "independentReaders": 0.07675839999999999,
+            "implementationDelegate": 0,
+            "verificationCoordinator": 0.23413759999999997,
+            "reviewCoordinator": 0.13684480000000002,
+            "other": 0
+          },
+          "meanMainRequests": 46,
+          "meanMainPromptInput": 67620.97101449275
+        }
+      }
+    ]
+  },
+  "integrityValidation": {
+    "path": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/integrity.json",
+    "sha256": "696e2913ecb3e0a1d35133194acb4c39233c8ddc258cc988556c4b8f48280499"
+  },
+  "analysisSources": [
+    {
+      "path": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/collect.ts",
+      "sha256": "94f6b218ca449fc0e638770f395b93d88cf3b5cb72e07a5229a10964b7a96f19"
+    },
+    {
+      "path": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/compare.ts",
+      "sha256": "3a1b4ac660638a12ac1adc2e12e15060609aef0c989723c3c125e70a4f6cbdd2"
+    },
+    {
+      "path": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/cost-breakdown.ts",
+      "sha256": "6bb89c8136731420c6e8c92feb413697b5c82084dd15cbc5d8b240dc8e0d059b"
+    },
+    {
+      "path": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/inspect-cell.ts",
+      "sha256": "239284f2b40f424fbd63bbb6fa0a55431290cf16b3363a1c880ef66036cfbb13"
+    },
+    {
+      "path": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/validate-snapshots.ts",
+      "sha256": "3c06fa55c70f3f0590ac3a8258a079b19d76aa05a837f63a57e9c4cc26e964ce"
+    },
+    {
+      "path": "/Users/bjro/Benchmarks/darrow/2026-10-30-review-medium-n1/save-results.ts",
+      "sha256": "8eff85cab86928935a5672085451a6d51f003ef6e02604b290be146bb8705555"
+    }
+  ],
+  "supplementalQuality": "2026-10-30-review-medium-n1-click-probe.json",
+  "usageRecovery": "2026-10-30-review-medium-n1-usage.json"
+}

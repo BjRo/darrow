@@ -1,7 +1,6 @@
 # Repository-relative Python package roots, one per line.
 plugins/capability/darrow-discovery/skills/work-through-decisions/backend
 plugins/capability/darrow-git/backend
-plugins/capability/darrow-observability-langfuse/backend
 plugins/capability/darrow-verification/backend
 plugins/foundation/darrow-skill-authoring/backend
 plugins/capability/darrow-tickets/backend

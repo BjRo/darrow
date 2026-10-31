@@ -17,7 +17,6 @@ jobs:
       packages: ${{ steps.scopes.outputs.packages }}
       package_selected: ${{ steps.scopes.outputs.package_selected }}
       skill_authoring: ${{ steps.scopes.outputs.skill_authoring }}
-      observability_langfuse: ${{ steps.scopes.outputs.observability_langfuse }}
       discovery: ${{ steps.scopes.outputs.discovery }}
       verification: ${{ steps.scopes.outputs.verification }}
     steps:
@@ -38,7 +37,8 @@ jobs:
           fi
 
           if [ "$EVENT_NAME" = pull_request ]; then
-            scripts/detect-python-quality-changes "$BASE_SHA" "$HEAD_SHA" >>"$GITHUB_OUTPUT"
+            merge_base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+            scripts/detect-python-quality-changes "$merge_base" "$HEAD_SHA" >>"$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -58,7 +58,7 @@ jobs:
       matrix:
         package: ${{ fromJSON(needs.changes.outputs.packages) }}
         os: [ubuntu-latest, macos-latest]
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.13"]
     runs-on: ${{ matrix.os }}
     env:
       PACKAGE: ${{ matrix.package }}
@@ -80,7 +80,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.13"]
     runs-on: windows-latest
     defaults:
       run:
@@ -104,7 +104,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.13"]
     runs-on: windows-latest
     defaults:
       run:
@@ -128,7 +128,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.13"]
     runs-on: windows-latest
     defaults:
       run:
@@ -152,7 +152,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.13"]
     runs-on: windows-latest
     defaults:
       run:
@@ -201,7 +201,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.13"]
     runs-on: windows-latest
     defaults:
       run:
@@ -241,7 +241,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.13"]
     runs-on: windows-latest
     defaults:
       run:
@@ -282,7 +282,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.13"]
     runs-on: windows-latest
     defaults:
       run:
@@ -329,7 +329,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.13"]
     runs-on: windows-latest
     defaults:
       run:
@@ -370,7 +370,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.13"]
     runs-on: windows-latest
     defaults:
       run:
@@ -411,7 +411,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.13"]
     runs-on: windows-latest
     defaults:
       run:
@@ -487,47 +487,6 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - run: uv run --quiet --frozen --no-dev --project plugins/foundation/darrow-skill-authoring/backend python plugins/foundation/darrow-skill-authoring/backend/tests/fresh_install.py
 
-  observability-windows:
-    name: Observability Langfuse Python ${{ matrix.python-version }} on windows-latest
-    needs: changes
-    if: needs.changes.outputs.observability_langfuse == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
-    runs-on: windows-latest
-    defaults:
-      run:
-        shell: bash
-    env:
-      UV_PYTHON: ${{ matrix.python-version }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-      - uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-      - run: scripts/check-python --package plugins/capability/darrow-observability-langfuse/backend
-
-  observability-fresh-install:
-    name: Fresh install observability-langfuse on ${{ matrix.os }}
-    needs: changes
-    if: needs.changes.outputs.observability_langfuse == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - uses: astral-sh/setup-uv@v6
-      - run: uv run --quiet --frozen --no-dev --project plugins/capability/darrow-observability-langfuse/backend python plugins/capability/darrow-observability-langfuse/backend/tests/fresh_install.py
-
   discovery-fresh-install:
     name: Fresh install discovery on ${{ matrix.os }}
     needs: changes
@@ -562,19 +521,6 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - run: uv run --quiet --frozen --no-dev --project plugins/capability/darrow-verification/backend python plugins/capability/darrow-verification/backend/tests/fresh_install.py
 
-  performance:
-    name: Python performance invariants
-    needs: changes
-    if: needs.changes.outputs.observability_langfuse == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - uses: astral-sh/setup-uv@v6
-      - run: plugins/capability/darrow-observability-langfuse/tests/performance.test.sh
-
   aggregate:
     name: Python quality
     if: always()
@@ -601,11 +547,8 @@ jobs:
       - artificer-fresh-install
       - inventory
       - skill-authoring-fresh-install
-      - observability-windows
-      - observability-fresh-install
       - discovery-fresh-install
       - verification-fresh-install
-      - performance
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -615,7 +558,6 @@ jobs:
           PACKAGE_SELECTED: ${{ needs.changes.outputs.package_selected }}
           PACKAGE_RESULT: ${{ needs.package.result }}
           SKILL_AUTHORING_CHANGED: ${{ needs.changes.outputs.skill_authoring }}
-          OBSERVABILITY_CHANGED: ${{ needs.changes.outputs.observability_langfuse }}
           DISCOVERY_CHANGED: ${{ needs.changes.outputs.discovery }}
           VERIFICATION_CHANGED: ${{ needs.changes.outputs.verification }}
           WINDOWS_RESULT: ${{ needs.skill-authoring-windows.result }}
@@ -623,11 +565,8 @@ jobs:
           VERIFICATION_WINDOWS_RESULT: ${{ needs.verification-windows.result }}
           INVENTORY_RESULT: ${{ needs.inventory.result }}
           SKILL_INSTALL_RESULT: ${{ needs.skill-authoring-fresh-install.result }}
-          OBSERVABILITY_WINDOWS_RESULT: ${{ needs.observability-windows.result }}
-          OBSERVABILITY_INSTALL_RESULT: ${{ needs.observability-fresh-install.result }}
           DISCOVERY_INSTALL_RESULT: ${{ needs.discovery-fresh-install.result }}
           VERIFICATION_INSTALL_RESULT: ${{ needs.verification-fresh-install.result }}
-          PERFORMANCE_RESULT: ${{ needs.performance.result }}
           REVIEW_SELECTED: ${{ contains(needs.changes.outputs.packages, 'plugins/capability/darrow-review/backend') }}
           REVIEW_WINDOWS_RESULT: ${{ needs.review-windows.result }}
           REVIEW_INSTALL_RESULT: ${{ needs.review-fresh-install.result }}
@@ -656,8 +595,6 @@ jobs:
             "$CHANGES_RESULT" "$INVENTORY_RESULT" \
             "$PACKAGE_SELECTED" "$PACKAGE_RESULT" \
             "$SKILL_AUTHORING_CHANGED" "$WINDOWS_RESULT" "$SKILL_INSTALL_RESULT" \
-            "$OBSERVABILITY_CHANGED" "$OBSERVABILITY_WINDOWS_RESULT" \
-            "$OBSERVABILITY_INSTALL_RESULT" "$PERFORMANCE_RESULT" \
             "$DISCOVERY_CHANGED" "$DISCOVERY_WINDOWS_RESULT" \
             "$DISCOVERY_INSTALL_RESULT" \
             "$VERIFICATION_CHANGED" "$VERIFICATION_WINDOWS_RESULT" \

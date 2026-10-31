@@ -15,7 +15,6 @@ contracts.
   PRs, and posts candidate-bound reviewer evidence.
 - [Tickets](darrow-tickets/README.md) handles exact tracker operations; GitHub Issues is bundled.
 - [Explanation](darrow-explanation/README.md) gives compact grounded visuals.
-- [Langfuse observability](darrow-observability-langfuse/README.md) exports opted-in Codex telemetry.
 
 Read the chosen plugin's local prerequisites, expected effects, and safety
 boundaries before adopting it. See the [intent-first selection guide](../../docs/choosing-plugins.md)
