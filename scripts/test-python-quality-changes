@@ -163,7 +163,11 @@ expect_scope() {
   git -C "$fixture" reset -q --hard "$base"
   git -C "$fixture" clean -qfdx
   mkdir -p "$(dirname "$fixture/$path")"
-  printf '%s\n' changed >"$fixture/$path"
+  if [ "$path" = scripts/detect-python-quality-changes ]; then
+    printf '%s\n' '# changed' >>"$fixture/$path"
+  else
+    printf '%s\n' changed >"$fixture/$path"
+  fi
   git -C "$fixture" add "$path"
   git -C "$fixture" commit -qm "test: change $path"
   actual=$(cd "$fixture" && scripts/detect-python-quality-changes "$base" HEAD | sed '/^installed_pin_required=/d')
@@ -337,14 +341,41 @@ skill_authoring=false
 observability_langfuse=false
 discovery=false
 verification=true'
-expect_scope \
-  scripts/check-python \
-  'packages=["plugins/capability/darrow-discovery/skills/work-through-decisions/backend","plugins/capability/darrow-observability-langfuse/backend","plugins/capability/darrow-verification/backend","plugins/foundation/darrow-skill-authoring/backend"]
-package_selected=true
-skill_authoring=true
-observability_langfuse=true
-discovery=true
-verification=true'
+for path in .github/workflows/python-quality.yml \
+  scripts/check-python scripts/check-python-inventory scripts/detect-python-quality-changes \
+  scripts/test-python-coverage scripts/test-python-inventory scripts/test-python-quality-changes \
+  scripts/verify-python-coverage scripts/verify-python-quality-results; do
+  expect_scope "$path" 'packages=[]
+package_selected=false
+skill_authoring=false
+observability_langfuse=false
+discovery=false
+verification=false'
+done
+
+git -C "$fixture" reset -q --hard "$base"
+git -C "$fixture" clean -qfdx
+printf '%s\n' '# inventory comment' >>"$fixture/python-packages.txt"
+git -C "$fixture" add python-packages.txt
+git -C "$fixture" commit -qm 'test: change package inventory'
+inventory_scope=$(cd "$fixture" && scripts/detect-python-quality-changes "$base" HEAD)
+case "$inventory_scope" in
+  *'packages=[]'*) ;;
+  *) printf 'error: inventory change selected plugins\n%s\n' "$inventory_scope" >&2; exit 1 ;;
+esac
+
+git -C "$fixture" reset -q --hard "$base"
+git -C "$fixture" clean -qfdx
+mkdir -p "$fixture/plugins/capability/darrow-verification/backend" "$fixture/scripts"
+printf '%s\n' changed >"$fixture/plugins/capability/darrow-verification/backend/change.py"
+printf '%s\n' changed >"$fixture/scripts/check-python"
+git -C "$fixture" add .
+git -C "$fixture" commit -qm 'test: change a plugin and shared infrastructure'
+mixed=$(cd "$fixture" && scripts/detect-python-quality-changes "$base" HEAD)
+case "$mixed" in
+  *'packages=["plugins/capability/darrow-verification/backend"]'*) ;;
+  *) printf 'error: mixed infrastructure/plugin change selected the wrong packages\n%s\n' "$mixed" >&2; exit 1 ;;
+esac
 
 all=$(cd "$fixture" && scripts/detect-python-quality-changes --all | sed '/^installed_pin_required=/d')
 if [ "$all" != 'packages=["plugins/capability/darrow-discovery/skills/work-through-decisions/backend","plugins/capability/darrow-observability-langfuse/backend","plugins/capability/darrow-verification/backend","plugins/foundation/darrow-skill-authoring/backend"]
