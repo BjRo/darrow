@@ -1,0 +1,60 @@
+{
+  "tested_at": "2026-10-31",
+  "successful_headless_invocations": 2,
+  "capture_scope": "Aggregate native capture across both invocations; Langfuse stored subset from second invocation only",
+  "codex_version": "0.166.0",
+  "langfuse_version": "4.72.0",
+  "mode": "headless codex exec, real successful model turn, isolated CODEX_HOME, plugins/hooks/apps disabled",
+  "environment": "OTEL_RESOURCE_ATTRIBUTES=ticket.id=284,darrow.work_item_id=284",
+  "native_export": {
+    "/v1/logs": {
+      "batches": 12,
+      "resource_groups": 12,
+      "all_groups_have_both_attributes": true
+    },
+    "/v1/traces": {
+      "batches": 5,
+      "resource_groups": 5,
+      "all_groups_have_both_attributes": true
+    },
+    "/v1/metrics": {
+      "batches": 2,
+      "resource_groups": 2,
+      "all_groups_have_both_attributes": true
+    }
+  },
+  "langfuse_storage": {
+    "stored_observations": 512,
+    "with_both_ticket_attributes": 512,
+    "types": {
+      "GENERATION": 15,
+      "SPAN": 497
+    },
+    "nonempty_sessions": 0,
+    "with_usage": 0
+  },
+  "stored_example": {
+    "name": "get_model_info",
+    "type": "GENERATION",
+    "trace_id": "4863072368798c010ba396d74d324a53",
+    "span_id": "1179cd9fdceb2e61",
+    "ticket.id": 284,
+    "darrow.work_item_id": 284,
+    "session_id": "",
+    "model": "gpt-6.1-sol",
+    "usage_details": {}
+  },
+  "stored_metadata_paths": [
+    "resourceAttributes.ticket.id",
+    "resourceAttributes.darrow.work_item_id"
+  ],
+  "limitations": [
+    "Docker VM memory pressure caused startup and later export failures. Confirmed persisted batch: 512/512 spans; not a complete-delivery test.",
+    "Capture proxy forwarded OTLP trace JSON unchanged, adding only local Langfuse authentication and v4 ingestion HTTP headers.",
+    "Metrics and logs captured locally; only traces forwarded to Langfuse.",
+    "Headless CLI verified; Desktop and Cloud not tested.",
+    "No UI metadata-filter test, subagent test, ticket-switch test, or plugin-parity test."
+  ],
+  "headless_result": "NATIVE_OTEL_284_OK",
+  "recommendation": "Native environment-based ticket attribution works. Plugin is unnecessary for that criterion."
+}

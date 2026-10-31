@@ -16,7 +16,6 @@ These files define current invariants. Start with the
 - [Test-driven development](test-driven-development.md): red/green evidence.
 - [Code review](code-review.md): independent review and repair verification.
 - [Verification](verification.md): replaceable assessment and criterion-level evidence.
-- [Langfuse observability](observability-langfuse.md): Codex telemetry and privacy.
 - [Repository Python quality](python-quality.md): package inventory, checks, tests, and release evidence.
 - [Marketplace installation](marketplace-installation.md): inventory-driven host installation shortcuts.
 - [Adaptive Goal](adaptive-goal.md): one explicit execution owner.
