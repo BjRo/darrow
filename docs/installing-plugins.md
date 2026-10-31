@@ -226,13 +226,8 @@ plugin installation stops the shortcut, returns a nonzero status, and names the
 plugin that failed. The success message appears only after every current
 marketplace entry has installed.
 
-The shortcut deliberately excludes two marketplace entries:
-
-- `darrow-ticket-pipeline` is a deprecated reference implementation.
-- `darrow-observability-langfuse` requires UV and a UV-managed Python
-  `>=3.10,<3.14`; on Codex, review and trust its hooks when prompted. Installing
-  it does not enable tracing: configure credentials and explicitly opt in before
-  it exports anything. Read its local README before enabling it.
+The shortcut excludes `darrow-ticket-pipeline`, a deprecated reference
+implementation.
 
 For plugins with Python helpers, complete the
 [UV and Python setup](#uv-and-python-for-plugin-helpers) before using them.

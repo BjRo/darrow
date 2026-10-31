@@ -6,6 +6,13 @@ current contracts. Dates, models, trial counts, failures and observation gaps
 belong to their recorded conditions. Older ownership and routing proposals are
 historical even when their original text says “current” or “proposed.”
 
+## Native telemetry and plugin retirement
+
+Current authority: [Langfuse plugin retirement](../decisions/ADR-0013-retire-the-langfuse-observability-plugin.md).
+
+- [Native ticket attribution results, limits and migration](native-otel-issue-284.md)
+- [Historical plugin ingestion and performance evidence](langfuse-plugin-issue-77-verification.md)
+
 ## Native goals, ownership and host boundaries
 
 Current authority: [Adaptive Goal](../specs/adaptive-goal.md) and
