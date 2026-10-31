@@ -72,8 +72,10 @@ if [ -z "$packages" ]; then
 fi
 
 select_all=false
+installed_pin_required=false
 if [ "$#" -eq 1 ] && [ "$1" = --all ]; then
   select_all=true
+  installed_pin_required=true
 elif [ "$#" -eq 2 ]; then
   base=$1
   head=$2
@@ -89,10 +91,33 @@ else
   usage
 fi
 
+if [ "$select_all" = false ]; then
+  paths=$(git -C "$repo_root" diff --name-only --no-renames "$base" "$head") || {
+    echo "error: unable to list changed paths" >&2
+    exit 1
+  }
+  while IFS= read -r path; do
+    [ -n "$path" ] || continue
+    case "$path" in
+      docs|docs/*) continue ;;
+    esac
+    name=${path##*/}
+    normalized_name=$(printf '%s' "$name" | tr '[:upper:]' '[:lower:]')
+    case "$normalized_name" in
+      readme|readme.*) continue ;;
+    esac
+    case "$path" in
+      plugins/*) ;;
+      *) installed_pin_required=true ;;
+    esac
+  done <<EOF
+$paths
+EOF
+fi
+
 shared=$select_all
 if [ "$shared" = false ] && changed \
   .github/workflows/python-quality.yml \
-  docs/specs/python-quality.md \
   python-packages.txt \
   scripts/check-python \
   scripts/check-python-inventory \
@@ -131,7 +156,7 @@ while IFS= read -r package; do
   selected=$shared
   if [ "$selected" = false ]; then
     root=$(plugin_root "$package")
-    if changed "$root"; then
+    if changed "$root" ':(exclude,icase)**/README' ':(exclude,icase)**/README.*'; then
       selected=true
     fi
   fi
@@ -144,6 +169,7 @@ $packages
 EOF
 
 printf 'packages=%s\n' "$packages_json"
+printf 'installed_pin_required=%s\n' "$installed_pin_required"
 printf 'package_selected=%s\n' "$package_selected"
 printf 'skill_authoring=%s\n' "$skill_authoring"
 printf 'observability_langfuse=%s\n' "$observability_langfuse"
