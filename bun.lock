@@ -9,7 +9,7 @@
         "ajv-formats": "3.0.1",
       },
       "devDependencies": {
-        "@bjoernrochel/sevro": "1.1.1",
+        "@bjoernrochel/sevro": "1.1.2",
         "@eslint/js": "^10.0.1",
         "@types/bun": "^1.2.0",
         "eslint": "^10.8.1",
@@ -25,7 +25,7 @@
     },
   },
   "packages": {
-    "@bjoernrochel/sevro": ["@bjoernrochel/sevro@1.1.1", "", { "dependencies": { "ajv": "8.20.0", "smol-toml": "1.8.0", "typescript": "5.9.3", "yaml": "2.9.1" }, "bin": { "sevro": "dist/src/cli.js" } }, "sha512-/pzrF2wwxAEMTm7cVxoaPp3C41JggdtfDaNV5vZRSojuHMQwnL6SMltq/V8UlbYKpmN0R0BZXl7WKOyusSZ6sg=="],
+    "@bjoernrochel/sevro": ["@bjoernrochel/sevro@1.1.2", "", { "dependencies": { "ajv": "8.20.0", "smol-toml": "1.8.0", "typescript": "5.9.3", "yaml": "2.9.1" }, "bin": { "sevro": "dist/src/cli.js" } }, "sha512-ouwtwOOGaf+JX3H8YgZlMebMil3wrMIHfm5ykAMNSIaZJ8wlT22F2XYJKYO/9a9lD+B9rXYGH25Yj7DsXgNfBw=="],
 
     "@eslint-community/eslint-utils": ["@eslint-community/eslint-utils@4.10.1", "", { "dependencies": { "eslint-visitor-keys": "^3.4.3" }, "peerDependencies": { "eslint": "^6.0.0 || ^7.0.0 || >=8.0.0" } }, "sha512-cuadcxVFE8sDK6iWJbs8Sn0av2Nrh2QSGQhVlBW9AaAHqHwjWsZHT8LJ4hFGPh7ASBV2deFdM7H/DPjulmh8rg=="],
 
