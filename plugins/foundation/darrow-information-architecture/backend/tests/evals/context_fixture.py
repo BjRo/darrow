@@ -59,10 +59,11 @@ def capture(root: Path, arguments: list[str]) -> subprocess.CompletedProcess[byt
 def forward(root: Path, arguments: list[str]) -> None:
     if "--no-project" not in arguments or "ia-context" not in arguments:
         executable = (root / ".git/context-uv").read_text(encoding="utf-8")
-        os.execv(executable, [executable, *arguments])
-    result = capture(root, arguments)
-    sys.stdout.buffer.write(result.stdout)
-    sys.stderr.buffer.write(result.stderr)
+        result = subprocess.run([executable, *arguments], check=False)
+    else:
+        result = capture(root, arguments)
+        sys.stdout.buffer.write(result.stdout)
+        sys.stderr.buffer.write(result.stderr)
     if result.returncode < 0:
         os.kill(os.getpid(), -result.returncode)
     sys.exit(result.returncode)

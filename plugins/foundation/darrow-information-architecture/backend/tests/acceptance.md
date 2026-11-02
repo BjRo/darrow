@@ -145,6 +145,8 @@ A later live-thread smoke found Codex's non-content inter-agent metadata. From
 - Green — `uv run --group dev pytest tests/test_context.py -q -k inter_agent_metadata`: the record was ignored and the fixture's exact total and category estimates were preserved.
 - Red — `uv run --group dev pytest tests/test_context.py -q -k agent_message_content`: the live `agent_message` response shape refused as an unsupported response item.
 - Green — `uv run --group dev pytest tests/test_context.py -q -k agent_message_content`: eight visible ASCII bytes added two estimated message tokens, excluding routing metadata.
+- Red — `uv run --group dev pytest tests/test_context.py -q -k agent_message_content`: unrelated `summary: null` raised `TypeError`; a summary-shaped extra field inflated the estimate from nine to eleven message tokens.
+- Green — `uv run --group dev pytest tests/test_context.py -q -k agent_message_content`: all three cases read only validated visible content and reported nine message tokens.
 
 Native positive cases now capture the real frozen command's output, status,
 arguments and thread through a fixture UV wrapper; they never replace the
@@ -154,3 +156,10 @@ requested report-copy case compares the saved report byte-for-byte with the
 captured output. Its oracle tests reject a fabricated numeric report and a
 report with no backend execution. This proves the saved artifact, while final
 prose remains semantically assessed; native activation is a separate check.
+
+The first Windows CI run exposed argument splitting in `os.execv` forwarding
+inside the eval fixture. Its existing subprocess regression observed status 0
+and a truncated Python `-c` argument instead of status 9 and `unchanged\n`.
+The fixture now uses `subprocess.run` with an argument vector and inherited
+streams for uncaptured calls. The local seven-test fixture suite passes; the
+Windows CI rerun supplies the platform-specific repair evidence.

@@ -60,6 +60,11 @@ def message(sizes: dict[str, int], item: dict[str, Any]) -> None:
         add_text(sizes, item["role"], part["text"])
 
 
+def agent_message(sizes: dict[str, int], item: dict[str, Any]) -> None:
+    for part in item["content"]:
+        sizes["messages"] += len(part["text"].encode("utf-8"))
+
+
 def output(sizes: dict[str, int], item: dict[str, Any]) -> None:
     value = item["output"]
     output_text = (
@@ -89,7 +94,7 @@ def encrypted_compaction(sizes: dict[str, int], item: dict[str, Any]) -> None:
 
 MEASURERS = {
     "message": message,
-    "agent_message": reasoning,
+    "agent_message": agent_message,
     "function_call": call,
     "custom_tool_call": call,
     "function_call_output": output,

@@ -8,6 +8,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -542,7 +543,11 @@ def test_inter_agent_metadata_is_not_context_content(tmp_path: Path) -> None:
     assert data["categories"]["other_developer_instructions"] == 1
 
 
-def test_agent_message_content(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "extra",
+    [{}, {"summary": None}, {"summary": [{"type": "image", "text": "abcdefgh"}]}],
+)
+def test_agent_message_content(tmp_path: Path, extra: dict[str, object]) -> None:
     item = {
         "type": "response_item",
         "payload": {
@@ -550,6 +555,7 @@ def test_agent_message_content(tmp_path: Path) -> None:
             "author": "/root/reviewer",
             "recipient": "/root",
             "content": [{"type": "input_text", "text": "abcdefgh"}],
+            **extra,
         },
     }
     original = (FIXTURES / "normal.jsonl").read_text()
