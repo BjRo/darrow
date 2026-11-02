@@ -1,11 +1,12 @@
 [project]
 name = "darrow-information-architecture"
-version = "0.2.1"
+version = "0.3.0"
 description = "Portable repository guidance inventory and verification"
 requires-python = ">=3.10,<3.14"
 dependencies = []
 
 [project.scripts]
+ia-context = "darrow_ia.context:entrypoint"
 ia-doctor = "darrow_ia.cli:doctor_entrypoint"
 ia-setup = "darrow_ia.cli:setup_entrypoint"
 ia-write = "darrow_ia.updates:entrypoint"

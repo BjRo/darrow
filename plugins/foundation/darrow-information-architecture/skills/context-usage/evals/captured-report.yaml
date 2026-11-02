@@ -1,0 +1,49 @@
+id: context-usage-captured-report
+harnesses:
+  - codex
+invariant: IA-C1,IA-C3,IA-C4,IA-C6
+activation: positive
+prompt: Show this Codex session's context breakdown and save the exact grid
+  output to .fixture-state/context-report.txt as a report copy. Do not edit any
+  other repository files.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: |
+          # Context probe
+  bin:
+    uv: |
+      #!/bin/sh
+      root=$(git rev-parse --show-toplevel) || exit 1
+      git_dir=$(git rev-parse --absolute-git-dir) || exit 1
+      if ! test -f "$git_dir/context-python"; then
+        real_uv=$(which -a uv | awk '!/fixture-bin/ && !seen {print; seen=1}')
+        exec "$real_uv" "$@"
+      fi
+      exec "$(cat "$git_dir/context-python")" "$git_dir/fixture-bin/context_fixture.py" capture "$root" "$@"
+  setup: uv run --quiet --no-project --python 3.13
+    "{{case_dir}}/../../../backend/tests/evals/context_fixture.py" prepare .
+checks:
+  - name: context inspection leaves Git clean
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: real backend invocation receipt
+    run: >-
+      "$(cat .git/context-uv)" run --quiet --frozen --no-dev --project .git/ia-backend python
+      .git/eval-checks/ia/eval_context_usage.py grid
+  - name: saved report equals captured backend output
+    run: >-
+      "$(cat .git/context-uv)" run --quiet --frozen --no-dev --project .git/ia-backend python
+      .git/eval-checks/ia/eval_context_usage.py grid --saved
+semantic_output_checks:
+  - name: reports facts with honest limits
+    proposition: The response reports the reported current Codex context usage,
+      distinguishing the exact last token-count total from category estimates
+      (or explicitly reports that exact usage is unavailable before the first
+      token count). It does not recommend compacting or handing off.
+  - name: displays the grid and category table
+    proposition: The response shows a context grid (or explicitly says it is
+      unavailable before the first token count) and a numeric category table,
+      including repository instructions and skills, with the rollout path and
+      any warnings.

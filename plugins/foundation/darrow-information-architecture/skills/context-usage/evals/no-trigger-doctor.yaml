@@ -1,0 +1,24 @@
+id: context-usage-no-trigger-doctor
+invariant: IA-C6
+activation: negative
+activation_excludes: [context-usage]
+mount_plugin_skills: true
+prompt: >-
+  Doctor this repository's agent instructions for stale routes. Report findings
+  before editing anything.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: "# Agent instructions\nBefore API work, read `docs/missing.md`.\n"
+checks:
+  - name: inspection is read-only
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+semantic_output_checks:
+  - name: diagnoses guidance without context usage
+    proposition: >-
+      The response identifies the missing docs/missing.md guidance route and
+      does not report a current-session context breakdown. Asking where the
+      missing guidance should live is valid because this fixture supplies no
+      authoritative replacement path.

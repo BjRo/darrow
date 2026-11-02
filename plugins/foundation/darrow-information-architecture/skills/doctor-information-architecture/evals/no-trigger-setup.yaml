@@ -3,6 +3,7 @@ invariant: IA-D12
 activation: negative
 activation_excludes:
   - doctor-information-architecture
+  - context-usage
 mount_plugin_skills: true
 prompt: >-
   Set up a new dual-runtime agent-guidance architecture for this repository.
