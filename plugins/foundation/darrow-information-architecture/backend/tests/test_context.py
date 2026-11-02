@@ -525,3 +525,37 @@ def test_base_prompt_echo_counted_once(tmp_path: Path) -> None:
     assert data["categories"]["system_prompt"] == 2
     assert data["categories"]["other_developer_instructions"] == 0
     assert data["remainder_tokens"] == 196
+
+
+def test_inter_agent_metadata_is_not_context_content(tmp_path: Path) -> None:
+    metadata = {
+        "type": "inter_agent_communication_metadata",
+        "payload": {"trigger_turn": {"id": "fixture-turn"}},
+    }
+    original = (FIXTURES / "normal.jsonl").read_text()
+    home, _ = prepare(tmp_path, original + json.dumps(metadata) + "\n")
+    result = invoke(home)
+    assert result.returncode == 0, result.stderr
+    data = json.loads(result.stdout)
+    assert data["exact_total_tokens"] == 200
+    assert data["categories"]["messages"] == 7
+    assert data["categories"]["other_developer_instructions"] == 1
+
+
+def test_agent_message_content(tmp_path: Path) -> None:
+    item = {
+        "type": "response_item",
+        "payload": {
+            "type": "agent_message",
+            "author": "/root/reviewer",
+            "recipient": "/root",
+            "content": [{"type": "input_text", "text": "abcdefgh"}],
+        },
+    }
+    original = (FIXTURES / "normal.jsonl").read_text()
+    home, _ = prepare(tmp_path, original + json.dumps(item) + "\n")
+    result = invoke(home)
+    assert result.returncode == 0, result.stderr
+    data = json.loads(result.stdout)
+    assert data["categories"]["messages"] == 9
+    assert data["exact_total_tokens"] == 200

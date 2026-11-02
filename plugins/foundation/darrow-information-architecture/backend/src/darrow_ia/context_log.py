@@ -44,6 +44,12 @@ def message(item: dict[str, Any]) -> None:
     parts(item.get("content"))
 
 
+def agent_message(item: dict[str, Any]) -> None:
+    text(item.get("author"))
+    text(item.get("recipient"))
+    parts(item.get("content"))
+
+
 def call(item: dict[str, Any]) -> None:
     text(item.get("name"))
     text(item.get("arguments", item.get("input")))
@@ -74,6 +80,7 @@ def encrypted_compaction(item: dict[str, Any]) -> None:
 
 ITEMS: dict[str, Callable[[dict[str, Any]], None]] = {
     "message": message,
+    "agent_message": agent_message,
     "function_call": call,
     "custom_tool_call": call,
     "function_call_output": output,
@@ -139,6 +146,7 @@ RECORDS: dict[str, Callable[[dict[str, Any]], None]] = {
     "turn_context": ignored,
     "world_state": ignored,
     "token_usage_record": ignored,
+    "inter_agent_communication_metadata": ignored,
 }
 
 

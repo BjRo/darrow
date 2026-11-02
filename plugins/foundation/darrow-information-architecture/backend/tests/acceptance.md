@@ -138,6 +138,14 @@ The real compacted probe also passed `ia-context --format json` with an exact
 22,896-token total, matching `/status`'s 22.9K display. The cleaned fixtures now
 retain its encrypted-item and base-echo shapes and synthetic usage components.
 
+A later live-thread smoke found Codex's non-content inter-agent metadata. From
+`backend/`, after correcting a fixture hand count that is not red evidence:
+
+- Red — `uv run --group dev pytest tests/test_context.py -q -k inter_agent_metadata`: the known `inter_agent_communication_metadata` record refused as an unsupported record type.
+- Green — `uv run --group dev pytest tests/test_context.py -q -k inter_agent_metadata`: the record was ignored and the fixture's exact total and category estimates were preserved.
+- Red — `uv run --group dev pytest tests/test_context.py -q -k agent_message_content`: the live `agent_message` response shape refused as an unsupported response item.
+- Green — `uv run --group dev pytest tests/test_context.py -q -k agent_message_content`: eight visible ASCII bytes added two estimated message tokens, excluding routing metadata.
+
 Native positive cases now capture the real frozen command's output, status,
 arguments and thread through a fixture UV wrapper; they never replace the
 backend. Hidden checks require successful invocation in the audience's format.

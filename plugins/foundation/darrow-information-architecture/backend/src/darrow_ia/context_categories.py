@@ -89,6 +89,7 @@ def encrypted_compaction(sizes: dict[str, int], item: dict[str, Any]) -> None:
 
 MEASURERS = {
     "message": message,
+    "agent_message": reasoning,
     "function_call": call,
     "custom_tool_call": call,
     "function_call_output": output,

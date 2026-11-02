@@ -322,6 +322,8 @@ Report facts only; never recommend compaction or handoff.
   response items. Earlier history contributes no estimates. Validate the whole
   rollout, including discarded history, rather than hiding malformed input.
   Count response items once; event-message copies are not additional context.
+  Ignore known non-content `inter_agent_communication_metadata` records.
+  Count visible `agent_message` content as messages, without its routing metadata.
   Codex also logs the base instructions as a developer message, including in
   replacement history. Exclude that exact echo from developer estimates so the
   system prompt is counted once.
