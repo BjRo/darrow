@@ -53,8 +53,9 @@ Resolve the exact missing input or authority through the responsible workflow.
 Invoke `doctor-adaptive-goal` from the installed
 `darrow-adaptive-goal` plugin. It performs a read-only check of the current
 host's effective configuration, reports the exact source, and distinguishes
-the one-slot implementation path from the four-slot, three-layer full verification
-and review topology.
+the one-slot delegated implementation path from inline assessment (two reader
+slots, one layer) and fallback assessment (three slots, two layers). The primary
+thread is excluded. A replacement provider may have additional prerequisites.
 
 For Codex, the effective diagnosis applies trusted project `.codex/config.toml`
 layers after the user configuration and reports which checked sources supplied

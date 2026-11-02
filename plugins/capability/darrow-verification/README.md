@@ -48,14 +48,13 @@ incompatible required review blocks instead of falling back to self-review.
 
 ## Coordinator routes and assessment correction
 
-Verification and implementation are separate assignments. Adaptive Goal
-uses Codex GPT-6.1 Sol/medium or stronger for verification coordination.
-Verification owns the routes of the providers it launches, so a caller does not
-pass them. Review coordination is explicitly GPT-6.1 Sol/medium on Codex; review
-keeps its own independent-reader routes. Claude uses the plugin's Sonnet
-5.5/medium review coordinator with pinned frontmatter. Coordination is not
-routed below that middle tier by default. Parent-model inheritance must not
-change these roles.
+A supported owner executes Verification and its selected Review public workflow
+inline. Codex uses GPT-6.1 Sol/medium; Claude uses Sonnet 5.5/medium. Supported
+higher effort on the same model also qualifies. A weaker or unknown route uses
+one bounded capable coordinator. A replacement provider's public prerequisites
+still apply. Required Standards and Spec readers stay fresh and independent on
+Review's routes. Missing supported coordination or readers blocks assessment.
+Neither placement grants repair, publication or delivery ownership.
 
 A concrete assessment error or new evidence can justify a bounded correction
 at unchanged code through the provider's public contract. Preserve the earlier

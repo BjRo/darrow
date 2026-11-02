@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 from eval_routes import row, verify
+from native_claude_fixture import retain_claude
 from native_fixture import retain_native
 
 
@@ -82,7 +83,11 @@ def evidence(root: Path, host: str, axes: list[str]) -> list[dict[str, Any]]:
 
 
 def retain(root: Path, events: list[dict[str, Any]]) -> None:
-    retain_native(Path(os.environ["SEVRO_CANDIDATE_TRANSCRIPTS"]), events)
+    view = Path(os.environ["SEVRO_CANDIDATE_TRANSCRIPTS"])
+    if any(str(event.get("type", "")).startswith("darrow.codex") for event in events):
+        retain_native(view, events)
+    else:
+        retain_claude(view, events)
     # Whitespace and key order differ from the compact harness serialization.
     (root / "retained-harness.jsonl").write_text(
         "\n".join(

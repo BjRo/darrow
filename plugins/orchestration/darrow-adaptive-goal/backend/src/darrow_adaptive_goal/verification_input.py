@@ -1,4 +1,4 @@
-"""Prepare one native Codex Verification call; never launch or assess work."""
+"""Prepare one fallback native Codex Verification call; never launch or assess work."""
 
 from __future__ import annotations
 

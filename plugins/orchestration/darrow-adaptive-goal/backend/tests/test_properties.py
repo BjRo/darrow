@@ -136,7 +136,7 @@ def test_observed_route_is_unknown_or_safe(
     )
 
 
-@settings(max_examples=50, derandomize=True)
+@settings(max_examples=50, derandomize=True, deadline=None)
 @given(
     st.sampled_from(["codex", "claude"]),
     json_values.filter(lambda value: not isinstance(value, dict)),

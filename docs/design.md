@@ -167,9 +167,15 @@ request + repository -> read-only preflight/readiness -> native goal in the main
                                                         -> selected capabilities
 ```
 
-Implementation may be direct or delegated. Selected verification remains a
-separate assignment, and capabilities retain their own protocols, delegation,
-and reviewer routes. The helper adds no fixed phase pipeline, lifecycle ledger,
+Implementation may be direct or delegated. A supported active owner executes
+selected Verification and Review public coordination workflows inline. A weaker
+or unknown owner route delegates one bounded assessment to a capable coordinator,
+which executes those workflows without another mandatory coordinator hop.
+Capabilities retain their protocols, helpers, provider prerequisites and reader
+routes. Applicable assessment readers always run in fresh independent contexts.
+This placement applies to standalone use and initial and closed follow-up
+assessments, including entry through Ticket-to-PR and Artificer. Capability
+results return control and complete evidence to the same delivery owner. The helper adds no fixed phase pipeline, lifecycle ledger,
 daemon, queue, or publication authority.
 
 Before changing Adaptive Goal, read `docs/specs/adaptive-goal.md`.

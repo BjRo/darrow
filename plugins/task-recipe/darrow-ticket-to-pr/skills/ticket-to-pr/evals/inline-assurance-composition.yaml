@@ -1,0 +1,135 @@
+id: ticket-to-pr-inline-assurance-composition
+candidate_routes:
+  codex:
+    model: gpt-6.1-sol
+    effort: medium
+invariant: TPR-C3,TPR-C4,TPR-C6,TPR-C7,TPR-C9,LC-C1,LC-C3,LC-C4,GW-P9
+expect_head_change: true
+adaptive_goal_composition: true
+activation: positive
+mount_plugin_skills: true
+additional_plugins:
+  - plugins/orchestration/darrow-adaptive-goal
+  - plugins/capability/darrow-readiness-gate
+  - plugins/capability/darrow-git
+  - plugins/capability/darrow-verification
+  - plugins/capability/darrow-review
+prompt: The harness pins this exact original owner to Codex gpt-6.1-sol/medium.
+  {{skill_invocation}} https://example.invalid/tickets/42 Reuse fix/GH-42-timeout and its
+  existing PR; publish the additional intended commits. Verify the change by running `bash
+  check.sh`. Require acceptance verification through the advertised verify-change
+  capability with the real darrow-review:code-review provider before commit and
+  publication. Preserve their complete public workflows and current-candidate evidence.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          Run `bash check.sh` for this local configuration change.
+          Preserve NOTES.md, which contains committed delivery notes.
+        config.json: '{"timeoutMs":1000}'
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          test "$(cat config.json)" = '{"timeoutMs":2500}'
+  files:
+    .agents/skills/fetch-work-item/SKILL.md: >
+      ---
+
+      name: fetch-work-item
+
+      description: Read one exact authoritative ticket for the current repository without
+      mutation. Use when ticket content is needed for assessment or implementation.
+
+      ---
+
+
+      # Fetch the work item
+
+
+      Run `fetch-work-item <exact-reference>` and return the complete output.
+    .claude/skills/fetch-work-item/SKILL.md: >
+      ---
+
+      name: fetch-work-item
+
+      description: Read one exact authoritative ticket for the current repository without
+      mutation. Use when ticket content is needed for assessment or implementation.
+
+      ---
+
+
+      # Fetch the work item
+
+
+      Run `fetch-work-item <exact-reference>` and return the complete output.
+  bin:
+    fetch-work-item: >
+      #!/usr/bin/env bash
+
+      set -eu
+
+      test "$#" = 1
+
+      test "$1" = https://example.invalid/tickets/42
+
+      printf '%s\n' 'ticket-id: GH-42' \
+        'Outcome: config.json must contain {"timeoutMs":2500}. Trailing newlines are insignificant.' \
+        'Acceptance: bash check.sh passes; preserve the committed NOTES.md.' \
+        'Delivery branch: reuse fix/GH-42-timeout in the current checkout.' \
+        'Existing open PR: https://github.com/fixture/repo/pull/42, into main, ready for review.' \
+        'Publication provider: use the advertised ship-proposal capability for this delivery.'
+  setup: |
+    bash "{{case_dir}}/fixtures/setup-composition.sh" "{{case_dir}}/fixtures" replacement
+    bash "{{case_dir}}/../../../../../capability/darrow-review/skills/code-review/evals/fixtures/prepare-grading.sh" "{{case_dir}}/../../../../../capability/darrow-review/skills/code-review/evals"
+checks:
+  - name: ticket implementation meets acceptance
+    run: bash check.sh
+  - name: additional commits and intended implementation reach the existing PR branch
+    run:
+      test "$(git rev-parse HEAD)" = "$(git --git-dir=.fixture-state/remote.git rev-parse
+      refs/heads/fix/GH-42-timeout)" && git merge-base --is-ancestor "$(cat
+      .git/original-local-head)" HEAD && test "$(git --git-dir=.fixture-state/remote.git
+      show fix/GH-42-timeout:config.json)" = '{"timeoutMs":2500}' && test "$(git
+      --git-dir=.fixture-state/remote.git show fix/GH-42-timeout:NOTES.md)" = "$(cat
+      NOTES.md)"
+  - name: forge observation proves the intended final commit
+    run: grep -Fx "$(git rev-parse HEAD)" .fixture-state/forge-observations
+  - name: required CI was observed on the final published commit
+    run: |
+      expected=$(git rev-parse HEAD)
+      grep -Fx "$(printf '%s\t%s' "$expected" success)" .fixture-state/ci-observations
+  - name: no duplicate PR or unauthorized forge effect
+    run: test ! -e .fixture-state/forbidden-forge-effects
+  - name: compatible replacement publishes the same intended commit
+    run: grep -Fx "$(git rev-parse HEAD)" .fixture-state/replacement-publications
+  - name: the real assessment retains completed independent readers on the owner inline path
+    run: >
+      export DARROW_REVIEW_STATE_DIR="$SEVRO_CANDIDATE_ARTIFACT_REVIEWS"
+
+      python3 .git/eval-checks/review/tests/evals/eval_routes.py --host codex --profile
+      default --placement inline --record-kind result --axes standards spec
+output_checks:
+  - name: owner reports the intended commit evidence
+    reported_head: true
+semantic_output_checks:
+  - name: owner completion and existing URL are relayed
+    proposition:
+      The response unambiguously reports that delivery is complete and includes the
+      exact pull request URL https://github.com/fixture/repo/pull/42. It does not present
+      the result as blocked, incomplete, or still requiring delivery action. A completed
+      publication with the verified intended commit, passing checks, and the PR ready for
+      review communicates completed delivery; a separate fixed completion phrase is not
+      required. Evaluate the whole response. A plan to publish, remaining implementation,
+      or unresolved verification does not satisfy completion.
+transcript_checks:
+  - name: bound publisher is invoked
+    expect_regex: (?:"type":"darrow.skill_read_probe"[^\n]*"skill":"ship-proposal"[^\n]*"status":"completed"|"name":"Skill"[^\n]*"skill":"[^"]*ship-proposal")
+native_goal: complete
+assessment_capture: required
+harnesses:
+  - codex
+required_plugin_hook: darrow-review
+activation_includes:
+  - verify-change
+  - code-review

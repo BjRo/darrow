@@ -1,4 +1,9 @@
 #!/usr/bin/env bun
+import {
+  assessmentReadersSelection,
+  codexAssessmentReaders,
+  claudeAssessmentReaders,
+} from "./assessment-readers";
 import { createHash } from "node:crypto";
 import { lstat, readFile, readdir, realpath, stat } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
@@ -841,6 +846,7 @@ const CASE_FIELDS = [
   "semantic_output_checks",
   "semantic_artifact",
   "native_goal",
+  "assessment_capture",
   "activation",
   "activation_sequence",
   "activation_includes",
@@ -1192,15 +1198,35 @@ function nestedReaderSelection(check: RecordValue, id: string, name: string) {
   return axes ? { id, name, kind: "nested-readers", axes } : null;
 }
 
+function assessmentTranscriptSelection(
+  check: RecordValue,
+  id: string,
+  name: string,
+) {
+  if (check.assessment_readers === undefined) return null;
+  if (check.expect_regex !== undefined || check.not_regex !== undefined)
+    throw new Error(
+      "assessment_readers cannot be combined with regex assertions",
+    );
+  return {
+    id,
+    name,
+    kind: "assessment-readers",
+    ...assessmentReadersSelection(check.assessment_readers),
+  };
+}
+
 function caseTranscriptCheck(entry: unknown, index: number) {
   const check = record(entry, `transcript check ${index + 1}`);
   keys(
     check,
-    ["name", "not_regex", "expect_regex"],
+    ["name", "not_regex", "expect_regex", "assessment_readers"],
     `transcript check ${index + 1}`,
   );
   const name = string(check.name, `transcript check ${index + 1} name`);
   const id = `darrow.evals.transcript.${index + 1}`;
+  const assessment = assessmentTranscriptSelection(check, id, name);
+  if (assessment) return assessment;
   if (check.expect_regex !== undefined) {
     const nested = nestedReaderSelection(check, id, name);
     if (nested) return nested;
@@ -1211,15 +1237,21 @@ function caseTranscriptCheck(entry: unknown, index: number) {
       `transcript check ${index + 1} has no Sevro evidence mapping`,
     );
   }
+  return negativeTranscriptSelection(check, id, name);
+}
+
+function negativeTranscriptSelection(
+  check: RecordValue,
+  id: string,
+  name: string,
+) {
   const specialKind = SPECIAL_NEGATIVE_TRANSCRIPT_KINDS.get(
     check.not_regex as string,
   );
   if (specialKind) return { id, name, ...specialKind };
   const noAgent = NO_AGENT_TRANSCRIPT_PATTERNS.has(check.not_regex as string);
   if (!noAgent && !NO_LEDGER_TRANSCRIPT_PATTERNS.has(check.not_regex as string))
-    throw new Error(
-      `transcript check ${index + 1} has no Sevro evidence mapping`,
-    );
+    throw new Error(`${id} has no Sevro evidence mapping`);
   return {
     id,
     name,
@@ -1315,9 +1347,11 @@ function caseOwnership(selected: RecordValue, skillDir: string | null) {
 const TRANSCRIPT_EVIDENCE = new Map([
   ["guide-no-owner-or-goal-control", ["sevro.host.native-controls"]],
   ["review-no-agent-spawn", ["sevro.host.native-controls"]],
+  ["doctor-no-agent-spawn", ["sevro.host.native-controls"]],
   ["no-agent-spawn", ["sevro.codex.native-calls"]],
   ["one-owner-accepted", ["sevro.codex.native-calls"]],
   ["owner-route", ["sevro.codex.native-calls"]],
+  ["assessment-readers", []],
   ["nested-readers", ["sevro.codex.native-calls"]],
   ["fresh-provider-context", ["sevro.codex.native-calls"]],
   ["accepted-child-session", ["sevro.codex.native-calls"]],
@@ -1408,7 +1442,11 @@ function claudeReadinessCasePolicy(transcript: unknown) {
         configuration: {},
       })),
     ],
-    requiredEvidence: ["sevro.claude.tool-calls", "sevro.claude.events"],
+    requiredEvidence: [
+      "sevro.claude.tool-calls",
+      "sevro.claude.events",
+      "sevro.native-transcripts.bundle",
+    ],
     details: { ownership: "claude", transcriptChecks: checks },
   };
 }
@@ -1454,7 +1492,24 @@ function claudeSelectedOwnerCasePolicy(transcript: unknown) {
 }
 
 function scopedTranscriptChecks(value: unknown, skillDir: string | null) {
-  const checks = caseTranscriptChecks(value);
+  return scopedTranscriptSelection(caseTranscriptChecks(value), skillDir);
+}
+
+function scopedTranscriptSelection(
+  checks: ReturnType<typeof caseTranscriptChecks>,
+  skillDir: string | null,
+) {
+  if (
+    skillDir ===
+    "plugins/orchestration/darrow-adaptive-goal/skills/doctor-adaptive-goal"
+  )
+    return (
+      checks?.map((check) =>
+        check.kind === "no-agent-spawn"
+          ? { ...check, kind: "doctor-no-agent-spawn" }
+          : check,
+      ) ?? null
+    );
   if (skillDir === "plugins/capability/darrow-review/skills/code-review")
     return (
       checks?.map((check) =>
@@ -1477,7 +1532,7 @@ function casePolicy(selected: RecordValue, skillDir: string | null) {
   const policy =
     selected.native_goal === undefined
       ? legacyCasePolicy(selected, skillDir)
-      : nativeGoalCasePolicy(selected);
+      : nativeGoalCasePolicy(selected, skillDir);
   if (
     skillDir === "plugins/task-recipe/darrow-ticket-to-pr/skills/ticket-to-pr"
   )
@@ -1574,11 +1629,13 @@ function currentTranscriptSelection(value: unknown) {
   return { current, legacy };
 }
 
-function nativeGoalCasePolicy(selected: RecordValue) {
+function nativeGoalCasePolicy(selected: RecordValue, skillDir: string | null) {
   const policy = nativeGoalPolicy(selected.native_goal);
-  const transcriptChecks = currentTranscriptSelection(
-    selected.transcript_checks,
-  );
+  const selection = currentTranscriptSelection(selected.transcript_checks);
+  const transcriptChecks = {
+    ...selection,
+    legacy: scopedTranscriptSelection(selection.legacy, skillDir) ?? [],
+  };
   return {
     checks: [
       ...policy.checks,
@@ -1697,6 +1754,13 @@ function caseMetricDetails(selected: RecordValue) {
   return checkMetrics.length ? { checkMetrics } : {};
 }
 
+function assessmentCaptureEvidence(selected: RecordValue): string[] {
+  if (selected.assessment_capture === undefined) return [];
+  if (selected.assessment_capture !== "required")
+    throw new Error("assessment_capture must be required when specified");
+  return ["sevro.host.native-transcripts"];
+}
+
 async function caseAssessment(
   selected: RecordValue,
   root: string,
@@ -1726,6 +1790,7 @@ async function caseAssessment(
           ...hooks.requiredEvidence,
           ...reviewOutput.requiredEvidence,
           ...reportedHead.requiredEvidence,
+          ...assessmentCaptureEvidence(selected),
         ]),
       ],
       details: {
@@ -2926,9 +2991,12 @@ function requiredNativeRoute(details: RecordValue) {
     Array.isArray(details.transcriptChecks) &&
     details.transcriptChecks.length > 0 &&
     details.transcriptChecks.every((check) =>
-      ["guide-no-owner-or-goal-control", "review-no-agent-spawn"].includes(
-        String(activationData(check)?.kind),
-      ),
+      [
+        "guide-no-owner-or-goal-control",
+        "review-no-agent-spawn",
+        "doctor-no-agent-spawn",
+        "assessment-readers",
+      ].includes(String(activationData(check)?.kind)),
     );
   if (portable)
     return {
@@ -2960,6 +3028,25 @@ function requireNativeEvidence(details: RecordValue, hostValue: unknown) {
           ? "native checks require Claude tool-call evidence"
           : "native checks require Codex native-call evidence",
     );
+}
+
+function mountExclusionEnvironment(
+  setup: { command: string[] },
+  artifacts: { gitExclude?: boolean; relativePath: string }[],
+) {
+  if (
+    !setup.command.some((argument) =>
+      argument.includes("DARROW_EVAL_MOUNT_EXCLUDES"),
+    )
+  )
+    return {};
+  return {
+    DARROW_EVAL_MOUNT_EXCLUDES: JSON.stringify(
+      artifacts
+        .filter((artifact) => artifact.gitExclude)
+        .map((artifact) => artifact.relativePath),
+    ),
+  };
 }
 
 async function prepareCase(params: RecordValue) {
@@ -2995,11 +3082,7 @@ async function prepareCase(params: RecordValue) {
             ...setup,
             environment: {
               ...setup.environment,
-              DARROW_EVAL_MOUNT_EXCLUDES: JSON.stringify(
-                mounts.artifacts
-                  .filter((artifact) => artifact.gitExclude)
-                  .map((artifact) => artifact.relativePath),
-              ),
+              ...mountExclusionEnvironment(setup, mounts.artifacts),
             },
           },
         }
@@ -3317,9 +3400,9 @@ function supportedActivationSource(
   data: RecordValue,
   explicit: boolean,
 ): boolean {
-  if (explicit) return supportedExplicitActivation(observation, data);
   if (observation.id === SKILL_ACTIVATIONS)
     return commonSkillSource(observation.source, data.method);
+  if (explicit) return supportedExplicitActivation(observation, data);
   if (observation.id === SKILL_ACTIVATION_CLAIMS)
     return (
       observation.source === "sevro.host.codex" &&
@@ -3509,14 +3592,50 @@ function activationEvidenceRefs(observation: RecordValue | null) {
   return refs;
 }
 
+function commonActivationRequested(
+  details: RecordValue,
+  common: ReturnType<typeof commonCaseActivation>,
+): boolean {
+  const invocation = activationData(details.invocation);
+  const claudePlugin =
+    typeof invocation?.pluginName === "string" &&
+    common.observation?.source === "sevro.host.claude";
+  return common.present && (details.invocation === undefined || claudePlugin);
+}
+function acceptedClaudeInvocation(
+  observation: RecordValue | null,
+  invocation: RecordValue,
+): boolean {
+  const calls = activationData(observation?.data)?.calls;
+  const first = Array.isArray(calls) ? activationData(calls[0]) : null;
+  return (
+    first?.parentToolUseId === null &&
+    first.status === "succeeded" &&
+    first.invocation === invocation.pluginName + ":" + invocation.skillName &&
+    nonemptyString(first.sessionId) &&
+    nonemptyString(first.toolUseId)
+  );
+}
+function commonActivationResult(
+  details: RecordValue,
+  common: ReturnType<typeof commonCaseActivation>,
+) {
+  const invocation = activationData(details.invocation);
+  if (invocation && !acceptedClaudeInvocation(common.observation, invocation))
+    return common.observation
+      ? { ...common.observation, completeness: "partial" }
+      : null;
+  return implicitCaseActivation(common, details);
+}
+
 function caseActivationObservation(
   observations: unknown,
   details: RecordValue,
 ) {
   const explicit = details.invocation !== undefined;
   const common = commonCaseActivation(observations, details);
-  if (!explicit && common.present)
-    return implicitCaseActivation(common, details);
+  if (commonActivationRequested(details, common))
+    return commonActivationResult(details, common);
   const selected = explicitDispatchObservation(
     activationObservation(observations, explicit),
   );
@@ -4969,6 +5088,38 @@ function feedbackTranscriptOutcome(
   return null;
 }
 
+function assessmentReadersOutcome(
+  selected: RecordValue,
+  context: {
+    native: ReturnType<typeof nativeControlEvidence>;
+    children: ReturnType<typeof boundChildSessions>;
+    nested: RecordValue[] | null;
+  },
+) {
+  const { native, children, nested } = context;
+  const expected = assessmentReadersSelection({
+    placement: selected.placement,
+    axes: selected.axes,
+    model: selected.model,
+    effort: selected.effort,
+    claude: selected.claude,
+  });
+  const status = codexAssessmentReaders(expected, {
+    spawns: native?.acceptedSpawns ?? null,
+    children: children?.children ?? null,
+    nested,
+    complete:
+      !!native &&
+      native.spawnCount === native.acceptedSpawnCount &&
+      children?.truncated === false,
+  });
+  return {
+    status,
+    detail: "v2 assessment placement, routes and completed fresh readers",
+    evidenceRefs: status === "unavailable" ? [] : ["sevro.codex.native-calls"],
+  };
+}
+
 function policyTranscriptOutcome(
   selected: RecordValue,
   context: {
@@ -4979,6 +5130,8 @@ function policyTranscriptOutcome(
     events: string | null;
   },
 ) {
+  if (selected.kind === "assessment-readers")
+    return assessmentReadersOutcome(selected, context);
   if (selected.kind === "nested-readers")
     return nestedReadersOutcome(selected, context.native, context.nested);
   if (selected.kind === "fresh-provider-context")
@@ -5081,12 +5234,15 @@ function readerObservationContext(
   native: ReturnType<typeof nativeControlEvidence>,
 ) {
   const children =
-    kinds.has("nested-readers") || kinds.has("accepted-child-session")
+    kinds.has("nested-readers") ||
+    kinds.has("assessment-readers") ||
+    kinds.has("accepted-child-session")
       ? boundChildSessions(observations, native)
       : null;
-  const nested = kinds.has("nested-readers")
-    ? completeNestedRequests(children)
-    : null;
+  const nested =
+    kinds.has("nested-readers") || kinds.has("assessment-readers")
+      ? completeNestedRequests(children)
+      : null;
   return { children, nested };
 }
 
@@ -5146,6 +5302,50 @@ function claudeTranscriptChecks(
     : claudeReadinessTranscriptChecks(selected, observations, artifacts);
 }
 
+async function claudeAssessmentOutcomes(
+  selected: RecordValue[],
+  observations: unknown,
+  artifacts: unknown,
+) {
+  if (!selected.every((entry) => entry.kind === "assessment-readers"))
+    return null;
+  if (
+    uniqueObservation(observations, "sevro.claude.tool-calls")?.source !==
+    "sevro.host.claude"
+  )
+    return null;
+  const tools = claudeCalls(observations);
+  const text = await codexEventText(artifacts, "sevro.claude.events");
+  const bundle = await codexEventText(
+    artifacts,
+    "sevro.native-transcripts.bundle",
+  );
+  return selected.map((entry) => {
+    const expected = assessmentReadersSelection({
+      placement: entry.placement,
+      axes: entry.axes,
+      model: entry.model,
+      effort: entry.effort,
+      claude: entry.claude,
+    });
+    const status = claudeAssessmentReaders(expected, tools, text, bundle);
+    return {
+      id: string(entry.id, "native transcript check ID"),
+      status,
+      detail:
+        "v4 native Claude placement, completed readers and independently observed effective routes",
+      evidenceRefs:
+        status === "unavailable"
+          ? []
+          : [
+              "sevro.claude.tool-calls",
+              "sevro.claude.events",
+              "sevro.native-transcripts.bundle",
+            ],
+    };
+  });
+}
+
 async function nativeTranscriptChecks(
   value: unknown,
   observations: unknown,
@@ -5158,6 +5358,12 @@ async function nativeTranscriptChecks(
   const selected = value.map((entry) =>
     record(entry, "native transcript check"),
   );
+  const assessment = await claudeAssessmentOutcomes(
+    selected,
+    observations,
+    artifacts,
+  );
+  if (assessment) return assessment;
   const claude = claudeTranscriptChecks(selected, observations, artifacts);
   if (claude) return claude;
   const kinds = new Set(selected.map((entry) => String(entry.kind)));
@@ -5177,9 +5383,11 @@ async function nativeTranscriptChecks(
   };
   return selected.map((entry) => ({
     id: string(entry.id, "native transcript check ID"),
-    ...(["guide-no-owner-or-goal-control", "review-no-agent-spawn"].includes(
-      String(entry.kind),
-    )
+    ...([
+      "guide-no-owner-or-goal-control",
+      "review-no-agent-spawn",
+      "doctor-no-agent-spawn",
+    ].includes(String(entry.kind))
       ? portableNativeControlOutcome(
           observations,
           entry.kind === "guide-no-owner-or-goal-control",

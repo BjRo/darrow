@@ -56,3 +56,13 @@ Do not spawn an overall owner or perform recipe-owned preflight or delivery.
 Relay its question, blocker or completion with the PR URL and commit/CI evidence.
 Later feedback continues that same Adaptive Goal preflight or goal; do not
 reinvoke the recipe or add another inspection, retry or controller.
+
+## Assessment coordination and continuation
+
+The original native goal owner follows the selected capabilities' public
+placement rules: supported coordination inline, or one capable bounded
+assessment for a weaker or unknown route. Required independent readers stay
+fresh. This changes no recipe permissions, admission/claim ownership, model
+selection or commit/PR/required-CI gate. Process exit and feedback resume the
+same native thread and goal; never create another delivery owner or phase
+controller. Closed follow-ups preserve complete finding and candidate history.

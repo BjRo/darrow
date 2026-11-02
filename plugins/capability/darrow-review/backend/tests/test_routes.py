@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-import os
+import re
 from pathlib import Path
 
 import pytest
@@ -189,11 +189,7 @@ def test_claude_native_agent(
 
 def transcript(repo: Path, tmp_path: Path, agent: str = "abc1") -> tuple[Path, Path]:
     projects = tmp_path / "projects"
-    slug = str(repo).replace("/", "-")
-    if os.name == "nt":
-        import re
-
-        slug = re.sub(r"[^A-Za-z0-9]", "-", str(repo))
+    slug = re.sub(r"[^A-Za-z0-9]", "-", str(repo))
     path = projects / slug / "session/subagents" / f"agent-{agent}.jsonl"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(

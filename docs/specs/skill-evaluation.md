@@ -28,7 +28,10 @@ Diagnostics do not authorize retries, synthesized user input, model fallback or
 accepting an earlier checkpoint as completion. Unrecoverable host failures stay
 failed, with incomplete evidence labeled unknown.
 
-Current main-thread cases declare `native_goal: required|forbidden|optional`;
+Current main-thread cases declare `native_goal: required|complete|forbidden|optional`;
+`complete` requires the observed original goal's final state to be complete.
+Composed delivery completion cases use it: activation alone cannot establish
+completion while a native goal remains active or blocked.
 `optional` accepts either a valid observed goal or a valid observed absence
 when the contract allows both. Grade actual native activation separately from
 child acceptance and task outcomes. A valid Codex app-server readback binds the
@@ -43,6 +46,15 @@ activation enter through the user-visible native `/goal` command;
 the runner never inserts it on the participant's behalf. Absent observation is
 a gap, not evidence of activation or nonactivation. Keep capability consumption
 and candidate correctness as separate checks.
+
+Composed assurance cases whose shell oracles inspect retained native transcripts
+declare `assessment_capture: required`. Require the complete public
+`sevro.host.native-transcripts` observation before grading their native proof.
+Missing or partial capture makes grading unavailable and cannot establish a
+passing assessment. The independent shell oracle still
+validates actual reader identity, route, completion and candidate binding.
+Doctor's cross-host no-child assertion uses the complete common native-control
+receipt. Codex-only legacy controls cannot stand in for a Claude observation.
 
 ## Why
 
@@ -1538,9 +1550,24 @@ checks and harness constant.
   interrupted result evidence remains unavailable. Retain bounded route/axis
   and completion facts without prompt or result bodies; assessment claims must
   also be supported by the case's candidate-bound provider result and checks.
-  Darrow's nested-reader check MUST preserve an unavailable reader-result
+  Darrow's reader checks MUST preserve an unavailable reader-result
   observation as unavailable, rather than infer failure to return. Complete
   evidence of missing required readers or inherited context still fails.
+
+  The v2 `assessment_readers` assertion declares inline or fallback placement,
+  applicable axes and exact reader model/effort. Inline proof binds accepted
+  direct readers to completed child sessions; fallback proof binds one capable
+  coordinator to its completed nested readers. Both require fresh context,
+  complete native observations and candidate-bound validated provider results.
+  An extra mandatory coordinator cannot satisfy inline placement. Historical
+  nested-provider assertions and retained grades keep their original contracts.
+  Positive accepted-reader proof uses the complete selected host's native-call
+  and bound child-session facts. Partial inspection of unrelated submitted code
+  does not invalidate those positive facts or establish absence of other work.
+  Global control-absence assertions still require complete control inspection;
+  positive reader proof MUST NOT be presented as that broader absence claim.
+  Native Claude evidence must establish its own launch/route/completion facts;
+  Codex observations cannot substitute.
 
 - **SE-C25 — Select cases by owning skill.** See exact skill ownership, case filters, mounting independence and
   empty-selection refusal in [Direct case selection](#direct-case-selection).
@@ -1815,3 +1842,15 @@ request translation and domain-policy checks.
 - Replacing the custom runner with another evaluation framework.
 - Making the runner, its TypeScript code, or Bun a plugin runtime dependency.
 - Turning ablation into a mandatory phase of user work or Darrow orchestration.
+
+A placement check for an earlier assessment MUST stay bound to that operation.
+Later closed follow-up readers in the same native owner are not extra readers
+in its initial launch batch. Preserve checks against unbound earlier launches
+and the selected operation's batch, routes and completions. Claude plugin
+invocations use the complete native Skill-tool receipt for activation; a file
+read alone does not establish a Skill-tool event or its ordering.
+Supporting provider execution may use its complete public instructions inline.
+Do not require a separate Skill-tool event for that valid placement. Prove the
+provider operation through its validated candidate-bound public result and
+completed native readers; keep primary activation and any observed supporting
+activation as separate evidence. No missing observation proves execution.

@@ -5,18 +5,12 @@ description: Coordinate acceptance verification of an implementation candidate. 
 
 # Verify a change
 
-**Delegate the capability, not an axis review.** After binding its public
-contract, launch the selected provider's **complete skill workflow** in a fresh
-context. That provider must launch its own independent readers. Both initial
-and targeted follow-up assessments retain this call chain:
-
-```text
-Verification coordinator → fresh provider coordinator → independent reader(s)
-```
-
-A single child that inspects the candidate and writes a report cannot fill both
-provider and reader roles. Do not ask the provider coordinator to act as a Spec
-or Standards reader. Reading its instructions does not transfer its role here.
+Execute the selected capabilities' complete public coordination workflows.
+A supported observed owner coordinates inline; a below-floor or unknown route
+delegates one bounded assessment to a capable coordinator. Applicable judgments
+always come from fresh independent readers. This applies to initial and closed
+follow-up assessments. Read [coordination placement](references/coordination.md)
+before checks or assessment; it owns placement and fallback, not reader routes.
 
 Return one candidate-bound assessment through compatible independent review.
 The active owner selects assurance, implements, repairs, controls budgets and
@@ -103,26 +97,26 @@ This backend renders verification; provider review commands belong to the provid
 
 ## 3. Obtain one complete assessment
 
-Invoke the actual bound capability in **one fresh provider context**, with a
-response boundary that returns its complete normal result here. Pass its public skill
-and intent, bound sources/candidate, objective/criteria, constraints, checks and
-closed follow-up handoff. Exclude author conclusions and unrelated discussion.
-The provider owns its independent readers, their routes, checks and judgments;
-ask it to execute that complete workflow, including its own reader delegation.
-Do not reproduce those internals or request private serialization.
+Execute the actual bound capability's **complete public workflow inline**
+when its public prerequisites permit. Bind a bounded response boundary: retain
+its complete normal result here, then resume step 4. For a replacement requiring
+a separate provider context, honor that prerequisite on its supported route;
+do not manufacture compatibility or copy its private protocol.
 
-- **Codex:** use the advertised native `spawn_agent` with `fork_turns: "none"`,
-  `model: "gpt-6.1-sol"`, `reasoning_effort: "medium"`, unless the caller bound
-  another compatible explicit coordinator route. This does not override the
-  provider's reader routes. Code Mode's nested tool list can omit top-level
-  agent tools; an empty search there does not establish native unavailability.
-- **Claude:** use this plugin's scoped Agent
-  `darrow-verification:review-coordinator-sonnet-5-5-medium`,
-  `run_in_background: false`, without a per-call model override. It pins
-  `claude-sonnet-5-5/medium`. Inspect only `CLAUDE_CODE_SUBAGENT_MODEL` and
-  `CLAUDE_CODE_EFFORT_LEVEL`; conflicting nonempty overrides block. Another
-  caller route needs an available explicitly pinned scoped Agent and the same
-  checks. Do not inherit silently or use another plugin's private Agent file.
+Pass the public skill and intent, sources/candidate, objective/criteria,
+constraints, checks and closed follow-up history. The provider owns its helpers,
+independent readers, routes and judgments. Follow its public instructions to
+invoke those helpers and readers; never substitute coordinator-authored judgment.
+Reader inputs exclude author conclusions and unrelated conversation.
+
+A weaker or unknown owner uses this capability's one capable fallback from the
+[placement reference](references/coordination.md). The fallback executes this
+workflow and the compatible provider workflow inline; no mandatory intermediate
+provider coordinator is added. It returns this complete reconciled assessment
+to the original owner. Required independent readers still launch separately.
+That fallback result already includes reconciliation and rendering. Return it
+as this operation's complete result under the placement reference; only an
+inline provider result proceeds to step 4.
 
 If the required native boundary is unavailable, return its concrete invocation
 gap. Never substitute a generic review prompt or act as another engineering
@@ -221,13 +215,15 @@ Correct a demonstrated wrong-path invocation before diagnosing installation;
 preserve its diagnostic. A correctly invoked refusal is a blocked handoff with
 the precise gap, not permission to substitute another report or repair its files.
 
-On success, return **the complete stdout unchanged as the entire final assistant
-message**, including its assessment and final line:
+On success, the complete stdout unchanged is this operation's result, including
+its assessment and final line:
 
 ```text
 Complete provider result: [report](<absolute-path>)
 ```
 
-Tool output is not the final response. Do not summarize, rewrite, acknowledge,
-append to it, or return only its link. Finish all checks before rendering so no
-later tool or commentary displaces the complete assessment and canonical link.
+For standalone use, return that complete stdout as the entire final response.
+In an enclosing delivery, retain that complete result and report reference,
+return control to the same owner, and resume only its authorized continuation.
+The operation does not end or replace that delivery. Do not reduce the retained
+result to a link or summary. Finish the assessment's checks before rendering.

@@ -82,3 +82,13 @@ report human recovery required; a fresh summary-driven agent is not restoration.
 Earlier separate-parent/owner records cannot be resumed by this version.
 Preserve them and reconcile through their original installation. Do not relabel
 the old child as a main thread, alter its route or remove its claim.
+
+## Assessment coordination and continuation
+
+The original native goal owner follows the selected capabilities' public
+placement rules: supported coordination inline, or one capable bounded
+assessment for a weaker or unknown route. Required independent readers stay
+fresh. This changes no recipe permissions, admission/claim ownership, model
+selection or commit/PR/required-CI gate. Process exit and feedback resume the
+same native thread and goal; never create another delivery owner or phase
+controller. Closed follow-ups preserve complete finding and candidate history.

@@ -4,6 +4,13 @@ Explicitly authorize nominated GitHub issues for local ticket-to-PR delivery.
 Artificer owns admission and local execution/storage mechanics. The independently
 installed ticket recipe and adaptive goal retain engineering ownership.
 
+Assessment coordination follows the installed capabilities' public placement
+rules. A supported goal owner coordinates inline; a weaker or unknown route
+uses one capable bounded coordinator. Fresh independent readers, original
+thread/goal identity, feedback continuation and final commit/PR/CI gates remain
+required. Update affected plugins together before starting a new delivery;
+retain an in-flight delivery's installation and original native owner.
+
 ## When to use
 
 Use for explicitly authorized local delivery of nominated GitHub issues. Do not
@@ -91,3 +98,28 @@ Existing grants are not silently expanded to authorize credit usage.
 ## License
 
 See [LICENSE](LICENSE).
+
+## Tests: native assurance composition
+
+The opt-in `backend/tests/live_assurance.py` probe admits one disposable local
+issue through the real Artificer adapter, Ticket-to-PR, Adaptive Goal,
+Verification and Review. It observes original-owner continuation after process
+exit and an operator reply at WIP zero, preserving native goal creation identity.
+It validates the complete canonical provider result, native reader judgments,
+reviewed-to-published content, committed remote head, fixture PR and required CI.
+A separate read-only native semantic judge checks criterion reconciliation and
+the complete Verification handoff. Forge effects
+stay in local fixtures. This is engineering composition evidence; the older
+`live_delivery.py` fixture remains transport-only.
+
+Use the exact CLI version pinned by `backend/src/darrow_artificer/native.py`
+and a normal ChatGPT login. Run from the repository root:
+
+```sh
+uv run --quiet --project plugins/automation/darrow-artificer/backend --group dev python plugins/automation/darrow-artificer/backend/tests/live_assurance.py --codex /absolute/path/to/pinned/codex --out /absolute/path/to/evidence.json
+```
+
+This invokes models and retains private evidence at the printed temporary
+directory. Missing routes, native state or completed reader evidence fails the
+probe. Its duration limit and cleanup apply only to this test, never production
+delivery. A passing probe does not establish the held-out quality adoption gate.
