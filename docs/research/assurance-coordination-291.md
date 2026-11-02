@@ -1,6 +1,7 @@
 # Assurance coordination replacement (#291)
 
 Evidence checkpoint: November 2, 2026, before the reported Claude session reset.
+Checkpoint candidate: `f556fc573db26bdad3bb7f1fdc51255f06851161`.
 Later gate results belong with the published pull request and its exact head.
 
 The replacement is implemented. Native Codex delivery paths and Claude's

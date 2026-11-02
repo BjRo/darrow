@@ -109,6 +109,32 @@ def test_structured_evidence_ignores_json_formatting(
     verify(tmp_path, host, "default", axes)
 
 
+@pytest.mark.parametrize("axes", [["standards"], ["standards", "spec"]])
+def test_claude_fixture_preserves_hashes_with_windows_text_newlines(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, axes: list[str]
+) -> None:
+    write_text = Path.write_text
+
+    def windows_text(
+        path: Path,
+        data: str,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
+    ) -> int:
+        return write_text(
+            path,
+            data,
+            encoding=encoding,
+            errors=errors,
+            newline="\r\n" if newline is None else newline,
+        )
+
+    monkeypatch.setattr(Path, "write_text", windows_text)
+    retain(tmp_path, evidence(tmp_path, "claude", axes))
+    verify(tmp_path, "claude", "default", axes)
+
+
 @pytest.mark.parametrize("host", ["codex", "claude"])
 @pytest.mark.parametrize("mutation", ["missing", "duplicate", "axis", "identity"])
 def test_single_axis_rejects_uncorrelated_launches(

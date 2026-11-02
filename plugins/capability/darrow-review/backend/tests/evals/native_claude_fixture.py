@@ -83,10 +83,9 @@ def retain_claude(view: Path, events: list[dict[str, Any]]) -> None:
     for name, text in files.items():
         path = view / "claude" / name
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text)
-        entries.append(
-            {"path": name, "sha256": hashlib.sha256(text.encode()).hexdigest()}
-        )
+        data = text.encode("utf-8")
+        path.write_bytes(data)
+        entries.append({"path": name, "sha256": hashlib.sha256(data).hexdigest()})
     (view / "index.json").write_text(
         json.dumps(
             {
