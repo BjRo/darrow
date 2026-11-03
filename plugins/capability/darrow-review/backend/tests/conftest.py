@@ -16,6 +16,8 @@ def clean_environment(monkeypatch: pytest.MonkeyPatch) -> None:
         "ANTHROPIC_BASE_URL",
         "CLAUDE_CODE_SUBAGENT_MODEL",
         "CLAUDE_CODE_EFFORT_LEVEL",
+        "CODEX_THREAD_ID",
+        "CLAUDECODE",
     ):
         monkeypatch.delenv(key, raising=False)
     for key in tuple(os.environ):

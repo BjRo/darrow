@@ -67,7 +67,7 @@ semantic_output_checks:
       verification is clear, and does not substitute its own findings as an independent
       review.
 transcript_checks:
-  - name: prohibited delegation has no native launch attempts
-    not_regex: '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"name":"Agent"'
+  - name: prohibited delegation runs no native child session
+    child_sessions: none
 harnesses:
   - codex

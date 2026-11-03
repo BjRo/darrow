@@ -8,11 +8,9 @@ description: Orchestrate one bounded engineering request as a native main-thread
 Keep the persistent native goal in this main thread on Codex and Claude. You own the request, decisions, acceptance and completion. Implement
 directly, or delegate bounded assignments on the selected route when it is
 stronger than this thread's route, this thread's route is unknown, or a cost or
-concurrency benefit repays the handoff (section 7). Invoke verification
-and other selected capabilities through their complete public workflows. A
-supported observed owner coordinates inline; a weaker or unknown route uses one
-bounded capable coordinator. Each capability owns its prerequisites, helpers,
-provider selection and independent-reader routing. There is no separate delivery
+concurrency benefit repays the handoff (section 7). Run verification and other
+selected capabilities through their public workflows; each keeps its own
+internals and routing. There is no separate delivery
 owner, workflow runtime or lifecycle ledger.
 
 Read the active host guide before goal activation or delegation:
@@ -226,18 +224,10 @@ a host built-in such as Claude Code's own `code-review` can share a provider's
 name. If you cannot confirm one, pass the review requirement and let
 verification select the provider.
 
-Placement belongs to the bound Verification public contract. Supply the observed
-main-thread route and its source, or explicitly unknown. Execute that workflow
-inline when supported; otherwise launch one bounded capable coordinator.
-Do not add coordinator hops for role separation. Preserve a replacement's
-explicit prerequisites. Bind only the route of a role you actually launch:
-the fallback Verification coordinator runs
-on `gpt-6.1-sol/medium` (Codex) or the `claude-sonnet-5-5/medium` scoped agent
-(Claude). Verification owns every route it launches, including review
-coordination, and review owns its readers, so pass none of those routes. A
-verification skill's instruction to spawn a provider on its own route applies
-**inside** Verification, not to Verification itself. A stronger Verification
-route requires existing explicit authorization.
+Run the bound Verification skill in this thread. Its own placement helper
+decides whether it coordinates here or hands off to one fallback coordinator.
+Verification and Review own every route they launch, including their readers,
+so pass none.
 
 Read [`references/verification-lifecycle.md`](references/verification-lifecycle.md)
 completely; it owns the repair limit and when repair stops. Only a complete
@@ -386,8 +376,8 @@ competing whole-task implementations or another goal owner.
 
 Direct work follows the same required evidence, bound capabilities, checks,
 authority limits and preserved user-owned changes as an assignment. Selected
-verification and review retain their public workflows and fresh independent
-readers; inline coordination never permits self-assessment.
+verification keeps its fresh independent readers; inline coordination never
+permits self-assessment.
 
 Decide placement once. **A repair goes back to the implementor that produced the
 candidate**: this thread after direct work, otherwise the retained implementor
@@ -415,19 +405,12 @@ blockers. Keep delivery state, attempt counts and delivery decisions here. Wait 
 the result before assigning conflicting work. A rejected route is a concrete
 launch failure, not permission to silently choose another model.
 
-Invoke the bound Verification public workflow with the intent to coordinate
-acceptance verification, using its placement rule and section 4's bindings.
-For eligible inline placement, execute its complete workflow here. For a weaker
-or unknown owner, delegate one bounded assessment to a capable coordinator that
-executes the flattened Verification and Review public workflows. Preserve any
-additional prerequisite of a compatible replacement.
-Supply the verification skill's exact installed instruction
+Run Verification here with the intent to coordinate acceptance verification.
+Its inputs are the verification skill's exact installed
 path, compatible review binding, selected providers, originating acceptance,
-scope/base/current candidate, successful checks, constraints and existing evidence.
-Require its complete combined result and provider evidence, retaining control
-here after an inline return. On Codex, prepare a needed fallback launch with the verification-input procedure in the
-[Codex guide](references/codex-launch.md); on Claude, use the scoped
-`claude-sonnet-5-5/medium` agent. Verification and other selected capabilities
+scope/base/current candidate, successful checks, constraints and existing
+evidence. Require its complete combined result and provider evidence; control
+then returns here. Verification and other selected capabilities
 own their provider selection, internal delegation and mechanics.
 
 Evaluate returned evidence against acceptance and capability prerequisites.
@@ -487,11 +470,12 @@ completion and dependent commit/publication even if review is clear. Goal comple
 The self-contained user-facing result includes completion with no open decision,
 or the blockage; implementation placement, its basis and `route_relation`;
 changed files, checks,
-readiness, combined verification and complete selected results, material criterion
-evidence or gaps, each original finding and the repair that resolved it,
-performed publication effects and remaining risks. Preserve substantive
-provider evidence; missing facts stay gaps rather than implementation-agent
-assertions.
+readiness, each selected assessment's conclusion, findings and complete-report
+link, material criterion evidence or gaps, each original finding and the repair
+that resolved it, performed publication effects and remaining risks. Preserve
+substantive provider evidence; missing facts stay gaps rather than
+implementation-agent assertions. Summarize assessments rather than pasting
+them: they precede later effects, so their next actions are not open work.
 
 Every terminal response, including blocked ones and later native continuations
 of that blocker, states attempts used and the authorized maximum with its

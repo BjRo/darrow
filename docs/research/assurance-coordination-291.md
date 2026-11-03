@@ -231,6 +231,69 @@ and a relevant instruction, fixture or oracle repair.
   another delivery. Later proof additionally checks complete canonical assurance
   and candidate binding rather than inferring them from routes or publication.
 
+## November 3 five-trial Codex cohort
+
+Five-trial Codex cohorts on the published head `53ce656c` found
+`code-review-placement-unknown` at 2/5. Luna sometimes followed the Claude
+instructions on Codex, and once answered before its fallback coordinator
+finished. Repairs, each followed by a fresh cohort on a new frozen snapshot:
+
+- Review's route helper refuses a `--host` that contradicts the running host
+  (`CODEX_THREAD_ID` or `CLAUDECODE=1`).
+- New placement helpers in Review (`review-route place`) and Verification
+  (`darrow-verify-placement`) read the session's own model and effort from the
+  host transcript and return `inline` or `fallback`. Only the pinned Claude
+  fallback agent may pass `--pinned-fallback-agent`; a Codex child observes its
+  own route.
+- Fallback callers wait for the child's complete result and return it verbatim.
+  The accepted-call receipt exchange was removed.
+- Adaptive Goal runs Verification, which owns placement. Its own Verification
+  launch path and the `codex-verification-input` helper were removed.
+- Adaptive Goal's completion summarizes each assessment with its report link
+  instead of pasting pre-publication next actions.
+
+Final cohorts: 5 trials, 3 jobs, threshold 0.8, passive app-server observation,
+host-default candidate routes from each case. Review cases ran on snapshot v21,
+Verification cases on v23, Adaptive Goal-mounting cases on v25 and the
+revised-oracle case on v26. Each plugin's files are byte-identical from its
+cohort snapshot to v26, which equals the working tree.
+
+| Case                                            | Passed |
+| ----------------------------------------------- | -----: |
+| `code-review-placement-inline`                  |    5/5 |
+| `code-review-placement-weaker`                  |    5/5 |
+| `code-review-placement-unknown`                 |    5/5 |
+| `verification-existing-review`                  |    5/5 |
+| `verification-placement-weaker`                 |    4/5 |
+| `verification-placement-unknown`                |    5/5 |
+| `verification-coordination-prohibited`          |    5/5 |
+| `verification-followup-clear`                   |    5/5 |
+| `verification-followup-progress`                |    5/5 |
+| `verification-followup-no-progress`             |    5/5 |
+| `verification-followup-regression`              |    5/5 |
+| `verification-criterion-gap`                    |    5/5 |
+| `verification-replacement`                      |    5/5 |
+| `goal-inline-verification-initial-and-followup` |    5/5 |
+| `ticket-to-pr-inline-assurance-composition`     |    5/5 |
+| `doctor-adaptive-goal-counterexample-depth`     |    5/5 |
+
+The `verification-placement-weaker` miss handed only review to its fallback and
+then used the wrong backend for rendering.
+
+`verification-coordination-prohibited` first asserted that no spawn was
+attempted. With the same correctly blocked behavior it scored 1/5, 4/5 and 3/5,
+because Sevro could not statically inspect submitted `exec` programs (path
+arrays, template literals, `ALL_TOOLS` filters), and the absence claim then
+graded _unavailable_. The case now asserts `child_sessions: none`: complete host
+session and accepted-spawn records show that no child session ran. Regrading the
+15 retained trials passes all of them (the old assertion was unavailable in 7)
+and fails all 5 retained `verification-placement-weaker` trials in which a
+fallback child ran; regrades are not execution evidence. A fresh v26 cohort
+passed 5/5. Activation and the
+Ticket-to-PR publisher-transcript domain were also unavailable in some trials.
+Claude cohorts were not run. Raw results remain outside the repository under
+`/Users/bjro/Benchmarks/darrow/291-n5-functional-v*-2026-11-03`.
+
 ## Repository checks and remaining gate
 
 The complete canonical `bun run check:python` gate passed all 11 registered

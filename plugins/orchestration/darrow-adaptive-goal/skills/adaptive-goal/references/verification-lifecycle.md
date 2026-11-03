@@ -54,8 +54,8 @@ request, the number of findings or early clearance does not change the maximum.
 ## Repair under one limit
 
 One repair addresses the combined eligible blockers from all selected results.
-Route it as skill section 7 directs. Independent assessment readers start with
-fresh context; capable fallback coordination gets a bounded fresh handoff. Repair only blockers inside the originating scope and
+Route it as skill section 7 directs; only assessment readers start with fresh
+context. Repair only blockers inside the originating scope and
 authority; stronger checks of the same behavior are permitted.
 
 After each repair, rerun invalidated checks to success and request follow-up

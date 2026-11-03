@@ -30,12 +30,8 @@ publication against that exact PR and verified commit. It grants no generic
 comment authority. Partial, ambiguous, refused, or changed-head publication
 stops completion without recipe-owned retry or recovery.
 
-Assessment coordination follows the installed capabilities' public placement
-rules. A supported goal owner coordinates inline; a weaker or unknown route
-uses one capable bounded coordinator. Fresh independent readers, original
-thread/goal identity, feedback continuation and final commit/PR/CI gates remain
-required. Update affected plugins together before starting a new delivery;
-retain an in-flight delivery's installation and original native owner.
+When updating, update Ticket-to-PR, Adaptive Goal, Verification and Review
+together before a new delivery. An in-flight delivery keeps its installation.
 
 ## When to use
 

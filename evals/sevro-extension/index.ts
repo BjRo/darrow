@@ -1216,15 +1216,41 @@ function assessmentTranscriptSelection(
   };
 }
 
+function childSessionTranscriptSelection(
+  check: RecordValue,
+  id: string,
+  name: string,
+) {
+  if (check.child_sessions === undefined) return null;
+  if (
+    check.child_sessions !== "none" ||
+    check.expect_regex !== undefined ||
+    check.not_regex !== undefined ||
+    check.assessment_readers !== undefined
+  )
+    throw new Error(
+      "child_sessions accepts only none, without other transcript assertions",
+    );
+  return { id, name, kind: "no-child-session" };
+}
+
 function caseTranscriptCheck(entry: unknown, index: number) {
   const check = record(entry, `transcript check ${index + 1}`);
   keys(
     check,
-    ["name", "not_regex", "expect_regex", "assessment_readers"],
+    [
+      "name",
+      "not_regex",
+      "expect_regex",
+      "assessment_readers",
+      "child_sessions",
+    ],
     `transcript check ${index + 1}`,
   );
   const name = string(check.name, `transcript check ${index + 1} name`);
   const id = `darrow.evals.transcript.${index + 1}`;
+  const children = childSessionTranscriptSelection(check, id, name);
+  if (children) return children;
   const assessment = assessmentTranscriptSelection(check, id, name);
   if (assessment) return assessment;
   if (check.expect_regex !== undefined) {
@@ -1355,6 +1381,7 @@ const TRANSCRIPT_EVIDENCE = new Map([
   ["nested-readers", ["sevro.codex.native-calls"]],
   ["fresh-provider-context", ["sevro.codex.native-calls"]],
   ["accepted-child-session", ["sevro.codex.native-calls"]],
+  ["no-child-session", ["sevro.codex.native-calls"]],
   ["event-term", ["sevro.codex.events"]],
   ["supporting-skill-read", [SKILL_ACTIVATIONS]],
   ["no-parent-work-after-handoff", ["sevro.codex.native-calls"]],
@@ -4328,6 +4355,31 @@ function noOwnerOrGoalControlOutcome(
   };
 }
 
+// Complete host session records establish whether a child ran, even when
+// submitted Code Mode programs cannot be inspected for unaccepted attempts.
+function noChildSessionOutcome(
+  native: ReturnType<typeof nativeControlEvidence>,
+  children: ReturnType<typeof boundChildSessions>,
+) {
+  if (!native || !children)
+    return {
+      status: "unavailable",
+      detail: "Complete native child-session records unavailable",
+      evidenceRefs: [],
+    };
+  const ran =
+    native.acceptedSpawnCount > 0 ||
+    children.children.length > 0 ||
+    children.truncated;
+  return {
+    status: ran ? "failed" : "passed",
+    detail: ran
+      ? "A native child session ran"
+      : "Complete native session records show no child session",
+    evidenceRefs: ["sevro.codex.native-calls"],
+  };
+}
+
 const NATIVE_CONTROL_GRADERS = new Map([
   ["no-agent-spawn", noAgentOutcome],
   ["no-native-goal-control", noNativeGoalControlOutcome],
@@ -5138,6 +5190,8 @@ function policyTranscriptOutcome(
     return freshProviderContextOutcome(context.native);
   if (selected.kind === "accepted-child-session")
     return acceptedChildSessionOutcome(context.children);
+  if (selected.kind === "no-child-session")
+    return noChildSessionOutcome(context.native, context.children);
   if (selected.kind === "event-term")
     return eventTermOutcome(selected, context.events);
   if (selected.kind === "inactive-controls")
@@ -5236,7 +5290,8 @@ function readerObservationContext(
   const children =
     kinds.has("nested-readers") ||
     kinds.has("assessment-readers") ||
-    kinds.has("accepted-child-session")
+    kinds.has("accepted-child-session") ||
+    kinds.has("no-child-session")
       ? boundChildSessions(observations, native)
       : null;
   const nested =

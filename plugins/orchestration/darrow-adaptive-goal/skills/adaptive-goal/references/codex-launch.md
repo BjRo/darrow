@@ -37,33 +37,6 @@ route. For concurrent implementation, spawn one agent per independent part,
 each with a distinct `task_name`, its owned files and the shared interface, then
 wait for all of them before integration or further assignment.
 
-### Fallback verification input
-
-For an eligible owner, execute the bound Verification public workflow inline;
-do not call the launch-input helper or spawn a coordinator. It still obtains
-fresh independent reader judgments and returns complete evidence here.
-
-For a below-floor or unknown owner route, write one bounded verification
-assignment as UTF-8 to a unique temporary file outside product scope. Immediately before launch, use **Adaptive Goal's
-backend bound in skill section 2** to prepare the native input:
-
-```sh
-uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" adaptive-goal-preflight codex-verification-input \
-  --task-name <unique_lowercase_name> --assignment-file <absolute-handoff-file>
-```
-
-Call native `spawn_agent` with the returned JSON object **unchanged**. The helper
-copies your handoff and fixes Verification's `model` (`gpt-6.1-sol/medium`),
-`reasoning_effort` and `fork_turns`; a provider-child route from the
-verification skill applies inside Verification only. The helper does not launch
-the agent for you. After acceptance, retain the exact successful spawn tuple and
-returned child ID, and pass that correlated receipt to the same coordinator.
-The return need not repeat model/effort fields. Parent-route facts do not become
-child-route facts; a rejected or conflicting route still blocks. A rejected helper or native launch stops that assignment
-without fallback. Only an already authorized explicit stronger Verification
-route uses a caller-bound native invocation instead. This temporary input holds
-one assignment, not the goal or its history.
-
 ### Children
 
 A fresh child reads and follows the relevant bound skills. No tool named after
@@ -85,8 +58,7 @@ a replacement is allowed.
 The main thread may inspect current state, run checks, invoke authorized bound
 operations, and validate returned evidence. It arranges selected verification,
 combined repairs and fresh follow-up through the capability's public contract.
-It follows public capability workflows rather than copying their mechanics or
-replacing independent assessment readers.
+It never replaces independent assessment readers.
 
 A missing material decision stops affected mutation. Ask the user here, preserve
 the same goal and repair history, and update affected children with every

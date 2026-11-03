@@ -5,9 +5,8 @@ owns preflight, acceptance, user decisions and completion. It implements
 directly when its own route matches the selected implementation route. It
 delegates implementation when the selected route is stronger or the main
 route is unknown, or when a cheaper route or concurrent parts repay the
-handoff. Selected verification uses its public workflow inline on a supported owner
-route, or one capable bounded coordinator for a weaker or unknown route.
-Applicable Standards and Spec readers stay fresh and independent.
+handoff. Selected verification runs in the main thread on a supported route,
+otherwise in one fallback coordinator. Its readers always start fresh.
 
 ```text
 request + repository -> read-only preflight/readiness -> main-thread native goal
@@ -131,8 +130,7 @@ follow-up through verification, which owns finding identity and history.
 Placement is decided once. A repair goes back to the implementor that produced
 the candidate, which already holds the task context: the main thread after direct
 work, otherwise the retained child through `SendMessage` (Claude) or
-`followup_task`/`send_message` (Codex). Independent assessment readers start
-fresh; capable fallback coordination receives a bounded fresh handoff. A
+`followup_task`/`send_message` (Codex). Only assessment readers start fresh. A
 replacement implementor is used only when the retained one is unavailable or no
 longer fits the route or scope. Replacement children and comprehensive
 reassessment never reset the allowance. Clear evidence ends repair immediately;

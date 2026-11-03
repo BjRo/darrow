@@ -63,11 +63,6 @@ specific scope refusal has a retained blocked report ready for presentation.
 
 ## 2. Place coordination and prepare reader inputs
 
-Read [coordination placement](references/coordination.md) now, before selecting
-reviewers. Bind this active coordinator's observed model and effort separately.
-The reviewer-route helper below selects future children; its result never
-qualifies this context for inline coordination.
-
 Select the reviewer route beside the manifest:
 
 ```sh
@@ -75,12 +70,16 @@ uv run --quiet --no-project "$backend/scripts/run_locked.py" review-route select
   --repo "$repo" --host <codex|claude> --record '<run>/reviewer-route.json'
 ```
 
-If the host or requester reports the selected route unavailable, follow
+Pass the host you are running in (see
+[coordination placement](references/coordination.md)); the helper refuses a
+host that contradicts its environment. If the host or requester reports the
+selected route unavailable, follow
 [review-recovery.md](references/review-recovery.md) before preparing inputs.
 That branch retains a blocked report with zero reader-launch attempts.
 
-Apply placement to the active coordinator's route now. If fallback executes
-the operation, return its complete result here. Otherwise continue inline below.
+Now apply [coordination placement](references/coordination.md) to this
+context's route. If a fallback coordinator runs the review, return its complete
+result. Otherwise continue inline below.
 
 Bind Standards to applicable repository instructions (`AGENTS.md` or the host's
 equivalent) and enough local design. The bundled smell baseline applies where

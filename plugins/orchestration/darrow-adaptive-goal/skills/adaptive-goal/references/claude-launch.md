@@ -47,17 +47,6 @@ same message, each with its owned files and the shared interface, and settle
 all of them before integration or further assignment. Use only Adaptive Goal's
 own scoped agents; a sibling plugin's agent may not be installed.
 
-For eligible inline verification, execute the bound capability's complete public
-workflow here and retain its complete result before continuing delivery.
-For a below-floor or unknown owner route, call this resolver with
-`--provider anthropic --model claude-sonnet-5-5 --effort medium`. Launch the returned
-Adaptive Goal scoped `subagent_type` and give it the bound verification
-skill's exact public reference and the acceptance-verification assignment.
-Supply the review binding and complete evidence to this agent. It executes
-Verification and the compatible Review public workflow inline, preserving any
-additional provider prerequisites and fresh independent readers. Do not launch
-another coordinator just to separate the roles.
-
 Invoke the returned exact `subagent_type` with `run_in_background: false`,
 no per-call model override and no unrequested worktree isolation. Its prompt
 contains the bounded assignment, repository/scope, acceptance, authority,
@@ -91,9 +80,8 @@ controls and report observed results and effects already performed. If a
 foreground Agent prevents immediate delivery or stopping, report that limitation;
 do not claim that an in-flight effect was prevented.
 
-The main thread can inspect state, run checks and execute public capability
-coordination inline. Capability-owned helpers and independent readers retain
-their responsibilities. Apply section 9 of the skill before
+The main thread can inspect state, run checks and run capability workflows
+inline, but never writes independent reader judgments. Apply section 9 of the skill before
 claiming completion, give the user substantive results here, and allow native
 goal evaluation to consume that evidence. A child return alone cannot complete
 delivery. Do not claim a native lifecycle transition the host has not confirmed.

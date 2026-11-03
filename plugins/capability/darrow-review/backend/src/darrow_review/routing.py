@@ -130,8 +130,22 @@ def catalog(path: Path, source: str) -> dict[str, Route]:
     return result
 
 
+def running_host() -> str:
+    """Name the host whose environment launched this helper, or "" when ambiguous."""
+    codex = bool(os.environ.get("CODEX_THREAD_ID"))
+    claude = os.environ.get("CLAUDECODE") == "1"
+    if codex == claude:
+        return ""
+    return "codex" if codex else "claude"
+
+
 def resolve(repo: str, host: str) -> Route:
     require(host in ("codex", "claude"), f"unsupported host: {host}")
+    running = running_host()
+    require(
+        not running or running == host,
+        f"--host {host} contradicts the running {running} host; use --host {running}",
+    )
     if host == "claude":
         direct()
     root = root_directory(repo)

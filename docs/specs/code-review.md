@@ -110,27 +110,19 @@ phase. When a goal contract does select independent review:
   verification chain bound to the exact current content. Any later
   content-changing edit invalidates that chain.
 
-The review coordinator remains read-only in every mode. Coordination runs inline
-on a supported observed owner route (Codex GPT-6.1 Sol/medium or Claude
-Sonnet 5.5/medium, or an explicitly supported stronger route). Below-floor,
-unrecognized or unknown routes delegate one bounded operation to an explicitly
-pinned capable coordinator. Recognizing a model name is not proof of its route
-or strength; absent route evidence remains unknown. The selected reader route
-describes future children and MUST NOT establish eligibility for this active
-coordinator. Read the placement rule before selecting reviewers. Scope and
-known-unavailability refusals still precede fallback. The capable coordinator
-executes this complete public workflow and launches applicable fresh independent
-readers; it never substitutes its own judgments or adds a mandatory coordinator.
-A successful explicit native spawn binds its returned child ID to that call's
-model, effort and fresh-context tuple. Pass this accepted-call receipt to the
-same coordinator; a missing repetition of route fields in its return does not
-invalidate the binding. Requested-but-unaccepted and conflicting routes still
-block. Keep owner and child routes distinct. An accepted exact scoped Claude
-Agent with environment conflicts excluded supplies its pinned route binding.
-Native evals independently verify effective routes.
-This rule applies to standalone/composed initial review and closed repair
-verification. Public provider prerequisites and independently installable
-packaging remain authoritative. Unavailable coordination or readers blocks.
+The review coordinator remains read-only in every mode. It coordinates inline
+when the bundled helper observes, from the session's own host transcript, a
+model and effort at the supported floor (Codex GPT-6.1 Sol/medium or Claude
+Sonnet 5.5/medium, or the same model at higher effort).
+A below-floor or unknown route delegates the operation to one explicitly pinned
+capable coordinator and waits for its complete result. The host is the running
+harness and is never unknown; the route helper MUST refuse a requested host that
+contradicts an unambiguous host environment. The selected reader route describes future
+children and MUST NOT qualify the active coordinator. Scope and
+known-unavailability refusals precede fallback. The fallback coordinator runs
+this workflow inline, launches the applicable fresh readers and never delegates
+coordination again. A rejected or conflicting launch blocks. This applies to
+standalone and composed initial review and closed repair verification.
 A composed invocation
 returns its normal report to the enclosing goal instead of treating that report
 as the enclosing goal's completion. The enclosing goal owns any later repair,

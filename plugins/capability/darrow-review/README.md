@@ -21,10 +21,9 @@ selection is missed, invoke `code-review` explicitly.
 Codex uses Bash on Unix and PowerShell on Windows. Claude has its own Bash hook
 registration. Live Claude and Windows hook execution remain unverified.
 
-A supported observed owner route coordinates inline. A weaker or unknown route
-uses one capable bounded coordinator. Both initial review and fix verification
-retain fresh independent readers, exact reviewer routes and candidate-bound
-validated results. Missing supported execution blocks the review.
+Coordination runs in the requesting session when its route is at least
+GPT-6.1 Sol/medium (Codex) or Sonnet 5.5/medium (Claude). Otherwise one
+coordinator on that route runs the review. Readers always start fresh.
 
 ## What it provides
 

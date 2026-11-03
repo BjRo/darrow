@@ -464,25 +464,12 @@ The bundled Codex implementation policy is:
 Main-thread coordination is recommended on Codex `gpt-6.1-sol/medium`. A known
 weaker compatible main model receives a brief nonblocking hint; do not switch
 the user's session model or claim reliability for untested stronger routes.
-Verification owns its supported coordination placement through its public
-contract. On Codex the floor is GPT-6.1 Sol/medium; on Claude it is Sonnet
-5.5/medium. A known supported owner executes the complete Verification workflow
-inline, including the selected Review public workflow when its prerequisites
-permit. Below-floor or unknown routes delegate one bounded assessment on the
-explicit supported route. No model-name guess establishes eligibility.
-Verification owns provider selection and Review owns its independent readers;
-neither implementation inheritance nor inline placement changes reader routes.
-
-For Codex fallback only, the bundled
-`adaptive-goal-preflight codex-verification-input` prepares the explicit
-Sol/medium native spawn object from a valid task name and absolute UTF-8
-assignment file. It launches nothing and grants no authority. A stronger
-explicitly authorized route uses the exact caller-bound native invocation.
-Claude fallback uses the existing explicitly pinned Sonnet 5.5/medium scoped
-agent and refuses conflicting environment overrides. Both execute the flattened
-public workflows, subject to compatible replacement prerequisites, and return
-complete results to the original owner. Missing supported execution blocks.
-These host-specific policies do not establish measured equivalence.
+The main thread runs the bound Verification skill. Verification owns its
+placement: its helper observes the session route and either coordinates inline
+or hands the assessment to one fallback coordinator, which returns the complete
+result to this owner. Adaptive Goal launches no verification coordinator of its
+own and passes no Verification or Review routes. Missing supported execution
+blocks.
 
 Codex bounded assignments bind an explicit model and reasoning effort with fresh
 context. Claude resolves a scoped agent that pins model and effort, refuses
@@ -960,7 +947,7 @@ records the removed repetitions and their retained authority.
     home: the lifecycle reference owns repair-limit arithmetic, section 7 owns
     returning repairs to the producing implementor, verification's own contract
     owns its internal routes, and each host guide owns only its native controls
-    and host-only procedures, including the Codex verification-input call.
+    and host-only procedures.
     Other locations point to that home. Every numbered section ends with a
     checkable completion criterion. A prohibition stays only as a guardrail with
     no positive form or where a matched eval shows it is load-bearing.

@@ -48,13 +48,11 @@ incompatible required review blocks instead of falling back to self-review.
 
 ## Coordinator routes and assessment correction
 
-A supported owner executes Verification and its selected Review public workflow
-inline. Codex uses GPT-6.1 Sol/medium; Claude uses Sonnet 5.5/medium. Supported
-higher effort on the same model also qualifies. A weaker or unknown route uses
-one bounded capable coordinator. A replacement provider's public prerequisites
-still apply. Required Standards and Spec readers stay fresh and independent on
-Review's routes. Missing supported coordination or readers blocks assessment.
-Neither placement grants repair, publication or delivery ownership.
+Verification and its Review workflow run in the requesting session when its
+route is at least GPT-6.1 Sol/medium (Codex) or Sonnet 5.5/medium (Claude).
+Otherwise one coordinator on that route runs them. Standards and Spec readers
+always start fresh on Review's routes. Neither placement grants repair,
+publication or delivery ownership.
 
 A concrete assessment error or new evidence can justify a bounded correction
 at unchanged code through the provider's public contract. Preserve the earlier

@@ -2,34 +2,24 @@
 
 ## Coordinator routes
 
-The active owner coordinates inline when its observed route meets the capability's
-supported floor: Codex GPT-6.1 Sol/medium or Claude Sonnet 5.5/medium.
-An explicitly supported stronger route may also coordinate inline. Model names
-alone MUST NOT establish a strength relationship; unrecognized routes remain
-unknown. This preserves the shipped Sonnet coordinator policy recorded in
-[the Claude route decision](../research/claude-verification-coordinator-route-2026-10-25.md).
-It corrects the stale Opus-only description here, without changing that policy.
+The active owner coordinates inline when its observed model and effort meet the
+supported floor: Codex GPT-6.1 Sol/medium or Claude Sonnet 5.5/medium, or the
+same model at higher effort. A bundled helper MUST make this decision from the
+session's own host transcript and refuse a requested host that contradicts an
+unambiguous host environment. Prompt claims and model names MUST NOT establish
+the route; missing or unrecognized evidence is unknown. A Codex fallback
+coordinator observes its own route; only the pinned Claude fallback agent,
+which cannot observe its own route, is placed inline by flag. This keeps the Sonnet coordinator policy
+from [the Claude route decision](../research/claude-verification-coordinator-route-2026-10-25.md).
 
-A below-floor or unknown route MUST delegate one bounded assessment to an
-explicitly pinned capable coordinator. That coordinator executes Verification
-and compatible Review public workflows inline, subject to the provider's own
-prerequisites. It does not launch another coordinator merely to separate these
-roles. Missing supported coordination or required reader execution blocks.
-The original owner retains delivery, repairs, budgets and completion.
-A successful explicit native spawn correlates its returned child ID with the
-exact requested model/effort and fresh-context tuple. That accepted-call receipt
-is coordinator-route evidence even when the return does not repeat the tuple.
-The caller passes it to the same child; a requested tuple without acceptance is
-insufficient. Keep the owner's route distinct from the child's. A host-reported
-rejection, substitution or conflicting route blocks instead of being inferred
-away. An accepted exact scoped Claude Agent, with conflicting environment
-overrides ruled out, supplies the corresponding pinned coordinator binding.
-Native evals independently verify the effective route; no runtime transcript
-auditor or recursive coordinator is added.
-
-Review retains its independent-reader routes and native launch evidence.
-Claude fallback routes MUST refuse conflicting model/effort environment overrides.
-Initial and closed follow-up operations use the same placement rule.
+A below-floor or unknown route MUST delegate the assessment to one explicitly
+pinned capable coordinator and wait for its complete result. An accepted native
+launch of that pinned route establishes the coordinator's route. The coordinator
+executes Verification and the compatible Review workflow inline and MUST NOT
+delegate coordination again. A rejected launch, reported substitution or
+conflicting route blocks. Claude fallback MUST refuse conflicting model/effort
+environment overrides. The original owner retains delivery, repairs, budgets
+and completion. Initial and closed follow-up assessments use the same rule.
 
 Verification coordinates one bounded assessment of an implementation candidate.
 It is directly intent-matched and independently installable. This is the

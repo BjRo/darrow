@@ -1566,6 +1566,10 @@ checks and harness constant.
   does not invalidate those positive facts or establish absence of other work.
   Global control-absence assertions still require complete control inspection;
   positive reader proof MUST NOT be presented as that broader absence claim.
+  The `child_sessions: none` assertion establishes only that no native child
+  session ran, from complete host session and accepted-spawn records. It stays
+  gradable when submitted code is uninspectable and makes no claim about
+  unaccepted attempts.
   Native Claude evidence must establish its own launch/route/completion facts;
   Codex observations cannot substitute.
 

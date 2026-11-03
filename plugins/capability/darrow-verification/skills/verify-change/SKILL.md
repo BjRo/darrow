@@ -5,12 +5,9 @@ description: Coordinate acceptance verification of an implementation candidate. 
 
 # Verify a change
 
-Execute the selected capabilities' complete public coordination workflows.
-A supported observed owner coordinates inline; a below-floor or unknown route
-delegates one bounded assessment to a capable coordinator. Applicable judgments
-always come from fresh independent readers. This applies to initial and closed
-follow-up assessments. Read [coordination placement](references/coordination.md)
-before checks or assessment; it owns placement and fallback, not reader routes.
+Step 2 decides whether this context coordinates inline or hands the
+assessment to one fallback coordinator. Judgments always come from the
+provider's fresh independent readers.
 
 Return one candidate-bound assessment through compatible independent review.
 The active owner selects assurance, implements, repairs, controls budgets and
@@ -63,6 +60,8 @@ inspection, checks or agent launches**. Match advertised intent, including
 differently named providers; a literal `code-review` name proves nothing.
 Honor the caller's compatible binding and resolve a consequential open choice.
 Do not inspect sibling/private provider files or create another registry.
+Capabilities are skill files in the host's skill catalog, not tools; a search
+of the tool list (such as `ALL_TOOLS`) cannot find or rule one out.
 If a hook-advertised skill path is unreadable, preserve its exact error and
 retry the **same capability's public catalog path**, expanding its documented
 skill-root alias. A denied hook path does not prove its catalog installation
@@ -86,37 +85,30 @@ Absent/incompatible required review returns blocked with the exact gap. Do not
 install a provider, invent its contract, substitute self-review, or manufacture
 compatibility by adding your own readers. A bare provider "pass" is insufficient.
 
-If the provider retains reports, bind **this plugin's renderer backend** before
-launch. Derive this skill directory from its loaded absolute catalog path on
-Codex, or `CLAUDE_SKILL_DIR` on Claude. Resolve `../../backend` once to an
+Bind **this plugin's backend** before launch. This skill directory is the one
+holding this verify-change `SKILL.md`, never the provider's: its loaded absolute
+catalog path on Codex, or `CLAUDE_SKILL_DIR` on Claude. Resolve `../../backend` once to an
 absolute path; require readable `scripts/run_locked.py`, `pyproject.toml` and
-`uv.lock`. Keep that path for step 5. UV selects Python; no separate system
-Python probe is needed. Failed lookups must name the authoritative path and
-actual diagnostic, not a guessed cache/repository path or another installation.
-This backend renders verification; provider review commands belong to the provider.
+`uv.lock`. Keep that path for placement and step 5. UV selects Python; no
+separate system Python probe is needed. Failed lookups must name the
+authoritative path and actual diagnostic, not a guessed cache/repository path or
+another installation. This backend places and renders verification; provider
+review commands belong to the provider.
+
+Now apply [coordination placement](references/coordination.md). If a fallback
+coordinator runs the assessment, return its complete result. Otherwise
+continue inline below.
 
 ## 3. Obtain one complete assessment
 
-Execute the actual bound capability's **complete public workflow inline**
-when its public prerequisites permit. Bind a bounded response boundary: retain
-its complete normal result here, then resume step 4. For a replacement requiring
-a separate provider context, honor that prerequisite on its supported route;
-do not manufacture compatibility or copy its private protocol.
+Execute the bound provider's **complete public workflow inline** here, then
+keep its complete normal result for step 4. If a replacement provider's public
+contract requires its own context, honor that on its supported route.
 
-Pass the public skill and intent, sources/candidate, objective/criteria,
-constraints, checks and closed follow-up history. The provider owns its helpers,
-independent readers, routes and judgments. Follow its public instructions to
-invoke those helpers and readers; never substitute coordinator-authored judgment.
-Reader inputs exclude author conclusions and unrelated conversation.
-
-A weaker or unknown owner uses this capability's one capable fallback from the
-[placement reference](references/coordination.md). The fallback executes this
-workflow and the compatible provider workflow inline; no mandatory intermediate
-provider coordinator is added. It returns this complete reconciled assessment
-to the original owner. Required independent readers still launch separately.
-That fallback result already includes reconciliation and rendering. Return it
-as this operation's complete result under the placement reference; only an
-inline provider result proceeds to step 4.
+Use the bound sources, candidate, objective and criteria, constraints, checks
+and closed follow-up history as its inputs. The provider owns its helpers,
+independent readers, routes and judgments; follow its instructions and never
+write those judgments yourself. Reader inputs exclude author conclusions.
 
 If the required native boundary is unavailable, return its concrete invocation
 gap. Never substitute a generic review prompt or act as another engineering
@@ -222,8 +214,7 @@ its assessment and final line:
 Complete provider result: [report](<absolute-path>)
 ```
 
-For standalone use, return that complete stdout as the entire final response.
-In an enclosing delivery, retain that complete result and report reference,
-return control to the same owner, and resume only its authorized continuation.
-The operation does not end or replace that delivery. Do not reduce the retained
-result to a link or summary. Finish the assessment's checks before rendering.
+Standalone use returns that stdout as the entire final response. In an
+enclosing delivery, keep it complete and return control to the owner, which
+continues its delivery. Never reduce it to a link or summary. Finish all checks
+before rendering.
