@@ -60,12 +60,7 @@ def snapshot() -> dict[str, Any]:
     path = find_rollout(home, thread)
     records = read_records(path)
     meta = records[0]["payload"]
-    try:
-        limit = compact_limit(home)
-    except (OSError, ValueError) as error:
-        raise ValueError(
-            f"{error}; cli_version={meta.get('cli_version', 'unknown')}"
-        ) from error
+    limit, config_warnings = configured_limit(home)
     sizes: dict[str, int] = defaultdict(int)
     base = base_text(meta)
     sizes["system_prompt"] = len(base.encode("utf-8"))
@@ -75,7 +70,17 @@ def snapshot() -> dict[str, Any]:
         key: (sizes[key] + 3) // 4
         for key in (*CATEGORIES, *sorted(set(sizes) - set(CATEGORIES)))
     }
-    return accounting(path, meta, estimates, records, limit)
+    result = accounting(path, meta, estimates, records, limit)
+    result["warnings"].extend(config_warnings)
+    return result
+
+
+def configured_limit(home: Path) -> tuple[int | None, list[str]]:
+    """The buffer is optional, so configuration problems never block the report."""
+    try:
+        return compact_limit(home), []
+    except (OSError, ValueError) as error:
+        return None, [f"Autocompact buffer omitted: {error}"]
 
 
 def accounting(

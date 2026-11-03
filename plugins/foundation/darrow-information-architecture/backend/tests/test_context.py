@@ -277,25 +277,29 @@ def test_grid(tmp_path: Path) -> None:
     assert not result.stdout.startswith("{")
 
 
-def test_config_refusals_and_quoted_content(tmp_path: Path) -> None:
+def config_warning(home: Path, needle: str) -> None:
+    result = invoke(home)
+    assert result.returncode == 0, result.stderr
+    data = json.loads(result.stdout)
+    assert "autocompact_buffer_tokens" not in data
+    assert any(needle in warning for warning in data["warnings"])
+
+
+def test_config_problems_warn_and_quoted_content(tmp_path: Path) -> None:
     home, _ = prepare(tmp_path, (FIXTURES / "normal.jsonl").read_text())
     config = home / "config.toml"
     config.unlink()
-    result = invoke(home)
-    assert result.returncode == 2 and "config.toml" in result.stderr
+    config_warning(home, "config.toml")
     for value in ["-1", "0", '"800"', "true", "8__00"]:
         config.write_text(
             f"model_auto_compact_token_limit = {value}\n", encoding="utf-8"
         )
-        result = invoke(home)
-        assert (
-            result.returncode == 2 and "model_auto_compact_token_limit" in result.stderr
-        )
+        config_warning(home, "model_auto_compact_token_limit")
     config.write_text(
         "model_auto_compact_token_limit=800\nmodel_auto_compact_token_limit=900\n",
         encoding="utf-8",
     )
-    assert invoke(home).returncode == 2
+    config_warning(home, "duplicate")
     config.write_text(
         'instructions = """\nmodel_auto_compact_token_limit=1\n"""\n[profile]\nmodel_auto_compact_token_limit=2\n',
         encoding="utf-8",
@@ -408,6 +412,8 @@ def test_first_turn_grid_and_configured_grid(tmp_path: Path) -> None:
     )
     result = invoke(home, "grid")
     assert result.returncode == 0 and "grid unavailable" in result.stdout
+    assert "not recorded yet" in result.stdout and "None" not in result.stdout
+    assert "Free tokens" not in result.stdout
     assert "Autocompact buffer" in result.stdout
     rollout.write_text(original, encoding="utf-8")
     result = invoke(home, "grid")

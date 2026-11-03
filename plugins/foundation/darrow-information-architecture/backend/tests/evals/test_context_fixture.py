@@ -61,7 +61,7 @@ def test_prepare_shares_tools_and_hides_oracle(tmp_path: Path) -> None:
     assert (tmp_path / ".git/ia-backend/src/darrow_ia/context.py").is_file()
 
 
-def test_captured_snapshot_can_be_saved(
+def test_captured_snapshot_verifies(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     (tmp_path / ".git").mkdir()
@@ -80,8 +80,8 @@ def test_captured_snapshot_can_be_saved(
             "grid",
         ],
     )
-    (tmp_path / ".fixture-state/context-report.txt").write_bytes(result.stdout)
-    verify(tmp_path, "grid", True)
+    assert result.stdout.decode() == output
+    verify(tmp_path, "grid")
 
 
 def test_uncaptured_forwarding_preserves_process(tmp_path: Path) -> None:

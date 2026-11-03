@@ -32,13 +32,13 @@ checks:
       "$(cat .git/context-uv)" run --quiet --frozen --no-dev --project .git/ia-backend python
       .git/eval-checks/ia/eval_context_usage.py grid
 semantic_output_checks:
-  - name: reports facts with honest limits
-    proposition: The response reports the reported current Codex context usage,
-      distinguishing the exact last token-count total from category estimates
-      (or explicitly reports that exact usage is unavailable before the first
-      token count). It does not recommend compacting or handing off.
-  - name: displays the grid and category table
-    proposition: The response shows a context grid (or explicitly says it is
-      unavailable before the first token count) and a numeric category table,
-      including repository instructions and skills, with the rollout path and
-      any warnings.
+  - name: reports facts only
+    proposition: The response states how many context tokens are used out of
+      the context window, or says Codex has not recorded a token count in this
+      thread yet. It does not recommend compacting the context or handing off
+      to another agent.
+  - name: shows the breakdown
+    proposition: The response shows a per-category token table that includes
+      skills and AGENTS.md (repository instructions), together with a context
+      grid or a statement that the grid is unavailable until Codex records its
+      first token count.

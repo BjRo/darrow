@@ -31,7 +31,7 @@ def cell(token: float, rows: list[tuple[str, str, int]], limit: int | None) -> s
 def grid(data: dict[str, Any], rows: list[tuple[str, str, int]]) -> list[str]:
     window = data["model_context_window"]
     if window is None:
-        return ["[grid unavailable before first token_count]"]
+        return ["[grid unavailable until the first token_count]"]
     cells = [
         cell(
             (index + 0.5) * window / 100,
@@ -52,7 +52,12 @@ def render(data: dict[str, Any]) -> str:
         f"cli_version: {data['cli_version']}",
     ]
     total, window = data["exact_total_tokens"], data["model_context_window"]
-    lines.append(f"Context used (last token_count): {total} / {window}")
+    lines.append(
+        f"Context used (last token_count): {total} / {window}"
+        if total is not None
+        else "Context used (last token_count): not recorded yet; "
+        "Codex logs it after the first model response in a thread"
+    )
     lines.extend(grid(data, rows))
     lines.extend(
         [
@@ -64,10 +69,13 @@ def render(data: dict[str, Any]) -> str:
         ]
     )
     lines.extend(f"{symbol} {name:<48} {value:>10}" for symbol, name, value in rows)
-    lines.append(f"Free tokens (window minus exact total): {data['free_tokens']}")
+    if data["free_tokens"] is not None:
+        lines.append(f"Free tokens (window minus exact total): {data['free_tokens']}")
     if "autocompact_buffer_tokens" in data:
+        buffer = data["autocompact_buffer_tokens"]
         lines.append(
-            f"Autocompact buffer (window minus configured limit): {data['autocompact_buffer_tokens']}"
+            "Autocompact buffer (window minus configured limit): "
+            + (str(buffer) if buffer is not None else "unknown until the window is")
         )
     lines.append(SNAPSHOT_NOTE)
     lines.extend(f"Warning: {warning}" for warning in data["warnings"])

@@ -296,101 +296,43 @@ or serving as a complete runtime configuration/schema validator.
 ### Intent triggers
 
 A request for the current Codex context breakdown, `$context-usage`, or an
-agent checking its context before a large multi-step phase, before pulling in
-large outputs, or before deciding whether to delegate. Fixed-schedule checks
-and repository setup or doctor requests do not select this skill.
+agent checking its own context at a decision point: before a large multi-step
+phase, before pulling in large outputs, or before deciding whether to delegate.
+Setup and doctor requests do not select it.
 
 ### Contract
 
-Report a read-only snapshot of the exact current Codex thread through
-`ia-context --format grid|json`, launched by `backend/scripts/run_locked.py`.
-People receive the grid and category table; agents checking themselves receive
-JSON. On Claude Code, point to `/context` and stop without running a command.
-Report facts only; never recommend compaction or handoff.
+Run `ia-context --format grid|json` through `backend/scripts/run_locked.py` and
+report a read-only snapshot of the current Codex thread: the grid and category
+table for a person, JSON for an agent self-check. On Claude Code, point to
+`/context` and stop. Report facts; never recommend compaction or handoff.
 
 ### Invariants
 
-- **IA-C1 — Exact session binding.** Require `CODEX_THREAD_ID`; find exactly
-  one `sessions/**/rollout-*-<thread_id>.jsonl` beneath `CODEX_HOME` (default
-  `~/.codex`). Never select a recent or unrelated session. Emit its absolute
-  path and `schema_version: 1` in JSON. Refuse missing or duplicate rollouts,
-  malformed lines, unsupported record/content shapes, and unreadable evidence.
-  Diagnostics include the rollout path/line when applicable and `cli_version`
-  when session metadata has supplied it.
-- **IA-C2 — Active history.** Count `session_meta.base_instructions` once,
-  then only the last `compacted.payload.replacement_history` and subsequent
-  response items. Earlier history contributes no estimates. Validate the whole
-  rollout, including discarded history, rather than hiding malformed input.
-  Count response items once; event-message copies are not additional context.
-  Ignore known non-content `inter_agent_communication_metadata` records.
-  Count visible `agent_message` content as messages, without its routing metadata.
-  Codex also logs the base instructions as a developer message, including in
-  replacement history. Exclude that exact echo from developer estimates so the
-  system prompt is counted once.
-- **IA-C3 — Honest estimates.** Use the doctor's ceiling of UTF-8 bytes / 4
-  per category: system prompt, other developer instructions, skills, plugins,
-  AGENTS.md, environment, messages and tool output. Split tagged skills,
-  plugins and environment blocks from surrounding instructions. Recognize the
-  user AGENTS.md heading. Tool calls belong to messages; outputs belong to tool
-  output. Visible reasoning summaries belong to messages; encrypted reasoning
-  is unmeasurable. Encrypted `compaction` items in replacement history are
-  recognized but unmeasurable; their tokens remain in the remainder. When
-  `additional_tools` carries definitions, estimate their compact JSON in a separate logged-tool-definitions category. This does not
-  establish that all tool/MCP definitions are logged.
-- **IA-C4 — Exact accounting.** Use the last usable `token_count` event's
-  `last_token_usage.total_tokens` (normally input plus output) and
-  `model_context_window`, never cumulative session usage. After compaction,
-  Codex can emit a synthetic total with zero input/output components; retain the
-  reported total rather than recomputing it from those components.
-  The remainder is exact context used minus all category estimates. Preserve
-  a negative remainder and warn; never clamp it. Before the first token count,
-  report estimates with null exact total, window, free space and remainder.
-  Estimates can include items recorded after the last usage measurement; label
-  this snapshot limitation in both formats. Estimates plus remainder equal the
-  exact total whenever it is available.
-- **IA-C5 — Configuration and display.** Read `CODEX_HOME/config.toml` and
-  refuse clearly if it cannot be read. Without a TOML dependency, recognize only
-  the root integer `model_auto_compact_token_limit`, allowing comments and digit
-  separators and ignoring table-scoped settings and quoted-string contents.
-  Invalid or duplicate root limits refuse. This is not a complete TOML or Codex
-  configuration resolver: profiles, project overrides and default thresholds
-  are not inferred. Only a configured limit adds autocompact buffer information
-  (window minus limit, with a warning if the limit exceeds the window). The
-  buffer is a window reservation, not another used-context category. Render a
-  bounded grid with a legend and numeric category table, retaining signed
-  numeric remainder and warnings even when the grid cannot depict them.
-- **IA-C6 — Read-only facts.** Never edit guidance, configuration, session
-  history or repository files, recommend compaction/handoff, or start doctor.
-  The locked launcher may prepare its ordinary external runtime cache.
-- **IA-C7 — Evidence.** Keep cleaned normal and compacted fixtures, public
-  CLI regression tests, a generated accounting property, colocated selection,
-  Claude redirect and clean-Git evals, and fresh copied-plugin execution.
+- **IA-C1 — Exact session.** Require `CODEX_THREAD_ID` and exactly one
+  `sessions/**/rollout-*-<thread_id>.jsonl` under `CODEX_HOME` (default
+  `~/.codex`). Never fall back to another session. Refuse malformed lines and
+  unknown record shapes, naming the absolute path, line and `cli_version`.
+- **IA-C2 — Active history.** Count `session_meta.base_instructions` once, then
+  the last `compacted.replacement_history` plus later response items. Exclude
+  the developer-message copy of the base instructions.
+- **IA-C3 — Estimates.** Each category is UTF-8 bytes / 4, rounded up: system
+  prompt, other developer instructions, skills, plugins, AGENTS.md,
+  environment, messages, tool output, and tool definitions logged in
+  `additional_tools`. Encrypted reasoning and compaction items are not measured.
+- **IA-C4 — Exact total.** Use the last `token_count` event's
+  `last_token_usage.total_tokens` and `model_context_window`, the same
+  input-plus-output total that `/status` shows. The remainder is that total
+  minus all estimates; keep it signed and warn when it is negative. Before the
+  first token count, the exact fields are null.
+- **IA-C5 — Buffer.** Only a root `model_auto_compact_token_limit` in
+  `CODEX_HOME/config.toml` adds the autocompact buffer (window minus limit).
+  Profiles and project overrides are not resolved. An unreadable file or
+  invalid value omits the buffer with a warning; it never blocks the report.
+- **IA-C6 — Read-only.** Never edit guidance, configuration, session history or
+  repository files, and never start doctor.
 
 ### Non-goals
 
-Doctor integration and Claude Code parsing. This is not an exact tokenizer,
-model billing report, complete configuration parser, or measurement of
-unlogged tool/MCP definitions.
-
-### Live Codex comparison
-
-On 2026-11-02, Codex CLI 0.166.0, GPT-6.1-Sol, a read-only live
-session produced 19,587 input tokens and 954 output tokens (359 reasoning
-tokens included in output). Its final token-count total was 20,541 and its
-window was 475,000. `/status` displayed `20.5K used / 475K`, establishing
-input plus output rather than input alone. A shorter control yielded 19,576
-input + 6 output = 19,582, displayed as 19.6K. No private prompt, tool output
-or account data is retained in this evidence.
-
-The live rollout also contains `additional_tools` developer items with actual
-tool definitions. These can be estimated separately; the remainder still
-contains unlogged definitions and tokenizer/serialization differences. Both
-plugin manifests expose the shared skill directory; the Claude manifest does
-not declare a per-skill host exclusion. Keep its short `/context` redirect
-available on Claude rather than claiming it is excluded there.
-
-A real compaction of the disposable long-response probe retained an encrypted
-`compaction` item and a developer message identical to the base instructions.
-Its last usage record reported 22,896 total tokens with zero input/output
-components, and `/status` displayed `22.9K used / 475K`. The field
-`last_token_usage.total_tokens` remains authoritative in this synthetic case.
+Doctor integration, Claude Code transcript parsing, exact tokenization, and
+tool or MCP definitions that Codex does not log.

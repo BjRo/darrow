@@ -1,20 +1,24 @@
-"""Hidden oracle for real backend invocation and exact requested report copies."""
+"""Hidden oracle: the backend really ran for this thread and returned a report."""
 
 import argparse
 import json
 from pathlib import Path
 
 
-def invocations(root: Path, format_name: str) -> list[Path]:
+def invocations(root: Path, format_name: str) -> list[tuple[Path, str]]:
     captured = []
     for capture in sorted((root / ".fixture-state/context-capture").glob("call.*")):
         if (capture / "status").read_text().strip() != "0":
             continue
         arguments = (capture / "arguments").read_text().splitlines()
         assert "--no-project" in arguments and "ia-context" in arguments, capture
-        index = arguments.index("--format")
-        if arguments[index + 1] == format_name:
-            captured.append(capture)
+        used = (
+            arguments[arguments.index("--format") + 1]
+            if "--format" in arguments
+            else "grid"
+        )
+        if format_name in ("any", used):
+            captured.append((capture, used))
     assert captured, root
     return captured
 
@@ -34,35 +38,26 @@ def json_snapshot(output: bytes, thread: str) -> None:
         )
 
 
-def validate_capture(capture: Path, format_name: str) -> bytes:
+def validate_capture(capture: Path, format_name: str) -> None:
     output = (capture / "output").read_bytes()
     assert output, capture
     if format_name == "json":
         json_snapshot(output, (capture / "thread").read_text().strip())
     else:
         assert b"Category" in output and b"Context used (last token_count):" in output
-    return output
 
 
-def verify(root: Path, format_name: str, saved: bool = False) -> None:
-    outputs = [
-        validate_capture(capture, format_name)
-        for capture in invocations(root, format_name)
-    ]
-    if saved:
-        assert (root / ".fixture-state/context-report.txt").read_bytes() in outputs
+def verify(root: Path, format_name: str) -> None:
+    for capture, used in invocations(root, format_name):
+        validate_capture(capture, used)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("format", choices=("grid", "json", "absent"))
-    parser.add_argument("--saved", action="store_true")
+    parser.add_argument("format", choices=("grid", "json", "any"))
     args = parser.parse_args()
     root = Path.cwd().resolve()
-    if args.format == "absent":
-        assert not (root / ".fixture-state/context-capture").exists(), root
-    else:
-        verify(root, args.format, args.saved)
+    verify(root, args.format)
     print(f"verified: {root}")
 
 

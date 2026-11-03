@@ -32,19 +32,18 @@ Example: _“Doctor this repository's agent instructions.”_
 
 ### `context-usage`
 
-Use this to see the current Codex thread's context breakdown, or let an agent
-check its context before a large phase, large output, or delegation decision.
-People receive a grid and category table; agent self-checks use JSON. On
-Claude Code, the skill points to `/context` and stops.
+Shows how the current Codex thread's context window is used: a grid and
+category table for a person, or JSON for an agent checking itself before a
+large phase, a large output or a delegation decision. On Claude Code it points
+to the built-in `/context`.
 
-Example: _“Show how this session's context window is split up.”_ Select
-`context-usage` from Codex's `$` skill menu to invoke it explicitly.
+Example: _“Show how this session's context window is split up.”_
 
 ### Bundled inspectors
 
 The contained `backend/` package supplies `ia-setup inspect`, `ia-doctor
-inspect|verify`, `ia-context --format grid|json`, and `ia-write` for approved atomic guidance replacements. Run
-all commands through
+inspect|verify`, `ia-context --format grid|json`, and `ia-write` for approved
+atomic guidance replacements. Run all commands through
 `uv run --quiet --no-project <plugin>/backend/scripts/run_locked.py`.
 The inspectors are read-only; policy and edit decisions remain in the skills.
 These are compact structural checks, not complete validators for every Codex
@@ -98,22 +97,13 @@ Approved updates preserve adapter sources, permissions, and newline conventions.
 See [atomic guidance updates](references/file-updates.md) for the digest-checked
 writer and its concurrency boundary. Inventory and verification never write guidance.
 
-For `ia-context`, Codex must expose `CODEX_THREAD_ID` and a readable rollout
-under `$CODEX_HOME/sessions` (`CODEX_HOME` defaults to `~/.codex`), plus a readable
-`config.toml`. The parser is tested against Codex 0.166 rollout shapes; unknown
-shapes refuse with a diagnostic. Category estimates use UTF-8 bytes / 4 rounded
-up. The exact total is the last token-count total (normally input plus output;
-Codex can synthesize it after compaction); a signed
-remainder accounts for unlogged content and estimation differences. Estimates
-can include entries after that exact measurement. Tool definitions carried by
-`additional_tools` are estimated separately; other tool/MCP definitions may
-remain unlogged. No raw instructions or tool outputs are printed.
-
-Only an explicit root `model_auto_compact_token_limit` adds buffer information.
-Profiles, project overrides and inferred default limits are outside this report.
-Missing thread IDs never fall back to another session. This skill edits no
-files and recommends neither compaction nor handoff; the launcher may prepare
-its ordinary external runtime cache. Doctor integration is outside its scope.
+`ia-context` needs `CODEX_THREAD_ID` and that thread's rollout under
+`$CODEX_HOME/sessions` (default `~/.codex`). It never falls back to another
+session. The used total is exact; categories are UTF-8 bytes / 4 estimates,
+and a signed remainder holds unlogged content such as tool definitions. The
+autocompact buffer appears only for a root `model_auto_compact_token_limit` in
+`config.toml`. The parser is tested against Codex 0.166 logs and refuses
+unknown shapes.
 
 ## Validation
 
@@ -147,7 +137,8 @@ Setup and doctor return an inventory and proposed guidance structure; checked-in
 
 ## Troubleshooting
 
-For context refusals, check `CODEX_THREAD_ID`, `CODEX_HOME`, rollout uniqueness, config readability and the reported CLI version. Preserve unknown-shape errors rather than selecting another session.
+If `ia-context` refuses, check `CODEX_THREAD_ID`, `CODEX_HOME` and the reported
+Codex version. An unknown log shape usually means a newer Codex release.
 
 Resolve broken routes and unsettled policy through the named owner. The inspectors do not validate every host configuration format.
 For a discovery or host problem, use the

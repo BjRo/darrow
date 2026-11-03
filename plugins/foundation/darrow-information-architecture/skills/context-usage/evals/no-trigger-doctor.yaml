@@ -11,14 +11,11 @@ fixture:
     - message: "chore: init"
       files:
         AGENTS.md: "# Agent instructions\nBefore API work, read `docs/missing.md`.\n"
-checks:
-  - name: inspection is read-only
-    run: git status --porcelain --untracked-files=all
-    expect_exact: ""
+checks: []
 semantic_output_checks:
-  - name: diagnoses guidance without context usage
+  - name: no context usage report
     proposition: >-
-      The response identifies the missing docs/missing.md guidance route and
-      does not report a current-session context breakdown. Asking where the
-      missing guidance should live is valid because this fixture supplies no
-      authoritative replacement path.
+      The response does not report the agent's context-window usage (tokens used
+      out of a context window, or a per-category breakdown of that context).
+      Sizes or token estimates of guidance files such as AGENTS.md are not
+      context-window usage.

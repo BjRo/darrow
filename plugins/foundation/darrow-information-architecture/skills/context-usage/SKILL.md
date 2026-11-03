@@ -1,62 +1,39 @@
 ---
 name: context-usage
-description: Show the current Codex context-usage breakdown for a person or an agent checking itself before starting a large multi-step phase, before pulling in large outputs, or before deciding whether to delegate. Use for plain-language context-usage requests or explicit invocation. Exclude repository guidance setup and doctor requests.
+description: Show how the current Codex thread's context window is used, by category. Use when someone asks how full or how split up the context is, on explicit invocation, or when an agent checks its own context before a large multi-step phase, a large output, or a delegation decision. Not for repository guidance setup or doctor requests.
 ---
 
-# Inspect context usage
+# Context usage
 
-Report a read-only snapshot of this thread. Report facts only; never recommend
-compacting or handing off. Checks happen at decision points, not on a fixed
-schedule.
+Report a read-only snapshot of this Codex thread. State facts only; never
+recommend compacting or handing off.
 
-## 1. Select the host and audience
+On Claude Code, point to the built-in `/context` command and stop.
 
-On Claude Code, point to its native `/context` command and stop. Do not run the
-backend or parse Claude transcripts.
+## Run
 
-On Codex, use `grid` for a person asking to see usage and `json` for an agent
-checking itself as part of ongoing work. Require `CODEX_THREAD_ID`; an unknown
-thread never authorizes selecting another session.
-
-**Complete when:** the host and audience determine either the Claude redirect
-or one Codex output format.
-
-## 2. Capture the snapshot
-
-Set `<skill-dir>` to the absolute directory containing this `SKILL.md`, ending
-in `/context-usage`. Resolve `<skill-dir>/../../backend` once to its absolute
-path as `<backend>`; it is the plugin's backend, beside `skills`, not a directory
-inside this skill. Run:
+Set `<backend>` to the absolute path of `../../backend` from this file's
+directory (the plugin's `backend`, beside `skills`). Run:
 
 ```sh
 uv run --quiet --no-project "<backend>/scripts/run_locked.py" ia-context --format grid
 ```
 
-For self-checks, replace `grid` with `json`. Preserve the configured
-`CODEX_HOME` and UV cache settings. The command reads this thread's rollout and
-`config.toml`; its locked runtime has no third-party dependencies and supports
-Python 3.10–3.13 on Linux, macOS and native Windows.
+Use `--format json` instead when you check your own context during other work.
 
-If the launcher path is missing before the backend starts, correct that binding
-from this file's actual path. Once `ia-context` starts and refuses, report its
-diagnostic and stop. Do not retry another thread, change configuration, repair
-history or start doctor.
+If the command refuses, report its error and stop. Never read another session
+or change any configuration.
 
-**Complete when:** one current-thread result or the exact refusal is captured
-without changing repository, configuration or session files.
+## Report
 
-## 3. Report the evidence
+- **For a person:** the user cannot see command output. Copy the grid and
+  category table into your reply as returned, including the rollout path and
+  any warnings.
+- **For a self-check:** state the used total, the window and any warnings, then
+  continue the task.
 
-For a person, reproduce the returned grid and category table in the final
-response, including its path, exact total, estimates, remainder, snapshot note
-and warnings. Tool output alone is not the final report. For a self-check,
-use the JSON as factual input to the ongoing task and briefly report the total,
-window and material warnings; keep the returned JSON available as evidence.
-
-The last token count is exact; categories use UTF-8 bytes divided by four,
-rounded up. The remainder includes unlogged content and estimation differences.
-Keep negative values and warnings. Before the first token count, only estimates
-are available. A buffer appears only for an explicit root compaction limit in
-`CODEX_HOME/config.toml`; profiles and project overrides are not resolved.
-
-**Complete when:** the audience receives the observed facts and limitations.
+The used total is exact: Codex's last token count. Categories are estimates
+(UTF-8 bytes / 4). The remainder holds unlogged content, such as tool
+definitions, plus estimation error, and it can be negative. Early in a new
+thread, Codex may not have recorded a token count yet; then only the estimates
+exist, and you should say so.

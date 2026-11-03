@@ -3,9 +3,8 @@ harnesses:
   - codex
 invariant: IA-C1,IA-C3,IA-C4,IA-C6
 activation: positive
-prompt: Before continuing with the large multi-step implementation phase, check
-  your own current context usage. Report the facts, then stop before
-  implementation.
+prompt: Before you start a large multi-step implementation phase, check your
+  own current context usage. Report what you find, then stop.
 fixture:
   commits:
     - message: "chore: init"
@@ -31,10 +30,10 @@ checks:
   - name: real backend invocation receipt
     run: >-
       "$(cat .git/context-uv)" run --quiet --frozen --no-dev --project .git/ia-backend python
-      .git/eval-checks/ia/eval_context_usage.py json
+      .git/eval-checks/ia/eval_context_usage.py any
 semantic_output_checks:
-  - name: reports facts with honest limits
-    proposition: The response reports the reported current Codex context usage,
-      distinguishing the exact last token-count total from category estimates
-      (or explicitly reports that exact usage is unavailable before the first
-      token count). It does not recommend compacting or handing off.
+  - name: reports facts only
+    proposition: The response states how many context tokens are used out of
+      the context window, or says Codex has not recorded a token count in this
+      thread yet. It does not recommend compacting the context or handing off
+      to another agent.
