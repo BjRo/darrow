@@ -1503,7 +1503,8 @@ test("suite rejects contradictory retained benchmark configuration", async () =>
     expect(result.task.verdict).toBe("passed");
     expect(result.exitCode).toBe(0);
   }
-}, 15_000);
+  // Three complete isolated CLI runs need room for concurrent cold starts.
+}, 45_000);
 
 test("suite rejects invalid condition inputs before starting any cells", async () => {
   const { root, suite, adapter, results } = await fixture();

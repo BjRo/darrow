@@ -510,6 +510,105 @@ test("Legacy native absence policies also require inspected submissions", async 
   }
 }, 30_000);
 
+test("child_sessions accepts only none as its own assertion", async () => {
+  const project = await policyProject({
+    transcript_checks: [{ name: "no child", child_sessions: "none" }],
+  });
+  const selected = await project.resolve();
+  expect(JSON.stringify(selected.extensionData)).toContain("no-child-session");
+  for (const check of [
+    { name: "no child", child_sessions: "some" },
+    { name: "no child", child_sessions: "none", not_regex: "x" },
+  ]) {
+    await project.write({ transcript_checks: [check] });
+    await expect(project.resolve()).rejects.toThrow();
+  }
+}, 30_000);
+
+test("No-child-session proof uses complete host session records", async () => {
+  const partialExec = {
+    ordinal: 2,
+    completeness: "partial",
+    inspectionReason: "unsupported_source",
+    calls: [],
+  };
+  const base = {
+    method: "native_session",
+    calls: [],
+    acceptedSpawns: [],
+    toolCalls: [{ ordinal: 2, namespace: "functions", name: "exec" }],
+    submittedExecCalls: 1,
+    execCalls: [partialExec],
+    childSessions: [],
+    childrenTruncated: false,
+  };
+  const child = {
+    requestedOrdinal: 4,
+    startedOrdinal: 5,
+    acceptedOrdinal: 6,
+    taskName: "coordinator",
+    model: "gpt-6.1-sol",
+    reasoningEffort: "medium",
+    forkTurns: "none",
+    agentRef: "/root/coordinator",
+    threadId: "coordinator-thread",
+  };
+  const ran = {
+    ...base,
+    calls: [
+      {
+        ordinal: 4,
+        namespace: "collaboration",
+        name: "spawn_agent",
+        evidence: "invocation_attempt",
+      },
+    ],
+    toolCalls: [
+      ...base.toolCalls,
+      { ordinal: 4, namespace: "collaboration", name: "spawn_agent" },
+    ],
+    acceptedSpawns: [child],
+    childSessions: [
+      {
+        threadId: child.threadId,
+        status: "available",
+        resultStatus: "completed",
+        nestedSpawns: [],
+        requestsTruncated: false,
+      },
+    ],
+  };
+  const grade = async (
+    kind: string,
+    data: unknown,
+    completeness = "complete",
+  ) => {
+    const result = await fixtureExtensionRequest<{
+      checks: { status: string }[];
+    }>("evaluate", {
+      extensionData: {
+        "darrow.case": { transcriptChecks: [{ id: "children", kind }] },
+      },
+      observations: [
+        {
+          id: "sevro.codex.native-calls",
+          source: "sevro.host.codex",
+          completeness,
+          data,
+        },
+      ],
+    });
+    return result.checks[0]!.status;
+  };
+  expect(await grade("no-agent-spawn", base)).toBe("unavailable");
+  expect(await grade("no-child-session", base)).toBe("passed");
+  expect(await grade("no-child-session", ran)).toBe("failed");
+  expect(
+    await grade("no-child-session", { ...base, childrenTruncated: undefined }),
+  ).toBe("unavailable");
+  expect(await grade("no-child-session", base, "partial")).toBe("unavailable");
+}, 30_000);
+
 test("Code Mode absence requires complete receipts and checks submitted attempts", async () => {
   const { cases } = await resolveCase({
     projectRoot: pathToFileURL(resolve(import.meta.dir, "../..")).href,

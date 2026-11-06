@@ -4,7 +4,7 @@ Darrow turns one bounded engineering request into a native goal in the main
 thread. That thread retains acceptance, user decisions and completion. It
 implements directly unless the selected route is stronger than its own or
 unknown, or a cheaper route or concurrent parts repay the handoff; then it
-delegates bounded implementation. It delegates selected verification.
+delegates bounded implementation. It places selected verification inline or in one capable fallback coordinator.
 Capabilities own their assessment protocols and internal delegation.
 
 Plugin: `darrow-adaptive-goal`  
@@ -60,8 +60,9 @@ auditing belongs to evaluation and diagnostics, not the live workflow.
    is stronger than or not comparable to the main thread's route. A delegated
    child runs on the selected model and effort and owns that assignment, never
    the delivery goal.
-5. Delegate selected verification separately, preserving its provider boundaries,
-   internal delegation and explicit reviewer routes.
+5. Execute selected Verification's complete public workflow inline on a supported
+   observed route; otherwise delegate one bounded assessment to a capable
+   coordinator. Preserve provider prerequisites, independent readers and routes.
 6. Consume candidate-bound evidence, coordinate authorized repairs and fresh
    reassessment, and retain decisions and the shared repair allowance.
 7. Complete only when every required check, acceptance criterion and authorized
@@ -71,8 +72,8 @@ auditing belongs to evaluation and diagnostics, not the live workflow.
 This is the ownership model on both Codex and Claude. Native host controls differ;
 a missing goal or delegation boundary is reported rather than replaced with a
 separate execution-owner transport, nested host process or custom continuation
-loop. The main thread coordinates top-level capability jobs and does not absorb
-review or verification internals.
+loop. The main thread invokes capability-owned public workflows; it does not copy
+provider internals or author independent reader judgments.
 
 ## Invocation authority
 
@@ -222,23 +223,20 @@ not itself a spawned-agent slot:
 
 ```text
 main -> implementation (direct, or bounded assignments settled before assessment)
-main -> verification coordinator -> review coordinator -> Standards reader
-                                                       -> Spec reader
+eligible main -> parallel Standards/Spec readers
+weaker/unknown main -> capable assessment coordinator -> parallel Standards/Spec readers
 ```
 
-Direct main-thread implementation needs no spawned-agent slot. The baseline
-delegated implementation path needs one spawned-agent slot and one layer below
-the primary; concurrent implementation assignments need one slot each and stay
-within the effective concurrency limit. With implementation settled before
-assessment, the full
-required-assessment path needs four concurrently active spawned-agent slots and
-three layers of nesting. Host limits that also count retained inactive threads
-may require releasing completed assignments; the doctor cannot prove live
-capacity from configuration alone. A doctor result distinguishes
-those two conclusions and gives a source-specific setup action for every known
-inadequate or disabled value. Unknown host defaults, versions, or backends stay
-unknown rather than being called adequate. Diagnostics never mutate host or
-repository configuration.
+Direct implementation needs no spawned slot. Delegated implementation needs
+one slot per concurrent assignment and one nesting layer, settled before
+assessment. With both axes applicable, inline assessment needs two spawned
+slots and one layer; fallback needs three slots and two layers. Neither counts
+the primary. Doctor MUST report inline and fallback capacity separately and
+retain unknown defaults/backend applicability. These are capability defaults;
+a compatible replacement's explicit prerequisites may need more capacity.
+Retained inactive threads may need releasing; configuration alone cannot prove
+live capacity. Diagnostics give source-specific setup actions and never mutate
+configuration.
 
 ## Goal contract
 
@@ -466,38 +464,12 @@ The bundled Codex implementation policy is:
 Main-thread coordination is recommended on Codex `gpt-6.1-sol/medium`. A known
 weaker compatible main model receives a brief nonblocking hint; do not switch
 the user's session model or claim reliability for untested stronger routes.
-Verification coordination uses explicit `gpt-6.1-sol/medium` or a stronger
-authorized route. Adaptive Goal binds only that route. Verification owns the
-routes of everything it launches, including review coordination and any future
-assessment provider, and review owns its independent readers. Adaptive Goal
-neither passes nor restates those internal routes, and neither main-model nor
-implementation-model inheritance changes them. A bound verification skill's
-instruction to launch an internal provider on its own route applies inside
-Verification; it does not choose the model of the main thread's Verification
-assignment.
-For the default Codex Verification assignment, the bundled
-`adaptive-goal-preflight codex-verification-input` prepares the native
-`spawn_agent` input. It takes one valid task name and an absolute UTF-8 file
-containing the owner's bounded handoff, preserving its text, and supplies the
-fixed Sol/medium model, reasoning effort and fresh-context flag. The owner
-passes that returned object unchanged to the host. The temporary handoff is
-one assignment's input, not a saved goal contract or lifecycle ledger. The
-helper launches nothing, checks no acceptance and grants no effects; scope,
-criteria, sources, checks and authority remain the owner's responsibility.
-Unreadable, empty or malformed inputs refuse without launch input. A stronger
-explicitly authorized route remains an exact caller-bound host invocation;
-neither provider-child instructions nor model inheritance changes the default.
-
-On Claude, use the same ownership design with native session goals. Bounded
-implementation uses the policy's scoped agents. Verification uses an explicit
-`claude-sonnet-5-5/medium` scoped agent; coordination does not run below that
-middle tier. The main thread resolves its verification
-assignment through Adaptive Goal's bundled scoped-agent resolver and supplies
-the bound verification skill and the review binding; verification owns
-launching the review coordinator on its own route. A review-coordinator agent
-does not replace the main thread's required verification assignment.
-These are host-specific role choices, not a claim of measured equivalence.
-Claude receives lighter smoke validation than Codex.
+The main thread runs the bound Verification skill. Verification owns its
+placement: its helper observes the session route and either coordinates inline
+or hands the assessment to one fallback coordinator, which returns the complete
+result to this owner. Adaptive Goal launches no verification coordinator of its
+own and passes no Verification or Review routes. Missing supported execution
+blocks.
 
 Codex bounded assignments bind an explicit model and reasoning effort with fresh
 context. Claude resolves a scoped agent that pins model and effort, refuses
@@ -580,9 +552,10 @@ implementations or replacement goal owners.
 
 Direct and delegated paths preserve required change evidence, readiness,
 bound capabilities, required checks, authority limits and user-owned local
-changes. Selected verification and independent review remain separate bounded
-capability assignments with their own routes and provider boundaries; direct
-implementation never permits direct or same-context assessment.
+changes. Selected Verification and Review retain their complete public workflows,
+provider prerequisites and independent-reader routes. Supported coordination
+runs inline; weaker or unknown owners use one capable bounded coordinator.
+Direct implementation never permits coordinator-authored independent judgment.
 
 Placement is decided once per candidate. Repairs return to the implementor
 that produced the candidate: the main thread itself after direct placement, or
@@ -720,23 +693,23 @@ required before implementation or assessment. A proposal or queued activation
 is not yet an active goal.
 
 Place implementation by the rules above: directly in the main thread, or as
-bounded assignments on the selected route. Delegate selected verification as a separate capability assignment, after successful current
-checks. Pass the complete relevant acceptance, candidate, evidence, provider
+bounded assignments on the selected route. Place selected verification inline
+or in one capable fallback assignment, after successful current checks. Pass the complete relevant acceptance, candidate, evidence, provider
 bindings. Verification owns its provider selection, internal delegation,
 internal routes and result contract; review owns its readers.
 
 When implementation is delegated, send later work on its assignment, including
 every repair, to the retained implementor through the host's native follow-up
 control. Supply the concrete findings, changed constraints and required checks,
-without transferring orchestration bookkeeping. Fresh context applies to
-verification, not to the implementor. Supply a permitted replacement with the
+without transferring orchestration bookkeeping. Fresh context applies to independent assessment readers, not to a retained
+implementor; fallback coordination also starts with a bounded fresh handoff. Supply a permitted replacement with the
 necessary task context and prior work, with accounting governed by
 [ADL-A4](#adaptation-and-evaluation-fidelity-102).
 
 The main thread may inspect state, implement directly under the placement rules,
 run required checks, consume results and coordinate authorized operations. It
-does not bypass a child's refusal by taking over that refused work or perform a
-provider's internal assessment. Incomplete handoffs
+does not bypass a child's refusal or replace independent reader judgment.
+Inline coordination invokes the provider's public workflow and helpers. Incomplete handoffs
 require bounded clarification or corrected evidence, not a completion claim.
 
 ### Human feedback and blockers
@@ -974,7 +947,7 @@ records the removed repetitions and their retained authority.
     home: the lifecycle reference owns repair-limit arithmetic, section 7 owns
     returning repairs to the producing implementor, verification's own contract
     owns its internal routes, and each host guide owns only its native controls
-    and host-only procedures, including the Codex verification-input call.
+    and host-only procedures.
     Other locations point to that home. Every numbered section ends with a
     checkable completion criterion. A prohibition stays only as a guardrail with
     no positive form or where a matched eval shows it is load-bearing.
@@ -1124,9 +1097,9 @@ The following invariants govern adaptation and evidence provenance:
   high-risk review. Selected assurance requires compatible host-advertised
   verification and independent review before launch. The same owner consumes
   verification's combined clear/progress/no-progress/blocked conclusion; it does
-  not directly coordinate a review-specific protocol. Selecting independent
-  review alone still selects verification with one assessment; it never grants
-  the owner a direct-review bypass. Every material acceptance
+  execute a copied review-specific protocol. Inline placement follows the selected
+  capabilities' complete public workflows. Selecting independent review alone
+  still selects verification with one assessment; placement never bypasses it. Every material acceptance
   criterion needs current evidence or an explicit gap; missing selected evidence,
   stale candidates and provider passes without complete coverage cannot clear
   completion or remaining publication. A selected provider that returns
@@ -1328,8 +1301,9 @@ coordinates; readers run the deterministic assessment protocol. Codex readers
 use GPT-6.1 Sol/xhigh and the provider retains the caller's coordinator route.
 Shared fixture comparisons must support concurrent readers without shared
 temporary expected-content files.
-The combined synthetic verification fixture delegates review to that provider
-workflow and consumes its complete canonical report. Its helper combines an
+The combined synthetic verification fixture invokes that provider's public
+workflow inline on a supported coordinator route; weaker or unknown owners use
+one capable fallback. It consumes the complete canonical report. Its helper combines an
 already returned, current-target review with QA; it never performs another review
 inside the verification context. Require the matching comprehensive or closed
 follow-up mode, current checks and unchanged candidate binding before combining

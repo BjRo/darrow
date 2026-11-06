@@ -11,13 +11,14 @@ review; neither provider owns repairs or continuation. The caller supplies the
 repository, candidate, acceptance, constraints, successful current checks,
 selection and initial or closed-follow-up mode. Missing required evidence blocks.
 
-Delegate the advertised independent-code-review workflow to a fresh provider
-coordinator, carrying the repository, candidate, acceptance, constraints, current
-successful checks and assessment mode. On Codex use `spawn_agent` with
-`fork_turns: "none"`, `model: "gpt-6.1-sol"` and `reasoning_effort: "medium"`.
-The provider owns its independent readers and canonical report; do not execute
-review yourself. Wait for its complete result, read the supplied absolute report,
-and preserve any missing, unavailable or stale evidence as blocked.
+Execute the advertised independent-code-review capability's complete public
+workflow inline on a supported observed coordination route. Below-floor or
+unknown owners delegate one bounded assessment on Codex GPT-6.1 Sol/medium or
+Claude Sonnet 5.5/medium, retaining the original delivery owner. Do not add a
+second coordinator. Preserve a replacement's public prerequisites.
+The provider owns its helpers, fresh independent readers and canonical result.
+Read its complete returned report and preserve missing, unavailable or stale
+evidence as blocked. Never replace independent reader judgments with your own.
 
 For initial assessment request comprehensive review. Then combine its complete
 canonical report with the selected QA-like result:
@@ -28,8 +29,8 @@ uv run --quiet --no-project "$skill_dir/../../backend/scripts/run_locked.py" ada
 
 For follow-up, require the complete original/prior results, finding identities,
 provider provenance, blocking/advisory disposition, target and repair history,
-and direct-regression lineage. Delegate closed fix verification to a fresh review
-provider coordinator with that complete history. After it returns and its report
+and direct-regression lineage. Execute the provider's closed fix-verification workflow with that complete
+history, using the same placement rule. After it returns and its report
 has been read, run:
 
 ```sh

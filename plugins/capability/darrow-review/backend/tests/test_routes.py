@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-import os
+import re
 from pathlib import Path
 
 import pytest
@@ -97,6 +97,40 @@ def test_invalid_configuration(repo: Path, value: object) -> None:
         routing.resolve(str(repo), "codex")
 
 
+@pytest.mark.parametrize(
+    ("variables", "requested", "running"),
+    [
+        ({"CODEX_THREAD_ID": "thread"}, "claude", "codex"),
+        ({"CLAUDECODE": "1"}, "codex", "claude"),
+    ],
+)
+def test_requested_host_must_match_the_running_host(
+    repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    variables: dict[str, str],
+    requested: str,
+    running: str,
+) -> None:
+    for key, value in variables.items():
+        monkeypatch.setenv(key, value)
+    with pytest.raises(ReviewError, match=f"use --host {running}"):
+        routing.resolve(str(repo), requested)
+    assert routing.resolve(str(repo), running).host == running
+
+
+@pytest.mark.parametrize(
+    "variables",
+    [{}, {"CODEX_THREAD_ID": "thread", "CLAUDECODE": "1"}, {"CLAUDECODE": "0"}],
+)
+def test_unobserved_or_nested_host_accepts_the_requested_host(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, variables: dict[str, str]
+) -> None:
+    for key, value in variables.items():
+        monkeypatch.setenv(key, value)
+    assert routing.resolve(str(repo), "codex").host == "codex"
+    assert routing.resolve(str(repo), "claude").host == "claude"
+
+
 @pytest.mark.parametrize("effort", ["high", "xhigh", "max"])
 def test_gpt_6_1_sol_is_a_supported_review_override(repo: Path, effort: str) -> None:
     config(repo, {"reviewers": [reviewer(model="gpt-6.1-sol", effort=effort)]})
@@ -189,11 +223,7 @@ def test_claude_native_agent(
 
 def transcript(repo: Path, tmp_path: Path, agent: str = "abc1") -> tuple[Path, Path]:
     projects = tmp_path / "projects"
-    slug = str(repo).replace("/", "-")
-    if os.name == "nt":
-        import re
-
-        slug = re.sub(r"[^A-Za-z0-9]", "-", str(repo))
+    slug = re.sub(r"[^A-Za-z0-9]", "-", str(repo))
     path = projects / slug / "session/subagents" / f"agent-{agent}.jsonl"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(

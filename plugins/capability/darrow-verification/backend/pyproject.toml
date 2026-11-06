@@ -7,6 +7,7 @@ dependencies = []
 
 [project.scripts]
 darrow-render-assessment = "darrow_verification.assessment:entrypoint"
+darrow-verify-placement = "darrow_verification.placement:entrypoint"
 
 [dependency-groups]
 dev = [

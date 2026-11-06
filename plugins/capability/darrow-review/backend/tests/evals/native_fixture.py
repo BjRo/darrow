@@ -101,6 +101,13 @@ def retain_native(view: Path, events: list[dict[str, Any]]) -> None:
                         },
                     },
                     {
+                        "type": "turn_context",
+                        "payload": {
+                            "model": event["model"],
+                            "effort": event["reasoning_effort"],
+                        },
+                    },
+                    {
                         "type": "event_msg",
                         "payload": {"type": "task_started", "turn_id": child},
                     },

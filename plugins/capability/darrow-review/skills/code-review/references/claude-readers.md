@@ -1,7 +1,7 @@
 # Launch Claude Code readers
 
-Use this reference for step 3 on Claude Code, after scope, checks, route and every
-applicable input are prepared. Resolve the selected exact-tuple plugin reader:
+Use this reference for step 3 on Claude Code. Prepare scope, checks, route and
+every applicable input before the first Agent call. Resolve the exact-tuple reader:
 
 ```sh
 uv run --quiet --no-project "$backend/scripts/run_locked.py" review-route claude-agent \
@@ -11,9 +11,10 @@ uv run --quiet --no-project "$backend/scripts/run_locked.py" review-route claude
 Invoke Agent with the returned namespaced `subagent_type`, `run_in_background:
 false`, no per-call model override, and the complete unchanged preparation
 `message` as its prompt. The plugin agent pins full model and effort together.
-Emit both applicable foreground calls in the same assistant turn. That turn
-through the first child result contains exactly those axes and no additional
-Agent call. Background or later sequential launches do not satisfy the boundary.
+Emit both applicable foreground calls in one assistant message, before either
+result. That batch contains only those axes. A partial or sequential batch
+blocks this operation; preserve its evidence. Do not discard it and relaunch a
+pair to claim a valid batch. Background launches cannot satisfy this boundary.
 
 The helpers refuse conflicting host/provider overrides. Preserve an unavailable
 tuple's diagnostic through [review-recovery.md](review-recovery.md), without

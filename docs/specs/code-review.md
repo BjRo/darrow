@@ -110,7 +110,20 @@ phase. When a goal contract does select independent review:
   verification chain bound to the exact current content. Any later
   content-changing edit invalidates that chain.
 
-The review coordinator remains read-only in every mode. A composed invocation
+The review coordinator remains read-only in every mode. It coordinates inline
+when the bundled helper observes, from the session's own host transcript, a
+model and effort at the supported floor (Codex GPT-6.1 Sol/medium or Claude
+Sonnet 5.5/medium, or the same model at higher effort).
+A below-floor or unknown route delegates the operation to one explicitly pinned
+capable coordinator and waits for its complete result. The host is the running
+harness and is never unknown; the route helper MUST refuse a requested host that
+contradicts an unambiguous host environment. The selected reader route describes future
+children and MUST NOT qualify the active coordinator. Scope and
+known-unavailability refusals precede fallback. The fallback coordinator runs
+this workflow inline, launches the applicable fresh readers and never delegates
+coordination again. A rejected or conflicting launch blocks. This applies to
+standalone and composed initial review and closed repair verification.
+A composed invocation
 returns its normal report to the enclosing goal instead of treating that report
 as the enclosing goal's completion. The enclosing goal owns any later repair,
 stop, or already-authorized publication action and may summarize the review in
@@ -440,7 +453,11 @@ records the removed repetitions and their retained authority.
     unreadable, invalid, unavailable,
     silently-substituted, inherited, or unverifiable route evidence blocks the
     affected reader instead of falling back to another model or same-context
-    judgment. Standards and Spec remain fresh and isolated even when they share
+    judgment. If a native host's start event omits route fields, exact effective
+    model and effort MUST be established from every turn context of the same
+    accepted, completed child. Missing child context cannot be filled by the
+    requested tuple. Present start fields MUST agree; conflicting observations
+    remain a route gap. Standards and Spec remain fresh and isolated even when they share
     one route policy. Bundled mechanics MUST own reviewer-route record parsing,
     serialization, and file creation; the coordinator supplies absolute artifact
     paths and applies only the returned native launch fields. It MUST NOT
@@ -462,7 +479,10 @@ records the removed repetitions and their retained authority.
     frontmatter and no per-call model alias. Its evidence binds the current
     native Agent tool-use ID to its host-reported child ID, then binds that
     exact ID to the parsed `agent-<id>.jsonl` transcript's `agentId`, model, and
-    effort on every assistant turn. Two-axis evidence MUST close the native
+    effort on every assistant turn. Project-directory lookup MUST use the
+    native host's path encoding, including punctuation and underscores on
+    Unix, rather than treating only path separators as encoded characters.
+    Two-axis evidence MUST close the native
     launch batch over all retained Agent or spawn events: exactly the bound
     Standards and Spec readers may occur before their first wait or child
     result. An explicit wait call is optional when Codex returns the results
@@ -470,6 +490,9 @@ records the removed repetitions and their retained authority.
     to both the accepted child thread ID and its agent path. Both readers must
     be accepted before the earliest wait or bound completion notification;
     missing ordering evidence cannot establish a parallel two-axis batch.
+    An incomplete or sequential launch batch remains blocked for that operation.
+    Its evidence MUST NOT be discarded to present a later pair as the original
+    valid batch. A separate authorized assessment correction retains its history.
     When the host or requester has already reported the selected route
     unavailable, the coordinator MUST retain zero native reader-launch attempts,
     including probes of that exact route. This exception precedes the ordinary

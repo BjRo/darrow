@@ -1,0 +1,109 @@
+id: goal-inline-verification-initial-and-followup
+required_plugin_hook: darrow-review
+invariant: ADL-V1,ADL-A4,ADL-C2,ADL-L1,ADL-L2,ADL-L5,LC-C5,CR-C19,CR-E18
+activation: positive
+mount_plugin_skills: true
+activation_includes:
+  - verify-change
+  - code-review
+additional_plugins:
+  - plugins/capability/darrow-verification
+  - plugins/capability/darrow-review
+goal_report: forbidden
+goal_route_checks: false
+prompt:
+  "The harness pins this exact original owner to Codex gpt-6.1-sol/medium; preserve
+  that observed route when placing public coordination. Preserve the configured
+  DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing
+  Review state configuration. Use {{skill_invocation}} to continue the existing
+  src/config.js candidate. Run bash check.sh, then independently assess the candidate
+  before any change. Use verification with the installed darrow-review:code-review
+  provider. Independent review is the only selected assessment. Originating criteria:
+  TIMEOUT_MS must equal 2500 and RETRY_COUNT must remain 3. Repair only src/config.js
+  within those criteria, refresh invalidated checks and obtain closed follow-up assurance.
+  Complete locally only when current verification clears. No commits, publication, new
+  product behavior or replacement owner is authorized. Report the initial finding and
+  final verification outcome."
+fixture:
+  commits:
+    - message: "chore: baseline"
+      files:
+        AGENTS.md: |
+          Run bash check.sh for JavaScript changes. Keep this check unchanged.
+        src/config.js: |
+          export const TIMEOUT_MS = 1000;
+          export const RETRY_COUNT = 3;
+        check.sh: >
+          #!/usr/bin/env bash
+
+          set -eu
+
+          grep -Fx 'export const TIMEOUT_MS = 2500;' src/config.js >/dev/null
+
+          git_dir=$(git rev-parse --git-dir)
+
+          mkdir -p "$(git rev-parse --show-toplevel)/.fixture-state"
+
+          cksum <src/config.js >>"$(git rev-parse
+          --show-toplevel)/.fixture-state/current-checks"
+  files:
+    src/config.js: |
+      export const TIMEOUT_MS = 2500;
+      export const RETRY_COUNT = 0;
+  setup: |
+    mkdir -p "$HOME/.darrow/reviews"
+    mkdir -p .git/eval-checks
+    cp "{{case_dir}}/../../../backend/tests/evals/clear_repair.py" .git/eval-checks/
+    bash "{{case_dir}}/../../../../../capability/darrow-review/skills/code-review/evals/fixtures/prepare-grading.sh" "{{case_dir}}/../../../../../capability/darrow-review/skills/code-review/evals"
+checks:
+  - name: current candidate satisfies both originating criteria
+    run: >
+      printf '%s\n' 'export const TIMEOUT_MS = 2500;' 'export const RETRY_COUNT = 3;'
+      >.git/expected-config
+
+      cmp .git/expected-config src/config.js
+
+      test "$(git rev-list --count HEAD)" -eq 1
+  - name: real provider retains a unique closed clear assessment of current content
+    run: >
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review
+      artifact grant is required}"
+
+      uv run --quiet --no-project
+      "$PWD/.sevro-marketplace/plugin/backend/scripts/run_locked.py" python
+      .git/eval-checks/clear_repair.py
+
+      uv run --quiet --no-project
+      "$PWD/.sevro-marketplace/plugin/backend/scripts/run_locked.py" adaptive-goal-fixture
+      proof current
+  - name: initial assessment has completed fresh readers coordinated by the original owner
+    run: >
+      export DARROW_REVIEW_STATE_DIR="$SEVRO_CANDIDATE_ARTIFACT_REVIEWS"
+
+      python3 .git/eval-checks/review/tests/evals/eval_routes.py --host codex --profile
+      default --placement inline --record-kind result --axes standards spec
+  - name: closed followup retains completed fresh readers and the same inline coordinator
+    run: >
+      export DARROW_REVIEW_STATE_DIR="$SEVRO_CANDIDATE_ARTIFACT_REVIEWS"
+
+      python3 .git/eval-checks/review/tests/evals/eval_routes.py --host codex --profile
+      default --placement inline --record-kind verification --axes spec
+semantic_output_checks:
+  - name: same owner completes after actual provider repair verification
+    proposition:
+      The response conveys that the retry-count blocker was repaired, current
+      checks succeeded, and fresh closed verification cleared the candidate. Those
+      completed outcomes suffice; it need not use the word "complete" or identify the
+      owner by name. It must not claim publication, replacement of the owner, or an
+      unresolved condition that prevents completion.
+transcript_checks:
+  - name: no lifecycle ledger
+    not_regex: adaptive-goal-preflight step
+native_goal: complete
+assessment_capture: required
+harnesses:
+  - codex
+candidate_routes:
+  codex:
+    model: gpt-6.1-sol
+    effort: medium

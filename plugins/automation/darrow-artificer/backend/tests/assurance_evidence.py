@@ -1,0 +1,201 @@
+"""Independent retained-result and published-content checks for the live probe."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import subprocess
+from datetime import datetime
+from pathlib import Path
+
+from assurance_control import REPLY, git
+from darrow_artificer import native
+from darrow_artificer.github import array_value, object_value, text_value
+from darrow_artificer.installation import Installation
+from darrow_artificer.models import Claim
+from darrow_artificer.storage import read_object
+
+
+def one(paths: list[Path]) -> Path:
+    assert len(paths) == 1, "expected one bound evidence file"
+    return paths[0]
+
+
+def goal_updates(directory: Path) -> list[dict[str, object]]:
+    files = list(directory.glob("*-events.jsonl"))
+    assert files, "missing native app-server evidence"
+    events = [event for path in files for event in native.records(path)]
+    assert not any(event.get("method") == "thread/goal/cleared" for event in events)
+    return [
+        object_value(object_value(event["params"])["goal"])
+        for event in events
+        if event.get("method") == "thread/goal/updated"
+        and event.get("direction") != "send"
+    ]
+
+
+def goal_identity(directory: Path, claim: Claim, status: str) -> dict[str, object]:
+    assert claim.native is not None
+    goals = goal_updates(directory)
+    assert goals and status in {goal["status"] for goal in goals}
+    for goal in goals:
+        assert goal["threadId"] == claim.native.thread
+        assert goal["objective"] == claim.goal_objective
+        assert type(goal["createdAt"]) is int
+    identities = {(goal["createdAt"], goal["tokenBudget"]) for goal in goals}
+    assert len(identities) == 1, "original native goal or its budget was replaced"
+    if status == "active":
+        assert "complete" not in {goal["status"] for goal in goals}
+    first = goals[0]
+    return {
+        "thread": claim.native.thread,
+        "createdAt": first["createdAt"],
+        "tokenBudget": first["tokenBudget"],
+        "objective_sha256": hashlib.sha256(
+            text_value(first["objective"]).encode()
+        ).hexdigest(),
+    }
+
+
+def public_review(backend: Path, *arguments: str) -> str:
+    return subprocess.run(
+        [
+            "uv",
+            "run",
+            "--quiet",
+            "--no-project",
+            str(backend / "scripts/run_locked.py"),
+            *arguments,
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+
+
+def final_answer(path: Path) -> tuple[str, float]:
+    rows = native.records(path)
+    payloads = [object_value(row["payload"]) for row in rows if "payload" in row]
+    finals = [value for value in payloads if value.get("phase") == "final_answer"]
+    completions = [value for value in payloads if value.get("type") == "task_complete"]
+    assert finals and completions, "missing completed native assessment"
+    content = finals[-1]["content"]
+    assert isinstance(content, list)
+    text = "".join(text_value(object_value(part)["text"]) for part in content)
+    assert text and completions[-1].get("last_agent_message") == text
+    final = next(row for row in reversed(rows) if row.get("payload") == finals[-1])
+    timestamp = datetime.fromisoformat(
+        text_value(final["timestamp"]).replace("Z", "+00:00")
+    )
+    return text, timestamp.timestamp()
+
+
+def native_reader(home: Path, agent: str) -> tuple[Path, dict[str, object]]:
+    found = []
+    for path in (home / "sessions").rglob("*.jsonl"):
+        metadata = [
+            object_value(row["payload"])
+            for row in native.records(path)
+            if row.get("type") == "session_meta"
+        ]
+        assert len(metadata) == 1
+        if metadata[0].get("agent_path") == agent:
+            found.append((path, metadata[0]))
+    assert len(found) == 1, "missing or ambiguous native reader"
+    return found[0]
+
+
+def provider_result(backend: Path, path: Path) -> dict[str, object]:
+    public_review(backend, "review-result", "validate", str(path))
+    public_review(
+        backend,
+        "review-result",
+        "validate-scope",
+        str(path.parent / "scope.json"),
+        str(path),
+    )
+    result = read_object(path)
+    assert result["verdict"] == result["standards"] == result["spec"] == "pass"
+    assert result["findings"] == [], (
+        "retained provider findings cannot clear this fixture"
+    )
+    expected = public_review(backend, "review-report", "render", str(path))
+    assert (path.parent / "review.md").read_text().split() == expected.split()
+    return result
+
+
+def published_content(
+    backend: Path, path: Path, repo: Path, commit: str
+) -> dict[str, object]:
+    scope = read_object(path.parent / "scope.json")
+    assert Path(text_value(scope["repository"])).resolve() == repo.resolve()
+    assert scope["base"] == git(repo, "rev-parse", "main")
+    assert git(repo, "rev-parse", "HEAD") == commit
+    assert git(repo, "status", "--porcelain") == ""
+    assert (
+        git(repo, "diff", "--name-only", text_value(scope["base"]), commit)
+        == "config.json"
+    )
+    assert [
+        Path(text_value(name)).resolve() for name in array_value(scope["changed_files"])
+    ] == [repo.resolve() / "config.json"]
+    public_review(
+        backend, "review-scope", "show", "--manifest", str(path.parent / "scope.json")
+    )
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repo),
+            "apply",
+            "--reverse",
+            "--check",
+            "--binary",
+            text_value(scope["diff"]),
+        ],
+        check=True,
+        capture_output=True,
+    )
+    return scope
+
+
+def reader_results(home: Path, directory: Path) -> str:
+    parents = set()
+    for axis in ("standards", "spec"):
+        application = read_object(directory / f"{axis}-route.json")
+        path, meta = native_reader(home, text_value(application["agent_id"]))
+        text, _ = final_answer(path)
+        observed = object_value(json.loads(text))
+        assert observed == read_object(directory / f"{axis}.json")
+        assert observed["status"] == "pass" and observed["findings"] == []
+        parents.add(text_value(meta["parent_thread_id"]))
+    assert len(parents) == 1, "assessments must share the bounded coordinator"
+    return parents.pop()
+
+
+def retained_evidence(
+    root: Path, site: Installation, claim: Claim, commit: str
+) -> dict[str, object]:
+    home = site.delivery_dir(claim.id) / "native"
+    backend = home / "skills/darrow-review/backend"
+    path = one(list((root / "reviews").glob("**/darrow-review.*/result.json")))
+    result = provider_result(backend, path)
+    scope = published_content(backend, path, Path(claim.worktree), commit)
+    coordinator = reader_results(home, path.parent)
+    native_path = one(list((home / "sessions").rglob(f"*{coordinator}.jsonl")))
+    assessment, completed_at = final_answer(native_path)
+    assert completed_at < (root / "proposal.json").stat().st_mtime, (
+        "assessment completed after publication"
+    )
+    assert (root / "release.txt").read_text() == REPLY
+    return {
+        "criteria": (Path(claim.worktree) / "SPEC.md").read_text(),
+        "check_script": (Path(claim.worktree) / "check.sh").read_text(),
+        "published_commit": commit,
+        "scope": scope,
+        "provider_result": result,
+        "provider_report": (path.parent / "review.md").read_text(),
+        "assessment": assessment,
+        "operator_reply_verified": claim.consumed_comments == [99],
+        "assessment_before_publication": True,
+    }

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import io
+import os
 import signal
 import sys
 from collections.abc import Callable, Sequence
@@ -13,6 +14,7 @@ from typing import NoReturn
 from . import (
     check,
     finalization,
+    placement,
     provider,
     reader_aggregation,
     reader_feedback,
@@ -415,14 +417,15 @@ def verify_command(args: list[str]) -> str:
 
 def route_command(args: list[str]) -> str:
     if args and args[0] in ("help", "-h", "--help"):
-        return "usage: review-route resolve|select|claude-agent|confirm-codex|confirm-claude [options]\n"
+        return "usage: review-route resolve|select|place|claude-agent|confirm-codex|confirm-claude [options]\n"
     require(
         args,
-        "usage: review-route resolve|select|claude-agent|confirm-codex|confirm-claude [options]",
+        "usage: review-route resolve|select|place|claude-agent|confirm-codex|confirm-claude [options]",
     )
     handlers = {
         "resolve": resolve_route,
         "select": select_route,
+        "place": place_route,
         "claude-agent": claude_route,
         "confirm-codex": confirm_codex,
         "confirm-claude": confirm_claude,
@@ -439,6 +442,13 @@ def resolve_route(args: list[str]) -> str:
 def select_route(args: list[str]) -> str:
     parsed = options("review-route select", args, ("repo", "host", "record"))
     return routing.select(parsed.repo, parsed.host, parsed.record)
+
+
+def place_route(args: list[str]) -> str:
+    parsed = options(
+        "review-route place", args, ("host",), flags=("pinned-fallback-agent",)
+    )
+    return placement.place(parsed.host, parsed.pinned_fallback_agent, os.environ)
 
 
 def claude_route(args: list[str]) -> str:

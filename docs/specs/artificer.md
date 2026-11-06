@@ -26,7 +26,10 @@ acceptance. This specification defines the local implementation boundary.
   unattended entry, never an impersonated human invocation. Failed readiness
   permits no implementation. The same main thread retains all continuation.
   The initial route is `gpt-6-sol`/`medium`; implementation and assurance routes
-  remain selected by Adaptive Goal and its bound capabilities.
+  remain selected by Adaptive Goal and its bound capabilities. Supported owners
+  execute public assessment coordination inline; weaker or unknown routes use
+  one capable bounded coordinator with fresh independent readers. Neither
+  placement changes admission, claims, native identity, continuation or gates.
 
 ## Admission and reconciliation
 
@@ -141,6 +144,13 @@ billing setting when the response clearly rejects a zero-paid-usage guarantee
 and leaves enabling pending resolution of that requirement.
 No implicit-positive activation is required. Packaging must disable implicit
 selection and preserve ordinary engineering requests outside this entry.
+
+Composed engineering evidence MUST exercise real Ticket-to-PR, Adaptive Goal,
+Verification and Review workflows, independent reader judgments, same-owner
+continuation after process exit and feedback, and the intended committed,
+published and CI-verified candidate. Local forge fixtures may replace external
+effects, but transport-only or mocked model execution cannot establish these
+native workflow claims. Report route, usage, trial count and limitations.
 
 An implementation and its mock tests do not establish native integration
 acceptance. Record observed evidence and unresolved limitations separately.

@@ -5,7 +5,8 @@ owns preflight, acceptance, user decisions and completion. It implements
 directly when its own route matches the selected implementation route. It
 delegates implementation when the selected route is stronger or the main
 route is unknown, or when a cheaper route or concurrent parts repay the
-handoff. Selected verification is always a separate assignment.
+handoff. Selected verification runs in the main thread on a supported route,
+otherwise in one fallback coordinator. Its readers always start fresh.
 
 ```text
 request + repository -> read-only preflight/readiness -> main-thread native goal
@@ -35,8 +36,8 @@ The skill:
 - selects implementation difficulty separately from consequence risk;
 - binds authorized operations to compatible advertised capabilities;
 - keeps the native goal within 4,000 characters and coordination instructions in the skill;
-- places implementation directly or in bounded assignments, and delegates
-  verification with explicit role routes;
+- places implementation directly or in bounded assignments, and invokes
+  verification inline or through one capable fallback coordinator;
 - coordinates repairs, user feedback, reassessment and evidence-supported completion.
 
 Readiness findings stop implementation until resolved. Material changes to scope,
@@ -129,7 +130,7 @@ follow-up through verification, which owns finding identity and history.
 Placement is decided once. A repair goes back to the implementor that produced
 the candidate, which already holds the task context: the main thread after direct
 work, otherwise the retained child through `SendMessage` (Claude) or
-`followup_task`/`send_message` (Codex). Only verification starts fresh. A
+`followup_task`/`send_message` (Codex). Only assessment readers start fresh. A
 replacement implementor is used only when the retained one is unavailable or no
 longer fits the route or scope. Replacement children and comprehensive
 reassessment never reset the allowance. Clear evidence ends repair immediately;
@@ -175,8 +176,11 @@ The doctor reads effective host delegation controls and distinguishes:
 - direct implementation: no child slot;
 - delegated implementation: one child slot per concurrent assignment and one
   nesting layer;
-- required verification and review: four active child slots and three nesting
-  layers, with implementation settled before assessment.
+- inline assessment: two reader slots and one nesting layer;
+- capable-coordinator fallback: three child slots and two nesting layers.
+
+Implementation settles before assessment; the primary is excluded. Provider
+prerequisites can require additional capacity.
 
 Native limits that count retained inactive threads may require releasing completed
 assignments. Configuration diagnosis does not prove current free capacity or

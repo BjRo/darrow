@@ -42,6 +42,7 @@ for authority, routes, repair limits and publication prerequisites.
 - [Capability handoff investigation](darrow-adaptive-delivery-capability-handoff-2026-09-30.md)
 - [Verification coordinator model experiment](adaptive-delivery-verification-model-2026-10-02.md)
 - [Claude verification coordinator route](claude-verification-coordinator-route-2026-10-25.md)
+- [Assurance coordination replacement and evidence limits](assurance-coordination-291.md)
 - [Routing policy experiment](darrow-adaptive-delivery-routing-luna-medium-2026-09-29.md)
 - [User-wait evidence](adaptive-delivery-user-wait-2026-10-03.md)
 - [Renderer recovery](adaptive-delivery-renderer-recovery-2026-10-03.md)

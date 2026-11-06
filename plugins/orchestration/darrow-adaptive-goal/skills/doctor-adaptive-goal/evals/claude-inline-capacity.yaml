@@ -1,0 +1,36 @@
+id: doctor-adaptive-goal-claude-inline-capacity
+harnesses: [claude]
+candidate_routes:
+  claude:
+    model: claude-sonnet-5-5
+    effort: medium
+invariant: ADL-D1
+activation: positive
+native_goal: forbidden
+prompt: >-
+  {{skill_invocation}} Diagnose a represented Claude Code 2.1.219 session, not
+  this executing host. Its effective process environment has
+  CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS=2 and
+  CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1. Use these supplied values only for the
+  read-only diagnosis command. Explain whether inline assessment and the capable
+  coordinator fallback each fit. Do not edit configuration or launch agents.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "fixture\n"
+checks:
+  - name: diagnosis leaves the repository unchanged
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: completed diagnosis distinguishes inline and fallback capacity
+    proposition: >-
+      The response reports a completed bundled helper diagnosis of the represented
+      Claude Code 2.1.219 environment, identifies concurrency two and nesting one
+      as separate supported controls, and concludes that these configured limits
+      support the two-reader inline topology but not the three-slot two-layer
+      capable-coordinator fallback. A recommendation without running the helper,
+      a prerequisite refusal, or a conclusion based on the executing host fails.
+transcript_checks:
+  - name: doctor launches no children
+    not_regex: '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"name":"Agent"'

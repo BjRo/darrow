@@ -5,18 +5,9 @@ description: Coordinate acceptance verification of an implementation candidate. 
 
 # Verify a change
 
-**Delegate the capability, not an axis review.** After binding its public
-contract, launch the selected provider's **complete skill workflow** in a fresh
-context. That provider must launch its own independent readers. Both initial
-and targeted follow-up assessments retain this call chain:
-
-```text
-Verification coordinator → fresh provider coordinator → independent reader(s)
-```
-
-A single child that inspects the candidate and writes a report cannot fill both
-provider and reader roles. Do not ask the provider coordinator to act as a Spec
-or Standards reader. Reading its instructions does not transfer its role here.
+Step 2 decides whether this context coordinates inline or hands the
+assessment to one fallback coordinator. Judgments always come from the
+provider's fresh independent readers.
 
 Return one candidate-bound assessment through compatible independent review.
 The active owner selects assurance, implements, repairs, controls budgets and
@@ -69,6 +60,8 @@ inspection, checks or agent launches**. Match advertised intent, including
 differently named providers; a literal `code-review` name proves nothing.
 Honor the caller's compatible binding and resolve a consequential open choice.
 Do not inspect sibling/private provider files or create another registry.
+Capabilities are skill files in the host's skill catalog, not tools; a search
+of the tool list (such as `ALL_TOOLS`) cannot find or rule one out.
 If a hook-advertised skill path is unreadable, preserve its exact error and
 retry the **same capability's public catalog path**, expanding its documented
 skill-root alias. A denied hook path does not prove its catalog installation
@@ -92,37 +85,30 @@ Absent/incompatible required review returns blocked with the exact gap. Do not
 install a provider, invent its contract, substitute self-review, or manufacture
 compatibility by adding your own readers. A bare provider "pass" is insufficient.
 
-If the provider retains reports, bind **this plugin's renderer backend** before
-launch. Derive this skill directory from its loaded absolute catalog path on
-Codex, or `CLAUDE_SKILL_DIR` on Claude. Resolve `../../backend` once to an
+Bind **this plugin's backend** before launch. This skill directory is the one
+holding this verify-change `SKILL.md`, never the provider's: its loaded absolute
+catalog path on Codex, or `CLAUDE_SKILL_DIR` on Claude. Resolve `../../backend` once to an
 absolute path; require readable `scripts/run_locked.py`, `pyproject.toml` and
-`uv.lock`. Keep that path for step 5. UV selects Python; no separate system
-Python probe is needed. Failed lookups must name the authoritative path and
-actual diagnostic, not a guessed cache/repository path or another installation.
-This backend renders verification; provider review commands belong to the provider.
+`uv.lock`. Keep that path for placement and step 5. UV selects Python; no
+separate system Python probe is needed. Failed lookups must name the
+authoritative path and actual diagnostic, not a guessed cache/repository path or
+another installation. This backend places and renders verification; provider
+review commands belong to the provider.
+
+Now apply [coordination placement](references/coordination.md). If a fallback
+coordinator runs the assessment, return its complete result. Otherwise
+continue inline below.
 
 ## 3. Obtain one complete assessment
 
-Invoke the actual bound capability in **one fresh provider context**, with a
-response boundary that returns its complete normal result here. Pass its public skill
-and intent, bound sources/candidate, objective/criteria, constraints, checks and
-closed follow-up handoff. Exclude author conclusions and unrelated discussion.
-The provider owns its independent readers, their routes, checks and judgments;
-ask it to execute that complete workflow, including its own reader delegation.
-Do not reproduce those internals or request private serialization.
+Execute the bound provider's **complete public workflow inline** here, then
+keep its complete normal result for step 4. If a replacement provider's public
+contract requires its own context, honor that on its supported route.
 
-- **Codex:** use the advertised native `spawn_agent` with `fork_turns: "none"`,
-  `model: "gpt-6.1-sol"`, `reasoning_effort: "medium"`, unless the caller bound
-  another compatible explicit coordinator route. This does not override the
-  provider's reader routes. Code Mode's nested tool list can omit top-level
-  agent tools; an empty search there does not establish native unavailability.
-- **Claude:** use this plugin's scoped Agent
-  `darrow-verification:review-coordinator-sonnet-5-5-medium`,
-  `run_in_background: false`, without a per-call model override. It pins
-  `claude-sonnet-5-5/medium`. Inspect only `CLAUDE_CODE_SUBAGENT_MODEL` and
-  `CLAUDE_CODE_EFFORT_LEVEL`; conflicting nonempty overrides block. Another
-  caller route needs an available explicitly pinned scoped Agent and the same
-  checks. Do not inherit silently or use another plugin's private Agent file.
+Use the bound sources, candidate, objective and criteria, constraints, checks
+and closed follow-up history as its inputs. The provider owns its helpers,
+independent readers, routes and judgments; follow its instructions and never
+write those judgments yourself. Reader inputs exclude author conclusions.
 
 If the required native boundary is unavailable, return its concrete invocation
 gap. Never substitute a generic review prompt or act as another engineering
@@ -221,13 +207,14 @@ Correct a demonstrated wrong-path invocation before diagnosing installation;
 preserve its diagnostic. A correctly invoked refusal is a blocked handoff with
 the precise gap, not permission to substitute another report or repair its files.
 
-On success, return **the complete stdout unchanged as the entire final assistant
-message**, including its assessment and final line:
+On success, the complete stdout unchanged is this operation's result, including
+its assessment and final line:
 
 ```text
 Complete provider result: [report](<absolute-path>)
 ```
 
-Tool output is not the final response. Do not summarize, rewrite, acknowledge,
-append to it, or return only its link. Finish all checks before rendering so no
-later tool or commentary displaces the complete assessment and canonical link.
+Standalone use returns that stdout as the entire final response. In an
+enclosing delivery, keep it complete and return control to the owner, which
+continues its delivery. Never reduce it to a link or summary. Finish all checks
+before rendering.

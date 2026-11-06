@@ -5,10 +5,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 from pathlib import Path
 from typing import Any
 
+from native_claude_routes import verify_claude
 from native_codex_routes import verify_codex
 from prior_codex_routes import prior_bindings
 
@@ -65,66 +65,6 @@ def identities(directory: Path, axes: list[str], expected: list[str]) -> dict[st
     return result
 
 
-def events_of(events: list[dict[str, Any]], kind: str) -> list[dict[str, Any]]:
-    return [event for event in events if event.get("type") == kind]
-
-
-def agent_calls(value: Any) -> list[dict[str, Any]]:
-    if isinstance(value, list):
-        return [call for item in value for call in agent_calls(item)]
-    if isinstance(value, dict):
-        if value.get("name") == "Agent":
-            return [value]
-        return [call for item in value.values() for call in agent_calls(item)]
-    return []
-
-
-def claude_calls(events: list[dict[str, Any]], axes: list[str], subagent: str) -> None:
-    batches = [agent_calls(event) for event in events]
-    calls = [call for batch in batches for call in batch]
-    assert len(calls) == len(axes)
-    assert any(len(batch) == len(axes) for batch in batches), (
-        "readers need one launch batch"
-    )
-    observed_axes = []
-    for call in calls:
-        arguments = call["input"]
-        assert arguments["subagent_type"] == subagent
-        matches = re.findall(
-            r"(?m)^- review_axis: (standards|spec)\s*$", arguments["prompt"]
-        )
-        assert len(matches) == 1
-        observed_axes.extend(matches)
-    assert sorted(observed_axes) == sorted(axes)
-
-
-def claude_evidence(
-    directory: Path,
-    events: list[dict[str, Any]],
-    agents: dict[str, str],
-    expected: list[str],
-) -> None:
-    subagent = f"darrow-review:review-reader-{expected[2]}-{expected[3]}"
-    claude_calls(events, list(agents), subagent)
-    launches = events_of(events, "darrow.review_agent_launch")
-    assert len(launches) == len(agents)
-    batches = []
-    for axis, agent in agents.items():
-        observed = directory / f"{axis}-observed-route.json"
-        assert row(observed, "agent_id") == [agent]
-        assert row(observed, "observed_route") == expected
-        verify_provider(directory, axis, len(agents))
-        matching = [event for event in launches if event.get("agent_id") == agent]
-        assert len(matching) == 1
-        event = matching[0]
-        assert event.get("review_axis") == axis
-        assert event.get("subagent_type") == subagent
-        batches.append(event.get("batch"))
-    if len(agents) > 1:
-        assert all(type(batch) is int for batch in batches)
-        assert len(set(batches)) == 1
-
-
 def verify_provider(directory: Path, axis: str, count: int) -> None:
     if count > 1:
         for suffix in ("route", "observed-route"):
@@ -140,6 +80,7 @@ def verify(
     axes: list[str],
     review_state: Path | None = None,
     record_name: str = "result.json",
+    placement: str | None = None,
 ) -> None:
     assert record_name in {"result.json", "verification.json"}, "invalid aggregate kind"
     review_root = review_state if review_state is not None else git_dir
@@ -154,17 +95,17 @@ def verify(
     if host == "codex":
         view = os.environ.get("SEVRO_CANDIDATE_TRANSCRIPTS")
         assert view, "missing candidate native transcript view"
-        verify_codex(Path(view), agents, expected, prior_bindings(directory))
+        verify_codex(Path(view), agents, expected, prior_bindings(directory), placement)
         return
-    events = [
-        json.loads(line)
-        for line in (git_dir / "retained-harness.jsonl")
-        .read_text(encoding="utf-8")
-        .splitlines()
-        if line.strip()
-    ]
-    assert all(isinstance(event, dict) for event in events)
-    claude_evidence(directory, events, agents, expected)
+    view = os.environ.get("SEVRO_CANDIDATE_TRANSCRIPTS")
+    assert view, "missing candidate native transcript view"
+    verify_claude(Path(view), agents, expected, placement)
+    for axis, agent in agents.items():
+        assert row(directory / f"{axis}-observed-route.json", "agent_id") == [agent]
+        assert (
+            row(directory / f"{axis}-observed-route.json", "observed_route") == expected
+        )
+        verify_provider(directory, axis, len(agents))
 
 
 def main() -> None:
@@ -177,6 +118,7 @@ def main() -> None:
     parser.add_argument(
         "--record-kind", choices=("result", "verification"), default="result"
     )
+    parser.add_argument("--placement", choices=("inline", "fallback"))
     arguments = parser.parse_args()
     review_root = os.environ.get("DARROW_REVIEW_STATE_DIR")
     assert review_root, "missing review-state directory"
@@ -187,6 +129,7 @@ def main() -> None:
         arguments.axes,
         Path(review_root),
         f"{arguments.record_kind}.json",
+        arguments.placement,
     )
 
 

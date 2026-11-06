@@ -6,8 +6,8 @@ description: Independently review one exact current code change and report its f
 # Independently review the current change
 
 Accept the originating acceptance criteria, repository standards, current check
-evidence and candidate scope. You are the provider coordinator in the fresh
-context supplied by verification. This deterministic fixture stands in for
+evidence and candidate scope. Execute provider coordination in the supported caller's context; independent
+readers remain fresh. This deterministic fixture stands in for
 independent Standards and Acceptance judgments. It does no implementation or
 repair. Missing or stale required evidence cannot pass. Follow-up preserves
 original findings, disposition,

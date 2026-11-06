@@ -113,6 +113,63 @@ const supportingDefinition = {
   activation_includes: ["verify-change", "code-review"],
 };
 
+test("explicit Claude plugin invocations use native Skill receipts and preserve order", async () => {
+  const project = await policyProject({
+    ...supportingDefinition,
+    activation_includes: undefined,
+    activation_sequence: ["grilling", "verify-change", "code-review"],
+  });
+  const selected = await project.resolve();
+  const receipt = (skills: string[]) => ({
+    id: "sevro.host.skill-activations",
+    source: "sevro.host.claude",
+    completeness: "complete",
+    data: {
+      method: "skill_tool_result",
+      visibility: "skill_tool",
+      truncated: false,
+      observedSkills: skills,
+      calls: skills.map((invocation, index) => ({
+        invocation,
+        status: "succeeded",
+        sessionId: "session",
+        parentToolUseId: null,
+        toolUseId: "skill-" + index,
+      })),
+    },
+  });
+  expect(
+    (
+      await evaluateActivation(selected, [
+        receipt([
+          "sample:grilling",
+          "provider:verify-change",
+          "provider:code-review",
+        ]),
+      ])
+    ).status,
+  ).toBe("passed");
+  expect(
+    (
+      await evaluateActivation(selected, [
+        receipt([
+          "sample:grilling",
+          "provider:code-review",
+          "provider:verify-change",
+        ]),
+      ])
+    ).status,
+  ).toBe("failed");
+  expect(
+    (
+      await evaluateActivation(selected, [
+        { ...receipt(["sample:grilling"]), completeness: "partial" },
+      ])
+    ).status,
+  ).toBe("unavailable");
+  expect((await evaluateActivation(selected, [])).status).toBe("unavailable");
+});
+
 test("rc21 explicit ownership combines with full supporting exposure without inventing order", async () => {
   const selected = await (await policyProject(supportingDefinition)).resolve();
   for (const health of ["complete", "partial"]) {

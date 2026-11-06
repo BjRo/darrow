@@ -2,19 +2,24 @@
 
 ## Coordinator routes
 
-When an enclosing owner delegates verification, it selects the verification
-coordinator independently of implementation. Adaptive Goal uses at least
-Codex GPT-6.1 Sol/medium, or the explicit Claude Opus 5.5/high route. Verification
-owns the routes of the providers it launches; an enclosing owner does not need
-to pass them. Its review-provider coordinator uses an explicit route: Codex
-GPT-6.1 Sol/medium or the plugin's Claude Sonnet 5.5/medium scoped agent, unless
-a compatible explicit caller route was supplied. Coordination on a lower tier,
-such as Luna or Sonnet/low, is not a supported default. Parent-model inheritance
-must not change those roles.
-Review retains its own independent-reader model selection and internal delegation.
-Claude route binding must refuse conflicting model or effort environment
-overrides; a missing supported agent boundary is an evidence gap, not permission
-to perform review in the verification coordinator.
+The active owner coordinates inline when its observed model and effort meet the
+supported floor: Codex GPT-6.1 Sol/medium or Claude Sonnet 5.5/medium, or the
+same model at higher effort. A bundled helper MUST make this decision from the
+session's own host transcript and refuse a requested host that contradicts an
+unambiguous host environment. Prompt claims and model names MUST NOT establish
+the route; missing or unrecognized evidence is unknown. A Codex fallback
+coordinator observes its own route; only the pinned Claude fallback agent,
+which cannot observe its own route, is placed inline by flag. This keeps the Sonnet coordinator policy
+from [the Claude route decision](../research/claude-verification-coordinator-route-2026-10-25.md).
+
+A below-floor or unknown route MUST delegate the assessment to one explicitly
+pinned capable coordinator and wait for its complete result. An accepted native
+launch of that pinned route establishes the coordinator's route. The coordinator
+executes Verification and the compatible Review workflow inline and MUST NOT
+delegate coordination again. A rejected launch, reported substitution or
+conflicting route blocks. Claude fallback MUST refuse conflicting model/effort
+environment overrides. The original owner retains delivery, repairs, budgets
+and completion. Initial and closed follow-up assessments use the same rule.
 
 Verification coordinates one bounded assessment of an implementation candidate.
 It is directly intent-matched and independently installable. This is the
@@ -44,19 +49,20 @@ delivery under #155. It does not execute QA or create reviewer-facing evidence p
   The provider invocation MUST have a bounded response boundary that returns
   its complete normal result to verification. A provider's final response MUST
   NOT replace verification's reconciliation or end the enclosing owner.
-  Reading provider instructions MUST NOT switch the verification coordinator
-  into that provider's role. Only the delegated provider coordinates its readers
-  and invokes its review helpers; the verification backend only renders the
-  reconciled assessment.
-  Initial and targeted follow-up assessments both retain three contexts:
-  verification coordinator, fresh provider coordinator, and the provider's
-  independent readers. Follow-up narrows eligible reader axes; it MUST NOT
-  collapse the provider and its reader into one assessment context.
-  The main skill MUST present a compact binding, invocation, reconciliation and
-  handoff path. Closed follow-up detail belongs in the colocated reference;
-  deterministic validation and rendering remain owned by the bundled helper.
-  Simplification MUST preserve provider compatibility, fresh contexts, exact
-  routing, authority, content binding and complete result evidence.
+  A supported coordinator MUST execute the bound provider's complete public
+  workflow inline when its prerequisites permit this placement. The provider
+  still owns its helpers, reader routing, judgments and result validation;
+  Verification owns criterion reconciliation and its assessment renderer.
+  A replacement provider's explicit isolation or other public prerequisite MUST
+  be honored, rather than bypassed or rewritten. Independent reader contexts
+  MUST remain fresh, including follow-up's eligible subset of axes.
+  Inline execution MUST return the complete public result and control to the
+  caller; it does not terminate the enclosing delivery. It is coordination,
+  never coordinator-authored assessment or a replacement for readers.
+  The main skill MUST present a compact placement, binding, invocation,
+  reconciliation and handoff path. Closed follow-up detail belongs in the
+  colocated reference. Simplification MUST preserve compatibility, exact routes,
+  authority, candidate binding and complete evidence.
 - **VF-C3 — Complete target-bound evidence.** Inputs and results MUST identify
   the repository, candidate content and scope/base, originating objective,
   every material acceptance criterion, applicable constraints and current
@@ -192,8 +198,10 @@ necessary for a complete review-only operation here.
 
 ## Evaluation
 
-Codex cases for this capability MUST declare `gpt-6.1-sol` at `medium` effort as
-their candidate route, including standalone and selection cases. They MUST NOT
+Ordinary Codex cases for this capability MUST declare `gpt-6.1-sol` at `medium`
+effort as their candidate route, including standalone and selection cases.
+Explicit weaker/unknown-owner and unavailable-coordination counterexamples
+MUST declare their intended below-floor route instead. Ordinary cases MUST NOT
 inherit the eval runner's lower-tier default for the Verification coordinator.
 
 Grade outward response text through the current runner's output checks, without
@@ -202,11 +210,15 @@ final absolute report reference and preserve independent checks of the report's
 existence, content and provider validation. Follow-up cases also preserve
 original advisory identities in the outward response.
 
-Assessable provider composition cases MUST require a fresh provider context and its
-completed independent readers. A valid report produced by readers launched
-directly from the verification coordinator cannot establish the required
-provider handoff. Missing or incomplete native evidence remains unavailable;
-it cannot establish the handoff or its absence.
+Assessable composition cases MUST positively establish the selected placement,
+the complete bound provider workflow, applicable fresh independent readers on
+their selected routes, completed reader judgments and candidate-bound validated
+results. Direct reader launches from an eligible inline coordinator are valid;
+weaker and unknown owners require accepted capable-coordinator fallback evidence.
+A replacement provider's additional public prerequisites still apply. Missing
+or incomplete native proof remains unavailable; report shape alone cannot
+establish execution. Historical results retain their original oracle; revised
+placement oracles and fresh cohorts MUST be identified separately.
 The missing-required-provider case MUST accept a blocked response identifying
 the unavailable bound provider and refusing unauthorized substitution, together
 with its candidate-preservation and activation checks. It does not require a

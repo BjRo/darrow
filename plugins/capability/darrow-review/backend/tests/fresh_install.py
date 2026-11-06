@@ -181,11 +181,7 @@ def verify_routes(backend: Path, repo: Path) -> None:
         "provider"
     ] == {"host": "claude", "provider": "anthropic"}
     projects = repo.parent / "mock-provider/projects"
-    slug = (
-        re.sub(r"[^A-Za-z0-9]", "-", str(repo))
-        if os.name == "nt"
-        else str(repo).replace("/", "-")
-    )
+    slug = re.sub(r"[^A-Za-z0-9]", "-", str(repo))
     transcript = projects / slug / "session/subagents/agent-fresh.jsonl"
     transcript.parent.mkdir(parents=True)
     transcript.write_text(

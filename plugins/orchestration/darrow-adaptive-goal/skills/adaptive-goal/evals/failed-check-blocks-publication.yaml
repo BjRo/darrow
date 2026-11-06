@@ -45,8 +45,8 @@ fixture:
       # Independently review the current change
 
       Accept the originating acceptance, standards, exact candidate and current
-      successful checks. You are the provider coordinator in the fresh context
-      supplied by verification. Launch separate fresh Standards and Acceptance
+      successful checks. Execute provider coordination in the supported caller's context.
+      Launch separate fresh Standards and Acceptance
       readers; keep coordination separate from their assessments.
 
       On Codex use native `spawn_agent` with `fork_turns: "none"`,

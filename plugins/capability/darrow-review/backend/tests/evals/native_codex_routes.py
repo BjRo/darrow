@@ -143,6 +143,20 @@ def axis_of(arguments: dict[str, Any]) -> str:
     return axis
 
 
+def start_route(started: dict[str, Any], expected: list[str]) -> None:
+    observed = [started.get("model"), started.get("reasoning_effort")]
+    assert observed in [[None, None], expected], "conflicting native start route"
+
+
+def effective_route(rows: list[dict[str, Any]], expected: list[str]) -> None:
+    contexts = [row["payload"] for row in rows if row.get("type") == "turn_context"]
+    assert contexts, "missing effective child route"
+    assert all(
+        [context.get("model"), context.get("effort")] == expected
+        for context in contexts
+    ), "conflicting effective child route"
+
+
 def launch(
     rows: list[dict[str, Any]], agent: str, axis: str, expected: list[str]
 ) -> tuple[int, str, str]:
@@ -168,7 +182,7 @@ def launch(
     assert axis_of(arguments) == axis
     assert arguments.get("fork_turns") == "none"
     assert [arguments.get("model"), arguments.get("reasoning_effort")] == expected[2:]
-    assert [started.get("model"), started.get("reasoning_effort")] == expected[2:]
+    start_route(started, expected[2:])
     accepted_at, output = one(
         [
             (i, p)
@@ -233,6 +247,7 @@ def bound_readers(
     for axis, agent in agents.items():
         position, turn, child = launch(rows, agent, axis, expected)
         assert child == children[axis]
+        effective_route(captured[child], expected[2:])
         completed(captured[child])
         accepted.append(position)
         turns.add(turn)
@@ -320,12 +335,43 @@ def coordinator_request(
     assert decode(output["output"]).get("task_name") == started["agent_path"]
     arguments = decode(call["arguments"])
     assert arguments.get("fork_turns") == "none"
-    assert [arguments.get("model"), arguments.get("reasoning_effort")] == [
-        started.get("model"),
-        started.get("reasoning_effort"),
-    ]
+    selected = [arguments.get("model"), arguments.get("reasoning_effort")]
+    assert all(isinstance(value, str) and value for value in selected)
+    route = cast(list[str], selected)
+    start_route(started, route)
+    effective_route(captured[child], route)
     completed(captured[child])
     return True
+
+
+def verify_placement(
+    root: str,
+    captured: dict[str, list[dict[str, Any]]],
+    groups: list[tuple[str, str, set[str]]],
+    placement: str | None,
+) -> None:
+    if placement is None:
+        return
+    for parent, _, _ in groups:
+        if placement == "inline":
+            assert parent == root, "reader coordination is not inline"
+        else:
+            assert metadata(captured[parent]).get("parent_thread_id") == root, (
+                "fallback is not one bounded coordinator below the original owner"
+            )
+            effective_route(captured[parent], ["gpt-6.1-sol", "medium"])
+            calls = [
+                call
+                for _, call in payloads(captured[root], "function_call")
+                if call.get("name") == "spawn_agent"
+            ]
+            assert (
+                sum(
+                    coordinator_request(root, captured, call, {parent})
+                    for call in calls
+                )
+                == 1
+            ), "missing accepted fallback coordinator"
 
 
 def verify_codex(
@@ -333,12 +379,14 @@ def verify_codex(
     agents: dict[str, str],
     expected: list[str],
     prior: list[tuple[dict[str, str], list[str]]] | None = None,
+    placement: str | None = None,
 ) -> None:
     root, captured = sessions(view)
     groups = [bound_readers(root, captured, agents, expected)]
     groups.extend(
         bound_readers(root, captured, old, route) for old, route in prior or []
     )
+    verify_placement(root, captured, groups, placement)
     authorized: dict[str, set[str]] = {}
     for parent, _, identifiers in groups:
         assert not identifiers.intersection(authorized.get(parent, set())), (
@@ -346,8 +394,13 @@ def verify_codex(
         )
         authorized.setdefault(parent, set()).update(identifiers)
     for parent in authorized:
-        for _, call in payloads(captured[parent], "function_call"):
-            if call.get("name") == "spawn_agent":
+        boundary = max(
+            index
+            for index, output in payloads(captured[parent], "function_call_output")
+            if output.get("call_id") in authorized[parent]
+        )
+        for index, call in payloads(captured[parent], "function_call"):
+            if index <= boundary and call.get("name") == "spawn_agent":
                 assert (
                     call.get("call_id") in authorized[parent]
                     or implementation_request(call)

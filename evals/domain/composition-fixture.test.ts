@@ -41,7 +41,8 @@ test("unavailable orchestration oracle accepts the advertised name and rejects m
     expect(result.exitCode, result.diagnostic).toBe(passes ? 0 : 1);
     expect(result.value.task.verdict).toBe(passes ? "passed" : "failed");
   }
-}, 20_000);
+  // Four isolated public CLI starts also need to fit under parallel cold-start load.
+}, 45_000);
 
 function assertPassed(result: Awaited<ReturnType<typeof runFixtureChecks>>) {
   expect(

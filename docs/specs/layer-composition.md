@@ -42,7 +42,10 @@ model, branch name, review policy or verification command and does no preflight.
    successful suboperation as new authority. The main thread handles preflight
    and retains the native goal while delegating bounded implementation and capability
    assignments. Capability
-   results do not themselves terminate or replace that owner.
+   results do not themselves terminate or replace that owner. Assessment
+   coordination runs inline on a supported route or in one fallback coordinator
+   otherwise, with fresh readers either way. Recipe permissions, Artificer
+   admission and claims, and the original native thread and goal are unchanged.
 
 3. **LC-C3 — One policy owner.** Recipes define outcomes and permissions;
    orchestration selects assurance, feedback and repair policy; capabilities execute
