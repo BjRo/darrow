@@ -30,11 +30,20 @@ remove actions and reports the context impact before editing.
 
 Example: _“Doctor this repository's agent instructions.”_
 
+### `context-usage`
+
+Shows how the current Codex thread's context window is used: a grid and
+category table for a person, or JSON for an agent checking itself before a
+large phase, a large output or a delegation decision. On Claude Code it points
+to the built-in `/context`.
+
+Example: _“Show how this session's context window is split up.”_
+
 ### Bundled inspectors
 
 The contained `backend/` package supplies `ia-setup inspect`, `ia-doctor
-inspect|verify`, and `ia-write` for approved atomic guidance replacements. Run
-all commands through
+inspect|verify`, `ia-context --format grid|json`, and `ia-write` for approved
+atomic guidance replacements. Run all commands through
 `uv run --quiet --no-project <plugin>/backend/scripts/run_locked.py`.
 The inspectors are read-only; policy and edit decisions remain in the skills.
 These are compact structural checks, not complete validators for every Codex
@@ -62,12 +71,12 @@ When the repository supports multiple live patterns without an arbiter, they
 surface the choice instead of silently turning the dominant pattern into a
 rule.
 
-Both skills inspect and propose first, require confirmation before changing
+Setup and doctor inspect and propose first, require confirmation before changing
 checked-in guidance, and never commit or push implicitly.
 
 ## When to use
 
-Organize or audit repository agent guidance. Use another capability for product implementation.
+Organize or audit repository agent guidance, or inspect current Codex context usage. Use another capability for product implementation.
 
 ## Hosts and prerequisites
 
@@ -88,13 +97,21 @@ Approved updates preserve adapter sources, permissions, and newline conventions.
 See [atomic guidance updates](references/file-updates.md) for the digest-checked
 writer and its concurrency boundary. Inventory and verification never write guidance.
 
+`ia-context` needs `CODEX_THREAD_ID` and that thread's rollout under
+`$CODEX_HOME/sessions` (default `~/.codex`). It never falls back to another
+session. The used total is exact; categories are UTF-8 bytes / 4 estimates,
+and a signed remainder holds unlogged content such as tool definitions. The
+autocompact buffer appears only for a root `model_auto_compact_token_limit` in
+`config.toml`. The parser is tested against Codex 0.166 logs and refuses
+unknown shapes.
+
 ## Validation
 
 The package follows the contained Python + UV migration pattern: committed lock,
 separate development tools, Ruff complexity ≤5, strict mypy, property tests, and
 separate 95% line/branch coverage gates. Run `scripts/check-python --package
 plugins/foundation/darrow-information-architecture/backend` from the Darrow checkout.
-The setup and doctor regressions run in pytest across all supported hosts;
+The setup, doctor and context regressions run in pytest across all supported hosts;
 no Bash test harness or runtime launcher remains.
 The fresh-artifact test copies only this plugin and exercises all public entrypoints
 with locked runtime dependencies on Linux, macOS, and native Windows in CI.
@@ -116,9 +133,12 @@ or use `/darrow-information-architecture:setup-information-architecture` in Clau
 
 ## Expected result
 
-An inventory and proposed guidance structure; checked-in guidance changes only after confirmation. No implicit commit or push.
+Setup and doctor return an inventory and proposed guidance structure; checked-in guidance changes only after confirmation. Context usage returns a read-only grid or JSON snapshot. No implicit commit or push.
 
 ## Troubleshooting
+
+If `ia-context` refuses, check `CODEX_THREAD_ID`, `CODEX_HOME` and the reported
+Codex version. An unknown log shape usually means a newer Codex release.
 
 Resolve broken routes and unsettled policy through the named owner. The inspectors do not validate every host configuration format.
 For a discovery or host problem, use the
