@@ -124,6 +124,34 @@ test("validates paired manifests, required README sections and catalog membershi
   ])
     expect(result.output).toContain(message);
 });
+test("rejects Codex-only hooks at Claude Code's default hook path", async () => {
+  const plugin = "plugins/capability/example";
+  const root = await fixture({
+    ".claude-plugin/marketplace.json": JSON.stringify({
+      name: "darrow",
+      plugins: [{ name: "example", source: "./" + plugin }],
+    }),
+    [plugin + "/hooks/hooks.json"]: JSON.stringify({
+      hooks: {
+        SessionStart: [
+          {
+            hooks: [
+              {
+                type: "command",
+                command: 'bash "${PLUGIN_ROOT}/hooks/session-start.sh"',
+              },
+            ],
+          },
+        ],
+      },
+    }),
+  });
+  const result = await check(root);
+  expect(result.code).toBe(1);
+  expect(result.output).toContain(
+    "Claude Code loads hooks/hooks.json without PLUGIN_ROOT",
+  );
+});
 test("rejects an inventory with missing cases or source routes", async () => {
   const root = await fixture({
     ".agents/skills/darrow-guide/evals/inventory.json": JSON.stringify({
