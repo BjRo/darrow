@@ -11,6 +11,7 @@ import pytest
 
 from assurance_control import git
 from assurance_evidence import (
+    assessment_before,
     provider_result,
     public_review,
     published_content,
@@ -227,3 +228,56 @@ def test_incomplete_or_cleared_goal_cannot_clear_the_composition(
     )
     with pytest.raises(AssertionError):
         settled_goal(tmp_path, delivered(tmp_path))
+
+
+HANDOFF = "Conclusion: clear.\nComplete provider result: [report](</tmp/review.md>)"
+
+
+def at(second: int, payload: dict[str, object]) -> dict[str, object]:
+    return {
+        "timestamp": f"2026-11-08T12:00:{second:02d}Z",
+        "type": "response_item",
+        "payload": payload,
+    }
+
+
+def assistant(text: str) -> dict[str, object]:
+    content = [{"type": "output_text", "text": text}]
+    return {"type": "message", "role": "assistant", "content": content}
+
+
+def tool_output(text: str) -> dict[str, object]:
+    chunk = json.dumps({"exit_code": 0, "output": text})
+    return {"type": "custom_tool_call_output", "output": [{"text": chunk}]}
+
+
+PUBLISHED_AT = 1794139230.0  # 2026-11-08T12:00:30Z
+
+
+def test_inline_owner_rendered_handoff_precedes_publication(tmp_path: Path) -> None:
+    path = tmp_path / "owner.jsonl"
+    write_events(
+        path,
+        [
+            at(10, tool_output(HANDOFF)),
+            at(20, assistant("Verification is clear; publishing now.")),
+            at(40, assistant("Published.")),
+        ],
+    )
+    assert assessment_before(path, PUBLISHED_AT) == HANDOFF
+
+
+def test_fallback_coordinator_answer_is_the_handoff(tmp_path: Path) -> None:
+    path = tmp_path / "coordinator.jsonl"
+    write_events(path, [at(10, assistant(HANDOFF))])
+    assert assessment_before(path, PUBLISHED_AT) == HANDOFF
+
+
+def test_handoff_after_publication_cannot_clear(tmp_path: Path) -> None:
+    path = tmp_path / "owner.jsonl"
+    write_events(
+        path,
+        [at(10, assistant("Verification is clear.")), at(40, tool_output(HANDOFF))],
+    )
+    with pytest.raises(AssertionError, match="before publication"):
+        assessment_before(path, PUBLISHED_AT)

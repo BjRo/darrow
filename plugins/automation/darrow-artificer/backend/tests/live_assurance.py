@@ -25,6 +25,14 @@ from darrow_artificer.models import Claim
 from darrow_artificer.storage import read_object, write_object
 
 PROBE_SECONDS = 1800
+INLINE_ASSESSMENT_MODEL = "gpt-6.1-sol"
+INLINE_ASSESSMENT_EFFORTS = ("medium", "high", "xhigh")
+
+
+def assessment_placement(model: str, effort: str) -> str:
+    """Owners at or above the Review floor coordinate assessment inline."""
+    supported = model == INLINE_ASSESSMENT_MODEL and effort in INLINE_ASSESSMENT_EFFORTS
+    return "inline" if supported else "fallback"
 
 
 def observe(site: Installation, delivery: str, ready: Callable[[Claim], bool]) -> Claim:
@@ -109,7 +117,9 @@ def transcript_view(root: Path, home: Path, thread: str) -> Path:
     return view
 
 
-def verify_assurance(root: Path, home: Path, claim: Claim) -> dict[str, object]:
+def verify_assurance(
+    root: Path, home: Path, claim: Claim, placement: str
+) -> dict[str, object]:
     assert claim.native is not None
     view = transcript_view(root, home, claim.native.thread)
     source = Path(__file__).resolve().parents[5]
@@ -130,7 +140,7 @@ def verify_assurance(root: Path, home: Path, claim: Claim) -> dict[str, object]:
             "--profile",
             "default",
             "--placement",
-            "fallback",
+            placement,
             "--axes",
             "standards",
             "spec",
@@ -178,7 +188,12 @@ def deliver(root: Path, site: Installation) -> Claim:
 
 
 def exercise(
-    root: Path, site: Installation, home: Path, codex: Path, credentials: Path
+    root: Path,
+    site: Installation,
+    home: Path,
+    codex: Path,
+    credentials: Path,
+    placement: str,
 ) -> dict[str, object]:
     started = time.monotonic()
     final = deliver(root, site)
@@ -186,7 +201,7 @@ def exercise(
     assert goal["app_server_processes"] == 2
     commit = verify_publication(root, final)
     delivery_seconds = time.monotonic() - started
-    assurance = verify_assurance(root, home, final)
+    assurance = verify_assurance(root, home, final, placement)
     evidence = retained_evidence(root, home, final, commit)
     semantic = judge(root, codex, credentials, evidence)
     return {
@@ -197,6 +212,7 @@ def exercise(
         "real_engineering_recipe": True,
         "real_github_effects": False,
         "same_session_resume_after_process_exit": True,
+        "assessment_placement": placement,
         "native_goal": goal,
         "admission_and_claim": final.id,
         "commit": commit,
@@ -232,7 +248,9 @@ def trial(
         }
     )
     try:
-        return exercise(root, site, home, codex, credentials)
+        return exercise(
+            root, site, home, codex, credentials, assessment_placement(model, effort)
+        )
     finally:
         stop_probe(site)
 

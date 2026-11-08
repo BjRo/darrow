@@ -11,7 +11,11 @@ supply or extend the receipt. A scheduler is not a current-thread human invocati
 Copy the complete receipt unchanged into the one Adaptive Goal request and
 explicitly identify its unattended, recurring human-grant provenance. Preserve
 the reserved target. Its worktree and branch take precedence over new-branch
-defaults. Do not repeat admission or create a recurring grant.
+defaults. Artificer has already created that linked worktree with the reserved
+branch checked out, and the session runs inside it. Prepare the exact reserved
+branch in the current checkout, expecting it to be already active. Do not
+request another linked worktree. Do not repeat admission or create a recurring
+grant.
 
 Missing product intent or specification stops delivery with a blocker for the
 local adapter to report on the source issue. Discovery and specification happen

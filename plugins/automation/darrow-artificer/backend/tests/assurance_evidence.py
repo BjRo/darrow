@@ -74,9 +74,10 @@ def public_review(backend: Path, *arguments: str) -> str:
     ).stdout
 
 
-def final_answer(path: Path) -> tuple[str, float]:
-    rows = records(path)
-    payloads = [object_value(row["payload"]) for row in rows if "payload" in row]
+def final_answer(path: Path) -> str:
+    payloads = [
+        object_value(row["payload"]) for row in records(path) if "payload" in row
+    ]
     finals = [value for value in payloads if value.get("phase") == "final_answer"]
     completions = [value for value in payloads if value.get("type") == "task_complete"]
     assert finals and completions, "missing completed native assessment"
@@ -84,11 +85,60 @@ def final_answer(path: Path) -> tuple[str, float]:
     assert isinstance(content, list)
     text = "".join(text_value(object_value(part)["text"]) for part in content)
     assert text and completions[-1].get("last_agent_message") == text
-    final = next(row for row in reversed(rows) if row.get("payload") == finals[-1])
-    timestamp = datetime.fromisoformat(
-        text_value(final["timestamp"]).replace("Z", "+00:00")
-    )
-    return text, timestamp.timestamp()
+    return text
+
+
+def timestamp(row: dict[str, object]) -> float:
+    value = text_value(row["timestamp"]).replace("Z", "+00:00")
+    return datetime.fromisoformat(value).timestamp()
+
+
+RENDERED_HANDOFF = "Complete provider result: [report]("
+
+
+def tool_texts(output: object) -> list[str]:
+    """Texts from a native tool output, unwrapping code-mode JSON chunks."""
+    parts = [output] if isinstance(output, str) else array_value(output)
+    texts = []
+    for part in parts:
+        text = part if isinstance(part, str) else object_value(part).get("text")
+        if not isinstance(text, str):
+            continue
+        texts.append(text)
+        if text.startswith("{"):
+            chunk = json.loads(text)
+            if isinstance(chunk, dict) and isinstance(chunk.get("output"), str):
+                texts.append(chunk["output"])
+    return texts
+
+
+def row_texts(row: dict[str, object]) -> list[str]:
+    if row.get("type") != "response_item":
+        return []
+    payload = object_value(row["payload"])
+    if payload.get("type") == "message" and payload.get("role") == "assistant":
+        content = array_value(payload["content"])
+        return ["".join(text_value(object_value(part)["text"]) for part in content)]
+    if str(payload.get("type", "")).endswith("call_output"):
+        return tool_texts(payload.get("output"))
+    return []
+
+
+def assessment_before(path: Path, published_at: float) -> str:
+    """The last rendered Verification handoff in the coordinator session.
+
+    A fallback coordinator returns it as its answer; an inline owner renders it
+    with the Verification helper before publishing in the same session.
+    """
+    handoffs = [
+        text
+        for row in records(path)
+        if timestamp(row) < published_at
+        for text in row_texts(row)
+        if RENDERED_HANDOFF in text
+    ]
+    assert handoffs, "no rendered assessment completed before publication"
+    return handoffs[-1]
 
 
 def native_reader(home: Path, agent: str) -> tuple[Path, dict[str, object]]:
@@ -165,7 +215,7 @@ def reader_results(home: Path, directory: Path) -> str:
     for axis in ("standards", "spec"):
         application = read_object(directory / f"{axis}-route.json")
         path, meta = native_reader(home, text_value(application["agent_id"]))
-        text, _ = final_answer(path)
+        text = final_answer(path)
         observed = object_value(json.loads(text))
         assert observed == read_object(directory / f"{axis}.json")
         assert observed["status"] == "pass" and observed["findings"] == []
@@ -183,10 +233,11 @@ def retained_evidence(
     scope = published_content(backend, path, Path(claim.worktree), commit)
     coordinator = reader_results(home, path.parent)
     native_path = one(list((home / "sessions").rglob(f"*{coordinator}.jsonl")))
-    assessment, completed_at = final_answer(native_path)
-    assert completed_at < (root / "proposal.json").stat().st_mtime, (
-        "assessment completed after publication"
+    published_at = (root / "proposal.json").stat().st_mtime
+    assert path.stat().st_mtime < published_at, (
+        "review result written after publication"
     )
+    assessment = assessment_before(native_path, published_at)
     return {
         "criteria": (Path(claim.worktree) / "SPEC.md").read_text(),
         "check_script": (Path(claim.worktree) / "check.sh").read_text(),

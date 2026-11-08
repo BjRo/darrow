@@ -34,6 +34,8 @@ def initial(site: Installation, claim: Claim) -> str:
         "standalone readiness gate while retaining read-only preflight and stopping for "
         "missing material intent. Never waive a present provider's refusal. "
         f"Use the reserved worktree {claim.worktree} and branch {claim.branch}. "
+        "This session already runs in that linked worktree with the branch checked "
+        "out: prepare the branch in place and never request another linked worktree. "
         "Load and follow the recipe and its Adaptive Goal handoff in this original main thread. "
         "This thread retains the native goal and coordinates bounded implementation and capabilities. "
         "Adaptive Goal owns their routing and workflow. Do not launch an overall owner child. "
