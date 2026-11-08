@@ -87,9 +87,7 @@ def session_directory(repo: str, projects: str) -> Path:
     config = Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
     projects_dir = Path(projects) if projects else config / "projects"
     require(projects_dir.is_dir(), f"no Claude projects directory: {projects_dir}")
-    slug = str(root).replace("/", "-")
-    if os.name == "nt":
-        slug = re.sub(r"[^A-Za-z0-9]", "-", str(root))
+    slug = re.sub(r"[^A-Za-z0-9]", "-", str(root))
     session = projects_dir.resolve() / slug
     require(session.is_dir(), f"no session transcripts for repo: {session}")
     return session

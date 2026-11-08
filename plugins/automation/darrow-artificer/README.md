@@ -3,6 +3,9 @@
 Nominate ready GitHub issues and let a local worker run a task recipe in a
 plugin-equipped Claude Code or Codex session. Return to reviewable pull requests.
 
+When updating, update Ticket-to-PR, Adaptive Goal, Verification and Review
+together before a new delivery. An in-flight delivery keeps its installation.
+
 ## When to use
 
 Use for explicitly authorized unattended delivery of ready GitHub issues.
@@ -118,6 +121,26 @@ uv run --frozen --no-dev --project plugins/automation/darrow-artificer/backend p
 ```
 
 Cloud execution, epic recipes and dispatch by subissues or labels are future work.
+
+### Live assurance probe
+
+The opt-in `backend/tests/live_assurance.py` probe delivers one disposable local
+issue on Codex through the real Artificer worker, Ticket-to-PR, Adaptive Goal,
+Verification and Review. It ends the app-server process once after the native
+goal starts, then checks that the worker resumed the same session and goal, that
+readers completed, and that the reviewed content is committed, published and
+passes the fixture CI. Forge effects stay in local fixtures.
+
+The probe builds an isolated Codex profile with this checkout's plugins and
+links your existing ChatGPT login (`--credentials`, default `~/.codex`). It does
+not pin a Codex version. Run from the repository root:
+
+```sh
+uv run --quiet --project plugins/automation/darrow-artificer/backend --group dev python plugins/automation/darrow-artificer/backend/tests/live_assurance.py --codex "$(command -v codex)" --out /absolute/path/to/evidence.json
+```
+
+This invokes models and keeps private evidence in the printed temporary
+directory. Missing routes, native state or reader evidence fails the probe.
 
 ## License
 

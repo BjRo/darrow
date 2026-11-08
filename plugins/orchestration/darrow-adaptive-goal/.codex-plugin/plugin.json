@@ -10,7 +10,7 @@
   "interface": {
     "displayName": "Darrow -> Adaptive Goal",
     "shortDescription": "A native goal with direct or delegated implementation and separate verification",
-    "longDescription": "Keep acceptance, user decisions and completion in the main thread. Implement directly, or delegate routed implementation when the route requires it or cost or concurrency repays the handoff, and delegate selected verification using native goal continuation.",
+    "longDescription": "Keep acceptance, user decisions and completion in the main thread. Implement directly, or delegate routed implementation when the route requires it or cost or concurrency repays the handoff, and coordinate selected assurance inline or through a capable fallback while preserving independent readers.",
     "developerName": "Björn Rochel",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],

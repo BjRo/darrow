@@ -54,7 +54,7 @@ request, the number of findings or early clearance does not change the maximum.
 ## Repair under one limit
 
 One repair addresses the combined eligible blockers from all selected results.
-Route it as skill section 7 directs; only verification starts with fresh
+Route it as skill section 7 directs; only assessment readers start with fresh
 context. Repair only blockers inside the originating scope and
 authority; stronger checks of the same behavior are permitted.
 

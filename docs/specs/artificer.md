@@ -12,6 +12,10 @@ supervision. Task recipes and their native session own engineering.
 - **ART-C2 — Composition.** Require Adaptive Goal, verification and review in
   the session before engineering. Other plugins (TDD, Git, tickets, etc.) are
   optional; use applicable installed capabilities and retain their refusals.
+  Supported owners execute public assessment coordination inline; weaker or
+  unknown routes use one capable bounded coordinator with fresh independent
+  readers. Neither placement changes admission, claims, native identity,
+  continuation or gates.
   If no standalone readiness provider is installed, the caller omits that
   default standalone gate while retaining read-only preflight and the prohibition
   on implementing missing material intent.
@@ -99,6 +103,13 @@ claims and WIP/PR lifetimes; latest-main worktrees; profile/session preservation
 core versus optional plugins; readiness blockers; recovery reset/exhaustion;
 uncertain effects; reporting; cancellation and revocation. Native protocol
 fixtures do not prove live account compatibility: report live limits separately.
+
+Composed engineering evidence MUST exercise real Ticket-to-PR, Adaptive Goal,
+Verification and Review workflows, independent reader judgments, same-session
+native resume after process exit, and the intended committed, published and
+CI-verified candidate. Local forge fixtures may replace external effects, but
+transport-only or mocked model execution cannot establish these native workflow
+claims. Report route, usage, trial count and limitations.
 
 Cloud execution, epic recipes and dispatch by subissues/labels are deferred.
 Initial dispatch always selects `ticket-to-pr`.

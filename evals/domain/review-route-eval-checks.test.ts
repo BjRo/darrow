@@ -92,6 +92,8 @@ async function copyOracle(root: string) {
     "uv.lock",
     "tests/evals/eval_routes.py",
     "tests/evals/native_codex_routes.py",
+    "tests/evals/native_claude_routes.py",
+    "tests/evals/native_claude_fixture.py",
     "tests/evals/prior_codex_routes.py",
     "tests/evals/native_fixture.py",
   ]) {
@@ -201,14 +203,15 @@ async function retainNative(
   host: "claude" | "codex",
   transcript: Record<string, unknown>[],
 ) {
-  if (host !== "codex") return;
   const seed = join(root, ".git", "native-fixture-events.json");
   await writeFile(seed, JSON.stringify(transcript));
   const prepared = spawnSync(
     "python3",
     [
       "-c",
-      "import json,sys; from pathlib import Path; sys.path.insert(0,sys.argv[1]); from native_fixture import retain_native; retain_native(Path(sys.argv[2]),json.loads(Path(sys.argv[3]).read_text()))",
+      host === "codex"
+        ? "import json,sys; from pathlib import Path; sys.path.insert(0,sys.argv[1]); from native_fixture import retain_native; retain_native(Path(sys.argv[2]),json.loads(Path(sys.argv[3]).read_text()))"
+        : "import json,sys; from pathlib import Path; sys.path.insert(0,sys.argv[1]); from native_claude_fixture import retain_claude; retain_claude(Path(sys.argv[2]),json.loads(Path(sys.argv[3]).read_text()))",
       join(root, ".git/eval-checks/review/tests/evals"),
       join(root, ".git/native-view"),
       seed,

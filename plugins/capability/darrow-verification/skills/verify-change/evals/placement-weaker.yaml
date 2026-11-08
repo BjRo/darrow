@@ -1,0 +1,107 @@
+id: verification-placement-weaker
+candidate_routes:
+  codex:
+    model: gpt-6-luna
+    effort: medium
+required_plugin_hook: darrow-review
+invariant: VF-C2,VF-C3,VF-C4,VF-C6,VF-C7,CR-E18
+activation: positive
+mount_plugin_skills: true
+additional_plugins:
+  - plugins/capability/darrow-review
+activation_sequence:
+  - verify-change
+  - code-review
+prompt:
+  The harness pins this participant to Codex gpt-6-luna/medium. Preserve the
+  configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the
+  existing Review state configuration. Use {{skill_invocation}} Verify the implementation
+  candidate in this repository, HEAD to WORKTREE, against the objective and every
+  criterion in SPEC.md. CANDIDATE.txt contains the output of `cksum config.json` for this
+  current candidate. Required check bash check.sh passed on this content. Independent
+  review is the only selected assessment. Bind it to the separately advertised
+  darrow-review:code-review capability installed for this request. Return one assessment;
+  the implementation owner retains all repair and completion decisions.
+fixture:
+  commits:
+    - message: "chore: baseline"
+      files:
+        AGENTS.md: >
+          Reviewers may read files and run bash check.sh. Do not edit product files. No
+          network or publication.
+        SPEC.md: |
+          Objective: configure request handling.
+          C1: timeoutMs must equal 2500.
+          C2: retries must equal 3.
+        config.json: |
+          {"timeoutMs":1000,"retries":3}
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          test -s config.json
+          LC_ALL=C grep -Eq '^\{"timeoutMs":[0-9]+,"retries":3\}$' config.json
+  files:
+    config.json: |
+      {"timeoutMs":2000,"retries":3}
+  setup: >
+    bash "{{case_dir}}/fixtures/prepare-review-grading.sh"
+    "{{case_dir}}/../../../../darrow-review/backend"
+
+    cksum config.json > CANDIDATE.txt
+checks:
+  - name: product candidate remains unchanged
+    run: cksum config.json > .git/current-candidate && cmp CANDIDATE.txt
+      .git/current-candidate
+  - name: no extra commit
+    run: test "$(git rev-list --count HEAD)" -eq 1
+  - name: existing provider retains a canonical failing current review
+    run:
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review
+      artifact grant is required}" && record=$(find "$DARROW_REVIEW_STATE_DIR" -name
+      result.json -type f) && test -f "$record" && python3 -c 'import json, sys; assert
+      json.load(open(sys.argv[1]))["verdict"] == "fail"' "$record" && test -s "$(dirname
+      "$record")/review.md"
+  - name: existing result and complete provider report validate
+    run: >
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review
+      artifact grant is required}" && record=$(find "$DARROW_REVIEW_STATE_DIR" -name
+      result.json -type f)
+
+      result_tool=.git/eval-checks/review/src/darrow_review/result.py
+
+      report_tool=.git/eval-checks/review/src/darrow_review/report.py
+
+      test -f "$record" && test -r "$result_tool" && test -r "$report_tool" || exit 1
+
+      uv run --quiet --frozen --no-dev --project
+      "${result_tool%/src/darrow_review/result.py}" review-result validate "$record" && uv
+      run --quiet --frozen --no-dev --project
+      "${report_tool%/src/darrow_review/report.py}" review-report render "$record"
+      >.git/expected-review.md && cmp .git/expected-review.md "$(dirname
+      "$record")/review.md"
+output_checks:
+  - name: retained report handoff is rendered last
+    expect_regex: "(?:^|\\n)Complete provider result:
+      \\[report\\]\\(</[^\\r\\n<>]+/review\\.md>\\)[ \\t\\r\\n]*(?![\\s\\S])"
+semantic_output_checks:
+  - name: consume actual provider finding
+    proposition:
+      The response explicitly and unambiguously labels the aggregate verification
+      conclusion progress (initial actionable review blockers), keeping the provider's
+      native fail outcome separate. Reject fail, no-progress, no-progress-eligible failure
+      or another hybrid as the aggregate conclusion, even if the response describes
+      actionable blockers. The response preserves the independent Spec finding that
+      timeoutMs=2000 violates required 2500, accounts for retries=3 and the successful
+      check, and does not claim a candidate-identity mismatch or missing required provider
+      evidence.
+transcript_checks:
+  - name: v2 one capable fallback and completed independent readers
+    assessment_readers:
+      placement: fallback
+      axes:
+        - standards
+        - spec
+      model: gpt-6.1-sol
+      effort: xhigh
+harnesses:
+  - codex

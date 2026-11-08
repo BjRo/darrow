@@ -25,12 +25,13 @@ USAGE = """usage: host-config-doctor codex [--config PATH] [--project-root PATH]
 """
 
 TOPOLOGY = (
-    "topology: main -> verification coordinator -> review coordinator "
-    "-> parallel Standards/Spec readers\n"
-    "required_spawned_slots: baseline=1 full=4 (primary excluded)\n"
-    "required_nesting_layers: baseline=1 full=3\n"
+    "topology: eligible main -> parallel Standards/Spec readers; "
+    "weaker/unknown main -> capable coordinator -> parallel Standards/Spec readers\n"
+    "required_spawned_slots: baseline=1 inline=2 fallback=3 (primary excluded)\n"
+    "required_nesting_layers: baseline=1 inline=1 fallback=2\n"
     "implementation_placement: direct=0 slots; delegated=1 slot per concurrent "
     "assignment and 1 nesting layer in total, settled before assessment\n"
+    "capacity_scope: default providers; replacement prerequisites may require more\n"
 )
 
 
@@ -300,36 +301,44 @@ def _codex_absent(source: Path, backend: str) -> str:
         "concurrency: unknown (host default is not a configured value)",
         f"nesting: {nesting}",
         "baseline_implementation: unknown",
+        "inline_required_assessment: unknown",
+        "fallback_required_assessment: unknown",
         "full_required_assessment: unknown",
         f"guidance: create {source} with [agents], enabled = true, and "
-        "max_concurrent_threads_per_session = 4 or greater",
+        "max_concurrent_threads_per_session = 3 or greater",
     )
 
 
-def _concurrency_capacity(concurrency: int | None) -> tuple[str, str]:
+def _concurrency_capacity(
+    concurrency: int | None, required_slots: int = 3
+) -> tuple[str, str]:
     if concurrency is None:
         return "unknown", "unknown"
-    if concurrency >= 4:
+    if concurrency >= required_slots:
         return "supported", "supported"
     return "supported", "unsupported"
 
 
-def _v1_capacity(baseline: str, full: str, depth: int | None) -> tuple[str, str]:
+def _v1_capacity(
+    baseline: str, full: str, depth: int | None, required_depth: int = 2
+) -> tuple[str, str]:
     if depth is None:
         return "unknown", "unknown"
     if depth < 1:
         return "unsupported", "unsupported"
-    if depth < 3:
+    if depth < required_depth:
         return baseline, "unsupported"
     return baseline, full
 
 
-def _codex_capacity(settings: AgentSettings, backend: str) -> tuple[str, str]:
-    baseline, full = _concurrency_capacity(settings.concurrency)
+def _codex_capacity(
+    settings: AgentSettings, backend: str, *, inline: bool = False
+) -> tuple[str, str]:
+    baseline, full = _concurrency_capacity(settings.concurrency, 2 if inline else 3)
     if backend == "unknown":
         return "unknown", "unknown"
     return (
-        _v1_capacity(baseline, full, settings.depth)
+        _v1_capacity(baseline, full, settings.depth, 1 if inline else 2)
         if backend == "v1"
         else (baseline, full)
     )
@@ -345,9 +354,9 @@ def _codex_values(settings: AgentSettings, backend: str) -> tuple[str, str, str]
         "unknown (host default is not a configured value)"
         if settings.concurrency is None
         else (
-            f"adequate ({settings.concurrency}; full path requires 4)"
-            if settings.concurrency >= 4
-            else f"inadequate ({settings.concurrency}; baseline requires 1, full path requires 4)"
+            f"adequate ({settings.concurrency}; fallback requires 3)"
+            if settings.concurrency >= 3
+            else f"inadequate ({settings.concurrency}; baseline requires 1, fallback requires 3)"
         )
     )
     if backend == "v2":
@@ -359,11 +368,11 @@ def _codex_values(settings: AgentSettings, backend: str) -> tuple[str, str, str]
         nesting = "unknown (backend was not established; max_depth applies only to V1)"
     elif settings.depth is None:
         nesting = "unknown (agents.max_depth is unset)"
-    elif settings.depth >= 3:
-        nesting = f"adequate ({settings.depth}; full path requires 3)"
+    elif settings.depth >= 2:
+        nesting = f"adequate ({settings.depth}; fallback requires 2)"
     else:
         nesting = (
-            f"inadequate ({settings.depth}; baseline requires 1, full path requires 3)"
+            f"inadequate ({settings.depth}; baseline requires 1, fallback requires 2)"
         )
     return delegation, concurrency, nesting
 
@@ -372,19 +381,21 @@ def _codex_result(source: Path, settings: AgentSettings, backend: str) -> str:
     delegation, concurrency, nesting = _codex_values(settings, backend)
     if settings.enabled is False:
         baseline, full = "unsupported", "unsupported"
+        inline = "unsupported"
         actions = ["agents.enabled = true"]
-        if settings.concurrency is not None and settings.concurrency < 4:
-            actions.append("agents.max_concurrent_threads_per_session = 4 or greater")
-        if backend == "v1" and settings.depth is not None and settings.depth < 3:
-            actions.append("agents.max_depth = 3 or greater")
+        if settings.concurrency is not None and settings.concurrency < 3:
+            actions.append("agents.max_concurrent_threads_per_session = 3 or greater")
+        if backend == "v1" and settings.depth is not None and settings.depth < 2:
+            actions.append("agents.max_depth = 2 or greater")
         guidance = f"set {', '.join(actions)} in {source}"
     else:
         baseline, full = _codex_capacity(settings, backend)
+        _, inline = _codex_capacity(settings, backend, inline=True)
         guidance = (
             "no Adaptive Goal capacity change is required"
             if full == "supported"
-            else "set agents.max_concurrent_threads_per_session = 4 or greater in "
-            f"{source}; for V1 also set agents.max_depth = 3 or greater"
+            else "set agents.max_concurrent_threads_per_session = 3 or greater in "
+            f"{source}; for V1 also set agents.max_depth = 2 or greater"
         )
     return _lines(
         "status: valid",
@@ -392,6 +403,8 @@ def _codex_result(source: Path, settings: AgentSettings, backend: str) -> str:
         f"concurrency: {concurrency}",
         f"nesting: {nesting}",
         f"baseline_implementation: {baseline}",
+        f"inline_required_assessment: {inline}",
+        f"fallback_required_assessment: {full}",
         f"full_required_assessment: {full}",
         f"guidance: {guidance}",
     )
@@ -491,13 +504,15 @@ def _claude_unknown() -> str:
         "concurrency: unknown (installed version applicability was not established)",
         "nesting: unknown (installed version applicability was not established)",
         "baseline_implementation: unknown",
+        "inline_required_assessment: unknown",
+        "fallback_required_assessment: unknown",
         "full_required_assessment: unknown",
         "guidance: provide the installed Claude Code version before changing either control",
     )
 
 
 def _claude_controls(
-    version: str, environment: Mapping[str, str], header: str
+    version: str, environment: Mapping[str, str], header: str, required_slots: int = 3
 ) -> tuple[list[str], str, str]:
     if not _at_least(version, (2, 1, 217)):
         return (
@@ -520,7 +535,7 @@ def _claude_controls(
         header,
     )
     effective = 20 if concurrency is None else concurrency
-    concurrency_state = "yes" if effective >= 4 else "no"
+    concurrency_state = "yes" if effective >= required_slots else "no"
     adjective = "adequate" if concurrency_state == "yes" else "inadequate"
     return (
         [
@@ -528,9 +543,9 @@ def _claude_controls(
             "nesting_control_applicability: supported (Claude Code 2.1.217 or later)",
             f"concurrency: {adjective} ({effective}; "
             + (
-                "full path requires 4)"
-                if effective >= 4
-                else "baseline requires 1, full path requires 4)"
+                "fallback requires 3)"
+                if effective >= required_slots
+                else "baseline requires 1, fallback requires 3)"
             ),
         ],
         concurrency_state,
@@ -538,7 +553,9 @@ def _claude_controls(
     )
 
 
-def _claude_nesting(version: str, depth: str) -> tuple[str, str]:
+def _claude_nesting(
+    version: str, depth: str, required_depth: int = 2
+) -> tuple[str, str]:
     if _at_least(version, (2, 1, 219)):
         effective = 3 if not depth else int(depth)
     elif _at_least(version, (2, 1, 217)):
@@ -547,32 +564,40 @@ def _claude_nesting(version: str, depth: str) -> tuple[str, str]:
         return "adequate (host default 5; control not supported by this version)", "yes"
     else:
         return "unknown (version predates documented nesting behavior)", "unknown"
-    state = "yes" if effective >= 3 else "no"
+    state = "yes" if effective >= required_depth else "no"
     adjective = "adequate" if state == "yes" else "inadequate"
     requirement = (
-        "full path requires 3"
+        "fallback requires 2"
         if state == "yes"
-        else "baseline requires 1, full path requires 3"
+        else "baseline requires 1, fallback requires 2"
     )
     return f"{adjective} ({effective}; {requirement})", state
+
+
+def _assessment_state(concurrency: str, nesting: str) -> str:
+    if "no" in {concurrency, nesting}:
+        return "unsupported"
+    if concurrency == nesting == "yes":
+        return "supported"
+    return "unknown"
 
 
 def _claude_result(version: str, environment: Mapping[str, str], header: str) -> str:
     controls, concurrency, depth = _claude_controls(version, environment, header)
     nesting, nesting_state = _claude_nesting(version, depth)
+    _, inline_concurrency, _ = _claude_controls(
+        version, environment, header, required_slots=2
+    )
+    _, inline_nesting = _claude_nesting(version, depth, required_depth=1)
+    inline = _assessment_state(inline_concurrency, inline_nesting)
     baseline = "unknown" if concurrency == "unknown" else "supported"
-    if concurrency == "yes" and nesting_state == "yes":
-        full = "supported"
-    elif "no" in {concurrency, nesting_state}:
-        full = "unsupported"
-    else:
-        full = "unknown"
+    full = _assessment_state(concurrency, nesting_state)
     if full == "supported":
         guidance = "no Adaptive Goal capacity change is required"
     elif _at_least(version, (2, 1, 217)):
         guidance = (
-            "set CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS=4 and "
-            "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=3 in the effective Claude Code "
+            "set CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS=3 and "
+            "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=2 in the effective Claude Code "
             "environment, then start a new session"
         )
     else:
@@ -585,6 +610,8 @@ def _claude_result(version: str, environment: Mapping[str, str], header: str) ->
         f"nesting: {nesting}",
         "status: valid",
         f"baseline_implementation: {baseline}",
+        f"inline_required_assessment: {inline}",
+        f"fallback_required_assessment: {full}",
         f"full_required_assessment: {full}",
         f"guidance: {guidance}",
     )

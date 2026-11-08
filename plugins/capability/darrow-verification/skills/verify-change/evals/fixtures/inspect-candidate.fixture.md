@@ -17,10 +17,15 @@ path so the caller can preserve the assessment evidence.
 
 Use the host's native fresh-context agent tool (no inherited conversation) for
 independent engineering-standards and acceptance assessments. On Codex, explicitly
-set `fork_turns: "none"` on every `spawn_agent` call; neither a turn count nor
+set `fork_turns: "none"`, `model: "gpt-6.1-sol"` and
+`reasoning_effort: "xhigh"` on every reader `spawn_agent` call; neither a turn count nor
 `all` is fresh. Include the reader's one axis token (`standards` or `spec`)
 in its bounded Codex task name so the native observer can bind the request.
-On Claude, create a new Agent without resuming a prior reader.
+On Claude, create a new foreground `general-purpose` Agent with
+`run_in_background: false`, no per-call model override and no resume. Its
+model and effort use the host default; no Darrow Review installation is required.
+Start each Claude reader prompt with its sole `- review_axis: standards` or
+`- review_axis: spec` line so native evidence can bind its axis.
 In initial mode
 launch a separate reader for each axis before waiting; neither receives the
 other's analysis. In follow-up launch only axes with attempted findings or

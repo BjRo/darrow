@@ -48,6 +48,18 @@ def earlier_events(tmp_path: Path, *, inherited: bool = False) -> list[dict[str,
     ]
 
 
+def test_initial_placement_does_not_reject_a_later_closed_followup(
+    tmp_path: Path,
+) -> None:
+    events = evidence(tmp_path, "codex", ["standards", "spec"])
+    later = dict(
+        events[1], agent_ref="later-spec", turn_id="followup", accepted_ordinal=8
+    )
+    view = tmp_path / "native-view"
+    retain_native(view, [*events, later])
+    verify_codex(view, AGENTS, ROUTE, placement="inline")
+
+
 @pytest.mark.parametrize("inherited", [True, False])
 def test_earlier_unbound_reader_cannot_be_hidden_by_later_valid_readers(
     tmp_path: Path, inherited: bool
@@ -223,13 +235,20 @@ def test_prior_assessment_coordinator_is_bound_to_its_completed_native_children(
     coordinator.insert(
         1,
         {
+            "type": "turn_context",
+            "payload": {"model": "gpt-6-luna", "effort": "medium"},
+        },
+    )
+    coordinator.insert(
+        1,
+        {
             "type": "event_msg",
             "payload": {"type": "task_started", "turn_id": "coordinator-turn"},
         },
     )
     coordinator.extend(
         [
-            reader[2],
+            reader[3],
             {
                 "type": "event_msg",
                 "payload": {
@@ -332,11 +351,11 @@ def test_current_capture_rejects_uncorrelated_records(
             model="unrelated"
         ),
         "inherited context": lambda: inherited_context(parent),
-        "missing final": lambda: child.pop(2),
-        "missing completion": lambda: child.pop(3),
-        "wrong completed turn": lambda: child[3]["payload"].update(turn_id="peer"),
-        "empty final": lambda: child[2]["payload"]["content"][0].update(text=""),
-        "different completed message": lambda: child[3]["payload"].update(
+        "missing final": lambda: child.pop(3),
+        "missing completion": lambda: child.pop(4),
+        "wrong completed turn": lambda: child[4]["payload"].update(turn_id="peer"),
+        "empty final": lambda: child[3]["payload"]["content"][0].update(text=""),
+        "different completed message": lambda: child[4]["payload"].update(
             last_agent_message="unrelated"
         ),
         "wrong child id": lambda: parent[2]["payload"]["item"].update(
@@ -350,3 +369,46 @@ def test_current_capture_rejects_uncorrelated_records(
     write_view(view, captured)
     with pytest.raises((AssertionError, KeyError)):
         verify_codex(view, AGENTS, ROUTE)
+
+
+def test_legacy_start_requires_actual_matching_child_context(tmp_path: Path) -> None:
+    view = prepared(tmp_path)
+    captured = read_view(view)
+    for row in captured["root"]:
+        item = row.get("payload", {}).get("item", {})
+        if item.get("kind") == "started":
+            item.pop("model")
+            item.pop("reasoning_effort")
+    write_view(view, captured)
+    verify_codex(view, AGENTS, ROUTE)
+    child = next(key for key in captured if key != "root")
+    captured[child] = [
+        row for row in captured[child] if row.get("type") != "turn_context"
+    ]
+    write_view(view, captured)
+    with pytest.raises(AssertionError, match="effective child route"):
+        verify_codex(view, AGENTS, ROUTE)
+
+
+@pytest.mark.parametrize("field", ["model", "effort"])
+def test_actual_child_context_overrides_matching_request_claim(
+    tmp_path: Path, field: str
+) -> None:
+    view = prepared(tmp_path)
+    captured = read_view(view)
+    child = next(key for key in captured if key != "root")
+    for row in captured[child]:
+        if row.get("type") == "turn_context":
+            row["payload"][field] = "different"
+    write_view(view, captured)
+    with pytest.raises(AssertionError, match="effective child route"):
+        verify_codex(view, AGENTS, ROUTE)
+
+
+def test_inline_placement_requires_the_original_reader_coordinator(
+    tmp_path: Path,
+) -> None:
+    view = prepared(tmp_path)
+    verify_codex(view, AGENTS, ROUTE, placement="inline")
+    with pytest.raises(AssertionError, match="one bounded coordinator"):
+        verify_codex(view, AGENTS, ROUTE, placement="fallback")

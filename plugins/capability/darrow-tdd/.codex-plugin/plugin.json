@@ -1,12 +1,13 @@
 {
   "name": "darrow-tdd",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "Test-first behavior implementation through durable public seams",
   "author": {
     "name": "Björn Rochel",
     "email": "bjoern@bjro.de"
   },
   "skills": "./skills/",
+  "hooks": "./hooks/codex-hooks.json",
   "interface": {
     "displayName": "Darrow -> TDD",
     "shortDescription": "Drive behavior changes red to green",

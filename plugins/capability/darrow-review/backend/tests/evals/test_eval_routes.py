@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 from eval_routes import row, verify
+from native_claude_fixture import retain_claude
 from native_fixture import retain_native
 
 
@@ -82,7 +83,11 @@ def evidence(root: Path, host: str, axes: list[str]) -> list[dict[str, Any]]:
 
 
 def retain(root: Path, events: list[dict[str, Any]]) -> None:
-    retain_native(Path(os.environ["SEVRO_CANDIDATE_TRANSCRIPTS"]), events)
+    view = Path(os.environ["SEVRO_CANDIDATE_TRANSCRIPTS"])
+    if any(str(event.get("type", "")).startswith("darrow.codex") for event in events):
+        retain_native(view, events)
+    else:
+        retain_claude(view, events)
     # Whitespace and key order differ from the compact harness serialization.
     (root / "retained-harness.jsonl").write_text(
         "\n".join(
@@ -102,6 +107,32 @@ def test_structured_evidence_ignores_json_formatting(
 ) -> None:
     retain(tmp_path, evidence(tmp_path, host, axes))
     verify(tmp_path, host, "default", axes)
+
+
+@pytest.mark.parametrize("axes", [["standards"], ["standards", "spec"]])
+def test_claude_fixture_preserves_hashes_with_windows_text_newlines(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, axes: list[str]
+) -> None:
+    write_text = Path.write_text
+
+    def windows_text(
+        path: Path,
+        data: str,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
+    ) -> int:
+        return write_text(
+            path,
+            data,
+            encoding=encoding,
+            errors=errors,
+            newline="\r\n" if newline is None else newline,
+        )
+
+    monkeypatch.setattr(Path, "write_text", windows_text)
+    retain(tmp_path, evidence(tmp_path, "claude", axes))
+    verify(tmp_path, "claude", "default", axes)
 
 
 @pytest.mark.parametrize("host", ["codex", "claude"])

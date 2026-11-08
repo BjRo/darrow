@@ -92,21 +92,20 @@ around it, or suggest that unknown capacity is adequate.
 Base the conclusion on this topology:
 
 ```text
-main -> verification coordinator -> review coordinator
-                                              -> Standards reader
-                                              -> Spec reader
+eligible main -> parallel Standards/Spec readers
+weaker/unknown main -> capable coordinator -> parallel Standards/Spec readers
 ```
 
-Direct main-thread implementation needs no spawned-agent slot. Delegated
-bounded implementation needs one spawned-agent slot per concurrent assignment
-and one layer below the main thread; the baseline result covers one delegated
-assignment. With implementation settled before assessment, the full
-required-assessment path needs four active spawned-agent slots and three nesting
-layers. Hosts may also count retained inactive threads; configuration alone
-does not prove current free capacity or native goal availability. Codex concurrency excludes the
-primary. Keep concurrency and nesting separate: on Codex V2,
-`agents.max_depth` is V1-only and ignored, so it cannot compensate for too few
-concurrent threads.
+Direct implementation needs no spawned slot. Delegated implementation needs
+one spawned slot per concurrent assignment and one layer, settled before
+assessment. For two applicable axes, inline assessment needs two spawned slots
+and one layer; fallback needs three slots and two layers, excluding the primary.
+Report both capacities separately; `full_required_assessment` retains the
+conservative fallback conclusion for existing consumers. A compatible provider's
+additional public prerequisites can require more capacity. Configuration cannot
+prove current free slots or native goal availability; retained inactive threads
+may need releasing. Codex V2 ignores `agents.max_depth`, which cannot compensate
+for inadequate concurrency.
 
 For Claude Code, report
 `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` and
@@ -114,8 +113,8 @@ For Claude Code, report
 installed-version applicability. Do not claim an older version supports a
 control merely because the variable is present.
 
-Return the exact checked source, host/version/backend evidence, baseline and
-full-path result, and the helper's actionable source-specific guidance. Copy
+Return the exact checked source, host/version/backend evidence, baseline, inline and
+fallback results, and the helper's actionable source-specific guidance. Copy
 the helper's `configuration_sources_checked`, `configuration_sources_used`,
 and `checkout_config_used` records verbatim so absolute paths and contribution
 status are not lost in summary. Copy its `concurrency_control` and

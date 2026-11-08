@@ -6,7 +6,7 @@ import os
 import re
 from pathlib import Path
 
-from . import placement, verification_input
+from . import placement
 from .arguments import options, require
 from .common import PLUGIN, RefusalError, git_text, read_text, record, repository
 from .routes import catalog, validate_tuple
@@ -14,7 +14,6 @@ from .routes import catalog, validate_tuple
 USAGE = """usage:
   adaptive-goal-preflight prepare --repo <path> --host <codex|claude>
   adaptive-goal-preflight route --repo <path> --host <codex|claude> --profile <profile> [--route <harness|provider|model|effort>] [--main-route <harness|provider|model|effort>]
-  adaptive-goal-preflight codex-verification-input --task-name <name> --assignment-file <absolute-utf8-file>
 """
 
 
@@ -120,8 +119,6 @@ def run(args: list[str], plugin: Path = PLUGIN) -> str:
         raise RefusalError(USAGE.rstrip())
     if args[0] in {"-h", "--help", "help"}:
         return USAGE
-    if args[0] == "codex-verification-input":
-        return verification_input.run(args[1:])
     command, values = parse(args)
     return dispatch(command, values, plugin)
 

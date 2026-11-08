@@ -56,15 +56,6 @@ same message, each with its owned files and the shared interface, and settle
 all of them before integration or further assignment. Use only Adaptive Goal's
 own scoped agents; a sibling plugin's agent may not be installed.
 
-For the verification assignment, call this resolver with
-`--provider anthropic --model claude-sonnet-5-5 --effort medium`. Launch the returned
-Adaptive Goal scoped `subagent_type` and give it the bound verification
-skill's exact public reference and the acceptance-verification assignment.
-Supply the review binding to this agent. Verification then selects and
-launches its review coordinator through its own contract. An advertised Sonnet review-coordinator agent owns that
-internal review job; selecting it directly from main does not satisfy the
-required verification assignment, even if its prompt asks for verification.
-
 Invoke the returned exact `subagent_type` with `run_in_background: false`,
 no per-call model override and no unrequested worktree isolation. Its prompt
 contains the bounded assignment, repository/scope, acceptance, authority,
@@ -98,8 +89,8 @@ controls and report observed results and effects already performed. If a
 foreground Agent prevents immediate delivery or stopping, report that limitation;
 do not claim that an in-flight effect was prevented.
 
-The main thread can inspect state and run checks while coordinating. It does not
-absorb review or verification internals. Apply section 9 of the skill before
+The main thread can inspect state, run checks and run capability workflows
+inline, but never writes independent reader judgments. Apply section 9 of the skill before
 claiming completion, give the user substantive results here, and allow native
 goal evaluation to consume that evidence. A child return alone cannot complete
 delivery. Do not claim a native lifecycle transition the host has not confirmed.

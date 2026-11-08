@@ -30,6 +30,9 @@ publication against that exact PR and verified commit. It grants no generic
 comment authority. Partial, ambiguous, refused, or changed-head publication
 stops completion without recipe-owned retry or recovery.
 
+When updating, update Ticket-to-PR, Adaptive Goal, Verification and Review
+together before a new delivery. An in-flight delivery keeps its installation.
+
 ## When to use
 
 Use this explicit shortcut for one exact ticket, a new branch, TDD,

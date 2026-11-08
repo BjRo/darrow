@@ -1,52 +1,59 @@
 id: verification-followup-clear
 candidate_routes:
-  codex: { model: gpt-6.1-sol, effort: medium }
+  codex:
+    model: gpt-6.1-sol
+    effort: medium
+  claude:
+    model: claude-sonnet-5-5
+    effort: medium
 invariant: VF-C2,VF-C3,VF-C5,VF-C6,VF-C7
 activation: positive
-prompt: Use {{skill_invocation}} Perform targeted follow-up verification for
-  this repository, HEAD to WORKTREE, against SPEC.md. Original findings,
-  original/prior target, history and attempted repair are in HISTORY.md. Current
-  target is CANDIDATE.txt and config.json. Current bash check.sh passed. Only
-  independent review is selected; return the bounded assessment to the repair
-  owner.
+prompt:
+  "The harness reports the observed effective route of this exact active context:
+  Codex gpt-6.1-sol/medium on Codex, or Claude claude-sonnet-5-5/medium on Claude. This
+  is current owner route evidence, not a desired launch tuple. Use it to coordinate
+  inline. Use {{skill_invocation}} Perform targeted follow-up verification for this
+  repository, HEAD to WORKTREE, against SPEC.md. Original findings, original/prior
+  target, history and attempted repair are in HISTORY.md. Current target is
+  CANDIDATE.txt and config.json. Current bash check.sh passed. Only independent review
+  is selected; return the bounded assessment to the repair owner. On Claude, the harness
+  provides Bash for authorized private artifact I/O and no dedicated Write tool.
+  Retaining complete reader JSON in the returned private run is authorized. Actual path
+  or access-control denials still block. The compatible provider public reference on
+  Claude is .claude/skills/inspect-candidate/SKILL.md."
 fixture:
   commits:
     - message: "chore: baseline"
       files:
         AGENTS.md: >
-          Reviewers may read files and run bash check.sh. Do not edit product
-          files. No network or publication.
+          Reviewers may read files and run bash check.sh. Do not edit product files. No
+          network or publication.
         SPEC.md: |
           Objective: configure request handling.
           C1: timeoutMs must equal 2500.
           C2: retries must equal 3.
         config.json: |
           {"timeoutMs":1000,"retries":3}
-        check.sh: >
+        check.sh: |
           #!/usr/bin/env bash
-
           set -eu
-
           test -s config.json
-
-          LC_ALL=C grep -Eq '^\{"timeoutMs":[0-9]+,"retries":[0-9]+\}$'
-          config.json
+          LC_ALL=C grep -Eq '^\{"timeoutMs":[0-9]+,"retries":[0-9]+\}$' config.json
   files:
     config.json: |
       {"timeoutMs":2500,"retries":3}
     HISTORY.md: >
-      Original provider: inspect-candidate. Original scope: config.json at the
-      committed baseline; original POSIX cksum: 3240697612 31 config.json.
-      Standards passed with advisory A1; Spec failed with blocker F1. Original
-      target: config.json timeoutMs=1000, retries=3. Prior target equals
-      original; no earlier repair or follow-up. Original F1: high Spec blocker
-      at config.json timeoutMs, source SPEC.md C1; expected 2500, observed 1000.
-      Original A1: low Standards advisory at config.json formatting; compact
-      JSON is less readable, heuristic only, not a project rule. Current repair
-      attempt F1: change timeoutMs to approach 2500. Original finding set is
-      closed. A1 was not attempted and is nonblocking. Review result originally
-      fail with check bash check.sh passing. Current content and cksum are the
-      candidate; compare it with the recorded original content to assess direct
+      Original provider: inspect-candidate. Original scope: config.json at the committed
+      baseline; original POSIX cksum: 3240697612 31 config.json. Standards passed with
+      advisory A1; Spec failed with blocker F1. Original target: config.json
+      timeoutMs=1000, retries=3. Prior target equals original; no earlier repair or
+      follow-up. Original F1: high Spec blocker at config.json timeoutMs, source SPEC.md
+      C1; expected 2500, observed 1000. Original A1: low Standards advisory at
+      config.json formatting; compact JSON is less readable, heuristic only, not a
+      project rule. Current repair attempt F1: change timeoutMs to approach 2500.
+      Original finding set is closed. A1 was not attempted and is nonblocking. Review
+      result originally fail with check bash check.sh passing. Current content and cksum
+      are the candidate; compare it with the recorded original content to assess direct
       repair consequences.
   setup: >
     for host in .agents .claude; do
@@ -59,8 +66,7 @@ fixture:
     cksum config.json > CANDIDATE.txt
 
 
-    printf 'Original and prior base commit: %s\n' "$(git rev-parse HEAD)" >>
-    HISTORY.md
+    printf 'Original and prior base commit: %s\n' "$(git rev-parse HEAD)" >> HISTORY.md
 checks:
   - name: product candidate remains unchanged
     run: cksum config.json > .git/current-candidate && cmp CANDIDATE.txt
@@ -71,24 +77,28 @@ checks:
     run: test -s .fixture-state/inspect-candidate-report.md
 output_checks:
   - name: retained report handoff is rendered last
-    expect_regex: '(?:^|\n)Complete provider result: \[report\]\(</[^\r\n<>]+/\.fixture-state/inspect-candidate-report\.md>\)[ \t\r\n]*(?![\s\S])'
+    expect_regex: "(?:^|\\n)Complete provider result:
+      \\[report\\]\\(</[^\\r\\n<>]+/\\.fixture-state/inspect-candidate-report\\.md>\\)[
+      \\t\\r\\n]*(?![\\s\\S])"
   - name: original advisory remains in outward handoff
-    expect_regex: '\bA1\b'
+    expect_regex: \bA1\b
 semantic_output_checks:
   - name: closed follow-up outcome
     proposition:
       The response reports clear (a faithful equivalent is acceptable),
-      preserving F1 as the resolved original Spec blocker and A1 as an
-      unattempted or unresolved nonblocking advisory, with current candidate/check
-      evidence for timeout=2500 and retries=3. Reject a response that requests
-      or prescribes further repair to satisfy A1 or makes that repair a condition
-      of clearance. An explicit disclaimer that no repair is requested is not
-      required; assess the response's actual requests and instructions.
+      preserving F1 as the resolved original Spec blocker and A1 as an unattempted or
+      unresolved nonblocking advisory, with current candidate/check evidence for
+      timeout=2500 and retries=3. Reject a response that requests or prescribes further
+      repair to satisfy A1 or makes that repair a condition of clearance. An explicit
+      disclaimer that no repair is requested is not required; assess the response's
+      actual requests and instructions.
 transcript_checks:
-  - name: provider and independent readers observed
-    expect_regex: '"type":"darrow.codex_native_nested_spawn"[^\n]*"status":"accepted"[^\n]*"review_axis":"spec"[^\n]*"fork_turns":"none"[^\n]*"session_status":"available"[^\n]*"reader_result_status":"completed"[^\n]*"children_truncated":false[^\n]*"requests_truncated":false|"name":"Agent"[\s\S]*"name":"Agent"'
-    not_regex: '"subagent_type":"fork"|"type":"darrow.codex_native_(nested_)?spawn"[^\n]*"fork_turns":"(all|[1-9][0-9]*)"'
-  - name: fresh context requested
-    expect_regex: '"type":"darrow.codex_native_spawn"[^\n]*"fork_turns":"none"|"name":"Agent"'
-  - name: native assessment child observed
-    expect_regex: '"type":"darrow.codex_native_child_skill_evidence"[^\n]*"actor":"accepted_child"[^\n]*"session_status":"available"|"name":"Agent"'
+  - name: v2 inline placement and completed independent readers
+    assessment_readers:
+      placement: inline
+      axes:
+        - spec
+      model: gpt-6.1-sol
+      effort: xhigh
+      claude:
+        agent: general-purpose

@@ -63,21 +63,31 @@ function activationStatus(expected: unknown, data: RecordValue | null): Status {
   const activated =
     data.goals.length > 0 && states.has(String(data.goalStatus));
   const absent = data.goals.length === 0 && data.goalStatus === null;
-  return meetsExpectation(expected, activated, absent) ? "passed" : "failed";
+  return meetsExpectation(expected, activated, absent, data.goalStatus)
+    ? "passed"
+    : "failed";
 }
 
 function meetsExpectation(
   expected: unknown,
   activated: boolean,
   absent: boolean,
+  goalStatus: unknown,
 ) {
+  if (expected === "complete") return activated && goalStatus === "complete";
   if (expected === "optional") return activated || absent;
   return expected === "required" ? activated : absent;
 }
 
 export function nativeGoalPolicy(expected: unknown) {
-  if (!["required", "forbidden", "optional"].includes(String(expected)))
-    throw new Error("native_goal must be required, forbidden or optional");
+  if (
+    !["required", "complete", "forbidden", "optional"].includes(
+      String(expected),
+    )
+  )
+    throw new Error(
+      "native_goal must be required, complete, forbidden or optional",
+    );
   return {
     checks: [
       "darrow.evals.native-goal",

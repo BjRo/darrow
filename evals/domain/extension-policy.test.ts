@@ -1680,79 +1680,62 @@ test("recipe nonactivation retains distinct read and native-call diagnostics", a
   }
 });
 
-test("Darrow grades completed independent readers through nested native receipts", async () => {
-  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-readers-"));
+test("v2 assessment placement binds completed direct readers to native sessions", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-readers-v2-"));
   roots.push(root);
   const eventPath = join(root, "events.jsonl");
-  const eventText = "inspect-candidate\n";
+  const eventText = "inspect-candidate\\n";
   await writeFile(eventPath, eventText);
   const artifact = {
     id: "sevro.codex.events",
     path: pathToFileURL(eventPath).href,
     sha256: createHash("sha256").update(eventText).digest("hex"),
   };
-  const spec = {
-    requestedOrdinal: 0,
-    status: "accepted",
-    taskName: "spec_reader",
-    model: "gpt-6-luna",
-    reasoningEffort: "high",
+  const reader = (axis: string, ordinal: number) => ({
+    requestedOrdinal: ordinal,
+    startedOrdinal: ordinal + 1,
+    acceptedOrdinal: ordinal + 2,
+    taskName: axis + "_reader",
+    model: "gpt-6.1-sol",
+    reasoningEffort: "xhigh",
     forkTurns: "none",
-    agentRef: "/root/spec_reader",
-    threadId: "spec-thread",
-    sessionStatus: "available",
-    readerResultStatus: "completed",
-  };
-  const standards = {
-    ...spec,
-    requestedOrdinal: 3,
-    taskName: "standards_reader",
-    agentRef: "/root/standards_reader",
-    threadId: "standards-thread",
-  };
-  const native = {
+    agentRef: "/root/" + axis + "_reader",
+    threadId: axis + "-thread",
+  });
+  const spec = reader("spec", 1);
+  const standards = reader("standards", 4);
+  const observation = (spawns: (typeof spec)[]) => ({
     id: "sevro.codex.native-calls",
     source: "sevro.host.codex",
     completeness: "complete",
     data: {
       method: "native_session",
-      calls: [
-        {
-          ordinal: 1,
-          namespace: "collaboration",
-          name: "spawn_agent",
-          evidence: "invocation_attempt",
-        },
-      ],
-      toolCalls: [
-        { ordinal: 1, namespace: "collaboration", name: "spawn_agent" },
-      ],
-      acceptedSpawns: [
-        {
-          requestedOrdinal: 1,
-          startedOrdinal: 2,
-          acceptedOrdinal: 3,
-          agentRef: "/root/provider",
-          threadId: "provider-thread",
-          forkTurns: "none",
-        },
-      ],
-      childSessions: [
-        {
-          threadId: "provider-thread",
-          status: "available",
-          resultStatus: "completed",
-          nestedSpawns: [spec],
-          requestsTruncated: false,
-        },
-      ],
+      calls: spawns.map((spawn) => ({
+        ordinal: spawn.requestedOrdinal,
+        namespace: "collaboration",
+        name: "spawn_agent",
+        evidence: "invocation_attempt",
+      })),
+      toolCalls: spawns.map((spawn) => ({
+        ordinal: spawn.requestedOrdinal,
+        namespace: "collaboration",
+        name: "spawn_agent",
+      })),
+      acceptedSpawns: spawns,
+      childSessions: spawns.map((spawn) => ({
+        threadId: spawn.threadId,
+        status: "available",
+        resultStatus: "completed",
+        nestedSpawns: [],
+        requestsTruncated: false,
+      })),
       childrenTruncated: false,
       submittedExecCalls: 0,
     },
-  };
+  });
   const statuses = async (
     selectedCase: ExtensionReply["result"]["cases"][number],
-    observation: unknown,
+    native: unknown,
     artifacts: unknown[] = [],
   ) => {
     const reply = await command<{
@@ -1762,7 +1745,7 @@ test("Darrow grades completed independent readers through nested native receipts
       [process.execPath, extension],
       request("evaluate", {
         extensionData: selectedCase.extensionData,
-        observations: observation ? [observation] : [],
+        observations: native ? [native] : [],
         artifacts,
         builtinChecks: [],
         execution: { status: "completed" },
@@ -1774,11 +1757,18 @@ test("Darrow grades completed independent readers through nested native receipts
       .filter((check) => check.id.startsWith("darrow.evals.transcript."))
       .map((check) => check.status);
   };
-  for (const caseId of [
+  const followups = [
     "verification-followup-clear",
     "verification-followup-no-progress",
     "verification-followup-progress",
     "verification-followup-regression",
+  ];
+  for (const caseId of [
+    ...followups,
+    "verification-existing-review",
+    "verification-criterion-gap",
+    "verification-indirect",
+    "verification-replacement",
   ]) {
     const selected = await command<ExtensionReply>(
       [process.execPath, extension],
@@ -1790,172 +1780,145 @@ test("Darrow grades completed independent readers through nested native receipts
     );
     expect(selected.code, selected.stderr).toBe(0);
     const selectedCase = selected.value.result.cases[0]!;
-    expect(selectedCase.requiredEvidence).toContain("sevro.codex.native-calls");
-    expect(await statuses(selectedCase, native)).toEqual([
-      "passed",
-      "passed",
+    expect(selectedCase.requiredEvidence).not.toContain(
+      "sevro.host.native-controls",
+    );
+    expect((await statuses(selectedCase, null))[0]).toBe("unavailable");
+    const native = observation(
+      followups.includes(caseId) ? [spec] : [spec, standards],
+    );
+    expect(await statuses(selectedCase, native, [artifact])).toEqual([
       "passed",
     ]);
     expect(
       (
-        await statuses(selectedCase, {
-          ...native,
-          data: {
-            ...native.data,
-            childSessions: [
-              {
-                ...native.data.childSessions[0],
-                nestedSpawns: [{ ...spec, readerResultStatus: "unavailable" }],
-              },
-            ],
-          },
-        })
+        await statuses(selectedCase, { ...native, completeness: "partial" }, [
+          artifact,
+        ])
       )[0],
     ).toBe("unavailable");
     expect(
       (
-        await statuses(selectedCase, {
-          ...native,
-          data: {
-            ...native.data,
-            childSessions: [
-              { ...native.data.childSessions[0], requestsTruncated: true },
-            ],
+        await statuses(
+          selectedCase,
+          {
+            ...native,
+            data: { ...native.data, childrenTruncated: true },
           },
-        })
+          [artifact],
+        )
       )[0],
     ).toBe("unavailable");
-    if (caseId === "verification-followup-clear") {
-      expect(
-        (
-          await statuses(selectedCase, {
+    expect(
+      (
+        await statuses(
+          selectedCase,
+          {
             ...native,
             data: {
               ...native.data,
-              calls: [
-                ...native.data.calls,
-                {
-                  ordinal: 4,
-                  namespace: "collaboration",
-                  name: "spawn_agent",
-                  evidence: "invocation_attempt",
-                },
-              ],
-              toolCalls: [
-                ...native.data.toolCalls,
-                { ordinal: 4, namespace: "collaboration", name: "spawn_agent" },
-              ],
+              childSessions: native.data.childSessions.map((child) => ({
+                ...child,
+                resultStatus: "unavailable",
+              })),
             },
-          })
-        )[0],
-      ).toBe("unavailable");
-    }
-  }
-  const replacement = await command<ExtensionReply>(
-    [process.execPath, extension],
-    request("resolve", {
-      projectRoot: pathToFileURL(projectRoot).href,
-      selectors: { caseIds: ["verification-replacement"] },
-      configuration: {},
-    }),
-  );
-  expect(replacement.code, replacement.stderr).toBe(0);
-  const selectedCase = replacement.value.result.cases[0]!;
-  const dual = {
-    ...native,
-    data: {
-      ...native.data,
-      childSessions: [
-        { ...native.data.childSessions[0], nestedSpawns: [spec, standards] },
-      ],
-    },
-  };
-  expect(await statuses(selectedCase, dual, [artifact])).toEqual([
-    "passed",
-    "passed",
-    "passed",
-    "passed",
-  ]);
-  for (const caseId of [
-    "verification-existing-review",
-    "verification-criterion-gap",
-    "verification-indirect",
-  ]) {
-    const initial = await command<ExtensionReply>(
-      [process.execPath, extension],
-      request("resolve", {
-        projectRoot: pathToFileURL(projectRoot).href,
-        selectors: { caseIds: [caseId] },
-        configuration: {},
-      }),
+          },
+          [artifact],
+        )
+      )[0],
+    ).toBe("unavailable");
+    expect((await statuses(selectedCase, observation([]), [artifact]))[0]).toBe(
+      "failed",
     );
-    expect(initial.code, initial.stderr).toBe(0);
-    const initialCase = initial.value.result.cases[0]!;
-    expect(await statuses(initialCase, dual)).toEqual([
-      "passed",
-      "passed",
-      "passed",
-    ]);
-    // Direct independent readers cannot replace the provider's own context.
     expect(
       (
-        await statuses(initialCase, {
-          ...native,
-          data: {
-            ...native.data,
-            childSessions: [
-              { ...native.data.childSessions[0], nestedSpawns: [] },
-            ],
+        await statuses(
+          selectedCase,
+          {
+            ...native,
+            data: {
+              ...native.data,
+              acceptedSpawns: native.data.acceptedSpawns.map((spawn) => ({
+                ...spawn,
+                forkTurns: "all",
+              })),
+            },
           },
-        })
+          [artifact],
+        )
       )[0],
     ).toBe("failed");
     expect(
-      await statuses(initialCase, { ...dual, completeness: "partial" }),
-    ).toEqual(["unavailable", "unavailable", "unavailable"]);
+      (
+        await statuses(
+          selectedCase,
+          {
+            ...native,
+            data: {
+              ...native.data,
+              acceptedSpawns: native.data.acceptedSpawns.map((spawn) => ({
+                ...spawn,
+                model: "gpt-6-luna",
+              })),
+            },
+          },
+          [artifact],
+        )
+      )[0],
+    ).toBe("failed");
+    // Positive native reader facts survive unrelated unavailable exec inspection.
+    // This is not evidence of global control absence.
     expect(
       (
-        await statuses(initialCase, {
-          ...dual,
-          data: {
-            ...dual.data,
-            childSessions: [
-              {
-                ...dual.data.childSessions[0],
-                nestedSpawns: [
-                  spec,
-                  { ...standards, readerResultStatus: "unavailable" },
-                ],
-              },
-            ],
+        await statuses(
+          selectedCase,
+          {
+            ...native,
+            data: {
+              ...native.data,
+              submittedExecCalls: 1,
+              toolCalls: [
+                ...native.data.toolCalls,
+                { ordinal: 20, namespace: "other", name: "exec" },
+              ],
+              execCalls: [
+                {
+                  ordinal: 20,
+                  calls: [],
+                  completeness: "partial",
+                  inspectionReason: "unsupported_source",
+                  execution: "completed",
+                  output: "complete",
+                },
+              ],
+            },
           },
-        })
+          [artifact],
+        )
       )[0],
-    ).toBe("unavailable");
-  }
-  expect((await statuses(selectedCase, native, [artifact]))[0]).toBe("failed");
-  expect(
-    (
-      await statuses(
-        selectedCase,
-        {
-          ...dual,
-          data: {
-            ...dual.data,
-            childSessions: [
-              {
-                ...dual.data.childSessions[0],
-                nestedSpawns: [spec, { ...standards, forkTurns: "all" }],
-              },
-            ],
+    ).toBe("passed");
+    // A provider hop is incompatible with this cohort's explicit inline placement.
+    expect(
+      (
+        await statuses(
+          selectedCase,
+          {
+            ...native,
+            data: {
+              ...native.data,
+              acceptedSpawns: native.data.acceptedSpawns.map((spawn) => ({
+                ...spawn,
+                taskName: "provider",
+              })),
+            },
           },
-        },
-        [artifact],
-      )
-    )[0],
-  ).toBe("failed");
-  expect((await statuses(selectedCase, dual))[1]).toBe("unavailable");
-});
+          [artifact],
+        )
+      )[0],
+    ).toBe("failed");
+  }
+  // Eight public case mappings each exercise the native-proof counterexamples.
+}, 90_000);
 
 test("Darrow grades a resumed conversation and its unchanged workspace boundary", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-continuation-"));

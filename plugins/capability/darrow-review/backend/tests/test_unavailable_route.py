@@ -398,6 +398,8 @@ def test_block_route_refuses_mismatched_or_corrupt_artifacts(
 @settings(
     max_examples=10,
     derandomize=True,
+    # This round trip launches Git; scheduler delay is not a parser invariant.
+    deadline=None,
     suppress_health_check=[HealthCheck.function_scoped_fixture],
 )
 @given(

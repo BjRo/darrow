@@ -61,7 +61,25 @@ scope. Present that report directly, with no readers.
 **Complete when:** the repository and mode are bound to a validated scope, or a
 specific scope refusal has a retained blocked report ready for presentation.
 
-## 2. Capture checks and prepare reader inputs
+## 2. Place coordination and prepare reader inputs
+
+Select the reviewer route beside the manifest:
+
+```sh
+uv run --quiet --no-project "$backend/scripts/run_locked.py" review-route select \
+  --repo "$repo" --host <codex|claude> --record '<run>/reviewer-route.json'
+```
+
+Pass the host you are running in (see
+[coordination placement](references/coordination.md)); the helper refuses a
+host that contradicts its environment. If the host or requester reports the
+selected route unavailable, follow
+[review-recovery.md](references/review-recovery.md) before preparing inputs.
+That branch retains a blocked report with zero reader-launch attempts.
+
+Now apply [coordination placement](references/coordination.md) to this
+context's route. If a fallback coordinator runs the review, return its complete
+result. Otherwise continue inline below.
 
 Bind Standards to applicable repository instructions (`AGENTS.md` or the host's
 equivalent) and enough local design. The bundled smell baseline applies where
@@ -82,17 +100,6 @@ uv run --quiet --no-project "$backend/scripts/run_locked.py" review-check run \
 
 The receipt owns the command's status and evidence. When no check applies, supply
 `--no-checks-reason '<why none applies>'` in preparation below.
-Select the reviewer route beside the manifest:
-
-```sh
-uv run --quiet --no-project "$backend/scripts/run_locked.py" review-route select \
-  --repo "$repo" --host <codex|claude> --record '<run>/reviewer-route.json'
-```
-
-If the host or requester reports the selected route unavailable, follow
-[review-recovery.md](references/review-recovery.md) before preparing inputs.
-That branch retains a blocked report with zero reader-launch attempts.
-
 Prepare each applicable axis with its own sources/objective and every relevant
 captured check. In repair mode, prepare only axes with attempted original findings
 or carried regressions; use the handoff's explicit attempted set:
