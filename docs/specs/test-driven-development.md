@@ -136,9 +136,10 @@ feature, but each cycle incorporates what the preceding cycle revealed.
 6. **TDD-P6 — Static Codex discovery context.** The installed plugin supplies a
    Codex SessionStart reminder of the `tdd` intent and exclusions. It MUST be
    static and plugin-local: no prompt classification, repository inspection,
-   skill invocation, mutation, or authority grant. The skill description still
-   carries its own trigger, so declining hook trust does not disable direct or
-   model-invoked use of the skill.
+   skill invocation, mutation, or authority grant. Only the Codex manifest
+   declares it, from `hooks/codex-hooks.json`; Claude Code MUST NOT load it.
+   The skill description still carries its own trigger, so declining hook trust
+   does not disable direct or model-invoked use of the skill.
 
 ## Evaluation requirements
 

@@ -271,6 +271,19 @@ else
       fail(plugin, "manifest versions must be identical semantic versions");
     if (codex?.skills !== "./skills/")
       fail(plugin, "Codex manifest must point at ./skills/");
+    // Claude Code always loads hooks/hooks.json and never sets PLUGIN_ROOT.
+    const defaultHooks = join(plugin, "hooks/hooks.json");
+    const defaultHooksText = await readFile(defaultHooks, "utf8").catch(
+      (error: NodeJS.ErrnoException) => {
+        if (error.code !== "ENOENT") fail(defaultHooks, "unreadable hooks");
+        return undefined;
+      },
+    );
+    if (defaultHooksText?.includes("${PLUGIN_ROOT}"))
+      fail(
+        defaultHooks,
+        "Claude Code loads hooks/hooks.json without PLUGIN_ROOT; move Codex hooks to hooks/codex-hooks.json",
+      );
     await verifySkillDirectory(plugin);
     const readme = pages.get(join(plugin, "README.md"));
     const required = [
