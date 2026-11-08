@@ -1,5 +1,6 @@
 """Exercise every entrypoint from an independently copied runtime-only plugin."""
 
+import json
 import os
 import shutil
 import subprocess
@@ -75,11 +76,12 @@ def verify(work: Path) -> None:
     repo.mkdir()
     run(["git", "init", "-q", str(repo)], work)
     exercise(command, repo, work)
+    exercise_context(command, work)
     assert not list(plugin.rglob(".venv"))
     assert not list(plugin.rglob("__pycache__"))
     make_writable(plugin)
     print(
-        "fresh copied plugin: setup, inspect, verify, refusals, atomic updates passed; runtime dependencies only"
+        "fresh copied plugin: setup, inspect, verify, context, refusals, atomic updates passed; runtime dependencies only"
     )
 
 
@@ -133,6 +135,46 @@ def exercise(command: list[str], repo: Path, work: Path) -> None:
     run([*command, "ia-setup", "inspect", str(repo / "missing")], work, 2)
     assert guidance.read_bytes().endswith(b"\r\n")
     assert not list(repo.rglob(".ia-*"))
+
+
+def exercise_context(command: list[str], work: Path) -> None:
+    home = work / "Codex home 漢字"
+    session = home / "sessions/2026/01/01/rollout-date-release-thread.jsonl"
+    session.parent.mkdir(parents=True)
+    records = [
+        {
+            "type": "session_meta",
+            "payload": {
+                "cli_version": "0.166.0",
+                "base_instructions": {"text": "system"},
+            },
+        },
+        {
+            "type": "event_msg",
+            "payload": {
+                "type": "token_count",
+                "info": {
+                    "last_token_usage": {"total_tokens": 100},
+                    "model_context_window": 1000,
+                },
+            },
+        },
+    ]
+    session.write_text(
+        "".join(json.dumps(record) + "\n" for record in records), encoding="utf-8"
+    )
+    (home / "config.toml").write_text(
+        "model_auto_compact_token_limit=800\n", encoding="utf-8"
+    )
+    os.environ["CODEX_HOME"] = str(home)
+    os.environ["CODEX_THREAD_ID"] = "release-thread"
+    before = {p: p.read_bytes() for p in home.rglob("*") if p.is_file()}
+    data = json.loads(run([*command, "ia-context", "--format", "json"], work))
+    assert data["rollout_path"] == str(session.resolve())
+    assert data["exact_total_tokens"] == 100
+    assert data["autocompact_buffer_tokens"] == 200
+    assert "Category" in run([*command, "ia-context", "--format", "grid"], work)
+    assert before == {p: p.read_bytes() for p in home.rglob("*") if p.is_file()}
 
 
 if __name__ == "__main__":

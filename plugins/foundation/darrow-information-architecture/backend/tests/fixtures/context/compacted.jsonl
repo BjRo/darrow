@@ -1,0 +1,10 @@
+{"timestamp":"2026-01-01T00:00:00Z","type":"session_meta","payload":{"id":"fixture-thread","cli_version":"0.166.0","base_instructions":"abcdefgh"}}
+{"type":"response_item","payload":{"type":"message","role":"developer","content":[{"type":"input_text","text":"<skills_instructions>skills</skills_instructions>"},{"type":"input_text","text":"<plugins_instructions>plugins</plugins_instructions>"},{"type":"input_text","text":"dev!"}]}}
+{"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"# AGENTS.md instructions for /fixture\n\nPolicy"},{"type":"input_text","text":"<environment_context>env</environment_context>"},{"type":"input_text","text":"hello"}]}}
+{"type":"response_item","payload":{"type":"function_call","name":"shell","arguments":"{\"command\":\"pwd\"}","call_id":"call-1"}}
+{"type":"response_item","payload":{"type":"function_call_output","call_id":"call-1","output":"/fixture"}}
+{"type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":180,"output_tokens":20,"total_tokens":200},"total_token_usage":{"input_tokens":9999,"output_tokens":99,"total_tokens":10098},"model_context_window":1000}}}
+{"type":"compacted","payload":{"message":"summary","replacement_history":[{"type":"message","role":"user","content":[{"type":"input_text","text":"stale"}]}]}}
+{"type":"compacted","payload":{"message":"summary","replacement_history":[{"type":"message","role":"developer","content":[{"type":"input_text","text":"abcdefgh"}]},{"type":"message","role":"user","content":[{"type":"input_text","text":"kept"}]},{"type":"compaction","encrypted_content":"cleaned-opaque-summary"}]}}
+{"type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":0,"output_tokens":0,"total_tokens":200},"model_context_window":1000}}}
+{"type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"next"}]}}
