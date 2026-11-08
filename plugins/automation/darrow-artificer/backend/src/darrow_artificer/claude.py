@@ -79,7 +79,7 @@ def invoke(site: Installation, claim: Claim, prompt: str) -> Outcome:
                 stdout=subprocess.PIPE,
                 stderr=errors,
                 text=True,
-                env=environment(),
+                env=environment(site.grant),
             )
         with process:
             try:

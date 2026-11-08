@@ -235,14 +235,12 @@ def stop_probe(site: Installation) -> None:
 def trial(
     root: Path, codex: Path, credentials: Path, model: str, effort: str
 ) -> dict[str, object]:
-    site = installation(root, codex)
     home = codex_home(
         root / "codex-home", credentials, model, effort, fixture_plugins(root)
     )
-    # Artificer inherits the host profile; this probe supplies an isolated one.
+    site = installation(root, codex, profile=home)
     os.environ.update(
         {
-            "CODEX_HOME": str(home),
             "DARROW_REVIEW_STATE_DIR": str(root / "reviews"),
             "DARROW_CACHE_DIR": str(root / "cache"),
         }

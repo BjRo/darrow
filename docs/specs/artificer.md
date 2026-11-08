@@ -26,7 +26,9 @@ supervision. Task recipes and their native session own engineering.
   Each delivery has an isolated worktree from freshly fetched main/master,
   never a preceding delivery branch. Configure the host per repository.
 - **ART-C4 — Native state.** Initially run locally on macOS, inheriting the
-  host's existing profiles, plugins, guidance and login. Store only operational
+  host's existing profiles, plugins, guidance and login. An explicit profile
+  directory chosen at enablement selects that host profile (`CODEX_HOME` or
+  `CLAUDE_CONFIG_DIR`) for every launch and resume. Store only operational
   correlation in Artificer. Use exact-identity native resume, without copied
   plugins, credentials, conversation archives or archive expiry. Missing native
   state is a blocker, never permission to substitute a fresh owner.

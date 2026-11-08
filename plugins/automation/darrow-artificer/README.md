@@ -46,6 +46,11 @@ profile; Artificer does not change authentication, permission or billing setting
 Configure that profile to permit the intended unattended work. A host permission
 request that cannot be handled noninteractively stops delivery.
 
+Prefer a dedicated profile for unattended permissions and plugin versions. Pass
+`init --profile-dir <absolute path>`; each launch, scheduled tick and resume then
+uses it as `CODEX_HOME` or `CLAUDE_CONFIG_DIR`. Resume a session manually with
+the same directory, for example `CODEX_HOME=<path> codex resume <id>`.
+
 ## Installation
 
 Install `darrow-artificer@darrow` using the

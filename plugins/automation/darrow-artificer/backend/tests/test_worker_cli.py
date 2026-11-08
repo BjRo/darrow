@@ -366,6 +366,78 @@ def test_codex_delivery_uses_native_profile(
     assert not (Installation(state).delivery_dir(claim.id) / "native").exists()
 
 
+PROFILE_VARIABLES = {"codex": "CODEX_HOME", "claude": "CLAUDE_CONFIG_DIR"}
+
+
+@pytest.mark.parametrize("host", ["codex", "claude"])
+def test_explicit_profile_directory_selects_the_host_profile(
+    host: str,
+    repository: Path,
+    services: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    profile = tmp_path / "artificer-profile"
+    profile.mkdir()
+    variable = PROFILE_VARIABLES[host]
+    monkeypatch.setenv(variable, str(tmp_path / "interactive-profile"))
+    state = tmp_path / "worker"
+    invoke(
+        monkeypatch,
+        capsys,
+        state,
+        "init",
+        "--repository",
+        "o/r",
+        "--checkout",
+        str(repository),
+        "--host",
+        host,
+        "--profile-dir",
+        str(profile),
+        "--authorize-recurring-delivery",
+    )
+    assert invoke(monkeypatch, capsys, state, "status")["profile_dir"] == str(profile)
+    invoke(monkeypatch, capsys, state, "tick")
+    wait_stopped(Installation(state))
+    launches = [
+        json.loads(line)
+        for line in (services / "profiles.jsonl").read_text().splitlines()
+    ]
+    assert launches and {launch[variable] for launch in launches} == {str(profile)}
+
+
+@pytest.mark.parametrize("profile", ["relative-profile", "/nonexistent/profile"])
+def test_init_refuses_unusable_profile_directory(
+    profile: str,
+    repository: Path,
+    services: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    state = tmp_path / "worker"
+    with pytest.raises(SystemExit):
+        invoke(
+            monkeypatch,
+            capsys,
+            state,
+            "init",
+            "--repository",
+            "o/r",
+            "--checkout",
+            str(repository),
+            "--profile-dir",
+            profile,
+            "--authorize-recurring-delivery",
+        )
+    assert "Profile directory must be an existing absolute directory" in (
+        capsys.readouterr().err
+    )
+    assert not (state / "grant.json").exists()
+
+
 @pytest.mark.parametrize("host", ["codex", "claude"])
 def test_delivery_requires_core_but_not_optional_plugins(
     repository: Path,

@@ -153,7 +153,7 @@ PROVIDERS = (
 )
 
 
-def installation(root: Path, codex: Path) -> Installation:
+def installation(root: Path, codex: Path, profile: Path | None = None) -> Installation:
     write(root / "ticket.txt", ticket_text())
     tools(root)
     repo = repository(root)
@@ -167,6 +167,7 @@ def installation(root: Path, codex: Path) -> Installation:
             common_git=str(repo / ".git"),
             grantor="writer",
             executable=str(codex.resolve(strict=True)),
+            profile_dir=None if profile is None else str(profile),
             gh=str(root / "gh"),
             git=shutil.which("git") or "git",
             effects="claims,reports,worktrees,recipe,commits,push,pr",

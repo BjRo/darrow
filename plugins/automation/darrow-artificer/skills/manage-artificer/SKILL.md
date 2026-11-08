@@ -25,7 +25,8 @@ per delivery. Never infer that grant from an ordinary implementation request.
 The grant persists until revoked. Installation alone enables nothing.
 
 The first version runs locally on macOS with the host's existing profiles,
-plugins and login. Account usage follows that configuration; do not promise zero
+plugins and login, or with an explicit dedicated profile directory chosen at
+`init`. Account usage follows that configuration; do not promise zero
 additional cost, change billing/authentication or buy credits. Missing required
 authority stops setup. Workers in the same repository share host selection and
 WIP, but each worker has its own state path and revocation.

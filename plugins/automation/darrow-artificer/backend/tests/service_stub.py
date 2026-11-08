@@ -467,11 +467,28 @@ def codex(root: Path) -> None:
         host.handle(json.loads(line))
 
 
+def record_profile(root: Path) -> None:
+    """Expose which host profile directory each native launch received."""
+    with (root / "profiles.jsonl").open("a") as stream:
+        stream.write(
+            json.dumps(
+                {
+                    "host": Path(sys.argv[0]).name,
+                    "CODEX_HOME": os.environ.get("CODEX_HOME"),
+                    "CLAUDE_CONFIG_DIR": os.environ.get("CLAUDE_CONFIG_DIR"),
+                }
+            )
+            + "\n"
+        )
+
+
 def main() -> None:
     root = Path(os.environ["ARTIFICER_TEST_STATE"])
     if Path(sys.argv[0]).name == "gh":
         forge(root)
-    elif Path(sys.argv[0]).name == "claude":
+        return
+    record_profile(root)
+    if Path(sys.argv[0]).name == "claude":
         if (
             os.environ.get("ARTIFICER_PROFILE_POLICY")
             and "--dangerously-skip-permissions" in sys.argv

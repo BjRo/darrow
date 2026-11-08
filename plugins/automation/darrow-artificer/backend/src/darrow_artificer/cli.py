@@ -21,6 +21,7 @@ def parser() -> argparse.ArgumentParser:
     init.add_argument("--checkout", type=Path, required=True)
     init.add_argument("--host", choices=("codex", "claude"), default="codex")
     init.add_argument("--issue", type=int, action="append", default=[])
+    init.add_argument("--profile-dir", type=Path)
     init.add_argument(
         "--authorize-recurring-delivery", action="store_true", required=True
     )
@@ -46,6 +47,7 @@ def initialize(site: Installation, args: argparse.Namespace) -> object:
         args.repository,
         args.issue,
         args.host,
+        args.profile_dir,
     )
     setup.labels(site)
     return grant.model_dump()
@@ -79,6 +81,7 @@ def dispatch(site: Installation, args: argparse.Namespace) -> object:
             "repository": site.grant.repository,
             "enabled": site.grant.enabled,
             "host": site.grant.host,
+            "profile_dir": site.grant.profile_dir,
             "WORK_IN_PROGRESS_LIMIT": site.grant.WORK_IN_PROGRESS_LIMIT,
             "deliveries": [claim.model_dump() for claim in site.claims()],
         },

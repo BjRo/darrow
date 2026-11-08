@@ -22,6 +22,7 @@ class Grant(Record):
     enabled: bool = True
     issue_scope: list[int] = Field(default_factory=list)
     executable: str
+    profile_dir: str | None = None
     gh: str
     git: str
     effects: Literal["claims,reports,worktrees,recipe,commits,push,pr"]

@@ -32,13 +32,25 @@ def primary_checkout(git: str, checkout: Path) -> Path:
     return Path(first.removeprefix("worktree ")).resolve(strict=True)
 
 
+def profile_directory(path: Path | None) -> str | None:
+    if path is None:
+        return None
+    if not path.is_absolute() or not path.is_dir():
+        raise ValueError(
+            f"Profile directory must be an existing absolute directory: {path}"
+        )
+    return str(path.resolve())
+
+
 def initialize(
     site: Installation,
     checkout: Path,
     repository: str,
     issues: list[int],
     host: Literal["codex", "claude"] = "codex",
+    profile: Path | None = None,
 ) -> Grant:
+    profile_dir = profile_directory(profile)
     git, gh, codex = executable("git"), executable("gh"), executable(host)
     primary = primary_checkout(git, checkout)
     common = Path(
@@ -67,6 +79,7 @@ def initialize(
         common_git=str(common),
         grantor=grantor,
         executable=codex,
+        profile_dir=profile_dir,
         gh=gh,
         git=git,
         issue_scope=issues,

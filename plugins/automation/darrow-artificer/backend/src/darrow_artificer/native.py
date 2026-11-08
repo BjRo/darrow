@@ -17,8 +17,15 @@ def check_error(error: dict[str, object]) -> None:
         raise InterruptionError(str(error))
 
 
-def environment() -> dict[str, str]:
-    return {key: value for key, value in os.environ.items() if key != "CLAUDECODE"}
+PROFILE_VARIABLES = {"codex": "CODEX_HOME", "claude": "CLAUDE_CONFIG_DIR"}
+
+
+def environment(grant: Grant) -> dict[str, str]:
+    """Inherit the host profile unless the grant names its profile directory."""
+    result = {key: value for key, value in os.environ.items() if key != "CLAUDECODE"}
+    if grant.profile_dir is not None:
+        result[PROFILE_VARIABLES[grant.host]] = grant.profile_dir
+    return result
 
 
 def command(grant: Grant) -> list[str]:

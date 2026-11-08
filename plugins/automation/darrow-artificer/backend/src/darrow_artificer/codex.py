@@ -24,7 +24,7 @@ def execute(site: Installation, claim: Claim) -> Outcome:
             stdout=subprocess.PIPE,
             stderr=errors,
             cwd=claim.worktree,
-            env=native.environment(),
+            env=native.environment(site.grant),
             bufsize=0,
         ) as process,
     ):

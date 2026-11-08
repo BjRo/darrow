@@ -8,7 +8,7 @@ stays in the selected host's existing profile.
 ## Configure and schedule a worker
 
 ```text
-init --repository OWNER/REPO --checkout PATH --host codex|claude --authorize-recurring-delivery [--issue NUMBER ...]
+init --repository OWNER/REPO --checkout PATH --host codex|claude --authorize-recurring-delivery [--issue NUMBER ...] [--profile-dir ABSOLUTE_PATH]
 ```
 
 The checkout resolves to the primary repository through Git's worktree listing.
@@ -19,6 +19,13 @@ issues. The initial recipe is always `ticket-to-pr`.
 Require that recipe, Adaptive Goal, verification and review in the host. Optional
 plugins are neither required nor copied. Use the existing configured model,
 authentication and plugin profile; Artificer does not select billing providers.
+
+`--profile-dir` names a dedicated host profile directory: `CODEX_HOME` for Codex
+or `CLAUDE_CONFIG_DIR` for Claude. Every launch and resume for that worker uses
+it, including scheduled ticks, regardless of the caller's environment. Without
+it, the launching environment's profile applies. Set it only at `init`; native
+sessions stay in that profile. It must be an existing absolute directory with
+its own login, required plugins and unattended permission settings.
 
 Run `init` with a different state path to add another worker to the same
 repository. Host selection and WIP are shared. Each worker runs one ticket at a
