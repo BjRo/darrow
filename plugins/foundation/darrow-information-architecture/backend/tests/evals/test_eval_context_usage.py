@@ -18,11 +18,19 @@ def receipt(root: Path, output: bytes, number: int = 0) -> None:
 
 
 def test_captured_grid(tmp_path: Path) -> None:
-    receipt(tmp_path, b"Context used (last token_count): 200 / 1000\nCategory\n")
+    receipt(
+        tmp_path, b"Codex context\n200 / 1,000 tokens\nCategory\nRest: 800 tokens\n"
+    )
     verify(tmp_path, "grid")
     verify(tmp_path, "any")
     with pytest.raises(AssertionError):
         verify(tmp_path, "json")
+
+
+def test_grid_without_rest_fails(tmp_path: Path) -> None:
+    receipt(tmp_path, b"Codex context\n200 / 1,000 tokens\nCategory\n")
+    with pytest.raises(AssertionError):
+        verify(tmp_path, "grid")
 
 
 def test_report_without_execution_fails(tmp_path: Path) -> None:

@@ -12,7 +12,12 @@ from typing import Any
 from darrow_ia.cli import Parser, run
 from darrow_ia.context_categories import CATEGORIES, add_item, without_base_echo
 from darrow_ia.context_config import compact_limit
-from darrow_ia.context_display import SNAPSHOT_NOTE, render
+from darrow_ia.context_display import (
+    NEGATIVE_REMAINDER_WARNING,
+    SNAPSHOT_NOTE,
+    render,
+    terminal_options,
+)
 from darrow_ia.context_log import base_text, decode, mapping, read_records, token_info
 
 
@@ -101,9 +106,7 @@ def accounting(
     warnings = ["No token_count yet; estimates only."] if not info else []
     remainder = total - sum(estimates.values()) if total is not None else None
     if remainder is not None and remainder < 0:
-        warnings.append(
-            "Negative remainder: byte estimates exceed the last exact total."
-        )
+        warnings.append(NEGATIVE_REMAINDER_WARNING)
     result = {
         "schema_version": 1,
         "rollout_path": str(path.resolve()),
@@ -139,10 +142,11 @@ def command(arguments: Sequence[str]) -> int:
     parser.add_argument("--format", choices=("json", "grid"), default="grid")
     args = parser.parse_args(arguments)
     data = snapshot()
+    width, color = terminal_options()
     print(
         json.dumps(data, ensure_ascii=False, sort_keys=True)
         if args.format == "json"
-        else render(data)
+        else render(data, width=width, color=color)
     )
     return 0
 

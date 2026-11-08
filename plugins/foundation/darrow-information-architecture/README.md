@@ -32,10 +32,16 @@ Example: _“Doctor this repository's agent instructions.”_
 
 ### `context-usage`
 
-Shows how the current Codex thread's context window is used: a grid and
+Shows how the current Codex thread's context window is used: a capacity grid and
 category table for a person, or JSON for an agent checking itself before a
 large phase, a large output or a delegation decision. On Claude Code it points
 to the built-in `/context`.
+
+The terminal report leads with recorded usage, followed by estimated categories
+with readable labels, aligned counts and percentages. It ends with **Rest**:
+window capacity minus recorded usage, in tokens and as a percentage of the window.
+It stacks on narrow terminals and uses color on interactive terminals unless
+`NO_COLOR` is set to a non-empty value or `TERM=dumb`. Piped output is plain text.
 
 Example: _“Show how this session's context window is split up.”_
 
@@ -100,7 +106,7 @@ writer and its concurrency boundary. Inventory and verification never write guid
 `ia-context` needs `CODEX_THREAD_ID` and that thread's rollout under
 `$CODEX_HOME/sessions` (default `~/.codex`). It never falls back to another
 session. The used total is exact; categories are UTF-8 bytes / 4 estimates,
-and a signed remainder holds unlogged content such as tool definitions. The
+and JSON retains a signed remainder for unlogged content and estimation error. The
 autocompact buffer appears only for a root `model_auto_compact_token_limit` in
 `config.toml`. The parser is tested against Codex 0.166 logs and refuses
 unknown shapes.

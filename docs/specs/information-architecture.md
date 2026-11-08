@@ -323,14 +323,26 @@ table for a person, JSON for an agent self-check. On Claude Code, point to
 - **IA-C4 — Exact total.** Use the last `token_count` event's
   `last_token_usage.total_tokens` and `model_context_window`, the same
   input-plus-output total that `/status` shows. The remainder is that total
-  minus all estimates; keep it signed and warn when it is negative. Before the
-  first token count, the exact fields are null.
+  minus all estimates; keep it signed and warn when it is negative in JSON.
+  Before the first token count, the exact fields are null.
 - **IA-C5 — Buffer.** Only a root `model_auto_compact_token_limit` in
   `CODEX_HOME/config.toml` adds the autocompact buffer (window minus limit).
   Profiles and project overrides are not resolved. An unreadable file or
   invalid value omits the buffer with a warning; it never blocks the report.
 - **IA-C6 — Read-only.** Never edit guidance, configuration, session history or
   repository files, and never start doctor.
+- **IA-C7 — Terminal presentation.** Lead the human report with recorded usage,
+  capacity and percentage. Render a 100-cell capacity grid from the exact total,
+  with free capacity and any configured buffer distinguished by glyph and label.
+  Keep byte-based category estimates in a separate, aligned breakdown. Omit
+  the accounting remainder and its warning from the human report. End the
+  report with **Rest**, the window capacity minus recorded usage, and its
+  percentage of the window; show it as unavailable before the first token count.
+  Adapt between side-by-side and stacked layouts for terminal
+  widths of 40 columns or more. Use color only on an interactive terminal when
+  `NO_COLOR` is empty and `TERM` is not `dumb`; piped output contains no ANSI
+  escapes. Retain missing-data notes, warnings and the absolute rollout path.
+  The JSON schema and accounting remain unchanged.
 
 ### Non-goals
 

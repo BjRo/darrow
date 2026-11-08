@@ -1,7 +1,7 @@
 id: context-usage-explicit-name
 harnesses:
   - codex
-invariant: IA-C1,IA-C3,IA-C4,IA-C6
+invariant: IA-C1,IA-C3,IA-C4,IA-C6,IA-C7
 activation: positive
 prompt: "{{skill_invocation}} Show my current context usage."
 fixture:
@@ -41,3 +41,8 @@ semantic_output_checks:
       skills and AGENTS.md (repository instructions), together with a context
       grid or a statement that the grid is unavailable until Codex records its
       first token count.
+  - name: ends with remaining capacity
+    proposition: The report ends with Rest, showing unused window capacity in
+      tokens and as a percentage of the window, or saying that Rest is
+      unavailable until the first recorded token count. It does not display
+      the accounting Remainder row.

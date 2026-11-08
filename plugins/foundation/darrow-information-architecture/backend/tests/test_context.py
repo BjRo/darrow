@@ -3,6 +3,7 @@
 import io
 import json
 import os
+import re
 import subprocess
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
@@ -72,7 +73,9 @@ def prepare(tmp_path: Path, content: str) -> tuple[Path, Path]:
     return home, rollout
 
 
-def invoke(home: Path, format_name: str = "json") -> subprocess.CompletedProcess[str]:
+def invoke(
+    home: Path, format_name: str = "json", *, tty: bool = False
+) -> subprocess.CompletedProcess[str]:
     args = ["ia-context", "--format", format_name]
     stdout, stderr = io.StringIO(), io.StringIO()
     with (
@@ -82,6 +85,7 @@ def invoke(home: Path, format_name: str = "json") -> subprocess.CompletedProcess
         patch("sys.argv", args),
         redirect_stdout(stdout),
         redirect_stderr(stderr),
+        patch.object(stdout, "isatty", return_value=tty),
     ):
         try:
             entrypoint()
@@ -267,14 +271,92 @@ def test_grid(tmp_path: Path) -> None:
     home, rollout = prepare(tmp_path, (FIXTURES / "normal.jsonl").read_text())
     result = invoke(home, "grid")
     assert result.returncode == 0, result.stderr
-    assert str(rollout.resolve()) in result.stdout
-    assert "[" in result.stdout and "]" in result.stdout
+    assert str(rollout.resolve()) in result.stdout.replace("\n", "")
+    assert "■" in result.stdout and "·" in result.stdout
     assert "Category" in result.stdout
-    assert "system_prompt" in result.stdout and "remainder" in result.stdout
-    assert "200 / 1000" in result.stdout
-    assert "last token_count" in result.stdout
+    assert "System prompt" in result.stdout and "Remainder" not in result.stdout
+    assert "200 / 1,000 tokens · 20.0% used" in result.stdout
+    assert "Last recorded token count" in result.stdout
+    assert result.stdout.rstrip().endswith("Rest: 800 tokens · 80.0% of window")
     assert "estimated" in result.stdout.lower()
     assert not result.stdout.startswith("{")
+
+
+@pytest.mark.parametrize("width", [40, 60, 80, 120])
+@pytest.mark.parametrize("tty", [False, True])
+def test_terminal_layout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, width: int, tty: bool
+) -> None:
+    home, rollout = prepare(tmp_path, (FIXTURES / "normal.jsonl").read_text())
+    monkeypatch.setenv("COLUMNS", str(width))
+    monkeypatch.setenv("TERM", "xterm-256color")
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    result = invoke(home, "grid", tty=tty)
+    assert result.returncode == 0, result.stderr
+    assert ("\033[" in result.stdout) is tty
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", result.stdout)
+    assert max(map(len, plain.splitlines())) <= width
+    assert plain.count("■") == 21  # 20 capacity cells plus the legend.
+    assert "20.0% used" in plain
+    assert plain.rstrip().endswith("Rest: 800 tokens · 80.0% of window")
+    assert str(rollout.resolve()) in plain.replace("\n", "")
+    assert "system_prompt" not in plain
+    grid_lines = [line for line in plain.splitlines() if line.startswith("■ ")]
+    assert ("Category" in grid_lines[0]) is (width >= 80)
+    if tty:
+        with patch.dict(os.environ, {"NO_COLOR": "1"}):
+            assert invoke(home, "grid", tty=True).stdout == plain
+        with patch.dict(os.environ, {"TERM": "dumb"}):
+            assert invoke(home, "grid", tty=True).stdout == plain
+    assert "\033" not in invoke(home, "json", tty=tty).stdout
+
+
+def test_grid_uses_exact_total_when_estimates_exceed_it(tmp_path: Path) -> None:
+    content = (
+        (FIXTURES / "normal.jsonl")
+        .read_text()
+        .replace('"total_tokens":200', '"total_tokens":10')
+    )
+    home, _ = prepare(tmp_path, content)
+    data = json.loads(invoke(home).stdout)
+    output = invoke(home, "grid").stdout
+    assert output.count("■") == 2  # One occupied cell, despite larger estimates.
+    assert data["remainder_tokens"] < 0
+    assert any("Negative remainder" in warning for warning in data["warnings"])
+    assert "remainder" not in output.lower()
+    assert output.rstrip().endswith("Rest: 990 tokens · 99.0% of window")
+
+
+def test_grid_capacity_extremes(tmp_path: Path) -> None:
+    home, rollout = prepare(tmp_path, (FIXTURES / "normal.jsonl").read_text())
+    original = rollout.read_text()
+    for total, cells in [(0, 0), (1000, 100), (1200, 100)]:
+        rollout.write_text(
+            original.replace('"total_tokens":200', f'"total_tokens":{total}')
+        )
+        output = invoke(home, "grid").stdout
+        assert output.count("■") == cells + 1
+        assert f"{total / 1000:.1%} used" in output
+        assert output.rstrip().endswith(
+            f"Rest: {1000 - total:,} tokens · {(1000 - total) / 1000:.1%} of window"
+        )
+
+
+def test_large_counts_on_narrow_terminal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    content = (
+        (FIXTURES / "normal.jsonl")
+        .read_text()
+        .replace('"total_tokens":200', '"total_tokens":1000000')
+        .replace('"model_context_window":1000', '"model_context_window":2000000')
+    )
+    home, _ = prepare(tmp_path, content)
+    monkeypatch.setenv("COLUMNS", "40")
+    output = invoke(home, "grid").stdout
+    assert max(map(len, output.splitlines())) <= 40
+    assert "50.0% used" in " ".join(output.split())
+    assert "Developer" in output and "instructions" in output
 
 
 def config_warning(home: Path, needle: str) -> None:
@@ -415,10 +497,14 @@ def test_first_turn_grid_and_configured_grid(tmp_path: Path) -> None:
     assert "not recorded yet" in result.stdout and "None" not in result.stdout
     assert "Free tokens" not in result.stdout
     assert "Autocompact buffer" in result.stdout
+    assert " ".join(result.stdout.split()).endswith(
+        "Rest: unavailable until the first recorded token count"
+    )
     rollout.write_text(original, encoding="utf-8")
     result = invoke(home, "grid")
-    assert "[BBBBBBBBBB]" in result.stdout
+    assert "░ ░ ░ ░ ░ ░ ░ ░ ░ ░" in result.stdout
     assert "200" in result.stdout
+    assert result.stdout.rstrip().endswith("Rest: 800 tokens · 80.0% of window")
 
 
 def test_unset_buffer_not_displayed(tmp_path: Path) -> None:

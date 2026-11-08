@@ -44,7 +44,8 @@ def validate_capture(capture: Path, format_name: str) -> None:
     if format_name == "json":
         json_snapshot(output, (capture / "thread").read_text().strip())
     else:
-        assert b"Category" in output and b"Context used (last token_count):" in output
+        assert b"Codex context" in output and b"Category" in output
+        assert b"\nRest:" in output
 
 
 def verify(root: Path, format_name: str) -> None:

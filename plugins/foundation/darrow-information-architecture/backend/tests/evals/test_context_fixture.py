@@ -30,7 +30,7 @@ def test_capture_preserves_results(
             }
         )
         if format_name == "json"
-        else "Context used (last token_count): 20 / 1000\nCategory\n"
+        else "Codex context\n20 / 1,000 tokens\nCategory\nRest: 980 tokens\n"
     )
     arguments = [
         "-c",
@@ -67,12 +67,12 @@ def test_captured_snapshot_verifies(
     (tmp_path / ".git").mkdir()
     (tmp_path / ".git/context-uv").write_text(sys.executable, encoding="utf-8")
     monkeypatch.setenv("CODEX_THREAD_ID", "fixture")
-    output = "Context used (last token_count): 20 / 1000\nCategory\n"
+    output = "Codex context\n20 / 1,000 tokens\nCategory\nRest: 980 tokens\n"
     result = capture(
         tmp_path,
         [
             "-c",
-            "import sys; sys.stdout.write(sys.argv[1])",
+            "import sys; sys.stdout.buffer.write(sys.argv[1].encode())",
             output,
             "--no-project",
             "ia-context",

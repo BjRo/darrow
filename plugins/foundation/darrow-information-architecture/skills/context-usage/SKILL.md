@@ -26,14 +26,14 @@ or change any configuration.
 
 ## Report
 
-- **For a person:** the user cannot see command output. Copy the grid and
-  category table into your reply as returned, including the rollout path and
-  any warnings.
+- **For a person:** the user cannot see command output. Copy the complete report
+  into your reply as returned, including the rollout path and any warnings.
+  Keep **Rest** at the bottom: the window capacity minus recorded usage.
 - **For a self-check:** state the used total, the window and any warnings, then
   continue the task.
 
 The used total is exact: Codex's last token count. Categories are estimates
-(UTF-8 bytes / 4). The remainder holds unlogged content, such as tool
-definitions, plus estimation error, and it can be negative. Early in a new
-thread, Codex may not have recorded a token count yet; then only the estimates
+(UTF-8 bytes / 4). JSON retains a signed accounting remainder for unlogged
+content and estimation error; the human report shows remaining capacity instead.
+Early in a new thread, Codex may not have recorded a token count yet; then only the estimates
 exist, and you should say so.
