@@ -1,0 +1,21 @@
+id: context-usage-no-trigger-doctor
+invariant: IA-C6
+activation: negative
+activation_excludes: [context-usage]
+mount_plugin_skills: true
+prompt: >-
+  Doctor this repository's agent instructions for stale routes. Report findings
+  before editing anything.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: "# Agent instructions\nBefore API work, read `docs/missing.md`.\n"
+checks: []
+semantic_output_checks:
+  - name: no context usage report
+    proposition: >-
+      The response does not report the agent's context-window usage (tokens used
+      out of a context window, or a per-category breakdown of that context).
+      Sizes or token estimates of guidance files such as AGENTS.md are not
+      context-window usage.

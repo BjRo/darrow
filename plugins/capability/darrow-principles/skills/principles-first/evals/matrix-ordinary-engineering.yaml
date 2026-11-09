@@ -1,0 +1,41 @@
+id: principles-first-matrix-ordinary-engineering
+activation: negative
+mount_plugin_skills: true
+invariant: PF-R1,PF-AC2
+expect_head_change: false
+prompt: Change greeting.txt to contain exactly Welcome followed by one newline.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        greeting.txt: |
+          Hello
+checks:
+  - name: ordinary authorized edit is completed
+    run: test "$(cat greeting.txt)" = Welcome
+native_goal: forbidden
+activation_excludes:
+  - principle-laziness-protocol
+  - principle-foundational-thinking
+  - principle-redesign-from-first-principles
+  - principle-attack-the-premise
+  - principle-subtract-before-you-add
+  - principle-minimize-reader-load
+  - principle-outcome-oriented-execution
+  - principle-experience-first
+  - principle-exhaust-the-design-space
+  - principle-build-the-lever
+  - principle-model-the-domain
+  - principle-boundary-discipline
+  - principle-type-system-discipline
+  - principle-make-operations-idempotent
+  - principle-migrate-callers-then-delete-legacy-apis
+  - principle-separate-before-serializing-shared-state
+  - principle-prove-it-works
+  - principle-fix-root-causes
+  - principle-sequence-verifiable-units
+  - principle-test-behavior-not-implementation
+  - principle-explain-the-number
+  - principle-guard-the-context-window
+  - principle-never-block-on-the-human
+  - principle-encode-lessons-in-structure

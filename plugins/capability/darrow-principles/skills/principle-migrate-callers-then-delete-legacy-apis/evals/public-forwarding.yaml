@@ -1,0 +1,26 @@
+id: principle-migrate-callers-then-delete-legacy-apis-public-forwarding
+activation: positive
+mount_plugin_skills: true
+invariant: PF-R8,PF-AC9
+expect_head_change: false
+prompt:
+  Use principle-migrate-callers-then-delete-legacy-apis for decision.md. Give advice
+  only; do not edit files.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        decision.md: >
+          All internal callers now use the new API, but the documented public API and
+          command forwarding entrypoint must remain compatible for external consumers. Can
+          both old entrypoints be removed now?
+checks:
+  - name: advice preserves task authority
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: decision follows the accepted principle within its limits
+    proposition:
+      Internal caller migration does not eliminate the external compatibility
+      obligation. Preserve the required public API and forwarding entrypoint through a
+      compatible transition rather than deleting them.
+native_goal: forbidden

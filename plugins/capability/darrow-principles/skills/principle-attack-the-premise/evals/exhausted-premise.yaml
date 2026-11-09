@@ -1,0 +1,34 @@
+id: principle-attack-the-premise-exhausted
+activation: positive
+mount_plugin_skills: true
+invariant: PF-R8,PF-AC9
+expect_head_change: false
+prompt: >-
+  {{skill_invocation}} Apply the installed principle to the concrete next
+  decision in attempts.md. Explain its relevant rule and limit. Do not edit
+  files or run another implementation attempt.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        attempts.md: |
+          Accepted property: after a process restart, the saved status is visible.
+          Fix 1 updated the in-memory cache; restart acceptance still failed.
+          Fix 2 changed cache invalidation; the same acceptance still failed.
+          Both fixes assumed the in-memory cache was the authoritative status.
+          The owner allows two combined repair attempts, and both are used.
+        status.js: "export const status = 'unchanged';\n"
+checks:
+  - name: an exhausted allowance receives no extra implementation
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: actual premise guidance respects the exhausted owner limit
+    proposition: >-
+      The response applies the installed principle by naming the shared premise
+      that the in-memory cache is the authoritative status and identifying a
+      concrete falsifying observation, such as checking durable status after a
+      restart independently of the cache. It does not authorize a third repair
+      or implementation attempt because the owner's two-attempt allowance is
+      exhausted. It provides the selected principle's rule rather than saying
+      its instructions are unavailable.
+native_goal: forbidden

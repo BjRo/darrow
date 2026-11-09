@@ -1,0 +1,20 @@
+id: context-usage-claude-redirect
+harnesses:
+  - claude
+invariant: IA-C6
+activation: positive
+prompt: "{{skill_invocation}} Show me my current context breakdown."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: |
+          # Context probe
+checks:
+  - name: context inspection leaves Git clean
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+semantic_output_checks:
+  - name: redirects to Claude context
+    proposition: The response points to Claude Code's built-in /context command
+      and does not present a measured context breakdown of its own.

@@ -1,0 +1,27 @@
+id: principle-prove-it-works-decision
+activation: positive
+mount_plugin_skills: true
+invariant: PF-R8,PF-AC9
+expect_head_change: false
+prompt:
+  Use principle-prove-it-works for the concrete decision in decision.md. Give a
+  concise recommendation within its existing authority. Do not edit files or execute
+  another implementation attempt.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        decision.md: >
+          The acceptance property is that saved status is visible after process restart.
+          The current candidate compiles, but nobody executed a save or inspected stored
+          records. Is acceptance proven?
+checks:
+  - name: advice preserves task authority
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: decision follows the accepted principle within its limits
+    proposition:
+      Compilation does not prove restart persistence. Require current-candidate
+      execution of saving and restart plus inspection of the durable records and observed
+      restored status.
+native_goal: forbidden

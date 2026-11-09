@@ -1,0 +1,193 @@
+# Saved-artifact probe. Claude trial f8ec2562 encountered a disabled Write tool;
+# that trial remains nonpassing. This selects Codex for this optional file effect,
+# not a claim that all Claude file writes are unavailable (setup writes passed).
+# Cross-host rule coverage uses installed-catalog-readonly.yaml instead.
+id: principles-first-installed-catalog
+harnesses: [codex]
+activation: positive
+activation_includes:
+  [
+    principle-laziness-protocol,
+    principle-foundational-thinking,
+    principle-redesign-from-first-principles,
+    principle-attack-the-premise,
+    principle-subtract-before-you-add,
+    principle-minimize-reader-load,
+    principle-outcome-oriented-execution,
+    principle-experience-first,
+    principle-exhaust-the-design-space,
+    principle-build-the-lever,
+    principle-model-the-domain,
+    principle-boundary-discipline,
+    principle-type-system-discipline,
+    principle-make-operations-idempotent,
+    principle-migrate-callers-then-delete-legacy-apis,
+    principle-separate-before-serializing-shared-state,
+    principle-prove-it-works,
+    principle-fix-root-causes,
+    principle-sequence-verifiable-units,
+    principle-test-behavior-not-implementation,
+    principle-explain-the-number,
+    principle-guard-the-context-window,
+    principle-never-block-on-the-human,
+    principle-encode-lessons-in-structure,
+  ]
+mount_plugin_skills: true
+invariant: PF-R1,PF-R8,PF-AC9
+expect_head_change: false
+prompt: >-
+  {{skill_invocation}} I explicitly request reading every one of the 24
+  installed bundled principle skills for a catalog audit. Save catalog-notes.md
+  as a table with one row per principle ID, describing its actual installed rule
+  and its limits. Read the full requested instructions; distinguish unavailable
+  instructions from rules you would otherwise infer. All 24 are requested for
+  this audit, so this is not automatic activation for an unrelated engineering
+  task. Do not implement code, configure routing or commit.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "Installed guidance audit fixture.\n"
+  setup: |
+    mkdir -p "$HOME/.darrow"
+checks:
+  - name: requested catalog artifact exists with all IDs
+    run: |
+      test -f catalog-notes.md
+      for suffix in laziness-protocol foundational-thinking redesign-from-first-principles attack-the-premise subtract-before-you-add minimize-reader-load outcome-oriented-execution experience-first exhaust-the-design-space build-the-lever model-the-domain boundary-discipline type-system-discipline make-operations-idempotent migrate-callers-then-delete-legacy-apis separate-before-serializing-shared-state prove-it-works fix-root-causes sequence-verifiable-units test-behavior-not-implementation explain-the-number guard-the-context-window never-block-on-the-human encode-lessons-in-structure; do
+        grep -F "principle-$suffix" catalog-notes.md >/dev/null
+      done
+  - name: audit creates only the requested artifact
+    run: |-
+      set -eu
+      candidate_principles_directory=${SEVRO_CANDIDATE_ARTIFACT_PRINCIPLES:?candidate principles artifact grant is required}
+      test -d "$candidate_principles_directory"
+      test -r "$candidate_principles_directory"
+      test -x "$candidate_principles_directory"
+      test "$(git status --porcelain)" = '?? catalog-notes.md' && test ! -e "$candidate_principles_directory/principles.md"
+semantic_artifact:
+  path: catalog-notes.md
+  checks:
+    - name: laziness-protocol actual rule and limits
+      proposition:
+        "The laziness protocol seeks the smallest complete solution and
+        consolidates repeated decisions instead of adding unnecessary
+        abstractions, layers, or signal threading."
+    - name: foundational-thinking actual rule and limits
+      proposition:
+        "Foundational thinking settles data shape and access before logic,
+        and builds only foundations needed to deliver or verify the accepted
+        task."
+    - name: redesign-from-first-principles actual rule and limits
+      proposition:
+        "Redesign asks how the design would look if the requirement existed
+        originally, chooses the smallest coherent change, preserves scope and
+        compatibility, and exposes a necessary broader redesign as a decision."
+    - name: attack-the-premise actual rule and limits
+      proposition:
+        "After at least two fixes sharing a premise fail the same check,
+        name and test the premise with a falsifying observation before another
+        authorized fix; exhausted repair allowance forbids another
+        implementation attempt."
+    - name: subtract-before-you-add actual rule and limits
+      proposition: "Subtract before adding removes relevant dead weight before
+        building on a simpler base during an addition, refactor, or rewrite."
+    - name: minimize-reader-load actual rule and limits
+      proposition:
+        "Minimize reader load reduces indirection and remembered or hidden
+        state when understanding requires excessive tracing."
+    - name: outcome-oriented-execution actual rule and limits
+      proposition:
+        "Outcome oriented execution converges on an agreed phased rewrite
+        or migration without temporary compatibility solely for intermediate
+        edits, declares permitted phase breakage and checks, keeps changes
+        scoped and reversible, and preserves external compatibility."
+    - name: experience-first actual rule and limits
+      proposition:
+        "Experience first considers end users, callers and maintainers
+        within requirements and preferences; product changes remain
+        recommendations unless decision authority was delegated."
+    - name: exhaust-the-design-space actual rule and limits
+      proposition:
+        "Compare two or three structural alternatives proportionately using
+        sketches, types, examples or experiments for consequential choices
+        lacking precedent; no mandatory agents, models or full implementations."
+    - name: build-the-lever actual rule and limits
+      proposition:
+        "Prefer existing deterministic tools for repetitive, error prone or
+        rerunnable work; introduce only the smallest justified tool and validate
+        representative output before broad use, with maintenance justified by
+        benefit."
+    - name: model-the-domain actual rule and limits
+      proposition:
+        "Model the domain encodes rules in suitable data structures instead
+        of scattered stateful branching and repeated data shape assumptions."
+    - name: boundary-discipline actual rule and limits
+      proposition:
+        "Boundary discipline validates at trust and state boundaries, uses
+        validated domain data and thin adapters, avoids redundant validation
+        guarantees while retaining invariants and checks after invalidating
+        state changes."
+    - name: type-system-discipline actual rule and limits
+      proposition:
+        "Use the simplest adequate types to prevent meaningful mistakes and
+        express variants or noninterchangeability, with schema derived types
+        where appropriate, no blanket branding or generics, and runtime
+        validation still required."
+    - name: make-operations-idempotent actual rule and limits
+      proposition:
+        "Repeated or interrupted operations reconcile existing state so
+        repetition converges rather than duplicating effects."
+    - name: migrate-callers-then-delete-legacy-apis actual rule and limits
+      proposition:
+        "Migrate internal callers, tests, examples and documentation before
+        removing an internal API without an old API compatibility obligation;
+        verify intended entrypoints and preserve required public or forwarding
+        compatibility."
+    - name: separate-before-serializing-shared-state actual rule and limits
+      proposition:
+        "When concurrent work mutates the same object, remove needless
+        sharing before adding serialization or coordination."
+    - name: prove-it-works actual rule and limits
+      proposition:
+        "Use the actual artifact and current observable behavior to prove
+        acceptance directly; static evidence proves static properties and
+        compiling alone does not prove persisted or runtime behavior, with
+        verification and review contracts preserved."
+    - name: fix-root-causes actual rule and limits
+      proposition: "Reproduce a defect and trace the first incorrect behavior,
+        distinguish legitimate state handling from invalid producers, check
+        related cases, repair within scope and report other findings or needed
+        scope expansion."
+    - name: sequence-verifiable-units actual rule and limits
+      proposition:
+        "Establish a baseline and complete coherent checked units before
+        advancing; agreed migration phases and red-green work may contain
+        expected intermediate failures within a unit, without granting Git
+        history, commit or publication authority."
+    - name: test-behavior-not-implementation actual rule and limits
+      proposition:
+        "Tests exercise observable contracts using independent expected
+        results rather than private implementation details or reproducing the
+        production algorithm."
+    - name: explain-the-number actual rule and limits
+      proposition:
+        "Define the metric and decision before measurement, verify intended
+        work ran, use equivalent conditions and account for variation and
+        evidence; performance and eval claims require valid trials and
+        independent checks without mandatory tools or fixed counts."
+    - name: guard-the-context-window actual rule and limits
+      proposition:
+        "Use bounded reads and retain material constraints, decisions and
+        evidence for large or repeated investigation; delegation is not required
+        and remains governed by ownership and host permissions."
+    - name: never-block-on-the-human actual rule and limits
+      proposition:
+        "Continue routine authorized execution and report consequential
+        choices for correction, while respecting waits, permission gates and
+        product decisions; reversibility itself grants no authority."
+    - name: encode-lessons-in-structure actual rule and limits
+      proposition:
+        "Encode recurring lessons in enforceable structure when possible
+        and retain judgment guidance when structure cannot enforce it."
+native_goal: forbidden

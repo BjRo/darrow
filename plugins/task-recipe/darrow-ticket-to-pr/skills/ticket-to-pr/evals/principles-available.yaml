@@ -1,0 +1,62 @@
+id: ticket-to-pr-principles-available
+candidate_routes:
+  codex:
+    model: gpt-6.1-sol
+    effort: medium
+activation: positive
+mount_plugin_skills: true
+invariant: TPR-C2,TPR-C3,TPR-C4,TPR-C6,TPR-C7,TPR-C9,TPR-P1,PF-R7,PF-AC8
+goal_report: forbidden
+expect_head_change: false
+prompt: "{{skill_invocation}} https://example.invalid/tickets/42 This host also
+  advertises bounded-delivery on PATH as its Adaptive Goal orchestration
+  interface. Read its contract with bounded-delivery --describe."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: |
+          base
+  bin:
+    bounded-delivery: >
+      #!/usr/bin/env bash
+
+      set -eu
+
+      test "$#" -eq 1
+
+      if test "$1" = --describe; then
+        printf '%s\n' \
+          'Contract: Adaptive Goal orchestration for one bounded delivery in the original main thread, owning preflight, native goal, implementation, mandatory TDD, acceptance verification, independent review, required CI, repair policy and completion.' \
+          'Interface: bounded-delivery <complete-request-as-one-argument>' \
+          'Accept one recipe delegation and return a blocker before preflight or goal activation. Do not launch a child or perform delivery.'
+        exit 0
+      fi
+
+      printf '%s\n' "$1" >.fixture-state/command-request.md
+
+      printf '%s\n' accepted >>.fixture-state/command-delegations
+
+      printf '%s\n' 'Status: blocked' 'Reason: compatible-command-observed'
+  files: {}
+checks:
+  - name: delivery continues through one orchestrator delegation
+    run: test "$(wc -l <.fixture-state/command-delegations | tr -d ' ')" -eq 1
+  - name: recipe remains read-only
+    run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
+semantic_artifact:
+  path: .fixture-state/command-request.md
+  checks:
+    - name: assurance and authority survive optional guidance
+      proposition: The delegated request requires TDD, verification, commits,
+        non-force push, one PR and required CI green on the final commit. It
+        excludes merge, deployment, release, ticket mutation and destructive Git
+        effects.
+    - name: available public approach is carried into delivery
+      proposition: >-
+        The delegated request instructs its receiving orchestrator to apply the
+        principles-first approach when it is available.
+semantic_output_checks: []
+native_goal: forbidden
+additional_skills:
+  - plugins/fixtures/principles-delivery-fixture/skills/thoughtful-engineering

@@ -1,0 +1,39 @@
+id: context-usage-agent-decision
+harnesses:
+  - codex
+invariant: IA-C1,IA-C3,IA-C4,IA-C6
+activation: positive
+prompt: Before you start a large multi-step implementation phase, check your
+  own current context usage. Report what you find, then stop.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: |
+          # Context probe
+  bin:
+    uv: |
+      #!/bin/sh
+      root=$(git rev-parse --show-toplevel) || exit 1
+      git_dir=$(git rev-parse --absolute-git-dir) || exit 1
+      if ! test -f "$git_dir/context-python"; then
+        real_uv=$(which -a uv | awk '!/fixture-bin/ && !seen {print; seen=1}')
+        exec "$real_uv" "$@"
+      fi
+      exec "$(cat "$git_dir/context-python")" "$git_dir/fixture-bin/context_fixture.py" capture "$root" "$@"
+  setup: uv run --quiet --no-project --python 3.13
+    "{{case_dir}}/../../../backend/tests/evals/context_fixture.py" prepare .
+checks:
+  - name: context inspection leaves Git clean
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: real backend invocation receipt
+    run: >-
+      "$(cat .git/context-uv)" run --quiet --frozen --no-dev --project .git/ia-backend python
+      .git/eval-checks/ia/eval_context_usage.py any
+semantic_output_checks:
+  - name: reports facts only
+    proposition: The response states how many context tokens are used out of
+      the context window, or says Codex has not recorded a token count in this
+      thread yet. It does not recommend compacting the context or handing off
+      to another agent.

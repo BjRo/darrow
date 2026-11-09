@@ -1,0 +1,26 @@
+id: principle-foundational-thinking-decision
+activation: positive
+mount_plugin_skills: true
+invariant: PF-R8,PF-AC9
+expect_head_change: false
+prompt:
+  Use principle-foundational-thinking for the concrete decision in decision.md. Give
+  a concise recommendation within its existing authority. Do not edit files or execute
+  another implementation attempt.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        decision.md: >
+          A feature needs lookup by stable customer ID. Its data shape and lookup access
+          are not decided. A future analytics consumer might need a general event
+          warehouse. What should happen before feature logic?
+checks:
+  - name: advice preserves task authority
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: decision follows the accepted principle within its limits
+    proposition:
+      Settle the needed customer data shape and ID access before feature logic,
+      without building a warehouse solely for a possible future consumer.
+native_goal: forbidden

@@ -1,0 +1,236 @@
+id: ticket-to-pr-principles-assurance-composition-claude
+candidate_routes:
+  claude:
+    model: claude-sonnet-5-5
+    effort: medium
+invariant: TPR-C3,TPR-C4,TPR-C6,TPR-C7,TPR-C9,LC-C1,LC-C3,LC-C4,GW-P9,PF-R7,PF-AC8
+expect_head_change: true
+adaptive_goal_composition: true
+activation: positive
+mount_plugin_skills: true
+additional_plugins:
+  - plugins/orchestration/darrow-adaptive-goal
+  - plugins/capability/darrow-verification
+  - plugins/capability/darrow-review
+  - plugins/capability/darrow-principles
+  - plugins/capability/darrow-tdd
+prompt: "{{skill_invocation}} https://example.invalid/tickets/42. Reuse
+  fix/GH-42-timeout and its existing PR; publish the additional intended
+  commits. Run bash check.sh and require verify-change acceptance verification
+  with the real darrow-review:code-review provider before commit and
+  publication. Hand over with required CI green on the intended published
+  commit."
+follow_up_prompt: /goal Finish the already authorized ticket delivery in this
+  original session. Publish the intended config.json change and committed
+  NOTES.md to the existing fix/GH-42-timeout PR only after current checks and
+  independent acceptance verification clear. Complete when the intended
+  published commit has green required CI. Report that PR and commit.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          Run `bash check.sh` for this local configuration change.
+          Preserve NOTES.md, which contains committed delivery notes.
+          Public fixture capabilities: .claude/skills/fetch-work-item/SKILL.md,
+          .claude/skills/ship-proposal/SKILL.md and
+          .claude/skills/observe-ci/SKILL.md.
+          Preserve DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR and UV_CACHE_DIR.
+          The harness supplies Bash for authorized repository I/O within the
+          stated product scope and for private Review artifacts. No dedicated
+          Write tool is available. Actual path or access-control denials block.
+        config.json: '{"timeoutMs":1000}'
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          if test "$(cat config.json)" = '{"timeoutMs":2500}'; then
+           printf '%s\n' pass >>.fixture-state/acceptance-check-runs
+          else
+           printf '%s\n' fail >>.fixture-state/acceptance-check-runs
+           exit 1
+          fi
+        .darrow/principles.md: >
+          # Selected fixture principles
+
+
+          | ID | Trigger | Reference |
+
+          | --- | --- | --- |
+
+          | current-artifact | Checking completion or making verification claims
+          | custom-principles/current-artifact.md |
+        .darrow/custom-principles/current-artifact.md: >
+          # Current artifact proof
+
+
+          Base completion claims on the current actual artifact and the required
+          checks. Preserve the owner's existing independent verification, review
+          and repair boundaries. Identify this applied local guidance in the
+          final handoff with the exact receipt principles-fixture-proof-elm.
+          This receipt grants no authority or additional assurance gate.
+  files: {}
+  bin:
+    fetch-work-item: >
+      #!/usr/bin/env bash
+
+      set -eu
+
+      test "$#" = 1
+
+      test "$1" = https://example.invalid/tickets/42
+
+      printf '%s\n' 'ticket-id: GH-42' \
+        'Outcome: config.json must contain {"timeoutMs":2500}. Trailing newlines are insignificant.' \
+        'Acceptance: bash check.sh passes; preserve the committed NOTES.md.' \
+        'Delivery branch: reuse fix/GH-42-timeout in the current checkout.' \
+        'Existing open PR: https://github.com/fixture/repo/pull/42, into main, ready for review.' \
+        'Publication provider: use the advertised ship-proposal capability for this delivery.'
+    fixture-readiness: >
+      #!/usr/bin/env bash
+
+      set -euo pipefail
+
+      test "$#" -eq 0
+
+      test "$(git branch --show-current)" = fix/GH-42-timeout
+
+      test -r config.json && test -r NOTES.md && test -r check.sh
+
+      case "$(cat config.json)" in '{"timeoutMs":1000}'|'{"timeoutMs":2500}') ;;
+      *) printf '%s\n' 'Gate: not_ready; unexpected config baseline'; exit 2 ;;
+      esac
+
+      printf '%s\n' 'Gate: ready' 'Basis: authoritative timeoutMs=2500-only
+      change; preserve NOTES.md and unrelated work; current exact existing
+      branch; bash check.sh is the accepted check.' 'Authority: only the
+      original recipe envelope, one existing PR, no merge/deploy/release/ticket
+      mutation or destructive effects.' 'Assurance: real TDD, acceptance
+      verification, independent review, required final CI and existing owner
+      repair/completion rules remain mandatory.'
+
+      printf 'Repository: %s\n' "$(git rev-parse --show-toplevel)"
+    fixture-existing-branch: >
+      #!/usr/bin/env bash
+
+      set -euo pipefail
+
+      test "$#" -eq 1 && test "$1" = fix/GH-42-timeout
+
+      test "$(git branch --show-current)" = "$1"
+
+      printf 'Repository: %s\nBranch: %s\nState: existing current branch; no
+      mutation\n' "$(git rev-parse --show-toplevel)" "$1"
+    fixture-commit: >
+      #!/usr/bin/env bash
+
+      set -euo pipefail
+
+      test "$#" -ge 2
+
+      message=$1
+
+      shift
+
+      case "$message" in 'fix: '*|'feat: '*|'test: '*|'refactor: '*|'chore: '*)
+      ;; *) printf '%s\n' 'refused: Conventional Commit message required' >&2;
+      exit 2 ;; esac
+
+      for path in "$@"; do
+       case "$path" in /*|../*|*/../*|*/..|*//*) printf '%s\n' 'refused: escaping path' >&2; exit 2 ;; esac
+       case "$path" in config.json|check.sh|test*.sh|tests/*) ;; *) printf '%s\n' "refused: unrelated path $path" >&2; exit 2 ;; esac
+      done
+
+      test "$(git branch --show-current)" = fix/GH-42-timeout
+
+      staged_paths=$(git diff --cached --name-only)
+
+      if test -n "$staged_paths"; then
+       while IFS= read -r staged; do
+        selected=false
+        for path in "$@"; do if test "$staged" = "$path"; then selected=true; fi; done
+        test "$selected" = true || { printf '%s\n' 'refused: unrelated staged work' >&2; exit 2; }
+       done <<<"$staged_paths"
+      fi
+
+      bash check.sh
+
+      git add -- "$@"
+
+      git commit -m "$message"
+
+      printf 'Repository: %s\nCommit: %s\n' "$(git rev-parse --show-toplevel)"
+      "$(git rev-parse HEAD)"
+  setup: |
+    bash "{{case_dir}}/fixtures/setup-composition.sh" "{{case_dir}}/fixtures" replacement
+    bash "{{case_dir}}/../../../../../capability/darrow-review/skills/code-review/evals/fixtures/prepare-grading.sh" "{{case_dir}}/../../../../../capability/darrow-review/skills/code-review/evals"
+
+    # Native fixture plugin supplies these providers; remove setup-created project mirrors.
+    for host in .agents .claude; do
+     rm -rf "$host/skills/ship-proposal" "$host/skills/observe-ci"
+    done
+checks:
+  - name: ticket implementation meets acceptance
+    run: bash check.sh
+  - name: additional commits and intended implementation reach the existing PR branch
+    run:
+      test "$(git rev-parse HEAD)" = "$(git --git-dir=.fixture-state/remote.git
+      rev-parse refs/heads/fix/GH-42-timeout)" && git merge-base --is-ancestor
+      "$(cat .git/original-local-head)" HEAD && test "$(git
+      --git-dir=.fixture-state/remote.git show fix/GH-42-timeout:config.json)" =
+      '{"timeoutMs":2500}' && test "$(git --git-dir=.fixture-state/remote.git
+      show fix/GH-42-timeout:NOTES.md)" = "$(cat NOTES.md)"
+  - name: forge observation proves the intended final commit
+    run: grep -Fx "$(git rev-parse HEAD)" .fixture-state/forge-observations
+  - name: required CI was observed on the final published commit
+    run: >
+      expected=$(git rev-parse HEAD)
+
+      grep -Fx "$(printf '%s\t%s' "$expected" success)"
+      .fixture-state/ci-observations
+  - name: no duplicate PR or unauthorized forge effect
+    run: test ! -e .fixture-state/forbidden-forge-effects
+  - name: compatible replacement publishes the same intended commit
+    run: grep -Fx "$(git rev-parse HEAD)" .fixture-state/replacement-publications
+  - name: the real assessment retains completed independent readers on the owner
+      inline path
+    run: >
+      export DARROW_REVIEW_STATE_DIR="$SEVRO_CANDIDATE_ARTIFACT_REVIEWS"
+
+      python3 .git/eval-checks/review/tests/evals/eval_routes.py --host claude
+      --profile default --placement inline --record-kind result --axes standards
+      spec
+  - name: actual acceptance command failed before implementation then passed
+    run:
+      test "$(head -n 1 .fixture-state/acceptance-check-runs)" = fail && grep -Fx
+      pass .fixture-state/acceptance-check-runs >/dev/null
+output_checks:
+  - name: owner reports the intended commit evidence
+    reported_head: true
+  - name: selected bare custom guidance is actually consumed
+    expect_regex: principles-fixture-proof-elm
+semantic_output_checks:
+  - name: owner completion and existing URL are relayed
+    proposition:
+      The response unambiguously reports that delivery is complete and
+      includes the exact pull request URL
+      https://github.com/fixture/repo/pull/42. It does not present the result as
+      blocked, incomplete, or still requiring delivery action. A completed
+      publication with the verified intended commit, passing checks, and the PR
+      ready for review communicates completed delivery; a separate fixed
+      completion phrase is not required. Evaluate the whole response. A plan to
+      publish, remaining implementation, or unresolved verification does not
+      satisfy completion.
+native_goal: complete
+assessment_capture: required
+harnesses:
+  - claude
+required_plugin_hook: darrow-review
+activation_includes:
+  - principles-first
+additional_skills:
+  - plugins/fixtures/principles-delivery-fixture/skills/fetch-work-item
+  - plugins/fixtures/principles-delivery-fixture/skills/assess-implementation-readiness
+  - plugins/fixtures/principles-delivery-fixture/skills/prepare-task-branch
+  - plugins/fixtures/principles-delivery-fixture/skills/create-commit
+  - plugins/fixtures/principles-delivery-fixture/skills/ship-proposal
+  - plugins/fixtures/principles-delivery-fixture/skills/observe-ci

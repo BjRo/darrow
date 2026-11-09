@@ -1,0 +1,188 @@
+id: setup-principles-matrix-add-edit-delete
+activation: positive
+activation_excludes:
+  - principle-laziness-protocol
+  - principle-foundational-thinking
+  - principle-redesign-from-first-principles
+  - principle-attack-the-premise
+  - principle-subtract-before-you-add
+  - principle-minimize-reader-load
+  - principle-outcome-oriented-execution
+  - principle-experience-first
+  - principle-exhaust-the-design-space
+  - principle-build-the-lever
+  - principle-model-the-domain
+  - principle-boundary-discipline
+  - principle-type-system-discipline
+  - principle-make-operations-idempotent
+  - principle-migrate-callers-then-delete-legacy-apis
+  - principle-separate-before-serializing-shared-state
+  - principle-prove-it-works
+  - principle-fix-root-causes
+  - principle-sequence-verifiable-units
+  - principle-test-behavior-not-implementation
+  - principle-explain-the-number
+  - principle-guard-the-context-window
+  - principle-never-block-on-the-human
+  - principle-encode-lessons-in-structure
+mount_plugin_skills: true
+invariant: PF-R3,PF-R4,PF-AC4,PF-AC10
+expect_head_change: false
+prompt:
+  "Customize my repository-scoped principles-first table: delete row old, change row
+  edited to trigger when comparing plugin designs, and add row new with that same
+  comparison trigger pointing to custom-principles/new.md. Preserve the considered IDs and
+  other files. Then use a principles-first approach to compare request.md. Do not edit the
+  custom instruction bodies."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        .darrow/principles.md: >
+          # Principles routing
+
+
+          | ID | Trigger | Reference |
+
+          | --- | --- | --- |
+
+          | old | Comparing plugin designs | custom-principles/deleted.md |
+
+          | edited | Editing release notes | custom-principles/edited.md |
+
+
+          ## Setup metadata
+
+
+          Considered bundled IDs: principle-laziness-protocol,
+          principle-foundational-thinking, principle-redesign-from-first-principles,
+          principle-attack-the-premise, principle-subtract-before-you-add,
+          principle-minimize-reader-load, principle-outcome-oriented-execution,
+          principle-experience-first, principle-exhaust-the-design-space,
+          principle-build-the-lever, principle-model-the-domain,
+          principle-boundary-discipline, principle-type-system-discipline,
+          principle-make-operations-idempotent,
+          principle-migrate-callers-then-delete-legacy-apis,
+          principle-separate-before-serializing-shared-state, principle-prove-it-works,
+          principle-fix-root-causes, principle-sequence-verifiable-units,
+          principle-test-behavior-not-implementation, principle-explain-the-number,
+          principle-guard-the-context-window, principle-never-block-on-the-human,
+          principle-encode-lessons-in-structure
+        .darrow/custom-principles/deleted.md: |
+          Include deleted-route-wrong whenever applied.
+        .darrow/custom-principles/edited.md: >
+          # Local independence
+
+
+          Prefer Design B, which uses an optional public handoff and avoids a shared
+          runtime dependency. Explain the maintenance consequence. Include the exact
+          receipt edited-trigger-oak to identify this local guidance.
+        .darrow/custom-principles/new.md: >
+          # Local independence
+
+
+          Prefer Design B, which uses an optional public handoff and avoids a shared
+          runtime dependency. Explain the maintenance consequence. Include the exact
+          receipt new-route-elm to identify this local guidance.
+        request.md: >
+          Design A requires a central registry runtime in every plugin. Design B passes an
+          optional approach through a public handoff; plugins remain independently
+          installable.
+checks:
+  - name: requested row edits take effect and metadata remains
+    run: >
+      routing=.darrow/principles.md
+
+      ! grep -E '^[|][[:space:]]*old[[:space:]]*[|]' "$routing"
+
+      grep -E '^[|][[:space:]]*edited[[:space:]]*[|].*[Cc]omparing plugin
+      designs.*custom-principles/edited.md' "$routing" >/dev/null
+
+      grep -E '^[|][[:space:]]*new[[:space:]]*[|].*[Cc]omparing plugin
+      designs.*custom-principles/new.md' "$routing" >/dev/null
+
+      test -f .darrow/custom-principles/deleted.md
+
+      git diff --exit-code -- .darrow/custom-principles
+
+      sed -n 's/^Considered bundled IDs: //p' "$routing" | grep -E '(^|,
+      )principle-laziness-protocol(,|$)' >/dev/null
+
+      sed -n 's/^Considered bundled IDs: //p' "$routing" | grep -E '(^|,
+      )principle-foundational-thinking(,|$)' >/dev/null
+
+      sed -n 's/^Considered bundled IDs: //p' "$routing" | grep -E '(^|,
+      )principle-redesign-from-first-principles(,|$)' >/dev/null
+
+      sed -n 's/^Considered bundled IDs: //p' "$routing" | grep -E '(^|,
+      )principle-attack-the-premise(,|$)' >/dev/null
+
+      sed -n 's/^Considered bundled IDs: //p' "$routing" | grep -E '(^|,
+      )principle-subtract-before-you-add(,|$)' >/dev/null
+
+      sed -n 's/^Considered bundled IDs: //p' "$routing" | grep -E '(^|,
+      )principle-minimize-reader-load(,|$)' >/dev/null
+
+      sed -n 's/^Considered bundled IDs: //p' "$routing" | grep -E '(^|,
+      )principle-outcome-oriented-execution(,|$)' >/dev/null
+
+      sed -n 's/^Considered bundled IDs: //p' "$routing" | grep -E '(^|,
+      )principle-experience-first(,|$)' >/dev/null
+
+      sed -n 's/^Considered bundled IDs: //p' "$routing" | grep -E '(^|,
+      )principle-exhaust-the-design-space(,|$)' >/dev/null
+
+      sed -n 's/^Considered bundled IDs: //p' "$routing" | grep -E '(^|,
+      )principle-build-the-lever(,|$)' >/dev/null
+
+      sed -n 's/^Considered bundled IDs: //p' "$routing" | grep -E '(^|,
+      )principle-model-the-domain(,|$)' >/dev/null
+
+      sed -n 's/^Considered bundled IDs: //p' "$routing" | grep -E '(^|,
+      )principle-boundary-discipline(,|$)' >/dev/null
+
+      sed -n 's/^Considered bundled IDs: //p' "$routing" | grep -E '(^|,
+      )principle-type-system-discipline(,|$)' >/dev/null
+
+      sed -n 's/^Considered bundled IDs: //p' "$routing" | grep -E '(^|,
+      )principle-make-operations-idempotent(,|$)' >/dev/null
+
+      sed -n 's/^Considered bundled IDs: //p' "$routing" | grep -E '(^|,
+      )principle-migrate-callers-then-delete-legacy-apis(,|$)' >/dev/null
+
+      sed -n 's/^Considered bundled IDs: //p' "$routing" | grep -E '(^|,
+      )principle-separate-before-serializing-shared-state(,|$)' >/dev/null
+
+      sed -n 's/^Considered bundled IDs: //p' "$routing" | grep -E '(^|,
+      )principle-prove-it-works(,|$)' >/dev/null
+
+      sed -n 's/^Considered bundled IDs: //p' "$routing" | grep -E '(^|,
+      )principle-fix-root-causes(,|$)' >/dev/null
+
+      sed -n 's/^Considered bundled IDs: //p' "$routing" | grep -E '(^|,
+      )principle-sequence-verifiable-units(,|$)' >/dev/null
+
+      sed -n 's/^Considered bundled IDs: //p' "$routing" | grep -E '(^|,
+      )principle-test-behavior-not-implementation(,|$)' >/dev/null
+
+      sed -n 's/^Considered bundled IDs: //p' "$routing" | grep -E '(^|,
+      )principle-explain-the-number(,|$)' >/dev/null
+
+      sed -n 's/^Considered bundled IDs: //p' "$routing" | grep -E '(^|,
+      )principle-guard-the-context-window(,|$)' >/dev/null
+
+      sed -n 's/^Considered bundled IDs: //p' "$routing" | grep -E '(^|,
+      )principle-never-block-on-the-human(,|$)' >/dev/null
+
+      sed -n 's/^Considered bundled IDs: //p' "$routing" | grep -E '(^|,
+      )principle-encode-lessons-in-structure(,|$)' >/dev/null
+native_goal: forbidden
+activation_includes:
+  - principles-first
+output_checks:
+  - name: edited trigger and added route apply
+    expect_regex: edited-trigger-oak
+  - name: new custom row applies
+    expect_regex: new-route-elm
+  - name: deleted route body stays unused
+    not_regex: deleted-route-wrong

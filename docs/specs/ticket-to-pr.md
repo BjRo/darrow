@@ -333,3 +333,15 @@ and an exact caller-bound preparation name is not silently replaced.
 - A phase graph, lifecycle ledger, retry or waiver policy, recovery handoff,
   daemon, queue, scheduler, or durable workflow state.
 - Merge, auto-merge, deployment, release, or tracker mutation.
+
+## Optional principles-first approach
+
+The quoted delivery request says, “Apply the principles-first approach when it
+is available.” This is the recipe's only principles-first instruction. The
+recipe adds no catalog discovery, capability binding, guidance-loading procedure
+or omission notice to its relay. Adaptive Goal owns capability selection and
+execution under its existing contract. Neither plugin requires the other.
+
+Missing guidance alone neither blocks ordinary delivery nor waives TDD,
+verification, independent review or CI. The [principles contract](principles.md)
+records the approach's configuration, lazy loading and authority boundaries.

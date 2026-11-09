@@ -1,0 +1,79 @@
+id: setup-principles-matrix-preserve-existing
+activation: positive
+activation_excludes:
+  - principle-laziness-protocol
+  - principle-foundational-thinking
+  - principle-redesign-from-first-principles
+  - principle-attack-the-premise
+  - principle-subtract-before-you-add
+  - principle-minimize-reader-load
+  - principle-outcome-oriented-execution
+  - principle-experience-first
+  - principle-exhaust-the-design-space
+  - principle-build-the-lever
+  - principle-model-the-domain
+  - principle-boundary-discipline
+  - principle-type-system-discipline
+  - principle-make-operations-idempotent
+  - principle-migrate-callers-then-delete-legacy-apis
+  - principle-separate-before-serializing-shared-state
+  - principle-prove-it-works
+  - principle-fix-root-causes
+  - principle-sequence-verifiable-units
+  - principle-test-behavior-not-implementation
+  - principle-explain-the-number
+  - principle-guard-the-context-window
+  - principle-never-block-on-the-human
+  - principle-encode-lessons-in-structure
+mount_plugin_skills: true
+invariant: PF-R4,PF-R5,PF-AC5,PF-AC6
+expect_head_change: false
+prompt: Set up repository-scoped principles-first routing. Preserve my existing
+  customization; I am not requesting reset.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        .darrow/principles.md: >
+          # Principles routing
+
+
+          | ID | Trigger | Reference |
+
+          | --- | --- | --- |
+
+          | local-only | Comparing local designs | custom-principles/local.md |
+
+
+          ## Setup metadata
+
+
+          Considered bundled IDs: principle-laziness-protocol,
+          principle-foundational-thinking,
+          principle-redesign-from-first-principles,
+          principle-attack-the-premise, principle-subtract-before-you-add,
+          principle-minimize-reader-load, principle-outcome-oriented-execution,
+          principle-experience-first, principle-exhaust-the-design-space,
+          principle-build-the-lever, principle-model-the-domain,
+          principle-boundary-discipline, principle-type-system-discipline,
+          principle-make-operations-idempotent,
+          principle-migrate-callers-then-delete-legacy-apis,
+          principle-separate-before-serializing-shared-state,
+          principle-prove-it-works, principle-fix-root-causes,
+          principle-sequence-verifiable-units,
+          principle-test-behavior-not-implementation,
+          principle-explain-the-number, principle-guard-the-context-window,
+          principle-never-block-on-the-human,
+          principle-encode-lessons-in-structure
+  setup: |
+    mkdir -p "$HOME/.darrow"
+checks:
+  - name: existing rows and considered metadata remain byte-identical
+    run: |-
+      set -eu
+      candidate_principles_directory=${SEVRO_CANDIDATE_ARTIFACT_PRINCIPLES:?candidate principles artifact grant is required}
+      test -d "$candidate_principles_directory"
+      test -r "$candidate_principles_directory"
+      test -x "$candidate_principles_directory"
+      test -z "$(git status --porcelain)" && test ! -e "$candidate_principles_directory/principles.md"
+native_goal: forbidden

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Context Usage"
+  short_description: "Inspect this Codex thread's context breakdown"
+  default_prompt: "Use $context-usage to show this thread's context breakdown."
+policy:
+  allow_implicit_invocation: true

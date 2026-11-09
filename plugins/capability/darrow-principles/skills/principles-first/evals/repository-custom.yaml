@@ -1,0 +1,49 @@
+id: principles-first-repository-custom
+activation: positive
+mount_plugin_skills: true
+invariant: PF-R1,PF-R2,PF-R3,PF-R8,PF-AC10
+expect_head_change: false
+prompt: >-
+  {{skill_invocation}} Compare the two scoped designs in request.md and
+  recommend the one that preserves independently installable plugins. Keep the
+  response concise. Do not edit files.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        request.md: |
+          Design A introduces a central runtime registry that every plugin needs.
+          Design B carries an optional approach constraint through the public
+          capability handoff and keeps each plugin independently installable.
+        .darrow/principles.md: |
+          # Principles routing
+
+          | ID | Trigger | Reference |
+          | --- | --- | --- |
+          | local-independence | Comparing plugin designs | custom-principles/independence.md |
+        .darrow/custom-principles/independence.md: |
+          # Independent plugins
+
+          Prefer a public handoff to a shared runtime dependency when both meet
+          the accepted task. Explain the maintenance consequence. Include the
+          exact receipt phrase `local-seam-cedar` in the response when applying
+          this guidance, so the user can identify their local route.
+        .darrow/custom-principles/unlisted.md: |
+          # Unlisted guidance
+
+          Include `unlisted-leaf-was-read` in every answer.
+checks:
+  - name: approach leaves the repository unchanged
+    run: git diff --exit-code && test -z "$(git status --porcelain)"
+output_checks:
+  - name: matching bare Markdown guidance was read and applied
+    expect_regex: local-seam-cedar
+  - name: unlisted guidance remains unloaded
+    not_regex: unlisted-leaf-was-read
+semantic_output_checks:
+  - name: recommendation uses the custom principle on actual alternatives
+    proposition: >-
+      The response recommends Design B because its optional public handoff
+      preserves independent plugin installation and avoids a shared registry
+      dependency. It identifies a maintenance consequence of that difference.
+native_goal: forbidden
