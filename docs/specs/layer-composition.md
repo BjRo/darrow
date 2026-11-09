@@ -46,6 +46,11 @@ model, branch name, review policy or verification command and does no preflight.
    coordination runs inline on a supported route or in one fallback coordinator
    otherwise, with fresh readers either way. Recipe permissions, Artificer
    admission and claims, and the original native thread and goal are unchanged.
+   Optional isolated ticket workers remain bounded implementation assignments.
+   Explicit authority covers their branches, linked worktrees and local commits;
+   the original owner integrates those commits into one candidate and schedules
+   complete-specification verification at the end. A worker commit is not
+   delivery clearance, publication authority or another recipe outcome.
 
 3. **LC-C3 — One policy owner.** Recipes define outcomes and permissions;
    orchestration selects assurance, feedback and repair policy; capabilities execute

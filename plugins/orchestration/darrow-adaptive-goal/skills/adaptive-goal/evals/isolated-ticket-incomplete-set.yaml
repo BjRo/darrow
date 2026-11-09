@@ -1,0 +1,55 @@
+id: goal-isolated-ticket-incomplete-set
+invariant: ADL-P3,ADL-P4,ADL-S1,ADL-R3
+goal_report: forbidden
+goal_route_checks: false
+additional_plugins:
+  - plugins/capability/darrow-git
+  - plugins/capability/darrow-verification
+  - plugins/capability/darrow-review
+candidate_routes:
+  codex: { model: gpt-6.1-sol, effort: medium }
+  claude: { model: claude-sonnet-5-5, effort: medium }
+prompt: >-
+  {{skill_invocation}} Deliver the version reporting specification in SPEC.md
+  using isolated ticket workers. Fresh ticket context is worth the overhead.
+  TICKETS.md is the result of our existing ticket-list capability; use it for
+  the implementation scope. I authorize worker branches, linked worktrees,
+  local commits and integration into this checkout once scope is bound.
+  Keep the result local. No publication or tracker changes.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        SPEC.md: |
+          # Version reporting
+
+          Parse strict semantic versions, match caret and tilde ranges, and
+          produce a report of the latest matching version per dependency.
+          Preserve the current CLI entrypoint and output compatibility.
+        TICKETS.md: |
+          # Ticket-list result
+
+          Query: version reporting
+          This is a bounded first page, not an exhaustive set for the specification.
+          - issue-41: strict version parsing
+          - issue-42: version range matching
+          Remaining related tickets, dependencies, and acceptance are not in this response.
+        app.js: |
+          export const report = () => "current report";
+checks:
+  - name: incomplete scope preserves the source tree
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: no worker branches worktrees or implementation commits are created
+    run: |
+      test "$(git for-each-ref refs/heads --format='%(refname)' | wc -l | tr -d ' ')" = 1 &&
+      test "$(git worktree list --porcelain | grep -c '^worktree ')" = 1 &&
+      test "$(git rev-list --count HEAD)" = 1
+semantic_output_checks:
+  - name: incomplete ticket set stops affected implementation
+    proposition: >-
+      The response identifies that the bounded ticket-list result does not
+      establish the complete finite ticket scope and requests the missing scope
+      or authoritative ticket/dependency information before implementation.
+      It does not claim implementation or treat the listed two tickets as complete.
+native_goal: forbidden

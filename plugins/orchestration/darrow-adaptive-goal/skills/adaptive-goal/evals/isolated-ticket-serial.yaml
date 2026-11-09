@@ -1,0 +1,119 @@
+id: goal-isolated-ticket-serial
+invariant: ADL-R3,ADL-L1,ADL-L5,ADL-P3
+required_plugin_hook: darrow-review
+assessment_capture: required
+goal_report: forbidden
+goal_route_checks: false
+expect_head_change: true
+harnesses: [codex]
+additional_plugins:
+  - plugins/capability/darrow-git
+  - plugins/capability/darrow-verification
+  - plugins/capability/darrow-review
+candidate_routes:
+  codex: { model: gpt-6.1-sol, effort: medium }
+prompt: >-
+  {{skill_invocation}} Deliver the complete already-assessed ready specification
+  below. The finite ticket set is exactly issue-41, with no prerequisites or
+  unresolved shared decisions. This substantial ticket benefits from fresh focused
+  context; that benefit is worth the branch, handoff and integration overhead.
+  Use the optional isolated ticket worker strategy. I explicitly authorize its
+  worker branch, linked worktree, local implementation commits and integration
+  into the current branch. Keep the current delivery checkout and my uncommitted
+  PERSONAL.md unchanged. Keep the worker and worktree available for repairs.
+  No push, PR or tracker changes. Use implementation route
+  codex|openai|gpt-6.1-sol|medium, the same as this main thread.
+
+  Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR and
+  UV_CACHE_DIR. Final independent assurance covers the complete specification
+  from the initial integration commit (recorded in .git/integration-base) through
+  the final integrated commit, excluding my unrelated PERSONAL.md edit.
+
+  issue-41 owns only src/versions.js and test/versions.test.js. Implement exported
+  parseVersion(text), compareVersions(a, b), satisfies(version, range), and
+  maxSatisfying(versions, range). Parse MAJOR.MINOR.PATCH as non-negative integer
+  components without leading zeroes; return { major, minor, patch }; reject other
+  input with Error("invalid version: TEXT"). Compare version strings numerically
+  and return -1, 0 or 1. Support exact ranges, caret ^X.Y.Z (at least that version
+  and below the next major, except ^0.Y.Z ends before 0.(Y+1).0), and tilde ~X.Y.Z
+  (at least that version and below X.(Y+1).0). maxSatisfying returns the highest
+  satisfying input string or null. Add focused tests for these rules. Both the
+  focused command and final combined command are `bash test.sh`; you are authorized
+  to run them. Preserve meaningful failing-before-edit and passing-after-edit
+  evidence. Return the integrated result, actual checks and placement basis.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Run `bash test.sh` for changes. Preserve unrelated local work.
+        package.json: '{"type":"module"}'
+        src/versions.js: |
+          // Version parsing and matching belongs here.
+        test/versions.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import * as versions from "../src/versions.js";
+          test("module loads", () => assert.equal(typeof versions, "object"));
+        test.sh: |
+          #!/usr/bin/env bash
+          node --test test/versions.test.js
+        PERSONAL.md: "Personal notes.\n"
+  setup: |
+    printf 'Uncommitted user note.\n' >> PERSONAL.md
+    git branch --show-current > .git/integration-branch
+    git rev-parse HEAD > .git/integration-base
+    bash "{{case_dir}}/../../../../../capability/darrow-review/skills/code-review/evals/fixtures/prepare-grading.sh" "{{case_dir}}/../../../../../capability/darrow-review/skills/code-review/evals"
+    cp "{{case_dir}}/../../../backend/tests/evals/isolated_ticket_routes.py" .git/eval-checks/isolated_ticket_routes.py
+    cp "{{case_dir}}/../../../backend/tests/evals/isolated_ticket_assessment.py" .git/eval-checks/isolated_ticket_assessment.py
+checks:
+  - name: complete ticket behavior is integrated
+    run: >-
+      node --input-type=module -e "import('./src/versions.js').then(async
+      ({parseVersion,compareVersions,satisfies,maxSatisfying}) => {
+      const {deepStrictEqual,equal,throws} = await import('node:assert/strict');
+      deepStrictEqual(parseVersion('1.20.3'), {major:1,minor:20,patch:3});
+      for (const bad of ['1.2','01.2.3','1.2.3-beta',' 1.2.3'])
+      throws(() => parseVersion(bad), {message:'invalid version: '+bad});
+      equal(compareVersions('1.10.0','1.9.9'),1);
+      equal(compareVersions('1.0.0','1.0.0'),0);
+      equal(compareVersions('0.9.0','1.0.0'),-1);
+      for (const [v,r,e] of [['1.9.0','^1.2.3',true],['2.0.0','^1.2.3',false],
+      ['1.2.2','^1.2.3',false],['0.2.9','^0.2.3',true],['0.3.0','^0.2.3',false],
+      ['1.2.9','~1.2.3',true],['1.3.0','~1.2.3',false],['1.2.3','1.2.3',true],
+      ['1.2.4','1.2.3',false]]) equal(satisfies(v,r),e);
+      equal(maxSatisfying(['1.2.3','1.10.0','1.9.9','2.0.0'],'^1.2.0'),'1.10.0');
+      equal(maxSatisfying(['0.1.0'],'^1.0.0'),null); })"
+  - name: focused and combined tests pass
+    run: bash test.sh
+  - name: delivery checkout and user work are preserved
+    run: |
+      test "$(git branch --show-current)" = "$(cat .git/integration-branch)" &&
+      test "$(cat PERSONAL.md)" = "$(printf 'Personal notes.\nUncommitted user note.')" &&
+      test "$(git diff --name-only)" = PERSONAL.md &&
+      test -z "$(git diff --cached --name-only)"
+  - name: worker commit is retained in its separate linked worktree and integrated
+    run: |
+      worker=$(git for-each-ref refs/heads --format='%(refname:short)' | sed -n '/^[a-z]*\/issue-41-/p')
+      test -n "$worker" && test "$(printf '%s\n' "$worker" | wc -l | tr -d ' ')" = 1 &&
+      git worktree list --porcelain | grep -Fx "branch refs/heads/$worker" &&
+      test "$(git rev-parse "$worker")" != "$(cat .git/integration-base)" &&
+      comparison=$(git cherry HEAD "$worker") &&
+      ! printf '%s\n' "$comparison" | grep '^+' &&
+      test "$(git rev-parse HEAD)" != "$(cat .git/integration-base)"
+  - name: worker changes land by cherry-pick on the integration branch
+    run: |
+      git reflog show "$(cat .git/integration-branch)" --format='%gs' |
+      grep '^cherry-pick:'
+  - name: final independent assessment covers the integrated candidate
+    run: >-
+      python3 .git/eval-checks/isolated_ticket_assessment.py
+      --base-file .git/integration-base --target HEAD
+      --marketplace .sevro-marketplace/.claude-plugin/marketplace.json
+  - name: comprehensive assessment uses completed independent standards and specification readers
+    run: |
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}"
+      python3 .git/eval-checks/isolated_ticket_routes.py --host codex
+native_goal: complete

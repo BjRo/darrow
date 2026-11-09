@@ -16,6 +16,12 @@ supervision. Task recipes and their native session own engineering.
   unknown routes use one capable bounded coordinator with fresh independent
   readers. Neither placement changes admission, claims, native identity,
   continuation or gates.
+  Optional isolated ticket workers remain bounded assignments inside that
+  delivery's existing finite scope and grant. They do not select another recipe,
+  admit unrelated tickets or create multi-issue atomic reservations. A one-issue
+  Ticket-to-PR admission and its worktree authority do not authorize additional
+  ticket deliveries. Missing scope or worker-effect authority stops affected
+  work without changing admission or reservation state.
   If no standalone readiness provider is installed, the caller omits that
   default standalone gate while retaining read-only preflight and the prohibition
   on implementing missing material intent.
