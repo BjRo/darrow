@@ -1,0 +1,27 @@
+id: principle-redesign-from-first-principles-decision
+activation: positive
+mount_plugin_skills: true
+invariant: PF-R8,PF-AC9
+expect_head_change: false
+prompt:
+  Use principle-redesign-from-first-principles for the concrete decision in
+  decision.md. Give a concise recommendation within its existing authority. Do not edit
+  files or execute another implementation attempt.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        decision.md: >
+          A parser adds its fifth special case because documents can have multiple owners.
+          The accepted change must preserve the existing public parser API. A complete
+          unrelated parser rewrite is not authorized. Recommend a design step.
+checks:
+  - name: advice preserves task authority
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: decision follows the accepted principle within its limits
+    proposition:
+      Consider the design as if multiple owners had existed originally, choose the
+      smallest coherent adaptation, preserve the public API and return any necessary
+      broader rewrite as a scope decision.
+native_goal: forbidden

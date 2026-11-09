@@ -1,0 +1,53 @@
+id: setup-principles-initialize-repository
+activation: positive
+mount_plugin_skills: true
+invariant: PF-R4,PF-R5,PF-AC5,PF-AC6
+expect_head_change: false
+prompt: "{{skill_invocation}} Initialize repository-scoped principles-first
+  routing with the complete bundled defaults. Do not add, edit or delete any
+  routes yet."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: |
+          Repository initialization fixture.
+  setup: |
+    mkdir -p "$HOME/.darrow"
+checks:
+  - name: new repository config contains all defaults and considered baseline
+    run: >
+      routing=.darrow/principles.md
+
+      test -f "$routing"
+
+      test "$(grep -Ec '^[|][[:space:]]*principle-' "$routing")" -eq 24
+
+      considered=$(sed -n 's/^Considered bundled IDs: //p' "$routing")
+
+      test -n "$considered"
+
+      for suffix in laziness-protocol foundational-thinking
+      redesign-from-first-principles attack-the-premise subtract-before-you-add
+      minimize-reader-load outcome-oriented-execution experience-first
+      exhaust-the-design-space build-the-lever model-the-domain
+      boundary-discipline type-system-discipline make-operations-idempotent
+      migrate-callers-then-delete-legacy-apis
+      separate-before-serializing-shared-state prove-it-works fix-root-causes
+      sequence-verifiable-units test-behavior-not-implementation
+      explain-the-number guard-the-context-window never-block-on-the-human
+      encode-lessons-in-structure; do
+        grep -E "^[|][[:space:]]*principle-$suffix[[:space:]]*[|].+[*|][[:space:]]*skill:principle-$suffix[[:space:]]*[|]" "$routing" >/dev/null
+        printf '%s\n' "$considered" | grep -E "(^|, )principle-$suffix(,|$)" >/dev/null
+      done
+  - name: repository scope creates no personal config or unrelated effects
+    run: |
+      set -eu
+      candidate_principles_directory=${SEVRO_CANDIDATE_ARTIFACT_PRINCIPLES:?candidate principles artifact grant is required}
+      test -d "$candidate_principles_directory"
+      test -r "$candidate_principles_directory"
+      test -x "$candidate_principles_directory"
+      test ! -e "$candidate_principles_directory/principles.md"
+      test "$(git status --porcelain | wc -l | tr -d ' ')" -eq 1
+      test "$(git status --porcelain)" = '?? .darrow/'
+native_goal: forbidden

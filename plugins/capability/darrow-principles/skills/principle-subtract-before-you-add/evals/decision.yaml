@@ -1,0 +1,26 @@
+id: principle-subtract-before-you-add-decision
+activation: positive
+mount_plugin_skills: true
+invariant: PF-R8,PF-AC9
+expect_head_change: false
+prompt:
+  Use principle-subtract-before-you-add for the concrete decision in decision.md.
+  Give a concise recommendation within its existing authority. Do not edit files or
+  execute another implementation attempt.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        decision.md: >
+          An authorized formatter extension touches a branch with an obsolete unreachable
+          compatibility option. Removing that option is within scope and no caller
+          requires it. Should the extension build on the obsolete branch?
+checks:
+  - name: advice preserves task authority
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: decision follows the accepted principle within its limits
+    proposition:
+      Remove the relevant obsolete branch before extending the simpler base, while
+      preserving required formatter behavior and avoiding unrelated cleanup.
+native_goal: forbidden

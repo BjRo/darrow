@@ -1,0 +1,40 @@
+id: principles-first-invalid-trigger
+activation: positive
+mount_plugin_skills: true
+invariant: PF-R6,PF-AC7
+expect_head_change: false
+prompt: >-
+  {{skill_invocation}} Compare the designs in request.md and recommend which
+  to use. Do not edit files.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        request.md: |
+          A requires every plugin to depend on a central runtime registry.
+          B passes optional constraints through a public capability handoff.
+        .darrow/principles.md: |
+          # Routing
+
+          | ID | Trigger | Reference |
+          | --- | --- | --- |
+          | local-independent | Comparing plugin designs | custom-principles/local.md |
+          | broken-trigger | ??? | skill:principle-laziness-protocol |
+        .darrow/custom-principles/local.md: |
+          Prefer independently installable plugins. Include the receipt
+          `guidance-applied-before-validating` whenever applying this route.
+checks:
+  - name: invalid routing receives no configuration or task mutation
+    run: test -z "$(git status --porcelain)"
+output_checks:
+  - name: no principle is applied before table validation
+    not_regex: guidance-applied-before-validating
+semantic_output_checks:
+  - name: malformed trigger stops with an actionable diagnostic
+    proposition: >-
+      The response stops the requested recommendation because
+      .darrow/principles.md has the unintelligible trigger ??? in row
+      broken-trigger. It identifies the file and problem row and asks for or
+      describes a readable trigger correction. It does not silently skip the
+      row, apply the valid row or substitute bundled defaults.
+native_goal: forbidden

@@ -1,0 +1,26 @@
+id: principle-encode-lessons-in-structure-decision
+activation: positive
+mount_plugin_skills: true
+invariant: PF-R8,PF-AC9
+expect_head_change: false
+prompt: Use principle-encode-lessons-in-structure for the concrete decision in
+  decision.md. Give a concise recommendation within its existing authority. Do not edit
+  files or execute another implementation attempt.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        decision.md: >
+          The same invalid state keeps recurring and can be prevented by a small domain
+          type. A separate preference depends on user judgment. How should these lessons
+          be retained?
+checks:
+  - name: advice preserves task authority
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: decision follows the accepted principle within its limits
+    proposition:
+      Encode the enforceable recurring invalid-state rule in suitable structure,
+      while retaining clear judgment guidance for the preference rather than attempting to
+      enforce every lesson mechanically.
+native_goal: forbidden

@@ -11,6 +11,7 @@ alone; its README owns its prerequisites, behavior, and safety rules.
 | Assess whether a request is ready to implement                          | [Readiness gate](../plugins/capability/darrow-readiness-gate/README.md)                              |
 | Clarify behavior or make an implementation plan                         | [Discovery](../plugins/capability/darrow-discovery/README.md)                                        |
 | Implement an observable behavior test-first                             | [TDD](../plugins/capability/darrow-tdd/README.md)                                                    |
+| Apply optional principles-first engineering guidance                    | [Principles](../plugins/capability/darrow-principles/README.md)                                      |
 | Review a change independently                                           | [Review](../plugins/capability/darrow-review/README.md)                                              |
 | Verify implementation acceptance through independent assessment         | [Verification](../plugins/capability/darrow-verification/README.md)                                  |
 | Create a branch, commit, or pull request                                | [Git](../plugins/capability/darrow-git/README.md)                                                    |

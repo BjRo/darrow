@@ -1,0 +1,33 @@
+id: setup-principles-new-default-offer
+activation: positive
+mount_plugin_skills: true
+invariant: PF-R5,PF-AC6
+expect_head_change: false
+prompt: >-
+  {{skill_invocation}} Review my existing repository-scoped principles setup
+  for newly bundled routes. Present anything I have not considered yet before
+  changing my routing choices.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        .darrow/principles.md: |
+          # My routes
+
+          | ID | Trigger | Reference |
+          | --- | --- | --- |
+          | local-only | Working on local choices | custom-principles/local.md |
+
+          ## Setup metadata
+
+          Considered bundled IDs: principle-laziness-protocol, principle-foundational-thinking, principle-redesign-from-first-principles, principle-attack-the-premise, principle-subtract-before-you-add, principle-minimize-reader-load, principle-outcome-oriented-execution, principle-experience-first, principle-exhaust-the-design-space, principle-build-the-lever, principle-model-the-domain, principle-boundary-discipline, principle-type-system-discipline, principle-make-operations-idempotent, principle-migrate-callers-then-delete-legacy-apis, principle-separate-before-serializing-shared-state, principle-prove-it-works, principle-fix-root-causes, principle-sequence-verifiable-units, principle-test-behavior-not-implementation, principle-explain-the-number, principle-guard-the-context-window, principle-never-block-on-the-human
+checks:
+  - name: no routing choice changed before the user selects a new route
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: only unconsidered installed route is offered
+    proposition: >-
+      The response offers principle-encode-lessons-in-structure as the one new
+      bundled route to consider and offers an enable-or-decline choice. It does not offer any
+      of the other 23 installed IDs as new. It does not claim to have added the new route.
+native_goal: forbidden

@@ -1,0 +1,60 @@
+id: ticket-to-pr-principles-unavailable
+candidate_routes:
+  codex:
+    model: gpt-6.1-sol
+    effort: medium
+activation: positive
+mount_plugin_skills: true
+invariant: TPR-C2,TPR-C3,TPR-C4,TPR-C6,TPR-C7,TPR-C9,TPR-P1,PF-R7,PF-AC8
+goal_report: forbidden
+expect_head_change: false
+prompt: >-
+  {{skill_invocation}} https://example.invalid/tickets/42
+  This host advertises bounded-delivery on PATH as an Adaptive Goal
+  orchestration interface. Its contract is available through
+  `bounded-delivery --describe`. No other relevant capability is installed.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+  bin:
+    bounded-delivery: |
+      #!/usr/bin/env bash
+      set -eu
+      test "$#" -eq 1
+      if test "$1" = --describe; then
+        printf '%s\n' \
+          'Contract: Adaptive Goal orchestration for one bounded delivery in the original main thread, owning preflight, native goal, implementation, verification and completion.' \
+          'Interface: bounded-delivery <complete-request-as-one-argument>' \
+          'Accept one recipe delegation and return a blocker before preflight or goal activation. Do not launch a child or perform delivery.'
+        exit 0
+      fi
+      printf '%s\n' "$1" >.fixture-state/command-request.md
+      printf '%s\n' accepted >>.fixture-state/command-delegations
+      printf '%s\n' 'Status: blocked' 'Reason: compatible-command-observed'
+checks:
+  - name: delivery continues through one orchestrator delegation
+    run: test "$(wc -l <.fixture-state/command-delegations | tr -d ' ')" -eq 1
+  - name: recipe remains read-only
+    run: git diff --exit-code && test "$(git rev-list --count HEAD)" -eq 1
+semantic_artifact:
+  path: .fixture-state/command-request.md
+  checks:
+    - name: assurance and authority survive unavailable guidance
+      proposition: >-
+        The delegated request requires TDD, verification, commits, non-force
+        push, one PR and required CI green on the final commit. It excludes
+        merge, deployment, release, ticket mutation and destructive Git effects.
+    - name: optional approach remains in the delegated request
+      proposition: >-
+        The delegated request instructs its receiving orchestrator to apply the
+        principles-first approach when it is available.
+semantic_output_checks:
+  - name: owner blocker is relayed without a recipe guidance procedure
+    proposition: >-
+      The response relays the compatible-command-observed blocker and does
+      not request confirmation
+      merely because principles guidance is unavailable. The delivery status
+      remains blocked before preflight or goal activation rather than completed.
+native_goal: forbidden

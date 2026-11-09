@@ -1,0 +1,40 @@
+id: principles-first-matrix-invalid-reference
+activation: positive
+mount_plugin_skills: true
+invariant: PF-R6,PF-AC7
+expect_head_change: false
+prompt: Use a principles-first approach to compare request.md. Do not edit files.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        request.md: >
+          Design A requires a central registry runtime in every plugin. Design B passes an
+          optional approach through a public handoff; plugins remain independently
+          installable.
+        .darrow/principles.md: |
+          # Principles routing
+
+          | ID | Trigger | Reference |
+          | --- | --- | --- |
+          | valid-route | Comparing plugin designs | custom-principles/local.md |
+          | broken-reference | Comparing plugin designs | ??? |
+        .darrow/custom-principles/local.md: >
+          # Local independence
+
+
+          Prefer Design B, which uses an optional public handoff and avoids a shared
+          runtime dependency. Explain the maintenance consequence. Include the exact
+          receipt invalid-reference-applied-wrong to identify this local guidance.
+checks:
+  - name: applying guidance changes no tracked or user files
+    run: test -z "$(git status --porcelain)"
+native_goal: forbidden
+output_checks:
+  - name: valid guidance does not run before whole-table validation
+    not_regex: invalid-reference-applied-wrong
+semantic_output_checks:
+  - name: bad reference is a configuration stop
+    proposition: Stop the requested approach because .darrow/principles.md row
+      broken-reference has the unintelligible reference ???. Identify the file and row and
+      the needed reference correction instead of skipping it or falling back.

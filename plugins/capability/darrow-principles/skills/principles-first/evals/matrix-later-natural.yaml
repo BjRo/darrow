@@ -1,0 +1,52 @@
+id: principles-first-matrix-later-natural
+activation: positive
+activation_includes:
+  - principle-attack-the-premise
+  - principle-prove-it-works
+activation_excludes:
+  - principle-type-system-discipline
+mount_plugin_skills: true
+invariant: PF-R1,PF-R6,PF-R8,PF-AC1,PF-AC7
+expect_head_change: false
+prompt:
+  Use a principles-first approach. For now, just suggest a concise name for a pure
+  function that renders a status label. Do not edit files.
+follow_up_prompt:
+  Continue this same work. Two fixes changed cache invalidation, but after
+  each process restart the accepted saved status is still missing. Both assumed the cache
+  was authoritative. The owner permits no further implementation attempts. Name the next
+  falsifying diagnostic and the evidence needed before claiming the persisted status
+  property works. Keep this advisory; do not edit files or run another repair.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: |
+          Later debugging and completion fixture.
+        .darrow/principles.md: >
+          # Selected routing
+
+
+          | ID | Trigger | Reference |
+
+          | --- | --- | --- |
+
+          | premise | Two fixes sharing one premise fail the same check |
+          skill:principle-attack-the-premise |
+
+          | completion | Checking evidence of completion | skill:principle-prove-it-works
+          |
+
+          | local-proof | Checking evidence of completion |
+          custom-principles/unavailable-proof.md |
+checks:
+  - name: advisory guidance preserves exhausted implementation authority
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: valid missing guidance adds no configuration or assurance gate
+    proposition:
+      The response identifies the configured unavailable-proof.md file as unavailable
+      guidance and continues using available guidance and judgment. It does not make
+      repairing the routing or restoring that missing body an additional prerequisite for
+      the callers required assurance or continuing the advisory task.
+native_goal: forbidden

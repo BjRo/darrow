@@ -1,0 +1,15 @@
+{
+  "name": "darrow-principles",
+  "version": "0.1.0",
+  "description": "Optional, customizable principles-first engineering guidance",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Darrow -> Principles",
+    "shortDescription": "Apply selected engineering principles",
+    "longDescription": "Apply principles-first guidance through an editable Markdown routing table and load only matching instructions.",
+    "developerName": "Björn Rochel",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read"],
+    "defaultPrompt": ["Use a principles-first approach for this work."]
+  }
+}

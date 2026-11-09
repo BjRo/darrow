@@ -1,0 +1,53 @@
+id: principles-first-matrix-repository-subdirectory
+activation: positive
+mount_plugin_skills: true
+invariant: PF-R1,PF-R2,PF-R3,PF-AC3,PF-AC10
+expect_head_change: false
+prompt:
+  Use a principles-first approach to compare request.md. Treat src as the working
+  directory for this task and resolve repository context from there. Do not edit files.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        request.md: >
+          Design A requires a central registry runtime in every plugin. Design B passes an
+          optional approach through a public handoff; plugins remain independently
+          installable.
+        src/README.md: |
+          Task working directory.
+        .darrow/principles.md: |
+          # Principles routing
+
+          | ID | Trigger | Reference |
+          | --- | --- | --- |
+          | root-route | Comparing plugin designs | custom-principles/local.md |
+        .darrow/custom-principles/local.md: >
+          # Local independence
+
+
+          Prefer Design B, which uses an optional public handoff and avoids a shared
+          runtime dependency. Explain the maintenance consequence. Include the exact
+          receipt worktree-root-cedar to identify this local guidance.
+        src/.darrow/principles.md: |
+          # Principles routing
+
+          | ID | Trigger | Reference |
+          | --- | --- | --- |
+          | sub-route | Comparing plugin designs | custom-principles/local.md |
+        src/.darrow/custom-principles/local.md: >
+          # Local independence
+
+
+          Prefer Design B, which uses an optional public handoff and avoids a shared
+          runtime dependency. Explain the maintenance consequence. Include the exact
+          receipt subdirectory-wrong-ash to identify this local guidance.
+checks:
+  - name: applying guidance changes no tracked or user files
+    run: test -z "$(git status --porcelain)"
+native_goal: forbidden
+output_checks:
+  - name: worktree root custom file is used
+    expect_regex: worktree-root-cedar
+  - name: subdirectory configuration is ignored
+    not_regex: subdirectory-wrong-ash

@@ -1,0 +1,57 @@
+id: principles-first-matrix-unconsidered-entry
+activation: positive
+mount_plugin_skills: true
+activation_excludes:
+  - principle-encode-lessons-in-structure
+invariant: PF-R1,PF-R5,PF-AC6
+expect_head_change: false
+prompt: Use a principles-first approach for a local design choice. Compare
+  Design A (required shared registry) with Design B (optional public handoff and
+  independent plugins). Do not edit files.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        .darrow/principles.md: >
+          # My routes
+
+
+          | ID | Trigger | Reference |
+
+          | --- | --- | --- |
+
+          | local-only | Working on local choices | custom-principles/local.md |
+
+
+          ## Setup metadata
+
+
+          Considered bundled IDs: principle-laziness-protocol,
+          principle-foundational-thinking,
+          principle-redesign-from-first-principles,
+          principle-attack-the-premise, principle-subtract-before-you-add,
+          principle-minimize-reader-load, principle-outcome-oriented-execution,
+          principle-experience-first, principle-exhaust-the-design-space,
+          principle-build-the-lever, principle-model-the-domain,
+          principle-boundary-discipline, principle-type-system-discipline,
+          principle-make-operations-idempotent,
+          principle-migrate-callers-then-delete-legacy-apis,
+          principle-separate-before-serializing-shared-state,
+          principle-prove-it-works, principle-fix-root-causes,
+          principle-sequence-verifiable-units,
+          principle-test-behavior-not-implementation,
+          principle-explain-the-number, principle-guard-the-context-window,
+          principle-never-block-on-the-human
+        .darrow/custom-principles/local.md: >
+          # Existing custom guidance
+
+
+          Prefer Design B for independent plugin installation. Include
+          existing-custom-spruce to identify this custom route.
+checks:
+  - name: installed unconsidered default is not automatically added during entry
+    run: test -z "$(git status --porcelain)"
+output_checks:
+  - name: existing customized route applies
+    expect_regex: existing-custom-spruce
+native_goal: forbidden

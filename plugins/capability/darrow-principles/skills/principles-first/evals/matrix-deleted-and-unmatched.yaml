@@ -1,0 +1,88 @@
+id: principles-first-matrix-deleted-and-unmatched
+activation: positive
+mount_plugin_skills: true
+invariant: PF-R1,PF-R3,PF-AC2,PF-AC10
+expect_head_change: false
+prompt:
+  Use a principles-first approach to recommend a TypeScript renderer signature for
+  success with a numeric value or failure with a message, returning string. Do not edit
+  files.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        .darrow/principles.md: >
+          # Principles routing
+
+
+          | ID | Trigger | Reference |
+
+          | --- | --- | --- |
+
+          | not-current | Editing release notes | custom-principles/unmatched.md |
+
+
+          ## Setup metadata
+
+
+          Considered bundled IDs: principle-laziness-protocol,
+          principle-foundational-thinking, principle-redesign-from-first-principles,
+          principle-attack-the-premise, principle-subtract-before-you-add,
+          principle-minimize-reader-load, principle-outcome-oriented-execution,
+          principle-experience-first, principle-exhaust-the-design-space,
+          principle-build-the-lever, principle-model-the-domain,
+          principle-boundary-discipline, principle-type-system-discipline,
+          principle-make-operations-idempotent,
+          principle-migrate-callers-then-delete-legacy-apis,
+          principle-separate-before-serializing-shared-state, principle-prove-it-works,
+          principle-fix-root-causes, principle-sequence-verifiable-units,
+          principle-test-behavior-not-implementation, principle-explain-the-number,
+          principle-guard-the-context-window, principle-never-block-on-the-human,
+          principle-encode-lessons-in-structure
+        .darrow/custom-principles/unmatched.md: |
+          Include unmatched-file-wrong whenever read.
+        .darrow/custom-principles/deleted.md: |
+          Include deleted-file-wrong whenever read.
+  setup: |
+    mkdir -p .git/eval-checks
+    cp "{{case_dir}}/fixtures/assert-no-custom-discovery.mjs" .git/eval-checks/
+checks:
+  - name: native tools do not discover or read unmatched and unlisted custom paths
+    run: node .git/eval-checks/assert-no-custom-discovery.mjs
+  - name: applying guidance changes no tracked or user files
+    run: test -z "$(git status --porcelain)"
+native_goal: forbidden
+activation_excludes:
+  - principle-laziness-protocol
+  - principle-foundational-thinking
+  - principle-redesign-from-first-principles
+  - principle-attack-the-premise
+  - principle-subtract-before-you-add
+  - principle-minimize-reader-load
+  - principle-outcome-oriented-execution
+  - principle-experience-first
+  - principle-exhaust-the-design-space
+  - principle-build-the-lever
+  - principle-model-the-domain
+  - principle-boundary-discipline
+  - principle-type-system-discipline
+  - principle-make-operations-idempotent
+  - principle-migrate-callers-then-delete-legacy-apis
+  - principle-separate-before-serializing-shared-state
+  - principle-prove-it-works
+  - principle-fix-root-causes
+  - principle-sequence-verifiable-units
+  - principle-test-behavior-not-implementation
+  - principle-explain-the-number
+  - principle-guard-the-context-window
+  - principle-never-block-on-the-human
+  - principle-encode-lessons-in-structure
+output_checks:
+  - name: unmatched and deleted custom instructions do not apply
+    not_regex: unmatched-file-wrong|deleted-file-wrong
+semantic_output_checks:
+  - name: ordinary judgment still answers after bundled type route deletion
+    proposition:
+      Recommend a useful simple typed renderer signature. Ordinary type-design
+      judgment is permitted; do not claim the removed
+      principle-type-system-discipline skill was loaded or applied.

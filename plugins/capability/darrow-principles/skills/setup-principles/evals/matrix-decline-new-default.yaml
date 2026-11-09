@@ -1,0 +1,91 @@
+id: setup-principles-matrix-decline-new-default
+activation: positive
+mount_plugin_skills: true
+invariant: PF-R5,PF-AC6
+expect_head_change: false
+prompt: Review my repository-scoped principles-first setup for newly bundled
+  routes. Present unconsidered choices before changing my routing.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        .darrow/principles.md: >
+          # My routes
+
+
+          | ID | Trigger | Reference |
+
+          | --- | --- | --- |
+
+          | local-only | Working on local choices | custom-principles/local.md |
+
+
+          ## Setup metadata
+
+
+          Considered bundled IDs: principle-laziness-protocol,
+          principle-foundational-thinking,
+          principle-redesign-from-first-principles,
+          principle-attack-the-premise, principle-subtract-before-you-add,
+          principle-minimize-reader-load, principle-outcome-oriented-execution,
+          principle-experience-first, principle-exhaust-the-design-space,
+          principle-build-the-lever, principle-model-the-domain,
+          principle-boundary-discipline, principle-type-system-discipline,
+          principle-make-operations-idempotent,
+          principle-migrate-callers-then-delete-legacy-apis,
+          principle-separate-before-serializing-shared-state,
+          principle-prove-it-works, principle-fix-root-causes,
+          principle-sequence-verifiable-units,
+          principle-test-behavior-not-implementation,
+          principle-explain-the-number, principle-guard-the-context-window,
+          principle-never-block-on-the-human
+  setup: |
+    mkdir -p "$HOME/.darrow"
+checks:
+  - name: decline is recorded without changing active custom routes
+    run: |-
+      set -eu
+      candidate_principles_directory=${SEVRO_CANDIDATE_ARTIFACT_PRINCIPLES:?candidate principles artifact grant is required}
+      test -d "$candidate_principles_directory"
+      test -r "$candidate_principles_directory"
+      test -x "$candidate_principles_directory"
+      routing=.darrow/principles.md
+      grep -E "^Considered bundled IDs: .*principle-encode-lessons-in-structure" "$routing" >/dev/null
+      test "$(grep -Ec "^[|][[:space:]]*local-only[[:space:]]*[|]" "$routing")" -eq 1
+      test "$(grep -Ec "^[|][[:space:]]*principle-" "$routing")" -eq 0
+      test ! -e "$candidate_principles_directory/principles.md"
+semantic_output_checks:
+  - name: declined route is not offered again
+    proposition: The response reports that the new bundled
+      principle-encode-lessons-in-structure route was declined and recorded as
+      considered. Rechecking setup finds no new routes needing a choice; it does
+      not offer the declined route again.
+native_goal: forbidden
+follow_up_prompt: Decline that new bundled route. Record my choice in repository
+  scope, preserving my current routes. Then check setup again and report any
+  routes still needing consideration.
+activation_excludes:
+  - principle-laziness-protocol
+  - principle-foundational-thinking
+  - principle-redesign-from-first-principles
+  - principle-attack-the-premise
+  - principle-subtract-before-you-add
+  - principle-minimize-reader-load
+  - principle-outcome-oriented-execution
+  - principle-experience-first
+  - principle-exhaust-the-design-space
+  - principle-build-the-lever
+  - principle-model-the-domain
+  - principle-boundary-discipline
+  - principle-type-system-discipline
+  - principle-make-operations-idempotent
+  - principle-migrate-callers-then-delete-legacy-apis
+  - principle-separate-before-serializing-shared-state
+  - principle-prove-it-works
+  - principle-fix-root-causes
+  - principle-sequence-verifiable-units
+  - principle-test-behavior-not-implementation
+  - principle-explain-the-number
+  - principle-guard-the-context-window
+  - principle-never-block-on-the-human
+  - principle-encode-lessons-in-structure

@@ -25,6 +25,7 @@ this thread. Pass this request, preserving the ticket and every caller option:
 > Conventional Commit or commits, push without force, and open or reuse one
 > verified PR. Hand over with required CI checks green on its final commit.
 > Use a linked worktree only if requested. Preserve existing user work.
+> Apply the principles-first approach when it is available.
 >
 > Every handover after publication, including a CI blocker, must include the PR
 > URL and published commit/CI evidence. Completion requires its open head and

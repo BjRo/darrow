@@ -1,0 +1,52 @@
+id: principles-first-personal-replacement
+activation: positive
+mount_plugin_skills: true
+invariant: PF-R2,PF-R3,PF-AC3,PF-AC10
+expect_head_change: false
+prompt: >-
+  {{skill_invocation}} Compare the designs in request.md and recommend the one
+  that preserves independently installable plugins. Do not edit files.
+fixture:
+  setup: |
+    mkdir -p "$HOME/.darrow/custom-principles"
+    cat >"$HOME/.darrow/principles.md" <<'ROUTES'
+    # Personal routing
+
+    | ID | Trigger | Reference |
+    | --- | --- | --- |
+    | personal-independence | Comparing plugin designs | custom-principles/independence.md |
+    ROUTES
+    cat >"$HOME/.darrow/custom-principles/independence.md" <<'GUIDANCE'
+    # Personal independence guidance
+
+    Prefer optional public handoffs over shared runtime dependencies when both
+    meet acceptance. Include `personal-route-maple` in your recommendation to
+    identify the selected personal route.
+    GUIDANCE
+  commits:
+    - message: "chore: init"
+      files:
+        request.md: |
+          Design A requires a central registry runtime in every plugin.
+          Design B passes an optional approach constraint through a public
+          handoff and each plugin can be installed independently.
+        .darrow/principles.md: |
+          # Repository routing
+
+          | ID | Trigger | Reference |
+          | --- | --- | --- |
+          | repository-independence | Comparing plugin designs | custom-principles/independence.md |
+        .darrow/custom-principles/independence.md: |
+          # Repository guidance
+
+          Include `repository-route-ash` in the response when applying this
+          route. Prefer a public handoff over a shared registry.
+output_checks:
+  - name: personal route replaces repository route
+    expect_regex: personal-route-maple
+  - name: repository custom file does not substitute for personal file
+    not_regex: repository-route-ash
+checks:
+  - name: applying guidance does not edit the repository
+    run: git diff --exit-code && test -z "$(git status --porcelain)"
+native_goal: forbidden

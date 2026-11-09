@@ -1,0 +1,67 @@
+id: principles-first-matrix-linked-worktree
+activation: positive
+mount_plugin_skills: true
+invariant: PF-R1,PF-R2,PF-R3,PF-AC3,PF-AC10
+expect_head_change: false
+prompt:
+  Use a principles-first approach for the task in .fixture-state/linked/src,
+  treating that linked worktree directory as the task working directory. Compare its
+  request.md designs. Do not edit files.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        request.md: >
+          Design A requires a central registry runtime in every plugin. Design B passes an
+          optional approach through a public handoff; plugins remain independently
+          installable.
+        src/README.md: |
+          Working directory.
+        .darrow/principles.md: |
+          # Principles routing
+
+          | ID | Trigger | Reference |
+          | --- | --- | --- |
+          | root-route | Comparing plugin designs | custom-principles/local.md |
+        .darrow/custom-principles/local.md: >
+          # Local independence
+
+
+          Prefer Design B, which uses an optional public handoff and avoids a shared
+          runtime dependency. Explain the maintenance consequence. Include the exact
+          receipt primary-worktree-wrong to identify this local guidance.
+  setup: >
+    git worktree add -b fixture-linked .fixture-state/linked
+
+    cat >.fixture-state/linked/.darrow/principles.md <<'ROUTES'
+
+    # Principles routing
+
+
+    | ID | Trigger | Reference |
+
+    | --- | --- | --- |
+
+    | linked-route | Comparing plugin designs | custom-principles/local.md |
+
+    ROUTES
+
+    cat >.fixture-state/linked/.darrow/custom-principles/local.md <<'GUIDANCE'
+
+    # Local independence
+
+
+    Prefer Design B, which uses an optional public handoff and avoids a shared runtime
+    dependency. Explain the maintenance consequence. Include the exact receipt
+    linked-own-root-maple to identify this local guidance.
+
+    GUIDANCE
+checks:
+  - name: applying guidance changes no tracked or user files
+    run: test -z "$(git status --porcelain)"
+native_goal: forbidden
+output_checks:
+  - name: linked worktree own config wins
+    expect_regex: linked-own-root-maple
+  - name: primary checkout config does not substitute
+    not_regex: primary-worktree-wrong
