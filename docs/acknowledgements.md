@@ -19,4 +19,7 @@ and HumanLayer's open-source
 directly inspired the compact, smallest-fitting-view approach in
 `darrow-explanation`.
 
+Thanks to Lauren Tan (potatoe), whose principles I copied as the starting point
+for `darrow-principles`.
+
 Return to the [documentation hub](README.md).
