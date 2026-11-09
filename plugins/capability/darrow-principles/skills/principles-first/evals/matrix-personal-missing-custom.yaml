@@ -1,0 +1,53 @@
+id: principles-first-matrix-personal-missing-custom
+activation: positive
+mount_plugin_skills: true
+invariant: PF-R2,PF-R3,PF-R6,PF-AC7,PF-AC10
+expect_head_change: false
+prompt:
+  Use a principles-first approach to compare request.md. Treat src as the task
+  working directory. Do not edit files.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        request.md: >
+          Design A requires a central registry runtime in every plugin. Design B passes an
+          optional approach through a public handoff; plugins remain independently
+          installable.
+        src/README.md: |
+          Working directory.
+        .darrow/principles.md: |
+          # Principles routing
+
+          | ID | Trigger | Reference |
+          | --- | --- | --- |
+          | repo-route | Comparing plugin designs | custom-principles/local.md |
+        .darrow/custom-principles/local.md: >
+          # Local independence
+
+
+          Prefer Design B, which uses an optional public handoff and avoids a shared
+          runtime dependency. Explain the maintenance consequence. Include the exact
+          receipt repository-substitution-forbidden to identify this local guidance.
+  setup: |
+    mkdir -p "$HOME/.darrow"
+    cat >"$HOME/.darrow/principles.md" <<'ROUTES'
+    # Principles routing
+
+    | ID | Trigger | Reference |
+    | --- | --- | --- |
+    | personal-route | Comparing plugin designs | custom-principles/local.md |
+    ROUTES
+checks:
+  - name: applying guidance changes no tracked or user files
+    run: test -z "$(git status --porcelain)"
+native_goal: forbidden
+output_checks:
+  - name: repository file never substitutes for missing personal file
+    not_regex: repository-substitution-forbidden
+semantic_output_checks:
+  - name: missing personal-relative body is disclosed without fallback
+    proposition:
+      Identify the custom-principles/local.md beside the selected personal table as
+      unavailable and continue the design recommendation using model judgment, without
+      requiring the missing body to be restored before proceeding.

@@ -1,0 +1,91 @@
+id: setup-principles-matrix-accept-new-default
+activation: positive
+mount_plugin_skills: true
+invariant: PF-R5,PF-AC6
+expect_head_change: false
+prompt: Review my repository-scoped principles-first setup for newly bundled
+  routes. Present unconsidered choices before changing my routing.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        .darrow/principles.md: >
+          # My routes
+
+
+          | ID | Trigger | Reference |
+
+          | --- | --- | --- |
+
+          | local-only | Working on local choices | custom-principles/local.md |
+
+
+          ## Setup metadata
+
+
+          Considered bundled IDs: principle-laziness-protocol,
+          principle-foundational-thinking,
+          principle-redesign-from-first-principles,
+          principle-attack-the-premise, principle-subtract-before-you-add,
+          principle-minimize-reader-load, principle-outcome-oriented-execution,
+          principle-experience-first, principle-exhaust-the-design-space,
+          principle-build-the-lever, principle-model-the-domain,
+          principle-boundary-discipline, principle-type-system-discipline,
+          principle-make-operations-idempotent,
+          principle-migrate-callers-then-delete-legacy-apis,
+          principle-separate-before-serializing-shared-state,
+          principle-prove-it-works, principle-fix-root-causes,
+          principle-sequence-verifiable-units,
+          principle-test-behavior-not-implementation,
+          principle-explain-the-number, principle-guard-the-context-window,
+          principle-never-block-on-the-human
+  setup: |
+    mkdir -p "$HOME/.darrow"
+checks:
+  - name: accepted route and considered ID are added while custom row remains
+    run: |-
+      set -eu
+      candidate_principles_directory=${SEVRO_CANDIDATE_ARTIFACT_PRINCIPLES:?candidate principles artifact grant is required}
+      test -d "$candidate_principles_directory"
+      test -r "$candidate_principles_directory"
+      test -x "$candidate_principles_directory"
+      routing=.darrow/principles.md
+      grep -E '^Considered bundled IDs: .*principle-encode-lessons-in-structure' "$routing" >/dev/null
+      grep -E '^[|][[:space:]]*principle-encode-lessons-in-structure[[:space:]]*[|].*skill:principle-encode-lessons-in-structure' "$routing" >/dev/null
+      test "$(grep -Ec '^[|][[:space:]]*local-only[[:space:]]*[|]' "$routing")" -eq 1
+      test "$(grep -Ec '^[|][[:space:]]*principle-' "$routing")" -eq 1
+      test ! -e "$candidate_principles_directory/principles.md"
+semantic_output_checks:
+  - name: accepted and previously considered deleted IDs are not reoffered
+    proposition:
+      Report the accepted encode-lessons-in-structure route as added and
+      considered, with no new bundled routes still requiring a choice.
+native_goal: forbidden
+activation_excludes:
+  - principle-laziness-protocol
+  - principle-foundational-thinking
+  - principle-redesign-from-first-principles
+  - principle-attack-the-premise
+  - principle-subtract-before-you-add
+  - principle-minimize-reader-load
+  - principle-outcome-oriented-execution
+  - principle-experience-first
+  - principle-exhaust-the-design-space
+  - principle-build-the-lever
+  - principle-model-the-domain
+  - principle-boundary-discipline
+  - principle-type-system-discipline
+  - principle-make-operations-idempotent
+  - principle-migrate-callers-then-delete-legacy-apis
+  - principle-separate-before-serializing-shared-state
+  - principle-prove-it-works
+  - principle-fix-root-causes
+  - principle-sequence-verifiable-units
+  - principle-test-behavior-not-implementation
+  - principle-explain-the-number
+  - principle-guard-the-context-window
+  - principle-never-block-on-the-human
+  - principle-encode-lessons-in-structure
+follow_up_prompt: Accept the new encode-lessons-in-structure route. Add it in
+  repository scope, preserve all current customization and record the choice.
+  Then recheck setup and report any routes still needing consideration.

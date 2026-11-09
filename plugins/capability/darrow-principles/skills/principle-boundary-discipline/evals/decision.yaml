@@ -1,0 +1,28 @@
+id: principle-boundary-discipline-decision
+activation: positive
+mount_plugin_skills: true
+invariant: PF-R8,PF-AC9
+expect_head_change: false
+prompt:
+  Use principle-boundary-discipline for the concrete decision in decision.md. Give a
+  concise recommendation within its existing authority. Do not edit files or execute
+  another implementation attempt.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        decision.md: >
+          An adapter parses external input into a validated domain value. An inner
+          function repeats unchanged shape validation, but a later state mutation can
+          invalidate a business invariant. Which checks belong?
+checks:
+  - name: advice preserves task authority
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: decision follows the accepted principle within its limits
+    proposition:
+      Validate external input at its trust boundary and remove only redundant
+      checks whose guarantees still hold. Preserve the domain invariant check after the
+      mutation that can invalidate it, with thin adapters and independently testable
+      logic.
+native_goal: forbidden

@@ -1,0 +1,26 @@
+id: principle-attack-the-premise-decision
+activation: positive
+mount_plugin_skills: true
+invariant: PF-R8,PF-AC9
+expect_head_change: false
+prompt:
+  Use principle-attack-the-premise for the concrete decision in decision.md. Give a
+  concise recommendation within its existing authority. Do not edit files or execute
+  another implementation attempt.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        decision.md: >
+          Two cache fixes failed the same restart-persistence check. Both assumed the
+          cache was authoritative. The owner has exhausted the allowed repair attempts.
+          What next?
+checks:
+  - name: advice preserves task authority
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: decision follows the accepted principle within its limits
+    proposition:
+      Name the cache-authority premise and a concrete falsifying observation of
+      durable status across restart, without authorizing another implementation attempt.
+native_goal: forbidden

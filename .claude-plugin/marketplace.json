@@ -56,6 +56,11 @@
       "description": "Drive behavior changes and bug fixes through durable red-to-green test slices"
     },
     {
+      "name": "darrow-principles",
+      "source": "./plugins/capability/darrow-principles",
+      "description": "Apply optional principles-first guidance through editable Markdown routing"
+    },
+    {
       "name": "darrow-review",
       "source": "./plugins/capability/darrow-review",
       "description": "Review pinned changes independently for repository standards and specification fulfillment"

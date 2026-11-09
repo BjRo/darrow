@@ -1,0 +1,49 @@
+id: setup-principles-export-defaults
+activation: positive
+mount_plugin_skills: true
+invariant: PF-R3,PF-AC4,PF-AC9
+expect_head_change: false
+prompt: "{{skill_invocation}} Export the complete bundled editable default
+  routing table to exported-principles.md. Do not create repository or personal
+  configuration. Do not apply principle guidance to another task."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: |
+          Export fixture.
+  setup: |
+    mkdir -p "$HOME/.darrow"
+checks:
+  - name: every catalog route and reference is exported
+    run: >
+      test -f exported-principles.md
+
+      for suffix in laziness-protocol foundational-thinking
+      redesign-from-first-principles attack-the-premise subtract-before-you-add
+      minimize-reader-load outcome-oriented-execution experience-first
+      exhaust-the-design-space build-the-lever model-the-domain
+      boundary-discipline type-system-discipline make-operations-idempotent
+      migrate-callers-then-delete-legacy-apis
+      separate-before-serializing-shared-state prove-it-works fix-root-causes
+      sequence-verifiable-units test-behavior-not-implementation
+      explain-the-number guard-the-context-window never-block-on-the-human
+      encode-lessons-in-structure; do
+        grep -E "^[|][[:space:]]*principle-$suffix[[:space:]]*[|].+[*|][[:space:]]*skill:principle-$suffix[[:space:]]*[|]" exported-principles.md >/dev/null
+      done
+
+      test "$(grep -Ec '^[|][[:space:]]*principle-' exported-principles.md)" -eq
+      24
+  - name: export contains routes rather than full instructions
+    run: >
+      ! grep -E 'Complete when:|State the premise|smallest complete solution'
+      exported-principles.md
+  - name: export creates no effective configuration
+    run: |-
+      set -eu
+      candidate_principles_directory=${SEVRO_CANDIDATE_ARTIFACT_PRINCIPLES:?candidate principles artifact grant is required}
+      test -d "$candidate_principles_directory"
+      test -r "$candidate_principles_directory"
+      test -x "$candidate_principles_directory"
+      test ! -e .darrow/principles.md && test ! -e "$candidate_principles_directory/principles.md"
+native_goal: forbidden

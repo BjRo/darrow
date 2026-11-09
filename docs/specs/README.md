@@ -14,6 +14,7 @@ These files define current invariants. Start with the
 - [Discovery](discovery.md): grilling, discovery, and planning.
 - [Visual explanation](visual-explanation.md): compact grounded views.
 - [Test-driven development](test-driven-development.md): red/green evidence.
+- [Principles first](principles.md): optional routed engineering guidance.
 - [Code review](code-review.md): independent review and repair verification.
 - [Verification](verification.md): replaceable assessment and criterion-level evidence.
 - [Repository Python quality](python-quality.md): package inventory, checks, tests, and release evidence.

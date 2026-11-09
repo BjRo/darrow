@@ -1,0 +1,31 @@
+id: principle-outcome-oriented-execution-decision
+activation: positive
+mount_plugin_skills: true
+invariant: PF-R8,PF-AC9
+expect_head_change: false
+prompt:
+  Use principle-outcome-oriented-execution for the concrete decision in decision.md.
+  Give a concise recommendation within its existing authority. Do not edit files or
+  execute another implementation attempt.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        decision.md: >
+          An agreed reversible internal rename phase permits compilation failure between
+          two file edits, then requires a passing build and tests before advancing.
+          External CLI names must stay compatible. Must a temporary internal adapter be
+          added solely for the intermediate edit?
+checks:
+  - name: advice preserves task authority
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: decision follows the accepted principle within its limits
+    proposition:
+      The caller already defines an agreed reversible internal phase limited to
+      two edits and permitted intermediate compilation failure. Recommend no temporary
+      internal compatibility adapter solely for that failure, preserve external CLI
+      names and require the agreed passing build and tests before advancing. Advice
+      must stay within that supplied phase allowance; repeating properties already
+      supplied by the caller is not required.
+native_goal: forbidden

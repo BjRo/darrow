@@ -1,0 +1,25 @@
+id: principle-make-operations-idempotent-decision
+activation: positive
+mount_plugin_skills: true
+invariant: PF-R8,PF-AC9
+expect_head_change: false
+prompt:
+  Use principle-make-operations-idempotent for the concrete decision in decision.md.
+  Give a concise recommendation within its existing authority. Do not edit files or
+  execute another implementation attempt.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        decision.md: >
+          An interrupted authorized sync already created two of three desired records.
+          Rerunning naive creation duplicates them. What should the repeated operation do?
+checks:
+  - name: advice preserves task authority
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: decision follows the accepted principle within its limits
+    proposition:
+      Inspect existing state and reconcile toward exactly the intended records so
+      repetition converges without duplicate effects, within the original authority.
+native_goal: forbidden

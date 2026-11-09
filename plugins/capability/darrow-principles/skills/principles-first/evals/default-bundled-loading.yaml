@@ -1,0 +1,38 @@
+id: principles-first-default-bundled-loading
+activation: positive
+activation_includes: [principle-type-system-discipline]
+activation_excludes: [principle-attack-the-premise]
+mount_plugin_skills: true
+invariant: PF-R1,PF-R2,PF-AC1,PF-AC3
+expect_head_change: false
+prompt: >-
+  {{skill_invocation}} Recommend a TypeScript function signature for the
+  renderer described in request.md. Do not implement or edit any files.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        request.md: |
+          A pure renderer accepts either a successful result with a numeric
+          value or an error result with a message. It returns a string.
+          The signature should make invalid combinations of fields difficult
+          to express. There have been no failed fixes or debugging attempts.
+  setup: |
+    mkdir -p "$HOME/.darrow"
+checks:
+  - name: default application changes no files or user config
+    run: |-
+      set -eu
+      candidate_principles_directory=${SEVRO_CANDIDATE_ARTIFACT_PRINCIPLES:?candidate principles artifact grant is required}
+      test -d "$candidate_principles_directory"
+      test -r "$candidate_principles_directory"
+      test -x "$candidate_principles_directory"
+      test -z "$(git status --porcelain)" && test ! -e .darrow/principles.md && test ! -e "$candidate_principles_directory/principles.md"
+semantic_output_checks:
+  - name: type recommendation solves the supplied caller problem
+    proposition: >-
+      The response recommends a function accepting a discriminated union of a
+      success variant with a numeric value and an error variant with a message,
+      returning string. It uses a simple adequate type without unrelated
+      branding, generic infrastructure, or invalid mixed-field variants.
+native_goal: forbidden

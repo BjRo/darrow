@@ -1,0 +1,6 @@
+{
+  "name": "principles-delivery-fixture",
+  "version": "0.0.0",
+  "description": "Private native provider test doubles for Principles delivery evals",
+  "skills": "./skills/"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "darrow-principles",
+  "version": "0.1.0",
+  "description": "Optional, customizable principles-first engineering guidance",
+  "license": "BUSL-1.1",
+  "author": { "name": "Björn Rochel", "email": "bjoern@bjro.de" }
+}

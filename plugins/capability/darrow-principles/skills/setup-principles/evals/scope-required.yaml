@@ -1,0 +1,32 @@
+id: setup-principles-scope-required
+activation: positive
+mount_plugin_skills: true
+invariant: PF-R4,PF-AC5
+expect_head_change: false
+prompt: "{{skill_invocation}} Set up principles-first routing for me with the
+  bundled defaults."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: |
+          Scope-choice fixture.
+  setup: |
+    mkdir -p "$HOME/.darrow"
+checks:
+  - name: unspecified scope creates no configuration
+    run: |-
+      set -eu
+      candidate_principles_directory=${SEVRO_CANDIDATE_ARTIFACT_PRINCIPLES:?candidate principles artifact grant is required}
+      test -d "$candidate_principles_directory"
+      test -r "$candidate_principles_directory"
+      test -x "$candidate_principles_directory"
+      test ! -e .darrow/principles.md && test ! -e "$candidate_principles_directory/principles.md" && test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: setup asks the missing scope decision
+    proposition:
+      The response asks the user to choose repository or personal scope
+      before configuring routing. It does not choose personal scope or claim
+      setup has completed. An additional question about whether to create an
+      export is unnecessary but does not substitute for the scope choice.
+native_goal: forbidden

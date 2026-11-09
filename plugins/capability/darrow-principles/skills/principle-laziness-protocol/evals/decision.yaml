@@ -1,0 +1,25 @@
+id: principle-laziness-protocol-decision
+activation: positive
+mount_plugin_skills: true
+invariant: PF-R8,PF-AC9
+expect_head_change: false
+prompt:
+  Use principle-laziness-protocol for the concrete decision in decision.md. Give a
+  concise recommendation within its existing authority. Do not edit files or execute
+  another implementation attempt.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        decision.md: >
+          A change needs one optional timeout. Three internal callers currently repeat its
+          default. Compare a direct shared default with a configurable policy framework.
+checks:
+  - name: advice preserves task authority
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: decision follows the accepted principle within its limits
+    proposition:
+      Recommend the smallest complete solution that centralizes the repeated
+      timeout default, without introducing the speculative policy framework.
+native_goal: forbidden

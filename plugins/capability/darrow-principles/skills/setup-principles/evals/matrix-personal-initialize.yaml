@@ -1,0 +1,79 @@
+id: setup-principles-matrix-personal-initialize
+activation: positive
+activation_excludes:
+  - principle-laziness-protocol
+  - principle-foundational-thinking
+  - principle-redesign-from-first-principles
+  - principle-attack-the-premise
+  - principle-subtract-before-you-add
+  - principle-minimize-reader-load
+  - principle-outcome-oriented-execution
+  - principle-experience-first
+  - principle-exhaust-the-design-space
+  - principle-build-the-lever
+  - principle-model-the-domain
+  - principle-boundary-discipline
+  - principle-type-system-discipline
+  - principle-make-operations-idempotent
+  - principle-migrate-callers-then-delete-legacy-apis
+  - principle-separate-before-serializing-shared-state
+  - principle-prove-it-works
+  - principle-fix-root-causes
+  - principle-sequence-verifiable-units
+  - principle-test-behavior-not-implementation
+  - principle-explain-the-number
+  - principle-guard-the-context-window
+  - principle-never-block-on-the-human
+  - principle-encode-lessons-in-structure
+mount_plugin_skills: true
+invariant: PF-R4,PF-R5,PF-AC5,PF-AC6
+expect_head_change: false
+prompt: Set up personal-scoped principles-first routing with the complete
+  bundled defaults. Do not customize routes yet.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: |
+          Personal setup fixture.
+  setup: |
+    mkdir -p "$HOME/.darrow"
+checks:
+  - name: personal config has every default and considered baseline
+    run: |
+      set -eu
+      candidate_principles_directory=${SEVRO_CANDIDATE_ARTIFACT_PRINCIPLES:?candidate principles artifact grant is required}
+      test -d "$candidate_principles_directory"
+      test -r "$candidate_principles_directory"
+      test -x "$candidate_principles_directory"
+      routing="$candidate_principles_directory/principles.md"
+      test -f "$routing"
+      test "$(grep -Ec '^[|][[:space:]]*principle-' "$routing")" -eq 24
+      considered=$(sed -n 's/^Considered bundled IDs: //p' "$routing")
+      printf '%s\n' "$considered" | grep -E '(^|, )principle-laziness-protocol(,|$)' >/dev/null
+      printf '%s\n' "$considered" | grep -E '(^|, )principle-foundational-thinking(,|$)' >/dev/null
+      printf '%s\n' "$considered" | grep -E '(^|, )principle-redesign-from-first-principles(,|$)' >/dev/null
+      printf '%s\n' "$considered" | grep -E '(^|, )principle-attack-the-premise(,|$)' >/dev/null
+      printf '%s\n' "$considered" | grep -E '(^|, )principle-subtract-before-you-add(,|$)' >/dev/null
+      printf '%s\n' "$considered" | grep -E '(^|, )principle-minimize-reader-load(,|$)' >/dev/null
+      printf '%s\n' "$considered" | grep -E '(^|, )principle-outcome-oriented-execution(,|$)' >/dev/null
+      printf '%s\n' "$considered" | grep -E '(^|, )principle-experience-first(,|$)' >/dev/null
+      printf '%s\n' "$considered" | grep -E '(^|, )principle-exhaust-the-design-space(,|$)' >/dev/null
+      printf '%s\n' "$considered" | grep -E '(^|, )principle-build-the-lever(,|$)' >/dev/null
+      printf '%s\n' "$considered" | grep -E '(^|, )principle-model-the-domain(,|$)' >/dev/null
+      printf '%s\n' "$considered" | grep -E '(^|, )principle-boundary-discipline(,|$)' >/dev/null
+      printf '%s\n' "$considered" | grep -E '(^|, )principle-type-system-discipline(,|$)' >/dev/null
+      printf '%s\n' "$considered" | grep -E '(^|, )principle-make-operations-idempotent(,|$)' >/dev/null
+      printf '%s\n' "$considered" | grep -E '(^|, )principle-migrate-callers-then-delete-legacy-apis(,|$)' >/dev/null
+      printf '%s\n' "$considered" | grep -E '(^|, )principle-separate-before-serializing-shared-state(,|$)' >/dev/null
+      printf '%s\n' "$considered" | grep -E '(^|, )principle-prove-it-works(,|$)' >/dev/null
+      printf '%s\n' "$considered" | grep -E '(^|, )principle-fix-root-causes(,|$)' >/dev/null
+      printf '%s\n' "$considered" | grep -E '(^|, )principle-sequence-verifiable-units(,|$)' >/dev/null
+      printf '%s\n' "$considered" | grep -E '(^|, )principle-test-behavior-not-implementation(,|$)' >/dev/null
+      printf '%s\n' "$considered" | grep -E '(^|, )principle-explain-the-number(,|$)' >/dev/null
+      printf '%s\n' "$considered" | grep -E '(^|, )principle-guard-the-context-window(,|$)' >/dev/null
+      printf '%s\n' "$considered" | grep -E '(^|, )principle-never-block-on-the-human(,|$)' >/dev/null
+      printf '%s\n' "$considered" | grep -E '(^|, )principle-encode-lessons-in-structure(,|$)' >/dev/null
+  - name: personal initialization creates no repository config
+    run: test ! -e .darrow/principles.md && test -z "$(git status --porcelain)"
+native_goal: forbidden
