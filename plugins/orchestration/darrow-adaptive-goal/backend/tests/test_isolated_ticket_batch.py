@@ -301,7 +301,7 @@ def claude_records(helpers: Path, view: Path, defect: str) -> dict[str, str]:
         ],
     )
     files = {
-        str(path.relative_to(view / "claude")): path.read_text()
+        path.relative_to(view / "claude").as_posix(): path.read_text()
         for path in (view / "claude").rglob("*")
         if path.is_file()
     }
