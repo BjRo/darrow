@@ -1,0 +1,209 @@
+id: goal-isolated-ticket-batch
+invariant: ADL-R3,ADL-L1,ADL-L5,ADL-P3
+required_plugin_hook: darrow-review
+assessment_capture: required
+goal_report: forbidden
+goal_route_checks: false
+expect_head_change: true
+harnesses:
+  - codex
+additional_plugins:
+  - plugins/capability/darrow-git
+  - plugins/capability/darrow-verification
+  - plugins/capability/darrow-review
+candidate_routes:
+  codex:
+    model: gpt-6.1-sol
+    effort: medium
+prompt: >-
+  {{skill_invocation}} Deliver the complete already-assessed ready specification in
+  committed SPEC.md. It is authoritative for the exact finite ticket set issue-41,
+  issue-42, issue-43, their acceptance, dependencies, isolated-worker strategy and
+  explicitly permitted effects. Use that file as the complete source for the final
+  independent verification; do not rewrite its criteria from memory. The requested fresh
+  worker branches, linked worktrees, local commits and serial integration are explicitly
+  authorized. Keep the existing delivery checkout and unrelated PERSONAL.md edit.
+  Implementation route: codex|openai|gpt-6.1-sol|medium, the same as this main thread.
+
+
+  SPEC.md, AGENTS.md and test.sh are preserved inputs, outside every worker's editable
+  files. Preserve the Git fixture hook and .fixture-state/batch-commits.jsonl. Preserve
+  DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR and UV_CACHE_DIR. Place temporary assessment
+  drafts in the returned, already-granted Review run directory outside the product
+  checkout. Final assurance still covers the full specification from
+  .git/integration-base through final HEAD, excluding PERSONAL.md and .fixture-state. No
+  push, PR or tracker changes. Return a concise handover covering the required outcome,
+  integrated commits, actual checks, placement, assessment result, retained workers,
+  repair allowance and material gaps.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Run `bash test.sh` for changes. Preserve unrelated local work.
+        package.json: '{"type":"module"}'
+        src/versions.js: |
+          // Version parsing and matching belongs here.
+        test/versions.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import * as versions from "../src/versions.js";
+          test("module loads", () => assert.equal(typeof versions, "object"));
+        test.sh: |
+          #!/usr/bin/env bash
+          node --test test/*.test.js
+        PERSONAL.md: |
+          Personal notes.
+        src/expenses.js: |
+          // Implementation belongs here.
+        test/expenses.test.js: |
+          import test from 'node:test';
+          import assert from 'node:assert/strict';
+          import * as subject from '../src/expenses.js';
+          test('module loads',()=>assert.equal(typeof subject,'object'));
+        src/summary.js: |
+          // Implementation belongs here.
+        test/summary.test.js: |
+          import test from 'node:test';
+          import assert from 'node:assert/strict';
+          import * as subject from '../src/summary.js';
+          test('module loads',()=>assert.equal(typeof subject,'object'));
+        SPEC.md: >
+          # Complete ticket specification
+
+
+          The finite ticket set is exactly issue-41, issue-42 and issue-43. Use optional
+          isolated ticket workers: the independent substantial first two tickets benefit
+          from concurrent focused contexts enough to repay branch, handoff and
+          integration overhead. Their file sets are disjoint, interfaces below are
+          settled, and each focused check is runnable. Run issue-41 and issue-42
+          concurrently when the configured host capacity permits. Issue-43 depends on
+          both and must start from the integration branch after both have landed. Keep
+          one owner and one final independent complete-specification assessment.
+
+
+          I explicitly authorize a separate fresh worker, new branch, linked worktree
+          and local implementation commits for each ticket, and serial cherry-pick
+          integration onto the current existing delivery branch. Keep this delivery
+          checkout and my uncommitted PERSONAL.md unchanged. Keep all worker identities
+          and worktrees for repairs. No push, PR or tracker changes. Use the explicit
+          implementation route in the invocation, the same as the main thread. Preserve
+          .fixture-state/batch-commits.jsonl and the installed Git post-commit fixture
+          hook; they record actual commits for grading. Preserve
+          DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR and UV_CACHE_DIR. Final independent
+          assurance covers all three tickets from .git/integration-base to final HEAD,
+          excluding PERSONAL.md and .fixture-state. No unresolved decisions or other
+          prerequisites exist.
+
+
+          issue-41 owns only src/versions.js and test/versions.test.js. Export
+          parseVersion(text), compareVersions(a,b), satisfies(version,range),
+          maxSatisfying(versions,range). Valid versions have three decimal integer
+          components 0 through 9999 without leading zeroes; return {major,minor,patch}.
+          Reject other input with Error('invalid version: '+text). Compare valid version
+          strings numerically to -1,0,1. Ranges are exact, ^X.Y.Z (inclusive lower
+          bound, exclusive next major; for major zero use exclusive next minor), or
+          ~X.Y.Z (exclusive next minor). maxSatisfying returns the largest satisfying
+          original string or null. Focused command: node --test test/versions.test.js.
+
+
+          issue-42 owns only src/expenses.js and test/expenses.test.js. Export
+          normalizeExpenses(rows) and totalsByCategory(rows). Inputs are plain JSON
+          records, without accessors, proxies or class instances. Each row has id
+          (nonempty string), category (nonempty string) and cents (integer between 0 and
+          1000000 inclusive). normalizeExpenses validates every row, rejecting any
+          malformed row with Error('invalid expense'); deduplicates by id keeping the
+          last row; then returns fresh objects with exactly id/category/cents, sorted
+          lexically by id. Never mutate input. totalsByCategory accepts the same input,
+          normalizes it and returns a fresh object mapping each category to the sum of
+          retained cents; an empty input returns {}. Categories are restricted to
+          lowercase ASCII letters; invalid categories are malformed. Input length is at
+          most 1000. Focused command: node --test test/expenses.test.js.
+
+
+          issue-43 owns only src/summary.js and test/summary.test.js. Its settled
+          imports are maxSatisfying from ./versions.js and totalsByCategory from
+          ./expenses.js. Export summarize({versions,range,expenses}) returning exactly
+          {version:maxSatisfying(versions,range),totals:totalsByCategory(expenses)}
+          without mutating inputs. Propagate either prerequisite's validation error.
+          Focused command: node --test test/summary.test.js. Add meaningful
+          failing-before-edit and passing-after-edit tests for each ticket. Final
+          required combined command is bash test.sh. All these checks are authorized.
+          Return the integrated result, actual checks and placement basis.
+  setup: |
+    git switch -c feat/issue-41-delivery
+    printf 'Uncommitted user note.\n' >> PERSONAL.md
+    git branch --show-current > .git/integration-branch
+    git rev-parse HEAD > .git/integration-base
+    bash "{{case_dir}}/../../../../../capability/darrow-review/skills/code-review/evals/fixtures/prepare-grading.sh" "{{case_dir}}/../../../../../capability/darrow-review/skills/code-review/evals"
+    cp "{{case_dir}}/../../../backend/tests/evals/isolated_ticket_routes.py" .git/eval-checks/isolated_ticket_routes.py
+    cp "{{case_dir}}/../../../backend/tests/evals/isolated_ticket_batch.py" .git/eval-checks/isolated_ticket_batch.py
+    mkdir -p .fixture-state
+    cat > .git/hooks/post-commit <<'HOOK'
+    #!/bin/sh
+    python3 "$(git rev-parse --path-format=absolute --git-common-dir)/eval-checks/isolated_ticket_batch.py" record
+    HOOK
+    chmod +x .git/hooks/post-commit
+    cp .git/hooks/post-commit .git/eval-checks/expected-post-commit
+    cp "{{case_dir}}/../../../backend/tests/evals/isolated_ticket_assessment.py" .git/eval-checks/isolated_ticket_assessment.py
+checks:
+  - name: all ticket behavior is integrated
+    run: |-
+      node --input-type=module <<'JS'
+      import assert from 'node:assert/strict';
+      import {parseVersion,compareVersions,satisfies,maxSatisfying} from './src/versions.js';
+      import {normalizeExpenses,totalsByCategory} from './src/expenses.js';
+      import {summarize} from './src/summary.js';
+      assert.deepEqual(parseVersion('1.20.3'),{major:1,minor:20,patch:3});
+      for(const bad of ['1.2','01.2.3','10000.2.3','1.2.3-beta']) assert.throws(()=>parseVersion(bad),{message:'invalid version: '+bad});
+      assert.equal(compareVersions('1.10.0','1.9.9'),1); assert.equal(compareVersions('1.0.0','1.0.0'),0);
+      for(const [v,r,e] of [['1.9.0','^1.2.3',true],['2.0.0','^1.2.3',false],['0.2.9','^0.2.3',true],['0.3.0','^0.2.3',false],['1.2.9','~1.2.3',true],['1.3.0','~1.2.3',false]]) assert.equal(satisfies(v,r),e);
+      assert.equal(maxSatisfying(['1.2.3','1.10.0','2.0.0'],'^1.0.0'),'1.10.0');
+      const rows=[{id:'b',category:'food',cents:3},{id:'a',category:'books',cents:8},{id:'b',category:'food',cents:9}];
+      const before=JSON.stringify(rows); const normalized=normalizeExpenses(rows);
+      assert.deepEqual(normalized,[{id:'a',category:'books',cents:8},{id:'b',category:'food',cents:9}]);
+      assert.notEqual(normalized[0],rows[1]); assert.deepEqual(totalsByCategory(rows),{books:8,food:9});
+      assert.equal(JSON.stringify(rows),before); assert.deepEqual(totalsByCategory([]),{});
+      for(const bad of [{id:'',category:'food',cents:1},{id:'a',category:'bad-name',cents:1},{id:'a',category:'food',cents:-1},{id:'a',category:'food',cents:1.5}]) assert.throws(()=>normalizeExpenses([bad]),{message:'invalid expense'});
+      assert.deepEqual(summarize({versions:['1.2.0','1.9.0','2.0.0'],range:'^1.0.0',expenses:rows}),{version:'1.9.0',totals:{books:8,food:9}});
+      assert.deepEqual(summarize({versions:[],range:'^1.0.0',expenses:[]}),{version:null,totals:{}});
+      assert.throws(()=>summarize({versions:['1.0.0'],range:'^1.0.0',expenses:[{id:'a',category:'x',cents:-1}]}),{message:'invalid expense'});
+      JS
+  - name: focused and combined tests pass
+    run: bash test.sh
+  - name: delivery checkout and user work are preserved
+    run: >
+      test "$(git branch --show-current)" = "$(cat .git/integration-branch)" &&
+
+      test "$(cat PERSONAL.md)" = "$(printf 'Personal notes.\nUncommitted user note.')"
+      &&
+
+      test "$(git diff --name-only)" = PERSONAL.md &&
+
+      test -z "$(git diff --cached --name-only)"
+  - name: distinct workers share the batch base and dependent sees landed prerequisites
+    run: python3 .git/eval-checks/isolated_ticket_batch.py git
+  - name: actual integration waits for the complete parallel batch
+    run: python3 .git/eval-checks/isolated_ticket_batch.py verify --host codex
+  - name: final independent assessment covers the integrated candidate
+    run: >-
+      python3 .git/eval-checks/isolated_ticket_assessment.py
+      --base-file .git/integration-base --target HEAD
+      --marketplace .sevro-marketplace/.claude-plugin/marketplace.json
+  - name:
+      comprehensive assessment uses completed independent standards and specification
+      readers
+    run: >
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate
+      Review artifact grant is required}"
+
+      python3 .git/eval-checks/isolated_ticket_routes.py --host codex
+  - name: worker commits preserve the bound public capability contract
+    run: python3 .git/eval-checks/isolated_ticket_batch.py commits --host codex
+  - name: authoritative specification remains unchanged
+    run:
+      git diff --exit-code "$(cat .git/integration-base)" HEAD -- SPEC.md && git diff
+      --exit-code HEAD -- SPEC.md
+native_goal: complete

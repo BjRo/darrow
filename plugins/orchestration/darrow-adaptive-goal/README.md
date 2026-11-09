@@ -4,7 +4,7 @@ Adaptive Goal keeps one bounded native goal in the main thread. That thread
 owns preflight, acceptance, user decisions and completion. It implements
 directly when its own route matches the selected implementation route. It
 delegates implementation when the selected route is stronger or the main
-route is unknown, or when a cheaper route or concurrent parts repay the
+route is unknown, or when a cheaper route, focused ticket context or concurrent parts repay the
 handoff. Selected verification runs in the main thread on a supported route,
 otherwise in one fallback coordinator. Its readers always start fresh.
 
@@ -86,15 +86,24 @@ model and effort, observed from the active Codex or Claude session:
 
 | Selected route vs. main thread | Placement                                                                                      |
 | ------------------------------ | ---------------------------------------------------------------------------------------------- |
-| same                           | implement directly in the main thread                                                          |
+| same                           | implement directly, unless authorized isolated ticket context repays the handoff               |
 | higher or unknown              | delegate on the selected route                                                                 |
 | lower                          | delegate only when the work is large enough to repay the handoff; otherwise implement directly |
 
 Independent parts with disjoint files and settled interfaces may run as
 concurrent assignments within the host's child limit. Coupled work stays
-sequential. Placement never changes assurance: selected verification and review
+sequential. Ordinary placement preserves assurance: selected verification and review
 keep their own routes, and one combined repair consumes one shared attempt
 wherever it runs. Expected cost or speed gains are not yet measured claims.
+
+Optional isolated ticket workers receive their own branches and linked
+worktrees when fresh context repays the overhead. Bind a finite ticket set and
+explicit authority for those effects first. The main thread keeps the delivery
+checkout and cherry-picks returned commits into one integration branch. This
+strategy requires independent verification and review of the complete
+specification after successful combined checks, including routine-risk work;
+bind both capabilities before launch. Size or ticket count
+alone does not select this strategy. Worker commits grant no publication authority.
 
 A fully specified localized security change can remain routine implementation
 while requiring high-risk assurance. `routine-plus` needs an actual implementation

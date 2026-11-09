@@ -3,7 +3,7 @@
 Darrow turns one bounded engineering request into a native goal in the main
 thread. That thread retains acceptance, user decisions and completion. It
 implements directly unless the selected route is stronger than its own or
-unknown, or a cheaper route or concurrent parts repay the handoff; then it
+unknown, or a cheaper route, focused ticket context or concurrent parts repay the handoff; then it
 delegates bounded implementation. It places selected verification inline or in one capable fallback coordinator.
 Capabilities own their assessment protocols and internal delegation.
 
@@ -524,7 +524,7 @@ Select placement from that relation and the work:
 
 | Relation              | Placement                                                                                                                                            |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `same`                | implement directly in the main thread, unless independent parts qualify for concurrent assignments                                                   |
+| `same`                | implement directly, unless qualified concurrent parts or authorized isolated ticket context repay the handoff                                        |
 | `higher` or `unknown` | delegate on the selected route                                                                                                                       |
 | `lower`               | delegate only when the assignment is large enough that cheaper execution outweighs handoff, rereading and coordination; otherwise implement directly |
 
@@ -572,6 +572,89 @@ concurrent edits, before candidate-bound checks and assessment.
 Placement is a proportionate per-assignment judgment, not a controller,
 lifecycle ledger or polling runtime. Expected cost or speed benefit is a
 hypothesis; matched evaluation evidence, not this policy, establishes it.
+
+### Optional isolated ticket workers
+
+An explicitly bounded ticket delivery may use fresh ticket context when its
+expected focus benefit repays handoff, rereading and integration overhead,
+including sequential work on the same route. Record that basis; ticket size or
+a multi-ticket request alone never selects this strategy. The ordinary direct
+path remains the default. This is an internal placement choice, not a public
+delegated mode, another execution runtime or inferred orchestration activation.
+
+Before affected mutation, bind the authoritative specification, an explicit
+finite ticket set, dependencies, acceptance, shared decisions, preserved local
+work and permitted effects. Ticket read/list capabilities do not establish a
+complete ticket set by implication. Missing material evidence or decisions stop
+affected work. Worker branches, linked worktrees, local commits and integration
+require explicit user or preserved caller authority; selecting isolation grants
+none. This does not relocate the delivery checkout or broaden a recipe's
+permission envelope.
+
+Delivery-branch discovery and reuse select the one integration branch. Fresh
+worker allocation is a separate additive creation operation: prebind the
+advertised new-branch and linked-worktree capability by that intent, rather
+than exact delivery-branch preparation. A ticket-correlated integration branch
+cannot serve as its worker branch. Create from the checked integration checkout's
+current `HEAD`; an internally pinned commit does not broaden a capability's
+user-named-base requirement for `--from`. Preserve any actual refusal.
+
+The original main thread retains the native goal, conversation, decisions,
+assignment and integration order, verification scheduling, shared repair
+accounting, completion and publication. Each fresh worker receives its own
+branch and linked worktree at a known integration commit and a self-contained
+assignment: specification, criteria, interfaces, files, effects, exact public
+capability references and focused checks. It owns only that assignment, invokes
+no Adaptive Goal or child goal, coordinates no independent assessment and
+publishes no PR or tracker mutation. It returns commits, changed files, actual
+checks and unresolved gaps or blockers. Retain its identity for repairs.
+
+Selecting this strategy requires independent verification of the complete
+specification at the end, including for routine-risk work. Bind compatible
+Verification and its required independent Review during read-only preflight;
+missing required assurance stops before activation or worker effects. This
+strategy-specific gate does not change assurance defaults for ordinary direct
+or delegated work.
+
+Parallel batches contain only independent substantial tickets with disjoint
+owned files, settled interfaces, runnable focused checks and available host
+capacity. Every assignment in a batch starts from the same known integration
+commit. All assignments settle before any integration or next-batch dispatch;
+rolling dispatch is excluded. Coupled or overlapping tickets run sequentially.
+Dependent tickets start from the updated integration branch only after their
+prerequisite commits have landed; tracker closure is not dependency satisfaction.
+
+Receive worker results through native host wait and follow-up controls. A
+returned blocker, capability refusal or unavailable required check is an
+evidence gap that stops affected work, including repairs. Do not substitute a
+shell loop waiting for a commit from a settled worker or repeat denied actions.
+Preserve the refusal and report what prerequisite must change before resuming.
+
+The owner integrates returned commits serially on one integration branch,
+checking its current tip and the intended commits before each cherry-pick.
+Preserve user work; a changed tip or conflict stops landing and returns to the
+relevant retained worker with current integration state. Never reset user work
+or force publication. Successful required combined checks precede independent
+verification of the complete specification at the end; ticket-local checks or
+assessments cannot substitute. Missing services, fixtures or skipped checks are
+evidence gaps. Worker implementation commits are intermediate local results,
+not verified delivery or publication; final delivery commits and publication
+retain the existing combined-verification gate.
+
+The intermediate-commit exception removes only the final-candidate assurance
+dependency. Before worker launch, bind the matching public commit skill and
+carry its exact reference into every assignment. Workers must invoke it and
+preserve its repository rules, message invariants and refusals. Neither an
+optional suggestion to use that skill nor permission for raw Git substitutes
+for the binding. Do not instruct workers to add prohibited attribution or waive
+a provider refusal to obtain a commit.
+
+Findings return to retained workers against the current integration state.
+Integrate repairs, rerun invalidated combined checks and follow the existing
+closed-set reassessment contract. One combined repair consumes one attempt
+under ADL-A4's shared maximum; workers or replacements never gain separate
+budgets. Authorized publication remains exactly one combined PR with unchanged
+candidate, remote-head, base, draft and required-CI evidence.
 
 ## Readiness
 
@@ -869,8 +952,9 @@ records the removed repetitions and their retained authority.
    implementation and verification coordination routes are explicit and
    separate; verification owns the routes of the providers it launches.
 9. **ADL-R3 — Benefit-based placement.** Same-route sequential implementation
-   runs directly in the main thread. Delegation requires a stronger or unknown
-   relation, a justified cheaper assignment, or useful concurrency across
+   runs directly unless authorized isolated ticket context repays its overhead.
+   Delegation requires a stronger or unknown
+   relation, justified focused ticket context, a justified cheaper assignment, or useful concurrency across
    independent owned parts of one candidate. Placement never changes assurance,
    authority, assessment routes or the shared repair allowance.
    Placement is decided once: a repair returns to the implementor that produced

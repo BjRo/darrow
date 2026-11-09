@@ -30,6 +30,12 @@ acceptance. This specification defines the local implementation boundary.
   execute public assessment coordination inline; weaker or unknown routes use
   one capable bounded coordinator with fresh independent readers. Neither
   placement changes admission, claims, native identity, continuation or gates.
+  Optional isolated ticket workers remain bounded assignments inside that
+  delivery's existing finite scope and grant. They do not select another recipe,
+  admit unrelated tickets or create multi-issue atomic reservations. A one-issue
+  Ticket-to-PR admission and its worktree authority do not authorize additional
+  ticket deliveries. Missing scope or worker-effect authority stops affected
+  work without changing admission or reservation state.
 
 ## Admission and reconciliation
 
