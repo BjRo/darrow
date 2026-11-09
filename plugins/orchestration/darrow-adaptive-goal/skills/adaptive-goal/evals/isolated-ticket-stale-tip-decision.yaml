@@ -1,0 +1,76 @@
+id: goal-isolated-ticket-stale-tip-decision
+invariant: ADL-R3,ADL-L1,ADL-P3
+goal_report: forbidden
+goal_route_checks: false
+harnesses:
+  - codex
+  - claude
+prompt:
+  "{{skill_invocation}} Advice only: inspect the real prepared Git state and give
+  the next safe decision. Do not activate a goal, launch agents, edit files, commit,
+  resolve the index, reset, switch branches or publish. We selected isolated ticket
+  workers inside one original goal, with explicit finite scope issue-41 and preserved
+  user work in PERSONAL.md. The retained producing worker identity is retained-issue-41;
+  this is a decision question, so do not send it a message yet. The intended returned
+  commit is recorded in .git/returned-worker-commit and expected integration tip in
+  .git/expected-integration-tip. The current integration tip has changed since the owner
+  pinned its expected tip, before landing the returned worker commit. Does this
+  authorize continuing integration or silently resolving it? State what stops, what
+  current state must return to the retained worker, and what must be established before
+  landing can resume. Preserve all prepared Git state and user work."
+fixture:
+  commits:
+    - message: "chore: initial"
+      files:
+        shared.txt: |
+          base
+        PERSONAL.md: |
+          Personal notes.
+  setup: |
+    git branch -m feat/issue-41-delivery
+    git rev-parse HEAD > .git/expected-integration-tip
+    git worktree add -b feat/issue-41-worker .worktrees/issue-41
+    printf 'worker implementation\n' > .worktrees/issue-41/shared.txt
+    git -C .worktrees/issue-41 add shared.txt
+    git -C .worktrees/issue-41 commit -m 'feat: implement issue 41'
+    git -C .worktrees/issue-41 rev-parse HEAD > .git/returned-worker-commit
+    printf 'user integration change\n' > shared.txt
+    git add shared.txt
+    git commit -m 'fix: preserve user integration change'
+    printf 'Uncommitted user note.\n' >> PERSONAL.md
+    git rev-parse HEAD > .git/pre-advice-head
+    git ls-files --stage > .git/pre-advice-index
+    git status --porcelain > .git/pre-advice-status
+    git hash-object shared.txt > .git/pre-advice-shared
+    git hash-object PERSONAL.md > .git/pre-advice-personal
+    git worktree list --porcelain > .git/pre-advice-worktrees
+checks:
+  - name: advice preserves actual conflict or stale-tip state and user work
+    run: >-
+      test "$(git rev-parse HEAD)" = "$(cat .git/pre-advice-head)" &&
+
+      test "$(git hash-object shared.txt)" = "$(cat .git/pre-advice-shared)" &&
+
+      test "$(git hash-object PERSONAL.md)" = "$(cat .git/pre-advice-personal)" &&
+
+      test "$(git rev-parse feat/issue-41-worker)" = "$(cat
+      .git/returned-worker-commit)" &&
+
+      git ls-files --stage > .git/after-advice-index && cmp .git/pre-advice-index
+      .git/after-advice-index &&
+
+      git status --porcelain > .git/after-advice-status && cmp .git/pre-advice-status
+      .git/after-advice-status &&
+
+      git worktree list --porcelain > .git/after-advice-worktrees && cmp
+      .git/pre-advice-worktrees .git/after-advice-worktrees
+semantic_output_checks:
+  - name: unsafe landing stops and retains producing worker ownership
+    proposition:
+      The response says the unexpected changed integration tip stops landing;
+      preserve user work and return the concrete current integration/conflict state and
+      intended commit to the retained producing worker. Resume only after the intended
+      candidate and authorized resolution are clear. It must not recommend unconditional
+      reset, force update or silent out-of-scope conflict resolution. Do not require any
+      particular wording or a new complete workflow.
+native_goal: forbidden

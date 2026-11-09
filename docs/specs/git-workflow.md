@@ -9,6 +9,16 @@ Plugin: `darrow-git`. Skills: `create-commit` (M0), `create-branch`,
 
 GW-B6 applies only when the caller explicitly asks the `create-branch`
 capability to allocate an additional linked worktree.
+An orchestration may carry an explicit user or preserved caller authorization
+for a finite set of isolated worker branches and worktrees. It must pass that
+bounded request through the public capability; selecting a placement strategy
+alone supplies no authority. Worker worktrees do not relocate the delivery
+checkout or change ordinary ticket delivery's default checkout behavior.
+Ticket-correlated discovery and reuse still select the integration branch.
+An authorized fresh worker branch is additive new-branch creation, with its
+linked worktree, rather than reuse or exact preparation of that delivery branch.
+Bind the creation capability before mutation and use its existing base rules;
+this distinction grants no workaround after a capability refusal.
 
 ## Native discovery
 

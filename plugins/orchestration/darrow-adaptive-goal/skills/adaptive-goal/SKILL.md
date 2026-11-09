@@ -7,8 +7,8 @@ description: Orchestrate one bounded engineering request as a native main-thread
 
 Keep the persistent native goal in this main thread on Codex and Claude. You own the request, decisions, acceptance and completion. Implement
 directly, or delegate bounded assignments on the selected route when it is
-stronger than this thread's route, this thread's route is unknown, or a cost or
-concurrency benefit repays the handoff (section 7). Run verification and other
+stronger than this thread's route, this thread's route is unknown, or cost,
+focused ticket context or concurrency repays the handoff (section 7). Run verification and other
 selected capabilities through their public workflows; each keeps its own
 internals and routing. There is no separate delivery
 owner, workflow runtime or lifecycle ledger.
@@ -100,6 +100,12 @@ question and do not launch.
 When authoritative input is missing, such as a referenced ticket, retrieve it
 through the matching read-only capability before deciding anything else, and
 stop dependent preflight if it refuses.
+
+When isolated ticket workers could repay their overhead, read
+[isolated ticket workers](references/isolated-ticket-workers.md) now. Select
+that optional strategy and bind its finite scope and explicit worker effects
+during this read-only preflight, so section 4 binds its required final assurance
+before goal activation. Size or ticket count alone does not select it.
 
 **Complete when:** every acceptance criterion is observable from inputs already
 retrieved and nothing has changed.
@@ -199,12 +205,17 @@ a one-line profile basis.
 
 Select assurance separately, preserving the independent-review policy:
 
-- routine: omit by default;
+- routine: omit by default for ordinary placement;
 - elevated: select when compatibility, caller impact, or counterexamples need
   independent judgment; a sequenced consumer or persisted-format transition
   always does;
 - high: required;
 - any risk: select when the user or repository requires it.
+
+The isolated ticket worker strategy requires independent verification of the
+complete specification at the end, with independent review as a required
+assessment, at every risk level. Bind both capabilities before activation or
+worker effects. This does not add ticket-level assessment cycles.
 
 An independent-review request selects verification with review as its required
 assessment, including when review is the only selected assessment. Compile two
@@ -285,6 +296,13 @@ complete current-content clear assessment with criterion coverage; a review-only
 result does not satisfy it. Without selected verification, the required
 current-content checks are the gate.
 
+Explicitly authorized isolated-worker implementation commits are intermediate
+results for integration. They follow their focused checks; the combined
+candidate must pass final checks and independent verification before completion
+or publication. The exception preserves the exact commit skill binding, its
+message invariants and refusals in every worker assignment; it grants no raw-Git
+substitute, delivery or publication authority.
+
 For authorized publication, the publisher's own verified result establishes
 what was published; check that it names the verified commit. An existing PR URL
 alone does not prove delivery. Explicit reuse and non-force push authority
@@ -353,6 +371,13 @@ pipeline. You remain responsible for completion throughout.
 
 Placement never changes required evidence, risk, assurance, bindings, checks or
 authority. Decide it in two steps and record a one-line basis.
+
+For isolated ticket workers selected during preflight, follow
+[isolated ticket workers](references/isolated-ticket-workers.md). It permits
+sequential delegation on the same route when fresh ticket context repays its
+overhead and its effects are explicitly authorized. Its batch and integration
+guards add to the concurrency and repair rules below. Without this strategy,
+use the ordinary placement rules.
 
 **First, split or not.** Run independent parts of one candidate as concurrent
 implementation assignments on the selected route, whatever the

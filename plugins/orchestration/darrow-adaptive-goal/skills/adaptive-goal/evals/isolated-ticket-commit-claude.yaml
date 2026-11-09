@@ -1,0 +1,217 @@
+id: goal-isolated-ticket-commit-claude
+invariant: ADL-R3,ADL-L1,ADL-L5,ADL-P3
+required_plugin_hook: darrow-review
+assessment_capture: required
+goal_report: forbidden
+goal_route_checks: false
+expect_head_change: true
+harnesses:
+  - claude
+additional_plugins:
+  - plugins/capability/darrow-git
+  - plugins/capability/darrow-verification
+  - plugins/capability/darrow-review
+candidate_routes:
+  claude:
+    model: claude-sonnet-5-5
+    effort: medium
+prompt: >-
+  /goal {{skill_invocation}} Deliver the complete already-assessed ready specification
+  in committed SPEC.md. The finite ticket set is exactly issue-41, with no prerequisites
+  or unresolved shared decisions. This substantial ticket benefits from fresh focused
+  context; that benefit is worth the branch, handoff and integration overhead. Use the
+  optional isolated ticket worker strategy. I explicitly authorize its worker branch,
+  linked worktree, local implementation commits and integration into the current branch.
+  Keep the current delivery checkout and my uncommitted PERSONAL.md unchanged. Keep the
+  worker and worktree available for repairs. No push, PR or tracker changes. Use
+  implementation route claude|anthropic|claude-sonnet-5-5|medium, the same as this main
+  thread.
+
+  Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR and UV_CACHE_DIR.
+  Final independent assurance covers the complete specification from the initial
+  integration commit (recorded in .git/integration-base) through the final integrated
+  commit, excluding my unrelated PERSONAL.md edit.
+
+  Read committed SPEC.md for the full contract and boundary examples. SPEC.md, AGENTS.md
+  and test.sh are immutable. Preserve the fixture post-commit hook and .fixture-state
+  receipts. Use the returned granted Review run directory for temporary assessment
+  drafts, and keep the final required-field handover concise.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Run `bash test.sh` for changes. Preserve unrelated local work.
+
+          Review environment: copy the complete returned reader JSON literally and
+          unchanged into the bound files in the returned private Review run. Any
+          available ordinary write facility is permitted there; a literal quoted Bash
+          heredoc is permitted when used correctly. Do not assume a Write tool exists.
+          Preserve every JSON field, value and judgment. Keep the public route, scope
+          and schema validators; their success alone does not prove raw-byte fidelity.
+          Do not invent a separate external byte-identity attestation gate or repeat a
+          comprehensive assessment of an unchanged candidate merely because a different
+          write facility was used. Use the existing public assessment-correction
+          workflow for an actual error. Genuinely unavailable output/tools or an actual
+          permission refusal remain blockers; do not bypass a denied action.
+        package.json: '{"type":"module"}'
+        src/versions.js: |
+          // Version parsing and matching belongs here.
+        test/versions.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import * as versions from "../src/versions.js";
+          test("module loads", () => assert.equal(typeof versions, "object"));
+        test.sh: |
+          #!/usr/bin/env bash
+          node --test test/versions.test.js
+        PERSONAL.md: |
+          Personal notes.
+        SPEC.md: >
+          # Complete issue-41 specification
+
+
+          The finite set is exactly issue-41, substantial version
+          parsing/comparison/range matching. No unresolved shared decisions or
+          prerequisites. Worker owns only src/versions.js and test/versions.test.js.
+          Export parseVersion(text), compareVersions(a,b), satisfies(version,range),
+          maxSatisfying(versions,range). Inputs to the last operation are arrays of
+          version strings and one range string.
+
+
+          parseVersion accepts only strings MAJOR.MINOR.PATCH with decimal integer
+          components 0 through 9999 and no leading zeroes except zero itself; returns
+          exactly {major,minor,patch} as numbers. Other inputs throw Error('invalid
+          version: '+String(input)). compareVersions validates both inputs and compares
+          numerically, returning -1,0,1. satisfies validates version and range: exact
+          valid version, ^X.Y.Z at least the base and below next major, except ^0.Y.Z
+          ends before 0.(Y+1).0; ~X.Y.Z ends before X.(Y+1).0. Range parsing errors name
+          the original range text. Internal exclusive endpoints may contain 10000; this
+          does not make the valid range ^9999.0.0 or ~1.9999.0 invalid. maxSatisfying
+          validates the range even for an empty array, validates every candidate,
+          returns the original highest satisfying string or null, and does not mutate
+          input.
+
+
+          Boundary examples: parseVersion('9999.0.9999') returns
+          {major:9999,minor:0,patch:9999}; '10000.0.0','01.0.0','1.2','1.2.3-beta','
+          1.2.3',null,12 are invalid. compareVersions('1.10.0','1.9.9')=1; equal=0;
+          reverse=-1. satisfies('0.0.9','^0.0.3')=true,
+          satisfies('0.1.0','^0.0.3')=false;
+          satisfies('9999.9999.9999','^9999.0.0')=true;
+          satisfies('1.9999.9999','~1.9999.0')=true; satisfies('1.3.0','~1.2.3')=false.
+          maxSatisfying([], '^1.0.0')=null; invalid ranges still throw.
+
+
+          Use optional isolated ticket workers because fresh focused context repays
+          handoff/rereading/integration overhead; same implementation route as owner.
+          Explicitly authorized effects: one fresh worker branch, linked worktree, local
+          implementation commits and serial cherry-pick onto current integration branch.
+          Preserve current checkout and PERSONAL.md edit, retain worker for repairs.
+          Worker invokes no goal, assessment or publisher. Original main owns one goal,
+          full-spec final independent Verification with Review after successful combined
+          checks, shared two combined repair attempts, and completion. No
+          push/PR/tracker changes. Required focused/combined check is bash test.sh, with
+          meaningful failing-before/passing-after evidence. Preserve immutable
+          SPEC.md/AGENTS.md/test.sh, fixture hook/receipts.
+  setup: |
+    printf 'Uncommitted user note.\n' >> PERSONAL.md
+    git branch --show-current > .git/integration-branch
+    git rev-parse HEAD > .git/integration-base
+    bash "{{case_dir}}/../../../../../capability/darrow-review/skills/code-review/evals/fixtures/prepare-grading.sh" "{{case_dir}}/../../../../../capability/darrow-review/skills/code-review/evals"
+    cp "{{case_dir}}/../../../backend/tests/evals/isolated_ticket_routes.py" .git/eval-checks/isolated_ticket_routes.py
+    cp "{{case_dir}}/../../../backend/tests/evals/isolated_ticket_batch.py" .git/eval-checks/isolated_ticket_batch.py
+    mkdir -p .fixture-state
+    cat > .git/hooks/post-commit <<'HOOK'
+    #!/bin/sh
+    python3 "$(git rev-parse --path-format=absolute --git-common-dir)/eval-checks/isolated_ticket_batch.py" record
+    HOOK
+    chmod +x .git/hooks/post-commit
+    cp .git/hooks/post-commit .git/eval-checks/expected-post-commit
+    cp "{{case_dir}}/../../../backend/tests/evals/isolated_ticket_assessment.py" .git/eval-checks/isolated_ticket_assessment.py
+checks:
+  - name: complete ticket behavior is integrated
+    run: 'node --input-type=module -e "import(''./src/versions.js'').then(async
+      ({parseVersion,compareVersions,satisfies,maxSatisfying}) => { const
+      {deepStrictEqual,equal,throws} = await import(''node:assert/strict'');
+      deepStrictEqual(parseVersion(''1.20.3''), {major:1,minor:20,patch:3}); for (const
+      bad of [''1.2'',''01.2.3'',''1.2.3-beta'','' 1.2.3'']) throws(() => parseVersion(bad),
+      {message:''invalid version: ''+bad}); equal(compareVersions(''1.10.0'',''1.9.9''),1);
+      equal(compareVersions(''1.0.0'',''1.0.0''),0);
+      equal(compareVersions(''0.9.0'',''1.0.0''),-1); for (const [v,r,e] of
+      [[''1.9.0'',''^1.2.3'',true],[''2.0.0'',''^1.2.3'',false],
+      [''1.2.2'',''^1.2.3'',false],[''0.2.9'',''^0.2.3'',true],[''0.3.0'',''^0.2.3'',false],
+      [''1.2.9'',''~1.2.3'',true],[''1.3.0'',''~1.2.3'',false],[''1.2.3'',''1.2.3'',true],
+      [''1.2.4'',''1.2.3'',false]]) equal(satisfies(v,r),e);
+      equal(maxSatisfying([''1.2.3'',''1.10.0'',''1.9.9'',''2.0.0''],''^1.2.0''),''1.10.0'');
+      equal(maxSatisfying([''0.1.0''],''^1.0.0''),null); })"'
+  - name: focused and combined tests pass
+    run: bash test.sh
+  - name: delivery checkout and user work are preserved
+    run: >
+      test "$(git branch --show-current)" = "$(cat .git/integration-branch)" &&
+
+      test "$(cat PERSONAL.md)" = "$(printf 'Personal notes.\nUncommitted user note.')"
+      &&
+
+      test "$(git diff --name-only)" = PERSONAL.md &&
+
+      test -z "$(git diff --cached --name-only)"
+  - name: worker commit is retained in its separate linked worktree and integrated
+    run: >
+      worker=$(git for-each-ref refs/heads --format='%(refname:short)' | sed -n
+      '/^[a-z]*\/issue-41-/p')
+
+      test -n "$worker" && test "$(printf '%s\n' "$worker" | wc -l | tr -d ' ')" = 1 &&
+
+      git worktree list --porcelain | grep -Fx "branch refs/heads/$worker" &&
+
+      test "$(git rev-parse "$worker")" != "$(cat .git/integration-base)" &&
+
+      comparison=$(git cherry HEAD "$worker") &&
+
+      ! printf '%s\n' "$comparison" | grep '^+' &&
+
+      test "$(git rev-parse HEAD)" != "$(cat .git/integration-base)"
+  - name: worker changes land by cherry-pick on the integration branch
+    run: |
+      git reflog show "$(cat .git/integration-branch)" --format='%gs' |
+      grep '^cherry-pick:'
+  - name: final independent assessment covers the integrated candidate
+    run: >-
+      python3 .git/eval-checks/isolated_ticket_assessment.py
+      --base-file .git/integration-base --target HEAD
+      --marketplace .sevro-marketplace/.claude-plugin/marketplace.json
+  - name:
+      comprehensive assessment uses completed independent standards and specification
+      readers
+    run: >
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate
+      Review artifact grant is required}"
+
+      python3 .git/eval-checks/isolated_ticket_routes.py --host claude
+  - name: bounded version input and range boundaries are implemented
+    run: |-
+      node --input-type=module <<'NODE'
+      import {deepStrictEqual as eq,equal,throws} from 'node:assert/strict';
+      import {parseVersion,compareVersions,satisfies,maxSatisfying} from './src/versions.js';
+      eq(parseVersion('9999.0.9999'),{major:9999,minor:0,patch:9999});
+      for (const bad of ['10000.0.0','1.10000.0','1.0.10000','1.2.03','+1.2.3',null,12]) throws(()=>parseVersion(bad),{message:'invalid version: '+String(bad)});
+      for(const [v,r,want] of [['0.0.9','^0.0.3',true],['0.1.0','^0.0.3',false],['9999.9999.9999','^9999.0.0',true],['1.9999.9999','~1.9999.0',true],['1.2.2','~1.2.3',false]]) equal(satisfies(v,r),want);
+      for(const bad of ['^01.0.0','~1.2','>=1.0.0','',null]) throws(()=>maxSatisfying([],bad),error => error instanceof Error && error.message.includes(String(bad)));
+      throws(()=>compareVersions('1.0.0','bad'),{message:'invalid version: bad'});
+      throws(()=>maxSatisfying(['1.0.0','bad'],'^1.0.0'),{message:'invalid version: bad'});
+      const versions=Object.freeze(['1.2.3','1.10.0','1.9.9','2.0.0']);equal(maxSatisfying(versions,'^1.2.0'),'1.10.0');equal(maxSatisfying([],'^1.0.0'),null);
+      NODE
+  - name: worker commits preserve bound public commit capability
+    run:
+      python3 .git/eval-checks/isolated_ticket_batch.py commits --host claude --tickets
+      41
+  - name: immutable specification and fixture hook are preserved
+    run:
+      git diff --exit-code "$(cat .git/integration-base)" HEAD -- SPEC.md && git diff
+      --exit-code HEAD -- SPEC.md && cmp .git/hooks/post-commit
+      .git/eval-checks/expected-post-commit
+native_goal: complete

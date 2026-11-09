@@ -1,0 +1,151 @@
+id: goal-isolated-ticket-overlap
+invariant: ADL-R3,ADL-L1,ADL-L5,ADL-P3
+required_plugin_hook: darrow-review
+assessment_capture: required
+goal_report: forbidden
+goal_route_checks: false
+expect_head_change: true
+harnesses:
+  - codex
+additional_plugins:
+  - plugins/capability/darrow-git
+  - plugins/capability/darrow-verification
+  - plugins/capability/darrow-review
+candidate_routes:
+  codex:
+    model: gpt-6.1-sol
+    effort: medium
+prompt:
+  "{{skill_invocation}} Deliver the complete already-assessed ready specification
+  in committed SPEC.md. The finite ticket set is exactly issue-41 and issue-42. Use
+  optional isolated ticket workers: focused context for each substantial ticket repays
+  branch, rereading and integration overhead. I explicitly authorize each fresh worker
+  branch, linked worktree, local implementation commits and serial integration into the
+  current delivery branch. Both tickets own the SAME src/versions.js and
+  test/versions.test.js, so choose safe placement and preserve each ticket's result.
+  Keep PERSONAL.md, SPEC.md, AGENTS.md, test.sh, the fixture hook and .fixture-state
+  receipts unchanged. No push, PR or tracker effects. Keep workers for repairs. Use
+  codex|openai|gpt-6.1-sol|medium, the same as this main thread. Preserve configured
+  Review/cache paths. Final independent assurance covers the COMPLETE SPEC from
+  .git/integration-base through final integration HEAD; use the returned granted Review
+  run for temporary assessment drafts. Return concise required-field handover."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Run `bash test.sh` for changes. Preserve unrelated local work.
+        package.json: '{"type":"module"}'
+        src/versions.js: |
+          // Version parsing and matching belongs here.
+        test/versions.test.js: |
+          import test from "node:test";
+          import assert from "node:assert/strict";
+          import * as versions from "../src/versions.js";
+          test("module loads", () => assert.equal(typeof versions, "object"));
+        test.sh: |
+          #!/usr/bin/env bash
+          node --test test/versions.test.js
+        PERSONAL.md: |
+          Personal notes.
+        SPEC.md: >
+          # Complete finite ticket specification
+
+
+          Both tickets own only src/versions.js and test/versions.test.js. Their shared
+          file ownership is settled. issue-42 requires the landed parse/compare
+          interface from issue-41. Each substantial assignment gets focused tests,
+          meaningful failing-before and passing-after evidence, a fresh worker and its
+          own branch/worktree; preserve prior accepted behavior.
+
+
+          issue-41: export parseVersion(text) and compareVersions(a,b). Parse
+          MAJOR.MINOR.PATCH as decimal integer components 0 through 9999 without leading
+          zeroes. Return {major,minor,patch}. Reject other input with Error('invalid
+          version: TEXT'). Compare valid strings numerically and return -1,0,1.
+
+
+          issue-42: add satisfies(version,range) and maxSatisfying(versions,range) in
+          the same source file, using issue-41's parser/comparison. Exact ranges match
+          exactly. ^X.Y.Z matches at least X.Y.Z and below next major, except ^0.Y.Z
+          ends before 0.(Y+1).0. ~X.Y.Z ends before X.(Y+1).0. maxSatisfying returns
+          highest satisfying input string or null. Propagate invalid version/range
+          errors.
+
+
+          Both focused and combined checks: bash test.sh. All required checks must pass
+          after integration before independent full-spec Verification with Review.
+          Original owner retains goal, decisions, integration, verification, shared
+          two-repair allowance, completion and publication authority. Workers return
+          commits/files/checks/gaps, invoke no goals, coordinate no assessments and
+          publish nothing. Complete all assignments, serially cherry-pick commits, then
+          assess complete spec at end. Preserve PERSONAL.md and immutable
+          SPEC.md/AGENTS.md/test.sh, fixture hook and receipts; no publication
+          authorized.
+  setup: |
+    printf 'Uncommitted user note.\n' >> PERSONAL.md
+    git branch --show-current > .git/integration-branch
+    git rev-parse HEAD > .git/integration-base
+    bash "{{case_dir}}/../../../../../capability/darrow-review/skills/code-review/evals/fixtures/prepare-grading.sh" "{{case_dir}}/../../../../../capability/darrow-review/skills/code-review/evals"
+    cp "{{case_dir}}/../../../backend/tests/evals/isolated_ticket_routes.py" .git/eval-checks/isolated_ticket_routes.py
+    mkdir -p .git/eval-checks/evals
+    cp "{{case_dir}}/../../../backend/tests/evals/isolated_ticket_batch.py" .git/eval-checks/evals/isolated_ticket_batch.py
+    cp "{{case_dir}}/../../../backend/tests/evals/isolated_ticket_overlap.py" .git/eval-checks/isolated_ticket_overlap.py
+    mkdir -p .fixture-state
+    cat > .git/hooks/post-commit <<'HOOK'
+    #!/bin/sh
+    python3 "$(git rev-parse --path-format=absolute --git-common-dir)/eval-checks/evals/isolated_ticket_batch.py" record
+    HOOK
+    chmod +x .git/hooks/post-commit
+    cp .git/hooks/post-commit .git/eval-checks/expected-post-commit
+    cp "{{case_dir}}/../../../backend/tests/evals/isolated_ticket_assessment.py" .git/eval-checks/isolated_ticket_assessment.py
+checks:
+  - name: complete ticket behavior is integrated
+    run: 'node --input-type=module -e "import(''./src/versions.js'').then(async
+      ({parseVersion,compareVersions,satisfies,maxSatisfying}) => { const
+      {deepStrictEqual,equal,throws} = await import(''node:assert/strict'');
+      deepStrictEqual(parseVersion(''1.20.3''), {major:1,minor:20,patch:3}); for (const
+      bad of [''1.2'',''01.2.3'',''1.2.3-beta'','' 1.2.3'']) throws(() => parseVersion(bad),
+      {message:''invalid version: ''+bad}); equal(compareVersions(''1.10.0'',''1.9.9''),1);
+      equal(compareVersions(''1.0.0'',''1.0.0''),0);
+      equal(compareVersions(''0.9.0'',''1.0.0''),-1); for (const [v,r,e] of
+      [[''1.9.0'',''^1.2.3'',true],[''2.0.0'',''^1.2.3'',false],
+      [''1.2.2'',''^1.2.3'',false],[''0.2.9'',''^0.2.3'',true],[''0.3.0'',''^0.2.3'',false],
+      [''1.2.9'',''~1.2.3'',true],[''1.3.0'',''~1.2.3'',false],[''1.2.3'',''1.2.3'',true],
+      [''1.2.4'',''1.2.3'',false]]) equal(satisfies(v,r),e);
+      equal(maxSatisfying([''1.2.3'',''1.10.0'',''1.9.9'',''2.0.0''],''^1.2.0''),''1.10.0'');
+      equal(maxSatisfying([''0.1.0''],''^1.0.0''),null); })"'
+  - name: focused and combined tests pass
+    run: bash test.sh
+  - name: delivery checkout and user work are preserved
+    run: >
+      test "$(git branch --show-current)" = "$(cat .git/integration-branch)" &&
+
+      test "$(cat PERSONAL.md)" = "$(printf 'Personal notes.\nUncommitted user note.')"
+      &&
+
+      test "$(git diff --name-only)" = PERSONAL.md &&
+
+      test -z "$(git diff --cached --name-only)"
+  - name: overlapping tickets have separate sequential workers from landed prerequisite
+    run: PYTHONPATH=.git/eval-checks python3 .git/eval-checks/isolated_ticket_overlap.py
+  - name: final independent assessment covers the integrated candidate
+    run: >-
+      python3 .git/eval-checks/isolated_ticket_assessment.py
+      --base-file .git/integration-base --target HEAD
+      --marketplace .sevro-marketplace/.claude-plugin/marketplace.json
+  - name:
+      comprehensive assessment uses completed independent standards and specification
+      readers
+    run: >
+      export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate
+      Review artifact grant is required}"
+
+      python3 .git/eval-checks/isolated_ticket_routes.py --host codex
+  - name: authoritative specification remains unchanged
+    run:
+      git diff --exit-code "$(cat .git/integration-base)" HEAD -- SPEC.md && git diff
+      --exit-code HEAD -- SPEC.md
+native_goal: complete

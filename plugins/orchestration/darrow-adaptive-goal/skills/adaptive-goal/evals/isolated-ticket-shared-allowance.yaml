@@ -1,0 +1,35 @@
+id: goal-isolated-ticket-shared-allowance
+invariant: ADL-R3,ADL-A4
+goal_report: forbidden
+goal_route_checks: false
+harnesses:
+  - codex
+  - claude
+prompt:
+  "{{skill_invocation}} Advice only; do not launch a goal or worker, change files,
+  or perform a repair. The retained original goal selected isolated ticket workers for
+  explicit finite set issue-41 and issue-42. Its default combined repair allowance is
+  two. The first combined repair changed both workers' commits; the second resumed
+  issue-42 after integration and independent full-spec reassessment. Both attempts are
+  used and one original blocker remains. We now propose replacing issue-42's worker with
+  a fresh context or doing the next repair directly in the original main thread. Does
+  either placement change authorize another repair? Give the remaining allowance and
+  next allowed action without doing work."
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        NOTES.md: |
+          preserved
+checks:
+  - name: advice preserves repository and history
+    run: test -z "$(git status --porcelain)" && test "$(git rev-list --count HEAD)" -eq 1
+semantic_output_checks:
+  - name: all workers and placements share exhausted finite allowance
+    proposition:
+      The response says the two combined repair attempts are exhausted, so zero
+      more repairs are allowed under the retained goal; replacing a worker or switching
+      to direct work does not reset or multiply the allowance. Stop repair and report
+      the remaining blocker/limit rather than continue. It need not use particular
+      wording.
+native_goal: forbidden
