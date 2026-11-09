@@ -19,4 +19,8 @@ and HumanLayer's open-source
 directly inspired the compact, smallest-fitting-view approach in
 `darrow-explanation`.
 
+Thanks to [Lauren Tan (poteto)](https://github.com/poteto), whose principles in
+[pstack](https://github.com/cursor/plugins/tree/main/pstack) I copied as the
+starting point for `darrow-principles`.
+
 Return to the [documentation hub](README.md).
