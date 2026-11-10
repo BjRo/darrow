@@ -6,7 +6,7 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
-from . import intake, operations, plugins, scheduler, setup
+from . import intake, operations, plugins, scheduler, setup, shell_path
 from .installation import Installation
 from .launcher import default_state, installation_state, refuse_legacy, repository_at
 from .models import Grant
@@ -21,8 +21,9 @@ def parser() -> argparse.ArgumentParser:
     init.add_argument("--repository")
     init.add_argument("--checkout", type=Path)
     init.add_argument("--host", choices=("codex", "claude"))
-    init.add_argument("--issue", type=int, action="append", default=[])
+    init.add_argument("--issue", type=int, action="append")
     init.add_argument("--profile-dir", type=Path)
+    init.add_argument("--setup-path", action="store_true")
     for name in ("tick", "status", "revoke", "schedule", "unschedule"):
         commands.add_parser(name)
     commands.add_parser("cancel").add_argument("delivery")
@@ -40,24 +41,34 @@ def parser() -> argparse.ArgumentParser:
 
 
 def initialize(site: Installation, args: argparse.Namespace) -> object:
+    files = args.path_files
     directory = default_state(args.repository)
     with locked(directory / "init.lock"):
         if (installation_state(args.repository) / "grant.json").exists():
-            raise ValueError(
-                "Repository installation already exists; use configure or status"
+            grant = intake.reuse(
+                Installation(installation_state(args.repository)), args
             )
-        grant = setup.initialize(
-            site,
-            args.checkout,
-            args.repository,
-            args.issue,
-            args.host,
-            args.profile_dir,
-        )
-        write_object(directory / "location.json", {"state": str(site.root)})
-    setup.labels(site)
-    setup.install_command()
+        else:
+            grant = create_installation(site, args, directory)
+    setup.install_command(warn=not files)
+    shell_path.apply(files)
     return grant.model_dump()
+
+
+def create_installation(
+    site: Installation, args: argparse.Namespace, directory: Path
+) -> Grant:
+    grant = setup.initialize(
+        site,
+        args.checkout,
+        args.repository,
+        args.issue or [],
+        args.host,
+        args.profile_dir,
+    )
+    write_object(directory / "location.json", {"state": str(site.root)})
+    setup.labels(site)
+    return grant
 
 
 def configure(site: Installation, args: argparse.Namespace) -> object:

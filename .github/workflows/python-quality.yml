@@ -71,6 +71,11 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
+      - name: Install zsh for Artificer shell integration tests
+        if: runner.os == 'Linux' && matrix.package == 'plugins/automation/darrow-artificer/backend'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes zsh
       - run: scripts/check-python --package "$PACKAGE"
 
   skill-authoring-windows:

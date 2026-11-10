@@ -1,0 +1,22 @@
+{
+  "id": "artificer-path-repair",
+  "activation": "positive",
+  "invariant": "ART-C14",
+  "goal_report": "forbidden",
+  "expect_head_change": false,
+  "fixture":
+    {
+      "commits":
+        [{ "message": "chore: init", "files": { "README.md": "fixture\n" } }],
+    },
+  "prompt": "{{skill_invocation}} Explain only; do not run setup or edit files. My existing Artificer installation is revoked and uses a saved Claude profile and checkout. On macOS with zsh, ZDOTDIR is /Users/example/shell-settings and ~/.local/bin is missing from PATH. I want to restore the command and add its directory to PATH without authorizing deliveries again. What should I run, what shell file changes, and when will my terminal find the command?",
+  "checks":
+    [{ "name": "repository remains unchanged", "run": "git diff --exit-code" }],
+  "semantic_output_checks":
+    [
+      {
+        "name": "repairs command and shell integration without reauthorizing",
+        "proposition": "The response recommends the bundled Artificer initialization entrypoint with init --setup-path, or the already-reachable command with those arguments. It explains that omitted settings reuse the saved installation and preserve revocation and the saved profile/checkout. The PATH destination is /Users/example/shell-settings/.zshrc, and the current terminal needs sourcing that file or a new terminal. It does not suggest a Homebrew-specific directory, reauthorizing deliveries, or claim that setup was executed.",
+      },
+    ],
+}

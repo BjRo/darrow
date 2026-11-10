@@ -883,9 +883,7 @@ def test_management_pause_revocation_and_scheduler(
     assert invoke(monkeypatch, capsys, state, "tick")["admitted"] == []
 
 
-@pytest.mark.parametrize(
-    "mutation", ["legacy", "binding", "host", "missing", "duplicate"]
-)
+@pytest.mark.parametrize("mutation", ["legacy", "binding", "host", "missing", "scope"])
 def test_management_refuses_unreconciled_configuration(
     repository: Path,
     tmp_path: Path,
@@ -925,6 +923,8 @@ def test_management_refuses_unreconciled_configuration(
             "o/r",
             "--checkout",
             str(repository),
+            "--issue",
+            "999",
         )
     with pytest.raises(SystemExit):
         invoke(monkeypatch, capsys, state, *command)

@@ -20,12 +20,34 @@ missing settings including host, shows the configuration and asks to save it.
 When the agent runs the helper without a terminal, supply explicit inputs:
 
 ```text
-init --repository OWNER/REPO --checkout PATH --host codex|claude [--issue NUMBER ...] [--profile-dir ABSOLUTE_PATH]
+init --repository OWNER/REPO --checkout PATH --host codex|claude [--issue NUMBER ...] [--profile-dir ABSOLUTE_PATH] [--setup-path]
 ```
 
-`init` authorizes unattended delivery and installs `~/.local/bin/darrow-artificer`.
-No separate recurring-delivery flag or account-usage acceptance is needed. Add
-`~/.local/bin` to PATH if the command warns that it is missing. The wrapper resolves
+First `init` authorizes unattended delivery and installs `~/.local/bin/darrow-artificer`.
+No separate recurring-delivery flag or account-usage acceptance is needed.
+Guided macOS setup previews PATH destinations and offers that change separately
+from its final save confirmation. Noninteractive setup edits shell files only
+with `--setup-path`; obtain that choice before adding the flag unless PATH setup
+was already requested. Declining PATH setup still permits initialization.
+
+Zsh uses `$ZDOTDIR/.zshrc`, with HOME when ZDOTDIR is unset. A set ZDOTDIR must
+name a nonempty absolute directory. Broken or non-directory parents refuse
+before any installation writes. Bash uses `~/.bashrc`
+and the first existing `.bash_profile`, `.bash_login`, or `.profile`, creating
+`.bash_profile` when none exists. The guarded entry preserves surrounding bytes,
+permissions and symlinks. Repeated setup and shell startup do not duplicate it.
+An already-present PATH entry leaves shell files alone. Unsupported shells and
+platforms require manual integration; malformed managed entries, unreadable
+files and broken links refuse before setup effects. Open a new terminal or use
+the printed `source` instruction; a child command cannot update its parent shell.
+
+Rerun `init --setup-path` through the bundled entrypoint if the command is missing,
+or use `darrow-artificer init --setup-path` when it is reachable. Existing
+installations reuse saved context for omitted flags, preserve grant/revocation,
+host/profile/checkout/issue scope, and do not recreate labels. Conflicting explicit
+settings or state refuse. Use `configure` for worker and WIP changes.
+
+The wrapper resolves
 the current Artificer installation from the chosen host's default profile on
 every run, including after plugin updates. For Claude, Artificer must be installed
 at user scope in that default profile; project-scoped copies do not satisfy or

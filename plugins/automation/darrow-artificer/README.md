@@ -73,10 +73,30 @@ through the inputs and confirms before saving:
 uv run --quiet --no-project <plugin-root>/backend/scripts/run_locked.py darrow-artificer init
 ```
 
-`init` itself authorizes unattended delivery and installs `~/.local/bin/darrow-artificer`.
+First `init` authorizes unattended delivery and installs `~/.local/bin/darrow-artificer`.
+On macOS, guided setup previews the shell files and offers to add `~/.local/bin`
+to PATH. You can decline that step and still initialize; declining the final
+save leaves everything unchanged. Scripted setup changes shell files only with
+`--setup-path`. Open a new terminal or use the printed `source` instruction after
+setup; the command cannot change its parent shell's environment.
 For scripted setup, supply `--repository OWNER/REPO --checkout PATH --host codex|claude`.
 The default delivery profile is `~/.codex` or `~/.claude`, regardless of ambient
 profile variables. Use `--profile-dir` at initialization for another profile.
+
+PATH setup supports zsh (`$ZDOTDIR/.zshrc`, or `~/.zshrc`) and Bash (`~/.bashrc`
+plus its first existing login file: `.bash_profile`, `.bash_login`, or `.profile`).
+A set `ZDOTDIR` must name a nonempty absolute directory; unset it to use HOME.
+It creates `.bash_profile` when none exists. Managed entries preserve existing
+contents, permissions and symlinks, and do not duplicate PATH at startup.
+Unsupported shells need manual setup. If `~/.local/bin` is already on PATH,
+shell files are left alone.
+
+To repair an existing command or add PATH integration later, rerun the bundled
+entrypoint above with `init --setup-path`. Saved settings fill omitted flags.
+This preserves the existing grant, including revocation, and performs no label
+creation. Conflicting explicit settings refuse; use `configure` for worker/WIP
+changes. When the command is already reachable, `darrow-artificer init --setup-path`
+works too.
 
 From any clone or worktree, subsequent commands need no state or plugin paths:
 
@@ -136,8 +156,9 @@ requesting explicit recovery with its exact native session ID.
 Missing required plugins or failed host plugin listings leave tickets unclaimed;
 status includes the blocker and host error. Restore the selected profile and run
 `tick` again. If the command cannot find Artificer itself, restore the plugin in
-the host default profile. If the shell cannot find the command, add `~/.local/bin`
-to PATH. Uninitialized repositories require `darrow-artificer init`.
+the host default profile. If the shell cannot find the command, rerun the bundled
+entrypoint with `init --setup-path`, then open a new terminal. Uninitialized
+repositories require `darrow-artificer init`.
 
 Every command refuses legacy `.git/artificer` state. Reconcile original execution
 and published effects, remove that legacy directory, then initialize again.

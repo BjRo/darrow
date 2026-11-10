@@ -131,7 +131,7 @@ def labels(site: Installation) -> None:
             forge.request(forge.route("labels"), "POST", {"name": name, "color": color})
 
 
-def install_command() -> Path:
+def install_command(*, warn: bool = True) -> Path:
     from . import launcher
 
     destination = Path.home() / ".local" / "bin" / "darrow-artificer"
@@ -141,7 +141,9 @@ def install_command() -> Path:
         b"#!/usr/bin/env -S uv run --quiet --no-project --script\n" + source,
     )
     destination.chmod(0o700)
-    if str(destination.parent) not in os.environ.get("PATH", "").split(os.pathsep):
+    if warn and str(destination.parent) not in os.environ.get("PATH", "").split(
+        os.pathsep
+    ):
         print(
             f"Add {destination.parent} to PATH to run darrow-artificer.",
             file=sys.stderr,

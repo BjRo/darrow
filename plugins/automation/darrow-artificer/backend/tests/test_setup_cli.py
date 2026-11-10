@@ -252,10 +252,17 @@ def test_profile_defaults_ignore_ambient_overrides(
 @pytest.mark.parametrize("confirmation", ["y", "n"])
 @pytest.mark.parametrize("origin", ["o/r", "O/R"])
 def test_guided_init_previews_and_confirms_before_saving(
-    repository: Path, home: Path, confirmation: str, origin: str
+    repository: Path,
+    home: Path,
+    confirmation: str,
+    origin: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import pty
 
+    monkeypatch.setenv(
+        "PATH", str(home / ".local/bin") + os.pathsep + os.environ["PATH"]
+    )
     subprocess.run(
         [
             "git",
@@ -713,7 +720,8 @@ def test_saved_host_is_used_when_init_omits_host(repository: Path, home: Path) -
     result = run(
         repository, "init", "--repository", "o/r", "--checkout", str(repository)
     )
-    assert result.returncode == 1 and "already exists" in result.stderr
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["host"] == "claude"
 
 
 @pytest.mark.parametrize(
@@ -838,10 +846,13 @@ def test_wrapper_refuses_invalid_saved_host(repository: Path, home: Path) -> Non
 
 @pytest.mark.parametrize("explicit", [True, False])
 def test_guided_setup_with_supplied_flags_validates_host(
-    repository: Path, home: Path, explicit: bool
+    repository: Path, home: Path, explicit: bool, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     import pty
 
+    monkeypatch.setenv(
+        "PATH", str(home / ".local/bin") + os.pathsep + os.environ["PATH"]
+    )
     command = [
         str(Path(sys.executable).with_name("darrow-artificer")),
         "init",
@@ -864,7 +875,8 @@ def test_guided_setup_with_supplied_flags_validates_host(
         ) as child:
             os.write(master, b"y\n" if explicit else b"invalid\ny\n")
             output, errors = child.communicate(timeout=10)
-        assert "Repository: o/r" in output
+        if explicit:
+            assert "Repository: o/r" in output
         assert child.returncode == (0 if explicit else 1), errors
         if not explicit:
             assert "Host must" in errors

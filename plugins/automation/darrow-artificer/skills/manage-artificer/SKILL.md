@@ -19,7 +19,7 @@ command and report its worker/ticket/session mapping, PRs, blockers and next act
 
 For setup or scheduling, read [operations](references/operations.md). Establish
 the repository, checkout, selected host, writer grantor and ticket scope.
-`init` itself authorizes recurring unattended delivery; no extra authorization
+First `init` authorizes recurring unattended delivery; no extra authorization
 flag or separate account-usage acceptance is required. Explain allowed recurring reads, claims, blocker reports,
 worktrees, recipe invocation, scoped commits, non-force pushes and one verified PR
 per delivery. Never infer that grant from an ordinary implementation request.
@@ -43,7 +43,14 @@ darrow-artificer <operation>
 
 For first initialization, use the bundled frozen entrypoint documented in
 [operations](references/operations.md); it installs `~/.local/bin/darrow-artificer`.
-Use that reference for exact arguments. Execute only the
+For an existing installation, rerun `init` to repair the command; omitted settings
+reuse its saved context without changing or reauthorizing the grant. On macOS,
+PATH setup supports zsh and Bash. Preview the shell-file destinations and obtain
+the user's choice before passing `--setup-path` from an agent's noninteractive
+command, unless the user already explicitly requested PATH integration. Preserve
+shell settings and use only `~/.local/bin`; do not choose a Homebrew directory.
+Declining PATH integration still permits initialization. Explain opening a new
+terminal or sourcing the printed file. Use the reference for exact arguments. Execute only the
 requested operation. Scheduling needs recurring authority; creating or installing
 this plugin does not authorize a live installation in the development repository.
 

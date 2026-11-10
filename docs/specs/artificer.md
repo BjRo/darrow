@@ -4,7 +4,7 @@ Artificer is an explicitly authorized unattended worker around a normal,
 plugin-equipped Claude Code or Codex session. It owns admission and execution
 supervision. Task recipes and their native session own engineering.
 
-- **ART-C1 — Entry and authority.** Installing the plugin starts nothing. `init` itself authorizes unattended delivery and binds
+- **ART-C1 — Entry and authority.** Installing the plugin starts nothing. First `init` authorizes unattended delivery and binds
   a repository, writer grantor, recurring authority, effect envelope and revocation.
   Initially invoke only `ticket-to-pr` for ready GitHub issues. Preserve recipe
   verification, commit, non-force push and PR requirements. No merge, deploy,
@@ -115,7 +115,25 @@ supervision. Task recipes and their native session own engineering.
   repository, host, profile, workers, WIP and state, and confirms before saving.
   Scripted initialization requires explicit repository, checkout and host flags;
   list missing flags without waiting. A saved host is reusable. Install
-  `~/.local/bin/darrow-artificer` and warn when that directory is absent from PATH.
+  `~/.local/bin/darrow-artificer`. On macOS, guided setup previews shell-file
+  destinations and offers PATH integration separately from the final save
+  confirmation. Scripted setup edits shell files only with `--setup-path`.
+  Support zsh's `$ZDOTDIR/.zshrc` (HOME when unset); a set ZDOTDIR must name a
+  nonempty absolute directory. Support Bash's `.bashrc` plus
+  the first existing `.bash_profile`, `.bash_login`, or `.profile` (create
+  `.bash_profile` if none exists). Refuse explicit setup for unsupported shells
+  or platforms. When the command directory is already on PATH, leave shell
+  files alone. Otherwise use a guarded, managed entry that is idempotent both
+  on disk and at shell startup. Preserve surrounding bytes, file permissions,
+  and dotfile symlinks; refuse unreadable, broken, or malformed managed files
+  before persistent setup effects. Explain opening a new terminal or sourcing
+  the file; initialization cannot change the invoking shell's environment.
+  Warn about a missing PATH entry when integration is declined or not requested.
+  Repeating `init` repairs the wrapper and optional PATH integration using the
+  saved installation context. It must not change or reauthorize the grant,
+  recreate labels, or change the saved host, profile, checkout, or issue scope.
+  Omitted settings reuse saved values; conflicting explicit settings or state
+  refuse. Overall confirmation refusal performs no writes.
   The wrapper resolves the currently installed Artificer from the selected host's
   default profile on every invocation; absence refuses clearly. Project-scoped
   Artificer installations cannot satisfy or override this lookup. One launchd job
