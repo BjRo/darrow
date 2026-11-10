@@ -336,10 +336,13 @@ def test_one_tick_fills_free_pool_slots_up_to_wip(
         assert json.loads(run(repository, "tick").stdout)["admitted"] == []
         status = json.loads(run(repository, "status").stdout)
         assert status["workers"] == 3
-        assert len(status["deliveries"]) == 2
+        assert len(status["deliveries"]) == 1
+        assert status["deliveries"][0]["issue"] == 2
+        assert len(site.claims()) == 2
         assert json.loads(path.read_text())["claimed"] == [1, 2]
         assert run(repository, "configure", "--workers", "1").returncode == 0
-        assert len(json.loads(run(repository, "status").stdout)["deliveries"]) == 2
+        assert len(json.loads(run(repository, "status").stdout)["deliveries"]) == 1
+        assert len(site.claims()) == 2
     finally:
         (services / "release-native").touch()
         deadline = time.monotonic() + 15
