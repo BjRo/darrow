@@ -36,7 +36,6 @@ def test_successful_tool_read_does_not_renew_interruption_budget(
         str(repository),
         "--host",
         host,
-        "--authorize-recurring-delivery",
     )
     invoke(monkeypatch, capsys, state, "tick")
     claim = wait_stopped(Installation(state))
@@ -77,7 +76,6 @@ def test_completed_native_turn_starts_a_new_interruption_budget(
         str(repository),
         "--host",
         host,
-        "--authorize-recurring-delivery",
     )
     invoke(monkeypatch, capsys, state, "tick")
     claim = wait_stopped(Installation(state))
@@ -115,7 +113,6 @@ def test_malformed_completed_turn_cannot_renew_interruption_budget(
         "o/r",
         "--checkout",
         str(repository),
-        "--authorize-recurring-delivery",
     )
     invoke(monkeypatch, capsys, state, "tick")
     claim = wait_stopped(Installation(state))

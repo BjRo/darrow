@@ -3,7 +3,7 @@
 from pathlib import Path
 from uuid import uuid4
 
-from . import admission, processes, reconciliation
+from . import admission, plugins, processes, reconciliation
 from .github import GitHub
 from .installation import Installation
 from .models import Claim
@@ -20,6 +20,8 @@ def tick(site: Installation) -> list[str]:
         if not forge.writable(grant.grantor):
             raise ValueError("Recurring grantor no longer has repository write access")
         reconciliation.reconcile(site, forge)
+        if not plugins.check(site):
+            return []
         return admission.admit(site, forge, str(uuid4()), processes.launch)
 
 
@@ -74,7 +76,7 @@ def require_recoverable(site: Installation, claim: Claim) -> None:
             "Delivery is terminal or its recovery eligibility is unknown; inspect the original native session"
         )
     if admission.worker_occupied(site, claim.id):
-        raise ValueError("Worker already has another active or uncertain delivery")
+        raise ValueError("Worker pool has no free slot for this recovery")
     if claim.recovery_attempts >= 2:
         raise ValueError(
             "Two recovery attempts exhausted; inspect the original native session"
@@ -127,7 +129,7 @@ def require_original_state(claim: Claim, thread: str) -> None:
 def recovery_authority(site: Installation, claim: Claim) -> GitHub:
     grant = site.grant
     if not grant.enabled:
-        raise ValueError("Worker authority is revoked")
+        raise ValueError("Repository delivery authority is revoked")
     if grant.issue_scope and claim.issue not in grant.issue_scope:
         raise ValueError("Delivery is outside the current issue scope")
     forge = GitHub(grant.gh, grant.repository)

@@ -1,17 +1,39 @@
 # Local operations
 
-Use the frozen entrypoint in the skill, with `--state` before the operation.
-Worker state paths and reported paths are absolute. The repository's common Git
-directory holds shared admission records and locking. Native conversation state
-stays in the selected host's existing profile.
+Run `darrow-artificer` from any checkout or worktree of the GitHub repository.
+Config, claims, locks and worker records live in
+`~/.darrow/artificer/<owner>/<repo>/`, shared by independent clones. `--state`
+before the operation explicitly selects a directory outside repository checkouts;
+initialization records that location for later discovery. Native conversation
+state stays in the selected host profile.
 
-## Configure and schedule a worker
+## Initialize and schedule
+
+For first setup, let `<skill-dir>` be the directory containing `SKILL.md`:
 
 ```text
-init --repository OWNER/REPO --checkout PATH --host codex|claude --authorize-recurring-delivery [--issue NUMBER ...] [--profile-dir ABSOLUTE_PATH]
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-artificer init
 ```
 
-The checkout resolves to the primary repository through Git's worktree listing.
+In an interactive terminal, setup detects the checkout and repository, asks for
+missing settings including host, shows the configuration and asks to save it.
+When the agent runs the helper without a terminal, supply explicit inputs:
+
+```text
+init --repository OWNER/REPO --checkout PATH --host codex|claude [--issue NUMBER ...] [--profile-dir ABSOLUTE_PATH]
+```
+
+`init` authorizes unattended delivery and installs `~/.local/bin/darrow-artificer`.
+No separate recurring-delivery flag or account-usage acceptance is needed. Add
+`~/.local/bin` to PATH if the command warns that it is missing. The wrapper resolves
+the current Artificer installation from the chosen host's default profile on
+every run, including after plugin updates. For Claude, Artificer must be installed
+at user scope in that default profile; project-scoped copies do not satisfy or
+override the wrapper lookup. Missing Artificer there refuses clearly.
+Commands without initialized state explain how to run `init`; they create nothing.
+
+Delivery worktrees are created under the checkout where `init` ran, including
+when that checkout is itself a linked worktree.
 Origin must match the authorized GitHub repository. The grantor needs write
 access. Omitted issue scope means all eligible writer-nominated `artificer:ready`
 issues. The initial recipe is always `ticket-to-pr`.
@@ -23,31 +45,37 @@ authentication and plugin profile; Artificer does not select billing providers.
 `--profile-dir` names a dedicated host profile directory: `CODEX_HOME` for Codex
 or `CLAUDE_CONFIG_DIR` for Claude. Every launch and resume for that worker uses
 it, including scheduled ticks, regardless of the caller's environment. Without
-it, the launching environment's profile applies. Set it only at `init`; native
+it, `~/.codex` or `~/.claude` applies, ignoring ambient profile variables. Set it only at `init`; native
 sessions stay in that profile. It must be an existing absolute directory with
 its own login, required plugins and unattended permission settings.
 
-Run `init` with a different state path to add another worker to the same
-repository. Host selection and WIP are shared. Each worker runs one ticket at a
-time; an open PR can hold WIP after its worker moves on.
+Use `configure --workers N` to size the pool. Host, profile and WIP are shared.
+Each worker runs one ticket at a time; an open PR can hold WIP after execution ends.
+Before claiming tickets, Artificer requires enabled `darrow-ticket-to-pr` and
+`darrow-adaptive-goal` through the host CLI plugin listing in the selected profile.
+Missing plugins or listing failures leave issues unclaimed and appear in status.
+Claude listing runs in the checkout so project installations are visible.
+Session starts and resumes use installed plugins as-is, without snapshots.
 
 ```text
-configure [--WORK_IN_PROGRESS_LIMIT N] [--SCHEDULE_SECONDS N]
+configure [--workers N] [--WORK_IN_PROGRESS_LIMIT N] [--SCHEDULE_SECONDS N]
 ```
 
 WIP defaults to one and accepts nonnegative integers. Zero pauses new admission.
 The schedule defaults to 900 seconds and accepts positive integers. Lowering WIP
 does not cancel existing deliveries. `tick` performs one admission/reconciliation
-activation and starts at most one delivery for this worker.
+activation and fills free worker slots up to the shared WIP limit.
 
-After explicit recurring authorization, `schedule` installs a launchd interval.
+After initialization, `schedule` installs one launchd interval for the installation.
+Each scheduled tick resolves the current plugin through the installed wrapper.
 `unschedule` removes it. After changing the interval, unschedule and schedule to
 apply the new definition. It runs without an open terminal or Desktop. Inspect
 partial launchd failures before retrying.
 
 ## Inspect, cancel and revoke
 
-`status` shows this worker's repository, enabled state, host, shared WIP and
+`status` shows the installation's repository, enabled state, host, profile,
+configured worker count, shared WIP, plugin blocker and all
 delivery records: issue, original session, attempts, PR, detail and next action.
 
 `cancel DELIVERY_UUID` stops only that delivery's identified process group.
@@ -57,8 +85,8 @@ Worktrees, branches and published effects are preserved.
 Cancelling resumable released work makes that delivery terminal without taking
 capacity or changing issue/PR ownership.
 
-`revoke` prevents this worker's future admissions and continuations. It does not
-cancel already running work or revoke other workers.
+`revoke` prevents the whole pool's future admissions and continuations. It does
+not cancel already running work.
 
 ## Native recovery
 
@@ -69,7 +97,7 @@ recover DELIVERY_UUID --thread ORIGINAL_NATIVE_SESSION_ID
 Inspect the original session, process group, worktree, branch and any PR first.
 This explicit operation resumes that exact session; it never binds a replacement
 identity. Running, revoked and unknown-session deliveries are refused.
-Recovery also refuses another active or uncertain delivery in the same worker.
+Recovery also refuses when the pool has no free worker slot.
 Never repeat uncertain publication or use a fresh summary-based owner.
 For confirmed unfinished released work, recovery reacquires shared WIP and issue
 ownership under the repository lock. It rechecks writer authority, grant/scope,
@@ -92,6 +120,7 @@ its supported stream has no independent goal completion evidence. Such PRs are
 retained, marked owned and reported as needing attention. Inspect the original
 Claude session; a valid PR or model completion report alone cannot clear this gap.
 
-Legacy archive installations and unavailable native state require human
-reconciliation. Preserve their claims, original state and effects; no archive
-restoration, expiry, automatic migration or claim deletion is provided.
+Every command refuses an existing `.git/artificer` directory. Reconcile its
+original execution and effects, remove that legacy directory yourself, then run
+`darrow-artificer init`. There is no migration. Unavailable native state still
+requires human reconciliation; never replace the original session.

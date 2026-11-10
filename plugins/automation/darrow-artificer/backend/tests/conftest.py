@@ -39,3 +39,10 @@ def existing(site: Installation, issue: int) -> Claim:
     )
     site.save(claim)
     return claim
+
+
+@pytest.fixture(autouse=True)
+def isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    home = tmp_path / "isolated-home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))

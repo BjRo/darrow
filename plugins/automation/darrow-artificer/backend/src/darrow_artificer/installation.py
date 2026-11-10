@@ -1,4 +1,4 @@
-"""Repository coordination shared by independently configured single workers."""
+"""Repository installation shared by the whole local worker pool."""
 
 from pathlib import Path
 
@@ -18,7 +18,7 @@ class Installation:
                 "Legacy installation: reconcile original execution and effects before creating a new worker"
             )
         grant = Grant.model_validate(value)
-        shared = Path(grant.common_git) / "artificer" / "repository.json"
+        shared = self.root / "repository.json"
         settings = Shared.model_validate(read_object(shared))
         if (settings.repository, settings.host) != (grant.repository, grant.host):
             raise ValueError("Worker does not match repository host configuration")
@@ -27,7 +27,7 @@ class Installation:
 
     @property
     def shared(self) -> Path:
-        return Path(self.grant.common_git) / "artificer"
+        return self.root
 
     def configure_capacity(self, limit: int) -> None:
         value = read_object(self.shared / "repository.json")
@@ -36,7 +36,7 @@ class Installation:
 
     @property
     def lock(self) -> Path:
-        return Path(self.grant.common_git) / "artificer" / "admission.lock"
+        return self.root / "admission.lock"
 
     def save_grant(self, grant: Grant) -> None:
         write_object(self.root / "grant.json", grant.model_dump())

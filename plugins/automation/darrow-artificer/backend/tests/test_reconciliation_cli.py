@@ -99,7 +99,6 @@ def test_unreadable_core_catalog_stops_before_engineering(
         "o/r",
         "--checkout",
         str(repository),
-        "--authorize-recurring-delivery",
     )
     invoke(monkeypatch, capsys, state, "tick")
     claim = wait_stopped(Installation(state))

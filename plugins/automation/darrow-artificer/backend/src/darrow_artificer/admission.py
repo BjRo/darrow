@@ -72,13 +72,18 @@ def handoff(site: Installation, forge: GitHub, claim: Claim, launch: Launch) -> 
         site.save(claim)
 
 
-def worker_occupied(site: Installation, ignored_delivery: str = "") -> bool:
-    return any(
+def free_workers(site: Installation, ignored_delivery: str = "") -> int:
+    occupied = sum(
         claim.status in {"reserved", "running", "needs-attention", "cancelled"}
         or alive(claim.process)
         for claim in site.claims()
         if claim.status != "released" and claim.id != ignored_delivery
     )
+    return max(0, site.grant.workers - occupied)
+
+
+def worker_occupied(site: Installation, ignored_delivery: str = "") -> bool:
+    return free_workers(site, ignored_delivery) == 0
 
 
 def require_recovery_capacity(site: Installation, forge: GitHub, claim: Claim) -> None:
@@ -139,7 +144,9 @@ def admit(
         number_value(issue["number"])
         for issue in forge.issues("artificer:claimed", "all")
     )
-    available = allowance(limits, len(occupied) + unreserved_pr_count(forge, claims), 1)
+    available = allowance(
+        limits, len(occupied) + unreserved_pr_count(forge, claims), free_workers(site)
+    )
     if not available:
         return []
     selected = eligible(forge, grant, occupied)[:available]

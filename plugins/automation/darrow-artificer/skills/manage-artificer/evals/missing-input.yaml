@@ -25,7 +25,7 @@
     [
       {
         "name": "explicit operation authority preserved",
-        "proposition": "The response asks for the requested operation and installation state path, without claiming to enable automation.",
+        "proposition": "The response asks for the requested operation, without requiring a state path when the checkout can identify the installation, without claiming to enable automation.",
       },
     ],
 }

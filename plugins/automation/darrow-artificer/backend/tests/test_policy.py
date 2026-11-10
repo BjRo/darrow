@@ -1,4 +1,4 @@
-"""Admission arithmetic remains bounded to one ticket per worker."""
+"""Admission arithmetic remains bounded by free worker slots and WIP."""
 
 import pytest
 from hypothesis import given, settings
@@ -11,7 +11,7 @@ from darrow_artificer.policy import Limits, allowance
 @given(st.integers(0, 100), st.integers(0, 100), st.integers(0, 100))
 def test_allowance_bounds(wip: int, occupied: int, eligible: int) -> None:
     count = allowance(Limits(wip), occupied, eligible)
-    assert 0 <= count <= min(1, eligible, max(0, wip - occupied))
+    assert 0 <= count <= min(eligible, max(0, wip - occupied))
 
 
 @pytest.mark.parametrize("value", [-1, 1.5, True, "1", None])

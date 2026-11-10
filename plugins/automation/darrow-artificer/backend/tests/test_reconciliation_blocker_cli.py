@@ -73,18 +73,26 @@ def test_native_completion_gap_survives_publication_outage_and_reconciliation(
     assert len(json.loads(forge_path.read_text())["comments"]) == 2
 
     # The stopped reservation and its owned PR together occupy one of two slots.
-    invoke(monkeypatch, capsys, state, "configure", "--WORK_IN_PROGRESS_LIMIT", "2")
+    invoke(
+        monkeypatch,
+        capsys,
+        state,
+        "configure",
+        "--workers",
+        "2",
+        "--WORK_IN_PROGRESS_LIMIT",
+        "2",
+    )
     forge["ready"] = [2]
     forge_path.write_text(json.dumps(forge))
-    other_state = tmp_path / "other"
-    other_site = initialize(repository, other_state, monkeypatch, capsys)
     monkeypatch.setenv("ARTIFICER_HOLD", "1")
     try:
-        admitted = invoke(monkeypatch, capsys, other_state, "tick")["admitted"]
+        admitted = invoke(monkeypatch, capsys, state, "tick")["admitted"]
         assert len(array_value(admitted)) == 1
     finally:
         (services / "release-native").touch()
-        wait_stopped(other_site)
+        other = next(item for item in site.claims() if item.id != claim.id)
+        wait_stopped(site, other.id)
 
 
 @pytest.mark.parametrize(

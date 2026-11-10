@@ -122,7 +122,7 @@ def test_recovery_refuses_another_active_ticket_in_same_worker(
                 "--thread",
                 first.native.thread,
             )
-        assert "another active" in capsys.readouterr().err
+        assert "no free slot" in capsys.readouterr().err
         assert site.claim(first.id).process == first.process
         assert site.claim(second.id).process == second.process
     finally:

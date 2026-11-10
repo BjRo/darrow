@@ -413,6 +413,7 @@ class Host:
         }
 
     def after_turn(self) -> None:
+        wait_for_release(self.root)
         self.started = True
         if os.environ.get("ARTIFICER_PRIVATE_HISTORY"):
             emit(
@@ -482,23 +483,75 @@ def record_profile(root: Path) -> None:
         )
 
 
+def plugins() -> None:
+    root = Path(os.environ["ARTIFICER_TEST_STATE"])
+    with (root / "plugin-listings.jsonl").open("a") as output:
+        output.write(
+            json.dumps(
+                {
+                    "cwd": str(Path.cwd()),
+                    "host": Path(sys.argv[0]).name,
+                    "CODEX_HOME": os.environ.get("CODEX_HOME"),
+                    "CLAUDE_CONFIG_DIR": os.environ.get("CLAUDE_CONFIG_DIR"),
+                }
+            )
+            + "\n"
+        )
+    if "ARTIFICER_PLUGIN_LISTING" in os.environ:
+        print(os.environ["ARTIFICER_PLUGIN_LISTING"])
+        return
+    problem = os.environ.get("ARTIFICER_PLUGIN_PROBLEM")
+    if problem == "failure":
+        raise SystemExit("fixture marketplace cannot load")
+    if problem == "marketplace":
+        print("fixture marketplace cannot load", file=sys.stderr)
+    entries = [
+        plugin_entry(name, problem)
+        for name in ("darrow-ticket-to-pr", "darrow-adaptive-goal", "darrow-artificer")
+        if not (problem == "missing" and name == "darrow-ticket-to-pr")
+    ]
+    emit(entries if Path(sys.argv[0]).name == "claude" else {"installed": entries})
+
+
+def plugin_entry(name: str, problem: str | None) -> dict[str, object]:
+    path = os.environ.get("ARTIFICER_PLUGIN_PATH", "/fixture/plugin")
+    entry: dict[str, object] = {
+        "version": "1.0.0",
+        "enabled": not (problem == "disabled" and name == "darrow-ticket-to-pr"),
+    }
+    if Path(sys.argv[0]).name == "claude":
+        entry.update({"id": name + "@darrow", "installPath": path, "scope": "user"})
+    else:
+        entry.update(
+            {"pluginId": name + "@darrow", "source": {"source": "local", "path": path}}
+        )
+    return entry
+
+
+def run_claude(root: Path) -> None:
+    if (
+        os.environ.get("ARTIFICER_PROFILE_POLICY")
+        and "--dangerously-skip-permissions" in sys.argv
+    ):
+        raise SystemExit("Configured permission profile was overridden")
+    if os.environ.get("ARTIFICER_TEST_NESTING") and os.environ.get("CLAUDECODE"):
+        raise SystemExit(
+            "Claude Code cannot be launched inside another Claude Code session"
+        )
+    claude(root)
+
+
 def main() -> None:
     root = Path(os.environ["ARTIFICER_TEST_STATE"])
     if Path(sys.argv[0]).name == "gh":
         forge(root)
         return
+    if sys.argv[1:] == ["plugin", "list", "--json"]:
+        plugins()
+        return
     record_profile(root)
     if Path(sys.argv[0]).name == "claude":
-        if (
-            os.environ.get("ARTIFICER_PROFILE_POLICY")
-            and "--dangerously-skip-permissions" in sys.argv
-        ):
-            raise SystemExit("Configured permission profile was overridden")
-        if os.environ.get("ARTIFICER_TEST_NESTING") and os.environ.get("CLAUDECODE"):
-            raise SystemExit(
-                "Claude Code cannot be launched inside another Claude Code session"
-            )
-        claude(root)
+        run_claude(root)
     else:
         codex(root)
 
