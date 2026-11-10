@@ -28,6 +28,7 @@ class Grant(Record):
     effects: Literal["claims,reports,worktrees,recipe,commits,push,pr"]
     WORK_IN_PROGRESS_LIMIT: int = Field(default=1, ge=0)
     SCHEDULE_SECONDS: int = Field(default=900, ge=1)
+    workers: int = Field(default=1, ge=1)
 
 
 class Process(Record):

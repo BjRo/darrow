@@ -103,6 +103,9 @@ def claude(root: Path) -> None:
 
 def main() -> None:
     root = Path(os.environ["ARTIFICER_TEST_STATE"])
+    if sys.argv[1:] == ["plugin", "list", "--json"]:
+        service_stub.plugins()
+        return
     if Path(sys.argv[0]).name == "claude":
         claude(root)
         return

@@ -4,14 +4,15 @@ Nominate ready GitHub issues and let a local worker run a task recipe in a
 plugin-equipped Claude Code or Codex session. Return to reviewable pull requests.
 
 When updating, update Ticket-to-PR, Adaptive Goal, Verification and Review
-together before a new delivery. An in-flight delivery keeps its installation.
+together before a new delivery. Session starts and resumes use installed plugins
+as-is; Artificer keeps no plugin snapshots.
 
 ## When to use
 
 Use for explicitly authorized unattended delivery of ready GitHub issues.
 
-One Artificer runs one ticket at a time. Run additional workers for parallel
-delivery. Workers share repository claims and a WIP limit: each running delivery
+Configure parallel delivery with `darrow-artificer configure --workers N`.
+Workers share repository claims and a WIP limit: each running delivery
 or open Artificer PR occupies one slot. Unrelated PRs do not count. Open PRs
 hold their slots until closed or merged and execution has ended.
 
@@ -61,15 +62,56 @@ no recurring authority and enables no schedule.
 ## Usage
 
 Explicitly invoke `$manage-artificer` (or
-`/darrow-artificer:manage-artificer`) to configure, schedule or inspect a worker.
+`/darrow-artificer:manage-artificer`) to initialize, schedule or inspect delivery.
 See the [skill](skills/manage-artificer/SKILL.md) and its
 [commands](skills/manage-artificer/references/operations.md).
 
-Runtime entrypoint:
+First initialize from the selected checkout. In a terminal, setup guides you
+through the inputs and confirms before saving:
 
 ```text
-uv run --quiet --no-project <plugin-root>/backend/scripts/run_locked.py darrow-artificer --state <absolute-worker-state> status
+uv run --quiet --no-project <plugin-root>/backend/scripts/run_locked.py darrow-artificer init
 ```
+
+First `init` authorizes unattended delivery and installs `~/.local/bin/darrow-artificer`.
+On macOS, guided setup previews the shell files and offers to add `~/.local/bin`
+to PATH. You can decline that step and still initialize; declining the final
+save leaves everything unchanged. Scripted setup changes shell files only with
+`--setup-path`. Open a new terminal or use the printed `source` instruction after
+setup; the command cannot change its parent shell's environment.
+For scripted setup, supply `--repository OWNER/REPO --checkout PATH --host codex|claude`.
+The default delivery profile is `~/.codex` or `~/.claude`, regardless of ambient
+profile variables. Use `--profile-dir` at initialization for another profile.
+
+PATH setup supports zsh (`$ZDOTDIR/.zshrc`, or `~/.zshrc`) and Bash (`~/.bashrc`
+plus its first existing login file: `.bash_profile`, `.bash_login`, or `.profile`).
+A set `ZDOTDIR` must name a nonempty absolute directory; unset it to use HOME.
+It creates `.bash_profile` when none exists. Managed entries preserve existing
+contents, permissions and symlinks, and do not duplicate PATH at startup.
+Unsupported shells need manual setup. If `~/.local/bin` is already on PATH,
+shell files are left alone.
+
+To repair an existing command or add PATH integration later, rerun the bundled
+entrypoint above with `init --setup-path`. Saved settings fill omitted flags.
+This preserves the existing grant, including revocation, and performs no label
+creation. Conflicting explicit settings refuse; use `configure` for worker/WIP
+changes. When the command is already reachable, `darrow-artificer init --setup-path`
+works too.
+
+From any clone or worktree, subsequent commands need no state or plugin paths:
+
+```sh
+darrow-artificer configure --workers 2 --WORK_IN_PROGRESS_LIMIT 3
+darrow-artificer tick
+darrow-artificer status
+darrow-artificer schedule
+```
+
+One installation per GitHub owner/repository keeps local records under
+`~/.darrow/artificer/<owner>/<repo>/`. An explicit outside-repository `--state`
+location is also remembered. Delivery worktrees live in the checkout where
+initialization ran. The command and scheduled job resolve the current Artificer
+plugin from the host's default profile on every invocation.
 
 Nominate issues with `artificer:ready`. A writer's nomination authorizes admission
 under the saved recurring grant. Artificer consumes readiness and applies
@@ -91,7 +133,7 @@ native turn resets it; successful tool calls, reads and diagnostics do not.
 This measures execution recovery, not retries of engineering operations within
 a healthy turn.
 Explicit recovery consumes the remaining budget and refuses exhausted incidents
-or another active ticket in the same worker.
+or a full worker pool.
 Exhausted retries and missing product intent stop delivery and are reported on
 the source issue and in local status. Discovery and specification happen outside
 Artificer. There is no issue-comment answer loop.
@@ -101,7 +143,7 @@ reconciliation, not a replacement owner. Confirmed stopped deliveries without an
 open PR release capacity; uncertain execution or publication retains it.
 Released unfinished work can explicitly recover the same session after checking
 current authority and reacquiring shared capacity and issue ownership. Recovery
-refuses a busy worker, a conflicting delivery or unavailable capacity. Completed,
+refuses a full worker pool, a conflicting delivery or unavailable capacity. Completed,
 cancelled and historical deliveries with unknown recovery eligibility are refused.
 Cancellation and revocation never undo worktrees, branches or published effects.
 No merge, deployment, release or unrelated mutations are authorized.
@@ -111,9 +153,16 @@ No merge, deployment, release or unrelated mutations are authorized.
 Run `status` first. Inspect the original session and published effects before
 requesting explicit recovery with its exact native session ID.
 
-Legacy archive-based installations are refused without conversion or deletion.
-Reconcile their original execution and published effects before setting up new
-workers. Historical implementation evidence remains in
+Missing required plugins or failed host plugin listings leave tickets unclaimed;
+status includes the blocker and host error. Restore the selected profile and run
+`tick` again. If the command cannot find Artificer itself, restore the plugin in
+the host default profile. If the shell cannot find the command, rerun the bundled
+entrypoint with `init --setup-path`, then open a new terminal. Uninitialized
+repositories require `darrow-artificer init`.
+
+Every command refuses legacy `.git/artificer` state. Reconcile original execution
+and published effects, remove that legacy directory, then initialize again.
+There is no automatic conversion or deletion. Historical evidence remains in
 [research](../../../docs/research/README.md#local-artificer).
 
 ## Development

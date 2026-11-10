@@ -20,10 +20,21 @@ def test_concurrent_workers_cannot_overfill_or_duplicate_work(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    sites = [
-        initialize(repository, tmp_path / name, monkeypatch, capsys)
-        for name in ("first", "second")
-    ]
+    site = initialize(repository, tmp_path / "state", monkeypatch, capsys)
+    clone = tmp_path / "clone"
+    subprocess.run(["git", "clone", "-q", str(repository), str(clone)], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(clone),
+            "remote",
+            "set-url",
+            "origin",
+            "https://github.com/o/r.git",
+        ],
+        check=True,
+    )
     forge_path = services / "forge.json"
     forge = json.loads(forge_path.read_text())
     forge["ready"] = [1, 2]
@@ -32,12 +43,13 @@ def test_concurrent_workers_cannot_overfill_or_duplicate_work(
     command = str(Path(sys.executable).with_name("darrow-artificer"))
     children = [
         subprocess.Popen(
-            [command, "--state", str(site.root), "tick"],
+            [command, "tick"],
+            cwd=checkout,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
         )
-        for site in sites
+        for checkout in (repository, clone)
     ]
     try:
         results = []
@@ -53,6 +65,5 @@ def test_concurrent_workers_cannot_overfill_or_duplicate_work(
         (services / "release-native").touch()
         for child in children:
             child.wait(timeout=20)
-        for site in sites:
-            if site.claims():
-                wait_stopped(site)
+        if site.claims():
+            wait_stopped(site)

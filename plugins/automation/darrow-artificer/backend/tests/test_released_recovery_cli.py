@@ -33,7 +33,6 @@ def initialize_worker(
         str(repository),
         "--host",
         host,
-        "--authorize-recurring-delivery",
     )
     return Installation(state)
 
@@ -101,10 +100,10 @@ def test_released_recovery_must_reacquire_shared_capacity(
         forge = json.loads((services / "forge.json").read_text())
         forge["ready"] = [2]
         (services / "forge.json").write_text(json.dumps(forge))
-        other = tmp_path / "other"
-        other_site = initialize_worker(repository, other, monkeypatch, capsys)
-        invoke(monkeypatch, capsys, other, "tick")
-        wait_stopped(other_site)
+        invoke(monkeypatch, capsys, state, "configure", "--workers", "2")
+        invoke(monkeypatch, capsys, state, "tick")
+        other = next(claim for claim in site.claims() if claim.id != original.id)
+        wait_stopped(site, other.id)
     invoke(
         monkeypatch, capsys, state, "configure", "--WORK_IN_PROGRESS_LIMIT", str(limit)
     )
@@ -174,10 +173,10 @@ def test_released_recovery_refuses_conflicting_issue_ownership(
     forge["claimed" if ownership == "label" else "ready"] = [1]
     (services / "forge.json").write_text(json.dumps(forge))
     if ownership == "delivery":
-        other = tmp_path / "other"
-        other_site = initialize_worker(repository, other, monkeypatch, capsys)
-        invoke(monkeypatch, capsys, other, "tick")
-        wait_stopped(other_site)
+        invoke(monkeypatch, capsys, state, "configure", "--workers", "2")
+        invoke(monkeypatch, capsys, state, "tick")
+        other = next(claim for claim in site.claims() if claim.id != original.id)
+        wait_stopped(site, other.id)
     invoke(monkeypatch, capsys, state, "configure", "--WORK_IN_PROGRESS_LIMIT", "3")
     with pytest.raises(SystemExit):
         invoke(
@@ -353,7 +352,6 @@ def test_resolved_preflight_blocker_can_activate_first_goal_in_original_session(
         str(repository),
         "--host",
         "claude",
-        "--authorize-recurring-delivery",
     )
     site = Installation(state)
     invoke(monkeypatch, capsys, state, "tick")

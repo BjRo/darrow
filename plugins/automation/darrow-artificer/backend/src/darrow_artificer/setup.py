@@ -1,7 +1,9 @@
 """Capture explicit recurring authority without enabling any implicit entry."""
 
+import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import Literal
 from uuid import uuid4
@@ -9,7 +11,7 @@ from uuid import uuid4
 from .github import GitHub, object_value
 from .installation import Installation
 from .models import Grant
-from .storage import locked, write_object
+from .storage import locked, write_bytes, write_object
 
 
 def executable(name: str) -> str:
@@ -25,16 +27,7 @@ def git_output(git: str, checkout: Path, *args: str) -> str:
     ).stdout.strip()
 
 
-def primary_checkout(git: str, checkout: Path) -> Path:
-    first = git_output(git, checkout, "worktree", "list", "--porcelain").splitlines()[0]
-    if not first.startswith("worktree "):
-        raise ValueError("Cannot resolve the primary repository worktree")
-    return Path(first.removeprefix("worktree ")).resolve(strict=True)
-
-
-def profile_directory(path: Path | None) -> str | None:
-    if path is None:
-        return None
+def profile_directory(path: Path) -> str:
     if not path.is_absolute() or not path.is_dir():
         raise ValueError(
             f"Profile directory must be an existing absolute directory: {path}"
@@ -50,19 +43,24 @@ def initialize(
     host: Literal["codex", "claude"] = "codex",
     profile: Path | None = None,
 ) -> Grant:
-    profile_dir = profile_directory(profile)
+    profile_dir = (
+        profile_directory(profile)
+        if profile is not None
+        else str(Path.home() / f".{host}")
+    )
     git, gh, codex = executable("git"), executable("gh"), executable(host)
-    primary = primary_checkout(git, checkout)
+    selected = Path(git_output(git, checkout, "rev-parse", "--show-toplevel")).resolve()
     common = Path(
         git_output(
-            git, primary, "rev-parse", "--path-format=absolute", "--git-common-dir"
+            git, selected, "rev-parse", "--path-format=absolute", "--git-common-dir"
         )
     )
+    require_external_state(site.root, git, selected)
     forge = GitHub(gh, repository)
     grantor = forge.login()
     if not forge.writable(grantor):
         raise ValueError("Recurring grantor must have repository write access")
-    remote = git_output(git, primary, "config", "--get", "remote.origin.url")
+    remote = git_output(git, selected, "config", "--get", "remote.origin.url")
     if remote not in (
         f"git@github.com:{repository}.git",
         f"https://github.com/{repository}.git",
@@ -75,7 +73,7 @@ def initialize(
         host=host,
         id=str(uuid4()),
         repository=repository,
-        checkout=str(primary),
+        checkout=str(selected),
         common_git=str(common),
         grantor=grantor,
         executable=codex,
@@ -90,7 +88,7 @@ def initialize(
 
 
 def bind(site: Installation, grant: Grant) -> None:
-    directory = Path(grant.common_git) / "artificer"
+    directory = site.root
     with locked(directory / "admission.lock"):
         if (directory / "installation.json").exists():
             raise ValueError(
@@ -131,3 +129,36 @@ def labels(site: Installation) -> None:
     for name, color in (("artificer:ready", "1d76db"), ("artificer:claimed", "5319e7")):
         if name not in known:
             forge.request(forge.route("labels"), "POST", {"name": name, "color": color})
+
+
+def install_command(*, warn: bool = True) -> Path:
+    from . import launcher
+
+    destination = Path.home() / ".local" / "bin" / "darrow-artificer"
+    source = Path(launcher.__file__).read_bytes()
+    write_bytes(
+        destination,
+        b"#!/usr/bin/env -S uv run --quiet --no-project --script\n" + source,
+    )
+    destination.chmod(0o700)
+    if warn and str(destination.parent) not in os.environ.get("PATH", "").split(
+        os.pathsep
+    ):
+        print(
+            f"Add {destination.parent} to PATH to run darrow-artificer.",
+            file=sys.stderr,
+        )
+    return destination
+
+
+def require_external_state(state: Path, git: str, checkout: Path) -> None:
+    listing = git_output(git, checkout, "worktree", "list", "--porcelain")
+    roots = [
+        Path(line.removeprefix("worktree ")).resolve()
+        for line in listing.splitlines()
+        if line.startswith("worktree ")
+    ]
+    if any(state.is_relative_to(root) for root in roots):
+        raise ValueError(
+            "Artificer state must live outside repository checkouts and worktrees"
+        )

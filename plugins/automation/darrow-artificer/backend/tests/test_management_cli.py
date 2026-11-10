@@ -35,7 +35,6 @@ def initialize(
         str(repository),
         "--host",
         host,
-        "--authorize-recurring-delivery",
     )
     return Installation(state)
 
@@ -181,9 +180,11 @@ def test_setup_refuses_conflicting_or_unavailable_inputs(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     state = tmp_path / "worker"
-    initialize(repository, state, monkeypatch, capsys)
+    if cause in {"host", "legacy"}:
+        initialize(repository, state, monkeypatch, capsys)
     host = "codex" if cause == "host" else "claude"
     if cause == "legacy":
+        (repository / ".git/artificer").mkdir()
         (repository / ".git/artificer/installation.json").write_text("{}")
     if cause == "origin":
         subprocess.run(
@@ -212,12 +213,18 @@ def test_setup_refuses_conflicting_or_unavailable_inputs(
             str(repository),
             "--host",
             host,
-            "--authorize-recurring-delivery",
         )
     assert not (tmp_path / "other/grant.json").exists()
+    diagnostic = {
+        "host": "already exists",
+        "legacy": "Remove",
+        "origin": "Origin must match",
+        "git": "Required executable",
+    }
+    assert diagnostic[cause] in capsys.readouterr().err
 
 
-def test_schedule_preserves_existing_profile_locations(
+def test_schedule_does_not_capture_ambient_profile_locations(
     repository: Path,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -240,9 +247,19 @@ def test_schedule_preserves_existing_profile_locations(
         / f"com.darrow.artificer.{site.grant.id}.plist"
     )
     definition = plistlib.loads(path.read_bytes())
-    assert definition["EnvironmentVariables"]["CODEX_HOME"] == str(
-        tmp_path / "codex-profile"
-    )
-    assert definition["EnvironmentVariables"]["CLAUDE_CONFIG_DIR"] == str(
-        tmp_path / "claude-profile"
-    )
+    assert "CODEX_HOME" not in definition["EnvironmentVariables"]
+    assert "CLAUDE_CONFIG_DIR" not in definition["EnvironmentVariables"]
+
+
+def test_initialization_requires_current_writer_access(
+    repository: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(GitHub, "writable", lambda *args: False)
+    state = tmp_path / "denied"
+    with pytest.raises(SystemExit):
+        initialize(repository, state, monkeypatch, capsys)
+    assert "write access" in capsys.readouterr().err
+    assert not (state / "grant.json").exists()

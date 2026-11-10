@@ -45,7 +45,7 @@ testpaths = ["tests"]
 [tool.coverage.run]
 branch = true
 source = ["darrow_artificer"]
-patch = ["subprocess"]
+patch = ["subprocess", "execv"]
 
 [tool.coverage.report]
 show_missing = true

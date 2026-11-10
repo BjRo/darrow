@@ -38,7 +38,6 @@ def test_codex_accepts_strict_native_result_schema(
         "o/r",
         "--checkout",
         str(repository),
-        "--authorize-recurring-delivery",
     )
     invoke(monkeypatch, capsys, state, "tick")
     assert "Specification needed" in wait_stopped(Installation(state)).detail
@@ -50,6 +49,8 @@ def invoke(
     state: Path,
     *arguments: str,
 ) -> dict[str, object]:
+    if "init" in arguments and "--host" not in arguments:
+        arguments += ("--host", "codex")
     monkeypatch.setattr(
         sys, "argv", ["darrow-artificer", "--state", str(state), *arguments]
     )
@@ -126,6 +127,7 @@ def repository(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         "collection",
         lambda *args: [{"name": "artificer:ready"}, {"name": "artificer:claimed"}],
     )
+    monkeypatch.chdir(path)
     return path
 
 
@@ -135,20 +137,18 @@ def test_workers_share_repository_capacity(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    for name in ("first", "second"):
-        invoke(
-            monkeypatch,
-            capsys,
-            tmp_path / name,
-            "init",
-            "--repository",
-            "o/r",
-            "--checkout",
-            str(repository),
-            "--host",
-            "codex",
-            "--authorize-recurring-delivery",
-        )
+    invoke(
+        monkeypatch,
+        capsys,
+        tmp_path / "first",
+        "init",
+        "--repository",
+        "o/r",
+        "--checkout",
+        str(repository),
+        "--host",
+        "codex",
+    )
     invoke(
         monkeypatch,
         capsys,
@@ -157,28 +157,29 @@ def test_workers_share_repository_capacity(
         "--WORK_IN_PROGRESS_LIMIT",
         "3",
     )
-    observed = invoke(monkeypatch, capsys, tmp_path / "second", "status")
+    observed = invoke(monkeypatch, capsys, tmp_path / "first", "status")
     assert observed["WORK_IN_PROGRESS_LIMIT"] == 3
 
 
-def test_tick_runs_one_ticket_per_worker_with_shared_claims(
+def test_tick_preserves_pool_capacity_when_claim_labels_disappear(
     repository: Path,
+    services: Path,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    for name in ("first", "second", "third"):
-        invoke(
-            monkeypatch,
-            capsys,
-            tmp_path / name,
-            "init",
-            "--repository",
-            "o/r",
-            "--checkout",
-            str(repository),
-            "--authorize-recurring-delivery",
-        )
+    invoke(
+        monkeypatch,
+        capsys,
+        tmp_path / "first",
+        "init",
+        "--repository",
+        "o/r",
+        "--checkout",
+        str(repository),
+        "--host",
+        "codex",
+    )
     invoke(
         monkeypatch,
         capsys,
@@ -186,6 +187,8 @@ def test_tick_runs_one_ticket_per_worker_with_shared_claims(
         "configure",
         "--WORK_IN_PROGRESS_LIMIT",
         "2",
+        "--workers",
+        "3",
     )
     ready = [1, 2, 3]
     claimed: list[int] = []
@@ -211,18 +214,10 @@ def test_tick_runs_one_ticket_per_worker_with_shared_claims(
     monkeypatch.setattr(GitHub, "reserve", reserve)
     monkeypatch.setattr(processes, "launch", launch)
     first = invoke(monkeypatch, capsys, tmp_path / "first", "tick")
-    assert len(array_value(first["admitted"])) == 1
+    assert len(array_value(first["admitted"])) == 2
     assert invoke(monkeypatch, capsys, tmp_path / "first", "tick")["admitted"] == []
-    assert (
-        len(
-            array_value(
-                invoke(monkeypatch, capsys, tmp_path / "second", "tick")["admitted"]
-            )
-        )
-        == 1
-    )
     claimed.clear()  # Missing labels must not discard another worker's reservation.
-    assert invoke(monkeypatch, capsys, tmp_path / "third", "tick")["admitted"] == []
+    assert invoke(monkeypatch, capsys, tmp_path / "first", "tick")["admitted"] == []
     assert ready == [3]
 
 
@@ -262,10 +257,10 @@ def services(repository: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     return path
 
 
-def wait_stopped(site: Installation) -> Claim:
+def wait_stopped(site: Installation, delivery: str | None = None) -> Claim:
     deadline = time.monotonic() + 10
     while time.monotonic() < deadline:
-        claims = site.claims()
+        claims = [site.claim(delivery)] if delivery is not None else site.claims()
         if (
             claims
             and claims[0].status not in {"reserved", "running"}
@@ -311,7 +306,6 @@ def test_claude_delivery_uses_native_profile(
         str(repository),
         "--host",
         "claude",
-        "--authorize-recurring-delivery",
     )
     invoke(monkeypatch, capsys, state, "tick")
     claim = wait_stopped(Installation(state))
@@ -356,7 +350,6 @@ def test_codex_delivery_uses_native_profile(
         str(repository),
         "--host",
         "codex",
-        "--authorize-recurring-delivery",
     )
     invoke(monkeypatch, capsys, state, "tick")
     claim = wait_stopped(Installation(state))
@@ -396,7 +389,6 @@ def test_explicit_profile_directory_selects_the_host_profile(
         host,
         "--profile-dir",
         str(profile),
-        "--authorize-recurring-delivery",
     )
     assert invoke(monkeypatch, capsys, state, "status")["profile_dir"] == str(profile)
     invoke(monkeypatch, capsys, state, "tick")
@@ -430,7 +422,6 @@ def test_init_refuses_unusable_profile_directory(
             str(repository),
             "--profile-dir",
             profile,
-            "--authorize-recurring-delivery",
         )
     assert "Profile directory must be an existing absolute directory" in (
         capsys.readouterr().err
@@ -476,7 +467,6 @@ def test_delivery_requires_core_but_not_optional_plugins(
         str(repository),
         "--host",
         host,
-        "--authorize-recurring-delivery",
     )
     invoke(monkeypatch, capsys, state, "tick")
     claim = wait_stopped(Installation(state))
@@ -526,7 +516,6 @@ def test_new_delivery_starts_from_latest_main(
         "o/r",
         "--checkout",
         str(repository),
-        "--authorize-recurring-delivery",
     )
     git("config", "--remove-section", f"url.{tmp_path / 'origin.git'}")
     git("config", f"url.{remote}.insteadOf", "https://github.com/o/r.git")
@@ -556,7 +545,6 @@ def test_stopped_delivery_reports_blocker_on_source_issue(
         str(repository),
         "--host",
         "claude",
-        "--authorize-recurring-delivery",
     )
     invoke(monkeypatch, capsys, state, "tick")
     claim = wait_stopped(Installation(state))
@@ -587,7 +575,6 @@ def test_stopped_delivery_without_pr_releases_capacity(
         str(repository),
         "--host",
         "claude",
-        "--authorize-recurring-delivery",
     )
     invoke(monkeypatch, capsys, state, "tick")
     site = Installation(state)
@@ -616,7 +603,6 @@ def test_ambiguous_launch_keeps_reservation(
         "o/r",
         "--checkout",
         str(repository),
-        "--authorize-recurring-delivery",
     )
 
     def ambiguous(site: Installation, claim: Claim) -> None:
@@ -652,7 +638,6 @@ def test_delivery_rejects_unrelated_pr_result(
         str(repository),
         "--host",
         "codex",
-        "--authorize-recurring-delivery",
     )
     invoke(monkeypatch, capsys, state, "tick")
     claim = wait_stopped(Installation(state))
@@ -686,7 +671,6 @@ def test_native_recovery_is_bounded_and_preserves_identity(
         str(repository),
         "--host",
         host,
-        "--authorize-recurring-delivery",
     )
     invoke(monkeypatch, capsys, state, "tick")
     claim = wait_stopped(Installation(state))
@@ -722,7 +706,6 @@ def test_successful_native_turn_resets_interruption_budget(
         str(repository),
         "--host",
         host,
-        "--authorize-recurring-delivery",
     )
     invoke(monkeypatch, capsys, state, "tick")
     claim = wait_stopped(Installation(state))
@@ -750,7 +733,6 @@ def test_explicit_recovery_resumes_original_native_session(
         str(repository),
         "--host",
         "claude",
-        "--authorize-recurring-delivery",
     )
     invoke(monkeypatch, capsys, state, "tick")
     site = Installation(state)
@@ -781,9 +763,8 @@ def test_status_refuses_invalid_shared_capacity(
         "o/r",
         "--checkout",
         str(repository),
-        "--authorize-recurring-delivery",
     )
-    shared = repository / ".git/artificer/repository.json"
+    shared = state / "repository.json"
     values = json.loads(shared.read_text())
     values["WORK_IN_PROGRESS_LIMIT"] = value
     shared.write_text(json.dumps(values))
@@ -816,7 +797,6 @@ def test_native_process_interruption_recovers_original_session(
         str(repository),
         "--host",
         host,
-        "--authorize-recurring-delivery",
     )
     invoke(monkeypatch, capsys, state, "tick")
     claim = wait_stopped(Installation(state))
@@ -845,7 +825,6 @@ def test_recovery_observes_existing_active_turn_without_resubmission(
         "o/r",
         "--checkout",
         str(repository),
-        "--authorize-recurring-delivery",
     )
     invoke(monkeypatch, capsys, state, "tick")
     claim = wait_stopped(Installation(state))
@@ -873,7 +852,6 @@ def test_management_pause_revocation_and_scheduler(
         "o/r",
         "--checkout",
         str(repository),
-        "--authorize-recurring-delivery",
     )
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     calls: list[list[str]] = []
@@ -896,15 +874,16 @@ def test_management_pause_revocation_and_scheduler(
         invoke(monkeypatch, capsys, state, "schedule")
     invoke(monkeypatch, capsys, state, "unschedule")
     assert not destination.exists()
-    assert [command[1] for command in calls] == ["bootstrap", "bootout"]
+    assert [command[1] for command in calls if command[0] == "/bin/launchctl"] == [
+        "bootstrap",
+        "bootout",
+    ]
     invoke(monkeypatch, capsys, state, "configure", "--WORK_IN_PROGRESS_LIMIT", "0")
     invoke(monkeypatch, capsys, state, "revoke")
     assert invoke(monkeypatch, capsys, state, "tick")["admitted"] == []
 
 
-@pytest.mark.parametrize(
-    "mutation", ["legacy", "binding", "host", "missing", "duplicate"]
-)
+@pytest.mark.parametrize("mutation", ["legacy", "binding", "host", "missing", "scope"])
 def test_management_refuses_unreconciled_configuration(
     repository: Path,
     tmp_path: Path,
@@ -922,9 +901,8 @@ def test_management_refuses_unreconciled_configuration(
         "o/r",
         "--checkout",
         str(repository),
-        "--authorize-recurring-delivery",
     )
-    common = repository / ".git/artificer"
+    common = state
     command: tuple[str, ...] = ("tick",)
     if mutation == "legacy":
         values = json.loads((state / "grant.json").read_text())
@@ -945,7 +923,8 @@ def test_management_refuses_unreconciled_configuration(
             "o/r",
             "--checkout",
             str(repository),
-            "--authorize-recurring-delivery",
+            "--issue",
+            "999",
         )
     with pytest.raises(SystemExit):
         invoke(monkeypatch, capsys, state, *command)
@@ -971,7 +950,6 @@ def test_headless_claude_uses_native_goal_entry(
         str(repository),
         "--host",
         "claude",
-        "--authorize-recurring-delivery",
     )
     invoke(monkeypatch, capsys, state, "tick")
     assert "Specification needed" in wait_stopped(Installation(state)).detail
@@ -999,7 +977,6 @@ def test_codex_inherits_profile_with_default_effort(
         "o/r",
         "--checkout",
         str(repository),
-        "--authorize-recurring-delivery",
     )
     invoke(monkeypatch, capsys, state, "tick")
     assert "Specification needed" in wait_stopped(Installation(state)).detail
@@ -1022,7 +999,6 @@ def test_init_uses_existing_host_configuration(
         str(repository),
         "--host",
         "claude",
-        "--authorize-recurring-delivery",
     )
     assert result["host"] == "claude"
     assert result["recipe"] == "ticket-to-pr"
@@ -1051,7 +1027,6 @@ def test_question_is_reported_as_blocker_without_reply_loop(
         str(repository),
         "--host",
         "claude",
-        "--authorize-recurring-delivery",
     )
     invoke(monkeypatch, capsys, state, "tick")
     claim = wait_stopped(Installation(state))
@@ -1084,7 +1059,6 @@ def test_delivery_rejects_wrong_pr_base(
         str(repository),
         "--host",
         "codex",
-        "--authorize-recurring-delivery",
     )
     invoke(monkeypatch, capsys, state, "tick")
     claim = wait_stopped(Installation(state))
@@ -1109,7 +1083,6 @@ def test_status_identifies_worker_and_absolute_state(
         "o/r",
         "--checkout",
         str(repository),
-        "--authorize-recurring-delivery",
     )
     observed = invoke(monkeypatch, capsys, state, "status")
     assert observed["worker"] == grant["id"]
@@ -1137,7 +1110,6 @@ def test_worker_is_independent_of_parent_claude_session(
         str(repository),
         "--host",
         "claude",
-        "--authorize-recurring-delivery",
     )
     invoke(monkeypatch, capsys, state, "tick")
     assert "Specification needed" in wait_stopped(Installation(state)).detail
@@ -1162,7 +1134,6 @@ def test_ambiguous_native_recovery_launch_holds_capacity(
         str(repository),
         "--host",
         "claude",
-        "--authorize-recurring-delivery",
     )
     site = Installation(state)
     invoke(monkeypatch, capsys, state, "tick")
@@ -1209,7 +1180,6 @@ def test_delivery_preserves_existing_permission_profile(
         str(repository),
         "--host",
         host,
-        "--authorize-recurring-delivery",
     )
     invoke(monkeypatch, capsys, state, "tick")
     assert "Specification needed" in wait_stopped(Installation(state)).detail
@@ -1233,7 +1203,6 @@ def test_operational_trace_does_not_copy_native_conversation(
         "o/r",
         "--checkout",
         str(repository),
-        "--authorize-recurring-delivery",
     )
     invoke(monkeypatch, capsys, state, "tick")
     site = Installation(state)

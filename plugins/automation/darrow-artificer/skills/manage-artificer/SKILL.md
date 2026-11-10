@@ -6,46 +6,57 @@ disable-model-invocation: true
 
 # Manage local Artificer
 
-Manage one local worker through its bundled frozen command. One worker admits
-one ready ticket at a time and wraps one native Claude Code or Codex session.
+Manage one repository installation through `darrow-artificer`. Its configured
+worker pool admits ready tickets, each in one native Claude Code or Codex session.
 The task recipe, Adaptive Goal, verification and review own engineering.
 Other plugins are optional and remain the session's concern.
 
 ## Establish the operation
 
-Require explicit invocation, a requested operation and an absolute worker state
-path. Ask for missing inputs before mutation. For `status`, use only the read-only
+Require explicit invocation and a requested operation. Discover the installation
+from the current checkout; an absolute `--state` override is optional. For `status`, use only the read-only
 command and report its worker/ticket/session mapping, PRs, blockers and next actions.
 
 For setup or scheduling, read [operations](references/operations.md). Establish
-the repository, controlling checkout, selected host, writer grantor, ticket scope
-and recurring authority. Explain allowed recurring reads, claims, blocker reports,
+the repository, checkout, selected host, writer grantor and ticket scope.
+First `init` authorizes recurring unattended delivery; no extra authorization
+flag or separate account-usage acceptance is required. Explain allowed recurring reads, claims, blocker reports,
 worktrees, recipe invocation, scoped commits, non-force pushes and one verified PR
 per delivery. Never infer that grant from an ordinary implementation request.
 The grant persists until revoked. Installation alone enables nothing.
 
-The first version runs locally on macOS with the host's existing profiles,
-plugins and login, or with an explicit dedicated profile directory chosen at
-`init`. Account usage follows that configuration; do not promise zero
+Artificer runs locally on macOS with the selected host's default profile
+(`~/.codex` or `~/.claude`), plugins and login, or an explicit profile directory
+chosen at `init`. Ignore ambient `CODEX_HOME` and `CLAUDE_CONFIG_DIR` defaults.
+Use the saved host; when absent, ask for it rather than detecting the invoking app. Account usage follows that configuration; do not promise zero
 additional cost, change billing/authentication or buy credits. Missing required
 authority stops setup. Workers in the same repository share host selection and
-WIP, but each worker has its own state path and revocation.
+profile and WIP, with one state directory and repository-wide revocation.
 
 ## Execute the bounded command
 
-Let `<skill-dir>` be the directory containing this file. Invoke:
+After initialization, invoke from any checkout or worktree:
 
 ```text
-uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-artificer --state <absolute-worker-state> <operation>
+darrow-artificer <operation>
 ```
 
-Use the linked operations reference for exact arguments. Execute only the
+For first initialization, use the bundled frozen entrypoint documented in
+[operations](references/operations.md); it installs `~/.local/bin/darrow-artificer`.
+For an existing installation, rerun `init` to repair the command; omitted settings
+reuse its saved context without changing or reauthorizing the grant. On macOS,
+PATH setup supports zsh and Bash. Preview the shell-file destinations and obtain
+the user's choice before passing `--setup-path` from an agent's noninteractive
+command, unless the user already explicitly requested PATH integration. Preserve
+shell settings and use only `~/.local/bin`; do not choose a Homebrew directory.
+Declining PATH integration still permits initialization. Explain opening a new
+terminal or sourcing the printed file. Use the reference for exact arguments. Execute only the
 requested operation. Scheduling needs recurring authority; creating or installing
 this plugin does not authorize a live installation in the development repository.
 
 Shared WIP counts running reservations and open Artificer PRs once, excluding
 unrelated PRs. WIP zero pauses admission while permitting reconciliation.
-Each worker runs one active ticket; add workers for parallel delivery.
+Each worker runs one active ticket; use `configure --workers N` for parallel delivery.
 
 Recoverable technical interruptions resume the original native session at most
 twice per interruption. Only successful completion of a native turn resets the
@@ -54,7 +65,7 @@ not retries of engineering operations within a healthy turn.
 Missing product intent stops for preparation outside Artificer, with a
 source-issue blocker report. Do not start discovery or an issue-comment reply loop.
 
-Cancellation requires the exact delivery ID. Revocation disables that worker's
+Cancellation requires the exact delivery ID. Revocation disables the installation's
 future admissions and continuations; it does not cancel existing execution.
 Neither operation undoes published effects. A failed command may be partially
 applied: inspect its evidence before retrying.
@@ -80,6 +91,6 @@ native session and recovery attempts when relevant. A reservation, open PR or mo
 result is not verified completed delivery.
 
 After revocation, state that future admissions and continuations are disabled
-for this worker, while existing execution and published effects remain.
+for this repository installation, while existing execution and published effects remain.
 After a recovery failure, identify the retained claim and explain that a human
 must reconcile original execution and effects before another recovery attempt.

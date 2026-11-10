@@ -14,17 +14,12 @@ def label(site: Installation) -> str:
     return f"com.darrow.artificer.{site.grant.id}"
 
 
-def definition(site: Installation, uv: str, backend: Path) -> bytes:
+def definition(site: Installation, command: Path) -> bytes:
     return plistlib.dumps(
         {
             "Label": label(site),
             "ProgramArguments": [
-                uv,
-                "run",
-                "--quiet",
-                "--no-project",
-                str((backend / "scripts/run_locked.py").resolve()),
-                "darrow-artificer",
+                str(command),
                 "--state",
                 str(site.root),
                 "tick",
@@ -35,11 +30,6 @@ def definition(site: Installation, uv: str, backend: Path) -> bytes:
             "ProcessType": "Background",
             "EnvironmentVariables": {
                 "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
-                **{
-                    key: os.environ[key]
-                    for key in ("CODEX_HOME", "CLAUDE_CONFIG_DIR")
-                    if key in os.environ
-                },
             },
             "StandardOutPath": str(site.root / "scheduler.log"),
             "StandardErrorPath": str(site.root / "scheduler.stderr"),
@@ -47,14 +37,16 @@ def definition(site: Installation, uv: str, backend: Path) -> bytes:
     )
 
 
-def install(site: Installation, backend: Path) -> Path:
+def install(site: Installation) -> Path:
     uv = shutil.which("uv")
     if uv is None:
         raise ValueError("UV is required for the frozen scheduler entrypoint")
     destination = Path.home() / "Library" / "LaunchAgents" / f"{label(site)}.plist"
     if destination.exists():
         raise FileExistsError(f"Scheduler already exists: {destination}")
-    write_bytes(destination, definition(site, str(Path(uv).resolve()), backend))
+    write_bytes(
+        destination, definition(site, Path.home() / ".local/bin/darrow-artificer")
+    )
     subprocess.run(
         ["/bin/launchctl", "bootstrap", f"gui/{os.getuid()}", str(destination)],
         check=True,

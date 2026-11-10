@@ -4,7 +4,7 @@ Artificer is an explicitly authorized unattended worker around a normal,
 plugin-equipped Claude Code or Codex session. It owns admission and execution
 supervision. Task recipes and their native session own engineering.
 
-- **ART-C1 — Entry and authority.** Installation starts nothing. Enabling binds
+- **ART-C1 — Entry and authority.** Installing the plugin starts nothing. First `init` authorizes unattended delivery and binds
   a repository, writer grantor, recurring authority, effect envelope and revocation.
   Initially invoke only `ticket-to-pr` for ready GitHub issues. Preserve recipe
   verification, commit, non-force push and PR requirements. No merge, deploy,
@@ -28,12 +28,13 @@ supervision. Task recipes and their native session own engineering.
   Artificer never runs engineering phases, discovery or specification. Missing
   product intent stops with a blocker; it does not start a question/reply loop.
 - **ART-C3 — Worker.** One worker runs one active ticket in one fresh native
-  session. Scale by starting more workers. The session owns internal subagents.
+  session. A configured worker pool starts up to its free slots in one tick, capped by WIP. The session owns internal subagents.
   Each delivery has an isolated worktree from freshly fetched main/master,
   never a preceding delivery branch. Configure the host per repository.
 - **ART-C4 — Native state.** Initially run locally on macOS, inheriting the
-  host's existing profiles, plugins, guidance and login. An explicit profile
-  directory chosen at enablement selects that host profile (`CODEX_HOME` or
+  host's default profile (`~/.codex` or `~/.claude`), plugins, guidance and login,
+  ignoring ambient profile overrides. An explicit profile
+  directory chosen at initialization selects that host profile (`CODEX_HOME` or
   `CLAUDE_CONFIG_DIR`) for every launch and resume. Store only operational
   correlation in Artificer. Use exact-identity native resume, without copied
   plugins, credentials, conversation archives or archive expiry. Missing native
@@ -100,8 +101,52 @@ supervision. Task recipes and their native session own engineering.
   a default 900-second tick, independent of Desktop/terminal. Revocation prevents
   later admission and continuation. Cancellation targets only its identified
   process group and does not undo effects.
-- **ART-C12 — Legacy state.** Refuse legacy archive-based state with an explicit
-  reconciliation instruction. Never silently convert, relaunch or release it.
+- **ART-C12 — Legacy state.** Every command refuses an existing `.git/artificer`
+  directory, including through linked worktrees, with instructions to remove it
+  and run `darrow-artificer init`. Never migrate, relaunch or release legacy state.
+- **ART-C13 — Installation and discovery.** Keep config, claims, locks and worker
+  records in `~/.darrow/artificer/<owner>/<repo>/`, shared across independent clones
+  and linked worktrees. Explicit `--state` selects an outside-repository location.
+  Only delivery worktrees live in the checkout where initialization ran. Commands
+  discover the installation from the checkout's GitHub origin; absent state
+  refuses without writes and explains `darrow-artificer init`.
+- **ART-C14 — Setup and entrypoint.** Interactive `init` detects the checkout and
+  repository, suggests settings, prompts for missing inputs including host, shows
+  repository, host, profile, workers, WIP and state, and confirms before saving.
+  Scripted initialization requires explicit repository, checkout and host flags;
+  list missing flags without waiting. A saved host is reusable. Install
+  `~/.local/bin/darrow-artificer`. On macOS, guided setup previews shell-file
+  destinations and offers PATH integration separately from the final save
+  confirmation. Scripted setup edits shell files only with `--setup-path`.
+  Support zsh's `$ZDOTDIR/.zshrc` (HOME when unset); a set ZDOTDIR must name a
+  nonempty absolute directory. Support Bash's `.bashrc` plus
+  the first existing `.bash_profile`, `.bash_login`, or `.profile` (create
+  `.bash_profile` if none exists). Refuse explicit setup for unsupported shells
+  or platforms. When the command directory is already on PATH, leave shell
+  files alone. Otherwise use a guarded, managed entry that is idempotent both
+  on disk and at shell startup. Preserve surrounding bytes, file permissions,
+  and dotfile symlinks; refuse unreadable, broken, or malformed managed files
+  before persistent setup effects. Explain opening a new terminal or sourcing
+  the file; initialization cannot change the invoking shell's environment.
+  Warn about a missing PATH entry when integration is declined or not requested.
+  Repeating `init` repairs the wrapper and optional PATH integration using the
+  saved installation context. It must not change or reauthorize the grant,
+  recreate labels, or change the saved host, profile, checkout, or issue scope.
+  Omitted settings reuse saved values; conflicting explicit settings or state
+  refuse. Overall confirmation refusal performs no writes.
+  The wrapper resolves the currently installed Artificer from the selected host's
+  default profile on every invocation; absence refuses clearly. Project-scoped
+  Artificer installations cannot satisfy or override this lookup. One launchd job
+  per installation uses that same dynamic resolution on each scheduled run.
+- **ART-C15 — Plugins and pool.** `configure --workers N` changes pool capacity;
+  status covers the pool and cancellation/recovery select a delivery ID. All
+  workers share host and profile. Use installed profile plugins as-is at every
+  start/resume, without snapshots. Before any claim, list plugins through
+  `claude plugin list --json` (in the checkout) or `codex plugin list --json`, with
+  the selected profile environment. Require enabled `darrow-ticket-to-pr` and
+  `darrow-adaptive-goal`; missing/disabled plugins and listing errors, including
+  unloadable marketplaces, leave issues unclaimed. Status includes the blocker
+  and underlying host error.
 
 ## Acceptance evidence
 

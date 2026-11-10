@@ -25,4 +25,4 @@ class Limits:
 
 
 def allowance(limits: Limits, occupied: int, eligible: int) -> int:
-    return min(max(0, limits.wip - occupied), 1, eligible)
+    return min(max(0, limits.wip - occupied), eligible)
