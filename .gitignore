@@ -8,6 +8,7 @@ evals/corpus/orchestration/cache/
 **/.pytest_cache/
 **/.hypothesis/
 **/.coverage
+**/.coverage.*
 **/coverage.json
 
 # Share Codex configuration without tracking other local Codex state.

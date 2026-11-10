@@ -1,9 +1,9 @@
 [project]
 name = "darrow-artificer"
 version = "0.1.0"
-description = "Local admission and native Codex handoff for explicitly authorized delivery"
+description = "Local admission and native Claude Code or Codex handoff for explicitly authorized delivery"
 requires-python = ">=3.10,<3.14"
-dependencies = ["cryptography>=46,<47", "pydantic>=2.11,<3"]
+dependencies = ["pydantic>=2.11,<3"]
 
 [project.scripts]
 darrow-artificer = "darrow_artificer.cli:entrypoint"
@@ -45,6 +45,7 @@ testpaths = ["tests"]
 [tool.coverage.run]
 branch = true
 source = ["darrow_artificer"]
+patch = ["subprocess"]
 
 [tool.coverage.report]
 show_missing = true

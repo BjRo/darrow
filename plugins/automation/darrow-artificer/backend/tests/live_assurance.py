@@ -1,4 +1,4 @@
-"""Opt-in real Artificer -> Ticket-to-PR -> Verification/Review, with feedback."""
+"""Opt-in real Artificer -> Ticket-to-PR -> Verification/Review, with native resume."""
 
 from __future__ import annotations
 
@@ -7,31 +7,39 @@ import hashlib
 import json
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
 import time
+from collections.abc import Callable
 from pathlib import Path
 
-from assurance_control import REPLY, git
-from assurance_evidence import goal_identity, retained_evidence
-from assurance_fixture import installation
+from assurance_control import FIXTURE_PR, git
+from assurance_evidence import observations, retained_evidence, settled_goal
+from assurance_fixture import codex_home, fixture_plugins, installation
 from assurance_judge import judge
-from darrow_artificer import native, operations, processes
-from darrow_artificer.github import array_value
+from darrow_artificer import operations, processes
 from darrow_artificer.installation import Installation
 from darrow_artificer.models import Claim
 from darrow_artificer.storage import read_object, write_object
-from live_native import observations
+
+PROBE_SECONDS = 1800
+INLINE_ASSESSMENT_MODEL = "gpt-6.1-sol"
+INLINE_ASSESSMENT_EFFORTS = ("medium", "high", "xhigh")
 
 
-def ended(site: Installation, delivery: str, expected: str) -> Claim:
-    deadline = time.monotonic() + 1800
+def assessment_placement(model: str, effort: str) -> str:
+    """Owners at or above the Review floor coordinate assessment inline."""
+    supported = model == INLINE_ASSESSMENT_MODEL and effort in INLINE_ASSESSMENT_EFFORTS
+    return "inline" if supported else "fallback"
+
+
+def observe(site: Installation, delivery: str, ready: Callable[[Claim], bool]) -> Claim:
+    deadline = time.monotonic() + PROBE_SECONDS
     while time.monotonic() < deadline:
         claim = site.claim(delivery)
-        if not processes.alive(claim.process):
-            if claim.status != expected:
-                raise RuntimeError(claim.model_dump_json())
+        if ready(claim):
             return claim
         time.sleep(0.2)
     raise TimeoutError(
@@ -39,18 +47,43 @@ def ended(site: Installation, delivery: str, expected: str) -> Claim:
     )
 
 
-def reply(root: Path, claim: Claim) -> None:
-    state = read_object(root / "forge.json")
-    comments = array_value(state["comments"])
-    comments.append(
-        {
-            "id": 99,
-            "issue": claim.issue,
-            "body": f"/artificer reply {claim.id} {claim.question}\n{REPLY}",
-            "user": {"login": "writer", "type": "User"},
-        }
-    )
-    write_object(root / "forge.json", state)
+def ended(site: Installation, delivery: str, expected: str) -> Claim:
+    claim = observe(site, delivery, lambda value: not processes.alive(value.process))
+    if claim.status != expected:
+        raise RuntimeError(claim.model_dump_json())
+    return claim
+
+
+def goal_started(site: Installation, delivery: str) -> Claim:
+    def ready(claim: Claim) -> bool:
+        if not processes.alive(claim.process):
+            raise RuntimeError(
+                f"Delivery ended before its goal: {claim.model_dump_json()}"
+            )
+        return claim.native is not None and claim.goal_objective is not None
+
+    return observe(site, delivery, ready)
+
+
+def interrupt_app_server(claim: Claim) -> int:
+    """End the host process, never the worker, to force same-session resume."""
+    assert claim.process is not None
+    rows = subprocess.run(
+        ["/bin/ps", "-axo", "pid=,ppid=,command="],
+        text=True,
+        capture_output=True,
+        check=True,
+    ).stdout.splitlines()
+    servers = [
+        int(fields[0])
+        for fields in (row.split(None, 2) for row in rows)
+        if len(fields) == 3
+        and int(fields[1]) == claim.process.pid
+        and "app-server" in fields[2]
+    ]
+    assert len(servers) == 1, "expected one app-server under the delivery worker"
+    os.kill(servers[0], signal.SIGTERM)
+    return servers[0]
 
 
 def transcript_view(root: Path, home: Path, thread: str) -> Path:
@@ -84,9 +117,10 @@ def transcript_view(root: Path, home: Path, thread: str) -> Path:
     return view
 
 
-def verify_assurance(root: Path, site: Installation, claim: Claim) -> dict[str, object]:
+def verify_assurance(
+    root: Path, home: Path, claim: Claim, placement: str
+) -> dict[str, object]:
     assert claim.native is not None
-    home = site.delivery_dir(claim.id) / "native"
     view = transcript_view(root, home, claim.native.thread)
     source = Path(__file__).resolve().parents[5]
     oracle = (
@@ -106,7 +140,7 @@ def verify_assurance(root: Path, site: Installation, claim: Claim) -> dict[str, 
             "--profile",
             "default",
             "--placement",
-            "fallback",
+            placement,
             "--axes",
             "standards",
             "spec",
@@ -127,7 +161,7 @@ def verify_publication(root: Path, claim: Claim) -> str:
         == commit
     )
     proposal = read_object(root / "proposal.json")
-    assert proposal == {"head": commit, "branch": claim.branch, "number": 9}
+    assert proposal == {"head": commit, "branch": claim.branch, "number": FIXTURE_PR}
     assert read_object(root / "ci.json") == {"commit": commit, "status": "success"}
     assert json.loads(git(repo, "show", f"{commit}:config.json")) == {
         "timeoutMs": 2500,
@@ -136,45 +170,50 @@ def verify_publication(root: Path, claim: Claim) -> str:
     return commit
 
 
-def exercise(root: Path, site: Installation) -> dict[str, object]:
-    started = time.monotonic()
+def deliver(root: Path, site: Installation) -> Claim:
     deliveries = operations.tick(site)
     assert len(deliveries) == 1
     reserved = site.claim(deliveries[0])
     write_object(
         root / "target.json", {"worktree": reserved.worktree, "branch": reserved.branch}
     )
-    first = ended(site, reserved.id, "question")
-    assert first.native is not None and first.goal_objective
-    original_goal = goal_identity(site.delivery_dir(first.id), first, "active")
-    assert (site.delivery_dir(first.id) / "session.enc").is_file()
-    assert not (root / "proposal.json").exists()
-    assert not (root / "release.txt").exists()
-    subprocess.run(["bash", "check.sh"], cwd=first.worktree, check=True)
-    grant = site.grant
-    grant.WORK_IN_PROGRESS_LIMIT = 0
-    site.save_grant(grant)
-    reply(root, first)
-    assert operations.tick(site) == []
+    first = goal_started(site, reserved.id)
+    interrupt_app_server(first)
     final = ended(site, first.id, "pr-open")
     assert final.native == first.native and final.goal_objective == first.goal_objective
-    assert (
-        goal_identity(site.delivery_dir(final.id), final, "complete") == original_goal
-    )
-    assert final.pr == 9 and final.consumed_comments == [99] and len(site.claims()) == 1
+    assert final.total_recovery_attempts == 1 and final.pr == FIXTURE_PR
+    assert operations.tick(site) == []
+    assert site.claim(final.id).status == "pr-open", "open PR must retain ownership"
+    return final
+
+
+def exercise(
+    root: Path,
+    site: Installation,
+    home: Path,
+    codex: Path,
+    credentials: Path,
+    placement: str,
+) -> dict[str, object]:
+    started = time.monotonic()
+    final = deliver(root, site)
+    goal = settled_goal(site.delivery_dir(final.id), final)
+    assert goal["app_server_processes"] == 2
     commit = verify_publication(root, final)
     delivery_seconds = time.monotonic() - started
-    assurance = verify_assurance(root, site, final)
-    evidence = retained_evidence(root, site, final, commit)
-    semantic = judge(root, site, evidence)
+    assurance = verify_assurance(root, home, final, placement)
+    evidence = retained_evidence(root, home, final, commit)
+    semantic = judge(root, codex, credentials, evidence)
     return {
-        "format": "darrow-artificer-assurance-probe-v1",
-        "codex": native.VERSION,
+        "format": "darrow-artificer-assurance-probe-v2",
+        "codex": subprocess.run(
+            [str(codex), "--version"], capture_output=True, text=True, check=True
+        ).stdout.strip(),
         "real_engineering_recipe": True,
         "real_github_effects": False,
-        "same_native_owner_and_goal": True,
-        "native_goal_identity": original_goal,
-        "reply_at_wip_zero": True,
+        "same_session_resume_after_process_exit": True,
+        "assessment_placement": placement,
+        "native_goal": goal,
         "admission_and_claim": final.id,
         "commit": commit,
         "required_ci": "success",
@@ -193,10 +232,23 @@ def stop_probe(site: Installation) -> None:
             operations.cancel(site, claim.id)
 
 
-def trial(root: Path, codex: Path) -> dict[str, object]:
-    site = installation(root, codex)
+def trial(
+    root: Path, codex: Path, credentials: Path, model: str, effort: str
+) -> dict[str, object]:
+    home = codex_home(
+        root / "codex-home", credentials, model, effort, fixture_plugins(root)
+    )
+    site = installation(root, codex, profile=home)
+    os.environ.update(
+        {
+            "DARROW_REVIEW_STATE_DIR": str(root / "reviews"),
+            "DARROW_CACHE_DIR": str(root / "cache"),
+        }
+    )
     try:
-        return exercise(root, site)
+        return exercise(
+            root, site, home, codex, credentials, assessment_placement(model, effort)
+        )
     finally:
         stop_probe(site)
 
@@ -205,10 +257,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--codex", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--credentials", type=Path, default=Path.home() / ".codex")
+    parser.add_argument("--model", default="gpt-6.1-sol")
+    parser.add_argument("--effort", default="medium")
     args = parser.parse_args()
     root = Path(tempfile.mkdtemp(prefix="darrow-artificer-assurance-"))
     print(f"Evidence directory: {root}", flush=True)
-    result = trial(root, args.codex)
+    result = trial(root, args.codex, args.credentials, args.model, args.effort)
     write_object(args.out.resolve(), result)
     print(json.dumps(result, indent=2))
 

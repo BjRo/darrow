@@ -51,7 +51,7 @@ for relative in $packages; do
   echo "==> Python quality: $relative"
   (
     cd "$package"
-    trap 'rm -f .coverage coverage.json' EXIT HUP INT TERM
+    trap 'rm -f .coverage .coverage.* coverage.json' EXIT HUP INT TERM
     uv lock --check
     uv sync --locked --all-groups
 
@@ -70,9 +70,17 @@ for relative in $packages; do
       if [ "$coverage_verifier_tested" = false ]; then
         uv run --all-groups sh "$repo_root/scripts/test-python-coverage"
       fi
+      uv run --all-groups coverage erase
       uv run --all-groups coverage run -m pytest
+      set -- .coverage.*
+      if [ -f "$1" ]; then
+        uv run --all-groups coverage combine --append
+      fi
       uv run --all-groups coverage json -o coverage.json
-      uv run --all-groups sh "$repo_root/scripts/verify-python-coverage" coverage.json
+      if ! uv run --all-groups sh "$repo_root/scripts/verify-python-coverage" coverage.json; then
+        uv run --all-groups coverage report
+        exit 1
+      fi
     fi
   )
   if [ "$mode" = full ]; then

@@ -24,6 +24,15 @@ command. When no matching goal or usable activation control exists, return
 native command for this session. Do not pretend to invoke a built-in command
 through Skill, start a nested Claude process or create a custom stop hook.
 
+An explicitly advertised headless client may supply a native activation
+interface. After all read-only preflight and readiness requirements are settled,
+return the prepared objective through that interface and yield. The client may
+enter native `/goal` in this same session with that exact objective. This is a
+request for activation, not observed activation; wait for the native kickoff
+before engineering or assessment. The client does not choose the objective,
+readiness or engineering workflow. Without such an interface, retain the normal
+`launch_required` response and compact native command above.
+
 ## Resolve bounded agent routes
 
 Direct placement implements in this thread and launches no implementation

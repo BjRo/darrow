@@ -5,18 +5,22 @@ import sys
 
 import pytest
 
+from conftest import existing
 from darrow_artificer import processes
 from darrow_artificer.installation import Installation
 from darrow_artificer.models import Process
-from test_admission import existing
 
 
 def test_cancel_only_selected_process_group() -> None:
     first = subprocess.Popen(
-        [sys.executable, "-c", "import time; time.sleep(30)"], start_new_session=True
+        [sys.executable, "-c", "import time; time.sleep(30)"],
+        start_new_session=True,
+        env=external_environment(),
     )
     second = subprocess.Popen(
-        [sys.executable, "-c", "import time; time.sleep(30)"], start_new_session=True
+        [sys.executable, "-c", "import time; time.sleep(30)"],
+        start_new_session=True,
+        env=external_environment(),
     )
     try:
         identity = processes.identity(first.pid)
@@ -88,6 +92,7 @@ def test_orphaned_native_group_prevents_false_completion() -> None:
             "import subprocess,sys,time; subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)']); print('ready', flush=True); time.sleep(1)",
         ],
         start_new_session=True,
+        env=external_environment(),
         stdout=subprocess.PIPE,
         text=True,
     )
@@ -120,3 +125,11 @@ def test_reused_pid_cannot_authorize_cancellation(
     assert processes.alive(observed)
     with pytest.raises(RuntimeError, match="reconcile"):
         processes.cancel_process(observed)
+
+
+def external_environment() -> dict[str, str]:
+    return {
+        key: value
+        for key, value in os.environ.items()
+        if key not in {"COVERAGE_PROCESS_CONFIG", "COVERAGE_PROCESS_START"}
+    }

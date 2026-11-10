@@ -11,10 +11,11 @@ import pytest
 
 from assurance_control import git
 from assurance_evidence import (
-    goal_identity,
+    assessment_before,
     provider_result,
     public_review,
     published_content,
+    settled_goal,
 )
 from assurance_fixture import installation
 from assurance_judge import CHECKS, require_clear
@@ -163,29 +164,8 @@ def test_omitted_or_unassessed_criterion_cannot_clear_the_semantic_gate() -> Non
         require_clear(result)
 
 
-def goal_event(**changes: object) -> dict[str, object]:
-    goal = {
-        "threadId": "original",
-        "objective": "Deliver",
-        "createdAt": 123,
-        "tokenBudget": None,
-        "status": "active",
-        **changes,
-    }
-    return {
-        "method": "thread/goal/updated",
-        "params": {"threadId": "original", "goal": goal},
-    }
-
-
-def write_events(path: Path, events: list[dict[str, object]]) -> None:
-    path.write_text("\n".join(json.dumps(event) for event in events))
-
-
-def test_native_goal_creation_identity_survives_the_process_boundary(
-    tmp_path: Path,
-) -> None:
-    claim = Claim(
+def delivered(tmp_path: Path) -> Claim:
+    return Claim(
         id="claim",
         issue=291,
         activation="activation",
@@ -196,12 +176,108 @@ def test_native_goal_creation_identity_survives_the_process_boundary(
         native=Native(thread="original", model="gpt-6-sol", effort="medium"),
         goal_objective="Deliver",
     )
-    write_events(tmp_path / "first-events.jsonl", [goal_event()])
-    original = goal_identity(tmp_path, claim, "active")
-    write_events(tmp_path / "second-events.jsonl", [goal_event(status="complete")])
-    assert goal_identity(tmp_path, claim, "complete") == original
+
+
+def write_events(path: Path, events: list[dict[str, object]]) -> None:
+    path.write_text("\n".join(json.dumps(event) for event in events))
+
+
+def started(thread: str = "original") -> dict[str, object]:
+    return {"type": "thread.started", "thread_id": thread}
+
+
+def settled(status: str) -> dict[str, object]:
+    return {
+        "type": "artificer.settled",
+        "thread_id": "original",
+        "turn_id": "turn",
+        "goal_status": status,
+    }
+
+
+def test_native_goal_survives_the_app_server_process_boundary(
+    tmp_path: Path,
+) -> None:
+    write_events(tmp_path / "first-events.jsonl", [started()])
+    write_events(tmp_path / "second-events.jsonl", [started(), settled("complete")])
+    goal = settled_goal(tmp_path, delivered(tmp_path))
+    assert goal["thread"] == "original" and goal["app_server_processes"] == 2
+
+
+def test_replacement_session_cannot_clear_the_composition(tmp_path: Path) -> None:
+    write_events(tmp_path / "first-events.jsonl", [started()])
     write_events(
-        tmp_path / "second-events.jsonl", [goal_event(status="complete", createdAt=456)]
+        tmp_path / "second-events.jsonl", [started("fresh"), settled("complete")]
     )
-    with pytest.raises(AssertionError, match="replaced"):
-        goal_identity(tmp_path, claim, "complete")
+    with pytest.raises(AssertionError, match="replacement"):
+        settled_goal(tmp_path, delivered(tmp_path))
+
+
+def test_incomplete_or_cleared_goal_cannot_clear_the_composition(
+    tmp_path: Path,
+) -> None:
+    write_events(tmp_path / "first-events.jsonl", [started(), settled("active")])
+    with pytest.raises(AssertionError, match="did not complete"):
+        settled_goal(tmp_path, delivered(tmp_path))
+    cleared: dict[str, object] = {
+        "method": "thread/goal/cleared",
+        "params": {"threadId": "original"},
+    }
+    write_events(
+        tmp_path / "first-events.jsonl", [started(), cleared, settled("complete")]
+    )
+    with pytest.raises(AssertionError):
+        settled_goal(tmp_path, delivered(tmp_path))
+
+
+HANDOFF = "Conclusion: clear.\nComplete provider result: [report](</tmp/review.md>)"
+
+
+def at(second: int, payload: dict[str, object]) -> dict[str, object]:
+    return {
+        "timestamp": f"2026-11-08T12:00:{second:02d}Z",
+        "type": "response_item",
+        "payload": payload,
+    }
+
+
+def assistant(text: str) -> dict[str, object]:
+    content = [{"type": "output_text", "text": text}]
+    return {"type": "message", "role": "assistant", "content": content}
+
+
+def tool_output(text: str) -> dict[str, object]:
+    chunk = json.dumps({"exit_code": 0, "output": text})
+    return {"type": "custom_tool_call_output", "output": [{"text": chunk}]}
+
+
+PUBLISHED_AT = 1794139230.0  # 2026-11-08T12:00:30Z
+
+
+def test_inline_owner_rendered_handoff_precedes_publication(tmp_path: Path) -> None:
+    path = tmp_path / "owner.jsonl"
+    write_events(
+        path,
+        [
+            at(10, tool_output(HANDOFF)),
+            at(20, assistant("Verification is clear; publishing now.")),
+            at(40, assistant("Published.")),
+        ],
+    )
+    assert assessment_before(path, PUBLISHED_AT) == HANDOFF
+
+
+def test_fallback_coordinator_answer_is_the_handoff(tmp_path: Path) -> None:
+    path = tmp_path / "coordinator.jsonl"
+    write_events(path, [at(10, assistant(HANDOFF))])
+    assert assessment_before(path, PUBLISHED_AT) == HANDOFF
+
+
+def test_handoff_after_publication_cannot_clear(tmp_path: Path) -> None:
+    path = tmp_path / "owner.jsonl"
+    write_events(
+        path,
+        [at(10, assistant("Verification is clear.")), at(40, tool_output(HANDOFF))],
+    )
+    with pytest.raises(AssertionError, match="before publication"):
+        assessment_before(path, PUBLISHED_AT)

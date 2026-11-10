@@ -18,29 +18,31 @@ fixture:
     root = Path.cwd().resolve()
     state = root / '.fixture-state'
     state.mkdir(exist_ok=True)
-    grant = dict(id='11111111-1111-4111-8111-111111111111', repository='fixture/repo',
-        checkout=str(root), common_git=str(root / '.git'), grantor='maintainer',
-        codex='/bin/false', gh='/bin/false', git='/usr/bin/git', model='gpt-5.6-terra',
-        effort='medium', credential_home='/fixture/credentials',
-        account_usage_accepted=True,
-        effects='claims,questions,worktrees,recipe,commits,push,pr,archives')
+    shared = root / '.git/artificer'
+    (shared / 'workers').mkdir(parents=True)
+    grant = dict(schema_version=2, host='codex', id='11111111-1111-4111-8111-111111111111',
+        repository='fixture/repo', checkout=str(root), common_git=str(root / '.git'),
+        grantor='maintainer', executable='/bin/false', gh='/bin/false', git='/usr/bin/git',
+        effects='claims,reports,worktrees,recipe,commits,push,pr')
     (state / 'grant.json').write_text(json.dumps(grant))
-    binding = root / '.git/artificer'
-    binding.mkdir()
-    (binding / 'installation.json').write_text(json.dumps(dict(root=str(state), grant=grant['id'])))
-    delivery = state / 'deliveries/22222222-2222-4222-8222-222222222222'
-    delivery.mkdir(parents=True)
-    claim = dict(id=delivery.name, issue=157, activation='original', grant=grant['id'],
-        worktree='/fixture/worktree', branch='feat/157-fixture', status='question', created_at=1)
-    (delivery / 'claim.json').write_text(json.dumps(claim))
-    (root / '.git/original-claim').write_text(json.dumps(claim))
+    (shared / 'repository.json').write_text(json.dumps(dict(repository='fixture/repo', host='codex', WORK_IN_PROGRESS_LIMIT=2)))
+    (shared / 'workers' / (grant['id'] + '.json')).write_text(json.dumps(dict(root=str(state), grant=grant['id'])))
+    records = [('22222222-2222-4222-8222-222222222222', 157, 'needs-attention')]
+    for identifier, issue, status in records:
+        directory = shared / 'deliveries' / identifier
+        directory.mkdir(parents=True)
+        claim = dict(id=identifier, issue=issue, activation='original', grant=grant['id'],
+            worktree='/fixture/worktree', branch=f'feat/{issue}-fixture', status=status,
+            detail='Cancelled; original ownership retained for recovery.' if status == 'cancelled' else 'Outstanding delivery.', created_at=1)
+        (directory / 'claim.json').write_text(json.dumps(claim))
+        (root / '.git/original-claim').write_text(json.dumps(claim))
     PY
 checks:
   - name: recurring grant disabled
     run: >-
       python3 -c 'import json; assert json.load(open(".fixture-state/grant.json"))["enabled"] is False'
   - name: existing delivery unchanged
-    run: cmp .git/original-claim .fixture-state/deliveries/22222222-2222-4222-8222-222222222222/claim.json
+    run: cmp .git/original-claim .git/artificer/deliveries/22222222-2222-4222-8222-222222222222/claim.json
   - name: no engineering effects
     run: git diff HEAD --exit-code && test "$(git rev-list --count HEAD)" -eq 1 && test ! -e .fixture-state/archive.key
 semantic_output_checks:

@@ -1,25 +1,19 @@
 {
   "activation": "positive",
-  "invariant": "ART-C1,ART-C2,ART-C11",
+  "invariant": "ART-C1,ART-C10,ART-C11",
   "goal_report": "forbidden",
   "expect_head_change": false,
   "fixture":
     {
-      "commit_files": true,
-      "files":
-        {
-          ".fixture-state/grant.json": "{\n  \"id\": \"11111111-1111-4111-8111-111111111111\",\n  \"repository\": \"fixture/repo\",\n  \"checkout\": \"/fixture/repository\",\n  \"common_git\": \"/fixture/repository/.git\",\n  \"grantor\": \"maintainer\",\n  \"codex\": \"/bin/false\",\n  \"gh\": \"/bin/false\",\n  \"git\": \"/usr/bin/git\",\n  \"model\": \"gpt-5.6-terra\",\n  \"effort\": \"medium\",\n  \"credential_home\": \"/fixture/credentials\",\n  \"account_usage_accepted\": true,\n  \"effects\": \"claims,questions,worktrees,recipe,commits,push,pr,archives\"\n}",
-          ".fixture-state/deliveries/22222222-2222-4222-8222-222222222222/claim.json": "{\n  \"id\": \"22222222-2222-4222-8222-222222222222\",\n  \"issue\": 157,\n  \"activation\": \"fixture-activation\",\n  \"grant\": \"11111111-1111-4111-8111-111111111111\",\n  \"worktree\": \"/fixture/worktree\",\n  \"branch\": \"feat/157-fixture\",\n  \"status\": \"question\",\n  \"detail\": \"Waiting for an authorized answer.\",\n  \"created_at\": 1\n}\n",
-          ".fixture-state/deliveries/33333333-3333-4333-8333-333333333333/claim.json": "{\n  \"id\": \"33333333-3333-4333-8333-333333333333\",\n  \"issue\": 158,\n  \"activation\": \"fixture-activation\",\n  \"grant\": \"11111111-1111-4111-8111-111111111111\",\n  \"worktree\": \"/fixture/worktree\",\n  \"branch\": \"feat/157-fixture\",\n  \"status\": \"question\",\n  \"detail\": \"Waiting for an authorized answer.\",\n  \"created_at\": 1\n}\n",
-        },
       "commits":
         [{ "message": "chore: init", "files": { "README.md": "fixture\n" } }],
+      "setup": "python3 - <<'PY'\nimport json\nfrom pathlib import Path\nroot = Path.cwd().resolve()\nstate = root / '.fixture-state'\nstate.mkdir(exist_ok=True)\nshared = root / '.git/artificer'\n(shared / 'workers').mkdir(parents=True)\ngrant = dict(schema_version=2, host='codex', id='11111111-1111-4111-8111-111111111111',\n    repository='fixture/repo', checkout=str(root), common_git=str(root / '.git'),\n    grantor='maintainer', executable='/bin/false', gh='/bin/false', git='/usr/bin/git',\n    effects='claims,reports,worktrees,recipe,commits,push,pr')\n(state / 'grant.json').write_text(json.dumps(grant))\n(shared / 'repository.json').write_text(json.dumps(dict(repository='fixture/repo', host='codex', WORK_IN_PROGRESS_LIMIT=2)))\n(shared / 'workers' / (grant['id'] + '.json')).write_text(json.dumps(dict(root=str(state), grant=grant['id'])))\nrecords = [('22222222-2222-4222-8222-222222222222', 157, 'pr-open'), ('33333333-3333-4333-8333-333333333333', 158, 'pr-open')]\nfor identifier, issue, status in records:\n    directory = shared / 'deliveries' / identifier\n    directory.mkdir(parents=True)\n    claim = dict(id=identifier, issue=issue, activation='original', grant=grant['id'],\n        worktree='/fixture/worktree', branch=f'feat/{issue}-fixture', status=status,\n        detail='Cancelled; original ownership retained for recovery.' if status == 'cancelled' else 'Outstanding delivery.', created_at=1)\n    (directory / 'claim.json').write_text(json.dumps(claim))\n    (root / '.git/original-claim').write_text(json.dumps(claim))\nPY\n",
     },
   "checks":
     [
       {
         "name": "repository remains unchanged",
-        "run": 'git diff HEAD --exit-code && test "$(git rev-list --count HEAD)" -eq 2',
+        "run": 'git diff HEAD --exit-code && test "$(git rev-list --count HEAD)" -eq 1',
       },
       {
         "name": "no unauthorized installation",

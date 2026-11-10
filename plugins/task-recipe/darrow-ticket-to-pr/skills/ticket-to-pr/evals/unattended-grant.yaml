@@ -3,7 +3,7 @@ candidate_routes:
   codex:
     model: gpt-6.1-sol
     effort: medium
-harnesses: [codex]
+harnesses: [codex, claude]
 activation: positive
 mount_plugin_skills: true
 activation_sequence:
@@ -18,8 +18,13 @@ prompt: >-
   grant grant-157, grantor maintainer, repository fixture/repo, issue 157,
   delivery delivery-157, activation activation-157, reserved worktree
   /fixture/worktree-157, branch feat/157-existing, effects
-  claims,questions,worktrees,recipe,commits,push,pr,archives.
+  claims,reports,worktrees,recipe,commits,push,pr.
   Deliver https://github.com/fixture/repo/issues/157 under that receipt.
+  The host also supplies an Adaptive Goal orchestration capability in the
+  current repository: .claude/skills/adaptive-goal/SKILL.md on Claude Code,
+  or .agents/skills/adaptive-goal/SKILL.md on Codex. Its complete public
+  instructions define the compatible handoff interface; read and follow them
+  in this main thread if it is not listed in the native Skill menu.
 fixture:
   commits:
     - message: "chore: init"
