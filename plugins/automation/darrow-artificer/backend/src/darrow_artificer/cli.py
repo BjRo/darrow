@@ -103,7 +103,12 @@ def dispatch(site: Installation, args: argparse.Namespace) -> object:
             "profile_dir": site.grant.profile_dir,
             "WORK_IN_PROGRESS_LIMIT": site.grant.WORK_IN_PROGRESS_LIMIT,
             "blocker": plugins.blocker(site),
-            "deliveries": [claim.model_dump() for claim in site.claims()],
+            "deliveries": [
+                claim.model_dump()
+                for claim in sorted(
+                    site.claims(), key=lambda claim: claim.created_at, reverse=True
+                )[:1]
+            ],
         },
         "cancel": lambda: operations.cancel(site, args.delivery).model_dump(),
         "revoke": lambda: operations.revoke(site),

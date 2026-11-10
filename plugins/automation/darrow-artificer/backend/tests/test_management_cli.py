@@ -12,6 +12,7 @@ import pytest
 from darrow_artificer import processes
 from darrow_artificer.github import GitHub
 from darrow_artificer.installation import Installation
+from darrow_artificer.models import Claim
 from test_worker_cli import invoke, wait_stopped
 from test_worker_cli import repository as repository
 from test_worker_cli import services as services
@@ -37,6 +38,42 @@ def initialize(
         host,
     )
     return Installation(state)
+
+
+@pytest.mark.parametrize(
+    ("creation_times", "expected_index"),
+    [((), None), ((10.0,), 0), ((10.0, 30.0, 20.0), 1)],
+)
+def test_status_shows_only_most_recent_delivery(
+    repository: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    creation_times: tuple[float, ...],
+    expected_index: int | None,
+) -> None:
+    state = tmp_path / "worker"
+    site = initialize(repository, state, monkeypatch, capsys)
+    claims = [
+        Claim(
+            id=f"00000000-0000-4000-8000-{index:012d}",
+            issue=index,
+            activation=f"activation-{index}",
+            grant=site.grant.id,
+            worktree=str(tmp_path / f"delivery-{index}"),
+            branch=f"feat/{index}-delivery",
+            created_at=created_at,
+        )
+        for index, created_at in enumerate(creation_times, start=1)
+    ]
+    for claim in claims:
+        site.save(claim)
+
+    observed = invoke(monkeypatch, capsys, state, "status")
+
+    expected = [] if expected_index is None else [claims[expected_index].model_dump()]
+    assert observed["deliveries"] == expected
+    assert len(site.claims()) == len(creation_times)
 
 
 def test_open_artificer_pr_holds_wip_until_closed(

@@ -97,6 +97,8 @@ supervision. Task recipes and their native session own engineering.
   native session, recovery attempts, PR, blocker and next action. Report stopped
   work on its source issue too, including any PR. An ambiguous comment must
   remain locally visible rather than automatically being posted again.
+  Default status shows only the delivery with the latest creation timestamp,
+  or an empty deliveries list when none exists. Saved history remains intact.
 - **ART-C11 — Local scheduling.** Retain launchd with absolute executables and
   a default 900-second tick, independent of Desktop/terminal. Revocation prevents
   later admission and continuation. Cancellation targets only its identified
