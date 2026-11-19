@@ -1,7 +1,7 @@
 # Native scheduling: Artificer removal and migration boundaries
 
-Research for [question #313](https://github.com/BjRo/darrow/issues/313), under
-[decision map #311](https://github.com/BjRo/darrow/issues/311), recorded 2026-11-19.
+Research for [Identify Artificer removal and migration boundaries in Darrow and Sevro](https://github.com/BjRo/darrow/issues/313), under
+[Replace Artificer machinery with native host scheduling](https://github.com/BjRo/darrow/issues/311), recorded 2026-11-19.
 
 Replacing Artificer can remove its admission and supervision backend without
 replacing Darrow's engineering workflow. The difficult boundary is preserving
@@ -194,14 +194,14 @@ native goal completion. [Marketplace][marketplace], [Python CI][python-ci],
 [guide fixtures][guide-fixture], [unattended eval][unattended-eval],
 [automation landing page][automation], [acceptance limits][art].
 
-| Open ticket, read 2026-11-19                      | Why scope needs revisiting                                                                                                               |
-| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| [#126](https://github.com/BjRo/darrow/issues/126) | Parent still requires Actions, encrypted archives/retention, issue replies and independent activation limits; current ART differs.       |
-| [#158](https://github.com/BjRo/darrow/issues/158) | Actions execution conflicts with the settled replacement direction; unresolved authentication is not solved by native migration.         |
-| [#285](https://github.com/BjRo/darrow/issues/285) | Native telemetry attribution is useful intent, but Artificer's process-environment injection point disappears.                           |
-| [#308](https://github.com/BjRo/darrow/issues/308) | Platform support shifts from Artificer portability to chosen native-host/setup support.                                                  |
-| [#309](https://github.com/BjRo/darrow/issues/309) | UX target changes when CLI management is retired/adapted.                                                                                |
-| [#310](https://github.com/BjRo/darrow/issues/310) | Specialist issue-only missions and separate schedules need a new entry; nomination and duplicate-publication boundaries remain relevant. |
+| Open ticket, read 2026-11-19                                                                                             | Why scope needs revisiting                                                                                                               |
+| ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| [Add Artificer automation for capacity-aware ticket delivery](https://github.com/BjRo/darrow/issues/126)                 | Parent still requires Actions, encrypted archives/retention, issue replies and independent activation limits; current ART differs.       |
+| [Add GitHub Actions execution for Artificer](https://github.com/BjRo/darrow/issues/158)                                  | Actions execution conflicts with the settled replacement direction; unresolved authentication is not solved by native migration.         |
+| [Attribute Artificer delivery telemetry through native environment variables](https://github.com/BjRo/darrow/issues/285) | Native telemetry attribution is useful intent, but Artificer's process-environment injection point disappears.                           |
+| [Add Windows and Linux support to Artificer](https://github.com/BjRo/darrow/issues/308)                                  | Platform support shifts from Artificer portability to chosen native-host/setup support.                                                  |
+| [Polish the Artificer user experience](https://github.com/BjRo/darrow/issues/309)                                        | UX target changes when CLI management is retired/adapted.                                                                                |
+| [Support independently scheduled Artificer specialist missions](https://github.com/BjRo/darrow/issues/310)               | Specialist issue-only missions and separate schedules need a new entry; nomination and duplicate-publication boundaries remain relevant. |
 
 These are scope-review candidates, not closure recommendations. Later decisions
 still own admission/capacity, interrupted-owner handling and setup/migration.
