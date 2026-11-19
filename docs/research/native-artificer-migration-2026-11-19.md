@@ -178,8 +178,13 @@ owns publication; the prompt owns repository work and commits. That separation i
 useful packaging evidence. Its OAuth/PAT provisioning, Actions execution,
 permission bypass and per-run branches/PRs are different runtime and authority
 choices, excluded here. Its own workflow explicitly allows two retries/runs to
-produce two PRs. [Course workflow][course-workflow], [launcher][course-script],
-[prompt][course-prompt], [shared host configuration][course-common].
+produce two PRs. Course sources are tracked, unchanged files in the supplied local checkout
+`/Users/bjro/Sources/mattpocock/ai-coding-software-factory-course` at the commit
+listed above: `.github/workflows/agent-implement.yml`,
+`.sandcastle/agent-workflows/implement/implement.ts`, its adjacent `prompt.md`,
+and `.sandcastle/agent-workflows/shared/common.ts`. Their pinned public URLs
+returned HTTP 404; local inspection supports these claims, but public access to
+this course snapshot was not established.
 
 Retirement touches more than the plugin directory: marketplace entry, both
 manifests, Python inventory, Artificer CI jobs, management evals, deterministic
@@ -242,7 +247,3 @@ not operational migration completion.
 [sevro-package]: https://github.com/BjRo/sevro/blob/38022560c2e38f3fed3a5028416425405d59f25b/package.json
 [sevro-contrib]: https://github.com/BjRo/sevro/blob/38022560c2e38f3fed3a5028416425405d59f25b/CONTRIBUTING.md
 [sevro-isolation]: https://github.com/BjRo/sevro/blob/38022560c2e38f3fed3a5028416425405d59f25b/tests/src/hosts/isolation.test.ts
-[course-workflow]: https://github.com/BjRo/ai-coding-software-factory-course/blob/4339a3095c5d85e4fb2b3b60ff6c1e6d18147180/.github/workflows/agent-implement.yml
-[course-script]: https://github.com/BjRo/ai-coding-software-factory-course/blob/4339a3095c5d85e4fb2b3b60ff6c1e6d18147180/.sandcastle/agent-workflows/implement/implement.ts
-[course-prompt]: https://github.com/BjRo/ai-coding-software-factory-course/blob/4339a3095c5d85e4fb2b3b60ff6c1e6d18147180/.sandcastle/agent-workflows/implement/prompt.md
-[course-common]: https://github.com/BjRo/ai-coding-software-factory-course/blob/4339a3095c5d85e4fb2b3b60ff6c1e6d18147180/.sandcastle/agent-workflows/shared/common.ts
