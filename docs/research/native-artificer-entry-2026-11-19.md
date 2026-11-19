@@ -11,8 +11,8 @@ The smallest candidate replaces admission and launch around the existing
 delivery owner. It must preserve recurring human authority and deliberately
 adapt the unattended entry contract; changing the scheduler alone is
 insufficient. This investigation resolves feasibility for
-[issue #312](https://github.com/BjRo/darrow/issues/312), under
-[issue #311](https://github.com/BjRo/darrow/issues/311). It does not choose the
+[Establish native scheduling and delivery entry on Codex and Claude Code](https://github.com/BjRo/darrow/issues/312), under
+[Replace Artificer machinery with native host scheduling](https://github.com/BjRo/darrow/issues/311). It does not choose the
 remaining user policy or implement the replacement.
 
 ## Evidence and limits
