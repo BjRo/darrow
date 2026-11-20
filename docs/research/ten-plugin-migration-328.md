@@ -228,6 +228,24 @@ run also passed (18 tests, 192 assertions). All maintained guide expectations we
 and rationale change question-specific acceptance; the other positive cases share
 the support qualification without changes to task or no-effects checks.
 
+The parent's first current Codex guide trial, `guide-rationale`, run
+`ca4ce9c0-e22c-46a2-a9ae-e91ee8e34bb4`, retains **TASK FAILED** and activation
+PASS. All four no-effects shell checks, the dedicated host-aware disclosure check
+and nearby-evidence output check passed. The semantic grader incorrectly demanded
+a Claude disclosure on Codex and called current main-thread goal ownership with
+bounded delegation superseded. It also rejected retirement wording even though
+the answer said Pipeline was no longer an executable runtime or benchmark and
+that the maintained execution surface was removed while history remained.
+
+The retained response and governing retirement/ownership contracts support a
+fixture correction: the rationale proposition now states current facts directly,
+accepts equivalent retirement wording, and leaves host disclosure to its existing
+dedicated check. No product/guide body, no-effects check or prior verdict changed.
+Public regrading of the retained trial is unavailable; the corrected expectation
+has no new native result at this handoff. The parent stopped before foundations
+or Claude, and will run a fresh bounded condition. This is a correction to an
+ambiguous expectation, not an override of the failed semantic verdict.
+
 Full combined installed Sevro, final guide native trials, independent assessment,
 parent-local cleanup, push/draft PR and exact-head CI remain parent-owned.
 

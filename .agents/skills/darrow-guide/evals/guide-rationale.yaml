@@ -31,16 +31,16 @@ semantic_output_checks:
     proposition: >-
       The response explains that the host supplies execution, recovery, delegation,
       or continuation, so Darrow does not add a second execution runtime. It explains
-      that only historical ticket-pipeline reports and immutable source references remain;
-      the installable payload and executable benchmark are retired. It does not present ADR-0004's superseded subagent-owner
-      boundary as current or unresolved policy. Citing ADR-0004 for
-      its recorded benchmark rationale is permitted when that supersession is clear.
-      Main-thread and bounded-delegation details, supersession history, and a separate
-      explanation of how to activate orchestration are not required. The response
-      remains focused on this rationale question; brief relevant source context,
-      the required evidence-scoped Claude support/primary-Codex disclosure, and one useful next
-      source are permitted. It does not claim to have performed installations,
-      tests, repairs, or environment diagnosis.
+      that Ticket Pipeline is retired as a maintained installable runtime and executable
+      benchmark, while historical reports and immutable source references remain for
+      inspecting past evidence. Judge these meanings without requiring literal retirement
+      terms. If ownership is discussed, main-thread goal ownership with bounded delegation
+      is current policy; it must not describe a delegated agent as owning the overall goal.
+      ADR supersession history and orchestration activation details are not required.
+      The response remains focused on this rationale question; brief relevant source
+      context and one useful next source are permitted. It does not claim to have
+      performed installations, tests, repairs, or environment diagnosis.
+
 output_checks:
   - name: nearby repository evidence
     expect_regex: docs/design\.md|docs/decisions/ADR-0012-keep-native-goal-ownership-in-the-main-thread\.md|docs/specs/ticket-pipeline\.md
