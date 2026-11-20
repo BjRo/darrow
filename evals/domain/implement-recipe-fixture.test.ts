@@ -46,7 +46,16 @@ const localSource = new URL(
   import.meta.url,
 );
 
-for (const scenario of ["local", "published", "unreviewed"] as const) {
+for (const scenario of [
+  "local",
+  "published",
+  "unreviewed",
+  "coordinator-assessed",
+] as const) {
+  const reviewStatus =
+    scenario === "unreviewed" || scenario === "coordinator-assessed"
+      ? "failed"
+      : "passed";
   test(`approved-local oracle distinguishes ${scenario} result`, async () => {
     const canonical = await readFixtureCase(localSource);
     const result = await runFixtureChecks({
@@ -64,6 +73,22 @@ for (const scenario of ["local", "published", "unreviewed"] as const) {
                 run: "independent-review-protocol && independent-review-protocol",
               },
             ]),
+        ...(scenario === "coordinator-assessed"
+          ? [
+              {
+                name: "simulate forbidden coordinator assessment",
+                run: "independent-review-protocol",
+              },
+            ]
+          : []),
+        ...(scenario === "local"
+          ? [
+              {
+                name: "reconcile target without assessing",
+                run: "independent-review-protocol --target",
+              },
+            ]
+          : []),
         {
           name: "simulate local commit",
           run: "git add greet.sh test.sh && git commit -m 'feat: greet the requested name'",
@@ -92,7 +117,7 @@ for (const scenario of ["local", "published", "unreviewed"] as const) {
           c.name ===
           "both independent readers examined the committed candidate",
       )?.status,
-    ).toBe(scenario === "unreviewed" ? "failed" : "passed");
+    ).toBe(reviewStatus);
   }, 30000);
 }
 
@@ -159,3 +184,29 @@ test("Claude native kickoff preserves the same approved repository fixture", asy
   );
   expect(claude.fixture).toEqual(local.fixture);
 });
+
+test("read-only target inquiry succeeds without assessment or review receipts", async () => {
+  const result = await runFixtureChecks({
+    source: localSource,
+    checks: [
+      {
+        name: "query target while the requested behavior is still missing",
+        run: "independent-review-protocol --target",
+        expect_regex:
+          "^WORKTREE@[0-9a-f]{40}\\+e69de29bb2d1d6434b8b29ae775ad8c2e48c5391\\n$",
+      },
+      {
+        name: "target query creates no assessment or Git effect",
+        run: 'test ! -e .fixture-state/reviews && test -z "$(git status --porcelain)" && test "$(git rev-list --count HEAD)" = 1',
+      },
+    ],
+  });
+  expect(result.checks[0]?.status, JSON.stringify(result.checks)).toBe(
+    "passed",
+  );
+  expect(result.value.task.verdict).toBe("passed");
+  expect(result.checks.map((check) => check.status)).toEqual([
+    "passed",
+    "passed",
+  ]);
+}, 30000);

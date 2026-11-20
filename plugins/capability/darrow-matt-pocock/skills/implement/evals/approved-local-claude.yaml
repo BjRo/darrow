@@ -60,13 +60,23 @@ fixture:
 
       On Codex use native `spawn_agent` with `fork_turns: "none"`,
       `model: "gpt-6.1-sol"` and `reasoning_effort: "xhigh"` for both readers.
-      On Claude use fresh native Agent contexts pinned to Opus/high. Keep the
+      On Claude use fresh native Agent contexts pinned to Opus/high. Emit both
+      Agent calls in the same assistant message with `run_in_background: false`,
+      before either result. Wait for both foreground results. Background or
+      sequential launches cannot satisfy this fixture contract. Keep the
       caller's provider-coordinator route unchanged. Supply each reader its axis,
       absolute repository, exact candidate, acceptance, constraints and successful
       checks. Readers execute this bounded read-only command once and return its
       complete output; they do not coordinate another review or launch agents:
 
       `independent-review-protocol`
+
+      Before launching, query the current target with
+      `independent-review-protocol --target`. This read-only mode prints the Git
+      target without running tests, assessing content or writing a review receipt.
+      Use this mode for coordinator target reconciliation as well. Never run the
+      no-argument reader command as coordinator, including to inspect or pipe its
+      output.
 
       Start both readers before waiting. Require both complete results to name
       the same current target; return both unchanged outputs inline with their
@@ -89,13 +99,23 @@ fixture:
 
       On Codex use native `spawn_agent` with `fork_turns: "none"`,
       `model: "gpt-6.1-sol"` and `reasoning_effort: "xhigh"` for both readers.
-      On Claude use fresh native Agent contexts pinned to Opus/high. Keep the
+      On Claude use fresh native Agent contexts pinned to Opus/high. Emit both
+      Agent calls in the same assistant message with `run_in_background: false`,
+      before either result. Wait for both foreground results. Background or
+      sequential launches cannot satisfy this fixture contract. Keep the
       caller's provider-coordinator route unchanged. Supply each reader its axis,
       absolute repository, exact candidate, acceptance, constraints and successful
       checks. Readers execute this bounded read-only command once and return its
       complete output; they do not coordinate another review or launch agents:
 
       `independent-review-protocol`
+
+      Before launching, query the current target with
+      `independent-review-protocol --target`. This read-only mode prints the Git
+      target without running tests, assessing content or writing a review receipt.
+      Use this mode for coordinator target reconciliation as well. Never run the
+      no-argument reader command as coordinator, including to inspect or pipe its
+      output.
 
       Start both readers before waiting. Require both complete results to name
       the same current target; return both unchanged outputs inline with their
@@ -107,7 +127,15 @@ fixture:
     independent-review-protocol: |
       #!/bin/sh
       set -eu
-      case "$*" in -h|--help) echo 'Usage: independent-review-protocol'; exit 0 ;; esac
+      target() {
+        head=$(git rev-parse HEAD)
+        digest=$(git diff HEAD -- greet.sh test.sh | git hash-object --stdin)
+        printf 'WORKTREE@%s+%s\n' "$head" "$digest"
+      }
+      case "$*" in
+        -h|--help) echo 'Usage: independent-review-protocol [--target]'; exit 0 ;;
+        --target) target; exit 0 ;;
+      esac
       test "$#" = 0 || exit 2
       bash test.sh
       test "$(bash greet.sh Alice)" = 'Hello Alice'
@@ -118,10 +146,9 @@ fixture:
       test "$changed" = "greet.sh
       test.sh"
       test -z "$(git ls-files --others --exclude-standard)"
-      head=$(git rev-parse HEAD)
-      digest=$(git diff HEAD -- greet.sh test.sh | git hash-object --stdin)
-      printf 'review\tWORKTREE@%s+%s\n' "$head" "$digest" >>.fixture-state/reviews
-      printf 'Independent review outcome: no blocking findings\nReviewed target: WORKTREE@%s+%s\n' "$head" "$digest"
+      review_target=$(target)
+      printf 'review\t%s\n' "$review_target" >>.fixture-state/reviews
+      printf 'Independent review outcome: no blocking findings\nReviewed target: %s\n' "$review_target"
       printf '%s\n' 'Acceptance evidence: CLI greetings for Alice, Bob and World pass; bash test.sh passes.' 'Standards evidence: only greet.sh and test.sh changed; diff check passes.' 'Findings: none. Evidence gaps: none.'
     gh: |
       #!/bin/sh

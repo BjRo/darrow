@@ -187,3 +187,32 @@ while its task outcome remains unassessed. Historical one-turn Claude diagnostic
 predate the final host scoping; their immutable attempt manifests retain the exact
 conditions. The package, mount, activation, task and native-goal observations must
 remain separate.
+
+## Foreground-reader fixture correction
+
+A later inspection of the full retained Claude follow-up stream found two
+successful root result events: an interim response waiting for background readers
+and a final task-notification response. Multi-result rejection by the caller is a
+supported inference, not a proven parser diagnosis. Diagnostic-prefix truncation
+was not the cause. The same evidence proves an extra coordinator protocol call,
+which creates a third receipt and must remain a contract failure.
+
+The corrected fixture follows the actual Review Claude boundary: both fresh
+foreground Agent calls occur in the same assistant message with
+`run_in_background: false`. It preserves the strict two-receipt oracle. The
+existing fixture command now exposes `--target`, a read-only Git fingerprint
+query that performs no assessment and writes no receipt. Coordinator target
+reconciliation uses that mode; the no-argument command remains reader-only.
+This changes fixture fidelity, not the implement body or its orchestration.
+The paired package versions advance to 0.2.1 under the repository version rule.
+
+- Red — `bun test ./evals/domain/implement-recipe-fixture.test.ts -t 'read-only target inquiry'`:
+  the previously unsupported target query exited 2 instead of 0.
+- Green — `bun test ./evals/domain/implement-recipe-fixture.test.ts -t 'read-only target inquiry'`:
+  it returns the current target despite missing requested behavior, without a
+  review receipt or Git effect.
+
+The fixture matrix also keeps valid local completion after a target inquiry and
+rejects an extra coordinator assessment, unreviewed work and unauthorized push.
+One fresh run of the existing two-turn Claude condition will exercise the concrete
+foreground correction. No runner, runtime profile or dependency was added.
