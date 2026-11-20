@@ -88,9 +88,10 @@ Write a Conventional Commit title that summarizes the whole branch, not merely
 its last commit: `<type>(<scope>): <imperative summary>`. Use the same allowed
 types as commits, at most 72 characters, with no trailing period.
 
-Without a repository template, use these sections in order. With a template,
-put the same useful content under its relevant headings; preserve its structure
-instead of adding competing headings.
+Without a repository template, use the Markdown headings `## Summary`,
+`## Evidence`, and `## Merge Danger` in that order. With a template, put the same
+useful content under its relevant headings; preserve its structure instead of
+adding competing headings.
 
 - **Summary:** Explain the problem and resulting committed behavior. Choose
   the smallest representation that makes the change clear: short prose often
@@ -117,7 +118,9 @@ This drafting step grants no test execution, media upload, separate comment,
 or PR metadata-update authority. Git supplies the complete presentation itself;
 no Explanation skill or second PR publisher is required.
 
-Pass each heading with its content as a separate `-b` section. Include a ticket
+Pass each heading with its content as a separate `-b` section. For the default
+body, each section starts with its `##` heading, followed by a blank line and
+the content. Include a ticket
 identifier verbatim when the branch name or conversation supplies one, for
 example `Refs DAR-123`. Omit filler and boilerplate checklists. Never add tool
 attribution to the title or body. Presentation sources and applicable notices
