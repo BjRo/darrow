@@ -35,10 +35,11 @@ mkdir -p docs/research
 for file in "$source_root"/docs/research/*.md; do
   # Keep public research available without exposing this task's acceptance ledger.
   case "$(basename "$file")" in
-    repository-guide-98-delivery.md|artificer-157-delivery.md) continue ;;
+    repository-guide-98-delivery.md|artificer-157-delivery.md|ten-plugin-migration-328.md) continue ;;
   esac
   cp "$file" docs/research/
 done
+cp "$source_root/docs/research/retired-links.json" docs/research/retired-links.json
 cp "$source_root/evals/sevro-extension/index.ts" evals/sevro-extension/index.ts
 cp "$source_root/.claude-plugin/marketplace.json" .claude-plugin/marketplace.json
 for category in "$source_root"/plugins/*; do

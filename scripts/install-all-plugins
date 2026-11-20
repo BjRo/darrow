@@ -17,13 +17,6 @@ fail() {
   exit 2
 }
 
-is_excluded() {
-  case "$1" in
-    darrow-ticket-pipeline) return 0 ;;
-    *) return 1 ;;
-  esac
-}
-
 script_dir=$(cd "$(dirname "$0")" && pwd) || exit 2
 marketplace=${DARROW_MARKETPLACE_MANIFEST:-}
 temporary_manifest=
@@ -126,7 +119,6 @@ esac
 count=0
 while IFS= read -r plugin; do
   [ -n "$plugin" ] || continue
-  is_excluded "$plugin" && continue
   identifier="$plugin@darrow"
   if [ "$host" = codex ]; then
     codex plugin add "$identifier"

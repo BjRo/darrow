@@ -13,6 +13,7 @@ test -f docs/specs/repository-guide.md
 cmp "$case_dir/../../../../evals/sevro-extension/index.ts" evals/sevro-extension/index.ts
 test ! -e evals/runner
 test -f docs/research/README.md
+test -f docs/research/retired-links.json
 test -f docs/research/adaptive-ticket-to-pr-opportunity.md
 test -f plugins/capability/darrow-git/.codex-plugin/plugin.json
 test -f plugins/automation/darrow-artificer/backend/src/darrow_artificer/cli.py
@@ -20,6 +21,9 @@ test -f plugins/automation/darrow-artificer/skills/manage-artificer/SKILL.md
 test ! -e plugins/automation/darrow-artificer/skills/manage-artificer/evals
 test ! -e docs/research/repository-guide-98-delivery.md
 test ! -e docs/research/artificer-157-delivery.md
+test ! -e docs/research/ten-plugin-migration-328.md
+test -f plugins/capability/darrow-matt-pocock/.codex-plugin/plugin.json
+test -f plugins/capability/darrow-pstack/.claude-plugin/plugin.json
 test ! -e .agents/skills/darrow-guide/evals/inventory.json
 grep -F 'Complex work starts adaptive-goal automatically' plugins/orchestration/darrow-adaptive-goal/README.md >/dev/null
 test "$(git rev-parse HEAD)" = "$(cat .git/guide-base)"

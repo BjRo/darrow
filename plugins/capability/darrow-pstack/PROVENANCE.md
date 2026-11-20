@@ -45,3 +45,8 @@ Adopt upstream changes only for a wanted improvement, fix or release need. Reuse
 the repository's pinned acquisition command, compare the complete input inventory,
 record local differences, and repeat package and affected host checks before
 changing the selected snapshot. Installer versions are not content revisions.
+
+The contained `references/` directory mirrors the full root license, upstream
+notice and provenance/input records so native filtered package copies preserve
+the same notices and pins. README links use those contained copies. Standard
+root distribution notices remain; no preserved skill or routing-table body changes.

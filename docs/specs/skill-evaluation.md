@@ -244,8 +244,9 @@ not copy generic runner implementation. Keep the question, source inventory,
 and acceptance checks aligned with the copied source.
 
 The guide's legacy Claude host-disclosure assertion is graded from the complete
-retained final response. On Claude, it requires the declared best-effort and
-primary-Codex disclosures. Codex retains the assertion's non-applicable result.
+retained final response. On Claude, it requires the declared evidence-scoped support and
+primary-Codex disclosures. The former blanket best-effort statement does not
+satisfy the current support boundary. Codex retains the assertion's non-applicable result.
 Missing, duplicate, partial, or foreign response evidence stays unavailable;
 absence of legacy environment variables or a response file cannot make it pass.
 
@@ -1106,12 +1107,13 @@ Callers select the passive mode names when requesting native observational
 comparisons; selecting all modes also selects the original enforced variants.
 This adds no policy enforcement, launch rewriting, or benchmark correction.
 
-### Deprecated ticket-pipeline baseline
+### Retired ticket-pipeline baseline
 
-The deprecated ticket-pipeline baseline keeps task outcomes and explicitly
-requested self-reported evaluation counts through shared benchmark checks.
-It gains no dedicated grader, phase instrumentation, or active benchmark
-correction. The legacy phase, iteration, stable child ID, and phase-to-skill
+The ticket-pipeline installable payload and active executable benchmark are
+retired. Original task outcomes and explicitly requested self-reported counts
+remain historical evidence at the immutable source linked by the
+[retirement contract](ticket-pipeline.md). Shared benchmark checks remain only
+for surviving Adaptive Goal/native comparisons; no Pipeline cell is executable. The legacy phase, iteration, stable child ID, and phase-to-skill
 assertions are deliberately retired. Native agent acceptance alone cannot
 establish those facts. Recorded historical results keep their original
 interpretation and cannot become current phase-check passes.

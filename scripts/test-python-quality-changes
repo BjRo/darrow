@@ -252,10 +252,15 @@ expect_pin_for_path sevro.json true
 expect_pin_for_path plugins/capability/unrelated/backend/example.py false
 for plugin in \
   capability/darrow-git capability/darrow-readiness-gate \
-  capability/darrow-review \
+  capability/darrow-review capability/darrow-matt-pocock capability/darrow-pstack \
   orchestration/darrow-adaptive-goal \
   task-recipe/darrow-ticket-to-pr; do
   expect_pin_for_path "plugins/$plugin/example.py" true
+done
+for plugin in darrow-matt-pocock darrow-pstack; do
+  for path in README.md LICENSE .claude-plugin/plugin.json .codex-plugin/plugin.json references/PROVENANCE.md skills/example/SKILL.md skills/example/evals/case.yaml; do
+    expect_pin_for_path "plugins/capability/$plugin/$path" true
+  done
 done
 expect_pin_for_pair plugins/capability/darrow-review/backend/example.py docs/note.md true
 

@@ -291,7 +291,7 @@ function caseFixture(value: unknown) {
   };
 }
 
-const GUIDE_DISCLOSURE_SCRIPT = `if [ "$DARROW_EVAL_HARNESS" = claude ] && [ -f .git/last-message.md ]; then grep -Ei "best.effort" .git/last-message.md >/dev/null && grep -Ei "primar[^.]*Codex|Codex[^.]*primar" .git/last-message.md >/dev/null; fi`;
+const GUIDE_DISCLOSURE_SCRIPT = `if [ "$DARROW_EVAL_HARNESS" = claude ] && [ -f .git/last-message.md ]; then grep -Ei "scop[^.]*evidence|evidence[^.]*scop" .git/last-message.md >/dev/null && grep -Ei "primar[^.]*Codex|Codex[^.]*primar" .git/last-message.md >/dev/null; fi`;
 
 function guideDisclosure(run: string, skillDir: string | null) {
   if (skillDir !== ".agents/skills/darrow-guide") return false;
@@ -6302,7 +6302,7 @@ function guideDisclosureStatus(observations: unknown): OwnershipStatus {
     typeof text === "string";
   if (!available) return "unavailable";
   if (final.source === "sevro.host.codex") return "passed";
-  return /best.effort/i.test(text) &&
+  return /(?:scop[^.]*evidence|evidence[^.]*scop)/i.test(text) &&
     /primar[^.]*Codex|Codex[^.]*primar/i.test(text)
     ? "passed"
     : "failed";

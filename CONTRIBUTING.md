@@ -5,12 +5,20 @@ documentation.
 
 ## Licensing of contributions
 
-Darrow is distributed under the [Business Source License 1.1](LICENSE), which
+Contributions within `plugins/capability/darrow-matt-pocock/` and
+`plugins/capability/darrow-pstack/`, including moved Darrow adaptations, are
+accepted and distributed under MIT. Preserve the complete Matt Pocock/Lauren Tan
+notices, source pins and recorded differences. Do not claim rights to relicense
+upstream work. Their package licenses govern those directories.
+
+Other Darrow material is distributed under the [Business Source License 1.1](LICENSE), which
 converts to the Mozilla Public License 2.0 two years after each version is
 released. Contributions are accepted under different, broader terms so that
-the maintainer can keep relicensing the project as a whole.
+the maintainer can keep relicensing that material. Separately licensed borrowed
+material retains its applicable notices, including Git's presentation sources.
 
-**By opening a pull request, you agree to the following:**
+**For contributions outside those two MIT bundle directories, by opening a pull
+request you agree to the following:**
 
 1. You are the author of the contribution, or you have the right to submit it
    under these terms.

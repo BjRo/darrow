@@ -87,7 +87,7 @@ binding the inspected sources, evidence status, concise question, and read-only
 boundary. Do not authorize artifact writes through that handoff. If unavailable,
 state that limitation and supply a small grounded textual explanation.
 The guide retains final-answer ownership: visual composition must preserve its
-evidence policy and required Claude best-effort/primary-Codex disclosure.
+evidence policy and required evidence-scoped Claude support/primary-Codex disclosure.
 
 For environment-specific diagnosis, identify an available troubleshooting
 capability by its advertised intent and explain the context it needs. A request
@@ -96,8 +96,12 @@ Keep any handoff within the user's authority and the guide's read-only envelope;
 otherwise offer a separate capability request. When unavailable, say so, route
 to documented safe checks and escalation, and do not infer a live cause.
 
-Claude Code answers disclose that support is best-effort and Darrow is developed
-primarily with Codex. If the host is unknown and matters, ask or describe both
+Claude Code answers disclose that support is scoped to documented workflow
+evidence and Darrow is developed primarily with Codex. Both hosts are required
+targets for curated bundles and revised shared workflows; Artificer retains its
+explicit Claude exception. The guide must not generalize this scope to other
+unverified operations or claim that a support target proves every task passed.
+If the host is unknown and matters, ask or describe both
 hosts; never claim to have verified an installation or session that was not
 observed.
 
@@ -152,7 +156,7 @@ reviews its change. A dry run or an unverified host cannot unlock removal.
   an explicit limitation and useful textual fallback.
 - **RG-C7 — Diagnostic boundary.** Documented symptoms route to safe checks or
   a suitable optional capability without invented live diagnoses or execution.
-- **RG-C8 — Honest host support.** Claude answers disclose best-effort support
+- **RG-C8 — Honest host support.** Claude answers disclose evidence-scoped support
   and primary Codex development; host-specific steps identify their host and
   verification limits.
 - **RG-C9 — One portable body.** Host entrypoints cannot drift, and no

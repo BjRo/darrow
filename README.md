@@ -6,14 +6,21 @@
 
 <a id="why-darrow"></a>
 
-Darrow is a marketplace of focused, eval-tested plugins for Codex and Claude
-Code. Choose only the Git, review, planning, or implementation help you need.
+Darrow publishes ten independently installable plugins for Codex and Claude
+Code: curated Matt Pocock and pstack workflows, Git, Readiness Gate, Review,
+Adaptive Goal, Explanation, Information Architecture, Ticket-to-PR and Artificer.
+Choose the help you need; each plugin documents its evidence and limits.
 
-Install one plugin at a time. Capabilities match your request; orchestration
-starts only when explicitly invoked and uses a host-native execution owner.
+Install one plugin at a time. Focused capabilities match your request; selected
+upstream workflows retain explicit invocation. Orchestration starts only when
+explicitly invoked and keeps one host-native execution owner. Upgrading an older
+lineup? Follow the [replacement and cache migration guide](docs/migrating-to-ten-plugins.md).
 
-> **Disclaimer:** Codex is the primary development host; Claude Code support is
-> best-effort.
+Codex remains the primary development host. Both Codex and Claude Code are
+required targets for the curated bundles and revised shared workflows. Support
+is scoped to documented workflow evidence; Artificer retains its explicit
+[Claude exception](plugins/automation/darrow-artificer/README.md). This does
+not establish support for other unverified operations.
 
 <a id="status-and-compatibility"></a>
 
@@ -84,12 +91,15 @@ and [research](docs/research/README.md).
 
 ## License
 
-Darrow is source-available under the
+The complete [Matt Pocock](plugins/capability/darrow-matt-pocock/LICENSE) and
+[pstack](plugins/capability/darrow-pstack/LICENSE) bundles, including moved Darrow
+adaptations, are MIT licensed. Their full author notices and pinned provenance
+ship with each package. Other Darrow material remains source-available under the
 [Business Source License 1.1](LICENSE), with the Mozilla Public License 2.0 as
-the Change License. **Each released version becomes MPL-2.0 two years after it
-is published.**
+the Change License. **Each released version of the BUSL material becomes MPL-2.0 two years after
+it is published.**
 
-**In short:** free for internal use, client work, research, personal projects,
+For the BUSL portion: free for internal use, client work, research, personal projects,
 and teaching without commercial interest. Commercial education and offering
 Darrow's functionality as a product or service require a commercial license.
 
@@ -122,5 +132,6 @@ licensing, contact bjoern@bjro.de.
 Production-use grants are version-specific. Earlier versions remain available
 under the Additional Use Grant distributed with those versions.
 
-Contributions are accepted under Apache-2.0 plus a relicensing grant; see
+Curated-bundle contributions use MIT; other contributions use Apache-2.0 plus
+a relicensing grant. See
 [CONTRIBUTING.md](CONTRIBUTING.md).

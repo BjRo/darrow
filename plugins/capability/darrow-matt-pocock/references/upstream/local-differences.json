@@ -1,15 +1,15 @@
 {
   "skills/grilling/SKILL.md": {
-    "reason": "Resolve skill calls and bounded fresh-context delegation through actual host-advertised capabilities; preserve upstream workflow and explicit activation.",
-    "sha256": "6e43fd5ce6b13ed9d111d6c0529968c9af86daf6adde96016f9b7de433edfe45"
+    "reason": "Resolve skill calls and bounded fresh-context delegation through actual host-advertised capabilities; preserve upstream workflow and explicit activation. Add text language labels to unlabelled example fences for the repository documentation gate; preserve all prose and behavior.",
+    "sha256": "49e4761a80884300770e6be1f96e54e33b6c1ce1f824df36a1ac056fee624111"
   },
   "skills/research/SKILL.md": {
     "reason": "Resolve skill calls and bounded fresh-context delegation through actual host-advertised capabilities; preserve upstream workflow and explicit activation.",
     "sha256": "d5c6770ae3bc09dd009065fb681d2ac57722b411315f22cb6955276e10b8c7eb"
   },
   "skills/codebase-design/SKILL.md": {
-    "reason": "Resolve skill calls and bounded fresh-context delegation through actual host-advertised capabilities; preserve upstream workflow and explicit activation.",
-    "sha256": "e2c7d0a1c86180f8ef2e7723aee55806df069b87a076d8e3a92131874b2aedf1"
+    "reason": "Resolve skill calls and bounded fresh-context delegation through actual host-advertised capabilities; preserve upstream workflow and explicit activation. Add text language labels to unlabelled example fences for the repository documentation gate; preserve all prose and behavior.",
+    "sha256": "c6ebe40ee51f8bf19f5aa56009852cae5f4a1835b607c5ea059cb14d3ce5616d"
   },
   "skills/grill-with-docs/SKILL.md": {
     "reason": "Resolve skill calls and bounded fresh-context delegation through actual host-advertised capabilities; preserve upstream workflow and explicit activation.",
@@ -82,5 +82,13 @@
   "skills/implement/agents/openai.yaml": {
     "reason": "Remove the Codex implicit-invocation restriction only for adapted implement so authorized parent recipes can discover its public contract. Preserve UI metadata and enforce explicit/delegated authority in the skill description and first workflow guard.",
     "sha256": "8ba5f1193a4ce3e1bc6c6c0fe465ef03361c38a232e02106f3acc765e2b82898"
+  },
+  "skills/domain-modeling/SKILL.md": {
+    "reason": "Add text language labels to unlabelled example fences for the repository documentation gate; preserve all prose and behavior.",
+    "sha256": "a73b404fcf1091db1c176d2c7b3d5c6548e431fd5c087d0c5751a4148d9e1b24"
+  },
+  "skills/setup-matt-pocock-skills/domain.md": {
+    "reason": "Add text language labels to unlabelled example fences for the repository documentation gate; preserve all prose and behavior.",
+    "sha256": "19807ea1714259d9bc64438f6279781e7ade25413d99bf9a161c0e3f4ff7acce"
   }
 }

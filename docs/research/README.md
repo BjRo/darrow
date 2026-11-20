@@ -6,6 +6,18 @@ current contracts. Dates, models, trial counts, failures and observation gaps
 belong to their recorded conditions. Older ownership and routing proposals are
 historical even when their original text says “current” or “proposed.”
 
+## Ten-plugin migration
+
+Current authority: [migration #328](https://github.com/BjRo/darrow/issues/328),
+[curated inputs](../specs/curated-upstream.md), [Matt](../specs/matt-pocock.md),
+[pstack](../specs/pstack.md), and the surviving workflow specifications.
+
+- [Migration acceptance and evidence](ten-plugin-migration-328.md) distinguishes
+  observed outcomes, failed grades and pending final acceptance.
+- [Retired workflow archive](retired-workflows.md) maps frozen report links to
+  immutable source without changing their original observations.
+- [Consumer migration](../migrating-to-ten-plugins.md) gives the upgrade procedure.
+
 ## Native telemetry and plugin retirement
 
 Current authority: [Langfuse plugin retirement](../decisions/ADR-0013-retire-the-langfuse-observability-plugin.md).
@@ -44,7 +56,7 @@ The adopted main thread owns acceptance and completion; bounded children own ass
 
 Current authority: [Adaptive Goal](../specs/adaptive-goal.md),
 [layer composition](../specs/layer-composition.md),
-[verification](../specs/verification.md), and [ticket-to-PR](../specs/ticket-to-pr.md).
+[code review](../specs/code-review.md), and [ticket-to-PR](../specs/ticket-to-pr.md).
 Research includes superseded separate-owner conditions; use current contracts
 for authority, routes, repair limits and publication prerequisites.
 
@@ -69,11 +81,11 @@ for authority, routes, repair limits and publication prerequisites.
 
 ## Discovery and agent guidance
 
-Current authority: [Discovery](../specs/discovery.md),
+Current authority: [Matt Pocock bundle](../specs/matt-pocock.md),
 [repository guide](../specs/repository-guide.md), and
 [skill authoring](../specs/skill-authoring.md).
-The unified discovery probe is concluded; its single-entry design shipped with
-broader coverage. Its first-response trials alone do not prove full workflow parity.
+The unified Discovery provider and suites are retired. Their original results
+remain historical; first-response trials never established full workflow parity.
 
 - [Unified discovery prototype observations and limits](discovery-unified-probe-2026-09-24.md)
 - [Shipped discovery validation](../../evals/experiments/discovery/snapshots/2026-09-24-unified-shipped.md)
@@ -84,7 +96,7 @@ broader coverage. Its first-response trials alone do not prove full workflow par
 ## Independent review and repair verification
 
 Current authority: [Code review](../specs/code-review.md) and
-[verification](../specs/verification.md).
+[Adaptive Goal acceptance accounting](../specs/adaptive-goal.md).
 These records explain reader routing, closed finding sets, convergence and
 host-specific limits; trial results are bounded evidence rather than guarantees.
 

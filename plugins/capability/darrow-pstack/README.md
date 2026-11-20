@@ -96,7 +96,7 @@ discovery issues, follow the
 
 ## License
 
-[MIT](LICENSE), including the moved Darrow adaptations. Lauren Tan authored the
+[MIT](references/LICENSE), including the moved Darrow adaptations. Lauren Tan authored the
 upstream pstack source. Björn Rochel maintains Darrow's adaptations, routing
-and packaging. See [source provenance and local differences](PROVENANCE.md).
+and packaging. See [source provenance and local differences](references/PROVENANCE.md).
 Unrelated Darrow plugins retain their own licenses.

@@ -6,31 +6,38 @@ alone; its README owns its prerequisites, behavior, and safety rules.
 
 ## Choose by intent
 
-| Your next task                                                          | Plugin and local instructions                                                                        |
-| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Assess whether a request is ready to implement                          | [Readiness gate](../plugins/capability/darrow-readiness-gate/README.md)                              |
-| Clarify behavior or make an implementation plan                         | [Discovery](../plugins/capability/darrow-discovery/README.md)                                        |
-| Implement an observable behavior test-first                             | [TDD](../plugins/capability/darrow-tdd/README.md)                                                    |
-| Apply optional principles-first engineering guidance                    | [Principles](../plugins/capability/darrow-principles/README.md)                                      |
-| Review a change independently                                           | [Review](../plugins/capability/darrow-review/README.md)                                              |
-| Verify implementation acceptance through independent assessment         | [Verification](../plugins/capability/darrow-verification/README.md)                                  |
-| Create a branch, commit, or pull request                                | [Git](../plugins/capability/darrow-git/README.md)                                                    |
-| Read, list, create, or update GitHub issues                             | [Tickets](../plugins/capability/darrow-tickets/README.md)                                            |
-| Install reusable GitHub issue templates                                 | [Tickets](../plugins/capability/darrow-tickets/README.md#install-ticket-templates)                   |
-| Understand technical structure in a compact visual                      | [Explanation](../plugins/capability/darrow-explanation/README.md)                                    |
-| Organize repository agent guidance                                      | [Information architecture](../plugins/foundation/darrow-information-architecture/README.md)          |
-| Capture or find accepted decisions                                      | [Decisions](../plugins/foundation/darrow-decisions/README.md)                                        |
-| Create or validate a reusable skill                                     | [Skill authoring](../plugins/foundation/darrow-skill-authoring/README.md)                            |
-| Explicitly hand a bounded engineering task to one execution owner       | [Adaptive Goal](../plugins/orchestration/darrow-adaptive-goal/README.md)                             |
-| Check whether Codex or Claude Code can support Adaptive Goal delegation | [Adaptive Goal doctor](../plugins/orchestration/darrow-adaptive-goal/README.md#doctor-adaptive-goal) |
-| Explicitly request one ticket through a new branch to a PR              | [Ticket to PR](../plugins/task-recipe/darrow-ticket-to-pr/README.md)                                 |
-| Study the former static workflow or run a comparison                    | [Ticket pipeline reference](../plugins/orchestration/darrow-ticket-pipeline/README.md)               |
-| Explicitly enable bounded local delivery of nominated GitHub issues     | [Local Artificer](../plugins/automation/darrow-artificer/README.md)                                  |
+| Your next task                                                                                           | Plugin and local instructions                                                               |
+| -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Clarify a decision, research, diagnose, model a domain, write skills, use TDD or implement approved work | [Matt Pocock](../plugins/capability/darrow-matt-pocock/README.md)                           |
+| Edit writing with unslop, apply principles or customize routing                                          | [Pstack](../plugins/capability/darrow-pstack/README.md)                                     |
+| Create a branch, commit or evidence-backed PR                                                            | [Git](../plugins/capability/darrow-git/README.md)                                           |
+| Assess whether a request is ready to implement                                                           | [Readiness Gate](../plugins/capability/darrow-readiness-gate/README.md)                     |
+| Review a bounded change or verify repairs independently                                                  | [Review](../plugins/capability/darrow-review/README.md)                                     |
+| Explicitly execute bounded engineering work with acceptance accounting                                   | [Adaptive Goal](../plugins/orchestration/darrow-adaptive-goal/README.md)                    |
+| Understand architecture, ownership, call flow or state in conversation                                   | [Explanation](../plugins/capability/darrow-explanation/README.md)                           |
+| Set up or doctor agent guidance, host integration, or inspect context usage                              | [Information Architecture](../plugins/foundation/darrow-information-architecture/README.md) |
+| Explicitly deliver one ticket through a PR and required green CI                                         | [Ticket-to-PR](../plugins/task-recipe/darrow-ticket-to-pr/README.md)                        |
+| Explicitly admit nominated GitHub issues for local unattended delivery                                   | [Artificer](../plugins/automation/darrow-artificer/README.md)                               |
 
-This is the complete shipped plugin catalog. Planned names are not installation
-targets; consult the [marketplace manifest](../.claude-plugin/marketplace.json)
-for package identity. In particular, there is no shipped general troubleshooting
-plugin. Local Artificer supplies a specific authorized unattended entry, not a general scheduler framework.
+These are the ten entries in the [marketplace manifest](../.claude-plugin/marketplace.json).
+Matt contains 17 selected skills; pstack contains 27. Their unchanged explicit-only
+workflows stay explicit. Adapted implement accepts explicit invocation or authorized
+parent delegation and defaults to local commits. Ticket-to-PR supplies publication
+authority and required CI; Adaptive Goal remains the one continuation owner.
+Review is independently usable; acceptance also needs criterion-specific evidence.
+Git creates the complete PR without requiring Explanation.
+
+Use configured tracker guidance and native tools for issue operations. Maintain
+ADRs and their catalog as ordinary documents with domain-modeling guidance.
+The dedicated ticket wrappers/template installer and decision lifecycle backend
+are retired. The [migration guide](migrating-to-ten-plugins.md) maps all eight
+retirements, accepted losses and replacement steps. Historical Pipeline results
+remain in the [archive](research/retired-workflows.md), with no executable benchmark.
+
+Artificer's Claude path can hand off work and produce a PR but returns
+`needs-attention` when native completion evidence is unavailable. That exception
+remains; a PR is not proof of native completion. There is no shipped general
+troubleshooting plugin or general scheduler framework.
 
 For host telemetry, use configured native exporters. The
 [native ticket-attribution record](research/native-otel-issue-284.md) covers
@@ -41,8 +48,9 @@ launch-time resource attributes, migration and the measured limits.
 The former landing-page roadmap named `darrow-troubleshooting` for debugging,
 `darrow-domain-modelling` for domain work, and `darrow-evidence` for additional
 PR evidence. It also described `darrow-artificer` as a future scheduler above
-ticket-to-PR and GitHub tickets, with work-in-progress limits. These are roadmap
-ideas, not shipped packages, release promises, or authority for unattended work.
+ticket-to-PR and GitHub tickets, with work-in-progress limits. The first three names remain roadmap ideas, not shipped packages or release
+promises. Artificer now supplies only the bounded admission described above; its
+former roadmap does not grant unattended authority.
 Check the marketplace and accepted specifications before relying on them.
 
 ## Understand the layers
@@ -55,7 +63,7 @@ These are responsibilities, not steps every task must traverse.
   or can be invoked explicitly, and work without orchestration.
 - **Orchestration** owns a bounded completion contract and execution handoff.
   It begins only through explicit invocation. Adaptive Goal selects a
-  proportionate workflow and hands the task to one host-native owner.
+  proportionate workflow while the main thread keeps the native goal and completion.
 - **Task recipes** package a familiar outcome and permission envelope, then
   delegate the bounded work. The current recipe is ticket to PR.
 - **Automation** owns admission under explicit recurring authority. Local Artificer

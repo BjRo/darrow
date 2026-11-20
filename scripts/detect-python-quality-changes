@@ -81,6 +81,7 @@ if [ "$select_all" = false ]; then
     scripts/setup-sevro-linux ':(glob)scripts/**/*.ts' evals \
     .agents/skills/darrow-guide .claude/skills/darrow-guide \
     plugins/capability/darrow-git \
+    plugins/capability/darrow-matt-pocock plugins/capability/darrow-pstack \
     plugins/capability/darrow-readiness-gate plugins/capability/darrow-review \
     plugins/orchestration/darrow-adaptive-goal \
     plugins/task-recipe/darrow-ticket-to-pr; then

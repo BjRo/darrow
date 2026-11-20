@@ -21,6 +21,17 @@ directly inspired the compact, smallest-fitting-view approach in
 
 Thanks to [Lauren Tan (poteto)](https://github.com/poteto), whose principles in
 [pstack](https://github.com/cursor/plugins/tree/main/pstack) I copied as the
-starting point for `darrow-principles`.
+starting point for Darrow's principle adaptations. The curated
+[pstack package](../plugins/capability/darrow-pstack/README.md) now carries those
+24 implementations, routing/customization and unchanged `unslop`. Its
+[provenance](../plugins/capability/darrow-pstack/PROVENANCE.md) distinguishes the
+unslop pin from the adaptations' unknown exact upstream revision.
+
+The [Matt Pocock bundle](../plugins/capability/darrow-matt-pocock/README.md) ships
+17 pinned workflows with recorded Darrow adaptations. Both curated packages,
+including those adaptations, are MIT and retain full author notices.
+[Git's borrowed-source credits](../plugins/capability/darrow-git/README.md#license)
+record Matt's PR presentation/risk approach and the show-me lineage; Git remains
+independent of Explanation.
 
 Return to the [documentation hub](README.md).

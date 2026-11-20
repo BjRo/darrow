@@ -57,3 +57,11 @@ maintenance for unchanged unslop behavior; do not add a per-skill behavioral sui
 Marketplace cutover and retirement of the old standalone Principles identity
 belong to the parent migration after replacement readiness. Existing user-owned
 routing and historical evidence remain intact.
+
+## Installed notice closure
+
+Both native filtered package copies retain the complete applicable MIT notices,
+pins, acquisition provenance and local-difference records through contained
+`references/` paths. README license/provenance links resolve in those copies.
+Standard root distribution notices remain present. Public prepare/package-copy
+fixtures check both hosts; no generic runner or new installer is required.

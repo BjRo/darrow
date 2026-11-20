@@ -424,11 +424,22 @@ test("guide disclosure uses retained response evidence through Sevro", async () 
     source: "sevro.host.claude",
     completeness: "complete",
     data: {
-      text: "Claude support is best-effort; development is primarily with Codex.",
+      text: "Claude support is scoped to documented workflow evidence; development is primarily with Codex.",
     },
   };
   for (const [observations, status] of [
     [[final], "passed"],
+    [
+      [
+        {
+          ...final,
+          data: {
+            text: "Claude support is best-effort; development is primarily with Codex.",
+          },
+        },
+      ],
+      "failed",
+    ],
     [[{ ...final, data: { text: "Claude is supported." } }], "failed"],
     [
       [

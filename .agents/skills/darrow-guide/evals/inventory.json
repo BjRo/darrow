@@ -1,8 +1,8 @@
 {
-  "version": 2,
+  "version": 3,
   "contract": "docs/specs/repository-guide.md",
   "hosts": ["codex", "claude"],
-  "host_behavior": "Claude guide answers disclose best-effort support and primary Codex development; unrelated negative cases do not. Installation answers identify the actual harness host.",
+  "host_behavior": "Claude guide answers disclose support scoped to documented workflow evidence and primary Codex development; unrelated negative cases do not. Both hosts are required targets for curated bundles and revised shared workflows; Artificer retains its explicit Claude exception. Installation answers identify the actual harness host.",
   "negative_expectations": [
     "No repository or external mutations",
     "No diagnosis or orchestration execution",
@@ -150,7 +150,7 @@
       "answer_points": [
         "Native ownership",
         "Explicit orchestration",
-        "Pipeline is reference and benchmark baseline"
+        "Pipeline reports and immutable source are historical; installable payload and executable benchmark are retired"
       ],
       "evidence": "authoritative",
       "static_page": "docs/design.md",
@@ -370,6 +370,7 @@
       ],
       "sources": [
         "plugins/foundation/darrow-information-architecture/README.md",
+        "plugins/capability/darrow-matt-pocock/README.md",
         "CONTRIBUTING.md",
         "AGENTS.md"
       ],
@@ -377,7 +378,7 @@
         "Information Architecture retains setup, doctor and context operations",
         "Decisions use ordinary documents and domain-modeling guidance",
         "Skill writing uses writing-for-agents and repository standards",
-        "Available skills match intent without requiring retired providers"
+        "Selected Matt domain-modeling and writing-for-agents replace retired providers; workflows preserve their activation boundaries"
       ],
       "evidence": "authoritative",
       "static_page": "plugins/foundation/README.md",

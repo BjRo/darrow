@@ -4,6 +4,12 @@ This catalog is a manually maintained navigation aid. ADR files remain canonical
 Update each affected row alongside its ADR, preserving status and relationships.
 Run `bun run check:docs` for general documentation and link checks.
 
+Partial supersession remains local to the recorded clauses: ADR-0004 and ADR-0012
+link [Ticket Pipeline retirement](../specs/ticket-pipeline.md) for the former
+executable-reference/benchmark promises; ADR-0006 links
+[Decisions retirement](../specs/decision-management.md) for the former provider
+contract. Their statuses, ownership decisions and original history remain as listed.
+
 ## Proposed
 
 <!-- prettier-ignore -->

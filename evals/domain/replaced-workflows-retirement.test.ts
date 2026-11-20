@@ -72,3 +72,42 @@ test("replaced workflows have no maintained payload or execution obligations", a
     ).toEqual([]);
   }
 });
+
+// #340: exact published adoption boundary; the manifest is the installer input.
+test("marketplace publishes exactly the ten selected plugins with paired entrypoints", async () => {
+  const marketplace = JSON.parse(
+    await readFile(resolve(root, ".claude-plugin/marketplace.json"), "utf8"),
+  );
+  expect(
+    marketplace.plugins.map((entry: { name: string }) => entry.name).sort(),
+  ).toEqual([
+    "darrow-adaptive-goal",
+    "darrow-artificer",
+    "darrow-explanation",
+    "darrow-git",
+    "darrow-information-architecture",
+    "darrow-matt-pocock",
+    "darrow-pstack",
+    "darrow-readiness-gate",
+    "darrow-review",
+    "darrow-ticket-to-pr",
+  ]);
+  for (const entry of marketplace.plugins) {
+    const claude = JSON.parse(
+      await readFile(
+        resolve(root, entry.source, ".claude-plugin/plugin.json"),
+        "utf8",
+      ),
+    );
+    const codex = JSON.parse(
+      await readFile(
+        resolve(root, entry.source, ".codex-plugin/plugin.json"),
+        "utf8",
+      ),
+    );
+    expect(claude.name).toBe(entry.name);
+    expect(codex.name).toBe(entry.name);
+    expect(codex.version).toBe(claude.version);
+    expect(codex.skills).toBe("./skills/");
+  }
+});

@@ -11,7 +11,7 @@ Actively build and sharpen the project's domain model as you design. This is the
 
 Most repos have a single context:
 
-```
+```text
 /
 ├── GLOSSARY.md
 ├── docs/
@@ -23,7 +23,7 @@ Most repos have a single context:
 
 If a `GLOSSARY-MAP.md` exists at the root, the repo has multiple contexts. The map points to where each one lives:
 
-```
+```text
 /
 ├── GLOSSARY-MAP.md
 ├── docs/

@@ -1,10 +1,10 @@
 # Marketplace installation
 
 The repository-level installer reads the current `.claude-plugin/marketplace.json`
-inventory at execution time and installs each listed plugin except
-`darrow-ticket-pipeline` through the selected
-host's ordinary per-plugin installation command. `darrow-adaptive-goal`
-remains included. The installer is not a plugin, does not introduce a runtime
+inventory at execution time and installs every listed plugin through the selected
+host's ordinary per-plugin installation command. There are no identity-specific
+exclusions; the published inventory contains exactly the ten plugins in the
+[selection guide](../choosing-plugins.md). The installer is not a plugin, does not introduce a runtime
 dependency between plugins, and preserves every marketplace plugin as an
 optionality boundary.
 
@@ -18,8 +18,9 @@ with a nonzero exit status, names the affected plugin, and prints its successful
 completion message only after every listed plugin was installed. Claude Code's
 installation scope is passed to every per-plugin command.
 
-The installation documentation must identify the excluded ticket-pipeline
-entry as deprecated. Before the host installation commands, it documents UV,
+The installation documentation links the explicit replacement and cache migration
+instructions. Retired identities are absent from the marketplace. Before the
+host installation commands, it documents UV,
 the supported Python range, platform-specific setup,
 and runtime availability checks. Each plugin's README declares whether those
 prerequisites apply; the shared guide does not duplicate a plugin inventory.

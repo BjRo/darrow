@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deterministic coverage for the marketplace-driven eligible-plugin installer.
+# Deterministic coverage for the marketplace-driven marketplace installer.
 # Run: bash scripts/install-all-plugins.test.sh
 set -uo pipefail
 
@@ -115,8 +115,6 @@ marketplace_calls() {
       name = $0
       sub(/^.*"name"[[:space:]]*:[[:space:]]*"/, "", name)
       sub(/".*$/, "", name)
-      if (name == "darrow-ticket-pipeline")
-        next
       print "codex plugin add " name "@darrow"
     }
   ' "$SCRIPT_DIR/../.claude-plugin/marketplace.json"
@@ -128,7 +126,7 @@ OUT="$FIXTURE/current-marketplace.out"
 run_default_installer "$OUT" --host codex
 check "default manifest drives every Codex call" "$(marketplace_calls)" "$(cat "$CALLS")"
 contains "adaptive goal remains included" "codex plugin add darrow-adaptive-goal@darrow" "$CALLS"
-not_contains "ticket pipeline is excluded" "darrow-ticket-pipeline@darrow" "$CALLS"
+check "current marketplace contains ten entries" 10 "$(wc -l <"$CALLS" | tr -d ' ')"
 
 echo "# marketplace installation success"
 make_fixture
@@ -168,14 +166,14 @@ make_fixture
 cat >"$MANIFEST" <<'EOF'
 {
   "plugins": [
-    { "name": "darrow-ticket-pipeline", "source": "./plugins/orchestration/darrow-ticket-pipeline" },
-    { "name": "darrow-adaptive-goal", "source": "./plugins/orchestration/darrow-adaptive-goal" }
+    { "name": "alpha", "source": "./plugins/capability/alpha" },
+    { "name": "bravo", "source": "./plugins/capability/bravo" }
   ]
 }
 EOF
 OUT="$FIXTURE/remote.out"
 run_remote_installer "$OUT" --host codex
-check "remote manifest keeps only adaptive goal" "codex plugin add darrow-adaptive-goal@darrow" "$(cat "$CALLS")"
+check "remote manifest drives every call" $'codex plugin add alpha@darrow\ncodex plugin add bravo@darrow' "$(cat "$CALLS")"
 contains "remote shortcut downloads the marketplace manifest" ".claude-plugin/marketplace.json" "$CURL_CALLS"
 
 make_fixture
@@ -185,20 +183,6 @@ status=$?
 check "remote manifest failure is nonzero" true "$([[ $status -ne 0 ]] && echo true || echo false)"
 contains "remote manifest failure is named" "failed to download marketplace manifest" "$OUT"
 not_contains "remote manifest failure omits success" "Installed all" "$OUT"
-
-echo "# exceptional marketplace entries are excluded"
-make_fixture
-cat >"$MANIFEST" <<'EOF'
-{
-  "plugins": [
-    { "name": "darrow-ticket-pipeline", "source": "./plugins/orchestration/darrow-ticket-pipeline" },
-    { "name": "darrow-adaptive-goal", "source": "./plugins/orchestration/darrow-adaptive-goal" }
-  ]
-}
-EOF
-OUT="$FIXTURE/exceptions.out"
-run_installer "$OUT" --host claude
-check "only adaptive goal is installed from exceptional fixture" "claude plugin install darrow-adaptive-goal@darrow --scope user" "$(cat "$CALLS")"
 
 echo "# failures are named and unsuccessful"
 make_fixture

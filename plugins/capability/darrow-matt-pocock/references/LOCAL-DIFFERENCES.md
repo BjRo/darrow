@@ -17,7 +17,9 @@ setup reachability on both hosts, inherited human-approved seams, independent
 Review intent, and publication authority. Setup no longer requires the unselected
 triage skill to configure labels consumed by to-spec and to-tickets. Existing
 provider choices and unrelated host guidance remain authoritative. Six support
-documents receive repository-required formatting. The wizard template only adds
+documents receive repository-required formatting. Seven example fences in
+grilling, codebase-design, domain-modeling and setup domain guidance add only
+`text` language labels; their prose and behavior remain unchanged. The wizard template only adds
 ShellCheck annotations for stage helpers and braces around a scalar expansion;
 its runtime behavior is unchanged. These differences are recorded by file.
 

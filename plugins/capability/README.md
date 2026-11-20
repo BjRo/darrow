@@ -1,8 +1,8 @@
 # Capability plugins
 
-Capability plugins provide focused, intent-matched procedures that remain
-useful on their own and can be composed through host-visible intent and
-contracts.
+Capability plugins provide focused procedures that remain useful on their own
+and compose through host-visible intent and contracts. Curated upstream workflows
+retain their explicit-only boundaries; installation does not authorize execution.
 
 ## Choose a plugin
 

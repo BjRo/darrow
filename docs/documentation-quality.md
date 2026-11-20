@@ -57,6 +57,13 @@ Do not suppress
 local failures or rewrite a working link merely to make a network job green.
 External link checks do not establish that a source's claims are correct.
 
+Frozen historical reports may retain relative links to retired sources.
+`docs/research/retired-links.json` records each exact report SHA-256, missing
+target, target SHA-256 and immutable source URL. The archive index makes those
+links readable. Local checks accept only listed missing targets in unchanged
+reports; changed reports, unknown missing links and current broken links fail.
+This preserves history without restoring executable payloads or skipping pages.
+
 ## Human review rubric
 
 - Can readers reach first success, selection, architecture, troubleshooting,

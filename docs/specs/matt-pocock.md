@@ -55,3 +55,11 @@ package, mount, activation and outcome evidence. Trust unchanged upstream behavi
 these checks do not establish full behavioral coverage or reliability of every
 skill. Root marketplace publication, duplicate local-copy migration, and license
 boundary documentation are coordinated in the final migration cutover.
+
+## Installed notice closure
+
+Both native filtered package copies retain the complete applicable MIT notices,
+pins, acquisition provenance and local-difference records through contained
+`references/` paths. README license/provenance links resolve in those copies.
+Standard root distribution notices remain present. Public prepare/package-copy
+fixtures check both hosts; no generic runner or new installer is required.

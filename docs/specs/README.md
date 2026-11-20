@@ -12,6 +12,8 @@ These files define current invariants. Start with the
 - [Tickets retirement](ticket-management.md): configured tracker guidance and native tools.
 - [Implementation readiness](implementation-readiness.md): sufficient intent and evidence.
 - [Discovery retirement](discovery.md): selected Matt discovery workflows.
+- [Curated upstream inputs](curated-upstream.md): pinned acquisition and license provenance.
+- [Approved implementation](implement.md): shared recipe, seams and authority.
 - [Matt Pocock bundle](matt-pocock.md): selected upstream skills and adaptations.
 - [Pstack bundle](pstack.md): unslop and preserved engineering guidance.
 - [Visual explanation](visual-explanation.md): compact grounded views.
@@ -24,7 +26,7 @@ These files define current invariants. Start with the
 - [Adaptive Goal](adaptive-goal.md): one explicit execution owner.
 - [Ticket to PR](ticket-to-pr.md): the delivery recipe.
 - [Local Artificer](artificer.md): explicit recurring admission and original native continuation.
-- [Ticket pipeline](ticket-pipeline.md): the static reference.
+- [Ticket Pipeline retirement](ticket-pipeline.md): frozen reports and immutable source.
 - [Skill evaluation](skill-evaluation.md): native behavior, activation, and comparison.
 
 [Accepted decisions](../decisions/README.md) explain settled choices.

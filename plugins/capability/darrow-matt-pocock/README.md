@@ -32,13 +32,13 @@ required by this plugin.
 
 ## Installation
 
-Follow the repository's [host installation instructions](../../../docs/getting-started.md).
+Install `darrow-matt-pocock@darrow` using the
+[host installation and update instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
 The package can be installed independently; it does not read sibling plugins.
-During migration this candidate is not yet in the marketplace. For local Claude
-Code use `claude --plugin-dir /absolute/path/to/darrow-matt-pocock`; for Codex add
-the package to a local marketplace and install its `darrow-matt-pocock` entry.
-Restart the host after installing or updating. Remove verified superseded local
-copies separately; marketplace changes do not remove cached installations.
+Restart the host after installing or updating. Compare and preserve local changes
+before removing superseded copies; marketplace changes do not uninstall caches.
+The [migration guide](https://github.com/BjRo/darrow/blob/main/docs/migrating-to-ten-plugins.md)
+lists replacements and the safe upgrade order.
 
 ## Usage
 
@@ -89,14 +89,14 @@ providers. If setup guidance differs between hosts, follow each host entrypoint
 to the shared configuration and preserve user content while fixing the pointer.
 
 Focused package checks run with `bun test ./evals/domain/matt-pocock-bundle.test.ts`
-from the source repository. The [smoke evidence](skills/setup-matt-pocock-skills/evals/README.md)
+from the source repository. The [smoke evidence](https://github.com/BjRo/darrow/blob/main/plugins/capability/darrow-matt-pocock/skills/setup-matt-pocock-skills/evals/README.md)
 separates package/mount, activation and task observations. It is not a behavioral
 suite for every unchanged upstream skill. The adapted recipe has separate
-[implementation evidence](skills/implement/evals/README.md) and focused composition
+[implementation evidence](https://github.com/BjRo/darrow/blob/main/plugins/capability/darrow-matt-pocock/skills/implement/evals/README.md) and focused composition
 fixtures.
 
 ## License
 
-[MIT](LICENSE). Copyright 2026 Matt Pocock; Darrow-maintained adaptations copyright
+[MIT](references/LICENSE). Copyright 2026 Matt Pocock; Darrow-maintained adaptations copyright
 2026 Björn Rochel under the same terms. This package is outside the remaining
 Darrow BUSL boundary. See [source and local differences](references/LOCAL-DIFFERENCES.md).

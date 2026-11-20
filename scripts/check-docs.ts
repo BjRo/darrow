@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFile, readdir, stat } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { parseArgs } from "node:util";
@@ -180,7 +181,8 @@ async function verifyDestination(
     }
     verifyAnchor(page, link, destination, anchor);
   } catch {
-    fail(page.path, `missing internal link: ${target}`, line);
+    if (!archivedLinks.get(page.path)?.has(target))
+      fail(page.path, `missing internal link: ${target}`, line);
   }
 }
 async function inspectLink(page: Page, link: Link) {
@@ -204,6 +206,100 @@ async function inspectLink(page: Page, link: Link) {
   const { path, anchor } = localDestination(page, decoded);
   await verifyDestination(page, link, path, anchor);
 }
+interface ArchivedLink {
+  target: string;
+  source: string;
+  sha256: string;
+}
+interface FrozenReport {
+  path: string;
+  sha256: string;
+  missingLinks: ArchivedLink[];
+}
+const archivedLinks = new Map<string, Set<string>>();
+function validFrozenReport(report: FrozenReport, seen: Set<string>): boolean {
+  return (
+    typeof report.path === "string" &&
+    /^(docs\/research\/|evals\/experiments\/)/.test(report.path) &&
+    relative(root, resolve(root, report.path)).split(sep).join("/") ===
+      report.path &&
+    !seen.has(report.path) &&
+    /^[a-f0-9]{64}$/.test(report.sha256) &&
+    Array.isArray(report.missingLinks)
+  );
+}
+function validArchivedLink(
+  page: Page,
+  link: ArchivedLink,
+  revision: string,
+  targets: Set<string>,
+): boolean {
+  const destination = localDestination(page, decodeURIComponent(link.target));
+  const targetPath = relative(root, destination.path).split(sep).join("/");
+  const expected = `https://github.com/BjRo/darrow/blob/${revision}/${targetPath}${destination.anchor ? "#" + destination.anchor : ""}`;
+  return (
+    !targetPath.startsWith("../") &&
+    !targets.has(link.target) &&
+    /^[a-f0-9]{64}$/.test(link.sha256) &&
+    link.source === expected &&
+    page.links.some((candidate) => candidate.target === link.target)
+  );
+}
+function registerFrozenReport(
+  report: FrozenReport,
+  revision: string,
+  manifest: string,
+) {
+  const page = pages.get(resolve(root, report.path));
+  if (
+    !page ||
+    createHash("sha256").update(page.text).digest("hex") !== report.sha256
+  ) {
+    fail(manifest, `frozen report hash differs: ${report.path}`);
+    return;
+  }
+  const targets = new Set<string>();
+  for (const link of report.missingLinks) {
+    if (!validArchivedLink(page, link, revision, targets)) {
+      fail(manifest, `invalid archived target: ${report.path}: ${link.target}`);
+      continue;
+    }
+    targets.add(link.target);
+  }
+  archivedLinks.set(page.path, targets);
+}
+async function loadArchive() {
+  const manifest = join(root, "docs/research/retired-links.json");
+  let text: string;
+  try {
+    text = await readFile(manifest, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT")
+      fail(manifest, "unreadable archive mappings");
+    return;
+  }
+  try {
+    const archive = JSON.parse(text) as {
+      revision: string;
+      files: FrozenReport[];
+    };
+    if (
+      !/^[a-f0-9]{40}$/.test(archive.revision) ||
+      !Array.isArray(archive.files)
+    )
+      throw new Error("invalid archive revision or files");
+    const seen = new Set<string>();
+    for (const report of archive.files) {
+      if (!validFrozenReport(report, seen))
+        throw new Error("invalid frozen report");
+      seen.add(report.path);
+      registerFrozenReport(report, archive.revision, manifest);
+    }
+  } catch (error) {
+    fail(manifest, `invalid archive mappings: ${String(error)}`);
+  }
+}
+await loadArchive();
 for (const page of pages.values())
   for (const link of page.links) await inspectLink(page, link);
 async function json(

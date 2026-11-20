@@ -46,8 +46,11 @@ Before changing evidence interpretation, read `docs/specs/skill-evaluation.md`.
   and review-provider installation for each repair scenario, including stale
   content and duplicate or conflicting providers. Group synthetic report
   variants that share the same repository and provider setup.
-- Give every skill colocated eval cases that verify its public behavior and
-  intent boundaries. Test deterministic scripts separately when present.
+- Give Darrow-maintained behavior colocated eval cases that verify its public
+  outcomes and intent boundaries. For curated upstream skills, check import
+  closure/notices and native entrypoints, focusing behavioral cases on material
+  Darrow adaptations. Trust upstream maintenance for unchanged behavior rather
+  than adding a per-skill behavioral suite. Test deterministic scripts separately.
 - Start with the exact normative invariant or public promise under test. An
   assertion must not require stronger behavior, removed design, fixed counts,
   lifecycle markers, exact vocabulary, or serialization that the contract does
