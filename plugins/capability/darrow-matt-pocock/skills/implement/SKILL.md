@@ -1,10 +1,16 @@
 ---
 name: implement
-description: "Implement approved ticket/spec work through one Adaptive Goal owner, selected TDD, independent Review, Git and principles. Start only by explicit invocation or preserved delegation from an explicitly invoked recipe; retain the caller's authority and agreed test seams."
-disable-model-invocation: true
+description: "Implement approved ticket/spec work through one Adaptive Goal owner, selected TDD, independent Review, Git and principles. Start only by explicit user invocation or preserved delegation from an explicitly invoked recipe or orchestration; retain the caller's authority and agreed test seams. Never select for ordinary implementation intent, installation, or an approved specification alone."
 ---
 
 # Implement approved work
+
+Require explicit user invocation of implement or preserved delegation of the
+same bounded work from an explicitly invoked enclosing recipe or orchestration.
+An approved ticket/specification, ordinary engineering intent, installation,
+or an unauthorized helper merely naming implement supplies no invocation
+authority. Without that authority, report the invocation gap before provider
+discovery, orchestration, implementation, assessment, commit or publication.
 
 Read [host and authority compatibility](../../references/COMPATIBILITY.md).
 This explicit recipe carries approved work into Adaptive Goal. It owns no

@@ -23,6 +23,13 @@ complete output; they do not coordinate another review or launch agents:
 
 `independent-review-protocol`
 
+Retain the complete native command result, including its process/session ID and
+exit status. If it is still running, poll that same process through the host's
+continuation tool until terminal exit, accumulating every output chunk; an empty
+initial chunk is not completion. Return the accumulated output and terminal
+status. Never re-execute the command to recover output or delegate its execution
+to the coordinator.
+
 Before launching, query the current target with
 `independent-review-protocol --target`. This read-only mode prints the Git
 target without running tests, assessing content or writing a review receipt.

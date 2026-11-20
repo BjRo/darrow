@@ -26,8 +26,13 @@ evals are Darrow additions. Implement is materially adapted: it carries approved
 intent and inherited seams into one Adaptive Goal owner, composes selected TDD,
 independent Review, Git and principles through advertised public contracts, and
 defaults to local commit. Missing required providers stop dependent work;
-push/PR require explicit or inherited authority. Its upstream host metadata is
-unchanged. Matt code-review, pr and implement-spec are excluded.
+push/PR require explicit or inherited authority. Only adapted implement removes
+the Claude `disable-model-invocation` and Codex `allow_implicit_invocation: false`
+controls so an explicitly invoked parent can discover and invoke it. Its
+description and first workflow guard preserve explicit/delegated authorization;
+ordinary implementation intent supplies no authority. Raw upstream hashes and
+metadata remain the recorded baseline. Matt code-review, pr and implement-spec
+are excluded.
 
 Updates are demand-driven: acquire an intentional new revision with the repository's
 pinned acquisition command, compare complete selected directories, reapply only

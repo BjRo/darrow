@@ -16,7 +16,10 @@ providers; this bundle ships no duplicate reviewer or PR publisher.
 
 ## Hosts and prerequisites
 
-Codex and Claude Code have native manifests and preserved activation metadata.
+Codex and Claude Code have native manifests. Unchanged upstream workflows retain
+their activation metadata. Adapted implement is visible to authorized parent
+recipes on both hosts, with explicit/delegated authorization enforced by its
+description and first workflow guard.
 Use a host with plugin support and the tools required by the chosen workflow:
 repository read/write access, native delegation for research/design exploration,
 and the configured tracker's authenticated tools for remote publication.

@@ -216,3 +216,117 @@ The fixture matrix also keeps valid local completion after a target inquiry and
 rejects an extra coordinator assessment, unreviewed work and unauthorized push.
 One fresh run of the existing two-turn Claude condition will exercise the concrete
 foreground correction. No runner, runtime profile or dependency was added.
+
+## Preserved delegation remedy
+
+Matt 0.2.2 removes both host invocation restrictions only from adapted implement.
+Its description and first workflow guard still require explicit user invocation
+or preserved authority from an explicitly invoked recipe/orchestration. The raw
+upstream inputs and hash inventory remain unchanged; the two adapted imported
+files have precise local-difference records. Unchanged upstream skills retain
+their metadata.
+
+The default Ticket-to-PR condition supplied the behavioral red: Codex's catalog
+omitted implement and returned `launch_required`; Claude could not complete the
+delivery. Original manifests are `/tmp/darrow-335-delivery-codex/selection-run.json`
+and `/tmp/darrow-335-delivery-claude/selection-run.json`. Adding a second user
+invocation is a different condition and is not this fix.
+
+The corrected source exercised this unbound command, with one trial/job and
+threshold 1:
+
+```sh
+bun eval --harness codex --owner-evaluation passive --skill ticket-to-pr --case ticket-to-pr-composition-replacement --trials 1 --jobs 1 --threshold 1 --results-root /tmp/darrow-333-delegation-codex
+```
+
+Its first attempt `b3bb32c2-db6d-4e62-96b7-6940b248ff16`, run
+`381fed41-1f52-4a50-aec6-5b81591df7ad`, passed supporting activation and implemented
+the requested change, but both readers returned terminal exit 1 with no output.
+The retained full results rule out an unpolled running command in this attempt;
+the older named-binding trial did not retain enough result fields to settle that
+hypothesis. The protocol rejected six untracked provider files created by fixture
+setup itself. Setup now excludes only those exact generated SKILL.md paths.
+Untracked product files and a third matching review receipt still fail.
+The supplied provider also requires retaining the full native result and polling
+the same running process to terminal exit; it forbids re-execution and coordinator
+assessment. No runner or profile changed.
+
+- Red — `bun test ./evals/domain/composition-fixture.test.ts -t 'composition review accepts only prepared providers'`:
+  valid prepared candidates failed the review command on both Bash boundaries.
+- Green — `bun test ./evals/domain/composition-fixture.test.ts -t 'composition review accepts only prepared providers'`:
+  both boundaries pass valid two-reader completion while rejecting untracked
+  product files and a third receipt, and preserving NOTES.md.
+
+The identical Codex command then passed task, all seven effect checks, commit
+lineage/reporting, native goal and activation. Attempt
+`d4fe108c-e693-4227-918d-3c1f939eb152`, run
+`500d6d66-cf72-4153-83bf-24e92a481200`, published fixture commit
+`5b6d223fd0d35977585bb96aeca8d3c0e8e2bd21` to the existing fixture PR with green
+required CI. One native main-thread goal completed in session
+`01a1fa57-9618-72e0-84c1-e95a3db19b88`.
+
+Claude used its existing declared same-session user `/goal` follow-up:
+
+```sh
+bun eval --harness claude --owner-evaluation passive --skill ticket-to-pr --case ticket-to-pr-composition-replacement-claude --trials 1 --jobs 1 --threshold 1 --results-root /tmp/darrow-333-delegation-claude
+```
+
+Attempt `68e664ef-65a8-4881-87ab-8a0e78dba8b4`, run
+`19ef24a2-de56-49b1-975d-46274b020f5f`, successfully invoked implement and Adaptive
+Goal through native Skill calls. It nevertheless skipped the repository
+instructions returned by preflight and declared the supplied Review provider
+missing. The files existed, but the native catalog did not list those local
+fixture providers. No implementation occurred; the native goal remained active
+and the final response was empty. Preserve this failed original-prompt condition.
+
+A distinct authorized fixture condition adds one prerequisite sentence: read
+repository CLAUDE.md and AGENTS.md before binding providers. It adds no implement
+co-invocation or installed path. The command was:
+
+```sh
+bun eval --harness claude --owner-evaluation passive --skill ticket-to-pr --case ticket-to-pr-composition-replacement-claude --trials 1 --jobs 1 --threshold 1 --results-root /tmp/darrow-333-delegation-claude-guidance
+```
+
+Attempt `99758bcb-8c68-4953-a238-3808c8839b71`, run
+`e1c17c80-7814-4034-8856-6af71e89d405`, passed task and all seven effect checks,
+commit lineage/reporting and native-goal completion. Fixture commit
+`cfb4c39e1c849efe9900b4dc0957726bb28039bb` reached the existing fixture PR with
+required CI green. Session `b2479273-d591-452e-b62b-12017427bc2e` retained one goal.
+Activation remained unavailable, making the outer command exit 1 despite Sevro's
+passed task. The response reports an initially refused AI attribution trailer,
+then a valid commit without that trailer; the refusal was not bypassed.
+This is supplied-provider composition, not native discovery of actual Darrow
+Review. Parent-owned real-Review evidence remains separate.
+
+### Authority controls
+
+These use the existing public Sevro fixture mechanisms and the ordinary-task and
+unauthorized-parent patterns. The ordinary case requires direct implementation
+without commit or native goal and excludes implement/Adaptive Goal activation.
+The parent case requires loading implement and refusing absent authority without
+editing, committing or creating a goal. All four task and activation results pass:
+
+| Case                | Host   | Results root                               | Run                                    |
+| ------------------- | ------ | ------------------------------------------ | -------------------------------------- |
+| Ordinary intent     | Codex  | `/tmp/darrow-333-negative-ordinary-codex`  | `db871dda-afb0-461b-8901-6eaaa2c32726` |
+| Ordinary intent     | Claude | `/tmp/darrow-333-negative-ordinary-claude` | `2f569c1c-9f86-45df-9d34-52e6138d2143` |
+| Unauthorized parent | Codex  | `/tmp/darrow-333-negative-parent-codex`    | `d6d703e2-be80-49b5-9ca2-ca45a957e1ac` |
+| Unauthorized parent | Claude | `/tmp/darrow-333-negative-parent-claude`   | `1ae2999a-b79f-44b0-a259-b5527a8d3c6f` |
+
+```sh
+bun eval --plugin darrow-matt-pocock --skill implement --case implement-ordinary-engineering-nonactivation --harness codex --owner-evaluation passive --trials 1 --jobs 1 --threshold 1 --results-root /tmp/darrow-333-negative-ordinary-codex
+bun eval --plugin darrow-matt-pocock --skill implement --case implement-ordinary-engineering-nonactivation --harness claude --owner-evaluation passive --trials 1 --jobs 1 --threshold 1 --results-root /tmp/darrow-333-negative-ordinary-claude
+bun eval --plugin darrow-matt-pocock --skill implement --case implement-unauthorized-parent --harness codex --owner-evaluation passive --trials 1 --jobs 1 --threshold 1 --results-root /tmp/darrow-333-negative-parent-codex
+bun eval --plugin darrow-matt-pocock --skill implement --case implement-unauthorized-parent --harness claude --owner-evaluation passive --trials 1 --jobs 1 --threshold 1 --results-root /tmp/darrow-333-negative-parent-claude
+```
+
+The public caller used Sevro 1.1.2, Codex 0.171.0 and Claude Code 2.1.328.
+Delivery Codex selected GPT-6.1 Sol/medium; negative Codex selected GPT-6 Luna/medium.
+Claude selected Sonnet 5.5/medium, with foreground Opus/high review readers in
+successful delivery. Semantic grading used the independent GPT-6 Luna/high route.
+One trial per condition demonstrates these outcomes, not reliability.
+
+The focused six-file suite passed 31 tests and 279 assertions. Typecheck, scoped
+ESLint, formatting, both Bash syntax checks and both Bash fixture outcomes passed.
+Documentation gates still stop at the retired Decisions directory retained in
+shared inventory pending #340; neither gate was bypassed.

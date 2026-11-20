@@ -1,6 +1,6 @@
 {
   "name": "darrow-ticket-to-pr",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Deliver one ticket through implement and one Adaptive Goal: new branch, one PR and green required CI",
   "skills": "./skills/",
   "interface": {

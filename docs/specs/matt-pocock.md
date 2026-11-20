@@ -15,8 +15,11 @@ selected support file and host metadata file. Do not ship Matt code-review, pr, 
 
 MP-C2: Both native manifests name `darrow-matt-pocock` at one version; Codex
 points to `./skills/`. All runtime resources are contained in the plugin.
-Keep upstream explicit-only entrypoints explicit on both hosts. Installation
-never starts orchestration. Cooperate through advertised public skill intent,
+Keep unchanged upstream explicit-only entrypoints explicit on both hosts.
+Adapted implement alone removes the host controls that hide it from authorized
+parents; its explicit/delegated authority guard remains mandatory under IMP-C2.
+Record both metadata changes as local adaptations, preserving the raw upstream
+inventory and hashes. Installation never starts orchestration. Cooperate through advertised public skill intent,
 without sibling-plugin reads or a capability registry.
 
 MP-C3: Include the complete upstream MIT notice, source/revision and pinned

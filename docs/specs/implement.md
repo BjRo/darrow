@@ -13,8 +13,15 @@ readiness assessment. Reuse applicable assessment evidence; leave readiness
 selection to Adaptive Goal. Confirm only genuinely new or changed seams before
 writing their tests; do not reopen already settled choices.
 
-IMP-C2: Explicit invocation or preserved delegation from an explicit recipe
-permits composition with Adaptive Goal. Read its exact host-advertised public
+IMP-C2: Explicit user invocation or preserved delegation of the same bounded
+work from an explicitly invoked recipe or orchestration permits composition
+with Adaptive Goal. Adapted implement remains model-invocable on both hosts so
+an authorized parent can discover and invoke it through its public contract.
+Its description and first workflow guard require that explicit or inherited
+authority. Installation, ordinary engineering intent, an approved ticket/spec,
+or an unauthorized helper naming implement supplies no invocation authority;
+stop before provider discovery or effects when that authority is absent.
+Read Adaptive Goal's exact host-advertised public
 contract and give it the bounded request. Continue a matching existing native
 main-thread goal rather than replacing it or creating a worker-owned goal.
 When implement is a bounded implementation assignment from that owner, return

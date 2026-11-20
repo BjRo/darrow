@@ -26,7 +26,8 @@ prompt: "{{skill_invocation}} https://example.invalid/tickets/42 Reuse
   test seam is config.json through bash check.sh; reuse this agreement. An
   existing ready assessment covers this exact scope with no findings; do not
   repeat readiness. Require the advertised independent-code-review contract
-  before commit/publication."
+  before commit/publication. Read repository CLAUDE.md and AGENTS.md before
+  binding providers."
 fixture:
   commits:
     - message: "chore: init"
