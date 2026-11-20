@@ -9,9 +9,13 @@ supervision. Task recipes and their native session own engineering.
   Initially invoke only `ticket-to-pr` for ready GitHub issues. Preserve recipe
   verification, commit, non-force push and PR requirements. No merge, deploy,
   release, billing changes or unrelated mutations.
-- **ART-C2 — Composition.** Require Adaptive Goal, verification and review in
-  the session before engineering. Other plugins (TDD, Git, tickets, etc.) are
-  optional; use applicable installed capabilities and retain their refusals.
+- **ART-C2 — Composition.** Require the approved-work implement recipe and its required Adaptive Goal,
+  selected TDD, independent Review, Git commit and principles providers before
+  engineering. Adaptive Goal owns acceptance-to-evidence accounting and gaps;
+  standalone Verification is not required. Discover providers through their
+  advertised public contracts and preserve refusals. Keep the existing
+  pre-claim plugin-listing gate; session capability binding establishes the
+  remaining required providers before engineering.
   Supported owners execute public assessment coordination inline; weaker or
   unknown routes use one capable bounded coordinator with fresh independent
   readers. Neither placement changes admission, claims, native identity,
@@ -159,8 +163,8 @@ core versus optional plugins; readiness blockers; recovery reset/exhaustion;
 uncertain effects; reporting; cancellation and revocation. Native protocol
 fixtures do not prove live account compatibility: report live limits separately.
 
-Composed engineering evidence MUST exercise real Ticket-to-PR, Adaptive Goal,
-Verification and Review workflows, independent reader judgments, same-session
+Composed engineering evidence MUST exercise real Ticket-to-PR, implement,
+Adaptive Goal acceptance and Review workflows, independent reader judgments, same-session
 native resume after process exit, and the intended committed, published and
 CI-verified candidate. Local forge fixtures may replace external effects, but
 transport-only or mocked model execution cannot establish these native workflow

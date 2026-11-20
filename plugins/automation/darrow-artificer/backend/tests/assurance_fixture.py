@@ -135,8 +135,9 @@ def ticket_text() -> str:
         "Objective: config.json must set timeoutMs=2500 and preserve retries=3.\n"
         "Acceptance C1: timeoutMs equals 2500. C2: retries equals 3.\n"
         "Required product check: bash check.sh. Preserve all other product files.\n"
-        "Require independent review through acceptance Verification; bind the real "
-        "advertised verify-change and code-review capabilities.\n"
+        "Use the approved-work implement recipe and its Adaptive Goal acceptance "
+        "accounting; bind real independent code-review. The agreed public test "
+        "seam is config.json through bash check.sh; this confirmation is inherited.\n"
         "Use advertised ship-proposal for publication, and observe-ci for required "
         "CI on the final published commit. The fixture PR is ready for review into main.\n"
         "All effects are local fixtures. Never access real GitHub.\n"
@@ -146,7 +147,8 @@ def ticket_text() -> str:
 PROVIDERS = (
     "task-recipe/darrow-ticket-to-pr",
     "orchestration/darrow-adaptive-goal",
-    "capability/darrow-verification",
+    "capability/darrow-matt-pocock",
+    "capability/darrow-pstack",
     "capability/darrow-review",
     "capability/darrow-git",
     "capability/darrow-readiness-gate",

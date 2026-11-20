@@ -473,6 +473,37 @@ def test_delivery_requires_core_but_not_optional_plugins(
     assert "Missing required session capabilities: code-review" in claim.detail
 
 
+@pytest.mark.parametrize("host", ["codex", "claude"])
+def test_shared_implementation_session_needs_no_standalone_verification(
+    repository: Path,
+    services: Path,
+    tmp_path: Path,
+    host: str,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    state = tmp_path / "worker"
+    invoke(
+        monkeypatch,
+        capsys,
+        state,
+        "init",
+        "--repository",
+        "o/r",
+        "--checkout",
+        str(repository),
+        "--host",
+        host,
+    )
+    result = invoke(monkeypatch, capsys, state, "tick")
+    admitted = result["admitted"]
+    assert isinstance(admitted, list) and len(admitted) == 1
+    claim = wait_stopped(Installation(state))
+    assert claim.native is not None
+    assert "Specification needed" in claim.detail
+    assert "Missing required session capabilities" not in claim.detail
+
+
 @pytest.mark.parametrize("base", ["main", "master"])
 def test_new_delivery_starts_from_latest_main(
     repository: Path,
