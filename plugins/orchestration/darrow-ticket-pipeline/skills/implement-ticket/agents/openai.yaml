@@ -1,6 +1,0 @@
-interface:
-  display_name: "Implement Ticket"
-  short_description: "Implement an approved ticket plan"
-  default_prompt: "Use $implement-ticket to implement the approved ticket plan."
-policy:
-  allow_implicit_invocation: false

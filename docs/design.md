@@ -178,21 +178,12 @@ Before changing Adaptive Goal, read `docs/specs/adaptive-goal.md`.
 The [normative contract](specs/adaptive-goal.md) owns preflight, goal limits,
 route selection, placement, verification, repair, and completion.
 
-## The ticket pipeline is a reference and benchmark baseline
+## Ticket Pipeline is retired
 
-[`darrow-ticket-pipeline`](../plugins/orchestration/darrow-ticket-pipeline/README.md)
-preserves Darrow's earlier orchestration approach as an executable reference
-implementation. It uses a predefined phase graph, fresh phase agents, bounded
-repair loops, and durable state and artifacts in one tracker ticket.
+Ticket Pipeline no longer ships as an installable runtime or an executable
+benchmark. Its [retirement contract](specs/ticket-pipeline.md) preserves immutable
+source links and the original reports. Those reports retain their dates,
+limitations, and observations; they do not promise current reproducibility.
 
-That design is intentionally retained so Darrow can compare a static,
-controller-owned workflow with the smaller native-goal approach on the same
-fixtures. Useful comparison dimensions include completion rate, escaped
-defects, false positives, child invocations, human interruptions, tokens, cost,
-and wall time.
-
-The ticket pipeline is not a second recommended orchestration path and does not
-set Darrow's future product direction. Changes to it should preserve its value
-as a faithful reference and reproducible benchmark, not expand it into a daemon,
-queue, or general workflow runtime. Its frozen behavior and comparison contract
-are specified in [Capability: Ticket Pipeline](specs/ticket-pipeline.md).
+Shared comparison tooling remains available for Adaptive Goal and native-goal
+work. Retiring the static pipeline does not retire those surviving comparisons.

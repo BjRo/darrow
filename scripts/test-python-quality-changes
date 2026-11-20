@@ -261,7 +261,7 @@ for plugin in \
   capability/darrow-discovery capability/darrow-git capability/darrow-readiness-gate \
   capability/darrow-review capability/darrow-tdd capability/darrow-tickets \
   capability/darrow-verification foundation/darrow-skill-authoring \
-  orchestration/darrow-adaptive-goal orchestration/darrow-ticket-pipeline \
+  orchestration/darrow-adaptive-goal \
   task-recipe/darrow-ticket-to-pr; do
   expect_pin_for_path "plugins/$plugin/example.py" true
 done

@@ -1,6 +1,0 @@
-interface:
-  display_name: "Codify Ticket Learning"
-  short_description: "Capture durable delivery learnings"
-  default_prompt: "Use $codify-ticket to capture durable learnings from this delivery."
-policy:
-  allow_implicit_invocation: false

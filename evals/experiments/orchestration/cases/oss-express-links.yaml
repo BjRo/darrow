@@ -1,6 +1,6 @@
 id: orchestration-oss-express-links
 invariant: ORCH-OSS-SECURITY-HARDENING
-prompt: &task |-
+prompt: |-
   Work directly in this Express repository and implement the requested behavior. Do not commit or publish changes.
 
   Harden `res.links()` so caller-provided link relations and targets cannot break the RFC 8288 Link header structure. Serialize relation names as HTTP quoted strings, escaping `"` and `\\`. Reject relation names containing control characters. Reject link targets containing control characters, `<`, or `>` instead of emitting an ambiguous or injectable header. Existing valid links, multiple entries, repeated calls, and chaining behavior must remain unchanged. Throw a `TypeError` for invalid input before setting the header.
@@ -15,10 +15,6 @@ fixture:
       Before changing response header serialization, inspect `lib/response.js`, `test/res.links.js`, and the supported runtime style in `package.json`. Preserve the established callback-era JavaScript style.
   commit_files: true
   setup: npm install --ignore-scripts --no-audit --no-fund --package-lock=false
-  ticket:
-    id: "1"
-    title: Harden res.links header serialization
-    body: *task
 checks:
   - name: hidden Link header safety contract
     metric: escaped_defect

@@ -96,7 +96,7 @@ if [ "$select_all" = false ]; then
     plugins/capability/darrow-readiness-gate plugins/capability/darrow-review \
     plugins/capability/darrow-tdd plugins/capability/darrow-tickets \
     plugins/capability/darrow-verification plugins/foundation/darrow-skill-authoring \
-    plugins/orchestration/darrow-adaptive-goal plugins/orchestration/darrow-ticket-pipeline \
+    plugins/orchestration/darrow-adaptive-goal \
     plugins/task-recipe/darrow-ticket-to-pr; then
     installed_pin_required=true
   fi

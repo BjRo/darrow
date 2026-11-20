@@ -13,6 +13,17 @@ Current authority: [Langfuse plugin retirement](../decisions/ADR-0013-retire-the
 - [Native ticket attribution results, limits and migration](native-otel-issue-284.md)
 - [Historical plugin ingestion and performance evidence](langfuse-plugin-issue-77-verification.md)
 
+## Retired ticket pipeline
+
+Current authority: [Ticket Pipeline retirement](../specs/ticket-pipeline.md).
+The static runtime and its executable benchmark cells are retired. Original
+reports remain unchanged, including their dates, limitations, and historical
+commands; those commands apply to the pinned source, not the current checkout.
+
+- [2026-08-07 comparison and observation limits](../../evals/experiments/orchestration/snapshots/2026-08-07-n1.md)
+- [Original machine-readable results](../../evals/experiments/orchestration/snapshots/2026-08-07-n1.json)
+- [Complete pre-retirement source at de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89](https://github.com/BjRo/darrow/tree/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/orchestration/darrow-ticket-pipeline)
+
 ## Native goals, ownership and host boundaries
 
 Current authority: [Adaptive Goal](../specs/adaptive-goal.md) and
