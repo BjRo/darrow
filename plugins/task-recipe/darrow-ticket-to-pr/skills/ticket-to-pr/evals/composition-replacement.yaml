@@ -26,10 +26,7 @@ prompt: "{{skill_invocation}} https://example.invalid/tickets/42 Reuse
   test seam is config.json through bash check.sh; reuse this agreement. An
   existing ready assessment covers this exact scope with no findings; do not
   repeat readiness. Require the advertised independent-code-review contract
-  before commit/publication. The bound approved-work implementation provider is
-  $darrow-matt-pocock:implement. This explicit delivery invocation authorizes
-  invoking that public provider in this same thread, preserving its
-  explicit-only boundary."
+  before commit/publication."
 fixture:
   commits:
     - message: "chore: init"
