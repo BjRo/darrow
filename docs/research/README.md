@@ -114,6 +114,12 @@ these records retain delivery and account-usage observations.
 - [Main-thread Artificer](artificer-main-thread-2026-10-04.md)
 - [Account usage](artificer-account-usage-2026-10-05.md)
 
+## Curated upstream bundles
+
+Current planning authority: [Simplify Darrow around curated upstream skills](https://github.com/BjRo/darrow/issues/318).
+
+- [Pinned sources, dependencies, and host adaptation inventory](curated-upstream-bundle-portability.md)
+
 ## Exploratory opportunities
 
 Current authority: [Layer composition](../specs/layer-composition.md) and
