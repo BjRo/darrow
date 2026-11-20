@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { resolveCase } from "../sevro-extension/index";
-import { fixtureExtensionRequest } from "./fixture-command";
+import { fixtureExtensionRequest, policyOutcomes } from "./fixture-command";
 import {
   policyHostCapabilities,
   policyProject,
@@ -14,6 +14,125 @@ import {
 
 type Call = { ordinal: number; namespace: string; name: string };
 const projectRoot = pathToFileURL(resolve(import.meta.dir, "../..")).href;
+
+test("Adaptive Goal ticket preflight uses complete native controls on both hosts", async () => {
+  const { cases } = await fixtureExtensionRequest<{
+    cases: { id: string; requiredEvidence: string[]; extensionData: unknown }[];
+  }>("resolve", {
+    projectRoot,
+    selectors: { caseIds: ["goal-preflight-ticket-input"] },
+  });
+  const selected = cases[0]!;
+  for (const host of ["claude", "codex"] as const) {
+    await fixtureExtensionRequest("prepare", {
+      case: selected,
+      configuration: {},
+      host: {
+        id: `sevro.host.${host}`,
+        capabilities: [
+          ...policyHostCapabilities(host).filter(
+            (capability) => capability !== "sevro.codex.native-calls",
+          ),
+          "sevro.host.native-controls",
+        ],
+      },
+    });
+    expect(selected.requiredEvidence).not.toContain("sevro.codex.native-calls");
+    const observation = {
+      id: "sevro.host.native-controls",
+      source: `sevro.host.${host}`,
+      completeness: "complete",
+      data: {
+        method: "native_control_calls",
+        truncated: false,
+        acceptedAgentCount: host === "codex" ? 0 : null,
+        submittedExecCalls: host === "codex" ? 0 : null,
+        calls: [] as Call[],
+      },
+    };
+    const grade = async (observations: unknown[]) => {
+      const result = await fixtureExtensionRequest<{
+        checks: { id: string; status: string }[];
+        domainOutcomes: { id: string; status: string }[];
+      }>("evaluate", {
+        extensionData: selected.extensionData,
+        observations,
+        artifacts: [],
+      });
+      return policyOutcomes(result).find(
+        (check) => check.id === "darrow.evals.transcript.1",
+      )?.status;
+    };
+    expect(await grade([observation])).toBe("passed");
+    for (const observations of [
+      [],
+      [observation, observation],
+      [{ ...observation, completeness: "partial" }],
+      [{ ...observation, source: "another.host" }],
+      [{ ...observation, data: { ...observation.data, truncated: true } }],
+    ])
+      expect(await grade(observations)).toBe("unavailable");
+    expect(
+      await grade([
+        {
+          ...observation,
+          data: {
+            ...observation.data,
+            calls: [
+              {
+                ordinal: 1,
+                namespace: host === "codex" ? "collaboration" : "claude",
+                name: host === "codex" ? "spawn_agent" : "Agent",
+              },
+            ],
+          },
+        },
+      ]),
+    ).toBe("failed");
+    if (host !== "codex") continue;
+    const receipt = {
+      ordinal: 4,
+      completeness: "complete",
+      calls: [{ index: 0, namespace: "functions", name: "exec_command" }],
+    };
+    const data = {
+      ...observation.data,
+      submittedExecCalls: 1,
+      calls: [{ ordinal: 4, namespace: "functions", name: "exec" }],
+      execCalls: [receipt],
+    };
+    expect(await grade([{ ...observation, data }])).toBe("passed");
+    expect(
+      await grade([
+        {
+          ...observation,
+          data: {
+            ...data,
+            execCalls: [
+              {
+                ...receipt,
+                calls: [
+                  { index: 0, namespace: "collaboration", name: "spawn_agent" },
+                ],
+              },
+            ],
+          },
+        },
+      ]),
+    ).toBe("failed");
+    for (const execCalls of [
+      undefined,
+      [],
+      [receipt, receipt],
+      [{ ...receipt, ordinal: 5 }],
+      [{ ...receipt, completeness: "partial" }],
+      [{ ...receipt, calls: [{ ...receipt.calls[0], index: 1 }] }],
+    ])
+      expect(
+        await grade([{ ...observation, data: { ...data, execCalls } }]),
+      ).toBe("unavailable");
+  }
+}, 30_000);
 
 test("Ticket-to-PR task outcomes are independent of workflow diagnostics", async () => {
   const project = await policyProject(

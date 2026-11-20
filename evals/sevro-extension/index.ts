@@ -1374,6 +1374,7 @@ const TRANSCRIPT_EVIDENCE = new Map([
   ["guide-no-owner-or-goal-control", ["sevro.host.native-controls"]],
   ["review-no-agent-spawn", ["sevro.host.native-controls"]],
   ["doctor-no-agent-spawn", ["sevro.host.native-controls"]],
+  ["preflight-no-agent-spawn", ["sevro.host.native-controls"]],
   ["no-agent-spawn", ["sevro.codex.native-calls"]],
   ["one-owner-accepted", ["sevro.codex.native-calls"]],
   ["owner-route", ["sevro.codex.native-calls"]],
@@ -1661,7 +1662,16 @@ function nativeGoalCasePolicy(selected: RecordValue, skillDir: string | null) {
   const selection = currentTranscriptSelection(selected.transcript_checks);
   const transcriptChecks = {
     ...selection,
-    legacy: scopedTranscriptSelection(selection.legacy, skillDir) ?? [],
+    legacy: (scopedTranscriptSelection(selection.legacy, skillDir) ?? []).map(
+      (check) =>
+        selected.id === "goal-preflight-ticket-input" &&
+        skillDir ===
+          "plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal" &&
+        selected.native_goal === "forbidden" &&
+        check.kind === "no-agent-spawn"
+          ? { ...check, kind: "preflight-no-agent-spawn" }
+          : check,
+    ),
   };
   return {
     checks: [
@@ -3022,6 +3032,7 @@ function requiredNativeRoute(details: RecordValue) {
         "guide-no-owner-or-goal-control",
         "review-no-agent-spawn",
         "doctor-no-agent-spawn",
+        "preflight-no-agent-spawn",
         "assessment-readers",
       ].includes(String(activationData(check)?.kind)),
     );
@@ -5442,6 +5453,7 @@ async function nativeTranscriptChecks(
       "guide-no-owner-or-goal-control",
       "review-no-agent-spawn",
       "doctor-no-agent-spawn",
+      "preflight-no-agent-spawn",
     ].includes(String(entry.kind))
       ? portableNativeControlOutcome(
           observations,

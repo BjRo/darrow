@@ -266,6 +266,14 @@ every submission after the native boundary. A partial earlier submission does
 not by itself invalidate complete evidence for the later interval. Submitted
 labels cannot substitute for correlated owner acceptance.
 
+Adaptive Goal's `goal-preflight-ticket-input` no-agent assertion uses this same
+complete common native-controls boundary on Codex and Claude. It rejects every
+agent-launch attempt, including inspected Code Mode submissions, without
+requiring agent acceptance. Missing, partial, foreign, duplicate or inconsistent
+evidence remains unavailable. Its separate no-goal assertion is unchanged.
+This migration does not change other legacy native-call assertions or their
+required evidence.
+
 Explicit Codex owner dispatch can establish owner activation independently of
 supporting reads. Composition order, supporting-skill inclusion, and exclusions
 also require unique complete skill-read evidence consistent with the dispatch.
