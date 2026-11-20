@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -20,6 +20,27 @@ const reviewPlugin = new URL(
   "../../plugins/capability/darrow-review/",
   import.meta.url,
 );
+
+for (const name of ["high-risk-routine", "high-risk-routine-claude"]) {
+  test(`${name} setup prepares private Review state`, async () => {
+    const { fixture } = await readFixtureCase(new URL(`${name}.yaml`, source));
+    const root = await mkdtemp(join(tmpdir(), "review-state-setup-"));
+    const reviewState = join(root, ".darrow/reviews");
+    try {
+      await mkdir(reviewState, { recursive: true });
+      await chmod(reviewState, 0o755);
+      const result = await captureTestCommand(
+        ["bash", "-c", fixture.setup!],
+        undefined,
+        { cwd: root, env: { PATH: process.env.PATH, HOME: root } },
+      );
+      expect(result.exitCode, result.stderr).toBe(0);
+      expect((await stat(reviewState)).mode & 0o777).toBe(0o700);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+}
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 const state =
   'export DARROW_REVIEW_STATE_DIR="$(cat .git/oracle-review-state)" SEVRO_CANDIDATE_ARTIFACT_REVIEWS="$(cat .git/oracle-review-state)" DARROW_CACHE_DIR="$PWD/.git/fixture-runtime-cache"';

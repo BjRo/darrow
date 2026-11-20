@@ -23,7 +23,7 @@ prompt: /goal Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR,
   artifact path as its single argument. Select and apply the policy route rather
   than pinning it. Keep the result local.
 fixture:
-  setup: mkdir -p "$HOME/.darrow/reviews"
+  setup: mkdir -p "$HOME/.darrow/reviews" && chmod 700 "$HOME/.darrow/reviews"
   commits:
     - message: "chore: init"
       files:
