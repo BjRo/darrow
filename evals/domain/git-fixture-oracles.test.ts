@@ -3,6 +3,74 @@ import { readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { readFixtureCase, runFixtureChecks } from "./fixture-command";
 import { policyProject, runPolicyPrompt } from "./policy-project";
+import { gitPluginFixtureFiles } from "./fixture-git-plugin";
+import { prepareUvFixtureRuntime } from "./fixture-runtime";
+
+test("PR publication preserves evidence and risk while its shape oracle rejects the old body", async () => {
+  const source = new URL(
+    "../../plugins/capability/darrow-git/skills/create-pr/evals/body-context-ticket.yaml",
+    import.meta.url,
+  );
+  const canonical = await readFixtureCase(source);
+  const shape = canonical.checks.find(
+    (check) => check.name === "default presentation sections",
+  );
+  if (!shape) throw new Error("missing canonical presentation oracle");
+  const body = [
+    "## Summary\n\nRetry transient network failures. Refs DAR-123.",
+    "## Evidence\n\nBefore: the local stub rejected immediately. After: it resolved on attempt three. No live service or full suite was tested.",
+    "## Merge Danger\n\nHTTP helper callers can incur delay and additional requests. Reverting code cannot undo requests already sent; downstream effects remain unverified.",
+  ];
+  const runtime = await prepareUvFixtureRuntime();
+  const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
+  const result = await runFixtureChecks({
+    source,
+    fixture: {
+      ...canonical.fixture,
+      files: {
+        ...canonical.fixture.files,
+        ...(await gitPluginFixtureFiles()),
+        ".fixture-state/expected-body": body.join("\n\n"),
+      },
+      bin: { ...canonical.fixture.bin, ...runtime.bin },
+      setup: [
+        runtime.setupPrefix,
+        canonical.fixture.setup,
+        "mv .fixture-plugin .git/eval-plugin",
+        "uv sync --quiet --frozen --no-dev --project .git/eval-plugin/backend",
+      ].join("\n"),
+    },
+    checks: [
+      {
+        name: "publish through the contained Git entrypoint",
+        run: [
+          "uv run --quiet --frozen --no-dev --project .git/eval-plugin/backend darrow-create-pr create",
+          "--title 'feat(http): retry transient requests'",
+          ...body.map((section) => `-b ${quote(section)}`),
+        ].join(" "),
+        expect_regex: "publication: verified",
+      },
+      {
+        name: "literal evidence and risk survive publication",
+        run: "cmp .fixture-state/expected-body .fixture-state/gh/body",
+      },
+      shape,
+      {
+        ...shape,
+        name: "old why and what body cannot satisfy the new default",
+        run:
+          "printf '%s' 'Retries help transient failures. Add exponential backoff. Refs DAR-123.' >.fixture-state/gh/body\n" +
+          shape.run,
+      },
+    ],
+  });
+  expect(result.value.execution.status, result.diagnostic).toBe("completed");
+  expect(result.value.grading.status, result.diagnostic).toBe("completed");
+  expect(
+    result.checks.map((check) => check.status),
+    result.diagnostic,
+  ).toEqual(["passed", "passed", "passed", "failed"]);
+}, 120_000);
 
 for (const name of ["default-branch-refuse", "dup-stop"]) {
   test(`PR absence detects title-free creation: ${name}`, async () => {

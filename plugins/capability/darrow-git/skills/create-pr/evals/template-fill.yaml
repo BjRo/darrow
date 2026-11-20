@@ -109,3 +109,23 @@ checks:
   - name: ticket referenced verbatim
     run: cat .fixture-state/gh/body
     expect_regex: "DAR-123"
+  - name: template replaces default presentation headings
+    run: grep -Ec '^## (Summary|Evidence|Merge Danger)$' .fixture-state/gh/body || true
+    expect_exact: "0"
+semantic_artifact:
+  path: .fixture-state/gh/body
+  checks:
+    - name: evidence limits survive the template
+      proposition: >-
+        The PR body distinguishes the committed retry tests from observed test
+        results. No execution or before/after observation was supplied in this
+        fixture, so it does not claim those tests passed or invent a measured
+        comparison. It communicates the lack of observed validation within
+        the repository's Testing section.
+    - name: meaningful risk fits the repository template
+      proposition: >-
+        Within the repository's Why, What Changed, and Testing sections, the
+        body briefly assesses retry impact on callers of the HTTP get helper
+        (such as added delay or repeated requests) and reversibility, without
+        claiming that all downstream effects or rollback safety were verified.
+        No separate default Summary/Evidence/Merge Danger sections are needed.

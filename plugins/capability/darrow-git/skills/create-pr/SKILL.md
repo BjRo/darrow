@@ -88,19 +88,45 @@ Write a Conventional Commit title that summarizes the whole branch, not merely
 its last commit: `<type>(<scope>): <imperative summary>`. Use the same allowed
 types as commits, at most 72 characters, with no trailing period.
 
-Without a repository template, write 2–6 substantive sentences in this order:
+Without a repository template, use these sections in order. With a template,
+put the same useful content under its relevant headings; preserve its structure
+instead of adding competing headings.
 
-1. why the change exists—the problem or motivation;
-2. what the branch changes—the solution visible in its commits and diffstat.
+- **Summary:** Explain the problem and resulting committed behavior. Choose
+  the smallest representation that makes the change clear: short prose often
+  suffices. Use a compact diff sketch, pseudocode, tree, or Mermaid diagram only
+  when it clarifies logic, ownership, or flow; keep it beside the text it supports.
+- **Evidence:** Present available before/after observations with their source
+  and scope: supplied screenshots, output, or actual failing/passing runs. Label
+  inferred behavior as inference. If only one side is observed, say which is
+  missing; if neither is observed, state that rather than inventing a comparison.
+  A test added in a commit is coverage, not evidence of a passing run. Preserve
+  limits such as stub-only checks, absent suite results, or untested live services.
+- **Merge Danger:** Assess meaningful impact, affected callers or systems
+  (blast radius), and reversibility. Explain the concrete failure or behavior
+  change reviewers should consider and whether reverting code would undo its
+  effects; data loss, migrations, and external effects can make rollback costly
+  or incomplete. Distinguish supported scope from unknown consumer effects.
+  Do not infer safe rollback or negligible risk from a small diffstat, or add
+  unsupported risk scores.
 
-Pass each paragraph as a separate `-b` section. Include a ticket identifier
-verbatim when the branch name or conversation supplies one, for example `Refs
-DAR-123`. Omit filler and boilerplate checklists. Never add tool attribution to
-the title or body.
+Scale detail to the change: a sentence per section may be enough for a small
+change. Use available committed context and conversation evidence; identify
+material unknowns instead of delaying publication to manufacture evidence.
+This drafting step grants no test execution, media upload, separate comment,
+or PR metadata-update authority. Git supplies the complete presentation itself;
+no Explanation skill or second PR publisher is required.
+
+Pass each heading with its content as a separate `-b` section. Include a ticket
+identifier verbatim when the branch name or conversation supplies one, for
+example `Refs DAR-123`. Omit filler and boilerplate checklists. Never add tool
+attribution to the title or body. Presentation sources and applicable notices
+are recorded in [CREDITS.md](CREDITS.md).
 
 **Complete when:** the title names the branch-wide effect and the body explains
-both motivation and solution from available evidence, follows the selected
-template when present, and preserves any known ticket identifier.
+the problem and resulting behavior, available evidence and its limits, and
+proportionate impact, blast radius and reversibility; the body follows the
+selected template when present and preserves any known ticket identifier.
 
 ### 3. Push and create
 

@@ -298,16 +298,21 @@ verified publication.
 - **GW-P1 — Conventional title.** The PR title follows the Conventional
   Commit subject rules (same types as commits, ≤ 72 chars, imperative, no
   trailing period) and summarizes the whole branch, not just the last commit.
-- **GW-P2 — Context-rich body.** The body states why the change exists and
-  what it does, derived from the branch commits; a known ticket id is
-  referenced verbatim. No filler; no boilerplate checklists unless the
-  repo's PR template asks for them (GW-P8).
-  Motivation and solution may share one paragraph. Assess their meaning in the
-  branch's context without requiring separate paragraphs, headings, or fixed
-  vocabulary.
-  Read the body as a whole: rationale and solution may share information
-  without repeating terms. A high-level change summary is sufficient; a full
-  runtime specification is not required.
+- **GW-P2 — Useful proposal and evidence.** The body explains the problem and
+  resulting committed behavior, references a known ticket identifier verbatim,
+  and uses Summary, Evidence, and Merge Danger as default sections. A repository
+  template takes precedence (GW-P8). Scale detail to the change and use the
+  smallest useful representation, including plain prose; no mandatory diagram,
+  risk score, or boilerplate checklist. Summary explains the change from
+  available branch context. Evidence presents available before/after observations
+  and their scope, distinguishing observed results from inferred behavior and
+  unavailable evidence. A committed test is not a passing test run. Merge Danger
+  assesses meaningful impact, affected callers or systems (blast radius), and
+  reversibility, with explicit uncertainty when the available evidence cannot
+  establish them. Do not invent results or claim safe rollback from a diffstat.
+  Git supplies this complete presentation without an Explanation dependency or
+  another PR publisher. Presentation adds no testing, media upload, comment,
+  metadata-update, or publication authority.
 - **GW-P3 — No AI attribution.** No "Generated with ..." lines, no AI
   co-author credits, no tool emoji in title or body.
 - **GW-P4 — Deliberate shape.** Base is the repo's default branch unless the
@@ -333,7 +338,10 @@ verified publication.
   the body follows it: headings kept verbatim, every section filled with
   real content from the branch, instructions in HTML comments followed and
   the comments removed. The template defines the body's shape and overrides
-  the default why/what structure. A single automatically detected template
+  the default Summary/Evidence/Merge Danger structure. Preserve the useful
+  summary, available evidence and limits, and proportionate risk assessment in
+  the template's relevant sections without adding competing headings.
+  A single automatically detected template
   needs no `--template` selector; its reported path identifies the file to
   read, not a selector argument. With multiple templates
   (`.github/PULL_REQUEST_TEMPLATE/`), the user either names an exact template
