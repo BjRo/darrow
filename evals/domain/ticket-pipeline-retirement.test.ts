@@ -8,8 +8,42 @@ const root = resolve(import.meta.dir, "../..");
 
 // TP-R1 and TP-R3: the repository cutover boundary, not host task evidence.
 test("ticket pipeline has no executable package, benchmark cell, or CI obligation", async () => {
+  const plugin = "plugins/orchestration/darrow-ticket-pipeline";
+  const payload = Bun.spawnSync(
+    [
+      "git",
+      "ls-files",
+      "--cached",
+      "--others",
+      "--exclude-standard",
+      "-z",
+      "--",
+      plugin,
+    ],
+    { cwd: root },
+  );
+  expect(payload.exitCode, payload.stderr.toString()).toBe(0);
+  expect(payload.stdout.toString(), "maintained pipeline package payload").toBe(
+    "",
+  );
+
+  // Ignored developer caches may remain, but public entrypoints must not.
   for (const path of [
-    "plugins/orchestration/darrow-ticket-pipeline",
+    `${plugin}/.claude-plugin/plugin.json`,
+    `${plugin}/.codex-plugin/plugin.json`,
+    `${plugin}/backend/pyproject.toml`,
+    `${plugin}/backend/uv.lock`,
+    `${plugin}/backend/scripts/run_locked.py`,
+    ...[
+      "challenge-ticket",
+      "codify-ticket",
+      "deliver-ticket",
+      "implement-ticket",
+      "qa-ticket",
+      "refine-ticket",
+      "review-ticket",
+      "rework-ticket",
+    ].map((skill) => `${plugin}/skills/${skill}/SKILL.md`),
     "evals/experiments/orchestration/conditions/darrow-ticket-pipeline.md",
   ]) {
     expect(existsSync(resolve(root, path)), path).toBe(false);

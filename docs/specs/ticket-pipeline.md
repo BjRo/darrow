@@ -11,6 +11,9 @@ and [ticket #337](https://github.com/BjRo/darrow/issues/337).
   `plugins/orchestration/darrow-ticket-pipeline` package, its skills, backend,
   colocated evals, and dedicated CI/install checks. Do not retain an executable
   alias, compatibility shell, or active pipeline benchmark condition or mode.
+  Verify maintained package payload and public entrypoints are absent. Preserve
+  ignored developer caches and other user-owned local state; their containing
+  directory alone does not constitute a maintained package.
 - **TP-R2 — Preserve historical evidence.** Keep original reports, snapshots,
   dates, limitations, and observations unchanged. Preserve the complete former
   source and contract through the immutable revision below. Historical commands
