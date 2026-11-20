@@ -259,8 +259,58 @@ copy the experiments tree, executable Pipeline or current acceptance ledger.
 through `/bin/bash` first failed with both missing snapshot paths, then passed
 with exact source-byte, tracked-file and two-file inventory assertions. Existing
 no-effects checks and the rationale proposition remain unchanged by this fix.
-No fresh native result after the snapshot fix is claimed here; foundations and
-Claude had not run when the parent stopped this second condition.
+At that fixture-fix handoff, no fresh native result was available; foundations
+and Claude had not run when the parent stopped the second condition.
+
+After the snapshot fix, the parent ran these single-trial conditions. Prior
+failed trials above remain unchanged:
+
+| Host and question | Run                                    | Task   | Activation and deterministic checks |
+| ----------------- | -------------------------------------- | ------ | ----------------------------------- |
+| Codex rationale   | `f3aaea7b-ffea-40ac-99f2-0e4ba2e564ab` | PASS   | PASS                                |
+| Codex foundations | `4ef0a367-2e94-494a-99f3-a388f067a777` | FAILED | PASS                                |
+| Claude rationale  | `da7c6dce-9c43-4124-a7a6-41cef40775a8` | FAILED | PASS                                |
+
+The foundations grader correctly found that the response did not explicitly say
+repository standards govern skill writing. It did identify Information Architecture,
+Matt's domain-modeling and writing-for-agents, ordinary decision documents, and
+intent/explicit activation. The question asks which plugins help and how skills
+are selected, rather than asking for the skill-maintenance process. A citation to
+the replacement documentation does not satisfy the old explicit-prose expectation;
+the failed verdict remains valid against that declared expectation.
+
+The Claude rationale grader required bounded-delegation wording after the answer
+mentioned main-thread goal ownership. The answer did not discuss delegating work
+and accurately described the host runtime, Pipeline retirement and preserved history.
+The natural question does not request an ownership-policy recital. Both failures
+therefore support correcting question-level expectations, not rewriting product
+instructions or declaring the old verdicts passed.
+
+One combined correction narrows the two propositions to the questions actually
+asked, following [eval-development guidance](../eval-development.md#case-contracts):
+rationale requires the host-runtime explanation and Pipeline retirement/history;
+foundations requires the plugin-to-purpose mapping and intent/explicit activation.
+It removes mandatory adjacent-policy recitals and exhaustive operation lists.
+Retired providers and a second Darrow execution controller remain wrong answers.
+Prompts, Guide bodies, runtime adapter, disclosure, output and no-effects checks
+are unchanged. The source contracts still require repository standards during
+skill maintenance and bounded delegation during orchestration.
+
+These are **ungraded oracle-review examples**, not regraded results or new trials:
+
+- The observed Claude rationale's host-runtime and retirement explanation is a
+  valid answer to the question without a separate delegation-policy recital.
+  A claim that Pipeline remains an installable executable benchmark, or that
+  Darrow runs its own second controller, is a plausible wrong answer.
+- The observed Codex foundations mapping and activation explanation answers the
+  question without repeating the repository's authoring process. Recommending
+  the retired Decisions or Skill Authoring plugins, or saying complexity alone
+  authorizes orchestration, is a plausible wrong answer.
+
+Public semantic regrading is unavailable. No semantic green result is claimed
+for this combined correction. The parent will run each corrected question once
+on each actual host after integration; any remaining failure is reported rather
+than starting another assertion-tuning loop.
 
 Full combined installed Sevro, final guide native trials, independent assessment,
 parent-local cleanup, push/draft PR and exact-head CI remain parent-owned.

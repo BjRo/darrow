@@ -29,18 +29,18 @@ checks:
 semantic_output_checks:
   - name: question contract
     proposition: >-
-      The response explains that the host supplies execution, recovery, delegation,
-      or continuation, so Darrow does not add a second execution runtime. It explains
-      that Ticket Pipeline is retired as a maintained installable runtime and executable
-      benchmark, while historical reports and immutable source references remain for
-      inspecting past evidence. Judge these meanings without requiring literal retirement
-      terms. If ownership is discussed, main-thread goal ownership with bounded delegation
-      is current policy; it must not describe a delegated agent as owning the overall goal.
-      ADR supersession history and orchestration activation details are not required.
-      The response remains focused on this rationale question; brief relevant source
-      context and one useful next source are permitted. It does not claim to have
-      performed installations, tests, repairs, or environment diagnosis.
-
+      The user asks why Darrow does not run a second agent runtime and why Ticket
+      Pipeline is retained. The response explains that the host supplies execution,
+      recovery, delegation, or continuation, so Darrow does not add a second execution
+      runtime. It corrects the question's outdated premise: Ticket Pipeline is retired
+      as an installable runtime and executable benchmark; historical reports and
+      immutable source references remain for inspecting past evidence. Equivalent
+      wording is sufficient. It must not recommend the retired Pipeline as a current
+      execution path or claim Darrow runs a second execution controller. A recital
+      of goal ownership, delegation policy, or ADR history is not required. The response
+      stays focused on the question; brief relevant context and a useful next source
+      are permitted. It does not claim to have performed installations, tests,
+      repairs, or environment diagnosis.
 output_checks:
   - name: nearby repository evidence
     expect_regex: docs/design\.md|docs/decisions/ADR-0012-keep-native-goal-ownership-in-the-main-thread\.md|docs/specs/ticket-pipeline\.md
