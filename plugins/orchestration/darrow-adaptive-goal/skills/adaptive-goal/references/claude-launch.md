@@ -64,7 +64,7 @@ the child owns its assignment, not the native goal. The scoped frontmatter pins
 the route; no overall owner marker or nested goal is needed.
 
 Retain the host-returned agent id and result. Settle conflicting work before
-another assignment. Verification and review keep their own internal delegation
+another assignment. Review and other selected assessments keep their own internal delegation
 and response contracts. The main thread consumes those results and owns repair
 accounting and overall completion.
 

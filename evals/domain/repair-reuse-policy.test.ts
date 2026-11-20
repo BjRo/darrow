@@ -119,7 +119,11 @@ test("Codex repair reuse requires follow-up to the one retained implementor", as
   );
 });
 
-async function claudeEvidence(target: string) {
+async function claudeEvidence(
+  target: string,
+  viaSkill = false,
+  legacy = false,
+) {
   const root = await mkdtemp(join(tmpdir(), "darrow-repair-reuse-"));
   roots.push(root);
   const agent = (id: string) => ({
@@ -168,13 +172,32 @@ async function claudeEvidence(target: string) {
     name: "Agent",
     toolUseId,
     subagentType: nested
-      ? "darrow-verification:review-coordinator-sonnet-5-5-medium"
+      ? `${legacy ? "darrow-verification" : "darrow-review"}:assessment-coordinator-sonnet-5-5-medium`
       : "darrow-adaptive-goal:adaptive-goal-opus-5-5-high",
     runInBackground: false,
     promptSha256: "a".repeat(64),
   });
   return {
     observations: [
+      ...(viaSkill
+        ? [
+            {
+              id: "sevro.claude.nested-skills",
+              source: "sevro.host.claude",
+              completeness: "complete",
+              data: {
+                method: "native_session_graph",
+                calls: [
+                  {
+                    ancestorToolUseId: "use-2",
+                    invocation: "darrow-review:code-review",
+                    skill: "code-review",
+                  },
+                ],
+              },
+            },
+          ]
+        : []),
       {
         id: "sevro.host.native-goal",
         source: "sevro.host.claude",
@@ -195,7 +218,7 @@ async function claudeEvidence(target: string) {
           calls: [
             call(1, "use-1"),
             call(2, "use-2"),
-            call(3, "use-4", "use-2"),
+            ...(viaSkill ? [] : [call(3, "use-4", "use-2")]),
           ],
         },
       },
@@ -223,5 +246,28 @@ test("Claude repair reuse requires SendMessage to the one retained implementor",
         evidence.artifacts,
       ),
     ).toBe(expected);
+  }
+});
+
+test("Claude repair reuse recognizes public Review skill evidence and retained legacy ancestry", async () => {
+  for (const [viaSkill, legacy] of [
+    [true, false],
+    [false, true],
+  ]) {
+    const evidence = await claudeEvidence("impl123", viaSkill, legacy);
+    expect(
+      await reuseStatus(
+        "goal-placement-repair-reuse-claude",
+        evidence.observations,
+        evidence.artifacts,
+      ),
+    ).toBe("passed");
+    expect(
+      await reuseStatus(
+        "goal-placement-repair-reuse-claude",
+        [],
+        evidence.artifacts,
+      ),
+    ).toBe("unavailable");
   }
 });

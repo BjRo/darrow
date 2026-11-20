@@ -9,7 +9,6 @@ harnesses:
   - codex
 additional_plugins:
   - plugins/capability/darrow-git
-  - plugins/capability/darrow-verification
   - plugins/capability/darrow-review
 candidate_routes:
   codex:
@@ -76,7 +75,7 @@ fixture:
 
 
           Both focused and combined checks: bash test.sh. All required checks must pass
-          after integration before independent full-spec Verification with Review.
+          after integration before independent full-spec Review and acceptance accounting.
           Original owner retains goal, decisions, integration, verification, shared
           two-repair allowance, completion and publication authority. Workers return
           commits/files/checks/gaps, invoke no goals, coordinate no assessments and

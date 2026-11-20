@@ -22,8 +22,9 @@ authorizes that operation and its prerequisites are satisfied.
 
 For a capability assignment, invoke that capability and return its complete
 normal result and usable evidence references. Preserve the capability's internal
-delegation and explicit routes. A verification assignment must use the bound
-verification skill; review alone does not satisfy it. Do not restrict reviewers
+delegation and explicit routes. An independent-review assignment must use the bound
+Review public workflow. Return its judgments; acceptance accounting remains
+with the main thread. Do not restrict reviewers
 to this agent's model.
 
 A material decision, invalidated readiness or expanded authority stops affected

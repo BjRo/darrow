@@ -2,8 +2,6 @@ id: goal-review-required-unavailable
 invariant: ADL-C1,ADL-C2,ADL-L2,ADL-X1
 goal_report: forbidden
 goal_route_checks: false
-additional_plugins:
-  - plugins/capability/darrow-verification
 prompt: >-
   {{skill_invocation}} Change requireMfa in auth-policy.js from false to true. This is
   an authorization boundary where the cost of a mistake is high, while the requested

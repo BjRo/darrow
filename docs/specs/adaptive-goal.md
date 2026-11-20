@@ -4,8 +4,9 @@ Darrow turns one bounded engineering request into a native goal in the main
 thread. That thread retains acceptance, user decisions and completion. It
 implements directly unless the selected route is stronger than its own or
 unknown, or a cheaper route, focused ticket context or concurrent parts repay the handoff; then it
-delegates bounded implementation. It places selected verification inline or in one capable fallback coordinator.
-Capabilities own their assessment protocols and internal delegation.
+delegates bounded implementation. It maps acceptance to current evidence or explicit gaps in the main thread.
+Selected independent Review owns its public workflow, placement and fresh readers;
+standalone Verification is not a prerequisite.
 
 Plugin: `darrow-adaptive-goal`  
 Skill: `adaptive-goal`
@@ -18,9 +19,10 @@ The public plugin is `darrow-adaptive-goal`, with orchestration skill
 installation and invocation instructions, scoped Claude agents, bundled Python
 entrypoints, and active eval bindings must agree with those names.
 
-This is a naming change. Main-thread goal ownership, invocation authority,
-implementation and assurance routes, capability boundaries, completion evidence,
-and the shared repair allowance remain unchanged. Historical trial identifiers,
+The 0.25.0 rename preserved main-thread goal ownership, invocation authority,
+implementation routes and the shared repair allowance. Version 0.30.0 moves
+acceptance accounting into that owner and binds independent Review directly;
+provider routes and independent judgment remain capability-owned. Historical trial identifiers,
 commands, hashes, snapshots and artifact paths retain their recorded names.
 
 ## Why
@@ -60,9 +62,9 @@ auditing belongs to evaluation and diagnostics, not the live workflow.
    is stronger than or not comparable to the main thread's route. A delegated
    child runs on the selected model and effort and owns that assignment, never
    the delivery goal.
-5. Execute selected Verification's complete public workflow inline on a supported
-   observed route; otherwise delegate one bounded assessment to a capable
-   coordinator. Preserve provider prerequisites, independent readers and routes.
+5. Execute selected independent Review through its complete public workflow.
+   Preserve its prerequisites, placement, fresh readers and routes. The main
+   thread reconciles every criterion against current checks and provider evidence.
 6. Consume candidate-bound evidence, coordinate authorized repairs and fresh
    reassessment, and retain decisions and the shared repair allowance.
 7. Complete only when every required check, acceptance criterion and authorized
@@ -244,7 +246,7 @@ Keep a compact native goal and a complete delivery contract in the main thread.
 
 The native goal is at most 4,000 Unicode characters. It names the requested
 outcome, material acceptance criteria, scope and completion conditions. It
-requires current check and selected verification evidence, preserved authority,
+requires current check and acceptance evidence, preserved authority,
 and truthful blockers. Do not embed workflow instructions, full capability
 bodies, transcripts or protocol mechanics. Never silently truncate a criterion.
 An existing code candidate does not imply that a native goal already exists.
@@ -263,7 +265,7 @@ The skill and main-thread context retain:
 - implementation placement, the observed or unknown main-thread route and the
   placement basis;
 - focused and final checks, readiness evidence and selected capability bindings;
-- the verification coordinator route and selected provider requirements;
+- selected Review placement and provider requirements;
 - user decisions, publication limits and any explicit stopping budgets;
 - the repair maximum, its authority, attempts consumed and complete assessment history.
 
@@ -318,14 +320,13 @@ reference. For file-backed Codex skills, preserve the installed absolute
 any bounded capability delegation; a fresh context must not depend on the
 parent's skill reads or reconstruct an installation path from a name.
 Typical bindings include ticket reads and updates, TDD, commits, pull
-requests, and verification. When verification is selected, preflight also binds
-its compatible required independent code-review capability. Assessment runs
-through verification; adaptive goal does not own review's assessment protocol.
+requests, and independent review. Bind a compatible independent-review capability
+when selected; Adaptive Goal owns acceptance accounting, while Review owns its
+assessment protocol and independent readers.
 
 Readiness and necessary read-only input gathering may run during preflight.
 Preserve completed input evidence and bind any necessary refresh. Implementation,
-verification and publication bindings run in the owner when due; selected
-assessment-provider bindings travel through verification with preserved authority.
+review and publication bindings run in the owner when due, with preserved authority.
 The owner must follow the bound
 skill before performing that operation; a direct shell, Git, forge, tracker,
 or generic subagent call is not a substitute. A refusal or unavailable bound
@@ -342,9 +343,8 @@ path is a caller error, not evidence of an unavailable installation; correct
 that discrepancy before deciding availability. Resolve that skill's backend relative to that path as instructed;
 do not guess a marketplace namespace or substitute another installation.
 Before mutation, the main thread loads the already-bound
-verification and required review instructions when selected, and supplies their
-public references to the verification coordinator. This preserves the
-parent's provider selection; it does not perform assessment early. Before
+required review instructions when selected. This preserves the
+owner's provider selection; it does not perform assessment early. Before
 reporting a bound provider unavailable, attempt its supplied public instruction
 reference and identify the concrete access, prerequisite, or execution failure.
 Missing dedicated skill tooling alone is not evidence of an unavailable provider.
@@ -464,12 +464,10 @@ The bundled Codex implementation policy is:
 Main-thread coordination is recommended on Codex `gpt-6.1-sol/medium`. A known
 weaker compatible main model receives a brief nonblocking hint; do not switch
 the user's session model or claim reliability for untested stronger routes.
-The main thread runs the bound Verification skill. Verification owns its
-placement: its helper observes the session route and either coordinates inline
-or hands the assessment to one fallback coordinator, which returns the complete
-result to this owner. Adaptive Goal launches no verification coordinator of its
-own and passes no Verification or Review routes. Missing supported execution
-blocks.
+The main thread runs the bound independent Review public workflow. Review owns
+its placement and routes, including any fallback coordinator and fresh readers.
+Adaptive Goal passes no Review route override and creates no separate acceptance
+coordinator. Missing supported execution remains an evidence gap.
 
 Codex bounded assignments bind an explicit model and reasoning effort with fresh
 context. Claude resolves a scoped agent that pins model and effort, refuses
@@ -552,7 +550,7 @@ implementations or replacement goal owners.
 
 Direct and delegated paths preserve required change evidence, readiness,
 bound capabilities, required checks, authority limits and user-owned local
-changes. Selected Verification and Review retain their complete public workflows,
+changes. Selected Review and other assessments retain their complete public workflows,
 provider prerequisites and independent-reader routes. Supported coordination
 runs inline; weaker or unknown owners use one capable bounded coordinator.
 Direct implementation never permits coordinator-authored independent judgment.
@@ -609,9 +607,9 @@ no Adaptive Goal or child goal, coordinates no independent assessment and
 publishes no PR or tracker mutation. It returns commits, changed files, actual
 checks and unresolved gaps or blockers. Retain its identity for repairs.
 
-Selecting this strategy requires independent verification of the complete
-specification at the end, including for routine-risk work. Bind compatible
-Verification and its required independent Review during read-only preflight;
+Selecting this strategy requires owner acceptance accounting and independent
+Review of the complete specification at the end, including routine-risk work.
+Bind compatible independent Review during read-only preflight;
 missing required assurance stops before activation or worker effects. This
 strategy-specific gate does not change assurance defaults for ordinary direct
 or delegated work.
@@ -707,7 +705,12 @@ within authority or ask the user a material question; after findings are
 resolved it obtains required ready evidence before continuing. Bounded children
 receive the settled constraint before affected work resumes.
 
-## Selected verification
+## Acceptance accounting and independent review
+
+The original main thread owns acceptance accounting for every goal. No standalone
+Verification capability, second controller, registry or lifecycle ledger is required.
+Review remains independently usable and owns independent judgments, reader launches,
+placement, routes, retained reports and repair verification through its public skill.
 
 Select independent review separately:
 
@@ -715,56 +718,64 @@ Select independent review separately:
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Routine risk  | omitted by default                                                                                                                                        |
 | Elevated risk | selected when compatibility, caller impact, or counterexamples need independent judgment; a sequenced consumer or persisted-format transition always does |
-| High risk     | required; an unavailable matching capability stops before owner launch                                                                                    |
-| Any risk      | selected when the user or repository requires it                                                                                                          |
+| High risk     | required                                                                                                                                                  |
+| Any risk      | selected when the user or repository requires it; isolated ticket workers require final whole-specification review                                        |
 
-The parent binds compatible advertised verification and required independent
-review before launching an owner whose contract selects assurance. It checks
-both public contracts and passes the review binding through verification.
-An ad hoc prompt, generic subagent, direct-review bypass or same-context judgment
-is not a substitute. Bind a review skill only by its exact `SKILL.md` path after
-reading its contract and confirming it is an independent code-review provider;
-a bare name is not enough, because a host built-in can share a provider's name.
-When the main thread cannot confirm one, it passes the review requirement and
-verification selects the provider. Unsupported selected additional assessments also block;
-absent unselected optional providers do not.
+Before activation, bind the exact host-advertised public independent-review skill
+by intent, read it completely and check prerequisites, effects, evidence and stop
+conditions for initial assessment and closed repair verification. A bare skill name,
+generic agent or same-context judgment is not a substitute. An unavailable required
+Review capability returns `Status: launch_required` with the concrete gap before
+mutation. Do not infer absence from a tool list or invent readers to make an
+incompatible provider pass. Unselected optional providers add no gate.
 
-Required verification and review availability is a parent preflight gate. Before
-owner launch, the parent must identify exact compatible advertised skills.
-If it cannot, it returns `Status: launch_required` identifying every gap and makes
-no product mutation. It never launches an owner to discover the absence or to
-perform a self-review, separated local review, or generic-agent substitute.
+After successful current focused and final checks, invoke the complete bound Review
+workflow with repository, base/scope/current content identity, originating objective,
+every material criterion, constraints and check evidence. Respect assessment-before-
+change ordering when requested. Review chooses its own placement and fresh readers;
+Adaptive Goal does not copy its private protocol or override its routes. Wait for all
+selected assessment results before repairs or dependent effects.
 
-A clear or localized implementation does not make a high-risk change eligible
-to omit review. A stronger user or repository rule may stop implementation
-before launch, but it does not turn the required review into an omission.
+Account for each criterion with its source, current candidate identity, supporting
+independent/check evidence, supported failure or explicit gap. Read a check's current
+assertions and retain its literal command and result: shape checks do not establish
+required values; a value assertion may cover a criterion a reviewer did not restate.
+A review pass alone never establishes complete acceptance. Missing staging, deployment,
+reader or selected QA evidence remains unavailable, even when another provider clears.
+Unsupported relationships between different identity schemes are gaps, not invented
+mismatches. Edits invalidate affected evidence and current-target assessment clearance.
 
-The owner invokes verification only after implementation and every
-applicable current final-tree check succeeds. Merely running a required check
-does not satisfy this dependency. If a required check fails, the owner repairs
-within existing authority and reruns invalidated checks, or stops before
-assessment, commit, and publication. It supplies the repository and exact current
-candidate/scope/base, originating authority and every material acceptance criterion,
-constraints, successful check evidence and selected provider bindings.
-Concurrent assessment is permitted; repair follows
-[ADL-A4](#adaptation-and-evaluation-fidelity-102).
-Clear requires complete current evidence for every criterion and selected result,
-not a provider pass alone. Missing, stale or unsupported evidence blocks completion.
+Retain one combined conclusion separately from every provider's native outcome:
 
-Apply the complete repair policy in
-[ADL-A4](#adaptation-and-evaluation-fidelity-102) when consuming verification
-results: it owns eligibility, the shared allowance, accounting and reconciliation,
-follow-up evidence, and termination. This section owns verification selection,
-inputs and provider-history handoff.
+| Conclusion  | Meaning                                                                                                                                   |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| clear       | Every material criterion has current evidence, required checks pass, and no eligible blocker or direct regression remains                 |
+| progress    | Initial evidenced actionable blockers, or follow-up material improvement/direct repair-caused regression eligible for owner consideration |
+| no-progress | Follow-up failure is unchanged, repeated or oscillating                                                                                   |
+| blocked     | A required input, check, provider result, criterion coverage or conclusive evidence is unavailable                                        |
 
-Verification owns assessment history: finding identity, provenance, target
-history, the closed follow-up set and direct-regression lineage. The main thread
-passes verification's prior result references back unchanged for each
-follow-up and does not restate or reconstruct that history.
+Gaps take precedence, then no-progress, then progress. Advisories remain visible and
+nonblocking. Failed required checks prevent clear. Before dependent final commit,
+publication and completion, the owner must establish current clear acceptance; neither
+a publisher's local readiness nor a successful provider invocation discharges this gate.
+Authorized intermediate worker commits retain their documented focused-check exception.
 
-No Darrow helper call records assessment targets or outcomes. Verification's
-combined result and complete provider evidence, final content and owner summary are the
-evidence.
+Keep complete provider results and their actual absolute artifact references when
+supplied; a compatible inline-only result needs no invented report. A promised but
+missing retained report is an incomplete handoff. Retain original finding identities,
+axes, dispositions, provenance, targets, attempted repairs, follow-up states and direct
+causing-original regression links. For follow-up, send the original evidence and every
+prior result unchanged through Review's public repair-verification workflow, with the
+explicit attempted set and current repair scope. The set stays closed except for direct
+repair-caused regressions; unresolved unattempted findings remain blockers. Do not restart
+comprehensive review to erase history. Review owns its independent judgments; the owner
+maps those judgments and current checks to acceptance and the shared repair allowance.
+
+For a concrete invocation error or new evidence, request one bounded correction through
+the same provider's public contract, preserving the earlier result and explaining
+supersession. Do not retry an unchanged refusal, edit provider artifacts, invent reader
+judgment or reset/spend an implementation attempt. Missing history blocks follow-up.
+Apply [ADL-A4](#adaptation-and-evaluation-fidelity-102) before any combined repair.
 
 ## Main-thread lifecycle
 
@@ -776,10 +787,10 @@ required before implementation or assessment. A proposal or queued activation
 is not yet an active goal.
 
 Place implementation by the rules above: directly in the main thread, or as
-bounded assignments on the selected route. Place selected verification inline
-or in one capable fallback assignment, after successful current checks. Pass the complete relevant acceptance, candidate, evidence, provider
-bindings. Verification owns its provider selection, internal delegation,
-internal routes and result contract; review owns its readers.
+bounded assignments on the selected route. After successful current checks,
+run selected Review's public workflow with complete acceptance, candidate,
+constraints and evidence. Review owns placement, internal delegation, routes,
+readers and its result contract. The main thread reconciles acceptance.
 
 When implementation is delegated, send later work on its assignment, including
 every repair, to the retained implementor through the host's native follow-up
@@ -847,8 +858,8 @@ Apply the shared repair allowance and closed-set reassessment rules in
 [ADL-A4](#adaptation-and-evaluation-fidelity-102).
 
 An assessment can be wrong or incomplete even when code is unchanged. With a
-concrete error or new evidence, return it to verification, which owns the
-correction contract; [ADL-A4](#adaptation-and-evaluation-fidelity-102) governs its
+concrete error or new evidence, return it through the same assessment provider's
+public correction contract; [ADL-A4](#adaptation-and-evaluation-fidelity-102) governs its
 repair accounting and evidence requirements.
 
 Before accepting a child's diagnosis of a missing helper or broken provider,
@@ -866,7 +877,7 @@ Before completing the native goal, the main thread verifies:
 
 - the outcome and every material acceptance criterion have current evidence;
 - required checks succeeded for the final candidate;
-- selected verification is clear, with all required provider results and history;
+- owner acceptance is clear, with all required provider results and history;
 - repair accounting agrees with the authorized shared maximum;
 - any authorized publication is bound to the verified candidate;
 - no unresolved blocker or required user decision remains.
@@ -956,8 +967,8 @@ records the removed repetitions and their retained authority.
    parent workflow step.
 8. **ADL-L1 — One Darrow owner.** The main thread owns the native goal and complete
    delivery. Bounded children own assignments, never that goal. Delegated
-   implementation and verification coordination routes are explicit and
-   separate; verification owns the routes of the providers it launches.
+   implementation and independent Review routes remain separate; Review owns
+   the routes of its coordinator and readers.
 9. **ADL-R3 — Benefit-based placement.** Same-route sequential implementation
    runs directly unless authorized isolated ticket context repays its overhead.
    Delegation requires a stronger or unknown
@@ -968,8 +979,8 @@ records the removed repetitions and their retained authority.
    the candidate and launches no new implementation child unless that
    implementor is unavailable or no longer fits.
 10. **ADL-L2 — Semantic gates.** Required readiness completes before implementation; every
-    applicable current check succeeds before selected verification and every
-    dependent commit or publication effect. The owner invokes verification with
+    applicable current check succeeds before selected review and every
+    dependent final commit or publication effect. The owner invokes Review with
     the candidate, originating criteria, constraints and existing evidence;
     no assessment can waive a failed check. An explicit assessment-before-change
     request starts with checks and verification of the unchanged existing
@@ -987,8 +998,8 @@ records the removed repetitions and their retained authority.
     finding with its resolving repair, repair accounting, publication and
     residual risks before completing the native goal. Child returns alone do
     not establish completion. A selected assessment of earlier content is stale
-    and cannot clear; without selected verification, the required
-    current-content checks gate dependent commit and publication.
+    and cannot clear. Even without selected Review, every criterion and required
+    current-content check must have evidence before dependent effects.
 14. **ADL-S1 — No inferred decisions.** See the missing-decision stop in [Read-only preflight](#read-only-preflight)
     and [Human feedback and blockers](#human-feedback-and-blockers).
 15. **ADL-S2 — No duplicate external effect.** An ambiguous external result is
@@ -1036,7 +1047,7 @@ records the removed repetitions and their retained authority.
     it must not claim that configuration proves currently free slots.
 22. **ADL-W1 — One-source skill prose.** Each rule in `adaptive-goal` has one
     home: the lifecycle reference owns repair-limit arithmetic, section 7 owns
-    returning repairs to the producing implementor, verification's own contract
+    returning repairs to the producing implementor, Review's public contract
     owns its internal routes, and each host guide owns only its native controls
     and host-only procedures.
     Other locations point to that home. Every numbered section ends with a
@@ -1184,29 +1195,17 @@ The following invariants govern adaptation and evidence provenance:
   without first recommending an action that these limits prohibit.
   Without an explicit override, an uncleared second follow-up verification exhausts the
   budget even when it shows progress. An unbounded request does not raise it.
-- **ADL-V1 — Verification boundary.** Preserve routine review omission and required
-  high-risk review. Selected assurance requires compatible host-advertised
-  verification and independent review before launch. The same owner consumes
-  verification's combined clear/progress/no-progress/blocked conclusion; it does
-  execute a copied review-specific protocol. Inline placement follows the selected
-  capabilities' complete public workflows. Selecting independent review alone
-  still selects verification with one assessment; placement never bypasses it. Every material acceptance
-  criterion needs current evidence or an explicit gap; missing selected evidence,
-  stale candidates and provider passes without complete coverage cannot clear
-  completion or remaining publication. A selected provider that returns
-  unavailable leaves verification incomplete, not clear, even when the others
-  are clear; the next action investigates the cause within existing authority or
-  obtains the user's environment decision before reassessment, never a
-  speculative repair. Unselected optional providers add no gate.
-  Compile this dependency inline before launch: the owner receives and validates
-  the bound verification capability's complete, current-content clear assessment
-  before invoking a dependent commit or publisher. Their local readiness cannot
-  discharge an enclosing verification prerequisite. A successful provider call
-  that returns review alone or incomplete criterion coverage leaves that
-  prerequisite unsatisfied; discovering the omission in the final completion
-  report is too late to protect an already performed effect.
-  Verification owns bounded assessment only, never repair, continuation, budget
-  policy or overall completion.
+- **ADL-V1 — Owner acceptance boundary.** The main thread directly owns
+  acceptance-to-evidence mapping, gaps and the combined clear/progress/no-progress/
+  blocked conclusion under [Acceptance accounting and independent review](#acceptance-accounting-and-independent-review).
+  Standalone Verification is not a prerequisite. Required Review is bound through
+  public intent before launch and keeps its complete public workflow and fresh
+  independent readers. Every material criterion needs current evidence. Missing,
+  stale or unavailable required evidence prevents dependent final commit,
+  publication and completion; review clearance alone cannot establish acceptance.
+  Preserve all provider results, native outcomes, closed history and the shared
+  two-attempt repair limit. Legacy Verification remains available to other
+  consumers until their migration and retirement; this change does not alter it.
 - **ADL-A5 — Semantic presentation.** The retained delivery contract is a
   completeness requirement; the native goal remains compact. Equivalent clear prose, line wrapping, punctuation,
   status presentation, and role wording are valid. Preserve exact tool keys,
@@ -1386,17 +1385,16 @@ authorized completed endpoint, not a pending merge decision. A blocked or
 unfinished requested step still fails; merging is outside this request.
 The proposition also preserves the supplied ready assessment for this exact
 unchanged ticket and scope; it must not invent another readiness requirement.
-When this fixture uses the real verification capability, its synthetic review
+Without standalone Verification, the synthetic review
 provider owns separate fresh Standards and Acceptance readers. The provider
 coordinates; readers run the deterministic assessment protocol. Codex readers
 use GPT-6.1 Sol/xhigh and the provider retains the caller's coordinator route.
 Shared fixture comparisons must support concurrent readers without shared
 temporary expected-content files.
-The combined synthetic verification fixture invokes that provider's public
-workflow inline on a supported coordinator route; weaker or unknown owners use
-one capable fallback. It consumes the complete canonical report. Its helper combines an
-already returned, current-target review with QA; it never performs another review
-inside the verification context. Require the matching comprehensive or closed
+The combined acceptance fixture invokes Review's public workflow and consumes
+its complete canonical report. Its separate QA helper returns an observation
+for the current target; the main thread combines it with Review and checks.
+QA never performs another review or owns the acceptance conclusion. Require the matching comprehensive or closed
 follow-up mode, current checks and unchanged candidate binding before combining
 results. Preserve the original report rather than copying or replacing it.
 Its completion grader accepts a faithful summary of both original blockers,
@@ -1408,16 +1406,23 @@ Repeated provider names or the adjective "independent" add
 no proof. Combined follow-up clearing both original findings after repair is a
 valid summary of current closed clearance without the words "fresh" or "closed".
 The fixture retains candidate binding and assessment history independently.
-Fresh-install checks use that same public review-to-verification handoff for
-both initial and follow-up assessment. They create the current canonical review
-before supplying its absolute path to verification. Saved fixture reports are
+Fresh-install checks preserve the public review-to-QA evidence handoff for
+initial and follow-up assessment. They create the current canonical review
+before supplying its absolute path to the fixture QA operation. Saved fixture reports are
 UTF-8; comparisons decode them explicitly so non-ASCII paths retain the same
 meaning on every supported platform.
 Missing, stale or unavailable selected assurance and unresolved
 criteria still fail. Retain observed coordinator-route or reader-workflow
 violations separately from this completion-summary judgment.
+Repair-reuse observations distinguish implementation from assessment using the
+actual public Review invocation or Review coordinator/reader ancestry. Direct
+Review and its fallback keep fresh native proof; absence of standalone
+Verification is not an evidence gap. Legacy Verification ancestry remains
+recognized only while other consumers retain it. Missing or conflicting native
+launch, target, route or completion evidence stays unavailable or failed.
+
 The same provider contract applies to failed-check and real-commit composition
-fixtures that install real verification. These synthetic providers support the
+fixtures without standalone Verification. These synthetic providers support the
 initial assessment; unsupported closed follow-up returns unavailable. Real-commit
 review receipts also accept repeated current assessments without a fixed count.
 

@@ -4,7 +4,7 @@ goal_report: forbidden
 goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Advice only; do not launch or perform work. The retained owner
-  selected review and QA through verification. No explicit repair maximum was supplied.
+  selected review and QA through its public workflow. No explicit repair maximum was supplied.
   It used one attempt addressing combined review and QA blockers, then a second attempt
   on a remaining QA blocker. Fresh follow-up shows material progress but that QA blocker
   remains. Review is clear. The QA provider offers its own two-repair allowance. What

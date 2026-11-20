@@ -4,7 +4,7 @@ invariant: ADL-D1
 activation: positive
 prompt: >-
   {{skill_invocation}} Check whether this isolated Codex environment is
-  configured for Adaptive Goal's full verification and review path. Preserve the
+  configured for Adaptive Goal's full independent-review path. Preserve the
   configured UV_CACHE_DIR so the frozen diagnostic uses its seeded dependencies.
 fixture:
   commits:

@@ -124,7 +124,7 @@ async function proofFixture(scenario: RepairScenario | undefined = undefined) {
   };
 }
 
-test("high-risk composition requires verification and supporting review reads", async () => {
+test("high-risk composition requires supporting Review without standalone Verification", async () => {
   const canonical = await readFixtureCase(source);
   const resolved = await fixtureExtensionRequest<{
     cases: { id: string; extensionData: Record<string, unknown> }[];
@@ -142,13 +142,10 @@ test("high-risk composition requires verification and supporting review reads", 
   ).toEqual({
     class: "positive",
     targetSkill: "adaptive-goal",
-    includes: ["verify-change", "code-review"],
+    includes: ["code-review"],
   });
   for (const [skills, passed] of [
-    [["adaptive-goal", "verify-change", "code-review"], true],
-    [["adaptive-goal", "code-review", "verify-change"], true],
-    [["adaptive-goal", "code-review"], false],
-    [["adaptive-goal", "verify-change"], false],
+    [["adaptive-goal", "code-review"], true],
     [["adaptive-goal"], false],
   ] as const) {
     const evaluated = await fixtureExtensionRequest<{

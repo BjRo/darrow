@@ -9,7 +9,6 @@ harnesses:
   - claude
 additional_plugins:
   - plugins/capability/darrow-git
-  - plugins/capability/darrow-verification
   - plugins/capability/darrow-review
 candidate_routes:
   claude:

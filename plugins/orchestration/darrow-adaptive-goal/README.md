@@ -5,13 +5,13 @@ owns preflight, acceptance, user decisions and completion. It implements
 directly when its own route matches the selected implementation route. It
 delegates implementation when the selected route is stronger or the main
 route is unknown, or when a cheaper route, focused ticket context or concurrent parts repay the
-handoff. Selected verification runs in the main thread on a supported route,
-otherwise in one fallback coordinator. Its readers always start fresh.
+handoff. The main thread maps each acceptance criterion to current evidence or a gap.
+Selected Review owns its workflow, placement and fresh independent readers.
 
 ```text
 request + repository -> read-only preflight/readiness -> main-thread native goal
                                                          -> direct or delegated implementation
-                                                         -> selected verification
+                                                         -> acceptance evidence and selected Review
 ```
 
 The plugin also provides `doctor-adaptive-goal`, a read-only host-capacity
@@ -36,8 +36,8 @@ The skill:
 - selects implementation difficulty separately from consequence risk;
 - binds authorized operations to compatible advertised capabilities;
 - keeps the native goal within 4,000 characters and coordination instructions in the skill;
-- places implementation directly or in bounded assignments, and invokes
-  verification inline or through one capable fallback coordinator;
+- places implementation directly or in bounded assignments;
+- accounts for acceptance and invokes independent Review through its public workflow;
 - coordinates repairs, user feedback, reassessment and evidence-supported completion.
 
 Readiness findings stop implementation until resolved. Material changes to scope,
@@ -45,9 +45,9 @@ acceptance, constraints or authoritative input invalidate affected evidence and
 may require readiness again. The main thread retains these decisions throughout.
 
 Each matching advertised skill is mandatory for its bound operation. Direct Git,
-forge, tracker or generic-agent calls cannot replace it. Selected verification
-owns its provider coordination; review owns its independent readers. Their
-internals stay inside those capabilities.
+forge, tracker or generic-agent calls cannot replace it. Review owns provider coordination, placement and independent readers. The
+main thread owns acceptance accounting; no standalone Verification installation
+is required. Provider internals stay inside their capabilities.
 
 Ticket delivery discovers local branches using the provider's exact opaque
 identifier through a compatible Git capability. One match is reused, several require
@@ -92,7 +92,7 @@ model and effort, observed from the active Codex or Claude session:
 
 Independent parts with disjoint files and settled interfaces may run as
 concurrent assignments within the host's child limit. Coupled work stays
-sequential. Ordinary placement preserves assurance: selected verification and review
+sequential. Ordinary placement preserves assurance: selected Review and other assessments
 keep their own routes, and one combined repair consumes one shared attempt
 wherever it runs. Expected cost or speed gains are not yet measured claims.
 
@@ -100,9 +100,9 @@ Optional isolated ticket workers receive their own branches and linked
 worktrees when fresh context repays the overhead. Bind a finite ticket set and
 explicit authority for those effects first. The main thread keeps the delivery
 checkout and cherry-picks returned commits into one integration branch. This
-strategy requires independent verification and review of the complete
-specification after successful combined checks, including routine-risk work;
-bind both capabilities before launch. Size or ticket count
+strategy requires owner acceptance accounting and independent Review of the
+complete specification after successful combined checks, including routine-risk
+work; bind the Review capability before launch. Size or ticket count
 alone does not select this strategy. Worker commits grant no publication authority.
 
 A fully specified localized security change can remain routine implementation
@@ -114,27 +114,30 @@ are permitted with a brief hint about coordination and evidence-handling risks.
 Stronger compatible configurations are allowed. Model selection alone does not
 guarantee reliable coordination or complete evidence.
 
-Verification coordination is explicitly GPT-6.1 Sol/medium or stronger.
-Adaptive Goal binds only that route. Verification owns the routes of the
-providers it launches, such as review coordination, and review owns its
-independent readers. Parent-model inheritance and the implementation route must
-not change these roles.
+Independent Review owns its own supported coordinator and reader routes.
+Adaptive Goal invokes its public workflow without overriding those routes.
+Claude uses the same ownership model; its implementation policy selects scoped
+Sonnet 5.5/low, Sonnet 5.5/medium or Opus 5.5/high agents. Claude has lighter
+validation than Codex; these routes are not claimed to be measured equivalents.
 
-Claude uses the same architecture. Its implementation policy selects scoped
-Sonnet 5.5/low, Sonnet 5.5/medium or Opus 5.5/high agents. Verification
-coordination uses Sonnet 5.5/medium; verification chooses its own internal routes. Claude has lighter validation than Codex; these routes are not
-claimed to be measured equivalents.
+## Acceptance and repairs
 
-## Verification and repairs
+The main thread maps every material criterion to its source, current candidate,
+check or independent evidence, supported failure or explicit gap. It supplies
+selected Review with the exact candidate, originating acceptance, constraints
+and successful current checks, then waits for all selected results. A clear
+review alone cannot establish complete acceptance.
 
-Selected verification receives the exact candidate, originating acceptance,
-constraints, successful current checks and selected review binding. The main
-thread waits for every selected result, checks criterion coverage, and preserves
-the complete evidence before authorizing a combined repair.
+The combined conclusion is clear, progress, no-progress or blocked. Missing,
+stale, contradictory or unavailable required evidence blocks dependent final
+commits, publication and completion. Provider outcomes remain separate and
+complete provider reports stay available. No new ledger or controller is added.
 
 The default maximum is **two implementation repair attempts total**, shared
-across providers and findings. Each attempt refreshes checks and requests
-follow-up through verification, which owns finding identity and history.
+across providers and findings. Each combined repair refreshes checks and requests
+closed repair verification through Review's public workflow. The main thread
+retains original findings, dispositions, targets, prior results, attempted repairs
+and direct-regression lineage. Missing history cannot start a new full review.
 
 Placement is decided once. A repair goes back to the implementor that produced
 the candidate, which already holds the task context: the main thread after direct
@@ -146,8 +149,8 @@ reassessment never reset the allowance. Clear evidence ends repair immediately;
 further attempts require progress and remaining budget. Explicit finite overrides
 and stricter authority, invocation, time or token limits still apply.
 
-An assessment that is itself wrong goes back to verification's correction
-contract. Correction neither spends nor resets implementation repair attempts.
+An assessment that is itself wrong goes back through that provider's public
+correction contract with the concrete error and all prior results. Correction neither spends nor resets implementation repair attempts.
 
 Missing, stale, contradictory or inconclusive required evidence blocks completion
 and dependent publication. A passing review alone cannot cover unassessed criteria.
@@ -253,6 +256,14 @@ another owner or a nested host process.
 Install `darrow-adaptive-goal@darrow` using the
 [host installation instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
 
+### Upgrade acceptance ownership
+
+Version 0.30.0 moves acceptance accounting into Adaptive Goal. Independent Review
+remains independently installable and required where selected by risk or policy.
+Reinstall the updated plugin and start a fresh session to load its contract.
+Legacy Verification remains available until its other consumers migrate; do not
+rewrite an active delivery's installed skills or discard its assessment history.
+
 ### Upgrade from Adaptive Delivery
 
 Version 0.25.0 renames `darrow-adaptive-delivery` to `darrow-adaptive-goal`.
@@ -279,7 +290,7 @@ For diagnosis, select `doctor-adaptive-goal` or invoke
 ## Expected result
 
 A self-contained session response with the outcome, changed files, current
-checks, selected verification, repair use and maximum, performed effects and
+checks, criterion evidence or gaps, selected assessments, repair use and maximum, performed effects and
 remaining risks or blockers. A child return or a report link alone cannot prove
 completion. Completion grants no commit, push, PR, merge, deployment or ticket
 authority.

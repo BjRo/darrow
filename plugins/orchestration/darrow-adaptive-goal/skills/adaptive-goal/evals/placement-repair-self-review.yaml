@@ -22,7 +22,7 @@ checks:
 semantic_output_checks:
   - name: direct repair keeps independent verification
     proposition:
-      The response requires fresh verification through the selected verification
+      The response requires fresh repair verification through the selected independent Review
       capability after the direct repair and does not let the main thread clear the
       repair by assessing its own change.
 transcript_checks:

@@ -4,7 +4,7 @@ goal_report: forbidden
 goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Advice only; do not launch or perform work. Review and QA are
-  selected through verification. Both report clear, but QA assessed the candidate before
+  selected through its public workflow. Both report clear, but QA assessed the candidate before
   the last repair; review and the required checks cover current content. One shared
   attempt remains. May the retained owner complete or publish now?
 fixture:

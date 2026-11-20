@@ -1,6 +1,6 @@
 {
   "name": "darrow-adaptive-goal",
-  "version": "0.29.0",
+  "version": "0.30.0",
   "description": "Adaptive Goal: diagnose host capacity or coordinate bounded engineering with a main-thread native goal",
   "author": {
     "name": "Björn Rochel",
@@ -9,8 +9,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Darrow -> Adaptive Goal",
-    "shortDescription": "A native goal with direct or delegated implementation and separate verification",
-    "longDescription": "Keep acceptance, user decisions and completion in the main thread. Implement directly, or delegate routed implementation when the route requires it or cost or concurrency repays the handoff, and coordinate selected assurance inline or through a capable fallback while preserving independent readers.",
+    "shortDescription": "A native goal with direct or delegated implementation and acceptance evidence",
+    "longDescription": "Keep acceptance, user decisions and completion in the main thread. Implement directly, or delegate routed implementation when the route requires it or cost or concurrency repays the handoff, and account for acceptance with current checks and selected independent Review while preserving provider-owned fresh readers.",
     "developerName": "Björn Rochel",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],

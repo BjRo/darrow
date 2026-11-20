@@ -2,8 +2,6 @@ id: goal-review-routine-omitted
 invariant: ADL-C1,ADL-L2,ADL-L5
 goal_report: forbidden
 goal_route_checks: false
-additional_plugins:
-  - plugins/capability/darrow-verification
 prompt: >-
   {{skill_invocation}} Add the exact line "Retries are bounded." beneath the heading in
   NOTES.md. This is a localized, reversible documentation edit with a complete oracle
