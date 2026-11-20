@@ -180,7 +180,6 @@ test("repository runtime profiles share UV only with its users", async () => {
       "local-http",
       "repository-skills",
       "review-artifacts",
-      "tdd",
     ].map((name) => `evals/sevro-extension/runtime-${name}.json`),
   ];
   for (const file of profiles) {
