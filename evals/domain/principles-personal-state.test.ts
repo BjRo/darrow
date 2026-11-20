@@ -12,7 +12,7 @@ import { dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { parse } from "yaml";
 
-const skillRoot = resolve("plugins/capability/darrow-principles/skills");
+const skillRoot = resolve("plugins/capability/darrow-pstack/skills");
 const subjects = [
   ["principles-first/evals/default-bundled-loading.yaml", 0, "clean"],
   ["principles-first/evals/installed-catalog.yaml", 1, "catalog"],

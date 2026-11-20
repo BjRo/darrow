@@ -48,15 +48,20 @@ test("native delivery test doubles stay outside marketplace adoption", async () 
   expect(existsSync(join(root, fixture, "backend"))).toBe(false);
 });
 
-test("a copied plugin exposes every catalog leaf through the public skill inspector", async () => {
+test("a copied pstack plugin exposes every selected skill through the public inspector", async () => {
   const root = resolve(import.meta.dir, "../..");
-  const scratch = await mkdtemp(join(tmpdir(), "darrow-principles-catalog-"));
-  const artifact = join(scratch, "darrow-principles");
+  const scratch = await mkdtemp(join(tmpdir(), "darrow-pstack-catalog-"));
+  const artifact = join(scratch, "darrow-pstack");
   try {
-    await cp(join(root, "plugins/capability/darrow-principles"), artifact, {
+    await cp(join(root, "plugins/capability/darrow-pstack"), artifact, {
       recursive: true,
     });
-    for (const suffix of catalog) {
+    for (const id of [
+      ...catalog.map((suffix) => `principle-${suffix}`),
+      "principles-first",
+      "setup-principles",
+      "unslop",
+    ]) {
       const result = Bun.spawnSync([
         "uv",
         "run",
@@ -68,12 +73,12 @@ test("a copied plugin exposes every catalog leaf through the public skill inspec
         ),
         "inspect-skill",
         "inspect",
-        join(artifact, "skills", `principle-${suffix}`),
+        join(artifact, "skills", id),
         artifact,
       ]);
       expect(
         result.exitCode,
-        `${suffix}: ${result.stderr.toString()}${result.stdout.toString()}`,
+        `${id}: ${result.stderr.toString()}${result.stdout.toString()}`,
       ).toBe(0);
     }
   } finally {
