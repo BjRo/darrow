@@ -4,7 +4,7 @@ activation: positive
 mount_plugin_skills: true
 prompt: >-
   {{skill_invocation}} Assess implementation readiness for ticket SEC-42. I have not supplied its
-  contents, there is no tracker capability in this environment, and the
+  contents, there is no tracker read capability or configured native tracker access, and the
   repository contains no copy. Return the readiness result without inventing
   the ticket.
 fixture:

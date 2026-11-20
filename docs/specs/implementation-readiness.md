@@ -61,6 +61,13 @@ ticket provider, or treat an unverified summary as authoritative. When several
 sources disagree, it reports the contradiction instead of silently choosing
 one.
 
+Read a named ticket through a matching advertised read capability when one is
+available. Otherwise use the established tracker's configured native read
+operation. Preserve its provider, project and exact ticket identity; do not
+install or require a Tickets plugin, change tracker configuration, or substitute
+another provider. An actual refusal or unavailable required source stays a
+blocker. Neither path grants mutations.
+
 ## Assessment
 
 Assess only the dimensions that could prevent implementation from starting:

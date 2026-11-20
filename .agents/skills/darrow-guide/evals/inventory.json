@@ -369,16 +369,15 @@
         "Which plugins help maintain agent guidance, decisions, and skills, and how are their skills selected?"
       ],
       "sources": [
-        "plugins/foundation/README.md",
-        "docs/choosing-plugins.md",
-        "docs/design.md",
-        "plugins/foundation/darrow-decisions/README.md",
         "plugins/foundation/darrow-information-architecture/README.md",
-        "plugins/foundation/darrow-skill-authoring/README.md"
+        "CONTRIBUTING.md",
+        "AGENTS.md"
       ],
       "answer_points": [
-        "Three foundation roles",
-        "Intent-matched independent capabilities"
+        "Information Architecture retains setup, doctor and context operations",
+        "Decisions use ordinary documents and domain-modeling guidance",
+        "Skill writing uses writing-for-agents and repository standards",
+        "Available skills match intent without requiring retired providers"
       ],
       "evidence": "authoritative",
       "static_page": "plugins/foundation/README.md",

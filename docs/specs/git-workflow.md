@@ -146,8 +146,13 @@ new linked worktree instead and the current checkout stays where it is.
 ### Invariants
 
 - **GW-B1 — Traceable naming.** `<type>/<kebab-slug>` with the same types as
-  commits. The provider's non-secret identifier is carried in `ticket-id:`
-  records and the `--ticket-id` argument; Git preserves that value verbatim.
+  commits. Bind the non-secret canonical identifier returned by the selected
+  tracker's native tools or an available read capability, preserving the
+  established provider and project. No Darrow-specific response field is
+  required. Pass that identifier unchanged as `--ticket-id`; the guarded Git
+  backend's argument and validation contract remain unchanged. Do not derive
+  an identifier from a title, URL, or another provider's spelling, change
+  tracker configuration, or bypass a selected provider's refusal.
   When an active ticket provider supplies an opaque canonical identifier,
   the slug begins with that exact identifier and contains it exactly once (e.g.
   `feat/DAR-123-retry-logic`, `fix/issue-64-preserve-identifiers`). Generic Git

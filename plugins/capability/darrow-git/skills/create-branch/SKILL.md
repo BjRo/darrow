@@ -46,7 +46,11 @@ Use `<type>/<kebab-slug>`:
 - When an active ticket provider supplies its opaque canonical identifier,
   lead with that exact identifier once, such as `feat/DAR-123-retry-logic` or
   `fix/issue-64-preserve-identifiers`. Do not normalize, map, or derive a
-  provider identifier. Use its `ticket-id:` value unchanged. If the work is
+  provider identifier. Use the canonical identifier returned by the selected
+  tracker's native tools or read capability unchanged; no Darrow-specific
+  response field is required. Preserve the established provider and project,
+  and never derive identity from a title or URL, change tracker configuration,
+  or bypass a provider refusal. If the work is
   ticket-linked but no identifier was supplied, ask one smallest question for
   it and make no Git mutation.
 - For work that is not linked to a ticket, derive the name without requesting

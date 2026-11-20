@@ -368,6 +368,16 @@ advertised skill remains ordinary owner work unless the user, repository, or
 selected gate explicitly requires such a capability; a required missing
 capability stops before launch.
 
+For ordinary tracker operations without a matching advertised skill, use the
+established tracker's configured native tools. Preserve provider, project,
+canonical identity and the authorized read or mutation scope. Missing a Tickets
+plugin does not block native reads, and ticket data need not use a Darrow
+serialization. Required authoritative input still precedes dependent preflight.
+An actual provider refusal or unavailable source stops dependent work; native
+tools never bypass a bound capability's refusal. Handle ADR lifecycle and
+catalog work as ordinary documents under repository guidance, using available
+domain-modeling guidance when applicable. No retired provider backend is required.
+
 Publication operations are included only when explicitly authorized. For
 example, an authorized commit and pull request become separate bindings when
 separate matching skills are advertised. Completion never makes either

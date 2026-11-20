@@ -36,11 +36,13 @@ plugin content. In particular:
 
 - Add or adjust the applicable invariant under `docs/specs/` before
   implementation.
-- For skill creation, follow
-  [`create-agent-skill`](plugins/foundation/darrow-skill-authoring/skills/create-agent-skill/SKILL.md).
-  For a read-only skill audit, follow
-  [`audit-agent-skill`](plugins/foundation/darrow-skill-authoring/skills/audit-agent-skill/SKILL.md).
-  Implement audit findings under the repository's ordinary engineering rules.
+- For skill creation and audits, use available `writing-for-agents` guidance
+  with the repository's plugin, documentation, and eval standards. Keep
+  read-only audits read-only; implement findings under ordinary engineering rules.
+- Maintain ADRs and their catalog as ordinary documents, using available
+  `domain-modeling` guidance when applicable. Preserve decision authority,
+  status, history and supersession links; keep the catalog consistent with
+  its source ADRs and run the general documentation/link checks.
 - Keep each plugin self-contained. Never reference files outside a plugin or
   assume a sibling plugin is installed.
 - Use imperative Conventional Commits without trailing periods, and no AI
@@ -89,14 +91,10 @@ bun run lint
 bun run lint:ts
 bun run lint:shell
 bun run typecheck
-bun run check:decisions
 bun run check:docs
 bun run check:python
 ```
 
-`check:decisions` rejects missing or stale checked-in ADR catalog data. When
-ADRs change, refresh it first with
-`uv run --quiet --frozen --no-dev --project plugins/foundation/darrow-decisions/backend darrow-decision catalog rebuild --repo .`.
 `check:python` is required when Python source, tests, package metadata, or locks
 change; its standards and package inventory are defined in
 [`docs/specs/python-quality.md`](docs/specs/python-quality.md).

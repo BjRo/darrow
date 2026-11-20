@@ -98,9 +98,11 @@ Git or GitHub operation, and return structured evidence for the skill to
 interpret. They are implementation details of the workflows rather than a
 general Git wrapper. All supported platforms call the UV entrypoints directly.
 
-Ticket-linked commands accept the provider's non-secret identifier through
-`--ticket-id`. Discovery returns it as `ticket-id:`. Update ticket providers and
-Git consumers together; the former argument name is no longer accepted.
+Ticket-linked commands accept the selected tracker's non-secret canonical
+identifier through `--ticket-id`. Obtain it from configured native tools or an
+available read capability, preserving the provider, project and exact spelling.
+No Tickets plugin or Darrow-specific tracker response field is required.
+Git's own discovery output returns the unchanged identifier as `ticket-id:`.
 
 ## Design boundaries
 

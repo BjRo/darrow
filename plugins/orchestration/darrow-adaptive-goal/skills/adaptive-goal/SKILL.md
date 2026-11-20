@@ -98,8 +98,11 @@ publication, or permission decision is missing, ask the smallest concrete
 question and do not launch.
 
 When authoritative input is missing, such as a referenced ticket, retrieve it
-through the matching read-only capability before deciding anything else, and
-stop dependent preflight if it refuses.
+through the matching advertised read-only capability when available. Otherwise
+use the established tracker's configured native read operation. Preserve its
+provider, project and canonical identity; no ticket-reading plugin or Darrow
+response format is required. Retrieve that input before dependent preflight,
+and stop dependent work on an actual refusal or unavailable source.
 
 When isolated ticket workers could repay their overhead, read
 [isolated ticket workers](references/isolated-ticket-workers.md) now. Select
@@ -303,6 +306,12 @@ matching advertised skill remains ordinary bounded work unless the request,
 repository, or selected gate requires that capability. Bind publication
 operations only when each effect was explicitly authorized; completion never
 adds commit, push, pull-request, merge, release, or deployment authority.
+
+For ordinary tracker work, use configured native tools with the established
+provider, project, exact identity and authorized effects. Do not change tracker
+configuration or bypass a bound capability's refusal. Handle ADR lifecycle and
+catalog maintenance as ordinary documents under repository and available
+domain-modeling guidance, without a dedicated decision-provider backend.
 
 **Complete when:** every authorized operation has an exact binding whose
 prerequisites and effects match the goal, or is recorded as ordinary bounded

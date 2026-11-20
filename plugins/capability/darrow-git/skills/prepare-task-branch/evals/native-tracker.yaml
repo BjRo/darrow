@@ -1,0 +1,45 @@
+id: prepare-task-branch-native-tracker
+invariant: GW-TB7
+activation: positive
+mount_plugin_skills: true
+expect_head_change: false
+prompt: >-
+  {{skill_invocation}} Find all local task branches for the selected ticket
+  returned by the configured native tracker command in AGENTS.md. Report every
+  matching branch and full tip. Keep the checkout unchanged. No ticket-reading
+  skill is installed.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+        AGENTS.md: |
+          # Tracker
+
+          The established provider is Example Tracker, project team/service.
+          `bash tools/tracker current --project team/service` reads the selected ticket.
+          Its `identifier` field is the canonical ticket identifier.
+        tools/tracker: |
+          #!/bin/sh
+          set -eu
+          test "$*" = 'current --project team/service'
+          printf '%s\n' '{"identifier":"SEC-42","project":"team/service","title":"Fix identifier normalization"}'
+  setup: |
+    git branch fix/SEC-42-original
+    git branch fix/SEC-420-similar
+    git branch fix/sec-42-case
+checks:
+  - name: checkout and branch count are unchanged
+    run: >-
+      test "$(git branch --show-current)" = main &&
+      test "$(git for-each-ref refs/heads --format='%(refname)' | wc -l | tr -d ' ')" -eq 4
+  - name: content and tracker configuration are unchanged
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+semantic_output_checks:
+  - name: discovery preserves the native identity and complete result
+    proposition: >-
+      The response identifies fix/SEC-42-original as the sole matching branch
+      and includes its full commit ID. It does not include fix/SEC-420-similar
+      or fix/sec-42-case as matches, require a Darrow ticket-id response field,
+      install a ticket-reading plugin, or change tracker configuration.

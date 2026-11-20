@@ -30,8 +30,11 @@ semantic_output_checks:
   - name: question contract
     proposition:
       "The response directly answers the question, remains concise, and establishes these
-      points: Three foundation roles; Intent-matched independent capabilities. It must not claim it
+      points: Information Architecture retains guidance setup, doctor and context operations;
+      decisions use ordinary documents and domain-modeling guidance;
+      skill writing uses writing-for-agents and repository standards;
+      available skills match intent without requiring retired providers. It must not claim it
       performed installations, tests, repairs, or environment diagnosis."
 output_checks:
   - name: nearby repository evidence
-    expect_regex: plugins/foundation/(README\.md|darrow-(decisions|information-architecture|skill-authoring)/README\.md)|docs/(design|choosing-plugins)\.md
+    expect_regex: plugins/foundation/darrow-information-architecture/README\.md|CONTRIBUTING\.md|AGENTS\.md

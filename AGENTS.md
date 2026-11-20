@@ -14,8 +14,8 @@ safety rules, evidence, exact commands and identifiers, and required protocol fi
 - Before creating or editing documentation, including plugin READMEs, read [docs/documentation-quality.md](docs/documentation-quality.md).
 - Before creating, changing, or running evals, read [docs/eval-development.md](docs/eval-development.md).
 - Before changing Python source, tests, project metadata, or locks, read [docs/specs/python-quality.md](docs/specs/python-quality.md). Run `bun run check:python` after the change.
-- For new skill creation, read and follow [create-agent-skill](plugins/foundation/darrow-skill-authoring/skills/create-agent-skill/SKILL.md).
-- For a read-only skill audit, read and follow [audit-agent-skill](plugins/foundation/darrow-skill-authoring/skills/audit-agent-skill/SKILL.md).
+- For skill creation or a read-only skill audit, use available `writing-for-agents` guidance and the repository's plugin, documentation, and eval standards. Preserve the requested read-only boundary for audits.
+- Maintain ADRs and their catalog as ordinary documents under repository guidance, using available `domain-modeling` guidance when applicable. Preserve decision status, authority, supersession links, and history.
 
 Implement changes to existing skills, including audit findings, as ordinary
 engineering work under this repository's instructions.
