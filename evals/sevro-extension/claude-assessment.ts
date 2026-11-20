@@ -249,10 +249,8 @@ function coordinator(
   const owner = one(parents),
     observed = child(native, owner);
   if (
-    ![
-      "darrow-review:assessment-coordinator-sonnet-5-5-medium",
-      "darrow-verification:assessment-coordinator-sonnet-5-5-medium",
-    ].includes(String(owner.subagentType)) ||
+    owner.subagentType !==
+      "darrow-review:assessment-coordinator-sonnet-5-5-medium" ||
     owner.runInBackground !== false ||
     owner.model !== null ||
     observed.parent !== undefined ||

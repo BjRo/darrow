@@ -1,259 +1,33 @@
-# Capability: Verification
+# Verification retirement
 
-## Coordinator routes
+Standalone `darrow-verification` is retired under [migration #328](https://github.com/BjRo/darrow/issues/328)
+and [ticket #338](https://github.com/BjRo/darrow/issues/338). Its retained
+responsibilities are supplied by the [Adaptive Goal acceptance accounting](adaptive-goal.md#acceptance-accounting-and-independent-review).
 
-The active owner coordinates inline when its observed model and effort meet the
-supported floor: Codex GPT-6.1 Sol/medium or Claude Sonnet 5.5/medium, or the
-same model at higher effort. A bundled helper MUST make this decision from the
-session's own host transcript and refuse a requested host that contradicts an
-unambiguous host environment. Prompt claims and model names MUST NOT establish
-the route; missing or unrecognized evidence is unknown. A Codex fallback
-coordinator observes its own route; only the pinned Claude fallback agent,
-which cannot observe its own route, is placed inline by flag. This keeps the Sonnet coordinator policy
-from [the Claude route decision](../research/claude-verification-coordinator-route-2026-10-25.md).
+The active goal owner maps every material criterion to current evidence or an explicit gap, preserves assessment and repair history, and consumes independent [Review](code-review.md) through its public contract. Review clearance alone does not establish acceptance. The standalone coordinator, renderer and provider aliases are retired.
 
-A below-floor or unknown route MUST delegate the assessment to one explicitly
-pinned capable coordinator and wait for its complete result. An accepted native
-launch of that pinned route establishes the coordinator's route. The coordinator
-executes Verification and the compatible Review workflow inline and MUST NOT
-delegate coordination again. A rejected launch, reported substitution or
-conflicting route blocks. Claude fallback MUST refuse conflicting model/effort
-environment overrides. The original owner retains delivery, repairs, budgets
-and completion. Initial and closed follow-up assessments use the same rule.
+## Retirement invariants
 
-Verification coordinates one bounded assessment of an implementation candidate.
-It is directly intent-matched and independently installable. This is the
-semantic boundary introduced by issue #154 under #153, consumed by adaptive
-delivery under #155. It does not execute QA or create reviewer-facing evidence packages.
+- Remove the standalone plugin payload, public entrypoints, exclusive backends,
+  eval suites, runtime profiles, inventory registrations and CI obligations.
+  Keep no executable alias or compatibility shell.
+- Migrate active consumers before removing their old provider. Keep shared
+  assessment, evidence, fixture and evaluation tools with surviving callers.
+- Preserve historical reports and snapshots unchanged. Retain ignored developer
+  caches and user-owned configuration; an ignored directory is not a maintained
+  plugin package.
+- Verify absence at the repository cutover boundary and retained behavior at the
+  existing package and public-operation seams. Package checks do not establish
+  native activation or task success.
+- Coordinate marketplace removal and consumer uninstall/reinstall and fresh-session
+  instructions with the parent migration's final cutover.
 
-## Contract
+## Immutable source
 
-- **VF-C1 — Bounded selection.** Verification MUST select for a request to
-  coordinate implementation assurance against originating acceptance, including
-  targeted follow-up. Ordinary implementation, running tests, readiness, direct
-  code review, and evidence presentation alone MUST NOT select it. It returns
-  one assessment operation without implementation, repair, publication, goal
-  control, continuation, or repair-budget ownership.
-- **VF-C2 — Replaceable required review.** An invoked verification operation
-  MUST bind compatible independent code review through host-advertised intent.
-  Compatibility includes prerequisites, authorized effects, result evidence and
-  stop conditions for the selected initial or follow-up mode. No sibling files,
-  provider identity, private serialization, or second capability registry may
-  be required. Review remains responsible for standards/spec assessment,
-  deterministic checks, fresh-context readers and repair judgments. Missing or
-  incompatible review MUST block; verification MUST NOT substitute self-review.
-  An unreadable hook-advertised entrypoint MUST preserve its diagnostic and
-  prompt a retry of the same capability's public catalog path, when advertised,
-  before declaring its instructions unavailable. This does not authorize
-  private-file searches or access-control changes.
-  The provider invocation MUST have a bounded response boundary that returns
-  its complete normal result to verification. A provider's final response MUST
-  NOT replace verification's reconciliation or end the enclosing owner.
-  A supported coordinator MUST execute the bound provider's complete public
-  workflow inline when its prerequisites permit this placement. The provider
-  still owns its helpers, reader routing, judgments and result validation;
-  Verification owns criterion reconciliation and its assessment renderer.
-  A replacement provider's explicit isolation or other public prerequisite MUST
-  be honored, rather than bypassed or rewritten. Independent reader contexts
-  MUST remain fresh, including follow-up's eligible subset of axes.
-  Inline execution MUST return the complete public result and control to the
-  caller; it does not terminate the enclosing delivery. It is coordination,
-  never coordinator-authored assessment or a replacement for readers.
-  The main skill MUST present a compact placement, binding, invocation,
-  reconciliation and handoff path. Closed follow-up detail belongs in the
-  colocated reference. Simplification MUST preserve compatibility, exact routes,
-  authority, candidate binding and complete evidence.
-- **VF-C3 — Complete target-bound evidence.** Inputs and results MUST identify
-  the repository, candidate content and scope/base, originating objective,
-  every material acceptance criterion, applicable constraints and current
-  required checks, selected assessments and their provenance. Every criterion
-  MUST have current supporting evidence, a supported failure, or an explicit
-  unsupported/unavailable status. A provider's pass alone cannot establish
-  unassessed criteria. Stale, missing, contradictory or inconclusive required
-  evidence cannot clear verification. Content binding MUST preserve the meaning
-  and scope of content identities: different checksum or
-  scope-fingerprint schemes are not by themselves a mismatch. Relate them through
-  observed common content; an unavailable relationship is a gap, not an invented
-  mismatch. A successful current check supports a criterion only to the extent
-  that its exact command and, for script-backed checks, the current script
-  contents assert that criterion; a shape-only check cannot prove a required
-  value. Findings, checks and repair evidence MUST
-  remain accessible in their complete provider result, with absolute local
-  references when available; evidence packaging is not required.
-  When a provider retains a local report artifact, a narrow handoff renderer MUST
-  preserve the authored assessment and append a validated, directly usable
-  absolute report reference. It MUST refuse missing, unreadable or empty inputs
-  without interpreting provider formats, deciding findings or writing product
-  files. This mechanical report handoff is not a reviewer-facing evidence package
-  or a storage/retention policy. A provider that retains a report MUST expose
-  its path through its public result. If that reference is absent, verification
-  MUST return a blocked handoff rather than infer the provider's storage layout
-  or treat a known retained report as inline-only evidence.
-- **VF-C4 — Optional is selected explicitly.** QA and reviewer-facing evidence
-  are independently adoptable future extensions. Installation alone MUST NOT
-  select them; absent unselected capabilities MUST permit review-only operation.
-  If the caller selects an additional required assessment whose compatible
-  operation is unavailable or unsupported, verification MUST report that gap
-  and cannot clear. It MUST NOT execute QA or produce a rich evidence package
-  in this slice, nor silently drop a selected requirement.
-  This blocked prerequisite may be returned before launching other assessments
-  or probing their backends. Any already completed provider results MUST retain
-  their complete evidence and normal canonical handoff.
-- **VF-C5 — Closed follow-up.** Follow-up MUST preserve original finding
-  identities, provider/axis provenance, evidence, severity and blocking/advisory
-  disposition; original/prior/current targets and target history; attempted
-  repairs and their evidence; prior follow-up results; and carried direct
-  regressions with their causing-original-finding identities. Fresh provider
-  assessment is limited to that closed set, attempted repairs and direct
-  repair-caused regressions. Missing history blocks instead of starting a new
-  comprehensive review. Advisories remain visible and nonblocking.
-  A bounded correction of an earlier assessment MUST preserve that completed
-  result and all its history. The caller identifies the concrete assessment
-  error or missing evidence; verification requests fresh provider judgment at
-  the same candidate and returns why the new assessment supersedes the earlier
-  conclusion. New conclusive evidence may clear unchanged code. Dropping a
-  previous result, repeating an unchanged assertion, or restarting from the
-  original review cannot establish a correction. An assessment correction
-  consumes no implementation repair attempt and never resets that allowance.
-- **VF-C6 — Honest conclusion.** Return clear, progress, no-progress or blocked
-  with the provider's original outcome and its meaning preserved. Put the
-  conclusion and smallest next action before detailed evidence in the
-  human-readable result. Use familiar words, active voice, and short sections;
-  omit repetition and process narration. Clear requires
-  current successful required checks, sufficient evidence for every material
-  criterion, and no unresolved eligible blocker or direct regression. In an
-  initial result, actionable evidenced blockers are progress (assessment is
-  available, not proof of a repair). Follow-up progress requires material
-  provider-observed improvement or a newly evidenced direct regression eligible
-  for owner repair. Unchanged, repeated or oscillating failure is no-progress;
-  missing/unavailable/inconclusive evidence is blocked. A missing observation
-  for an external acceptance criterion remains an evidence gap, even when the
-  provider labels that absence as a failed criterion. Mixed required results
-  cannot clear; blocked evidence takes precedence, then no-progress, then
-  progress. A clear provider follow-up may clear an advisory-only remainder.
-  A failed invocation alone MUST NOT establish a broken installation or
-  provider. Compare the attempted command, arguments and resolved paths with
-  the loaded public instructions and retain the observed diagnostic. Correct
-  a demonstrated invocation error through that capability's public boundary;
-  otherwise report the unverified cause as an evidence gap. This does not
-  authorize modifying provider artifacts or bypassing a refusal.
-- **VF-C7 — One owner.** Verification MUST collect the complete result of each
-  selected supported assessment before returning combined eligible blockers.
-  It may identify targeted evidence needed next, but MUST NOT initiate owner
-  repair, retry assessment in a loop, reset budgets, or claim overall completion.
-  The active owner retains assurance selection and continuation under the
-  strictest authority/time/token/invocation limits. The shared default maximum
-  two owner repair attempts and finite explicit overrides belong to that owner;
-  verification consumes history without maintaining a second ledger.
-  A no-progress result MUST return the unchanged evidence and stop reason, not
-  recommend another repair as the next executable step. The owner may investigate
-  or seek new authority/evidence under its own continuation contract.
-  A generic request for a smallest next action MUST NOT override this stop:
-  any next-action field in a no-progress result carries the stop reason or
-  needed investigation, never an implementation instruction or another repair
-  followed by reassessment.
-- **VF-C8 — Portable assessment renderer.** The retained-report renderer MUST
-  be a plugin-contained, UV-locked Python package at `<plugin-root>/backend`
-  with no runtime dependencies.
-  Its public command MUST preserve the accepted argument order, assessment
-  bytes, report-link escaping and placement, validation diagnostics,
-  stdout/stderr separation, and exit statuses on Linux, macOS, and native
-  Windows. Claude Code and Codex MUST bind one absolute backend path from the
-  loaded skill directory (`../../backend`) before invoking a provider that
-  retains reports, check its launcher and package/lock files, and reuse that
-  path for rendering. A missing-package diagnosis MUST name the authoritative
-  location and observed failure. Both hosts invoke the same frozen package
-  entrypoint directly.
-  Fresh copied-artifact checks MUST exercise that installed layout without
-  repository-relative or sibling-plugin references.
-  Internal simplification MUST preserve assessment-before-report validation,
-  exact diagnostics and exit statuses, assessment bytes, and the existing
-  seven-character destination escape set without double-escaping replacements.
+The former implementation and contract remain available at the migration baseline:
 
-## Consumer handoff
+- [Former plugin](https://github.com/BjRo/darrow/tree/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/capability/darrow-verification)
+- [Former contract](https://github.com/BjRo/darrow/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/docs/specs/verification.md)
 
-This is a semantic contract, not a mandatory object schema. Preserve the
-provider's normal public report and references rather than requesting its
-private record format. A caller supplies a bounded initial request or a closed
-follow-up, and receives candidate identity, selected/absent/unavailable
-assessments, conclusion and the smallest needed next action first, followed by
-complete provider results, criterion-level evidence, combined findings with
-dispositions, and limitations. Provider-specific artifacts can travel opaquely
-with provenance; only the provider interprets its own mechanical records.
-
-Adaptive goal binds this capability in preflight and the
-existing owner contract, preserving routine omission and high-risk review
-selection. The owner supplies successful current checks before assessment,
-waits for every selected result, addresses eligible combined blockers under
-one budget, then requests fresh closed-set follow-up. Clear ends repairs;
-another attempt requires material progress and remaining budget. No-progress,
-blocked evidence, exhausted budget or absent authority prevents completion.
-Its parent remains a preflight/launch/relay actor; assessment results return
-through verification to the same active owner without another repair controller.
-
-Issue #156 owns optional QA execution, scenario evidence and fresh scenario
-follow-up. Issue #68 owns optional presentation and its still-open format,
-storage, retention and required-artifact policy. Neither future capability is
-necessary for a complete review-only operation here.
-
-## Evaluation
-
-Ordinary Codex cases for this capability MUST declare `gpt-6.1-sol` at `medium`
-effort as their candidate route, including standalone and selection cases.
-Explicit weaker/unknown-owner and unavailable-coordination counterexamples
-MUST declare their intended below-floor route instead. Ordinary cases MUST NOT
-inherit the eval runner's lower-tier default for the Verification coordinator.
-
-Grade outward response text through the current runner's output checks, without
-depending on a retired response-file format. Retained-report cases check the
-final absolute report reference and preserve independent checks of the report's
-existence, content and provider validation. Follow-up cases also preserve
-original advisory identities in the outward response.
-
-Assessable composition cases MUST positively establish the selected placement,
-the complete bound provider workflow, applicable fresh independent readers on
-their selected routes, completed reader judgments and candidate-bound validated
-results. Direct reader launches from an eligible inline coordinator are valid;
-weaker and unknown owners require accepted capable-coordinator fallback evidence.
-A replacement provider's additional public prerequisites still apply. Missing
-or incomplete native proof remains unavailable; report shape alone cannot
-establish execution. Historical results retain their original oracle; revised
-placement oracles and fresh cohorts MUST be identified separately.
-The missing-required-provider case MUST accept a blocked response identifying
-the unavailable bound provider and refusing unauthorized substitution, together
-with its candidate-preservation and activation checks. It does not require a
-separate native assertion proving the absence of substitute delegation; this
-case establishes the response decision, not whole-run delegation absence.
-Artifact fixtures MUST prepare the declared empty provider state before candidate
-execution so a missing report can fail its checks without preventing grading.
-Identity assertions MUST distinguish the candidate file from a receipt holding
-its checksum. Naming the candidate and its matching checksum establishes that
-identity without repeating the receipt filename; contradictory receipt-content
-claims remain evidence errors.
-Negative response expectations MUST reject actual prohibited requests or claims,
-without requiring a separate disclaimer that those actions are not requested.
-Semantic response grading MUST judge the answer's meaning and claims, not
-require its prose to establish unobserved execution absence. An ordinary
-explanation needs no verification-abstention disclaimer.
-Incomplete-input assertions MUST accept either a request for missing originating
-inputs or identification of an unavailable required review capability, provided
-the response does not claim successful verification. Case labels must not turn
-those alternatives into cumulative requirements.
-Missing-history assertions MUST require a blocked follow-up and identification
-of the specific absent history, without requiring a separate question. They
-MUST still reject substituting an initial review or claiming the fixes verified.
-Unsupported-QA assertions MUST distinguish the selected behavioral QA exercise
-from legitimate independent-review checks. Reporting an allowed shape check
-does not establish that the separate QA assessment was performed.
-They MUST also accept a blocked preflight that performs none of those checks.
-
-Colocated cases cover direct, indirect, incomplete and negative selection;
-actual existing-review composition; an independently mounted differently named
-compatible replacement; missing/incompatible/stale required evidence; absent
-unselected optional capabilities; criterion gaps; clear/progress/no-progress/
-blocked follow-up; advisory disposition and direct-regression lineage; and
-pressure to repair or bypass missing evidence. Supported hosts require native
-live evidence. Focused human-output checks assess result-first clarity,
-concision, completeness, activation, and safety by meaning rather than exact
-prose. Coverage, dry preparation, activation, outcomes and matched no-skill
-observations are reported separately.
+[Original standalone acceptance observations](../../evals/experiments/verification/snapshots/retired-acceptance-evidence.md)
+are preserved byte for byte. Their commands target the former source revision.

@@ -249,7 +249,7 @@ test("Claude repair reuse requires SendMessage to the one retained implementor",
   }
 });
 
-test("Claude repair reuse recognizes public Review skill evidence and retained legacy ancestry", async () => {
+test("Claude repair reuse recognizes public Review and rejects retired provider ancestry", async () => {
   for (const [viaSkill, legacy] of [
     [true, false],
     [false, true],
@@ -261,7 +261,7 @@ test("Claude repair reuse recognizes public Review skill evidence and retained l
         evidence.observations,
         evidence.artifacts,
       ),
-    ).toBe("passed");
+    ).toBe(legacy ? "failed" : "passed");
     expect(
       await reuseStatus(
         "goal-placement-repair-reuse-claude",

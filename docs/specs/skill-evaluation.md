@@ -121,9 +121,10 @@ running. Preserve the same task, evidence, isolation and exit assertions.
 Current evals grade final responses through Sevro's public output or semantic
 checks. Shell checks inspect repository state and declared artifact grants;
 they must not read a retired runner's response file or materialize a compatibility
-copy. Verification handoff cases check the final absolute report reference in
-the response and validate retained report content separately. Missing references,
-relative references and prose after a required final handoff must fail.
+copy. Retained standalone Verification handoff results describe the former
+provider's contract; its retired response renderer is not a current evaluation
+obligation. Surviving Review and Adaptive Goal cases validate their own public
+reports, candidate binding and acceptance evidence.
 
 Review presentation output checks consume the complete public final-message
 observation. Human checks reject embedded canonical review or verification JSON.

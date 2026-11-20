@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 
-if [ "$#" -ne 10 ]; then
-  echo "usage: scripts/verify-python-quality-results <changes> <inventory> <package-selected> <package> <discovery-selected> <discovery-windows> <discovery-install> <verification-selected> <verification-windows> <verification-install>" >&2
+if [ "$#" -ne 4 ]; then
+  echo "usage: scripts/verify-python-quality-results <changes> <inventory> <package-selected> <package>" >&2
   exit 2
 fi
 
@@ -10,13 +10,6 @@ changes_result=$1
 inventory_result=$2
 package_selected=$3
 package_result=$4
-discovery_selected=$5
-discovery_windows_result=$6
-discovery_install_result=$7
-verification_selected=$8
-verification_windows_result=$9
-shift 9
-verification_install_result=$1
 
 require_result() {
   name=$1
@@ -45,7 +38,3 @@ require_scope() {
 require_result "change detection" success "$changes_result"
 require_result "inventory" success "$inventory_result"
 require_scope packages "$package_selected" "$package_result"
-require_scope discovery "$discovery_selected" \
-  "$discovery_windows_result" "$discovery_install_result"
-require_scope verification "$verification_selected" \
-  "$verification_windows_result" "$verification_install_result"

@@ -1214,8 +1214,8 @@ The following invariants govern adaptation and evidence provenance:
   stale or unavailable required evidence prevents dependent final commit,
   publication and completion; review clearance alone cannot establish acceptance.
   Preserve all provider results, native outcomes, closed history and the shared
-  two-attempt repair limit. Legacy Verification remains available to other
-  consumers until their migration and retirement; this change does not alter it.
+  two-attempt repair limit. The standalone Verification provider is retired;
+  its absence does not remove acceptance accounting or independent Review.
 - **ADL-A5 — Semantic presentation.** The retained delivery contract is a
   completeness requirement; the native goal remains compact. Equivalent clear prose, line wrapping, punctuation,
   status presentation, and role wording are valid. Preserve exact tool keys,
@@ -1427,9 +1427,9 @@ violations separately from this completion-summary judgment.
 Repair-reuse observations distinguish implementation from assessment using the
 actual public Review invocation or Review coordinator/reader ancestry. Direct
 Review and its fallback keep fresh native proof; absence of standalone
-Verification is not an evidence gap. Legacy Verification ancestry remains
-recognized only while other consumers retain it. Missing or conflicting native
-launch, target, route or completion evidence stays unavailable or failed.
+Verification is not an evidence gap. Retired Verification ancestry cannot
+substitute for current Review evidence. Missing or conflicting native launch,
+target, route or completion evidence stays unavailable or failed.
 
 The same provider contract applies to failed-check and real-commit composition
 fixtures without standalone Verification. These synthetic providers support the

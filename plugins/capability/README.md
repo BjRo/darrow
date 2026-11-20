@@ -7,10 +7,9 @@ contracts.
 ## Choose a plugin
 
 - [Readiness](darrow-readiness-gate/README.md) assesses whether implementation can begin.
-- [Discovery](darrow-discovery/README.md) clarifies behavior and plans.
-- [TDD](darrow-tdd/README.md) implements behavior test-first.
+- [Matt Pocock](darrow-matt-pocock/README.md) supplies selected discovery, design, TDD and implementation workflows.
+- [Pstack](darrow-pstack/README.md) supplies unslop and routed engineering principles.
 - [Review](darrow-review/README.md) independently checks a bounded change.
-- [Verification](darrow-verification/README.md) coordinates acceptance evidence through compatible independent review.
 - [Git](darrow-git/README.md) creates branches and commits, publishes verified
   PRs, and posts candidate-bound reviewer evidence.
 - [Explanation](darrow-explanation/README.md) gives compact grounded visuals.

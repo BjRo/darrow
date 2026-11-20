@@ -1,8 +1,15 @@
 # Capability: Principles first
 
-`darrow-principles` provides optional engineering guidance on Codex and Claude
-Code. It owns no execution or delivery lifecycle. These requirements record the
-accepted scope of issue 296.
+`darrow-pstack` provides optional engineering guidance on Codex and Claude
+Code. The standalone `darrow-principles` identity is retired under migration #328
+and ticket #338. The [pstack contract](pstack.md) preserves all 24 principle
+bodies, routing and setup instructions byte for byte, along with stable IDs and
+user-owned tables. Remove the old package and duplicate evals without aliases;
+retain its migrated pstack cases and shared routing tests.
+
+The approach owns no execution or delivery lifecycle. These requirements retain
+the accepted scope of issue 296. The [former standalone package](https://github.com/BjRo/darrow/tree/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/capability/darrow-principles)
+remains available at the immutable migration baseline.
 
 ## Requirements
 

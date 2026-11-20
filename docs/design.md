@@ -168,9 +168,10 @@ request + repository -> read-only preflight/readiness -> native goal in the main
 ```
 
 Implementation may be direct or delegated. An owner on a supported route runs
-selected Verification and Review workflows inline; a weaker or unknown route
-hands the assessment to one fallback coordinator. Capabilities keep their
-protocols, helpers and reader routes, and assessment readers always start fresh.
+acceptance accounting and the selected Review workflow inline; a weaker or
+unknown route hands Review coordination to its supported fallback coordinator.
+Capabilities keep their protocols, helpers and reader routes, and assessment
+readers always start fresh.
 Results return to the same delivery owner. The helper adds no fixed phase pipeline, lifecycle ledger,
 daemon, queue, or publication authority.
 
