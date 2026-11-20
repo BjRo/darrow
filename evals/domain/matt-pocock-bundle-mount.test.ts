@@ -84,6 +84,8 @@ test("isolated Matt package mounts both host entrypoints through the public exte
         "prototype/LOGIC.md",
         "codebase-design/DESIGN-IT-TWICE.md",
         "setup-matt-pocock-skills/agents/openai.yaml",
+        "implement/SKILL.md",
+        "implement/agents/openai.yaml",
       ])
         expect(
           artifacts.some((a) => a.relativePath === `${prefix}/skills/${path}`),
@@ -91,9 +93,6 @@ test("isolated Matt package mounts both host entrypoints through the public exte
       expect(artifacts.some((a) => a.relativePath.includes("/evals/"))).toBe(
         false,
       );
-      expect(
-        artifacts.some((a) => a.relativePath.includes("/skills/implement/")),
-      ).toBe(false);
       if (host === "codex")
         expect(prepared.result.codexSkillInvocation).toEqual({
           pluginName: "darrow-matt-pocock",

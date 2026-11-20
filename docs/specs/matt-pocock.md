@@ -2,16 +2,16 @@
 
 The independently installable `darrow-matt-pocock` plugin curates Matt Pocock's
 MIT skills at revision `abeeaf95660ba9e8b7c753eb38f441ca707a8823`.
-This contract implements migration issue #330 under #328. Adapted implement
-belongs to #333 and is absent from this slice's usable surface.
+This contract implements migration issues #330 and #333 under #328. The
+[approved implementation recipe](implement.md) owns the adapted implement contract.
 
 ## Package contract
 
 MP-C1: Ship exactly grilling, wayfinder, grill-with-docs, domain-modeling,
 diagnosing-bugs, to-spec, to-tickets, wizard, codebase-design,
 improve-codebase-architecture, writing-for-agents, wait-what, tdd, research,
-prototype, and setup-matt-pocock-skills. Preserve every selected support file
-and host metadata file. Do not ship Matt code-review, pr, or implement-spec.
+prototype, setup-matt-pocock-skills, and adapted implement. Preserve every
+selected support file and host metadata file. Do not ship Matt code-review, pr, or implement-spec.
 
 MP-C2: Both native manifests name `darrow-matt-pocock` at one version; Codex
 points to `./skills/`. All runtime resources are contained in the plugin.

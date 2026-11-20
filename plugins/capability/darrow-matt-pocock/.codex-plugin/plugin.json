@@ -1,7 +1,7 @@
 {
   "name": "darrow-matt-pocock",
-  "version": "0.1.0",
-  "description": "Curated Matt Pocock discovery, design, diagnosis, writing and TDD workflows",
+  "version": "0.2.0",
+  "description": "Curated Matt Pocock discovery, design, diagnosis, writing, TDD and approved implementation workflows",
   "license": "MIT",
   "author": {
     "name": "Björn Rochel"

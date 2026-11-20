@@ -74,5 +74,9 @@
   "skills/wizard/template.sh": {
     "reason": "Clarify the scalar escape-marker expansion with braces; annotate two intentionally exported template helpers for ShellCheck. No wizard runtime behavior change.",
     "sha256": "92b7638b5311f67f36762c2888aaef8745d6e52c46621bf0b120fdb1e2de3c41"
+  },
+  "skills/implement/SKILL.md": {
+    "reason": "Materially adapt upstream implement into an explicit approved-work recipe: preserve inherited seams and authority, compose one Adaptive Goal owner with public TDD/Review/Git/principles contracts, stop missing providers, default to local commit.",
+    "sha256": "193c2c92622fe5bcc2095d0bc4f9663340878fe42d1dbb371169302aa2789ee1"
   }
 }

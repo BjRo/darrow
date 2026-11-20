@@ -22,8 +22,12 @@ ShellCheck annotations for stage helpers and braces around a scalar expansion;
 its runtime behavior is unchanged. These differences are recorded by file.
 
 The paired manifests, README, compatibility guidance, this record, and focused
-evals are Darrow additions. Implement was acquired for a later migration slice
-but is not packaged here. Matt code-review, pr and implement-spec are excluded.
+evals are Darrow additions. Implement is materially adapted: it carries approved
+intent and inherited seams into one Adaptive Goal owner, composes selected TDD,
+independent Review, Git and principles through advertised public contracts, and
+defaults to local commit. Missing required providers stop dependent work;
+push/PR require explicit or inherited authority. Its upstream host metadata is
+unchanged. Matt code-review, pr and implement-spec are excluded.
 
 Updates are demand-driven: acquire an intentional new revision with the repository's
 pinned acquisition command, compare complete selected directories, reapply only
