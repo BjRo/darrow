@@ -1,0 +1,78 @@
+{
+  "skills/grilling/SKILL.md": {
+    "reason": "Resolve skill calls and bounded fresh-context delegation through actual host-advertised capabilities; preserve upstream workflow and explicit activation.",
+    "sha256": "6e43fd5ce6b13ed9d111d6c0529968c9af86daf6adde96016f9b7de433edfe45"
+  },
+  "skills/research/SKILL.md": {
+    "reason": "Resolve skill calls and bounded fresh-context delegation through actual host-advertised capabilities; preserve upstream workflow and explicit activation.",
+    "sha256": "d5c6770ae3bc09dd009065fb681d2ac57722b411315f22cb6955276e10b8c7eb"
+  },
+  "skills/codebase-design/SKILL.md": {
+    "reason": "Resolve skill calls and bounded fresh-context delegation through actual host-advertised capabilities; preserve upstream workflow and explicit activation.",
+    "sha256": "e2c7d0a1c86180f8ef2e7723aee55806df069b87a076d8e3a92131874b2aedf1"
+  },
+  "skills/grill-with-docs/SKILL.md": {
+    "reason": "Resolve skill calls and bounded fresh-context delegation through actual host-advertised capabilities; preserve upstream workflow and explicit activation.",
+    "sha256": "c91281fc4db524e3cce226ed6e50ea010890dce3fbc8a87816916b62ca9eedd0"
+  },
+  "skills/improve-codebase-architecture/SKILL.md": {
+    "reason": "Resolve skill calls and bounded fresh-context delegation through actual host-advertised capabilities; preserve upstream workflow and explicit activation.",
+    "sha256": "9f28e6b45d1a92090e92baafa3d45b398753051978ce0a85eb28342856cc5da5"
+  },
+  "skills/to-spec/SKILL.md": {
+    "reason": "Use configured tracker and mapped readiness label without requiring unselected triage; host-native setup reachability and inherited publication authority. Preserve human seam/breakdown confirmation.",
+    "sha256": "22f00606434e842302e4f1aa795325edce21e247f935807ad16d30c5c735dbc0"
+  },
+  "skills/to-tickets/SKILL.md": {
+    "reason": "Use configured tracker and mapped readiness label without requiring unselected triage; host-native setup reachability and inherited publication authority. Preserve human seam/breakdown confirmation.",
+    "sha256": "03813d510555c3596dfd83d442530b4b686ec687e1e11644945602a93f9f6c6e"
+  },
+  "skills/wayfinder/SKILL.md": {
+    "reason": "Host-neutral skill/delegation calls; no silent local tracker fallback; configured wayfinding labels preserve existing metadata; branch push requires inherited authority.",
+    "sha256": "960836ec5106c8a0bdb244ce0975337c94bb8a575da922ffff72f20bf4ca5925"
+  },
+  "skills/tdd/SKILL.md": {
+    "reason": "Host-neutral design reference; reuse inherited human-approved seams, confirm new or changed seams; bind independent review intent to Darrow Review without importing a duplicate reviewer.",
+    "sha256": "510eec57dba3cfa67e3c72e397692a596c9ea60a02c7c77ce1e3f87aaaf706f6"
+  },
+  "skills/prototype/SKILL.md": {
+    "reason": "Keep throwaway prototype capture within inherited repository/tracker authority; no implicit branch push, implementation, or publication permission.",
+    "sha256": "3ee8869c7cec529dd70c6a05c9027045dfe26ab08f138f6bc0b489fde42cae45"
+  },
+  "skills/setup-matt-pocock-skills/SKILL.md": {
+    "reason": "Honor established provider and domain layout; configure labels for selected publishers without unselected triage; make configuration reachable through both host entrypoints; preserve user content and require scoped approval for new labels/remotes.",
+    "sha256": "ff6669e5649a925a03702402286764dfb4f1fe5edb7b5c860658871bf460f954"
+  },
+  "LICENSE": {
+    "reason": "Preserve the full Matt Pocock MIT notice and add the Darrow adaptations copyright under the same MIT terms.",
+    "sha256": "a71d9d2e6bfd35102373f11d7acb10c4c3586e6329b51a53056952e2ae5f693f"
+  },
+  "skills/codebase-design/DEEPENING.md": {
+    "reason": "Repository-required Prettier formatting only; preserve all upstream support content and behavior.",
+    "sha256": "9789f88a446e6508cc899ad16edfe0b193c7ca1fa27f3ad80cfdc054e24539d3"
+  },
+  "skills/domain-modeling/ADR-FORMAT.md": {
+    "reason": "Repository-required Prettier formatting only; preserve all upstream support content and behavior.",
+    "sha256": "8b9cf979d40feabe5f5306e976d4e630e38ce91d0a172a28c7b96076ef5caaa2"
+  },
+  "skills/improve-codebase-architecture/HTML-REPORT.md": {
+    "reason": "Repository-required Prettier formatting only; preserve all upstream support content and behavior.",
+    "sha256": "ab5bb36d16876ab3dda7a6c4078a25feb4bfb4c9a22b9e8ea32b1e264b10ede4"
+  },
+  "skills/prototype/LOGIC.md": {
+    "reason": "Repository-required Prettier formatting only; preserve all upstream support content and behavior.",
+    "sha256": "32ca9bb6d6c8c8beef0cf807da63e86f45cc534491f748190fe145756ad0a774"
+  },
+  "skills/prototype/UI.md": {
+    "reason": "Repository-required Prettier formatting only; preserve all upstream support content and behavior.",
+    "sha256": "258c117354ba60296f0ba6d6e6f03d3e14d8a17e6692693f35e2592bfeb8568f"
+  },
+  "skills/tdd/mocking.md": {
+    "reason": "Repository-required Prettier formatting only; preserve all upstream support content and behavior.",
+    "sha256": "0f9cd5617fbd475f6fefd516699af282e46ab04107548df1baa97a93d0ae35d0"
+  },
+  "skills/wizard/template.sh": {
+    "reason": "Clarify the scalar escape-marker expansion with braces; annotate two intentionally exported template helpers for ShellCheck. No wizard runtime behavior change.",
+    "sha256": "92b7638b5311f67f36762c2888aaef8745d6e52c46621bf0b120fdb1e2de3c41"
+  }
+}

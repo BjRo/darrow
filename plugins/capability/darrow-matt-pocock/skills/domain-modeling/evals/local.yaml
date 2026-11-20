@@ -1,0 +1,28 @@
+id: matt-bundle-domain-local
+invariant: MP-C2
+activation: positive
+harnesses: [claude]
+mount_plugin_skills: true
+prompt: |
+  We have agreed on this domain term: a Dispatch is the assignment of an Order
+  to a delivery vehicle. Update GLOSSARY.md to record that definition now.
+  Preserve the existing Order term. This is an agreed vocabulary update, with
+  no implementation decision or ADR needed. Do not commit, push, or contact
+  external services. You may inspect the repository and verify the saved file.
+fixture:
+  commits:
+    - message: "chore: seed domain glossary"
+      files:
+        GLOSSARY.md: |
+          # Glossary
+          ## Order
+          A customer's request for a shipment.
+checks:
+  - name: agreed term is saved and existing term remains
+    run: |
+      test -f GLOSSARY.md &&
+      grep -q 'Dispatch' GLOSSARY.md &&
+      grep -q 'Order' GLOSSARY.md &&
+      grep -q 'delivery vehicle' GLOSSARY.md &&
+      grep -q "customer's request for a shipment" GLOSSARY.md &&
+      test "$(git rev-list --count HEAD)" = 1 && test -z "$(git remote)"

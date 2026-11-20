@@ -1,0 +1,49 @@
+id: matt-bundle-setup-local
+invariant: MP-C5
+activation: positive
+harnesses: [codex]
+
+mount_plugin_skills: true
+prompt: |
+  {{skill_invocation}}
+  Configure this isolated repository for these skills. I use local Markdown
+  issues under .scratch/ and the existing ready-for-agent mapping is build-ready.
+  Keep that provider and mapping; do not add any other labels. The existing
+  GLOSSARY.md uses a single context and decisions belong in docs/adr/.
+  I approve this concrete setup now: create docs/agents/issue-tracker.md for the
+  local provider, keep docs/agents/triage-labels.md, create docs/agents/domain.md
+  for that layout, and add an Agent skills block in AGENTS.md that points to
+  those files. Add a CLAUDE.md pointer instructing Claude to read that shared
+  block before tracker or domain work. Preserve all existing text.
+  These choices and that draft are approved; write the files now. Do not call
+  external services, create tickets, change remotes, commit, or push.
+  You may run read-only checks to verify the resulting files. Report the result.
+fixture:
+  commits:
+    - message: "chore: seed local setup"
+      files:
+        AGENTS.md: |
+          # Project guidance
+          Keep the phrase orchard lantern unchanged.
+        GLOSSARY.md: |
+          # Glossary
+          An Order is a customer's request for a shipment.
+        docs/agents/triage-labels.md: |
+          # Triage labels
+          | Role | Project label |
+          | --- | --- |
+          | ready-for-agent | build-ready |
+checks:
+  - name: shared configuration exists and preserves user content
+    run: |
+      test -f docs/agents/issue-tracker.md && test -f docs/agents/domain.md &&
+      test -f CLAUDE.md &&
+      grep -q 'orchard lantern' AGENTS.md &&
+      grep -q 'docs/agents/issue-tracker.md' AGENTS.md &&
+      grep -q 'docs/agents/triage-labels.md' AGENTS.md &&
+      grep -q 'docs/agents/domain.md' AGENTS.md &&
+      grep -q 'AGENTS.md' CLAUDE.md &&
+      grep -q 'build-ready' docs/agents/triage-labels.md &&
+      grep -q '.scratch/' docs/agents/issue-tracker.md &&
+      grep -q 'GLOSSARY.md' docs/agents/domain.md &&
+      test -z "$(git remote)" && test "$(git rev-list --count HEAD)" = 1

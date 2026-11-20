@@ -1,0 +1,17 @@
+{
+  "name": "darrow-matt-pocock",
+  "version": "0.1.0",
+  "description": "Curated Matt Pocock discovery, design, diagnosis, writing and TDD workflows",
+  "license": "MIT",
+  "author": {
+    "name": "Björn Rochel"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Darrow → Matt Pocock",
+    "shortDescription": "Discovery, design and test-driven development",
+    "developerName": "Björn Rochel",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read", "Write"]
+  }
+}
