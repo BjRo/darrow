@@ -20,7 +20,6 @@ const capabilities = [
   "darrow-review",
   "darrow-tdd",
   "darrow-git",
-  "darrow-tickets",
 ].map((name) => `plugins/capability/${name}`);
 const excluded = new Set([
   ".venv",
@@ -80,7 +79,6 @@ function supportingSkills(track: "implementation" | "delivery") {
             "create-commit",
             "create-pr",
           ].map((skill) => `${capabilities[4]}/skills/${skill}`),
-          `${capabilities[5]}/skills/read-ticket`,
         ]
       : []),
   ];
@@ -180,10 +178,9 @@ async function prepareTask(experiment: string, task: string) {
       check.name.startsWith("focused upstream") ||
       check.name === "Ajv TypeScript build",
   );
-  if (!focused || !original.fixture.ticket)
-    throw new Error(`Historical task ${task} lacks CI or ticket input`);
+  if (!focused) throw new Error(`Historical task ${task} lacks CI input`);
   await json(join(assets, "task.json"), {
-    title: original.fixture.ticket.title,
+    title: original.id,
     body: engineering,
     ci: focused.run,
     base: "main",
@@ -216,10 +213,8 @@ async function prepareRuntime(project: string) {
     ),
   );
   runtime.network = { localHttp: true };
-  runtime.runtime.sharedCacheDirectories[0].roles.push("hooks");
-  runtime.hooks.plugins = ["darrow-review", "darrow-tdd", "darrow-tickets"];
-  await json(join(project, "runtime-candidate-delivery.json"), runtime);
   runtime.hooks.plugins = ["darrow-review", "darrow-tdd"];
+  await json(join(project, "runtime-candidate-delivery.json"), runtime);
   await json(join(project, "runtime-candidate-implementation.json"), runtime);
   delete runtime.hooks.plugins;
   await json(join(project, "runtime-vanilla.json"), runtime);

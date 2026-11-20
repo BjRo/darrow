@@ -6,10 +6,10 @@ These files define current invariants. Start with the
 - [Repository guide](repository-guide.md): grounded read-only explanation and migration.
 - [Layer composition](layer-composition.md): responsibilities and handoffs.
 - [Information architecture](information-architecture.md): repository agent guidance.
-- [Decision management](decision-management.md): authority and lifecycle.
-- [Skill authoring](skill-authoring.md): focused, discoverable skills.
+- [Decisions retirement](decision-management.md): ordinary ADR and catalog maintenance.
+- [Skill Authoring retirement](skill-authoring.md): writing guidance and retained repository checks.
 - [Git workflows](git-workflow.md): branches, commits, and PR authority.
-- [Ticket management](ticket-management.md): provider operations.
+- [Tickets retirement](ticket-management.md): configured tracker guidance and native tools.
 - [Implementation readiness](implementation-readiness.md): sufficient intent and evidence.
 - [Discovery](discovery.md): grilling, discovery, and planning.
 - [Visual explanation](visual-explanation.md): compact grounded views.

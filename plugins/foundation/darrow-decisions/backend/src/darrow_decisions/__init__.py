@@ -1,1 +1,0 @@
-"""Contained deterministic ADR mechanics."""

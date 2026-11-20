@@ -249,6 +249,7 @@ interface ExtensionReply {
           activation?: {
             class: string;
             targetSkill: string;
+            includes?: string[];
             excludes?: string[];
           };
           setupDigest?: string;
@@ -361,7 +362,10 @@ test("Darrow extension resolves supported cases and rejects unsupported fixtures
   );
   const activationCase = await command<ExtensionReply>(
     [process.execPath, extension],
-    request("resolve", resolveParams("audit-agent-skill-validate-read-only")),
+    request(
+      "resolve",
+      resolveParams("pstack-principles-first-default-bundled-loading"),
+    ),
   );
   expect(activationCase.code, activationCase.stderr).toBe(0);
   expect(
@@ -369,8 +373,9 @@ test("Darrow extension resolves supported cases and rejects unsupported fixtures
       .activation,
   ).toEqual({
     class: "positive",
-    targetSkill: "audit-agent-skill",
-    excludes: ["create-agent-skill"],
+    targetSkill: "principles-first",
+    includes: ["principle-type-system-discipline"],
+    excludes: ["principle-attack-the-premise"],
   });
   const siblingCase = await command<ExtensionReply>(
     [process.execPath, extension],
@@ -2629,7 +2634,9 @@ test("no-skill preparation omits mounts and activation grading", async () => {
     [process.execPath, extension],
     request("resolve", {
       projectRoot: pathToFileURL(projectRoot).href,
-      selectors: { caseIds: ["audit-agent-skill-validate-read-only"] },
+      selectors: {
+        caseIds: ["create-branch-existing-no-clobber"],
+      },
       configuration: { withoutSkill: true },
     }),
   );

@@ -1,8 +1,10 @@
 import { expect, test } from "bun:test";
-import { cp, mkdtemp, readFile, rm } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { fixtureExtensionRequest } from "./fixture-command";
 
 const catalog = [
   "laziness-protocol",
@@ -48,38 +50,63 @@ test("native delivery test doubles stay outside marketplace adoption", async () 
   expect(existsSync(join(root, fixture, "backend"))).toBe(false);
 });
 
-test("a copied pstack plugin exposes every selected skill through the public inspector", async () => {
+test("a copied pstack package exposes every selected skill through both public host mounts", async () => {
   const root = resolve(import.meta.dir, "../..");
   const scratch = await mkdtemp(join(tmpdir(), "darrow-pstack-catalog-"));
-  const artifact = join(scratch, "darrow-pstack");
+  const artifact = join(scratch, "plugins/capability/darrow-pstack");
   try {
+    await mkdir(join(artifact, ".."), { recursive: true });
     await cp(join(root, "plugins/capability/darrow-pstack"), artifact, {
       recursive: true,
     });
-    for (const id of [
-      ...catalog.map((suffix) => `principle-${suffix}`),
-      "principles-first",
-      "setup-principles",
-      "unslop",
-    ]) {
-      const result = Bun.spawnSync([
-        "uv",
-        "run",
-        "--quiet",
-        "--no-project",
-        join(
-          root,
-          "plugins/foundation/darrow-skill-authoring/backend/scripts/run_locked.py",
-        ),
-        "inspect-skill",
-        "inspect",
-        join(artifact, "skills", id),
-        artifact,
-      ]);
-      expect(
-        result.exitCode,
-        `${id}: ${result.stderr.toString()}${result.stdout.toString()}`,
-      ).toBe(0);
+    const resolved = await fixtureExtensionRequest<{ cases: unknown[] }>(
+      "resolve",
+      {
+        projectRoot: pathToFileURL(scratch).href,
+        selectors: {
+          caseIds: ["pstack-principles-first-default-bundled-loading"],
+        },
+        configuration: {},
+      },
+    );
+    expect(resolved.cases).toHaveLength(1);
+    for (const host of ["codex", "claude"]) {
+      const prepared = await fixtureExtensionRequest<{
+        artifacts: Array<{ relativePath: string; contentBase64: string }>;
+      }>("prepare", {
+        case: resolved.cases[0],
+        host: {
+          id: `sevro.host.${host}`,
+          capabilities:
+            host === "codex"
+              ? [
+                  "sevro.codex.plugin-marketplace",
+                  "sevro.codex.explicit-invocation",
+                ]
+              : [
+                  "sevro.claude.plugin-dirs",
+                  "sevro.claude.explicit-invocation",
+                ],
+        },
+        condition: "passive",
+        configuration: {},
+      });
+      for (const id of [
+        ...catalog.map((suffix) => `principle-${suffix}`),
+        "principles-first",
+        "setup-principles",
+        "unslop",
+      ]) {
+        const mounted = prepared.artifacts.filter((file) =>
+          file.relativePath.endsWith(`/skills/${id}/SKILL.md`),
+        );
+        expect(mounted, `${host}: ${id}`).toHaveLength(1);
+        expect(
+          Buffer.from(mounted[0]!.contentBase64, "base64").toString(),
+        ).toBe(
+          await readFile(join(artifact, "skills", id, "SKILL.md"), "utf8"),
+        );
+      }
     }
   } finally {
     await rm(scratch, { recursive: true, force: true });

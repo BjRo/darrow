@@ -52,6 +52,28 @@ test("frozen suites select exactly one correct-route cell and fit installed prep
         "utf8",
       ),
     ) as ValueCase;
+    const task = JSON.parse(
+      await readFile(
+        join(
+          prepared.project,
+          "evals/experiments/current-value/cases/ajv-instance-path/task.json",
+        ),
+        "utf8",
+      ),
+    );
+    const original = parseYaml(
+      await readFile(
+        join(experiment, "cases/oss-ajv-instance-path.yaml"),
+        "utf8",
+      ),
+    ) as ValueCase;
+    expect(task.body).toBe(
+      original.prompt.replace(" Do not commit or publish changes.", ""),
+    );
+    expect(task.ci).toBe(
+      original.checks.find((check) => check.name === "Ajv TypeScript build")!
+        .run,
+    );
     const providers = new Set(
       declaration.additional_skills?.map((path) => path.split("/")[2]),
     );
@@ -246,11 +268,11 @@ test.each(["bash", "/bin/bash"])(
         command,
         ...args,
       ]);
-    expect(backend("darrow-tickets", "darrow-ticket", "get", "1")).toContain(
-      "Feature must be new",
-    );
     const forge = (args: string[], code = 0) =>
       run([process.execPath, ".git/fixture-bin/value-forge.ts", ...args], code);
+    expect(
+      JSON.parse(forge(["gh", "issue", "view", "1", "--json", "body"])).body,
+    ).toBe("Feature must be new");
     forge(["check"], 1);
     git("switch", "-qc", "fix/GH-1-feature");
     await writeFile(join(root, "feature.txt"), "new\n");

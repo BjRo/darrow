@@ -40,10 +40,12 @@ must obey its effect.
   their effects. An inaccessible requested owner makes the inventory incomplete
   rather than absent.
 
-The detailed classification, lifecycle, mutation, and listing behavior remains
-normative in [Capability: Decision Management](../specs/decision-management.md).
-This ADR owns the repository-architecture rationale for distributed canonical
-ownership.
+The former plugin's detailed classification, lifecycle, mutation, and listing
+contract was normative in Decision Management. That executable-provider clause
+is superseded by the [Decisions retirement](../specs/decision-management.md)
+under [migration #328](https://github.com/BjRo/darrow/issues/328).
+This ADR's accepted decision about distributed canonical ownership remains in
+force. ADRs and their catalog are maintained as ordinary documents.
 
 ## Consequences
 

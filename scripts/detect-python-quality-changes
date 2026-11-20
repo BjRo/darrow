@@ -43,9 +43,6 @@ append_package() {
   package_selected=true
 
   case "$package" in
-    plugins/foundation/darrow-skill-authoring/backend)
-      skill_authoring=true
-      ;;
     plugins/capability/darrow-discovery/skills/work-through-decisions/backend)
       discovery=true
       ;;
@@ -94,8 +91,8 @@ if [ "$select_all" = false ]; then
     .agents/skills/darrow-guide .claude/skills/darrow-guide \
     plugins/capability/darrow-discovery plugins/capability/darrow-git \
     plugins/capability/darrow-readiness-gate plugins/capability/darrow-review \
-    plugins/capability/darrow-tdd plugins/capability/darrow-tickets \
-    plugins/capability/darrow-verification plugins/foundation/darrow-skill-authoring \
+    plugins/capability/darrow-tdd \
+    plugins/capability/darrow-verification \
     plugins/orchestration/darrow-adaptive-goal \
     plugins/task-recipe/darrow-ticket-to-pr; then
     installed_pin_required=true
@@ -129,7 +126,6 @@ fi
 
 packages_json='[]'
 package_selected=false
-skill_authoring=false
 discovery=false
 verification=false
 seen_packages='|'
@@ -171,6 +167,5 @@ EOF
 printf 'packages=%s\n' "$packages_json"
 printf 'installed_pin_required=%s\n' "$installed_pin_required"
 printf 'package_selected=%s\n' "$package_selected"
-printf 'skill_authoring=%s\n' "$skill_authoring"
 printf 'discovery=%s\n' "$discovery"
 printf 'verification=%s\n' "$verification"

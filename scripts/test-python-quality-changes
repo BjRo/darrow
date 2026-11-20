@@ -30,7 +30,7 @@ chmod +x "$fixture/scripts/detect-python-quality-changes"
 cat >"$fixture/python-packages.txt" <<'EOF'
 plugins/capability/darrow-discovery/skills/work-through-decisions/backend
 plugins/capability/darrow-verification/backend
-plugins/foundation/darrow-skill-authoring/backend
+plugins/capability/darrow-git/backend
 EOF
 printf '%s\n' '# Fixture' >"$fixture/README.md"
 mkdir -p "$fixture/plugins/capability/darrow-verification/backend"
@@ -104,8 +104,8 @@ fi
 # A base branch can advance independently of the PR. Neither workflow should
 # select the base-only plugin or unrelated installed-pin checks for the PR.
 git -C "$fixture" reset -q --hard "$base"
-mkdir -p "$fixture/plugins/foundation/darrow-skill-authoring/backend"
-printf '%s\n' content >"$fixture/plugins/foundation/darrow-skill-authoring/backend/base.py"
+mkdir -p "$fixture/plugins/capability/darrow-git/backend"
+printf '%s\n' content >"$fixture/plugins/capability/darrow-git/backend/base.py"
 printf '%s\n' content >"$fixture/sevro.json"
 git -C "$fixture" add .
 git -C "$fixture" commit -qm 'test: advance base independently'
@@ -231,20 +231,18 @@ expect_scope \
   docs/note.md \
   'packages=[]
 package_selected=false
-skill_authoring=false
 discovery=false
 verification=false'
 expect_scope \
   docs/specs/python-quality.md \
   'packages=[]
 package_selected=false
-skill_authoring=false
 discovery=false
 verification=false'
 expect_pin_for_path docs/specs/python-quality.md false
 expect_pin_for_path README.md false
 expect_pin_for_path readme.rst false
-expect_pin_for_path plugins/foundation/darrow-skill-authoring/README.md true
+expect_pin_for_path plugins/capability/darrow-git/README.md true
 expect_pin_for_path plugins/capability/darrow-verification/skills/verify-change/SKILL.md true
 expect_pin_for_path plugins/capability/darrow-verification/skills/verify-change/evals/case.yaml true
 expect_pin_for_path scripts/check-python false
@@ -259,8 +257,8 @@ expect_pin_for_path sevro.json true
 expect_pin_for_path plugins/capability/unrelated/backend/example.py false
 for plugin in \
   capability/darrow-discovery capability/darrow-git capability/darrow-readiness-gate \
-  capability/darrow-review capability/darrow-tdd capability/darrow-tickets \
-  capability/darrow-verification foundation/darrow-skill-authoring \
+  capability/darrow-review capability/darrow-tdd \
+  capability/darrow-verification \
   orchestration/darrow-adaptive-goal \
   task-recipe/darrow-ticket-to-pr; do
   expect_pin_for_path "plugins/$plugin/example.py" true
@@ -326,38 +324,33 @@ case "$rename_out" in *'package_selected=true'*) ;;
   *) printf 'error: rename out of plugin content skipped Python package selection\n' >&2; exit 1 ;;
 esac
 expect_scope \
-  plugins/foundation/darrow-skill-authoring/README.md \
+  plugins/capability/darrow-git/README.md \
   'packages=[]
 package_selected=false
-skill_authoring=false
 discovery=false
 verification=false'
 expect_scope \
-  plugins/foundation/darrow-skill-authoring/readme.txt \
+  plugins/capability/darrow-git/readme.txt \
   'packages=[]
 package_selected=false
-skill_authoring=false
 discovery=false
 verification=false'
 expect_scope \
   plugins/capability/darrow-discovery/README.md \
   'packages=[]
 package_selected=false
-skill_authoring=false
 discovery=false
 verification=false'
 expect_scope \
   plugins/capability/darrow-verification/README.md \
   'packages=[]
 package_selected=false
-skill_authoring=false
 discovery=false
 verification=false'
 expect_scope \
   plugins/capability/darrow-verification/skills/verify-change/SKILL.md \
   'packages=["plugins/capability/darrow-verification/backend"]
 package_selected=true
-skill_authoring=false
 discovery=false
 verification=true'
 for path in .github/workflows/python-quality.yml \
@@ -366,7 +359,6 @@ for path in .github/workflows/python-quality.yml \
   scripts/verify-python-coverage scripts/verify-python-quality-results; do
   expect_scope "$path" 'packages=[]
 package_selected=false
-skill_authoring=false
 discovery=false
 verification=false'
 done
@@ -400,9 +392,8 @@ case "$mixed" in
 esac
 
 all=$(cd "$fixture" && scripts/detect-python-quality-changes --all | sed '/^installed_pin_required=/d')
-if [ "$all" != 'packages=["plugins/capability/darrow-discovery/skills/work-through-decisions/backend","plugins/capability/darrow-verification/backend","plugins/foundation/darrow-skill-authoring/backend"]
+if [ "$all" != 'packages=["plugins/capability/darrow-discovery/skills/work-through-decisions/backend","plugins/capability/darrow-verification/backend","plugins/capability/darrow-git/backend"]
 package_selected=true
-skill_authoring=true
 discovery=true
 verification=true' ]; then
   printf 'error: --all did not select every Python quality scope\n' >&2
@@ -437,7 +428,6 @@ git -C "$fixture" commit -qm 'test: change third Python package'
 third=$(cd "$fixture" && scripts/detect-python-quality-changes "$third_base" HEAD | sed '/^installed_pin_required=/d')
 if [ "$third" != 'packages=[]
 package_selected=false
-skill_authoring=false
 discovery=false
 verification=false' ]; then
   printf 'error: registered third package was not selected\nactual:\n%s\n' \
@@ -446,9 +436,8 @@ verification=false' ]; then
 fi
 
 third_all=$(cd "$fixture" && scripts/detect-python-quality-changes --all | sed '/^installed_pin_required=/d')
-if [ "$third_all" != 'packages=["plugins/capability/darrow-discovery/skills/work-through-decisions/backend","plugins/capability/darrow-verification/backend","plugins/foundation/darrow-skill-authoring/backend","plugins/capability/darrow-third/backend"]
+if [ "$third_all" != 'packages=["plugins/capability/darrow-discovery/skills/work-through-decisions/backend","plugins/capability/darrow-verification/backend","plugins/capability/darrow-git/backend","plugins/capability/darrow-third/backend"]
 package_selected=true
-skill_authoring=true
 discovery=true
 verification=true' ]; then
   printf 'error: --all omitted a registered third package\nactual:\n%s\n' \
@@ -469,31 +458,21 @@ fi
   success success \
   true success \
   true success success \
-  false skipped skipped \
   false skipped skipped
 "$verifier" \
   success success \
   true success \
-  false skipped skipped \
-  true success success \
-  false skipped skipped
-"$verifier" \
-  success success \
-  true success \
-  false skipped skipped \
   false skipped skipped \
   true success success
 "$verifier" \
   success success \
   false skipped \
   false skipped skipped \
-  false skipped skipped \
   false skipped skipped
 
 if "$verifier" \
   success success \
   false success \
-  false skipped skipped \
   false skipped skipped \
   false skipped skipped >/dev/null 2>&1; then
   printf 'error: aggregate accepted a job that ran for an unchanged scope\n' >&2
@@ -504,7 +483,6 @@ if "$verifier" \
   success success \
   true failure \
   false skipped skipped \
-  false skipped skipped \
   false skipped skipped >/dev/null 2>&1; then
   printf 'error: aggregate accepted a failed registered-package job\n' >&2
   exit 1
@@ -514,7 +492,6 @@ if "$verifier" \
   success success \
   true success \
   true failure success \
-  false skipped skipped \
   false skipped skipped >/dev/null 2>&1; then
   printf 'error: aggregate accepted a failed selected job\n' >&2
   exit 1
@@ -523,7 +500,6 @@ fi
 if "$verifier" \
   failure success \
   true success \
-  true success success \
   true success success \
   true success success >/dev/null 2>&1; then
   printf 'error: aggregate accepted failed change detection\n' >&2

@@ -13,7 +13,6 @@ contracts.
 - [Verification](darrow-verification/README.md) coordinates acceptance evidence through compatible independent review.
 - [Git](darrow-git/README.md) creates branches and commits, publishes verified
   PRs, and posts candidate-bound reviewer evidence.
-- [Tickets](darrow-tickets/README.md) handles exact tracker operations; GitHub Issues is bundled.
 - [Explanation](darrow-explanation/README.md) gives compact grounded visuals.
 
 Read the chosen plugin's local prerequisites, expected effects, and safety
