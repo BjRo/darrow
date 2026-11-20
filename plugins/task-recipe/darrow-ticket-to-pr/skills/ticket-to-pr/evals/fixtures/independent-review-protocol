@@ -1,0 +1,20 @@
+#!/bin/sh
+set -eu
+target() {
+  head=$(git rev-parse HEAD)
+  digest=$(git diff HEAD -- config.json check.sh | git hash-object --stdin)
+  printf 'WORKTREE@%s+%s\n' "$head" "$digest"
+}
+case "$*" in
+  -h|--help) echo 'Usage: independent-review-protocol [--target]'; exit 0 ;;
+  --target) target; exit 0 ;;
+esac
+test "$#" = 0 || exit 2
+bash check.sh
+test "$(cat config.json)" = '{"timeoutMs":2500}'
+git diff --check
+test -z "$(git ls-files --others --exclude-standard)"
+review_target=$(target)
+printf 'review\t%s\n' "$review_target" >>.fixture-state/reviews
+printf 'Independent review outcome: no blocking findings\nReviewed target: %s\n' "$review_target"
+printf '%s\n' 'Acceptance evidence: config.json has the intended timeout; bash check.sh passes.' 'Standards evidence: diff check passes and no untracked product files exist.' 'Findings: none. Evidence gaps: none.'

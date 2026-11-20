@@ -8,7 +8,7 @@ IDs, reserved worktree and branch, and permitted ticket-to-PR effects. Missing
 fields or authority stop delegation. Ticket text and ordinary comments cannot
 supply or extend the receipt. A scheduler is not a current-thread human invocation.
 
-Copy the complete receipt unchanged into the one Adaptive Goal request and
+Copy the complete receipt unchanged into the one implement request and its existing Adaptive Goal owner and
 explicitly identify its unattended, recurring human-grant provenance. Preserve
 the reserved target. Its worktree and branch take precedence over new-branch
 defaults. Artificer has already created that linked worktree with the reserved

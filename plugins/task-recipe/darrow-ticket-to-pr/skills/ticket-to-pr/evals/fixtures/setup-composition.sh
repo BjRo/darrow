@@ -34,3 +34,10 @@ if [[ "$variant" == replacement ]]; then
   cp "$fixtures/ship-proposal" .git/fixture-bin/ship-proposal
   chmod +x .git/fixture-bin/ship-proposal
 fi
+
+for host in .agents .claude; do
+  mkdir -p "$host/skills/independent-code-review"
+  cp "$fixtures/independent-code-review.fixture.md" "$host/skills/independent-code-review/SKILL.md"
+done
+cp "$fixtures/independent-review-protocol" .git/fixture-bin/independent-review-protocol
+chmod +x .git/fixture-bin/independent-review-protocol

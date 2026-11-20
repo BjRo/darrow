@@ -17,20 +17,17 @@ const plugin = new URL(
 );
 const cases = new URL("skills/ticket-to-pr/evals/", plugin);
 
-test("unavailable orchestration oracle accepts the advertised name and rejects missing boundary evidence", async () => {
-  const source = new URL("adaptive-goal-unavailable.yaml", cases);
+test("unavailable implementation oracle accepts the advertised name and rejects missing boundary evidence", async () => {
+  const source = new URL("implement-unavailable.yaml", cases);
   const canonical = await readFixtureCase(source);
   for (const [finalMessage, passes] of [
     [
-      "Status: launch_required. I could not find a host-advertised Adaptive Goal orchestration skill. Native goal controls alone do not meet that boundary.",
+      "Status: launch_required. I could not find a host-advertised approved-work implement recipe. Native goal controls alone do not meet that boundary.",
       true,
     ],
-    [
-      "Status: launch_required. The adaptive-goal capability is unavailable.",
-      true,
-    ],
+    ["Status: launch_required. The implement capability is unavailable.", true],
     ["Status: launch_required. Supply a ticket reference.", false],
-    ["The Adaptive Goal capability is available; work will continue.", false],
+    ["The implement capability is available; work will continue.", false],
   ] as const) {
     const result = await runFixtureChecks({
       source,

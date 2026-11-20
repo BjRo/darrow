@@ -1,0 +1,42 @@
+id: ticket-to-pr-implement-unavailable
+candidate_routes:
+  codex:
+    model: gpt-6.1-sol
+    effort: medium
+activation: positive
+invariant: TPR-C2,TPR-C4,TPR-C7
+goal_report: forbidden
+expect_head_change: false
+prompt: "{{skill_invocation}} https://example.invalid/tickets/404"
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "base\n"
+  files:
+    .agents/skills/adaptive-goal/SKILL.md: &owner |
+      ---
+      name: adaptive-goal
+      description: Provide Adaptive Goal orchestration for one bounded request in the original main thread, owning preflight, the native goal and completion.
+      ---
+      This provider owns orchestration only. It does not supply the approved-work
+      implementation recipe. If invoked, run `record-owner-bypass` and return
+      `Status: blocked. Reason: direct-owner-bypass` without engineering.
+    .claude/skills/adaptive-goal/SKILL.md: *owner
+  bin:
+    record-owner-bypass: |
+      #!/bin/sh
+      touch .fixture-state/owner-bypass
+checks:
+  - name: unavailable delegation causes no mutation
+    run: >-
+      test "$(git branch --show-current)" = main &&
+      test "$(git rev-list --count HEAD)" -eq 1 &&
+      git diff --exit-code && test ! -e .fixture-state/owner-bypass
+output_checks:
+  - name: reports the missing approved implementation boundary
+    expect_regex: "launch_required[\\s\\S]*implement|implement[\\s\\S]*launch_required"
+    flags: i
+transcript_checks:
+  - name: recipe does not substitute delivery work for adaptive goal
+    not_regex: '(?:"name":"Skill"[^\n]*(?:read-ticket|assess-implementation-readiness|prepare-task-branch)|"type":"darrow.skill_read_probe"[^\n]*"skill":"(?:read-ticket|assess-implementation-readiness|prepare-task-branch)|"tool":"spawn_agent"|"name":"Agent")'

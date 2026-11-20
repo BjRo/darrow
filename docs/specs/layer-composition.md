@@ -22,7 +22,10 @@ or publication authority. Host conversation and repository/tracker/forge state
 provide evidence; Darrow adds no lifecycle ledger.
 
 Recipes make recurring grants understandable and consistent, rather than being
-only shorthand. `ticket-to-pr` still delegates once: it chooses no workflow,
+only shorthand. `ticket-to-pr` delegates shared implementation to the explicit approved-work
+recipe (`implement`), which retains one Adaptive Goal owner. It preserves the
+exact ticket, new-branch intent, publication and required-green-CI envelope, and
+passes inherited readiness, test seams, options and limits unchanged. It chooses no workflow,
 model, branch name, review policy or verification command and does no preflight.
 
 ## Shared handoff rule
@@ -56,42 +59,37 @@ model, branch name, review policy or verification command and does no preflight.
    orchestration selects assurance, feedback and repair policy; capabilities execute
    operations and return their assurance evidence; foundations preserve accepted
    policy. A stronger explicit user or repository rule constrains these choices.
-   Readiness owns assessment, not reassessment scheduling. Verification combines
-   selected assessment evidence; review owns its findings. Neither owns the
+   Readiness owns assessment, not reassessment scheduling. Adaptive Goal combines
+   acceptance evidence and gaps; Review owns its findings. Review does not own the
    enclosing repair budget. Confirmation of a missing material choice belongs
    to the owner; established authority survives handoff. Each capability reports its
    operation, the owner reports overall completion, and the recipe relays that result.
 
 ## Adopted operation contracts
 
-Verification is a capability-level assurance coordinator under the
-[verification contract](verification.md). Within a selected operation, compatible
-independent code review is required; optional QA and evidence presentation are
-future separately selected extensions. Verification binds evidence to every
-material originating criterion and returns an initial or closed follow-up
-conclusion. Review owns independent findings and repair judgments. The active
-owner alone owns implementation, combined repairs, the shared budget,
-continuation and overall completion. This boundary does not change which
-engineering goals select assurance or add a second lifecycle controller.
+Adaptive Goal owns acceptance-to-evidence accounting under the
+[Adaptive Goal contract](adaptive-goal.md). It binds every material originating
+criterion to current evidence or a gap and preserves assessment/repair history.
+Independent Review owns its findings and closed repair judgments; review alone
+does not establish complete acceptance. Standalone Verification is no longer a
+required provider. Implement carries approved intent, confirmed seams and
+required public capabilities into that same owner. Neither recipe adds a
+controller, readiness pass or repair budget.
 
-5. **LC-C5 — Combined verification, shared repair.** Adaptive goal binds
-   verification and its compatible required review before owner launch when
-   assurance is selected. The owner supplies successful current required checks,
-   the candidate, originating criteria, constraints and existing evidence.
-   Verification collects every selected assessment result before returning
-   combined eligible blockers. One repair attempt is one owner effort addressing
-   those combined blockers, followed by refreshed checks and fresh closed-set
-   verification; provider count never multiplies the budget. The default maximum
-   is two attempts in total, with explicit finite overrides and the strictest
-   invocation, time, token and authority limits preserved across handoffs.
-   Complete finding and target history travels with each follow-up. Clear current
-   evidence ends repair; further attempts require material progress and remaining
-   budget. Missing, stale, inconclusive, unchanged or oscillating required evidence
+5. **LC-C5 — Combined acceptance, shared repair.** Adaptive Goal binds compatible
+   independent Review before mutation when selected or required by implement.
+   The owner supplies successful current required checks, the exact candidate,
+   originating criteria, constraints and existing evidence. It collects selected
+   assessment results and acceptance gaps before authorizing combined repairs.
+   One repair attempt addresses those combined blockers, then refreshes checks
+   and closed-set assessment; provider count never multiplies the budget.
+   Preserve the owner's default two-attempt maximum, explicit finite overrides,
+   strictest time/token/authority limits and complete finding/target history.
+   Missing, stale, inconclusive, unchanged or oscillating required evidence
    cannot clear completion or remaining publication. A new comprehensive
-   assessment cannot reopen findings or reset this budget. An evidence-supported
-   correction at unchanged code retains prior assessment history and neither
-   spends nor resets implementation repair attempts. The main thread retains
-   coordination and completion; no second owner or ledger is introduced.
+   assessment cannot reopen findings or reset the budget. An evidence-supported
+   correction at unchanged code preserves history without spending or resetting
+   implementation repair attempts. The same main thread retains completion.
 
 | Boundary                      | Prerequisites and effects                                                                                                                                                                        | Result evidence and refusal                                                                                                                                                                                 | Continuation owner                                                                                                            |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |

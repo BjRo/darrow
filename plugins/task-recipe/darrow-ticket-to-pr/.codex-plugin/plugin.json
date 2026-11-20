@@ -1,7 +1,7 @@
 {
   "name": "darrow-ticket-to-pr",
-  "version": "0.7.3",
-  "description": "Delegate one ticket to Adaptive Goal: new branch, TDD, one PR and green required CI",
+  "version": "0.8.0",
+  "description": "Deliver one ticket through implement and one Adaptive Goal: new branch, one PR and green required CI",
   "skills": "./skills/",
   "interface": {
     "displayName": "Darrow -> Ticket to PR",
