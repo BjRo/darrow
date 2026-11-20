@@ -11,6 +11,22 @@ git init -q
 DARROW_EVAL_CASE_DIR="$case_dir" "$BASH" "$case_dir/fixtures/setup.sh" conflict
 test -f docs/specs/repository-guide.md
 cmp "$case_dir/../../../../evals/sevro-extension/index.ts" evals/sevro-extension/index.ts
+missing_snapshot=0
+for extension in md json; do
+  snapshot="evals/experiments/orchestration/snapshots/2026-08-07-n1.$extension"
+  if [ ! -f "$snapshot" ]; then
+    printf 'missing linked historical snapshot: %s\n' "$snapshot" >&2
+    missing_snapshot=1
+    continue
+  fi
+  cmp "$case_dir/../../../../$snapshot" "$snapshot"
+  git ls-files --error-unmatch "$snapshot" >/dev/null
+done
+test "$missing_snapshot" -eq 0
+expected_snapshots=$(printf '%s\n' \
+  evals/experiments/orchestration/snapshots/2026-08-07-n1.json \
+  evals/experiments/orchestration/snapshots/2026-08-07-n1.md)
+test "$(git ls-files evals/experiments)" = "$expected_snapshots"
 test ! -e evals/runner
 test -f docs/research/README.md
 test -f docs/research/retired-links.json

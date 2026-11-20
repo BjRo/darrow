@@ -241,10 +241,26 @@ The retained response and governing retirement/ownership contracts support a
 fixture correction: the rationale proposition now states current facts directly,
 accepts equivalent retirement wording, and leaves host disclosure to its existing
 dedicated check. No product/guide body, no-effects check or prior verdict changed.
-Public regrading of the retained trial is unavailable; the corrected expectation
-has no new native result at this handoff. The parent stopped before foundations
-or Claude, and will run a fresh bounded condition. This is a correction to an
-ambiguous expectation, not an override of the failed semantic verdict.
+Public regrading of the retained trial is unavailable; no regraded result is
+claimed. This is a correction to an ambiguous expectation, not an override of
+the failed semantic verdict. The subsequent fresh trial is recorded below.
+
+The second Codex `guide-rationale` trial,
+`bfd14d71-9e13-40a4-9b27-fd2935e7ad67`, also retains **TASK FAILED**, with
+activation and all shell, disclosure and output checks PASS. Its answer correctly
+explained runtime ownership and retirement but reported a missing linked historical
+report. Inspection confirmed a fixture defect: the retirement contract was copied,
+but its linked `2026-08-07-n1.md` and `.json` snapshots were absent.
+
+The setup fixture now copies and tracks exactly those two historical files from
+`evals/experiments/orchestration/snapshots/`, preserving their bytes. It does not
+copy the experiments tree, executable Pipeline or current acceptance ledger.
+`bash .agents/skills/darrow-guide/evals/fixtures/setup.test.sh` and the same command
+through `/bin/bash` first failed with both missing snapshot paths, then passed
+with exact source-byte, tracked-file and two-file inventory assertions. Existing
+no-effects checks and the rationale proposition remain unchanged by this fix.
+No fresh native result after the snapshot fix is claimed here; foundations and
+Claude had not run when the parent stopped this second condition.
 
 Full combined installed Sevro, final guide native trials, independent assessment,
 parent-local cleanup, push/draft PR and exact-head CI remain parent-owned.

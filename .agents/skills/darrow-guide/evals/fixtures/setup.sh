@@ -41,6 +41,12 @@ for file in "$source_root"/docs/research/*.md; do
 done
 cp "$source_root/docs/research/retired-links.json" docs/research/retired-links.json
 cp "$source_root/evals/sevro-extension/index.ts" evals/sevro-extension/index.ts
+# Retain only the two historical evidence files linked by the retirement contract.
+mkdir -p evals/experiments/orchestration/snapshots
+for extension in md json; do
+  snapshot="evals/experiments/orchestration/snapshots/2026-08-07-n1.$extension"
+  cp "$source_root/$snapshot" "$snapshot"
+done
 cp "$source_root/.claude-plugin/marketplace.json" .claude-plugin/marketplace.json
 for category in "$source_root"/plugins/*; do
   mkdir -p "plugins/$(basename "$category")"
@@ -69,7 +75,9 @@ if [ "${1:-}" = diagnosis ]; then
   cp "$DARROW_EVAL_CASE_DIR/fixtures/diagnose-plugin.template.md" .claude/skills/diagnose-plugin/SKILL.md
 fi
 : > .fixture-state/guide-effects
-git add README.md CONTRIBUTING.md LICENSE package.json docs evals/sevro-extension .claude-plugin plugins
+git add README.md CONTRIBUTING.md LICENSE package.json docs evals/sevro-extension .claude-plugin plugins \
+  evals/experiments/orchestration/snapshots/2026-08-07-n1.md \
+  evals/experiments/orchestration/snapshots/2026-08-07-n1.json
 git -c user.name=Fixture -c user.email=fixture@example.invalid commit -qm "chore: snapshot guide sources"
 git rev-parse HEAD > .git/guide-base
 cp .git/config .git/guide-config
