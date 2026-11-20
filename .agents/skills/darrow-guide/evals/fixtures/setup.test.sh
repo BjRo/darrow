@@ -27,6 +27,22 @@ expected_snapshots=$(printf '%s\n' \
   evals/experiments/orchestration/snapshots/2026-08-07-n1.json \
   evals/experiments/orchestration/snapshots/2026-08-07-n1.md)
 test "$(git ls-files evals/experiments)" = "$expected_snapshots"
+if [ ! -f plugins/capability/darrow-matt-pocock/skills/writing-for-agents/SKILL.md ]; then
+  printf 'missing public skill source: darrow-matt-pocock/writing-for-agents\n' >&2
+  exit 1
+fi
+source_root=$(cd "$case_dir/../../../.." && pwd -P)
+git -C "$source_root" ls-files 'plugins/*/*/skills/**' 'plugins/*/*/references/**' |
+  while IFS= read -r file; do
+    case "$file" in plugins/fixtures/*|*/evals/*) continue ;; esac
+    printf '%s\n' "$file"
+  done > .git/guide-expected-public-files
+while IFS= read -r file; do
+  cmp "$source_root/$file" "$file"
+done < .git/guide-expected-public-files
+git ls-files 'plugins/*/*/skills/**' 'plugins/*/*/references/**' > .git/guide-copied-public-files
+cmp .git/guide-expected-public-files .git/guide-copied-public-files
+test -z "$(find plugins -type d \( -name evals -o -name .git -o -name .fixture-state -o -path '*/backend/tests' \) -print)"
 test ! -e evals/runner
 test -f docs/research/README.md
 test -f docs/research/retired-links.json

@@ -58,14 +58,21 @@ for category in "$source_root"/plugins/*; do
     cp "$plugin/README.md" "$destination/README.md"
     cp "$plugin/.claude-plugin/plugin.json" "$destination/.claude-plugin/plugin.json"
     cp "$plugin/.codex-plugin/plugin.json" "$destination/.codex-plugin/plugin.json"
+    # The guide reads public skill metadata and support files without installing them.
+    for subtree in skills references; do
+      [ -d "$plugin/$subtree" ] || continue
+      while IFS= read -r -d '' file; do
+        relative=${file#"$plugin/"}
+        mkdir -p "$destination/$(dirname "$relative")"
+        cp "$file" "$destination/$relative"
+      done < <(find "$plugin/$subtree" -type d \( -name evals -o -name .git -o -name .fixture-state -o -name .venv -o -name __pycache__ -o -name node_modules \) -prune -o -type f -print0)
+    done
   done
 done
 artificer=plugins/automation/darrow-artificer
-mkdir -p "$artificer/backend" "$artificer/skills/manage-artificer"
+mkdir -p "$artificer/backend"
 cp -R "$source_root/$artificer/backend/src" "$artificer/backend/"
 cp "$source_root/$artificer/backend/pyproject.toml" "$source_root/$artificer/backend/uv.lock" "$artificer/backend/"
-cp "$source_root/$artificer/skills/manage-artificer/SKILL.md" "$artificer/skills/manage-artificer/"
-cp -R "$source_root/$artificer/skills/manage-artificer/references" "$source_root/$artificer/skills/manage-artificer/agents" "$artificer/skills/manage-artificer/"
 if [ "${1:-}" = conflict ]; then
   printf '\n## Activation claim\n\nComplex work starts adaptive-goal automatically without explicit invocation.\n' >> plugins/orchestration/darrow-adaptive-goal/README.md
 fi

@@ -2,9 +2,9 @@
 
 The source cutover integrates the twelve migration slices under
 [#328](https://github.com/BjRo/darrow/issues/328). This record separates source and
-package checks from native host observations. Final independent assessment,
-parent-local duplicate removal, publication and exact-head CI remain pending at
-this worker handoff. It does not claim migration completion or all-green host
+package checks from native host observations. Parent-local duplicate removal is
+complete. Final independent assessment, publication and exact-head CI remain
+pending at this worker handoff. It does not claim migration completion or all-green host
 behavior.
 
 ## Candidate and assurance scope
@@ -50,10 +50,10 @@ not final acceptance; the parent independently reconciles the evidence and gaps.
 | 9. PR presentation, Explanation and IA                      | [Git contract](../specs/git-workflow.md), template/default PR cases; preserved Explanation/IA entrypoints                                                   | Claude motivation semantic grade FAILED; final Spec reconciliation pending                    |
 | 10. Artificer compatibility and host exception              | [Artificer contract](../specs/artificer.md), both-adapter public CLI preflight red→green and 307-test canonical package gate from #335                      | Claude native completion unavailable → needs-attention; no new unattended service/model claim |
 | 11. Eight payload retirements after replacement readiness   | Three retirement test files; no maintained payload/public entrypoints; replacement package/composition tests                                                | Ignored caches are user state, not active plugins                                             |
-| 12. Live tooling retained, obsolete machinery removed       | Surviving Sevro, Review/AG fixtures, Python inventory/selector/CI; Pipeline cells and Decisions validator removed                                           | Parent runs final full installed frozen Sevro gate                                            |
+| 12. Live tooling retained, obsolete machinery removed       | Surviving Sevro, Review/AG fixtures, Python inventory/selector/CI; Pipeline cells and Decisions validator removed                                           | 608-test parent gate passed before later fixture/classifier changes; current refresh pending  |
 | 13. Current docs, history and ADRs                          | Current catalog/guide/spec indexes, archive mappings and general docs checks                                                                                | Historical report bytes preserved; existing narrow ADR notes only                             |
 | 14. Consumer migration                                      | [Replacement map and upgrade procedure](../migrating-to-ten-plugins.md)                                                                                     | Host uninstall/reinstall and fresh sessions are explicit user actions                         |
-| 15. Local duplicates and personal/custom preservation       | Parent comparison identifies seven unchanged Matt directories, five matching Claude links and associated seven lock entries                                 | Parent rechecks and removes only confirmed duplicates after bundle verification; pending here |
+| 15. Local duplicates and personal/custom preservation       | Parent verified and removed seven duplicate Matt directories, five matching Claude links and seven lock entries                                             | Completed after bundle verification; originals backed up and protected state unchanged        |
 | 16. Scoped evidence with honest limits                      | Package/entrypoint and adapted-workflow evidence below; failed/unavailable observations retained                                                            | Final independent acceptance remains pending; no statistical reliability claim                |
 
 ## Twelve slice acceptance criteria
@@ -61,20 +61,20 @@ not final acceptance; the parent independently reconciles the evidence and gaps.
 The criterion ranges below cover every checklist item in each captured ticket.
 They track evidence and temporal sequencing, not independent release authority.
 
-| Ticket and criterion numbers                           | Implemented responsibility and evidence                                                                                                                                                                                                 | Limit or handoff                                                                                                     |
-| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| [#329](https://github.com/BjRo/darrow/issues/329), 1–4 | Pinned installer reuse; source/tool/selection/required files/difference boundary; full notices and provenance gap; disposable public acquisition tests and repeated imports                                                             | Does not establish native execution                                                                                  |
-| [#330](https://github.com/BjRo/darrow/issues/330), 1–6 | Selected non-implement closure, host calls/configured tracker/setup/labels/authority, explicit activation and human seams, independent Review intent, package and entrypoint evidence; implement was withheld until #333                | Final bundle now has 17 skills; Matt setup Claude activation unavailable, separate domain entrypoint passed          |
-| [#331](https://github.com/BjRo/darrow/issues/331), 1–5 | Exact current principle bodies/IDs, omitted helpers, precedence/relative custom files/metadata, authorized routing, package and actual host cases                                                                                       | Luna premature reads violate routing despite task grade; owner-route pass is a distinct trial                        |
-| [#332](https://github.com/BjRo/darrow/issues/332), 1–5 | Acceptance/gaps/history/repair accounting in native main thread; independent Review public binding; updated lifecycle/route/evidence fixtures; real provider runs without Verification; old provider retained until consumer transition | Claude successful final canonical protocol does not erase its failed Skill-tool measurement                          |
-| [#333](https://github.com/BjRo/darrow/issues/333), 1–5 | Approved intent/inherited seams, public bindings/missing-provider stops, local-commit default, recorded implement adaptation, both-host composition/authority controls                                                                  | Original Claude delivery failure and qualified pass remain separate                                                  |
-| [#334](https://github.com/BjRo/darrow/issues/334), 1–6 | Default headings/template precedence, useful representations/evidence limits, merge risk, full borrowed notices, independent Git authority and native PR fixtures                                                                       | Claude semantic motivation failure retained for independent reconciliation                                           |
-| [#335](https://github.com/BjRo/darrow/issues/335), 1–5 | Recipe delegates shared implement/AG work; duplicate implementation and Verification requirements removed; publication/CI preserved; Artificer changes limited to compatibility; both-host adapters and recipe outcomes                 | Artificer Claude completion exception remains; fixture PR/CI is not real service delivery                            |
-| [#336](https://github.com/BjRo/darrow/issues/336), 1–5 | Surviving consumer inventory, native tracker/provider effects, ordinary ADR/writing guidance, updated checks before retirement, untouched user configuration                                                                            | Readiness Claude activation unavailable; Codex branch-task failure retained below                                    |
-| [#337](https://github.com/BjRo/darrow/issues/337), 1–6 | Pipeline payload/exclusive cells removed; original reports/source preserved; narrow authority notes; live benchmark helpers and surviving CI kept; retirement tests; marketplace cutover deferred to #340                               | Historical commands target pinned source, not current runnable Pipeline                                              |
-| [#338](https://github.com/BjRo/darrow/issues/338), 1–5 | Discovery/TDD/Principles/Verification payloads removed; replacements tested; useful tests transferred; obsolete suites/CI/backends removed; shared assessment helpers preserved                                                         | Archived Verification README is byte-identical; no cache deletion                                                    |
-| [#339](https://github.com/BjRo/darrow/issues/339), 1–6 | Tickets/Decisions/Skill Authoring removed; no validator dependency; live Sevro retained; ordinary ADR/catalog maintenance and narrow notes; retirement checks; coordinated marketplace transition                                       | No aliases or hidden backends; unaffected ADR bytes retained                                                         |
-| [#340](https://github.com/BjRo/darrow/issues/340), 1–7 | Exact marketplace, package/check seams, current guidance/license/installer/selector, explicit migration, archive preservation                                                                                                           | Criterion 5 parent-local cleanup and criterion 7 authorized publication pending; final full gates/assessment pending |
+| Ticket and criterion numbers                           | Implemented responsibility and evidence                                                                                                                                                                                                 | Limit or handoff                                                                                            |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| [#329](https://github.com/BjRo/darrow/issues/329), 1–4 | Pinned installer reuse; source/tool/selection/required files/difference boundary; full notices and provenance gap; disposable public acquisition tests and repeated imports                                                             | Does not establish native execution                                                                         |
+| [#330](https://github.com/BjRo/darrow/issues/330), 1–6 | Selected non-implement closure, host calls/configured tracker/setup/labels/authority, explicit activation and human seams, independent Review intent, package and entrypoint evidence; implement was withheld until #333                | Final bundle now has 17 skills; Matt setup Claude activation unavailable, separate domain entrypoint passed |
+| [#331](https://github.com/BjRo/darrow/issues/331), 1–5 | Exact current principle bodies/IDs, omitted helpers, precedence/relative custom files/metadata, authorized routing, package and actual host cases                                                                                       | Luna premature reads violate routing despite task grade; owner-route pass is a distinct trial               |
+| [#332](https://github.com/BjRo/darrow/issues/332), 1–5 | Acceptance/gaps/history/repair accounting in native main thread; independent Review public binding; updated lifecycle/route/evidence fixtures; real provider runs without Verification; old provider retained until consumer transition | Claude successful final canonical protocol does not erase its failed Skill-tool measurement                 |
+| [#333](https://github.com/BjRo/darrow/issues/333), 1–5 | Approved intent/inherited seams, public bindings/missing-provider stops, local-commit default, recorded implement adaptation, both-host composition/authority controls                                                                  | Original Claude delivery failure and qualified pass remain separate                                         |
+| [#334](https://github.com/BjRo/darrow/issues/334), 1–6 | Default headings/template precedence, useful representations/evidence limits, merge risk, full borrowed notices, independent Git authority and native PR fixtures                                                                       | Claude semantic motivation failure retained for independent reconciliation                                  |
+| [#335](https://github.com/BjRo/darrow/issues/335), 1–5 | Recipe delegates shared implement/AG work; duplicate implementation and Verification requirements removed; publication/CI preserved; Artificer changes limited to compatibility; both-host adapters and recipe outcomes                 | Artificer Claude completion exception remains; fixture PR/CI is not real service delivery                   |
+| [#336](https://github.com/BjRo/darrow/issues/336), 1–5 | Surviving consumer inventory, native tracker/provider effects, ordinary ADR/writing guidance, updated checks before retirement, untouched user configuration                                                                            | Readiness Claude activation unavailable; Codex branch-task failure retained below                           |
+| [#337](https://github.com/BjRo/darrow/issues/337), 1–6 | Pipeline payload/exclusive cells removed; original reports/source preserved; narrow authority notes; live benchmark helpers and surviving CI kept; retirement tests; marketplace cutover deferred to #340                               | Historical commands target pinned source, not current runnable Pipeline                                     |
+| [#338](https://github.com/BjRo/darrow/issues/338), 1–5 | Discovery/TDD/Principles/Verification payloads removed; replacements tested; useful tests transferred; obsolete suites/CI/backends removed; shared assessment helpers preserved                                                         | Archived Verification README is byte-identical; no cache deletion                                           |
+| [#339](https://github.com/BjRo/darrow/issues/339), 1–6 | Tickets/Decisions/Skill Authoring removed; no validator dependency; live Sevro retained; ordinary ADR/catalog maintenance and narrow notes; retirement checks; coordinated marketplace transition                                       | No aliases or hidden backends; unaffected ADR bytes retained                                                |
+| [#340](https://github.com/BjRo/darrow/issues/340), 1–7 | Exact marketplace, package/check seams, current guidance/license/installer/selector, explicit migration, archive preservation                                                                                                           | Criterion 5 cleanup complete; criterion 7 publication and final current gates/assessment pending            |
 
 ## Native observations and conditions
 
@@ -307,13 +307,56 @@ These are **ungraded oracle-review examples**, not regraded results or new trial
   the retired Decisions or Skill Authoring plugins, or saying complexity alone
   authorizes orchestration, is a plausible wrong answer.
 
-Public semantic regrading is unavailable. No semantic green result is claimed
-for this combined correction. The parent will run each corrected question once
-on each actual host after integration; any remaining failure is reported rather
-than starting another assertion-tuning loop.
+Public semantic regrading is unavailable; the old results were not regraded.
+The parent ran fresh conditions after integrating the combined correction:
 
-Full combined installed Sevro, final guide native trials, independent assessment,
-parent-local cleanup, push/draft PR and exact-head CI remain parent-owned.
+| Host and question            | Run                                    | Task / activation |
+| ---------------------------- | -------------------------------------- | ----------------- |
+| Codex rationale              | `54b80b4b-88cb-406e-a962-140dda83668a` | PASS / PASS       |
+| Claude rationale             | `ecbd8ab0-e7d4-4f63-afdf-edf9e9c28312` | PASS / PASS       |
+| Codex foundations            | `0d4a77ed-2bc8-4e41-b0f4-d06d1afda13b` | PASS / PASS       |
+| Claude Sonnet foundations    | `f515aefe-9d22-4172-8c1e-4eaaac90ee94` | FAILED / PASS     |
+| Claude Opus/high foundations | `11e5e65c-44b6-4530-ab31-c1e2d3c1b8d4` | FAILED / PASS     |
+
+Both Claude foundations failures retain their original grades. No-effects checks
+passed. Inspection established a concrete fixture source gap: plugin READMEs and
+manifests were copied without public skill folders, and Matt's README does not
+name writing-for-agents. Opus accurately reported missing source; the semantic
+grader treated that read-only observation as environment diagnosis. This is not
+a reason to change the product or tune the semantic proposition again.
+
+The existing setup now copies public skills and contained references/support,
+excluding evals, hidden grading and caches. The public setup test failed on the
+missing writing-for-agents source, then passed under both `bash` and `/bin/bash`,
+comparing source bytes and the complete tracked public-file inventory. Its first
+expanded inventory incorrectly included non-public `plugins/fixtures` sources;
+that test-only scope error was corrected, not counted as another behavioral red.
+Current acceptance ledgers remain excluded; no plugins are installed by copying
+these read-only sources.
+
+The disclosure classifier also rejected ordinary qualifiers: Opus said support
+covers only what documents show and development is mainly with Codex; Sonnet
+combined workflow-evidence-only and scoped Claude support in adjacent sentences.
+Two public extension/Sevro red-to-green slices add only those bounded forms.
+Regressions reject missing or negated development-host qualification, unrestricted
+support, unrelated evidence and separated/non-adjacent sentences. Complete,
+unique, host-bound final-response requirements remain unchanged. Prompts, Guide
+bodies, semantic propositions and the generic runner are unchanged by these fixes.
+No fresh native pass after this source/classifier repair is claimed here.
+
+Before these fixes, at `3cb079aeeef6124085c24fbe91785e265b00de1e`, the parent
+observed the frozen `bun run test:evals` gate pass 608 tests / 6,280 assertions
+and all 14 current quality checks pass. The canonical `bun run check:python`
+passed 1,599 tests with one skip across five backends. It ran at `fa365de0`;
+`final-python-current-scope.json` proves all five backend and Python gate inputs
+have identical Git objects at `3cb079a`. The retained logs are
+`final-evals-fixed.log`, `final-current-quality-results.json`, and
+`final-python.log` under the private migration evidence directory. These are
+candidate-bound results, not passes for later changed adapter/fixture inputs.
+
+The parent owns the current frozen-suite refresh, affected native reruns,
+independent assessment, push/draft PR and exact-head CI. Further failures remain
+reported evidence; no additional assertion-tuning loop is authorized.
 
 ## Preservation and remaining acceptance
 
@@ -328,10 +371,16 @@ Existing ADR supersession notes from prior slices remain; this cutover edits no 
 supersessions without changing status or relationships.
 
 The parent preservation snapshot and comparison remain private under
-`/tmp/darrow-migration-328.1TiGCl/`. Seven local copies, five Claude links and
-associated lock entries still match that baseline. The first five directories
-match raw imports; to-spec/to-tickets differ only by the exact full pinned MIT
-notice. Cleanup is pending the parent's recheck after bundle verification.
+`/tmp/darrow-migration-328.1TiGCl/`. After bundle verification, the parent rechecked
+every target against the original snapshot and pinned source, backed up originals
+in `local-duplicates-backup/`, and removed only seven duplicate directories
+(20 files), five unchanged Claude links and seven matching lock entries. The
+lock contained only those entries and its version, so the empty artifact was
+removed. The first five directories matched raw imports; to-spec/to-tickets
+differed only by the exact full pinned MIT notice. `local-duplicates-cleanup.json`
+records the completed cleanup; `verify-preservation.py` passed at `3cb079a`,
+verifying all 26 backed-up files/links, nine original scratch files, and protected
+history/routing state. No unrelated local content was removed.
 The main effective table is the worktree `.darrow/principles.md`, SHA-256
 `082e5aa18509ef705c215a86f433e5cb2d2eef470df1d82ff7852891e0676087`;
 the personal table is absent. No personal table is created, no unlisted custom

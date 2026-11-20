@@ -6290,6 +6290,27 @@ async function caseOwnershipChecks(details: RecordValue, params: RecordValue) {
   return [];
 }
 
+function guideSupportDisclosure(text: string): boolean {
+  return (
+    /(?:scop[^.]*evidence|evidence[^.]*scop)/i.test(text) ||
+    /\bSupport here covers only what the documents show\b/i.test(text) ||
+    text
+      .split(/\n\s*\n/)
+      .some((paragraph) =>
+        /\bEvidence is documented workflow evidence only\b[^.!?]*[.!?]\s+Claude Code support is scoped to the documented bundles\b/i.test(
+          paragraph,
+        ),
+      )
+  );
+}
+
+function guidePrimaryDevelopment(text: string): boolean {
+  return (
+    /primar[^.]*Codex|Codex[^.]*primar/i.test(text) ||
+    /\bDarrow is developed mainly with Codex\b/i.test(text)
+  );
+}
+
 function guideDisclosureStatus(observations: unknown): OwnershipStatus {
   const final = uniqueObservation(
     observations,
@@ -6302,8 +6323,7 @@ function guideDisclosureStatus(observations: unknown): OwnershipStatus {
     typeof text === "string";
   if (!available) return "unavailable";
   if (final.source === "sevro.host.codex") return "passed";
-  return /(?:scop[^.]*evidence|evidence[^.]*scop)/i.test(text) &&
-    /primar[^.]*Codex|Codex[^.]*primar/i.test(text)
+  return guideSupportDisclosure(text) && guidePrimaryDevelopment(text)
     ? "passed"
     : "failed";
 }
