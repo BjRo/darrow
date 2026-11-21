@@ -291,7 +291,7 @@ function caseFixture(value: unknown) {
   };
 }
 
-const GUIDE_DISCLOSURE_SCRIPT = `if [ "$DARROW_EVAL_HARNESS" = claude ] && [ -f .git/last-message.md ]; then grep -Ei "best.effort" .git/last-message.md >/dev/null && grep -Ei "primar[^.]*Codex|Codex[^.]*primar" .git/last-message.md >/dev/null; fi`;
+const GUIDE_DISCLOSURE_SCRIPT = `if [ "$DARROW_EVAL_HARNESS" = claude ] && [ -f .git/last-message.md ]; then grep -Ei "scop[^.]*evidence|evidence[^.]*scop" .git/last-message.md >/dev/null && grep -Ei "primar[^.]*Codex|Codex[^.]*primar" .git/last-message.md >/dev/null; fi`;
 
 function guideDisclosure(run: string, skillDir: string | null) {
   if (skillDir !== ".agents/skills/darrow-guide") return false;
@@ -1374,6 +1374,7 @@ const TRANSCRIPT_EVIDENCE = new Map([
   ["guide-no-owner-or-goal-control", ["sevro.host.native-controls"]],
   ["review-no-agent-spawn", ["sevro.host.native-controls"]],
   ["doctor-no-agent-spawn", ["sevro.host.native-controls"]],
+  ["preflight-no-agent-spawn", ["sevro.host.native-controls"]],
   ["no-agent-spawn", ["sevro.codex.native-calls"]],
   ["one-owner-accepted", ["sevro.codex.native-calls"]],
   ["owner-route", ["sevro.codex.native-calls"]],
@@ -1661,7 +1662,16 @@ function nativeGoalCasePolicy(selected: RecordValue, skillDir: string | null) {
   const selection = currentTranscriptSelection(selected.transcript_checks);
   const transcriptChecks = {
     ...selection,
-    legacy: scopedTranscriptSelection(selection.legacy, skillDir) ?? [],
+    legacy: (scopedTranscriptSelection(selection.legacy, skillDir) ?? []).map(
+      (check) =>
+        selected.id === "goal-preflight-ticket-input" &&
+        skillDir ===
+          "plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal" &&
+        selected.native_goal === "forbidden" &&
+        check.kind === "no-agent-spawn"
+          ? { ...check, kind: "preflight-no-agent-spawn" }
+          : check,
+    ),
   };
   return {
     checks: [
@@ -3022,6 +3032,7 @@ function requiredNativeRoute(details: RecordValue) {
         "guide-no-owner-or-goal-control",
         "review-no-agent-spawn",
         "doctor-no-agent-spawn",
+        "preflight-no-agent-spawn",
         "assessment-readers",
       ].includes(String(activationData(check)?.kind)),
     );
@@ -5442,6 +5453,7 @@ async function nativeTranscriptChecks(
       "guide-no-owner-or-goal-control",
       "review-no-agent-spawn",
       "doctor-no-agent-spawn",
+      "preflight-no-agent-spawn",
     ].includes(String(entry.kind))
       ? portableNativeControlOutcome(
           observations,
@@ -6278,6 +6290,27 @@ async function caseOwnershipChecks(details: RecordValue, params: RecordValue) {
   return [];
 }
 
+function guideSupportDisclosure(text: string): boolean {
+  return (
+    /(?:scop[^.]*evidence|evidence[^.]*scop)/i.test(text) ||
+    /\bSupport here covers only what the documents show\b/i.test(text) ||
+    text
+      .split(/\n\s*\n/)
+      .some((paragraph) =>
+        /\bEvidence is documented workflow evidence only\b[^.!?]*[.!?]\s+Claude Code support is scoped to the documented bundles\b/i.test(
+          paragraph,
+        ),
+      )
+  );
+}
+
+function guidePrimaryDevelopment(text: string): boolean {
+  return (
+    /primar[^.]*Codex|Codex[^.]*primar/i.test(text) ||
+    /\bDarrow is developed mainly with Codex\b/i.test(text)
+  );
+}
+
 function guideDisclosureStatus(observations: unknown): OwnershipStatus {
   const final = uniqueObservation(
     observations,
@@ -6290,8 +6323,7 @@ function guideDisclosureStatus(observations: unknown): OwnershipStatus {
     typeof text === "string";
   if (!available) return "unavailable";
   if (final.source === "sevro.host.codex") return "passed";
-  return /best.effort/i.test(text) &&
-    /primar[^.]*Codex|Codex[^.]*primar/i.test(text)
+  return guideSupportDisclosure(text) && guidePrimaryDevelopment(text)
     ? "passed"
     : "failed";
 }

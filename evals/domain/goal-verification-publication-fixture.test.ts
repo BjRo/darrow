@@ -18,7 +18,6 @@ test("verification protocol usage has no effects after every invocation", async 
   const checks: OracleCheck[] = [localEdit];
   for (const protocol of [
     "inspect-delivery-protocol",
-    "assess-delivery-protocol",
     "create-commit-protocol",
     "create-pr-protocol",
   ]) {
@@ -57,8 +56,8 @@ for (const effect of ["none", "commit", "publication"] as const) {
       localEdit,
       { name: "successful local check", run: "bash check.sh" },
       {
-        name: "zero-exit incomplete assessment",
-        run: "assess-delivery-protocol",
+        name: "clear local review with unavailable staging evidence",
+        run: "inspect-delivery-protocol",
       },
     ];
     if (effect !== "none")
@@ -94,12 +93,11 @@ for (const effect of ["none", "commit", "publication"] as const) {
   }, 20_000);
 }
 
-test("direct review without the verification operation cannot satisfy the observation", async () => {
+test("missing required review cannot satisfy the observation", async () => {
   const canonical = await readFixtureCase(source);
   const actions: OracleCheck[] = [
     localEdit,
     { name: "check", run: "bash check.sh" },
-    { name: "direct review", run: "inspect-delivery-protocol" },
   ];
   const result = await runFixtureChecks({
     source,

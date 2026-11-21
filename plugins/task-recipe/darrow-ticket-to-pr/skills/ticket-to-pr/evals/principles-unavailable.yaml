@@ -10,8 +10,8 @@ goal_report: forbidden
 expect_head_change: false
 prompt: >-
   {{skill_invocation}} https://example.invalid/tickets/42
-  This host advertises bounded-delivery on PATH as an Adaptive Goal
-  orchestration interface. Its contract is available through
+  This host advertises bounded-delivery on PATH as an approved-work implementation
+  interface. Its contract is available through
   `bounded-delivery --describe`. No other relevant capability is installed.
 fixture:
   commits:
@@ -25,7 +25,7 @@ fixture:
       test "$#" -eq 1
       if test "$1" = --describe; then
         printf '%s\n' \
-          'Contract: Adaptive Goal orchestration for one bounded delivery in the original main thread, owning preflight, native goal, implementation, verification and completion.' \
+          'Contract: approved-work implementation through one Adaptive Goal owner for one bounded delivery in the original main thread, owning preflight, native goal, implementation, verification and completion.' \
           'Interface: bounded-delivery <complete-request-as-one-argument>' \
           'Accept one recipe delegation and return a blocker before preflight or goal activation. Do not launch a child or perform delivery.'
         exit 0
@@ -46,10 +46,11 @@ semantic_artifact:
         The delegated request requires TDD, verification, commits, non-force
         push, one PR and required CI green on the final commit. It excludes
         merge, deployment, release, ticket mutation and destructive Git effects.
-    - name: optional approach remains in the delegated request
+    - name: shared implementation requirements are preserved
       proposition: >-
-        The delegated request instructs its receiving orchestrator to apply the
-        principles-first approach when it is available.
+        The delegated request requires following the shared implementation recipe
+        and preserving its required providers. It does not waive a required
+        principles provider or authorize native fallback around a refusal.
 semantic_output_checks:
   - name: owner blocker is relayed without a recipe guidance procedure
     proposition: >-

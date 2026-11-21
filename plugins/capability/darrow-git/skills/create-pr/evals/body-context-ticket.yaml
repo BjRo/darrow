@@ -2,7 +2,11 @@ id: create-pr-body-context-ticket
 invariant: GW-P2
 activation: positive
 mount_plugin_skills: true
-prompt: Open a PR for the retry work.
+prompt: >-
+  Open a PR for the retry work. A local stub observation on this branch found
+  that get completed on the third attempt after two network rejections; the
+  base version rejected on the first attempt. This observation did not contact
+  a live service. No full-suite result is available.
 fixture:
   commits:
     - message: "chore: init"
@@ -84,6 +88,9 @@ checks:
   - name: ticket referenced verbatim
     run: cat .fixture-state/gh/body
     expect_regex: "DAR-123"
+  - name: default presentation sections
+    run: cat .fixture-state/gh/body
+    expect_regex: "^## Summary$[\\s\\S]*^## Evidence$[\\s\\S]*^## Merge Danger$"
 semantic_artifact:
   path: .fixture-state/gh/body
   checks:
@@ -94,3 +101,19 @@ semantic_artifact:
         describes the change at a high level, such as adding retries or
         exponential backoff. The relevant meaning may be shared across the
         whole body without separate paragraphs or repeated terms.
+    - name: available before and after evidence with limits
+      proposition: >-
+        The PR body presents the supplied local stub observation: the base
+        failed on the first network rejection, while the branch completed on
+        the third attempt after two rejections. It limits this evidence to a
+        local stub, does not claim live-service validation, and makes clear
+        that no full-suite passing result is available. Committed tests are
+        not presented as executed or passing without evidence.
+    - name: proportionate merge risk and uncertainty
+      proposition: >-
+        The PR body identifies a concrete consequence of retrying failed
+        requests, such as added latency or additional requests, and relates
+        the affected scope to callers of the HTTP get helper. It addresses
+        reversibility without claiming that all consumer effects or production
+        rollback safety have been verified. A short qualified assessment is
+        sufficient; no fixed risk label or score is required.

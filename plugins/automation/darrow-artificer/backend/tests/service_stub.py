@@ -17,7 +17,7 @@ def emit(value: object) -> None:
 
 
 def skills() -> list[str]:
-    values = ["adaptive-goal", "verify-change", "code-review", "ticket-to-pr"]
+    values = ["adaptive-goal", "implement", "code-review", "ticket-to-pr"]
     if os.environ.get("ARTIFICER_MISSING_CORE"):
         values.remove("code-review")
     return values

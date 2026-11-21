@@ -16,11 +16,10 @@ const adaptive = "plugins/orchestration/darrow-adaptive-goal";
 const recipe = "plugins/task-recipe/darrow-ticket-to-pr";
 const capabilities = [
   "darrow-readiness-gate",
-  "darrow-verification",
   "darrow-review",
-  "darrow-tdd",
+  "darrow-matt-pocock",
+  "darrow-pstack",
   "darrow-git",
-  "darrow-tickets",
 ].map((name) => `plugins/capability/${name}`);
 const excluded = new Set([
   ".venv",
@@ -66,21 +65,23 @@ async function json(path: string, value: unknown) {
 }
 
 function supportingSkills(track: "implementation" | "delivery") {
+  const capability = (plugin: string, skill: string) =>
+    `plugins/capability/${plugin}/skills/${skill}`;
   return [
-    `${capabilities[0]}/skills/assess-implementation-readiness`,
-    `${capabilities[1]}/skills/verify-change`,
-    `${capabilities[2]}/skills/code-review`,
-    `${capabilities[3]}/skills/tdd`,
+    capability("darrow-readiness-gate", "assess-implementation-readiness"),
+    capability("darrow-review", "code-review"),
+    capability("darrow-matt-pocock", "tdd"),
+    capability("darrow-pstack", "principles-first"),
     ...(track === "delivery"
       ? [
+          capability("darrow-matt-pocock", "implement"),
           `${adaptive}/skills/adaptive-goal`,
           ...[
             "create-branch",
             "prepare-task-branch",
             "create-commit",
             "create-pr",
-          ].map((skill) => `${capabilities[4]}/skills/${skill}`),
-          `${capabilities[5]}/skills/read-ticket`,
+          ].map((skill) => capability("darrow-git", skill)),
         ]
       : []),
   ];
@@ -140,7 +141,7 @@ async function prepareConditions(experiment: string) {
   );
   await writeFile(
     join(conditions, "ticket-to-pr.md"),
-    "Use {{skill_invocation}} for GitHub issue 1, preserving all caller options in the request below. Follow the current recipe and its delegated Adaptive Goal in this main thread.\n",
+    "Use {{skill_invocation}} for GitHub issue 1, preserving all caller options in the request below. Follow the current recipe and its shared implement recipe and one Adaptive Goal owner in this main thread.\n",
   );
   await writeFile(
     join(conditions, "vanilla-delivery.md"),
@@ -180,10 +181,9 @@ async function prepareTask(experiment: string, task: string) {
       check.name.startsWith("focused upstream") ||
       check.name === "Ajv TypeScript build",
   );
-  if (!focused || !original.fixture.ticket)
-    throw new Error(`Historical task ${task} lacks CI or ticket input`);
+  if (!focused) throw new Error(`Historical task ${task} lacks CI input`);
   await json(join(assets, "task.json"), {
-    title: original.fixture.ticket.title,
+    title: original.id,
     body: engineering,
     ci: focused.run,
     base: "main",
@@ -216,10 +216,8 @@ async function prepareRuntime(project: string) {
     ),
   );
   runtime.network = { localHttp: true };
-  runtime.runtime.sharedCacheDirectories[0].roles.push("hooks");
-  runtime.hooks.plugins = ["darrow-review", "darrow-tdd", "darrow-tickets"];
+  runtime.hooks.plugins = ["darrow-review"];
   await json(join(project, "runtime-candidate-delivery.json"), runtime);
-  runtime.hooks.plugins = ["darrow-review", "darrow-tdd"];
   await json(join(project, "runtime-candidate-implementation.json"), runtime);
   delete runtime.hooks.plugins;
   await json(join(project, "runtime-vanilla.json"), runtime);

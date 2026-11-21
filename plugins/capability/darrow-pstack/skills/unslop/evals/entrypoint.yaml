@@ -1,0 +1,24 @@
+id: pstack-unslop-explicit-entrypoint
+activation: positive
+invariant: Pstack packaged explicit-only upstream entrypoint
+expect_head_change: false
+prompt: >-
+  {{skill_invocation}} Edit announcement.md. Preserve the concrete facts and save the
+  revised writing in announcement.md. Do not change any other file.
+fixture:
+  commits:
+    - message: "chore: seed announcement"
+      files:
+        announcement.md: |
+          Additionally, it is important to note that our crucial export feature
+          serves as a powerful tool, highlighting our commitment to excellence.
+          Version 2 exports invoices as CSV. Exports include invoice IDs and totals.
+        keep.txt: |
+          This file must remain unchanged.
+checks:
+  - name: requested edit preserves concrete export facts
+    run: >-
+      grep -q 'Version 2' announcement.md && grep -q 'CSV' announcement.md &&
+      grep -qi 'invoice' announcement.md && grep -qi 'totals' announcement.md &&
+      ! git diff --quiet -- announcement.md && git diff --exit-code -- keep.txt
+native_goal: forbidden

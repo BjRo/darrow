@@ -249,6 +249,7 @@ interface ExtensionReply {
           activation?: {
             class: string;
             targetSkill: string;
+            includes?: string[];
             excludes?: string[];
           };
           setupDigest?: string;
@@ -361,7 +362,10 @@ test("Darrow extension resolves supported cases and rejects unsupported fixtures
   );
   const activationCase = await command<ExtensionReply>(
     [process.execPath, extension],
-    request("resolve", resolveParams("audit-agent-skill-validate-read-only")),
+    request(
+      "resolve",
+      resolveParams("pstack-principles-first-default-bundled-loading"),
+    ),
   );
   expect(activationCase.code, activationCase.stderr).toBe(0);
   expect(
@@ -369,8 +373,9 @@ test("Darrow extension resolves supported cases and rejects unsupported fixtures
       .activation,
   ).toEqual({
     class: "positive",
-    targetSkill: "audit-agent-skill",
-    excludes: ["create-agent-skill"],
+    targetSkill: "principles-first",
+    includes: ["principle-type-system-discipline"],
+    excludes: ["principle-attack-the-premise"],
   });
   const siblingCase = await command<ExtensionReply>(
     [process.execPath, extension],
@@ -1258,8 +1263,8 @@ test("Darrow retains ticket workflow diagnostics from supporting reads and forbi
     completeness: "complete",
     data: {
       method: "skill_file_read_probe",
-      primarySkill: "adaptive-goal",
-      observedSkills: ["adaptive-goal"],
+      primarySkill: "ticket-to-pr",
+      observedSkills: ["ticket-to-pr", "implement"],
     },
   };
   const native = {
@@ -1290,6 +1295,7 @@ test("Darrow retains ticket workflow diagnostics from supporting reads and forbi
     selectedCase: ExtensionReply["result"]["cases"][number],
     observations: unknown[],
     artifacts: unknown[] = [],
+    prefix = "darrow.evals.workflow.transcript.",
   ) => {
     const reply = await command<{
       result: { domainOutcomes: Array<{ id: string; status: string }> };
@@ -1305,9 +1311,7 @@ test("Darrow retains ticket workflow diagnostics from supporting reads and forbi
     expect(reply.code, reply.stderr).toBe(0);
     expect(reply.value.result, reply.value.error?.message).toBeDefined();
     return reply.value.result.domainOutcomes
-      .filter((check) =>
-        check.id.startsWith("darrow.evals.workflow.transcript."),
-      )
+      .filter((check) => check.id.startsWith(prefix))
       .map((check) => check.status);
   };
   const explicit = await resolveTicket(
@@ -1330,7 +1334,44 @@ test("Darrow retains ticket workflow diagnostics from supporting reads and forbi
       primarySkillCompleteness: "complete",
     },
   };
-  expect(await statuses(explicit, [common])).toEqual(["passed"]);
+  const explicitOwner = {
+    id: "sevro.codex.explicit-invocation",
+    source: "sevro.host.codex",
+    completeness: "complete",
+    data: { method: "explicit_invocation", primarySkill: "ticket-to-pr" },
+  };
+  const activation = (observations: unknown[]) =>
+    statuses(
+      explicit,
+      [explicitOwner, ...observations],
+      [],
+      "darrow.evals.activation",
+    );
+  expect(await activation([common])).toEqual(["passed"]);
+  for (const invalid of [
+    [],
+    [{ ...common, completeness: "partial" }, skills],
+    [common, common, skills],
+    [{ ...common, source: "foreign" }, skills],
+  ])
+    expect(await activation(invalid)).toEqual(["unavailable"]);
+  for (const [observedSkills, expected] of [
+    [["ticket-to-pr"], "failed"],
+    [["ticket-to-pr", "foreign:implement"], "unavailable"],
+  ] as const)
+    expect(
+      await activation([
+        {
+          ...common,
+          data: {
+            ...common.data,
+            primarySkill: observedSkills[0],
+            observedSkills,
+          },
+        },
+      ]),
+    ).toEqual([expected]);
+  // Full supporting-collection provenance permutations remain in activation-policy.test.ts.
   const claudeCommon = {
     ...common,
     source: "sevro.host.claude",
@@ -1340,64 +1381,10 @@ test("Darrow retains ticket workflow diagnostics from supporting reads and forbi
       visibility: "skill_tool",
     },
   };
-  for (const observations of [[claudeCommon], [claudeCommon, skills]])
-    expect(await statuses(explicit, observations)).toEqual(["unavailable"]);
-  const cited = await command<{
-    result: { domainOutcomes: { id: string; evidenceRefs: string[] }[] };
-  }>(
-    [process.execPath, extension],
-    request("evaluate", {
-      extensionData: explicit.extensionData,
-      observations: [common],
-    }),
-  );
-  expect(
-    cited.value.result.domainOutcomes.find(
-      (check) => check.id === "darrow.evals.workflow.transcript.1",
-    )?.evidenceRefs,
-  ).toEqual(["sevro.host.skill-activations"]);
-  for (const invalid of [
-    [{ ...common, completeness: "partial" }, skills],
-    [common, common, skills],
-    [{ ...common, source: "sevro.host.claude" }, skills],
-    [
-      {
-        ...common,
-        data: {
-          ...common.data,
-          primarySkill: "foreign:adaptive-goal",
-          observedSkills: ["foreign:adaptive-goal"],
-        },
-      },
-      skills,
-    ],
-    [
-      {
-        id: "sevro.host.skill-activation-claims",
-        source: "sevro.host.codex",
-        completeness: "complete",
-        data: {
-          scope: "primary_and_positive_presence",
-          collectionCompleteness: "partial",
-          primarySkill: "adaptive-goal",
-          presentSkills: ["adaptive-goal"],
-        },
-      },
-      skills,
-    ],
-  ])
-    expect(await statuses(explicit, invalid)).toEqual(["unavailable"]);
-  expect(await statuses(explicit, [skills])).toEqual(["unavailable"]);
-  expect(await statuses(explicit, [])).toEqual(["unavailable"]);
   const shortcut = await resolveTicket("ticket-to-pr-shortcut-delegation");
-  expect(await statuses(shortcut, [common], [clean])).toEqual([
-    "passed",
-    "passed",
-  ]);
-  expect((await statuses(shortcut, [common], [forbidden]))[1]).toBe("failed");
-  const unavailable = await resolveTicket(
-    "ticket-to-pr-adaptive-goal-unavailable",
-  );
+  expect(await statuses(shortcut, [common], [clean])).toEqual(["passed"]);
+  expect((await statuses(shortcut, [common], [forbidden]))[0]).toBe("failed");
+  const unavailable = await resolveTicket("ticket-to-pr-implement-unavailable");
   const ticketReads = {
     ...common,
     data: {
@@ -1757,19 +1744,7 @@ test("v2 assessment placement binds completed direct readers to native sessions"
       .filter((check) => check.id.startsWith("darrow.evals.transcript."))
       .map((check) => check.status);
   };
-  const followups = [
-    "verification-followup-clear",
-    "verification-followup-no-progress",
-    "verification-followup-progress",
-    "verification-followup-regression",
-  ];
-  for (const caseId of [
-    ...followups,
-    "verification-existing-review",
-    "verification-criterion-gap",
-    "verification-indirect",
-    "verification-replacement",
-  ]) {
+  for (const caseId of ["code-review-placement-inline"]) {
     const selected = await command<ExtensionReply>(
       [process.execPath, extension],
       request("resolve", {
@@ -1784,9 +1759,7 @@ test("v2 assessment placement binds completed direct readers to native sessions"
       "sevro.host.native-controls",
     );
     expect((await statuses(selectedCase, null))[0]).toBe("unavailable");
-    const native = observation(
-      followups.includes(caseId) ? [spec] : [spec, standards],
-    );
+    const native = observation([spec, standards]);
     expect(await statuses(selectedCase, native, [artifact])).toEqual([
       "passed",
     ]);
@@ -1917,7 +1890,7 @@ test("v2 assessment placement binds completed direct readers to native sessions"
       )[0],
     ).toBe("failed");
   }
-  // Eight public case mappings each exercise the native-proof counterexamples.
+  // The surviving Review case exercises the shared native-proof counterexamples.
 }, 90_000);
 
 test("Darrow grades a resumed conversation and its unchanged workspace boundary", async () => {
@@ -2629,7 +2602,9 @@ test("no-skill preparation omits mounts and activation grading", async () => {
     [process.execPath, extension],
     request("resolve", {
       projectRoot: pathToFileURL(projectRoot).href,
-      selectors: { caseIds: ["audit-agent-skill-validate-read-only"] },
+      selectors: {
+        caseIds: ["create-branch-existing-no-clobber"],
+      },
       configuration: { withoutSkill: true },
     }),
   );
@@ -2665,7 +2640,9 @@ test("no-skill preparation omits mounts and activation grading", async () => {
     [process.execPath, extension],
     request("resolve", {
       projectRoot: pathToFileURL(projectRoot).href,
-      selectors: { caseIds: ["grilling-direct-frontier"] },
+      selectors: {
+        caseIds: ["pstack-principles-first-default-bundled-loading"],
+      },
       configuration: { withoutSkill: true },
     }),
   );
@@ -2845,14 +2822,11 @@ test("real composition providers fit the Sevro preparation boundary", async () =
               skillDir,
               mountPluginSkills: true,
             },
-            additionalPlugins: [
-              "plugins/capability/darrow-verification",
-              "plugins/capability/darrow-review",
-            ],
+            additionalPlugins: ["plugins/capability/darrow-review"],
             activation: {
               class: "positive",
               targetSkill: "adaptive-goal",
-              includes: ["verify-change", "code-review"],
+              includes: ["code-review"],
             },
           },
         },
@@ -2868,7 +2842,6 @@ test("real composition providers fit the Sevro preparation boundary", async () =
   expect(prepared.code, prepared.stderr).toBe(0);
   expect(prepared.value.result.codexMarketplace.pluginNames).toEqual([
     "darrow-adaptive-goal",
-    "darrow-verification",
     "darrow-review",
   ]);
   expect(
@@ -2876,8 +2849,7 @@ test("real composition providers fit the Sevro preparation boundary", async () =
   ).toEqual(
     expect.arrayContaining([
       ".sevro-marketplace/plugin/skills/adaptive-goal/SKILL.md",
-      ".sevro-marketplace/plugins/0-darrow-verification/skills/verify-change/SKILL.md",
-      ".sevro-marketplace/plugins/1-darrow-review/skills/code-review/SKILL.md",
+      ".sevro-marketplace/plugins/0-darrow-review/skills/code-review/SKILL.md",
     ]),
   );
 });

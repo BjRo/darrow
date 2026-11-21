@@ -17,7 +17,8 @@ An older checkout, a different working directory, a disabled project skill
 source, or a host restriction can explain missing discovery, but must be checked
 before naming a cause. If the skill is unavailable, the
 [documentation hub](README.md) is the complete static alternative.
-Claude Code support is best-effort; primary development uses Codex.
+Codex remains the primary development host. Claude support is scoped to
+[documented workflow evidence and exceptions](migrating-to-ten-plugins.md#host-support-and-evidence).
 
 ## An installed plugin does not appear
 
@@ -30,6 +31,15 @@ installation. See [installation verification](installing-plugins.md#verify-the-i
 If a command is unknown, read that host's local help and compare its version
 with the procedure's verification note. Do not paste commands for the other
 host or edit credentials as a speculative fix.
+
+## Old and new copies both appear
+
+Marketplace removal does not uninstall cached plugins or repository-local skills.
+Check the exact installed identity and scope, compare local changes, and use the
+[ten-plugin migration guide](migrating-to-ten-plugins.md). Reinstall the selected
+replacement and compatible survivors, then open a fresh session. Preserve custom
+principle tables, relative custom files, removed routes and unrelated installations.
+Do not delete cache directories while old processes still use them.
 
 ## The first assessment returns needs-discovery
 
@@ -44,7 +54,7 @@ a ready verdict.
 
 Keep the complete refusal and inspect the named plugin's troubleshooting and
 safety instructions. For example, the Git workflows preserve existing branches
-and refuse conflicts; ticket retrieval refuses a foreign-project URL.
+and refuse conflicts; Review refuses stale candidate evidence.
 A refusal does not authorize force, fallback mutations, or bypassing hooks.
 Resolve the exact missing input or authority through the responsible workflow.
 

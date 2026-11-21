@@ -24,23 +24,23 @@ checks:
   - name: Claude host disclosure
     run:
       if [ "$DARROW_EVAL_HARNESS" = claude ] && [ -f .git/last-message.md ]; then grep -Ei
-      "best.effort" .git/last-message.md >/dev/null && grep -Ei "primar[^.]*Codex|Codex[^.]*primar"
+      "scop[^.]*evidence|evidence[^.]*scop" .git/last-message.md >/dev/null && grep -Ei "primar[^.]*Codex|Codex[^.]*primar"
       .git/last-message.md >/dev/null; fi
 semantic_output_checks:
   - name: question contract
     proposition: >-
-      The response explains that the host supplies execution, recovery, delegation,
-      or continuation, so Darrow does not add a second execution runtime. It explains
-      that the ticket pipeline remains an executable reference and benchmark baseline
-      for comparisons. It does not present ADR-0004's superseded subagent-owner
-      boundary as current or unresolved policy. Citing ADR-0004 for
-      its recorded benchmark rationale is permitted when that supersession is clear.
-      Main-thread and bounded-delegation details, supersession history, and a separate
-      explanation of how to activate orchestration are not required. The response
-      remains focused on this rationale question; brief relevant source context,
-      the required Claude best-effort/primary-Codex disclosure, and one useful next
-      source are permitted. It does not claim to have performed installations,
-      tests, repairs, or environment diagnosis.
+      The user asks why Darrow does not run a second agent runtime and why Ticket
+      Pipeline is retained. The response explains that the host supplies execution,
+      recovery, delegation, or continuation, so Darrow does not add a second execution
+      runtime. It corrects the question's outdated premise: Ticket Pipeline is retired
+      as an installable runtime and executable benchmark; historical reports and
+      immutable source references remain for inspecting past evidence. Equivalent
+      wording is sufficient. It must not recommend the retired Pipeline as a current
+      execution path or claim Darrow runs a second execution controller. A recital
+      of goal ownership, delegation policy, or ADR history is not required. The response
+      stays focused on the question; brief relevant context and a useful next source
+      are permitted. It does not claim to have performed installations, tests,
+      repairs, or environment diagnosis.
 output_checks:
   - name: nearby repository evidence
     expect_regex: docs/design\.md|docs/decisions/ADR-0012-keep-native-goal-ownership-in-the-main-thread\.md|docs/specs/ticket-pipeline\.md

@@ -26,7 +26,7 @@ checks:
   - name: Claude host disclosure
     run:
       if [ "$DARROW_EVAL_HARNESS" = claude ] && [ -f .git/last-message.md ]; then grep -Ei
-      "best.effort" .git/last-message.md >/dev/null && grep -Ei "primar[^.]*Codex|Codex[^.]*primar"
+      "scop[^.]*evidence|evidence[^.]*scop" .git/last-message.md >/dev/null && grep -Ei "primar[^.]*Codex|Codex[^.]*primar"
       .git/last-message.md >/dev/null; fi
 semantic_output_checks:
   - name: question contract

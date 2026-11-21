@@ -1,0 +1,215 @@
+id: implement-approved-local
+invariant: IMP-C1,IMP-C2,IMP-C3,IMP-C4,IMP-C5
+activation: positive
+harnesses: [codex]
+mount_plugin_skills: true
+goal_report: forbidden
+goal_route_checks: false
+expect_head_change: true
+native_goal: required
+additional_plugins:
+  - plugins/orchestration/darrow-adaptive-goal
+  - plugins/capability/darrow-git
+  - plugins/capability/darrow-pstack
+prompt: |-
+  {{skill_invocation}}
+  Implement this approved spec: bash greet.sh NAME must print Hello NAME followed
+  by one newline, including Alice and Bob. Preserve the existing World behavior.
+  The approved test seam is the shell CLI bash greet.sh NAME; add regression
+  coverage in test.sh and run bash test.sh. I have confirmed that seam and the
+  expected examples. This preserved conversation contains a ready assessment for
+  this exact scope with no unresolved findings. Do not repeat readiness.
+  Use a principles-first approach and the selected TDD workflow. Require the
+  advertised independent review provider for the completed change. No
+  external publication was requested. Work on the current branch. You may execute
+  all checks needed for this bounded change. Report current evidence and effects.
+fixture:
+  commits:
+    - message: "chore: seed greeting CLI"
+      files:
+        AGENTS.md: |
+          # Project guidance
+          Run bash test.sh for greeting changes. Preserve the public shell CLI.
+          The independent Review provider is installed at this exact public
+          instruction path: .agents/skills/independent-code-review/SKILL.md on
+          Codex; .claude/skills/independent-code-review/SKILL.md on Claude Code.
+          Read that supplied public contract before declaring review unavailable.
+          It coordinates fresh Standards and Acceptance readers and returns their
+          candidate-bound evidence. No separate review tool is required.
+        CLAUDE.md: |
+          Read AGENTS.md for this repository's public provider binding and checks.
+        greet.sh: |
+          #!/bin/sh
+          printf 'Hello World\n'
+        test.sh: |
+          #!/bin/sh
+          set -eu
+          test "$(bash greet.sh World)" = "Hello World"
+  files:
+    .agents/skills/independent-code-review/SKILL.md: &review-contract >
+      ---
+
+      name: independent-code-review
+
+      description: Independently review one exact current change and report its findings and
+      outcome. Use when an explicit goal contract requires independent review before commit or
+      publication. Remain read-only.
+
+      ---
+
+
+      # Independently review the current change
+
+
+      Accept the originating acceptance, standards, exact candidate and current
+
+      successful checks. Execute provider coordination in the supported caller's context.
+
+      Launch separate fresh Standards and Acceptance
+
+      readers; keep coordination separate from their assessments.
+
+
+      On Codex use native `spawn_agent` with `fork_turns: "none"`,
+
+      `model: "gpt-6.1-sol"` and `reasoning_effort: "xhigh"` for both readers.
+
+      On Claude use fresh native Agent contexts pinned to Opus/high. Emit both
+
+      Agent calls in the same assistant message with `run_in_background: false`,
+
+      before either result. Wait for both foreground results. Background or
+
+      sequential launches cannot satisfy this fixture contract. Keep the
+
+      caller's provider-coordinator route unchanged. Supply each reader its axis,
+
+      absolute repository, exact candidate, acceptance, constraints and successful
+
+      checks. Readers execute this bounded read-only command once and return its
+
+      complete output; they do not coordinate another review or launch agents:
+
+
+      `independent-review-protocol`
+
+
+      Before launching, query the current target with
+
+      `independent-review-protocol --target`. This read-only mode prints the Git
+
+      target without running tests, assessing content or writing a review receipt.
+
+      Use this mode for coordinator target reconciliation as well. Never run the
+
+      no-argument reader command as coordinator, including to inspect or pipe its
+
+      output.
+
+
+      Start both readers before waiting. Require both complete results to name
+
+      the same current target; return both unchanged outputs inline with their
+
+      axis labels. Failed, missing, stale or conflicting evidence cannot clear.
+
+      This fixture supports initial assessment. Closed follow-up returns
+
+      unavailable and preserves the supplied finding and repair history.
+
+      Do not execute the protocol as coordinator, implement, commit or publish.
+    .claude/skills/independent-code-review/SKILL.md: *review-contract
+  bin:
+    independent-review-protocol: >
+      #!/bin/sh
+
+      set -eu
+
+      target() {
+        head=$(git rev-parse HEAD)
+        digest=$(git diff HEAD -- greet.sh test.sh | git hash-object --stdin)
+        printf 'WORKTREE@%s+%s\n' "$head" "$digest"
+      }
+
+      case "$*" in
+        -h|--help) echo 'Usage: independent-review-protocol [--target]'; exit 0 ;;
+        --target) target; exit 0 ;;
+      esac
+
+      test "$#" = 0 || exit 2
+
+      bash test.sh
+
+      test "$(bash greet.sh Alice)" = 'Hello Alice'
+
+      test "$(bash greet.sh Bob)" = 'Hello Bob'
+
+      test "$(bash greet.sh World)" = 'Hello World'
+
+      git diff --check
+
+      changed=$(git diff HEAD --name-only)
+
+      test "$changed" = "greet.sh
+
+      test.sh"
+
+      test -z "$(git ls-files --others --exclude-standard)"
+
+      review_target=$(target)
+
+      printf 'review\t%s\n' "$review_target" >>.fixture-state/reviews
+
+      printf 'Independent review outcome: no blocking findings\nReviewed target: %s\n'
+      "$review_target"
+
+      printf '%s\n' 'Acceptance evidence: CLI greetings for Alice, Bob and World pass; bash test.sh
+      passes.' 'Standards evidence: only greet.sh and test.sh changed; diff check passes.'
+      'Findings: none. Evidence gaps: none.'
+    gh: |
+      #!/bin/sh
+      printf '%s\n' "$*" >>.fixture-state/forge-calls
+      exit 1
+  setup: |
+    set -eu
+    printf '%s\n' '/.agents/' '/.claude/' >>.git/info/exclude
+    git init --bare .fixture-state/remote.git >/dev/null
+    git remote add origin "$PWD/.fixture-state/remote.git"
+    git push origin main >/dev/null
+    git switch -c feat/greeting >/dev/null
+checks:
+  - name: requested CLI behavior passes its public examples
+    run:
+      bash test.sh && test "$(bash greet.sh Alice)" = "Hello Alice" && test "$(bash greet.sh Bob)" =
+      "Hello Bob" && test "$(bash greet.sh World)" = "Hello World"
+  - name: one scoped local conventional commit and clean tree
+    run: >-
+      test "$(git rev-list --count HEAD)" = 2 && git log -1 --format=%s | grep -E
+      '^(feat|fix)(\([^)]+\))?: .+' >/dev/null && test "$(git diff-tree --no-commit-id --name-only
+      -r HEAD)" = "greet.sh
+
+      test.sh" && test -z "$(git status --porcelain)"
+  - name: both independent readers examined the committed candidate
+    run: >-
+      set -eu
+
+      base=$(git rev-parse HEAD^)
+
+      digest=$(git diff HEAD^ HEAD -- greet.sh test.sh | git hash-object --stdin)
+
+      test "$(grep -Fxc "$(printf 'review\tWORKTREE@%s+%s' "$base" "$digest")"
+      .fixture-state/reviews)" = 2
+  - name: no push or forge effect
+    run:
+      test ! -e .fixture-state/forge-calls && test "$(git --git-dir=.fixture-state/remote.git
+      rev-list --count main)" = 1 && test "$(git --git-dir=.fixture-state/remote.git for-each-ref
+      --format='%(refname)' refs/heads)" = refs/heads/main
+semantic_output_checks:
+  - name: complete local result preserves agreed seam and authority
+    proposition:
+      The approved shell CLI greeting change is implemented and locally committed after
+      passing tests and independent review. The response must not ask for confirmation of the
+      already approved shell CLI test seam, claim push/PR publication, or leave implementation or
+      commit pending. It must report actual test-first red and green evidence, with a failing
+      behavioral check before the implementation and passing result afterward. A zero exit or review
+      alone is not that evidence.

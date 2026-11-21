@@ -1,0 +1,158 @@
+{
+  "revision": "de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89",
+  "files": [
+    {
+      "path": "docs/research/skill-evaluation-and-durable-learning-opportunities.md",
+      "sha256": "e2cc8209d47203ddebb6499b7e5ba6fa46c750456101bcbfe3617b72d906b962",
+      "missingLinks": [
+        {
+          "target": "../../plugins/orchestration/darrow-ticket-pipeline/skills/codify-ticket/SKILL.md",
+          "source": "https://github.com/BjRo/darrow/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/orchestration/darrow-ticket-pipeline/skills/codify-ticket/SKILL.md",
+          "sha256": "03ca39bb5e41bb84b20e7a6dae133e134239c625fe61a5b11923685996ccb3b4"
+        }
+      ]
+    },
+    {
+      "path": "docs/research/gpt-6-luna-evals-issue-228.md",
+      "sha256": "25eb53c79a8e6335379b1be4e276f1baf447526f5c3fd3f6a9e4f7c110e1cfec",
+      "missingLinks": [
+        {
+          "target": "../../plugins/foundation/darrow-decisions/skills/capture-decision/evals/proposed-provenance.yaml",
+          "source": "https://github.com/BjRo/darrow/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/foundation/darrow-decisions/skills/capture-decision/evals/proposed-provenance.yaml",
+          "sha256": "486ea95d1d1c94e21b15d9217f45999925fba9731be1f4a094ae8e391d5822f7"
+        },
+        {
+          "target": "../../plugins/capability/darrow-discovery/skills/work-through-decisions/evals/discover-feature-negated-grilling-unknowns.yaml",
+          "source": "https://github.com/BjRo/darrow/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/capability/darrow-discovery/skills/work-through-decisions/evals/discover-feature-negated-grilling-unknowns.yaml",
+          "sha256": "bce92d1aa2097e004df38474cc9ece0b229f8d05478ba0703e6150262b0ea74a"
+        },
+        {
+          "target": "../../plugins/capability/darrow-discovery/skills/work-through-decisions/evals/work-through-decisions-natural-grilling.yaml",
+          "source": "https://github.com/BjRo/darrow/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/capability/darrow-discovery/skills/work-through-decisions/evals/work-through-decisions-natural-grilling.yaml",
+          "sha256": "eb6558ed24075efa8e2a2912ba04e03315eff6675c1c998d311a3f94c96cac5d"
+        },
+        {
+          "target": "../../plugins/capability/darrow-discovery/skills/work-through-decisions/evals/work-through-decisions-write-pressure.yaml",
+          "source": "https://github.com/BjRo/darrow/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/capability/darrow-discovery/skills/work-through-decisions/evals/work-through-decisions-write-pressure.yaml",
+          "sha256": "df02ac11ffad11c90706ec8479b48edf6b7ffe4b70257706ab8be0fa18b94f6f"
+        },
+        {
+          "target": "../../plugins/foundation/darrow-skill-authoring/skills/audit-agent-skill/evals/validate-read-only.yaml",
+          "source": "https://github.com/BjRo/darrow/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/foundation/darrow-skill-authoring/skills/audit-agent-skill/evals/validate-read-only.yaml",
+          "sha256": "462df034ccfe69b32f811455319bcb91fbb26fd8e6d3e4e93e2f962b740ce287"
+        },
+        {
+          "target": "../../plugins/foundation/darrow-skill-authoring/skills/audit-agent-skill/evals/validate-authorized-publication.yaml",
+          "source": "https://github.com/BjRo/darrow/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/foundation/darrow-skill-authoring/skills/audit-agent-skill/evals/validate-authorized-publication.yaml",
+          "sha256": "f1d14b15ab4024a29032f8a4f0c6fb4c8ee706cd8efce91cd72125c4c10eb2d2"
+        },
+        {
+          "target": "../../plugins/capability/darrow-tdd/skills/tdd/evals/invalid-red-causes.yaml",
+          "source": "https://github.com/BjRo/darrow/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/capability/darrow-tdd/skills/tdd/evals/invalid-red-causes.yaml",
+          "sha256": "ced14d29ea440bd5c19250be1a486a8cf1ecd0084d6b1bfe62e13849c915ca46"
+        },
+        {
+          "target": "../../plugins/capability/darrow-tdd/skills/tdd/evals/meaningful-red.yaml",
+          "source": "https://github.com/BjRo/darrow/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/capability/darrow-tdd/skills/tdd/evals/meaningful-red.yaml",
+          "sha256": "00f65474041cab1a96cce31ad31140b8c6de7e714adf68fefbfa024b69b71f2c"
+        },
+        {
+          "target": "../../plugins/capability/darrow-tdd/skills/tdd/evals/product-value-bug-fix.yaml",
+          "source": "https://github.com/BjRo/darrow/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/capability/darrow-tdd/skills/tdd/evals/product-value-bug-fix.yaml",
+          "sha256": "92206e8b5ec7b0c561b63fbc5b901d5e000002c4a0d4adca4fe551dc111ddc25"
+        },
+        {
+          "target": "../../plugins/capability/darrow-tdd/skills/tdd/evals/public-red-green.yaml",
+          "source": "https://github.com/BjRo/darrow/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/capability/darrow-tdd/skills/tdd/evals/public-red-green.yaml",
+          "sha256": "17e421f3bf58d60946b9b47036a23f760f5c4f60d38c9a39190885a9c4f3d4db"
+        },
+        {
+          "target": "../../plugins/capability/darrow-tdd/skills/tdd/evals/vertical-slices.yaml",
+          "source": "https://github.com/BjRo/darrow/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/capability/darrow-tdd/skills/tdd/evals/vertical-slices.yaml",
+          "sha256": "c5537e9006d051b29ae8e826cd70958f2f700a0a7384ea192d2ce0f07d7ab6e0"
+        },
+        {
+          "target": "../../plugins/orchestration/darrow-ticket-pipeline/skills/implement-ticket/evals/approved-local-change.yaml",
+          "source": "https://github.com/BjRo/darrow/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/orchestration/darrow-ticket-pipeline/skills/implement-ticket/evals/approved-local-change.yaml",
+          "sha256": "421fa3243bb8f9e5b99c1748832968c1f95414880719c66a29afbc7cd2795541"
+        },
+        {
+          "target": "../../plugins/orchestration/darrow-ticket-pipeline/skills/deliver-ticket/evals/normal-ticket-delivery.yaml",
+          "source": "https://github.com/BjRo/darrow/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/orchestration/darrow-ticket-pipeline/skills/deliver-ticket/evals/normal-ticket-delivery.yaml",
+          "sha256": "2ed1b25b4f6f84d83e8709fcf198dced661dfde3664c1df0cc9221fcca9d37fb"
+        },
+        {
+          "target": "../../plugins/capability/darrow-tickets/skills/create-ticket/evals/no-attribution.yaml",
+          "source": "https://github.com/BjRo/darrow/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/capability/darrow-tickets/skills/create-ticket/evals/no-attribution.yaml",
+          "sha256": "3a3d980d39aeef6464bff8ebb7ca948060135cc69db4e645927b7350b68f7fc6"
+        },
+        {
+          "target": "../../plugins/capability/darrow-tickets/skills/read-ticket/evals/indirect-url.yaml",
+          "source": "https://github.com/BjRo/darrow/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/capability/darrow-tickets/skills/read-ticket/evals/indirect-url.yaml",
+          "sha256": "6af7392cb0ecb374a0901ae70dc4444b1390fa0008c7e67b51787d0067394e23"
+        },
+        {
+          "target": "../../plugins/capability/darrow-tickets/skills/read-ticket/evals/relation-failure.yaml",
+          "source": "https://github.com/BjRo/darrow/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/capability/darrow-tickets/skills/read-ticket/evals/relation-failure.yaml",
+          "sha256": "9fa5cfd927cb00112786957e0ab775f76ed5c5b711134c7f164423e47097067d"
+        },
+        {
+          "target": "../../plugins/capability/darrow-verification/skills/verify-change/evals/criterion-gap.yaml",
+          "source": "https://github.com/BjRo/darrow/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/capability/darrow-verification/skills/verify-change/evals/criterion-gap.yaml",
+          "sha256": "975fbe427eb51118112023764d12a406b39dd57bbd6aa39974706b1b16fbbc65"
+        },
+        {
+          "target": "../../plugins/capability/darrow-verification/skills/verify-change/evals/existing-review.yaml",
+          "source": "https://github.com/BjRo/darrow/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/capability/darrow-verification/skills/verify-change/evals/existing-review.yaml",
+          "sha256": "2f0a379064a5035479e32a02dcbdff7ea707aa0fe19c5393cde1ce0f7dad6f59"
+        },
+        {
+          "target": "../../plugins/capability/darrow-verification/skills/verify-change/evals/followup-missing-history.yaml",
+          "source": "https://github.com/BjRo/darrow/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/capability/darrow-verification/skills/verify-change/evals/followup-missing-history.yaml",
+          "sha256": "43a123af125e2b5665e492e3f8f0b8cfa574dec6b2b38897d082bd37a0d54c1b"
+        },
+        {
+          "target": "../../plugins/capability/darrow-verification/skills/verify-change/evals/incomplete.yaml",
+          "source": "https://github.com/BjRo/darrow/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/capability/darrow-verification/skills/verify-change/evals/incomplete.yaml",
+          "sha256": "5a1aaac9dd34c2fdc64070db58c12ec77a4adc473d761f344fc16772fa29bed3"
+        }
+      ]
+    },
+    {
+      "path": "docs/research/repository-guidance-consolidation-277.md",
+      "sha256": "aac767d96fbb0f220bd94036ecaa5c1c7acfec22f1304d452227ab0b08a26e55",
+      "missingLinks": [
+        {
+          "target": "../../plugins/capability/darrow-discovery/skills/work-through-decisions/evals/discover-feature-spec-out-natural-language.yaml",
+          "source": "https://github.com/BjRo/darrow/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/capability/darrow-discovery/skills/work-through-decisions/evals/discover-feature-spec-out-natural-language.yaml",
+          "sha256": "8c6fc6a0608f0693d671efba01931b97d7e866bc40e48a05b0ffa17f6769af76"
+        },
+        {
+          "target": "../../plugins/capability/darrow-discovery/skills/work-through-decisions/evals/plan-implementation-lets-plan-this.yaml",
+          "source": "https://github.com/BjRo/darrow/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/capability/darrow-discovery/skills/work-through-decisions/evals/plan-implementation-lets-plan-this.yaml",
+          "sha256": "e9550df01963840e0ff0303975010a70f47500d1883b8a8a662939a2fdfeef45"
+        },
+        {
+          "target": "../../plugins/capability/darrow-discovery/skills/work-through-decisions/evals/work-through-decisions-natural-grilling.yaml",
+          "source": "https://github.com/BjRo/darrow/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/capability/darrow-discovery/skills/work-through-decisions/evals/work-through-decisions-natural-grilling.yaml",
+          "sha256": "eb6558ed24075efa8e2a2912ba04e03315eff6675c1c998d311a3f94c96cac5d"
+        },
+        {
+          "target": "../../plugins/capability/darrow-discovery/skills/work-through-decisions/evals/work-through-decisions-ordinary-advice.yaml",
+          "source": "https://github.com/BjRo/darrow/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/plugins/capability/darrow-discovery/skills/work-through-decisions/evals/work-through-decisions-ordinary-advice.yaml",
+          "sha256": "7ab2f11512e4b29868079cba60d4bb72b31d622e7052985c0315e6d90a1c5f68"
+        }
+      ]
+    },
+    {
+      "path": "evals/experiments/verification/snapshots/retired-acceptance-evidence.md",
+      "sha256": "badfc3127d7a9dfb67eb46b6ff886a75d40062f58b706fed9761e3ff3563cc28",
+      "missingLinks": []
+    },
+    {
+      "path": "evals/experiments/orchestration/README.md",
+      "sha256": "8d721c1757708a847cabe3db3d2aacd96a7a327c214f18e1605f4c73bb225d1b",
+      "missingLinks": []
+    }
+  ]
+}

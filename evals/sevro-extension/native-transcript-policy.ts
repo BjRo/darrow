@@ -358,7 +358,7 @@ function claudeEvents(text: string | null): Row[] | null {
 // Claude: one parent Adaptive Goal Agent that is not a verification agent, a
 // later parent Agent call, then a parent SendMessage addressed to the
 // implementor by its returned id or given name. A verification agent launches
-// a Verification review coordinator or invokes the verify-change skill.
+// a public Review coordinator/reader or invokes the code-review skill.
 function claudeImplementors(tools: Row[], nested: Row[] | null): Row[] {
   const verification = new Set([
     ...tools
@@ -366,11 +366,11 @@ function claudeImplementors(tools: Row[], nested: Row[] | null): Row[] {
         (call) =>
           call.name === "Agent" &&
           call.actor === "nested" &&
-          String(call.subagentType).startsWith("darrow-verification:"),
+          String(call.subagentType).startsWith("darrow-review:"),
       )
       .map((call) => call.parentToolUseId),
     ...(nested ?? [])
-      .filter((call) => call.skill === "verify-change")
+      .filter((call) => call.skill === "code-review")
       .map((call) => call.ancestorToolUseId),
   ]);
   return tools.filter(

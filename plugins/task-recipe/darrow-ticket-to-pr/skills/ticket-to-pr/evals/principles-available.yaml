@@ -9,7 +9,7 @@ invariant: TPR-C2,TPR-C3,TPR-C4,TPR-C6,TPR-C7,TPR-C9,TPR-P1,PF-R7,PF-AC8
 goal_report: forbidden
 expect_head_change: false
 prompt: "{{skill_invocation}} https://example.invalid/tickets/42 This host also
-  advertises bounded-delivery on PATH as its Adaptive Goal orchestration
+  advertises bounded-delivery on PATH as its approved-work implementation through one Adaptive Goal owner
   interface. Read its contract with bounded-delivery --describe."
 fixture:
   commits:
@@ -27,7 +27,7 @@ fixture:
 
       if test "$1" = --describe; then
         printf '%s\n' \
-          'Contract: Adaptive Goal orchestration for one bounded delivery in the original main thread, owning preflight, native goal, implementation, mandatory TDD, acceptance verification, independent review, required CI, repair policy and completion.' \
+          'Contract: approved-work implementation through one Adaptive Goal owner for one bounded delivery in the original main thread, owning preflight, native goal, implementation, mandatory TDD, acceptance verification, independent review, required CI, repair policy and completion.' \
           'Interface: bounded-delivery <complete-request-as-one-argument>' \
           'Accept one recipe delegation and return a blocker before preflight or goal activation. Do not launch a child or perform delivery.'
         exit 0
@@ -52,10 +52,11 @@ semantic_artifact:
         non-force push, one PR and required CI green on the final commit. It
         excludes merge, deployment, release, ticket mutation and destructive Git
         effects.
-    - name: available public approach is carried into delivery
+    - name: shared implementation requirements are preserved
       proposition: >-
-        The delegated request instructs its receiving orchestrator to apply the
-        principles-first approach when it is available.
+        The delegated request requires following the shared implementation recipe
+        and preserving its required providers. It does not waive a required
+        principles provider or authorize native fallback around a refusal.
 semantic_output_checks: []
 native_goal: forbidden
 additional_skills:

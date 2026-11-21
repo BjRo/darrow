@@ -11,7 +11,6 @@ candidate_routes:
     effort: medium
 additional_plugins:
   - plugins/capability/darrow-git
-  - plugins/capability/darrow-verification
   - plugins/capability/darrow-review
 prompt: >-
   {{skill_invocation}} Deliver this already-assessed ready ticket using the optional

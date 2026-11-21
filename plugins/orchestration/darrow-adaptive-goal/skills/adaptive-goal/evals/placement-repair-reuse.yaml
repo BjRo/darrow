@@ -5,9 +5,6 @@ goal_route_checks: false
 harnesses: [codex]
 activation: positive
 mount_plugin_skills: true
-activation_includes: [verify-change]
-additional_plugins:
-  - plugins/capability/darrow-verification
 candidate_routes:
   codex: { model: gpt-6.1-sol, effort: medium }
 prompt: >-
@@ -16,7 +13,7 @@ prompt: >-
   when value is below min; (2) it returns max when value is above max; (3) it
   returns value otherwise; (4) it throws RangeError("min must not exceed max") when
   min is greater than max. Implement it on gpt-6.1-sol with high effort. Use
-  verification with the installed independent-code-review skill before completing,
+  independent Review with the installed independent-code-review skill before completing,
   and repair in-scope blocking findings under the existing authorization to edit
   src/range.js and test/range.test.js. Acceptance is that bash test.sh passes. Keep
   the result local; commits, pushes and pull requests are not authorized.

@@ -1,0 +1,48 @@
+id: readiness-native-tracker
+invariant: IRG-C2,IRG-C3
+activation: positive
+mount_plugin_skills: true
+prompt: >-
+  {{skill_invocation}} Assess implementation readiness for ticket SEC-42 in
+  the established tracker project team/service. Read the authoritative ticket
+  using the configured read-only native command in AGENTS.md. There is no
+  ticket-reading skill installed. Return the readiness report; do not implement
+  or modify tracker configuration.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Tracker
+
+          The established tracker is Example Tracker, project team/service.
+          Read a ticket with `bash tools/tracker issue view SEC-42 --project team/service`.
+          This native read operation does not change repository or tracker state.
+        README.md: "# Service\n"
+        tools/tracker: |
+          #!/bin/sh
+          set -eu
+          test "$*" = 'issue view SEC-42 --project team/service'
+          cat <<'JSON'
+          {"identifier":"SEC-42","project":"team/service","title":"Correct heading","body":"Change only the first line of README.md from # Service to # Secure service. Acceptance: the first line is exactly # Secure service and all other bytes are unchanged. Verify with a file comparison. No product or architecture decisions remain."}
+          JSON
+checks:
+  - name: assessment preserves all repository content
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: assessment preserves refs and project selection
+    run: >-
+      test "$(git branch --show-current)" = main &&
+      test "$(git for-each-ref --format='%(refname)' refs/heads | wc -l | tr -d ' ')" -eq 1 &&
+      test -z "$(git remote)"
+output_checks:
+  - name: native tracker supplies a ready authoritative request
+    expect_regex: '^\*\*Verdict:\*\* `ready`$'
+semantic_output_checks:
+  - name: assessment uses the selected native ticket without inventing authority
+    proposition: >-
+      The report treats ticket SEC-42 in team/service as available authoritative
+      input, judges the README heading change ready, and retains the oracle
+      that the first line becomes # Secure service while all other bytes stay
+      unchanged. It does not require installing a ticket-reading skill or
+      switching trackers to obtain the ticket.

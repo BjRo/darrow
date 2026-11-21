@@ -17,8 +17,11 @@ request, investigate, decide, plan, or implement; report what is missing.
 Use the inputs the user or enclosing goal names as authoritative: the request
 itself, a ticket, specification, accepted plan, or decision. Add applicable
 repository rules and only enough existing behavior to interpret them. Use the
-current repository; do not search for or clone one. Read a named ticket only
-through an available capability for that; never modify it.
+current repository; do not search for or clone one. Read a named ticket through
+a matching advertised read capability when available. Otherwise use the
+established tracker's configured native read operation, preserving provider,
+project and exact ticket identity. No ticket-reading plugin is required. Never
+modify the ticket or tracker configuration, or bypass an actual provider refusal.
 
 Mark a required source you cannot read as `missing` and do not reconstruct it.
 When authoritative sources conflict, report the conflict; recency, specificity,

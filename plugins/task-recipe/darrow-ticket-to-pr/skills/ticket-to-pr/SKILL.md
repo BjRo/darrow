@@ -1,31 +1,37 @@
 ---
 name: ticket-to-pr
-description: Start only for explicit invocation of the ticket-to-pr recipe or its authorized grant-bound unattended entry. Never select for ordinary ticket reading, implementation, branch work, feedback, or pull-request requests, even when they describe the same delivery outcome. This explicit shortcut delegates one ticket to Adaptive Goal with a new branch, TDD, one PR and green required CI.
+description: Start only for explicit invocation of the ticket-to-pr recipe or its authorized grant-bound unattended entry. Never select for ordinary ticket reading, implementation, branch work, feedback, or pull-request requests, even when they describe the same delivery outcome. This explicit shortcut delegates one ticket to the approved-work implement recipe and its one Adaptive Goal owner, retaining a new branch, one PR and green required CI.
 disable-model-invocation: true
 ---
 
 # Ticket to PR
 
-Expand this explicit shortcut into one Adaptive Goal request in this thread.
+Delegate shared implementation to the approved-work implementation recipe
+(`implement`) in this thread. Retain ticket intake, branch, publication and
+required-green-CI responsibility as the enclosing delivery envelope.
 Require explicit recipe invocation or the authorized unattended entry. Ordinary
 engineering intent and later feedback do not start this recipe.
 
-Before discovering Adaptive Goal, require one exact ticket ID or URL. For missing
+Before discovering implement, require one exact ticket ID or URL. For missing
 or competing references, ask the user which ticket to use and end the response.
-Treat the chosen reference as opaque; Adaptive Goal reads it.
+Treat the chosen reference as opaque; Implement reads its authoritative content.
 For an authorized unattended entry, first read [unattended.md](references/unattended.md).
 
-Find one host-advertised Adaptive Goal orchestration capability, starting with
-the skill catalog, regardless of its name. For a skill, read its complete
-instructions and follow them here; otherwise use its advertised interface in
-this thread. Pass this request, preserving the ticket and every caller option:
+Find one host-advertised recipe for approved ticket/spec implementation
+through one Adaptive Goal owner, starting with the skill catalog, regardless of
+its name. Read its exact advertised public instructions and follow its native
+interface in this main thread. This explicit invocation authorizes that
+explicit-only recipe handoff. Adaptive Goal alone is not a substitute for
+implement; do not search sibling plugin paths or create a second controller. Pass this request, preserving the ticket and every caller option:
 
 > Read ticket `<ticket>` in the current repository and implement it on a new
-> ticket-linked branch using TDD. Verify the change, create the intended
+> ticket-linked branch. Follow the shared implementation recipe, carrying
+> approved intent, agreed test seams and applicable same-scope readiness unchanged.
+> Preserve its required providers, TDD, independent Review and acceptance
+> accounting. Create the intended
 > Conventional Commit or commits, push without force, and open or reuse one
 > verified PR. Hand over with required CI checks green on its final commit.
 > Use a linked worktree only if requested. Preserve existing user work.
-> Apply the principles-first approach when it is available.
 >
 > Every handover after publication, including a CI blocker, must include the PR
 > URL and published commit/CI evidence. Completion requires its open head and
@@ -44,16 +50,18 @@ discarding or stashing user work, unrelated changes, generic comments, evidence
 on another PR, uncertain evidence retries, or other external effects.
 
 Caller options override defaults and pass through unchanged, including base,
-worktree, draft state and repair/review limits. Add no workflow, capability names,
-routes or repair policy. Adaptive Goal and its bound capabilities own execution,
+worktree, draft state and repair/review limits. Reuse inherited seam confirmation and readiness without repeating their gates.
+Add no workflow, capability names, routes or repair policy. Adaptive Goal and its bound capabilities own execution,
 CI observation, repairs and completion.
 
-If no single compatible orchestrator is available, return `Status: launch_required`
-and identify the missing or ambiguous boundary without mutation. A native goal
-control alone is not that capability; a listed skill needs no same-named tool.
+If no single compatible implementation recipe is available, return `Status: launch_required`
+and identify the missing or ambiguous boundary without mutation. Neither a native goal
+control nor an orchestration-only provider supplies the implementation recipe.
+A listed skill needs no same-named tool. Preserve every required provider
+refusal; standalone Verification is not required.
 
 For a skill, the handoff is reading and following it in this main thread.
 Do not spawn an overall owner or perform recipe-owned preflight or delivery.
 Relay its question, blocker or completion with the PR URL and commit/CI evidence.
-Later feedback continues that same Adaptive Goal preflight or goal; do not
+Later feedback continues implement’s same Adaptive Goal preflight or goal; do not
 reinvoke the recipe or add another inspection, retry or controller.

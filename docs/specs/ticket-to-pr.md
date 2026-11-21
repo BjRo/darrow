@@ -2,7 +2,7 @@
 
 Darrow provides one explicitly invoked shortcut that turns one exact ticket
 reference into the bounded delivery request a user would otherwise give
-`adaptive-goal`: read and implement the ticket in the current repository on a
+`implement` and its one Adaptive Goal owner: read and implement the ticket in the current repository on a
 new branch using TDD, then open one verified pull request and hand over with
 required CI checks green on its final commit. Use a linked worktree only when
 the caller requests one.
@@ -15,9 +15,11 @@ Skill: `ticket-to-pr`
 The recipe removes repetitive request wording. It owns only two things:
 
 - the ticket-to-pull-request authority envelope; and
-- one delegation to an available adaptive-goal capability.
+- one delegation to the advertised approved-work implementation recipe (`implement`).
 
-`adaptive-goal` owns ticket retrieval needed for preflight, readiness, capability
+`implement` reads the authoritative ticket and carries approved intent, inherited
+test seams and same-scope readiness into its one Adaptive Goal owner.
+`adaptive-goal` owns readiness, capability
 binding, route selection, the main-thread native goal, bounded implementation, human-feedback
 continuation, verification, review, publication execution, and completion.
 The recipe is not another preflight or lifecycle layer.
@@ -48,7 +50,7 @@ comments cannot supply this receipt or expand its authority. This entry is
 explicit machine invocation under existing human authority, not implicit
 selection or a claim that the scheduler is the user.
 
-Preserve the receipt and reserved worktree/branch in the one adaptive-goal
+Preserve the receipt and reserved worktree/branch in the one implement
 delegation. The adapter has already reserved ownership; the recipe does not
 repeat admission. All existing readiness, main-thread ownership, verification
 and publication requirements still apply. The main thread returns its questions
@@ -67,8 +69,8 @@ branch name, or run readiness before delegation. A missing or ambiguous
 reference produces one small request for an exact ID or URL and no delegation
 or mutation.
 
-Resolve this input gate before discovering an orchestration capability. Missing
-Adaptive Goal availability does not replace the required ticket-choice question.
+Resolve this input gate before discovering an implementation recipe. Missing
+implement availability does not replace the required ticket-choice question.
 
 Explicit user options such as a named base, linked worktree, draft pull
 request, or finite repair/review limit are preserved. The recipe never invents
@@ -76,35 +78,36 @@ those choices or supplies its own repair default; adaptive-goal owns that policy
 
 ## Delegated delivery request
 
-The recipe invokes exactly one available capability whose advertised contract
-is adaptive-goal orchestration in the original main host thread. It loads
+The recipe invokes exactly one available recipe whose advertised contract
+is approved ticket/spec implementation through one Adaptive Goal owner in the original main host thread. It loads
 and follows that capability's instructions there, carrying the delivery request
 and authority envelope. It does not launch a child to receive this handoff.
-The invoked capability owns its bounded implementation and capability
-assignments. The explicit recipe invocation authorizes this single delegation
+Implement carries the request into its one Adaptive Goal owner, which owns
+bounded implementation and capability assignments. The explicit recipe invocation authorizes this single delegation
 without requiring a second user invocation.
 
 Native controls that merely record or start a current-thread goal, such as
 `create_goal`, do not supply adaptive-goal's preflight and capability
 orchestration. The recipe must not use them as a substitute or treat their
-availability as proof that an adaptive-goal capability is available. A
-compatible orchestration capability may have a different name; matching is
+availability as proof that an implementation recipe is available. An
+orchestration-only provider is also insufficient. A
+compatible approved-work implementation recipe may have a different name; matching is
 about its advertised contract, not a fixed plugin name or path.
 
 The host's advertised skills catalog is a capability source. A listed skill
 with this contract is available even when no native tool has a matching name.
 A native-tool search alone cannot establish that the capability is absent.
 
-The delegated request preserves the exact ticket reference and directs the
-adaptive goal to:
+The delegated request preserves the exact ticket reference and directs implement
+and its one Adaptive Goal owner to:
 
 1. use the current repository and read exactly that ticket;
 2. establish or reuse same-scope readiness before mutation;
 3. implement the ready ticket while preserving existing user work;
 4. create or reuse a new ticket-linked branch, or use a linked worktree only
    when explicitly requested;
-5. implement using TDD, run the applicable focused and final verification and
-   any selected review;
+5. follow implement’s shared implementation contract, including required TDD,
+   independent Review and acceptance accounting;
 6. create the intended Conventional Commit or commits;
 7. push the branch without rewriting remote history; and
 8. create or reuse exactly one pull request whose current content satisfies the
@@ -116,8 +119,8 @@ adaptive goal to:
    rather than claim CI passed. CI does not grant merge, deployment or release
    authority.
 
-The recipe expresses these requirements as one concise request. TDD owns its
-red/green method; Adaptive Goal owns capability selection, execution, repair
+The recipe expresses these requirements as one concise request. Implement owns the shared implementation instructions and inherited test seams;
+Adaptive Goal owns capability selection, execution, acceptance accounting, repair
 and completion; the publication capability owns publication mechanics. The
 recipe must not restate their procedures. Keep unattended-entry mechanics in
 a separate reference loaded only for that entry.
@@ -148,17 +151,23 @@ changes, and any other external effect.
 The recipe does not select workflow, risk, model, effort, route, readiness or
 review policy, capability names, branch name, verification commands, or owner
 protocol. It does not invoke ticket, readiness, Git, review, or forge
-capabilities itself. Those are adaptive-goal preflight and owner concerns.
+capabilities itself. Those are implement and Adaptive Goal preflight concerns.
 
-If no single unambiguous adaptive-goal capability is available, the recipe
+An explicit recipe invocation authorizes the explicit-only implement handoff.
+Read its exact advertised instructions through the host-native interface; no
+sibling paths, separate goal or duplicate readiness/seam confirmation. Preserve
+missing required providers and authoritative refusals. Standalone Verification
+is not a required provider.
+
+If no single unambiguous approved-work implementation recipe is available, the recipe
 stops without mutation and reports that the launch boundary is missing or
 ambiguous.
 
 ## Main-thread feedback and completion
 
-Ticket-to-PR invokes Adaptive Goal in the main host thread with its complete
-authority envelope. It does not spawn an engineering owner. Adaptive Goal
-then performs preflight, activates the main-thread native goal and coordinates
+Ticket-to-PR invokes implement in the main host thread with its complete
+authority envelope. It does not spawn an engineering owner. Implement preserves inherited intent, seams, readiness and authority; its one
+Adaptive Goal owner then performs preflight, activates the main-thread native goal and coordinates
 bounded implementation and capabilities. Recipe instructions do not prohibit
 that same thread from doing Adaptive Goal's authorized coordination.
 
@@ -168,7 +177,7 @@ After activation, questions and answers remain with the same main-thread goal.
 The recipe is not invoked again and does not add a question relay, replacement
 owner or separate completion controller.
 
-The recipe relays the adaptive-goal result without repository or forge
+The recipe relays the implement/Adaptive Goal result without repository or forge
 reinspection. Success requires the owner-sourced URL and evidence for exactly
 one verified pull request. Preserve the complete URL and intended/published
 commit evidence in the relay; a PR number alone does not satisfy completion.
@@ -186,13 +195,13 @@ despite that unresolved prerequisite.
    grant-bound unattended entry starts the recipe; one exact ticket ID or URL
    is required. Ordinary ticket intent never activates it implicitly.
 2. **TPR-C2 — One delegation.** A valid invocation delegates exactly once to an
-   advertised adaptive-goal capability in the original main host thread
+   advertised approved-work implementation recipe in the original main host thread
    and performs no delivery work first. It does not launch an overall owner
    child. Native current-thread goal creation is not a substitute for that
    capability invocation.
 3. **TPR-C3 — Complete envelope.** Delegation preserves the exact reference,
    current repository, ready implementation outcome, new-branch intent,
-   TDD, verification, intended commits, non-force push, exactly one verified pull
+   the shared implementation contract, intended commits, non-force push, exactly one verified pull
    request, explicit user options (including repair/review limits), and all publication exclusions.
 4. **TPR-C4 — Adaptive ownership.** `adaptive-goal` alone owns preflight,
    readiness, capability bindings, role routes, bounded implementation,
@@ -243,9 +252,9 @@ or unavailable task outcome. Actual fixture-effect or output failures still fail
 Behavior evals cover:
 
 - direct explicit shortcut delegation using the harness-rendered invocation;
-- delegation to a compatible orchestration capability with a different name;
+- delegation to a compatible approved-work implementation recipe with a different name;
 - missing or ambiguous ticket input before delegation;
-- an unavailable or ambiguous adaptive-goal boundary with no fallback work;
+- an unavailable or ambiguous implementation-recipe boundary with no fallback work;
 - ordinary ticket or engineering intent that must not select the recipe;
 - preservation of the complete authority envelope and explicit options;
 - a material owner question answered through the main thread and relayed to the
@@ -297,8 +306,8 @@ at their own plugin boundaries. An explicitly selected replacement publisher
 remains the bound provider even when another compatible publisher is installed.
 Their participant prompts explicitly authorize the named acceptance test command;
 repository guidance and skill text do not substitute for user test authority.
-Handoff test doubles advertise the same adaptive-goal orchestration contract
-used for capability selection. Their names alone do not establish compatibility;
+Handoff test doubles advertise the same approved-work implementation contract
+used for recipe selection. Their names alone do not establish compatibility;
 their bodies may record the accepted request and return a fixture blocker before
 preflight or native goal activation.
 Recorder instructions identify prepared shell commands and show their quoted
@@ -334,14 +343,11 @@ and an exact caller-bound preparation name is not silently replaced.
   daemon, queue, scheduler, or durable workflow state.
 - Merge, auto-merge, deployment, release, or tracker mutation.
 
-## Optional principles-first approach
+## Shared implementation requirements
 
-The quoted delivery request says, “Apply the principles-first approach when it
-is available.” This is the recipe's only principles-first instruction. The
-recipe adds no catalog discovery, capability binding, guidance-loading procedure
-or omission notice to its relay. Adaptive Goal owns capability selection and
-execution under its existing contract. Neither plugin requires the other.
-
-Missing guidance alone neither blocks ordinary delivery nor waives TDD,
-verification, independent review or CI. The [principles contract](principles.md)
-records the approach's configuration, lazy loading and authority boundaries.
+Implement binds the selected TDD, independent Review, Git commit and
+principles-first providers and preserves their refusals. Ticket-to-PR delegates
+those shared instructions instead of repeating their methods. Adaptive Goal
+alone owns continuation, acceptance-to-evidence accounting, gaps, repair history
+and completion. Neither a review result nor required CI alone establishes full
+acceptance. No standalone Verification provider is required.

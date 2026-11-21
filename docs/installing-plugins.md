@@ -73,15 +73,6 @@ to UV or the caller. Review evidence uses a separate retained state directory
 under `$HOME/.darrow/reviews` or `%LOCALAPPDATA%\Darrow\Reviews` and follows
 the cleanup rules documented by `darrow-review`.
 
-Ticket body drafts and the temporary copy passed to the GitHub CLI use
-`$HOME/.darrow/tmp` on Linux and macOS or `%LOCALAPPDATA%\Darrow\Tmp` on
-native Windows. Set `DARROW_TMP_DIR` to a non-empty absolute directory to
-choose another root for antivirus exclusions. The ticket plugin creates it
-on demand, requires private ownership and permissions on Linux/macOS, and
-uses the selected directory's ACL on Windows. Choose a Windows override with
-an appropriate ACL. Drafts are deleted after use; the GitHub CLI copy is
-removed automatically.
-
 Allow network access for Python, build requirements, and runtime dependency
 downloads, plus write access to the Darrow and UV caches. Subsequent runs reuse
 the backend-specific environment; plugin updates, moves, lock changes, and
@@ -145,8 +136,8 @@ claude plugin uninstall darrow-readiness-gate@darrow --scope user
 Use the actual installation scope when it differs. Expect the result to name
 the updated or removed plugin. Start a new session after an update or removal.
 The [official Claude marketplace guide](https://code.claude.com/docs/en/discover-plugins)
-documents scope, trust, refresh behavior, and recovery. Claude Code support in
-Darrow is best-effort; primary development uses Codex.
+documents scope, trust, refresh behavior, and recovery. Codex remains the primary development host. Claude support is scoped to
+[documented workflow evidence and exceptions](migrating-to-ten-plugins.md#host-support-and-evidence).
 
 ## Codex
 
@@ -200,7 +191,7 @@ a CLI installation enabled a different app or extension.
 The repository includes an inventory-driven shortcut for intentionally adopting
 the current supported marketplace. It reads `.claude-plugin/marketplace.json`
 when it runs, then invokes the selected host's normal per-plugin installation
-command for each eligible entry. It does not make the plugins a combined package
+command for every listed entry. It does not make the plugins a combined package
 or add dependencies between them.
 
 First add the Darrow marketplace for the target host as shown above. You can
@@ -226,8 +217,9 @@ plugin installation stops the shortcut, returns a nonzero status, and names the
 plugin that failed. The success message appears only after every current
 marketplace entry has installed.
 
-The shortcut excludes `darrow-ticket-pipeline`, a deprecated reference
-implementation.
+The manifest now contains exactly ten plugins. The shortcut has no hidden
+identity exclusions and does not uninstall retired or cached copies. Follow the
+[replacement and migration instructions](migrating-to-ten-plugins.md) separately.
 
 For plugins with Python helpers, complete the
 [UV and Python setup](#uv-and-python-for-plugin-helpers) before using them.

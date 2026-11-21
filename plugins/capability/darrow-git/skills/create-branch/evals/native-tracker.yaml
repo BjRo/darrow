@@ -1,0 +1,42 @@
+id: create-branch-native-tracker
+invariant: GW-B1,GW-B2
+activation: positive
+mount_plugin_skills: true
+prompt: >-
+  Create a branch to fix identifier normalization for the
+  ticket returned by our configured tracker command in AGENTS.md. Use its
+  canonical identifier. No ticket-reading skill is installed.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: "# Fixture\n"
+        AGENTS.md: |
+          # Tracker
+
+          The established provider is Example Tracker, project team/service.
+          `bash tools/tracker current --project team/service` reads the selected ticket.
+          Its `identifier` field is the canonical ticket identifier.
+        tools/tracker: |
+          #!/bin/sh
+          set -eu
+          test "$*" = 'current --project team/service'
+          printf '%s\n' '{"identifier":"SEC-42","project":"team/service","title":"Fix identifier normalization"}'
+checks:
+  - name: native canonical identity is preserved in the created branch
+    run: git branch --show-current
+    expect_regex: "^fix/SEC-42-[a-z0-9]+(-[a-z0-9]+)*$"
+  - name: canonical identifier appears exactly once
+    run: git branch --show-current | grep -oF SEC-42 | wc -l | tr -d ' '
+    expect_exact: "1"
+  - name: original content and tracker configuration are unchanged
+    run: git status --porcelain --untracked-files=all
+    expect_exact: ""
+  - name: no commits or remotes were added
+    run: test "$(git rev-list --count HEAD)" -eq 1 && test -z "$(git remote)"
+semantic_output_checks:
+  - name: creation uses the native canonical identifier
+    proposition: >-
+      The response reports the created fix/SEC-42 branch and its base. It preserves
+      SEC-42 exactly and does not require a Darrow ticket-id response field,
+      a ticket-reading plugin, or a tracker configuration change.

@@ -1,6 +1,6 @@
 id: orchestration-oss-click-streams
 invariant: ORCH-OSS-STREAM-LIFECYCLE
-prompt: &task |-
+prompt: |-
   Work directly in this Click repository and implement the requested behavior. Do not commit or publish changes.
 
   Modernize `click.testing.CliRunner` stream capture so stdout and stderr are always captured independently while `Result.output` and a new `Result.output_bytes` preserve their chronological interleaving. Remove the `mix_stderr` constructor option. `Result.stdout` and `stdout_bytes` must contain stdout only; `Result.stderr` and `stderr_bytes` must contain stderr only; `output` and `output_bytes` must contain both streams in write order. Echoed stdin must appear in that same combined order. Preserve newline normalization and invalid-byte replacement behavior on the text properties.
@@ -15,10 +15,6 @@ fixture:
       Before changing CLI testing streams, inspect `src/click/testing.py`, `tests/test_testing.py`, and the testing-related entries in `CHANGES.rst`. Keep public annotations and docstrings aligned with the implementation.
   commit_files: true
   setup: python3 -m venv .git/eval-venv && .git/eval-venv/bin/pip install --disable-pip-version-check -r requirements/tests.txt
-  ticket:
-    id: "1"
-    title: Modernize CliRunner stream capture
-    body: *task
 checks:
   - name: hidden stream interleaving contract
     metric: escaped_defect

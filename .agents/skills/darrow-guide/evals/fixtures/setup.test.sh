@@ -11,8 +11,41 @@ git init -q
 DARROW_EVAL_CASE_DIR="$case_dir" "$BASH" "$case_dir/fixtures/setup.sh" conflict
 test -f docs/specs/repository-guide.md
 cmp "$case_dir/../../../../evals/sevro-extension/index.ts" evals/sevro-extension/index.ts
+missing_snapshot=0
+for extension in md json; do
+  snapshot="evals/experiments/orchestration/snapshots/2026-08-07-n1.$extension"
+  if [ ! -f "$snapshot" ]; then
+    printf 'missing linked historical snapshot: %s\n' "$snapshot" >&2
+    missing_snapshot=1
+    continue
+  fi
+  cmp "$case_dir/../../../../$snapshot" "$snapshot"
+  git ls-files --error-unmatch "$snapshot" >/dev/null
+done
+test "$missing_snapshot" -eq 0
+expected_snapshots=$(printf '%s\n' \
+  evals/experiments/orchestration/snapshots/2026-08-07-n1.json \
+  evals/experiments/orchestration/snapshots/2026-08-07-n1.md)
+test "$(git ls-files evals/experiments)" = "$expected_snapshots"
+if [ ! -f plugins/capability/darrow-matt-pocock/skills/writing-for-agents/SKILL.md ]; then
+  printf 'missing public skill source: darrow-matt-pocock/writing-for-agents\n' >&2
+  exit 1
+fi
+source_root=$(cd "$case_dir/../../../.." && pwd -P)
+git -C "$source_root" ls-files 'plugins/*/*/skills/**' 'plugins/*/*/references/**' |
+  while IFS= read -r file; do
+    case "$file" in plugins/fixtures/*|*/evals/*) continue ;; esac
+    printf '%s\n' "$file"
+  done > .git/guide-expected-public-files
+while IFS= read -r file; do
+  cmp "$source_root/$file" "$file"
+done < .git/guide-expected-public-files
+git ls-files 'plugins/*/*/skills/**' 'plugins/*/*/references/**' > .git/guide-copied-public-files
+cmp .git/guide-expected-public-files .git/guide-copied-public-files
+test -z "$(find plugins -type d \( -name evals -o -name .git -o -name .fixture-state -o -path '*/backend/tests' \) -print)"
 test ! -e evals/runner
 test -f docs/research/README.md
+test -f docs/research/retired-links.json
 test -f docs/research/adaptive-ticket-to-pr-opportunity.md
 test -f plugins/capability/darrow-git/.codex-plugin/plugin.json
 test -f plugins/automation/darrow-artificer/backend/src/darrow_artificer/cli.py
@@ -20,6 +53,9 @@ test -f plugins/automation/darrow-artificer/skills/manage-artificer/SKILL.md
 test ! -e plugins/automation/darrow-artificer/skills/manage-artificer/evals
 test ! -e docs/research/repository-guide-98-delivery.md
 test ! -e docs/research/artificer-157-delivery.md
+test ! -e docs/research/ten-plugin-migration-328.md
+test -f plugins/capability/darrow-matt-pocock/.codex-plugin/plugin.json
+test -f plugins/capability/darrow-pstack/.claude-plugin/plugin.json
 test ! -e .agents/skills/darrow-guide/evals/inventory.json
 grep -F 'Complex work starts adaptive-goal automatically' plugins/orchestration/darrow-adaptive-goal/README.md >/dev/null
 test "$(git rev-parse HEAD)" = "$(cat .git/guide-base)"

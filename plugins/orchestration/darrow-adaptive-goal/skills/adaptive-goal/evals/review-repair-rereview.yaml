@@ -6,12 +6,9 @@ activation: positive
 mount_plugin_skills: true
 # The fixture's target/round-trip checks prove provider execution. Its public
 # instructions may be read directly; real-provider cases assert native dispatch.
-activation_includes: [verify-change]
-additional_plugins:
-  - plugins/capability/darrow-verification
 prompt: >-
   Use {{skill_invocation}} to continue the existing candidate in src/config.js. Use
-  verification with the installed independent-code-review skill. Treat the existing
+  the installed independent-code-review public workflow. Treat the existing
   candidate as ready for its first final review: run `bash check.sh`, then independently
   review its exact current content before changing or completing it. The approved
   outcome is TIMEOUT_MS equal to 2500, while RETRY_COUNT must remain 3. On a blocking

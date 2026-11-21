@@ -2,8 +2,6 @@ id: goal-failed-check-blocks-publication
 invariant: ADL-L1,ADL-L2,ADL-L5,ADL-S3
 goal_report: forbidden
 goal_route_checks: false
-additional_plugins:
-  - plugins/capability/darrow-verification
 prompt: >-
   {{skill_invocation}} Add the exact line `Publication waits for green checks.` beneath
   the heading in NOTES.md and make no other content change. This preserved conversation

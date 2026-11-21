@@ -1,13 +1,14 @@
 # Darrow Ticket to PR
 
 `ticket-to-pr` is an explicitly invoked shortcut for the request users would
-otherwise give adaptive-goal: read and implement one exact ticket in the
+otherwise give implement and its Adaptive Goal owner: read and implement one exact ticket in the
 current repository on a new branch using TDD, open one verified pull request,
 and hand over with required CI checks green on its final commit. Use a linked
 worktree only when requested.
 
-The recipe owns only that bounded authority envelope and one adaptive-goal
-delegation. `adaptive-goal` owns readiness, capability binding, route selection,
+The recipe owns only that bounded authority envelope and one approved-work implement
+delegation. Implement owns the shared implementation instructions and carries
+inherited test seams, readiness and required providers into one Adaptive Goal. `adaptive-goal` owns readiness, capability binding, route selection,
 the main-thread goal, bounded implementation, verification, review, publication, blockage,
 CI observation and same-owner human feedback through the main thread. Ticket-to-PR performs no
 ticket read, repository preflight, Git or forge work, lifecycle bookkeeping, or
@@ -30,7 +31,7 @@ publication against that exact PR and verified commit. It grants no generic
 comment authority. Partial, ambiguous, refused, or changed-head publication
 stops completion without recipe-owned retry or recovery.
 
-When updating, update Ticket-to-PR, Adaptive Goal, Verification and Review
+When updating, update Ticket-to-PR, the Matt bundle, Adaptive Goal and Review
 together before a new delivery. An in-flight delivery keeps its installation.
 
 ## When to use
@@ -51,7 +52,8 @@ evidence is retained in [research](../../../docs/research/README.md#local-artifi
 
 ## Hosts and prerequisites
 
-Codex or Claude Code with a compatible host-visible adaptive-goal capability.
+Codex or Claude Code with a compatible host-visible approved-work implement recipe
+and its required Adaptive Goal, selected TDD, Review, Git and principles providers.
 The delegated owner needs the tracker, Git, forge access, and target repository
 tools required by the requested work. Missing capabilities remain missing;
 the recipe does not install them or read sibling plugin files.
@@ -87,7 +89,7 @@ The recipe adds no controller or state store.
 
 ## Troubleshooting
 
-A missing exact ticket or unavailable compatible orchestrator needs the
+A missing exact ticket or unavailable compatible implementation recipe needs the
 smallest missing input or capability choice. For an accepted handoff, preserve
 the owner identity and its refusal evidence instead of starting a duplicate.
 Use the [host discovery checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md)

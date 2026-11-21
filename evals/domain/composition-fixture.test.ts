@@ -17,20 +17,60 @@ const plugin = new URL(
 );
 const cases = new URL("skills/ticket-to-pr/evals/", plugin);
 
-test("unavailable orchestration oracle accepts the advertised name and rejects missing boundary evidence", async () => {
-  const source = new URL("adaptive-goal-unavailable.yaml", cases);
+for (const shell of ["bash", "/bin/bash"]) {
+  test(`composition review accepts only prepared providers and two readers (${shell})`, async () => {
+    const source = new URL("composition-replacement.yaml", cases);
+    const canonical = await readFixtureCase(source);
+    const receiptCheck = canonical.checks[0]!;
+    const result = await runFixtureChecks({
+      source,
+      fixtureAssets: plugin,
+      checks: [
+        {
+          name: "valid candidate with prepared providers is reviewable",
+          run: `printf '%s\\n' '{"timeoutMs":2500}' >config.json && ${shell} .git/fixture-bin/independent-review-protocol && ${shell} .git/fixture-bin/independent-review-protocol`,
+          expect_regex: "Independent review outcome: no blocking findings",
+        },
+        {
+          name: "commit only the intended product change",
+          run: "git add config.json && git commit -m 'fix: set timeout'",
+        },
+        receiptCheck,
+        {
+          name: "untracked product files remain rejected",
+          run: `printf 'unexpected\\n' >unexpected.txt && ${shell} .git/fixture-bin/independent-review-protocol`,
+          exit_code: 1,
+        },
+        {
+          name: "failed assessment did not add a receipt",
+          run: 'test "$(wc -l <.fixture-state/reviews | tr -d " ")" = 2 && rm unexpected.txt',
+        },
+        {
+          name: "a third matching receipt cannot clear review",
+          run: `head -n 1 .fixture-state/reviews >>.fixture-state/reviews && (${receiptCheck.run})`,
+          exit_code: 1,
+        },
+        {
+          name: "committed delivery notes remain unchanged",
+          run: 'test "$(cat NOTES.md)" = "$(git show HEAD~:NOTES.md)"',
+        },
+      ],
+    });
+    assertPassed(result);
+  }, 30_000);
+}
+
+test("unavailable implementation oracle accepts the advertised name and rejects missing boundary evidence", async () => {
+  const source = new URL("implement-unavailable.yaml", cases);
   const canonical = await readFixtureCase(source);
   for (const [finalMessage, passes] of [
     [
-      "Status: launch_required. I could not find a host-advertised Adaptive Goal orchestration skill. Native goal controls alone do not meet that boundary.",
+      "Status: launch_required. I could not find a host-advertised approved-work implement recipe. Native goal controls alone do not meet that boundary.",
       true,
     ],
-    [
-      "Status: launch_required. The adaptive-goal capability is unavailable.",
-      true,
-    ],
+    ["Status: launch_required. The implement capability is unavailable.", true],
     ["Status: launch_required. Supply a ticket reference.", false],
-    ["The Adaptive Goal capability is available; work will continue.", false],
+    ["The implement capability is available; work will continue.", false],
   ] as const) {
     const result = await runFixtureChecks({
       source,

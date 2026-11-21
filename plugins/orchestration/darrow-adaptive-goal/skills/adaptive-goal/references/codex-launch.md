@@ -56,8 +56,8 @@ a replacement is allowed.
 ## Coordination and feedback
 
 The main thread may inspect current state, run checks, invoke authorized bound
-operations, and validate returned evidence. It arranges selected verification,
-combined repairs and fresh follow-up through the capability's public contract.
+operations, and validate returned evidence. It accounts for acceptance and arranges selected Review, combined repairs and
+fresh follow-up through the provider's public contract.
 It never replaces independent assessment readers.
 
 A missing material decision stops affected mutation. Ask the user here, preserve

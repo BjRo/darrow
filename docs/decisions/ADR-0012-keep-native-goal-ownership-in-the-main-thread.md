@@ -5,6 +5,10 @@ Date: 2026-10-30
 Summary: Keep the native goal, acceptance criteria, user decisions, and completion in the main thread; delegate bounded work without transferring goal ownership.
 Supersedes: ADR-0004
 
+Pipeline retirement (2026-11-20): The executable-reference and benchmark-baseline
+clauses below are superseded by [Ticket Pipeline retirement](../specs/ticket-pipeline.md).
+The native-goal ownership decision retains its existing status.
+
 ## Context
 
 ADR-0004 selected host-native execution instead of a second Darrow execution

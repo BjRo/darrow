@@ -9,3 +9,4 @@ for host in .agents .claude; do
   mkdir -p "$host/skills/observe-ci"
   cp "$fixtures/observe-ci.fixture.md" "$host/skills/observe-ci/SKILL.md"
 done
+printf '%s\n' '/.agents/skills/observe-ci/SKILL.md' '/.claude/skills/observe-ci/SKILL.md' >>.git/info/exclude

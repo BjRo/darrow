@@ -4,7 +4,6 @@ goal_report: forbidden
 goal_route_checks: false
 expect_head_change: true
 additional_plugins:
-  - plugins/capability/darrow-verification
   - plugins/capability/darrow-git
 prompt: >-
   {{skill_invocation}} Add the exact line `Real commit capability composes.` beneath the

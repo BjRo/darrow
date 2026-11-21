@@ -1,19 +1,17 @@
 # Capability plugins
 
-Capability plugins provide focused, intent-matched procedures that remain
-useful on their own and can be composed through host-visible intent and
-contracts.
+Capability plugins provide focused procedures that remain useful on their own
+and compose through host-visible intent and contracts. Curated upstream workflows
+retain their explicit-only boundaries; installation does not authorize execution.
 
 ## Choose a plugin
 
 - [Readiness](darrow-readiness-gate/README.md) assesses whether implementation can begin.
-- [Discovery](darrow-discovery/README.md) clarifies behavior and plans.
-- [TDD](darrow-tdd/README.md) implements behavior test-first.
+- [Matt Pocock](darrow-matt-pocock/README.md) supplies selected discovery, design, TDD and implementation workflows.
+- [Pstack](darrow-pstack/README.md) supplies unslop and routed engineering principles.
 - [Review](darrow-review/README.md) independently checks a bounded change.
-- [Verification](darrow-verification/README.md) coordinates acceptance evidence through compatible independent review.
 - [Git](darrow-git/README.md) creates branches and commits, publishes verified
   PRs, and posts candidate-bound reviewer evidence.
-- [Tickets](darrow-tickets/README.md) handles exact tracker operations; GitHub Issues is bundled.
 - [Explanation](darrow-explanation/README.md) gives compact grounded visuals.
 
 Read the chosen plugin's local prerequisites, expected effects, and safety

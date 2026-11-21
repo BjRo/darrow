@@ -8,30 +8,37 @@ expect_head_change: true
 adaptive_goal_composition: true
 activation: positive
 mount_plugin_skills: true
-activation_sequence:
-  - ticket-to-pr
-  - adaptive-goal
 additional_plugins:
   - plugins/orchestration/darrow-adaptive-goal
-  - plugins/capability/darrow-tdd
-prompt: >-
-  {{skill_invocation}} https://example.invalid/tickets/42
-  Verify the change by running `bash test.sh`.
+  - plugins/capability/darrow-review
+prompt: "{{skill_invocation}} https://example.invalid/tickets/42 Verify the
+  change by running `bash test.sh`. The public test seam is the migration
+  JavaScript API through bash test.sh; this seam is approved and inherited
+  unchanged."
 follow_up_prompt: "Use the strict migration policy. Approval reference: cobalt-7391."
 fixture:
   commits:
     - message: "chore: init"
       files:
-        AGENTS.md: |
+        AGENTS.md: >
           # Repository instructions
 
+
           Run `bash test.sh` for migration behavior changes. The main delivery
-          coordinator must run `decisionctl discover` before editing production code.
+
+          coordinator must run `decisionctl discover` before editing production
+          code.
+
           Only that command's runtime output establishes whether feedback is
+
           required and what question must be answered. Any question it returns
+
           is product-owned and must be answered by the user through the main
+
           thread. After the answer, that coordinator must run
+
           `decisionctl acknowledge migration-policy <exact-answer>` before
+
           editing production code.
         package.json: '{"type":"module"}'
         src/migration.js: |
@@ -48,91 +55,282 @@ fixture:
         test.sh: |
           #!/usr/bin/env bash
           node --test test/migration.test.js
+        .darrow/principles.md: >
+          # Fixture principles
+
+
+          | ID | Trigger | Reference |
+
+          | --- | --- | --- |
+
+          | current-evidence | Checking completion |
+          custom-principles/current-evidence.md |
+        .darrow/custom-principles/current-evidence.md: >
+          Use current candidate-bound check and independent review evidence. Do
+          not waive required checks, publication authority or final required CI.
   files:
-    .claude/skills/read-ticket/SKILL.md: &read_ticket |
+    .claude/skills/read-ticket/SKILL.md: >
       ---
+
       name: read-ticket
-      description: Read the exact fixture ticket by URL without mutation. Use whenever the active delivery needs that authoritative ticket.
+
+      description: Read the exact fixture ticket by URL without mutation. Use
+      whenever the active delivery needs that authoritative ticket.
+
       ---
+
 
       # Read the fixture ticket
 
+
       Run `fixture-read-ticket <exact-url>` once per requested read and return
+
       its complete output.
-    .agents/skills/read-ticket/SKILL.md: *read_ticket
-    .claude/skills/assess-implementation-readiness/SKILL.md: &readiness |
+    .agents/skills/read-ticket/SKILL.md: >
       ---
+
+      name: read-ticket
+
+      description: Read the exact fixture ticket by URL without mutation. Use
+      whenever the active delivery needs that authoritative ticket.
+
+      ---
+
+
+      # Read the fixture ticket
+
+
+      Run `fixture-read-ticket <exact-url>` once per requested read and return
+
+      its complete output.
+    .claude/skills/assess-implementation-readiness/SKILL.md: >
+      ---
+
       name: assess-implementation-readiness
-      description: Assess the exact fixture ticket before implementation and return its ready quality bar without mutation.
+
+      description: Assess the exact fixture ticket before implementation and
+      return its ready quality bar without mutation.
+
       ---
+
 
       # Assess fixture readiness
 
+
       Run `fixture-readiness https://example.invalid/tickets/42` exactly once
+
       and return its complete output byte-for-byte.
-    .agents/skills/assess-implementation-readiness/SKILL.md: *readiness
-    .claude/skills/prepare-task-branch/SKILL.md: &prepare_branch |
+    .agents/skills/assess-implementation-readiness/SKILL.md: >
       ---
+
+      name: assess-implementation-readiness
+
+      description: Assess the exact fixture ticket before implementation and
+      return its ready quality bar without mutation.
+
+      ---
+
+
+      # Assess fixture readiness
+
+
+      Run `fixture-readiness https://example.invalid/tickets/42` exactly once
+
+      and return its complete output byte-for-byte.
+    .claude/skills/prepare-task-branch/SKILL.md: >
+      ---
+
       name: prepare-task-branch
-      description: Discover local branches for exact ticket ID DAR-42 read-only, or prepare a caller-selected exact branch while preserving local work.
+
+      description: Discover local branches for exact ticket ID DAR-42 read-only,
+      or prepare a caller-selected exact branch while preserving local work.
+
       ---
+
 
       # Prepare the fixture branch
 
-      For read-only ticket-ID discovery, run `fixture-discover-branches DAR-42` and
+
+      For read-only ticket-ID discovery, run `fixture-discover-branches DAR-42`
+      and
+
       return the complete list. For exact preparation, run
+
       `fixture-prepare-branch '<selected branch>'` for an already bound exact
+
       name of the form `<type>/DAR-42-<lowercase-kebab-suffix>`, at most 60
+
       characters. Preserve the caller's exact name; relay a refusal and stop.
+
       For new work without an exact bound name, use the branch-creation skill.
+
       Never prepare a branch during discovery.
-    .agents/skills/prepare-task-branch/SKILL.md: *prepare_branch
-    .claude/skills/create-branch/SKILL.md: &create_branch |
+    .agents/skills/prepare-task-branch/SKILL.md: >
       ---
+
+      name: prepare-task-branch
+
+      description: Discover local branches for exact ticket ID DAR-42 read-only,
+      or prepare a caller-selected exact branch while preserving local work.
+
+      ---
+
+
+      # Prepare the fixture branch
+
+
+      For read-only ticket-ID discovery, run `fixture-discover-branches DAR-42`
+      and
+
+      return the complete list. For exact preparation, run
+
+      `fixture-prepare-branch '<selected branch>'` for an already bound exact
+
+      name of the form `<type>/DAR-42-<lowercase-kebab-suffix>`, at most 60
+
+      characters. Preserve the caller's exact name; relay a refusal and stop.
+
+      For new work without an exact bound name, use the branch-creation skill.
+
+      Never prepare a branch during discovery.
+    .claude/skills/create-branch/SKILL.md: >
+      ---
+
       name: create-branch
-      description: Create one new ticket-linked branch from a work description, choosing its conventional name and preserving existing work.
+
+      description: Create one new ticket-linked branch from a work description,
+      choosing its conventional name and preserving existing work.
+
       ---
+
 
       # Create the fixture branch
 
+
       Choose `<type>/DAR-42-<lowercase-kebab-suffix>` for the requested work,
+
       preserving the exact ticket ID DAR-42 once. Types: feat, fix, refactor,
+
       perf, docs, test, chore, build, ci, style, revert. The complete name must
+
       be at most 60 characters. Honor an explicitly supplied valid name.
+
       Run `fixture-create-branch '<selected branch>'` from the repository root.
+
       Correct invalid input and retry: validation exits 5 before mutation.
+
       A safety refusal or Git failure stops the operation; do not choose a
+
       variant to bypass an existing branch or discard, stash, or rewrite work.
+
       Create exactly one branch successfully and return its complete output.
-    .agents/skills/create-branch/SKILL.md: *create_branch
-    .claude/skills/create-commit/SKILL.md: &create_commit |
+    .agents/skills/create-branch/SKILL.md: >
       ---
+
+      name: create-branch
+
+      description: Create one new ticket-linked branch from a work description,
+      choosing its conventional name and preserving existing work.
+
+      ---
+
+
+      # Create the fixture branch
+
+
+      Choose `<type>/DAR-42-<lowercase-kebab-suffix>` for the requested work,
+
+      preserving the exact ticket ID DAR-42 once. Types: feat, fix, refactor,
+
+      perf, docs, test, chore, build, ci, style, revert. The complete name must
+
+      be at most 60 characters. Honor an explicitly supplied valid name.
+
+      Run `fixture-create-branch '<selected branch>'` from the repository root.
+
+      Correct invalid input and retry: validation exits 5 before mutation.
+
+      A safety refusal or Git failure stops the operation; do not choose a
+
+      variant to bypass an existing branch or discard, stash, or rewrite work.
+
+      Create exactly one branch successfully and return its complete output.
+    .claude/skills/create-commit/SKILL.md: >
+      ---
+
       name: create-commit
-      description: Create exactly one Conventional Commit for the ready fixture change after verification.
+
+      description: Create exactly one Conventional Commit for the ready fixture
+      change after verification.
+
       ---
+
 
       # Commit the fixture change
 
+
       Run `fixture-create-commit` exactly once after `bash test.sh` passes.
-    .agents/skills/create-commit/SKILL.md: *create_commit
-    .claude/skills/create-pr/SKILL.md: &create_pr |
+    .agents/skills/create-commit/SKILL.md: >
       ---
+
+      name: create-commit
+
+      description: Create exactly one Conventional Commit for the ready fixture
+      change after verification.
+
+      ---
+
+
+      # Commit the fixture change
+
+
+      Run `fixture-create-commit` exactly once after `bash test.sh` passes.
+    .claude/skills/create-pr/SKILL.md: >
+      ---
+
       name: create-pr
-      description: Push the current fixture branch without force and create exactly one pull request for its committed change.
+
+      description: Push the current fixture branch without force and create
+      exactly one pull request for its committed change.
+
       ---
+
 
       # Publish the fixture change
 
+
       Run `fixture-create-pr` exactly once after the intended commit exists and
+
       return its complete output.
-    .agents/skills/create-pr/SKILL.md: *create_pr
+    .agents/skills/create-pr/SKILL.md: >
+      ---
+
+      name: create-pr
+
+      description: Push the current fixture branch without force and create
+      exactly one pull request for its committed change.
+
+      ---
+
+
+      # Publish the fixture change
+
+
+      Run `fixture-create-pr` exactly once after the intended commit exists and
+
+      return its complete output.
   bin:
-    fixture-read-ticket: |
+    fixture-read-ticket: >
       #!/usr/bin/env bash
+
       set -eu
+
       test "$#" -eq 1
+
       test "$1" = https://example.invalid/tickets/42
+
       printf '%s\n' "$1" >>.fixture-state/read-ticket-invocations
+
       printf '%s\n' \
         'ticket-id: DAR-42' \
         'ticket: https://example.invalid/tickets/42' \
@@ -161,58 +359,81 @@ fixture:
         '### Required next action' \
         '' \
         'None; ready for implementation.'
-    fixture-discover-branches: |
+    fixture-discover-branches: >
       #!/usr/bin/env bash
+
       set -eu
+
       test "$#" -eq 1
+
       test "$1" = DAR-42
-      printf '%s\n' 'ticket-id: DAR-42' 'Matching local branches (complete list):'
+
+      printf '%s\n' 'ticket-id: DAR-42' 'Matching local branches (complete
+      list):'
+
       branches=$(git for-each-ref --format='%(refname:short)' refs/heads)
+
       while IFS= read -r branch; do
         case "$branch" in */DAR-42|*/DAR-42-*) printf '%s\n' "$branch" ;; esac
       done <<< "$branches"
+
       printf '%s\n' 'End of matching branches.'
-    fixture-prepare-branch: |
+    fixture-prepare-branch: >
       #!/usr/bin/env bash
+
       set -eu
+
       if test "$#" -ne 1; then
         printf '%s\n' 'Invalid input: provide one complete branch name.' >&2
         exit 5
       fi
+
       if test "${#1}" -gt 60 ||
         ! grep -Eq '^(feat|fix|refactor|perf|docs|test|chore|build|ci|style|revert)/DAR-42-[a-z0-9]+(-[a-z0-9]+)*$' <<< "$1" ||
         ! git check-ref-format --branch "$1" >/dev/null; then
         printf '%s\n' 'Invalid branch name: expected <type>/DAR-42-<lowercase-kebab-suffix>, at most 60 characters. Preserve DAR-42 exactly once.' >&2
         exit 5
       fi
+
       if test -e .fixture-state/branch-invocations; then
         printf '%s\n' 'Safety refusal: a branch was already prepared; preserve it.' >&2
         exit 1
       fi
+
       if git show-ref --verify --quiet "refs/heads/$1"; then
         git switch "$1"
       else
         git switch -c "$1"
       fi
+
       printf '%s\n' "$1" >>.fixture-state/branch-invocations
+
       printf 'branch: %s\n' "$1"
-    fixture-create-branch: |
+    fixture-create-branch: >
       #!/usr/bin/env bash
+
       set -eu
+
       if test "$#" -ne 1; then
         printf '%s\n' 'Invalid input: provide one complete branch name.' >&2
         exit 5
       fi
+
       if git show-ref --verify --quiet "refs/heads/$1"; then
         printf '%s\n' 'Safety refusal: the requested branch already exists; do not choose a variant.' >&2
         exit 1
       fi
+
       fixture-prepare-branch "$1"
-    decisionctl: |
+    decisionctl: >
       #!/usr/bin/env bash
+
       set -eu
+
       trace=.fixture-state/ticket-feedback-trace
+
       state=.fixture-state/ticket-feedback-state
+
       case "${1-}" in
         discover)
           test "$#" -eq 1
@@ -251,37 +472,55 @@ fixture:
       git add -- src/migration.js test/ test.sh
       git commit -m 'feat(migration): select strict policy'
       printf '%s\n' "$(git rev-parse HEAD)" >>.fixture-state/commit-invocations
-    fixture-create-pr: |
+    fixture-create-pr: >
       #!/usr/bin/env bash
+
       set -eu
+
       branch=$(git branch --show-current)
+
       test "$branch" = "$(cat .fixture-state/branch-invocations)"
+
       git diff --quiet
+
       git diff --cached --quiet
+
       git push -u origin "$branch"
+
       test ! -e .fixture-state/pull-requests
+
       printf '%s\t%s\n' \
         "$branch" https://example.invalid/pull/42 \
         >.fixture-state/pull-requests
       head=$(git rev-parse HEAD)
-      remote_head=$(git --git-dir=.fixture-state/remote.git rev-parse "refs/heads/$branch")
+
+      remote_head=$(git --git-dir=.fixture-state/remote.git rev-parse
+      "refs/heads/$branch")
+
       test "$head" = "$remote_head"
-      printf '%s\n' 'Pull request: https://example.invalid/pull/42' 'Repository: fixture/repository' "Head: $branch" 'Base: main' 'Draft: false' 'Open pull requests: 1'
+
+      printf '%s\n' 'Pull request: https://example.invalid/pull/42' 'Repository:
+      fixture/repository' "Head: $branch" 'Base: main' 'Draft: false' 'Open pull
+      requests: 1'
+
       printf 'Remote head: %s\nForge head: %s\n' "$remote_head" "$remote_head"
-  setup: |
+  setup: >
     bash "{{case_dir}}/fixtures/setup-ci.sh" "{{case_dir}}/fixtures"
+
     git init --bare .fixture-state/remote.git >/dev/null
+
     git remote add origin "$PWD/.fixture-state/remote.git"
-    { git rev-parse HEAD; git diff --binary HEAD; git ls-files --others --exclude-standard; } >.git/feedback-product-before
+
+    { git rev-parse HEAD; git diff --binary HEAD; git ls-files --others
+    --exclude-standard; } >.git/feedback-product-before
 checks:
   - name: same owner implements the explicit decision
-    run: >-
-      bash test.sh && node --input-type=module -e 'import { identity,
+    run: bash test.sh && node --input-type=module -e 'import { identity,
       migrationMode } from "./src/migration.js"; import assert from
       "node:assert/strict"; assert.equal(identity("v"), "v");
       assert.equal(migrationMode(), "strict")'
   - name: user answer is acknowledged before production mutation
-    run: |
+    run: >
       awk -F '\t' '
         NR == 1 {
           discovery_first = (NF == 3 && $1 == "discover" && $2 == "migration-policy" && $3 != "")
@@ -300,10 +539,13 @@ checks:
         }
       ' .fixture-state/ticket-feedback-trace
   - name: delivery records one successful ticket branch preparation
-    run: |
+    run: >
       cat .fixture-state/branch-invocations
+
       test "$(wc -l <.fixture-state/branch-invocations | tr -d ' ')" -eq 1
-      grep -Eq '^[a-z][a-z0-9-]*/DAR-42-[a-z0-9]+(-[a-z0-9]+)*$' .fixture-state/branch-invocations
+
+      grep -Eq '^[a-z][a-z0-9-]*/DAR-42-[a-z0-9]+(-[a-z0-9]+)*$'
+      .fixture-state/branch-invocations
   - name: delivery remains on the exact ticket branch
     run: |
       branch=$(git branch --show-current)
@@ -335,15 +577,14 @@ checks:
       EOF
       test "$implementation" = true
   - name: exact current branch is published once
-    run: >-
-      test "$(wc -l <.fixture-state/pull-requests | tr -d ' ')" -eq 1 && test
-      "$(cut -f1 .fixture-state/pull-requests)" = "$(cat .fixture-state/branch-invocations)" && test
-      "$(cut -f2 .fixture-state/pull-requests)" =
-      https://example.invalid/pull/42 && test "$(git
-      --git-dir=.fixture-state/remote.git rev-parse
-      "refs/heads/$(cat .fixture-state/branch-invocations)")" = "$(git rev-parse HEAD)"
+    run: test "$(wc -l <.fixture-state/pull-requests | tr -d ' ')" -eq 1 && test
+      "$(cut -f1 .fixture-state/pull-requests)" = "$(cat
+      .fixture-state/branch-invocations)" && test "$(cut -f2
+      .fixture-state/pull-requests)" = https://example.invalid/pull/42 && test
+      "$(git --git-dir=.fixture-state/remote.git rev-parse "refs/heads/$(cat
+      .fixture-state/branch-invocations)")" = "$(git rev-parse HEAD)"
   - name: readiness and authoritative ticket capabilities were used
-    run: >-
+    run:
       test "$(wc -l <.fixture-state/readiness-invocations | tr -d ' ')" -ge 1 &&
       test "$(wc -l <.fixture-state/read-ticket-invocations | tr -d ' ')" -ge 1
   - name: feedback fixture verifies product state before authorization
@@ -351,17 +592,19 @@ checks:
       .fixture-state/feedback-product-unchanged)" = "$(printf
       'discover\nacknowledge')"
   - name: required CI was observed for the final commit
-    run: |
+    run: >
       expected=$(git rev-parse HEAD)
-      grep -Fx "$(printf '%s\t%s' "$expected" success)" .fixture-state/ci-observations
+
+      grep -Fx "$(printf '%s\t%s' "$expected" success)"
+      .fixture-state/ci-observations
 output_checks:
   - name: completion identifies the one pull request
-    expect_regex: "https://example\\.invalid/pull/42"
+    expect_regex: https://example\.invalid/pull/42
 semantic_output_checks:
   - name: completed delivery is reported
-    proposition: >-
-      The response unambiguously reports that the ticket implementation and
-      pull-request publication are finished. It does not present delivery as
+    proposition:
+      The response unambiguously reports that the ticket implementation
+      and pull-request publication are finished. It does not present delivery as
       blocked, incomplete, or still requiring action before publication.
 transcript_checks:
   - name: observable plaintext feedback is not rewritten
@@ -369,3 +612,11 @@ transcript_checks:
   - name: user answer resumes the same native thread
     expect_regex: '"type":"darrow\.eval\.follow_up_turn"'
 native_goal: required
+additional_skills:
+  - plugins/capability/darrow-matt-pocock/skills/implement
+  - plugins/capability/darrow-matt-pocock/skills/tdd
+  - plugins/capability/darrow-pstack/skills/principles-first
+activation_includes:
+  - ticket-to-pr
+  - adaptive-goal
+  - implement

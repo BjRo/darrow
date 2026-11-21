@@ -10,17 +10,15 @@ activation: positive
 mount_plugin_skills: true
 additional_plugins:
   - plugins/orchestration/darrow-adaptive-goal
-  - plugins/capability/darrow-verification
   - plugins/capability/darrow-review
-  - plugins/capability/darrow-principles
-  - plugins/capability/darrow-tdd
 prompt: The harness pins this exact original owner to Codex gpt-6.1-sol/medium.
   {{skill_invocation}} https://example.invalid/tickets/42 Reuse
   fix/GH-42-timeout and its existing PR; publish the additional intended
-  commits. Verify the change by running `bash check.sh`. Require acceptance
-  verification through the advertised verify-change capability with the real
-  darrow-review:code-review provider before commit and publication. Preserve
-  their complete public workflows and current-candidate evidence.
+  commits. Verify the change by running `bash check.sh`. Require Adaptive Goal
+  acceptance accounting and the real darrow-review:code-review provider before
+  commit and publication. Preserve their complete public workflows and
+  current-candidate evidence. The public test seam is config.json through bash
+  check.sh; this seam is approved and inherited unchanged.
 fixture:
   commits:
     - message: "chore: init"
@@ -218,7 +216,6 @@ harnesses:
   - codex
 required_plugin_hook: darrow-review
 activation_includes:
-  - verify-change
   - code-review
   - principles-first
 additional_skills:
@@ -228,3 +225,6 @@ additional_skills:
   - plugins/fixtures/principles-delivery-fixture/skills/create-commit
   - plugins/fixtures/principles-delivery-fixture/skills/ship-proposal
   - plugins/fixtures/principles-delivery-fixture/skills/observe-ci
+  - plugins/capability/darrow-matt-pocock/skills/implement
+  - plugins/capability/darrow-matt-pocock/skills/tdd
+  - plugins/capability/darrow-pstack/skills/principles-first

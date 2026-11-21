@@ -8,7 +8,6 @@ expect_head_change: true
 harnesses: [codex]
 additional_plugins:
   - plugins/capability/darrow-git
-  - plugins/capability/darrow-verification
   - plugins/capability/darrow-review
 candidate_routes:
   codex: { model: gpt-6.1-sol, effort: medium }

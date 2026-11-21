@@ -1,10 +1,20 @@
 {
   "name": "darrow",
   "owner": {
-    "name": "Bj\u00f6rn Rochel",
+    "name": "Björn Rochel",
     "email": "bjoern@bjro.de"
   },
   "plugins": [
+    {
+      "name": "darrow-matt-pocock",
+      "source": "./plugins/capability/darrow-matt-pocock",
+      "description": "Pinned Matt Pocock discovery, design, writing, TDD and approved implementation workflows"
+    },
+    {
+      "name": "darrow-pstack",
+      "source": "./plugins/capability/darrow-pstack",
+      "description": "Lauren Tan’s unslop and preserved Darrow principles with optional routing and customization"
+    },
     {
       "name": "darrow-artificer",
       "source": "./plugins/automation/darrow-artificer",
@@ -16,24 +26,9 @@
       "description": "Set up and doctor lean, routed repository information architecture"
     },
     {
-      "name": "darrow-decisions",
-      "source": "./plugins/foundation/darrow-decisions",
-      "description": "Capture and query durable repository decisions at their canonical scope"
-    },
-    {
-      "name": "darrow-skill-authoring",
-      "source": "./plugins/foundation/darrow-skill-authoring",
-      "description": "Create and improve focused, evaluated agent skills for Claude Code and Codex"
-    },
-    {
       "name": "darrow-git",
       "source": "./plugins/capability/darrow-git",
       "description": "Intent-triggered Git skills for branches, commits, PRs, and candidate-bound PR evidence"
-    },
-    {
-      "name": "darrow-tickets",
-      "source": "./plugins/capability/darrow-tickets",
-      "description": "Ticket operations and reusable GitHub issue templates with a bundled GitHub Issues adapter"
     },
     {
       "name": "darrow-readiness-gate",
@@ -41,24 +36,9 @@
       "description": "Assess implementation readiness through a concrete quality bar and composable gate verdict"
     },
     {
-      "name": "darrow-discovery",
-      "source": "./plugins/capability/darrow-discovery",
-      "description": "Grill ideas, discover feature behavior, and plan implementation through evidence-backed decision rounds"
-    },
-    {
       "name": "darrow-explanation",
       "source": "./plugins/capability/darrow-explanation",
       "description": "Explain technical structure through compact, source-grounded visual forms"
-    },
-    {
-      "name": "darrow-tdd",
-      "source": "./plugins/capability/darrow-tdd",
-      "description": "Drive behavior changes and bug fixes through durable red-to-green test slices"
-    },
-    {
-      "name": "darrow-principles",
-      "source": "./plugins/capability/darrow-principles",
-      "description": "Apply optional principles-first guidance through editable Markdown routing"
     },
     {
       "name": "darrow-review",
@@ -66,19 +46,9 @@
       "description": "Review pinned changes independently for repository standards and specification fulfillment"
     },
     {
-      "name": "darrow-verification",
-      "source": "./plugins/capability/darrow-verification",
-      "description": "Verify acceptance through replaceable independent review and candidate-bound evidence"
-    },
-    {
       "name": "darrow-adaptive-goal",
       "source": "./plugins/orchestration/darrow-adaptive-goal",
       "description": "Diagnose host capacity or compile bounded engineering work into one host-native owner"
-    },
-    {
-      "name": "darrow-ticket-pipeline",
-      "source": "./plugins/orchestration/darrow-ticket-pipeline",
-      "description": "Deprecated reference static ticket pipeline; use darrow-adaptive-goal for new work"
     },
     {
       "name": "darrow-ticket-to-pr",

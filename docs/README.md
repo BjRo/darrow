@@ -13,6 +13,9 @@ repository guide can explain them and answer follow-up questions.
 | Understand a project term                   | [Glossary](glossary.md)                          |
 | Change Darrow or its documentation          | [Contributing](../CONTRIBUTING.md)               |
 
+Upgrading? Use the [ten-plugin migration guide](migrating-to-ten-plugins.md) for
+replacement mapping, uninstall/reinstall and preserved local configuration.
+
 ## Ask the repository guide
 
 Open this checkout in a fresh Codex or Claude Code session and ask:
@@ -25,7 +28,8 @@ reads sources, cites its evidence, and handles missing or conflicting answers.
 
 The guide explains this checkout and remains read-only. It can suggest an
 installation or a diagnostic capability, but does not execute those steps.
-Claude Code support is best-effort; Darrow is developed primarily with Codex.
+Codex remains the primary development host. Claude support is scoped to
+[documented workflow evidence and exceptions](migrating-to-ten-plugins.md#host-support-and-evidence).
 If discovery does not work, use the pages above and the
 [guide discovery checks](troubleshooting.md#the-repository-guide-is-missing).
 

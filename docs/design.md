@@ -40,7 +40,10 @@ explicitly. A capability:
 Orchestration owns the continuation contract around work: how the outcome is
 framed, what must remain true, where state lives, how execution resumes or
 adapts, and what counts as complete. Because that changes the shape and extent
-of a session, orchestration starts only through explicit user invocation. The
+of a session, orchestration starts only through explicit user invocation.
+Curated upstream explicit-only workflows keep their own invocation boundaries.
+An authorized parent can invoke adapted implement within its inherited envelope;
+installation alone supplies no execution or publication authority. The
 model must not infer orchestration merely because a task is complex,
 long-running, or multi-step. Once invoked, orchestration may use installed
 capabilities by their public intent. It may also delegate a bounded
@@ -57,8 +60,9 @@ those capabilities into one monolithic workflow.
 ## Foundations are capability infrastructure
 
 Foundation plugins maintain durable context and reusable agent surfaces that
-support other work: repository information architecture, authoritative
-decisions, and skill authoring. `foundation` is a marketplace and repository
+support other work. Information Architecture retains setup, doctor, host
+integration and context usage. Ordinary decision documents and selected Matt
+domain-modeling/writing guidance replace dedicated Decisions and Skill Authoring. `foundation` is a marketplace and repository
 layout category, not a third activation model. Its skills remain
 intent-matched capabilities, stay independently installable, and never start
 orchestration implicitly.
@@ -87,6 +91,12 @@ returns its operation's refusal to the enclosing owner, which decides authorized
 investigation, human feedback or termination. It cannot waive a failed gate or
 bypass a refused operation. This permits compatible replacements without a
 central registry and keeps continuation with the same owner.
+
+The [ten-plugin catalog](choosing-plugins.md) is the adoption inventory. Matt
+and pstack are pinned MIT bundles with recorded differences; all other licenses
+retain their scope. Package/import and host-entrypoint checks cover unchanged
+upstream skills; focused behavioral checks cover material Darrow adaptations.
+No per-skill upstream behavioral suite or scheduled update service is promised.
 
 This boundary preserves genuine choice: users can adopt one focused capability,
 several complementary capabilities, or an orchestration helper without
@@ -129,7 +139,7 @@ development tooling remains outside the plugin-runtime boundary.
 
 ## Evals make development evidence-based
 
-Every skill owns colocated eval cases that verify its public functionality,
+Darrow-maintained behavior owns focused colocated eval cases that verify its public functionality,
 intent-triggering boundary, refusal and stop behavior, and relevant repository
 outcomes. Deterministic scripts also receive direct tests, including both
 supported Bash boundaries. The shared runner executes judgment cases in the
@@ -140,8 +150,8 @@ The same eval surface supports evidence-based development. A new prompt,
 workflow, route, or orchestration variant is compared with the relevant control
 on the same fixtures, task prompts, acceptance checks, harness, model, and
 effort. Depending on the claim, the control may be the released skill, vanilla
-Codex or Claude without the capability, raw native goal functionality, or the
-historical ticket-pipeline baseline.
+Codex or Claude without the capability, raw native goal functionality, or a retained historical comparison. The retired Pipeline baseline has no
+current executable cells; its original observations remain historical.
 
 Comparisons report trial count and the metrics relevant to the claim, such as
 task pass rate, quality or escaped defects, false positives, tool and child
@@ -168,9 +178,10 @@ request + repository -> read-only preflight/readiness -> native goal in the main
 ```
 
 Implementation may be direct or delegated. An owner on a supported route runs
-selected Verification and Review workflows inline; a weaker or unknown route
-hands the assessment to one fallback coordinator. Capabilities keep their
-protocols, helpers and reader routes, and assessment readers always start fresh.
+acceptance accounting and the selected Review workflow inline; a weaker or
+unknown route hands Review coordination to its supported fallback coordinator.
+Capabilities keep their protocols, helpers and reader routes, and assessment
+readers always start fresh.
 Results return to the same delivery owner. The helper adds no fixed phase pipeline, lifecycle ledger,
 daemon, queue, or publication authority.
 
@@ -178,21 +189,12 @@ Before changing Adaptive Goal, read `docs/specs/adaptive-goal.md`.
 The [normative contract](specs/adaptive-goal.md) owns preflight, goal limits,
 route selection, placement, verification, repair, and completion.
 
-## The ticket pipeline is a reference and benchmark baseline
+## Ticket Pipeline is retired
 
-[`darrow-ticket-pipeline`](../plugins/orchestration/darrow-ticket-pipeline/README.md)
-preserves Darrow's earlier orchestration approach as an executable reference
-implementation. It uses a predefined phase graph, fresh phase agents, bounded
-repair loops, and durable state and artifacts in one tracker ticket.
+Ticket Pipeline no longer ships as an installable runtime or an executable
+benchmark. Its [retirement contract](specs/ticket-pipeline.md) preserves immutable
+source links and the original reports. Those reports retain their dates,
+limitations, and observations; they do not promise current reproducibility.
 
-That design is intentionally retained so Darrow can compare a static,
-controller-owned workflow with the smaller native-goal approach on the same
-fixtures. Useful comparison dimensions include completion rate, escaped
-defects, false positives, child invocations, human interruptions, tokens, cost,
-and wall time.
-
-The ticket pipeline is not a second recommended orchestration path and does not
-set Darrow's future product direction. Changes to it should preserve its value
-as a faithful reference and reproducible benchmark, not expand it into a daemon,
-queue, or general workflow runtime. Its frozen behavior and comparison contract
-are specified in [Capability: Ticket Pipeline](specs/ticket-pipeline.md).
+Shared comparison tooling remains available for Adaptive Goal and native-goal
+work. Retiring the static pipeline does not retire those surviving comparisons.

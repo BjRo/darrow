@@ -70,7 +70,9 @@ For ordinary focused requests, intent matching is usually enough.
 
 ## 5. Choose your next plugin
 
-Return to [Choose Darrow plugins](choosing-plugins.md). Each plugin README
+The [catalog](choosing-plugins.md) lists the complete ten-plugin lineup, including
+the MIT Matt Pocock and pstack bundles. Existing users should follow the
+[migration guide](migrating-to-ten-plugins.md) before removing older copies. Each plugin README
 includes example requests and its safety boundaries. Install capabilities as
 you need them rather than installing the entire marketplace.
 

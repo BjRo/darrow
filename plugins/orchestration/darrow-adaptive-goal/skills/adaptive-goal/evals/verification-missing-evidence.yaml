@@ -4,7 +4,7 @@ goal_report: forbidden
 goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Advice only; do not launch or perform work. Review and QA are
-  selected through verification. Current checks and review are clear; QA returned
+  selected through its public workflow. Current checks and review are clear; QA returned
   unavailable because its required environment cannot start. No implementation blocker
   was reported and the repair budget is unused. What should the retained owner do next?
 fixture:

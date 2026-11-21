@@ -1,0 +1,243 @@
+import { expect, test } from "bun:test";
+import { cp, mkdtemp, mkdir, readFile, readdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { captureTestCommand } from "../test-command";
+
+const plugin = resolve("plugins/capability/darrow-matt-pocock");
+const extension = resolve("evals/sevro-extension/index.ts");
+async function request(method: string, params: Record<string, unknown>) {
+  const result = await captureTestCommand(
+    [process.execPath, extension],
+    JSON.stringify({
+      protocol: "sevro.extension.v1",
+      id: method,
+      method,
+      params,
+    }),
+    { env: process.env },
+  );
+  expect(result.exitCode, result.stderr).toBe(0);
+  return JSON.parse(result.stdout);
+}
+
+test("isolated Matt package mounts both host entrypoints through the public extension protocol", async () => {
+  const root = await mkdtemp(join(tmpdir(), "matt-mount-"));
+  try {
+    await mkdir(join(root, "plugins/capability"), { recursive: true });
+    await cp(plugin, join(root, "plugins/capability/darrow-matt-pocock"), {
+      recursive: true,
+    });
+    for (const host of ["codex", "claude"] as const) {
+      const resolved = await request("resolve", {
+        projectRoot: pathToFileURL(root).href,
+        selectors: {
+          caseIds: [
+            host === "codex"
+              ? "matt-bundle-setup-local"
+              : "matt-bundle-domain-local",
+          ],
+        },
+        configuration: {},
+      });
+      expect(resolved.result?.cases?.length, JSON.stringify(resolved)).toBe(1);
+      const prepared = await request("prepare", {
+        case: resolved.result.cases[0],
+        host: {
+          id: `sevro.host.${host}`,
+          capabilities:
+            host === "codex"
+              ? [
+                  "sevro.codex.plugin-marketplace",
+                  "sevro.codex.explicit-invocation",
+                ]
+              : [
+                  "sevro.claude.plugin-dirs",
+                  "sevro.claude.explicit-invocation",
+                ],
+        },
+        condition: "passive",
+        configuration: {},
+      });
+      expect(prepared.error, JSON.stringify(prepared)).toBeUndefined();
+      const artifacts = prepared.result.artifacts as Array<{
+        relativePath: string;
+        contentBase64: string;
+      }>;
+      const skill = artifacts.find((a) =>
+        a.relativePath.endsWith("/skills/setup-matt-pocock-skills/SKILL.md"),
+      );
+      expect(skill).toBeDefined();
+      const prefix = skill!.relativePath.split("/skills/")[0]!;
+      expect(
+        artifacts.some(
+          (a) => a.relativePath === `${prefix}/references/COMPATIBILITY.md`,
+        ),
+      ).toBe(true);
+      expect(
+        artifacts.some(
+          (a) => a.relativePath === `${prefix}/references/LICENSE`,
+        ),
+      ).toBe(true);
+      for (const path of [
+        "prototype/LOGIC.md",
+        "codebase-design/DESIGN-IT-TWICE.md",
+        "setup-matt-pocock-skills/agents/openai.yaml",
+        "implement/SKILL.md",
+        "implement/agents/openai.yaml",
+      ])
+        expect(
+          artifacts.some((a) => a.relativePath === `${prefix}/skills/${path}`),
+        ).toBe(true);
+      expect(artifacts.some((a) => a.relativePath.includes("/evals/"))).toBe(
+        false,
+      );
+      if (host === "codex")
+        expect(prepared.result.codexSkillInvocation).toEqual({
+          pluginName: "darrow-matt-pocock",
+          skillName: "setup-matt-pocock-skills",
+        });
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}, 30000);
+
+async function requiredPackageFiles(
+  directory: string,
+  prefix = "skills",
+): Promise<string[]> {
+  const paths: string[] = [];
+  for (const entry of await readdir(join(directory, prefix), {
+    withFileTypes: true,
+  })) {
+    if (entry.name === "evals") continue;
+    const path = `${prefix}/${entry.name}`;
+    if (entry.isDirectory())
+      paths.push(...(await requiredPackageFiles(directory, path)));
+    else if (entry.isFile()) paths.push(path);
+  }
+  return paths;
+}
+async function verifyPackageClosure(
+  source: string,
+  files: Map<string, string>,
+  count: number,
+) {
+  expect(
+    [...files.keys()].filter((path) => /^skills\/[^/]+\/SKILL\.md$/.test(path)),
+  ).toHaveLength(count);
+  for (const prefix of ["skills", "references"])
+    for (const path of await requiredPackageFiles(source, prefix))
+      expect(files.get(path), path).toBe(
+        await readFile(join(source, path), "utf8"),
+      );
+}
+
+// Public filtered copies must carry complete notices, not only root distribution files.
+test.each(["darrow-matt-pocock", "darrow-pstack"])(
+  "%s filtered copies retain full notices and reachable provenance on both hosts",
+  async (name) => {
+    const root = await mkdtemp(join(tmpdir(), "curated-notices-"));
+    const source = resolve("plugins/capability", name);
+    const matt = name === "darrow-matt-pocock";
+    try {
+      await mkdir(join(root, "plugins/capability"), { recursive: true });
+      await cp(source, join(root, "plugins/capability", name), {
+        recursive: true,
+      });
+      for (const host of ["codex", "claude"] as const) {
+        const resolved = await request("resolve", {
+          projectRoot: pathToFileURL(root).href,
+          selectors: {
+            caseIds: [
+              matt
+                ? host === "codex"
+                  ? "matt-bundle-setup-local"
+                  : "matt-bundle-domain-local"
+                : "pstack-principles-first-default-bundled-loading",
+            ],
+          },
+          configuration: {},
+        });
+        expect(resolved.result?.cases?.length, JSON.stringify(resolved)).toBe(
+          1,
+        );
+        const prepared = await request("prepare", {
+          case: resolved.result.cases[0],
+          host: {
+            id: `sevro.host.${host}`,
+            capabilities: {
+              codex: [
+                "sevro.codex.plugin-marketplace",
+                "sevro.codex.explicit-invocation",
+              ],
+              claude: [
+                "sevro.claude.plugin-dirs",
+                "sevro.claude.explicit-invocation",
+              ],
+            }[host],
+          },
+          condition: "passive",
+          configuration: {},
+        });
+        expect(prepared.error, JSON.stringify(prepared)).toBeUndefined();
+        const artifacts = prepared.result.artifacts as Array<{
+          relativePath: string;
+          contentBase64: string;
+        }>;
+        const skill = artifacts.find((a) =>
+          a.relativePath.endsWith(
+            matt
+              ? "/skills/setup-matt-pocock-skills/SKILL.md"
+              : "/skills/principles-first/SKILL.md",
+          ),
+        );
+        expect(skill).toBeDefined();
+        const prefix = skill!.relativePath.split("/skills/")[0]!;
+        const files = new Map(
+          artifacts.map((a) => [
+            a.relativePath.slice(prefix.length + 1),
+            Buffer.from(a.contentBase64, "base64").toString(),
+          ]),
+        );
+        await verifyPackageClosure(
+          source,
+          files,
+          { "darrow-matt-pocock": 17, "darrow-pstack": 27 }[name]!,
+        );
+        expect(files.get("references/LICENSE")).toBe(
+          await readFile(join(source, "LICENSE"), "utf8"),
+        );
+        expect(files.get("README.md")).toContain("(references/LICENSE)");
+        const provenance = matt ? "LOCAL-DIFFERENCES.md" : "PROVENANCE.md";
+        expect(files.get("README.md")).toContain(`(references/${provenance})`);
+        expect(files.get(`references/${provenance}`)).toBe(
+          await readFile(
+            join(
+              source,
+              matt ? "references/LOCAL-DIFFERENCES.md" : "PROVENANCE.md",
+            ),
+            "utf8",
+          ),
+        );
+        if (!matt) {
+          for (const path of [
+            "UPSTREAM-LICENSE",
+            "upstream-provenance.txt",
+            "upstream-selection.tsv",
+            "upstream-required-files.txt",
+            "upstream-files.sha256",
+          ])
+            expect(files.get(`references/${path}`), `${host}: ${path}`).toBe(
+              await readFile(join(source, path), "utf8"),
+            );
+        }
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+  30000,
+);

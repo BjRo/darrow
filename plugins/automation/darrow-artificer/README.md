@@ -3,7 +3,7 @@
 Nominate ready GitHub issues and let a local worker run a task recipe in a
 plugin-equipped Claude Code or Codex session. Return to reviewable pull requests.
 
-When updating, update Ticket-to-PR, Adaptive Goal, Verification and Review
+When updating, update Ticket-to-PR, the Matt bundle, Adaptive Goal and Review
 together before a new delivery. Session starts and resumes use installed plugins
 as-is; Artificer keeps no plugin snapshots.
 
@@ -21,9 +21,10 @@ latest fetched main/master. The worker can then take another ticket if shared
 capacity allows. Initially every ticket runs `ticket-to-pr`; the recipe and
 native session own engineering, verification and internal subagents.
 
-Adaptive Goal, verification and review must be installed in the selected host.
-Other plugins, including TDD, Git and ticket capabilities, are optional and used
-when applicable. Existing user/project configuration and authentication are
+The approved-work implement recipe and its required Adaptive Goal, selected TDD,
+Review, Git and principles providers must be available in the selected host.
+Adaptive Goal accounts for acceptance evidence and gaps; standalone Verification
+is not required. Use other installed capabilities when applicable. Existing user/project configuration and authentication are
 inherited. Artificer does not copy plugins, credentials or native histories.
 
 ## Hosts and prerequisites
@@ -179,8 +180,8 @@ Cloud execution, epic recipes and dispatch by subissues or labels are future wor
 ### Live assurance probe
 
 The opt-in `backend/tests/live_assurance.py` probe delivers one disposable local
-issue on Codex through the real Artificer worker, Ticket-to-PR, Adaptive Goal,
-Verification and Review. It ends the app-server process once after the native
+issue on Codex through the real Artificer worker, Ticket-to-PR, implement, Adaptive Goal acceptance
+and Review. It ends the app-server process once after the native
 goal starts, then checks that the worker resumed the same session and goal, that
 readers completed, and that the reviewed content is committed, published and
 passes the fixture CI. Forge effects stay in local fixtures.

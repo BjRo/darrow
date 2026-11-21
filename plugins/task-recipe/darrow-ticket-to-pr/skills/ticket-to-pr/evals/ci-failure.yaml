@@ -8,18 +8,25 @@ expect_head_change: true
 adaptive_goal_composition: true
 activation: positive
 mount_plugin_skills: true
-activation_sequence:
+activation_includes:
   - ticket-to-pr
+  - implement
   - adaptive-goal
 additional_plugins:
   - plugins/orchestration/darrow-adaptive-goal
   - plugins/capability/darrow-readiness-gate
   - plugins/capability/darrow-git
-  - plugins/capability/darrow-tdd
+  - plugins/capability/darrow-pstack
+additional_skills:
+  - plugins/capability/darrow-matt-pocock/skills/implement
+  - plugins/capability/darrow-matt-pocock/skills/tdd
 prompt: >-
   {{skill_invocation}} https://example.invalid/tickets/42
   Reuse fix/GH-42-timeout and its existing PR; publish the additional intended commits.
-  Verify the change by running `bash check.sh`.
+  Verify the change by running `bash check.sh`. The confirmed public test seam is
+  config.json through bash check.sh; reuse this agreement. An existing ready
+  assessment covers this exact scope with no findings; do not repeat readiness.
+  Require the advertised independent-code-review contract before commit/publication.
 fixture:
   commits:
     - message: "chore: init"
@@ -27,6 +34,10 @@ fixture:
         AGENTS.md: |
           Run `bash check.sh` for this local configuration change.
           Preserve NOTES.md, which contains committed delivery notes.
+          The public independent Review provider is at
+          .agents/skills/independent-code-review/SKILL.md on Codex and
+          .claude/skills/independent-code-review/SKILL.md on Claude. Read that
+          exact public contract before declaring the provider unavailable.
         config.json: '{"timeoutMs":1000}'
         check.sh: |
           #!/usr/bin/env bash
@@ -75,7 +86,7 @@ fixture:
 
       test "$1" = https://example.invalid/tickets/42
 
-      printf '%s\n' 'ticket-id: GH-42' \
+      printf '%s\n' 'ticket-id: GH-42' 'Title: Configure the request timeout' \
         'Outcome: config.json must contain {"timeoutMs":2500}. Trailing newlines are insignificant.' \
         'Acceptance: bash check.sh passes; preserve the committed NOTES.md.' \
         'Delivery branch: reuse fix/GH-42-timeout in the current checkout.' \
@@ -85,6 +96,11 @@ fixture:
     bash "{{case_dir}}/fixtures/setup-composition.sh" "{{case_dir}}/fixtures" replacement
     printf '%s\n' failure >.git/fixture-ci-state
 checks:
+  - name: both independent readers assessed the committed candidate
+    run: |
+      base=$(git rev-parse HEAD^)
+      digest=$(git diff HEAD^ HEAD -- config.json check.sh | git hash-object --stdin)
+      test "$(grep -Fxc "$(printf 'review\tWORKTREE@%s+%s' "$base" "$digest")" .fixture-state/reviews)" = 2
   - name: ticket implementation meets acceptance
     run: bash check.sh
   - name: additional commits and intended implementation reach the existing PR branch

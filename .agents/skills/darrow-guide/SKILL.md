@@ -130,7 +130,7 @@ For a visual request, use an available `explain-visually` capability. Carry
 forward the concise question, inspected paths, evidence status, and inline,
 read-only constraint. Read and apply that capability's instructions; preserve
 grounding and compactness in its result. Do not authorize artifact creation.
-The guide still owns the final answer: in Claude Code, include the best-effort
+The guide still owns the final answer: in Claude Code, include the evidence-scoped
 support and primary-Codex development disclosure beside the returned view.
 If it is unavailable, begin the answer by naming `explain-visually` as
 unavailable in this host, then provide a small grounded text view.
@@ -184,9 +184,13 @@ For other answers, offer one useful next question, source, or capability when
 appropriate. Keep deeper detail there instead of adding an unsolicited catalog,
 but do not make the reader ask again for the basic answer.
 
-In Claude Code, disclose in the answer that Claude Code support is best-effort
-and Darrow is currently developed primarily with Codex.
-Include that disclosure in short refusals and clarification answers too.
+In Claude Code, disclose that support is scoped to documented workflow evidence
+and Darrow is developed primarily with Codex. Include that concise qualification
+in short refusals and clarification answers too. When explaining host support,
+state the current boundary: both Codex and Claude Code are required targets for
+the curated bundles and revised shared workflows. Artificer retains its explicit
+Claude exception. Do not extend that scope to unverified operations or turn a
+support target into a claim that every native task passed.
 
 Before sending, verify that each material claim follows from a source you
 read, uncertainty remains visible, the answer directly addresses the question,

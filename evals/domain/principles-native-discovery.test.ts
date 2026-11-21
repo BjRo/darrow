@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
 const oracle = resolve(
-  "plugins/capability/darrow-principles/skills/principles-first/evals/fixtures/assert-no-custom-discovery.mjs",
+  "plugins/capability/darrow-pstack/skills/principles-first/evals/fixtures/assert-no-custom-discovery.mjs",
 );
 const temporary: string[] = [];
 afterEach(() =>

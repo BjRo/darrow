@@ -35,10 +35,6 @@ Before changing evidence interpretation, read `docs/specs/skill-evaluation.md`.
   protocol usage in one fixture, checking exit status and absence of effects
   after each invocation. Test response-only examples against their canonical
   output declarations, with passing and failing installed CLI checks.
-  Ticket response examples use their canonical complete-output regex directly;
-  installed grading retains both permitted newline forms and the extra-newline
-  rejection. Keep the exact declaration shape guarded so new grading fields
-  require corresponding coverage.
 - Run review-record validation and presentation checks through the owning
   frozen Python CLI. The domain helper prepares only its package and record
   files; canonical fixture-setup tests retain the installed Sevro connection.
@@ -50,8 +46,11 @@ Before changing evidence interpretation, read `docs/specs/skill-evaluation.md`.
   and review-provider installation for each repair scenario, including stale
   content and duplicate or conflicting providers. Group synthetic report
   variants that share the same repository and provider setup.
-- Give every skill colocated eval cases that verify its public behavior and
-  intent boundaries. Test deterministic scripts separately when present.
+- Give Darrow-maintained behavior colocated eval cases that verify its public
+  outcomes and intent boundaries. For curated upstream skills, check import
+  closure/notices and native entrypoints, focusing behavioral cases on material
+  Darrow adaptations. Trust upstream maintenance for unchanged behavior rather
+  than adding a per-skill behavioral suite. Test deterministic scripts separately.
 - Start with the exact normative invariant or public promise under test. An
   assertion must not require stronger behavior, removed design, fixed counts,
   lifecycle markers, exact vocabulary, or serialization that the contract does
@@ -158,15 +157,8 @@ Before changing evidence interpretation, read `docs/specs/skill-evaluation.md`.
   and check reminder delivery in the native candidate context before launching
   a threshold run. Hook execution and skill activation remain separate, and
   negative selection cases retain the same installed hook. Preserve earlier
-  hook-disabled cohorts. TDD cases similarly declare
-  `required_plugin_hook: darrow-tdd` and select
-  `evals/sevro-extension/runtime-tdd.json` for the installed reminder condition.
-  Read-ticket cases declare `required_plugin_hook: darrow-tickets` and use
-  `evals/sevro-extension/runtime-tickets.json` for the installed Codex catalog
-  binding reminder. Keep the same hook on positive and negative read cases and
-  retain the earlier catalog-only cohorts. Other Tickets cases keep their
-  declared installation condition; do not treat those earlier results as
-  measurements of the new reminder.
+  hook-disabled cohorts. The retired standalone TDD hook and its runtime profile
+  are not prerequisites for the selected Matt TDD workflow.
   Graders read the original candidate
   `~/.darrow/reviews` subtree through `SEVRO_CANDIDATE_ARTIFACT_REVIEWS`, then
   bind that path to the owning oracle's `DARROW_REVIEW_STATE_DIR`. Preserve

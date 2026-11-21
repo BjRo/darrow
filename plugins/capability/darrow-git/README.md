@@ -62,6 +62,13 @@ one pull request for its committed delta. It respects the repository's default
 base, pull-request template, and an explicitly requested draft state, and stops
 when an open pull request already exists.
 
+The description explains the problem and resulting behavior, presents available
+evidence with its limits, and assesses impact, affected callers or systems, and
+reversibility. Summary, Evidence, and Merge Danger are the default sections;
+repository templates take precedence. Small changes can use short prose, while
+a compact visual is useful when it clarifies a complex change. This complete PR
+experience works without the Explanation plugin.
+
 An explicit request to publish commits to and reuse the existing PR selects a
 separate path: it pushes without force and verifies that the remote branch and
 forge head both equal the intended commit. It returns the repository, URL,
@@ -91,9 +98,11 @@ Git or GitHub operation, and return structured evidence for the skill to
 interpret. They are implementation details of the workflows rather than a
 general Git wrapper. All supported platforms call the UV entrypoints directly.
 
-Ticket-linked commands accept the provider's non-secret identifier through
-`--ticket-id`. Discovery returns it as `ticket-id:`. Update ticket providers and
-Git consumers together; the former argument name is no longer accepted.
+Ticket-linked commands accept the selected tracker's non-secret canonical
+identifier through `--ticket-id`. Obtain it from configured native tools or an
+available read capability, preserving the provider, project and exact spelling.
+No Tickets plugin or Darrow-specific tracker response field is required.
+Git's own discovery output returns the unchanged identifier as `ticket-id:`.
 
 ## Design boundaries
 
@@ -176,3 +185,8 @@ without credentials.
 Business Source License 1.1 — see [LICENSE](LICENSE). Converts to MPL-2.0
 two years after each release. Part of the
 [Darrow](https://github.com/BjRo/darrow) marketplace.
+
+The adapted PR presentation guidance credits Matt Pocock and Dex Horthy's
+HumanLayer show-me lineage. Its borrowed MIT material retains both full notices
+in [create-pr credits](skills/create-pr/CREDITS.md); this does not relicense the
+Git backend or unrelated Darrow content.

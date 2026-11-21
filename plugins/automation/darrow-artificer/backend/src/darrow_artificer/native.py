@@ -36,7 +36,7 @@ def require_capabilities(names: list[str]) -> None:
     available = {name.rsplit(":", 1)[-1] for name in names}
     missing = {
         "adaptive-goal",
-        "verify-change",
+        "implement",
         "code-review",
         "ticket-to-pr",
     } - available

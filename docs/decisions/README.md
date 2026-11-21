@@ -1,9 +1,14 @@
 # ADR Catalog
 
-This checked-in catalog is derived, non-authoritative metadata. ADR files remain canonical.
-Rebuild it with `decision catalog rebuild` and verify it with `decision catalog check`.
+This catalog is a manually maintained navigation aid. ADR files remain canonical.
+Update each affected row alongside its ADR, preserving status and relationships.
+Run `bun run check:docs` for general documentation and link checks.
 
-<!-- darrow-adr-catalog-v2 -->
+Partial supersession remains local to the recorded clauses: ADR-0004 and ADR-0012
+link [Ticket Pipeline retirement](../specs/ticket-pipeline.md) for the former
+executable-reference/benchmark promises; ADR-0006 links
+[Decisions retirement](../specs/decision-management.md) for the former provider
+contract. Their statuses, ownership decisions and original history remain as listed.
 
 ## Proposed
 
@@ -26,16 +31,6 @@ Rebuild it with `decision catalog rebuild` and verify it with `decision catalog 
 | [ADR-0012: Keep native goal ownership in the main thread](ADR-0012-keep-native-goal-ownership-in-the-main-thread.md) | Accepted | 2026-10-30 | Keep the native goal, acceptance criteria, user decisions, and completion in the main thread; delegate bounded work without transferring goal ownership. | Supersedes: ADR-0004 |
 | [ADR-0013: Retire the Langfuse observability plugin](ADR-0013-retire-the-langfuse-observability-plugin.md) | Accepted | 2026-10-31 | Remove darrow-observability-langfuse and use configured native host OpenTelemetry exporters with session-start resource attributes for ticket attribution, accepting the loss of plugin-specific reconstruction and attribution features. | Supersedes: ADR-0008; Revisit when: A concrete telemetry requirement cannot be met by native host exporters and justifies a separately scoped integration with measured evidence. |
 
-<!-- darrow-source: cd9996efb2f66b1602ead9a405a48686e14f67a9 1820997609 370 ADR-0002-separate-capabilities-from-orchestration.md -->
-<!-- darrow-source: 452327e39a9dff558c6897356d0e1e85cf65906f 3673420192 418 ADR-0003-treat-plugins-as-optionality-boundaries.md -->
-<!-- darrow-source: 739b2fa46ad8b0ed220c4d341317bf670d3d7a41 243106577 398 ADR-0006-keep-decisions-with-their-authoritative-owners.md -->
-<!-- darrow-source: ae5948d48fa4b0b0ce2c80ea76e23a71d582aa71 4074249863 369 ADR-0007-separate-skill-evaluation-evidence-dimensions.md -->
-<!-- darrow-source: 152ebad0159783e7f2299a3abb6df5b3d3ae6176 3731273062 623 ADR-0009-adopt-python-and-uv-for-substantial-plugin-mechanics.md -->
-<!-- darrow-source: 7e9e833caf7a83145daacfa932b43da384f1ef93 4046602581 376 ADR-0010-extract-the-evaluation-runner-into-sevro.md -->
-<!-- darrow-source: bd4a23b83d93c1b0c9604930b2743bfda84bbb04 1485653912 455 ADR-0011-negotiate-evaluation-extensions-across-the-runner-boundary.md -->
-<!-- darrow-source: 0af11a89ed25c879750b1126d3b529b0e7c2eb21 2228648349 396 ADR-0012-keep-native-goal-ownership-in-the-main-thread.md -->
-<!-- darrow-source: 4bad6e71b52e249874c143be09912af93b121fda 288616963 603 ADR-0013-retire-the-langfuse-observability-plugin.md -->
-
 ## Rejected
 
 <!-- prettier-ignore -->
@@ -57,8 +52,3 @@ Rebuild it with `decision catalog rebuild` and verify it with `decision catalog 
 | [ADR-0004: Use native goal ownership for core orchestration](ADR-0004-use-native-goal-ownership-for-core-orchestration.md) | Superseded | 2026-08-13 | Use Darrow to compile and launch one host-native goal owner instead of operating a second execution controller or general workflow runtime. | Superseded by: ADR-0012; Revisit when: Matched multi-trial evidence on supported hosts shows that a Darrow-owned execution controller materially improves task outcomes over native goal ownership after accounting for wall time, model usage, child invocations, and human interruptions. |
 | [ADR-0005: Use portable Bash facades for plugin mechanics](ADR-0005-use-portable-bash-facades-for-plugin-mechanics.md) | Superseded | 2026-08-13 | Put deterministic plugin mechanics behind narrow portable Bash facades while keeping authority and contextual judgment in skills. | Superseded by: ADR-0009 |
 | [ADR-0008: Allow Python and UV for Langfuse observability](ADR-0008-allow-python-and-uv-for-langfuse-observability.md) | Superseded | 2026-08-24 | Permit the independently installable Langfuse observability plugin to use a locked Python backend managed by UV while retaining a portable Bash hook launcher and keeping the exception scoped to that plugin. | Superseded by: ADR-0013; Revisit when: Codex exposes equivalent native Langfuse export, the Langfuse SDK no longer requires Python, or the plugin can meet its rollout-reconstruction and export contract with the portable Bash baseline alone. |
-
-<!-- darrow-source: e85924b1a6bbbb6f57670af8b500c6227f55bc42 1322776374 340 ADR-0001-eval-runner.md -->
-<!-- darrow-source: 3992b897a9f63e2627b06507556b6730ab70c0b7 481748246 638 ADR-0004-use-native-goal-ownership-for-core-orchestration.md -->
-<!-- darrow-source: 4121fc1ae3de0d07c230af478cf687fca0ff8766 3926343988 378 ADR-0005-use-portable-bash-facades-for-plugin-mechanics.md -->
-<!-- darrow-source: 1d5c72ece8180d914a88bc75023138110a0320d9 4127117138 656 ADR-0008-allow-python-and-uv-for-langfuse-observability.md -->

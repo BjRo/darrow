@@ -12,9 +12,9 @@ ticket set, dependencies, criteria, shared decisions, preserved local work and
 permitted effects. Read/list capabilities do not imply complete ticket discovery.
 Missing material decisions, evidence or prerequisites stop affected work.
 
-This strategy requires independent verification of the complete specification
-at the end, with independent review as a required assessment, including routine
-risk. Bind the compatible public capabilities during read-only preflight,
+This strategy requires owner acceptance accounting and independent Review of the
+complete specification at the end, including routine risk. Bind the compatible
+public review capability during read-only preflight,
 before goal activation or worker effects. Missing assurance stops launch;
 self-review and routine-placement defaults do not satisfy this prerequisite.
 
@@ -102,8 +102,9 @@ updated integration branch after their prerequisites have landed, not from a
 tracker closure or a worker's completion claim.
 
 Run all required combined checks successfully after integration. Required
-independent verification then assesses the complete specification at the end,
-through the bound capability. Do not run separate ticket assessment cycles.
+independent Review then assesses the complete specification at the end through
+its bound public workflow. The main thread maps every criterion to current
+evidence or a gap. Do not run separate ticket assessment cycles.
 Missing fixtures, services or skipped required checks remain evidence gaps.
 
 Return findings to the retained producing worker with current integration

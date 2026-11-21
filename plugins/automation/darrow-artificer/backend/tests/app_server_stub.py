@@ -165,7 +165,7 @@ class Host:
                             {"name": name, "enabled": True}
                             for name in (
                                 "adaptive-goal",
-                                "verify-change",
+                                "implement",
                                 "code-review",
                                 "ticket-to-pr",
                             )

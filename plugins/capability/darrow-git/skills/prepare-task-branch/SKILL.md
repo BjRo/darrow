@@ -23,7 +23,11 @@ The package lives at `<skill-dir>/../../backend` inside this plugin.
 ## 1. Bind discovery or preparation input
 
 For discovery, require only the active provider's exact opaque canonical
-identifier. Use its non-secret `ticket-id:` value unchanged.
+identifier. Use the non-secret canonical identifier returned by the selected
+tracker's native tools or read capability unchanged; no Darrow-specific response
+field is required. Preserve the established provider and project. Do not derive
+identity from a title or URL, change tracker configuration, or bypass a provider
+refusal. The `--ticket-id` argument below remains the guarded Git backend input.
 Run the read-only operation:
 
 ```sh

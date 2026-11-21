@@ -6,6 +6,10 @@ Summary: Use Darrow to compile and launch one host-native goal owner instead of 
 Superseded by: ADR-0012
 Revisit when: Matched multi-trial evidence on supported hosts shows that a Darrow-owned execution controller materially improves task outcomes over native goal ownership after accounting for wall time, model usage, child invocations, and human interruptions.
 
+Pipeline retirement (2026-11-20): The executable-reference and benchmark-baseline
+clauses below are superseded by [Ticket Pipeline retirement](../specs/ticket-pipeline.md).
+The native-goal ownership decision retains its existing status.
+
 ## Context
 
 Codex and Claude already provide long-running goal execution, repository tools,

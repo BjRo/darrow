@@ -424,11 +424,107 @@ test("guide disclosure uses retained response evidence through Sevro", async () 
     source: "sevro.host.claude",
     completeness: "complete",
     data: {
-      text: "Claude support is best-effort; development is primarily with Codex.",
+      text: "Claude support is scoped to documented workflow evidence; development is primarily with Codex.",
     },
   };
+  const documentedSupport =
+    "Support here covers only what the documents show, and Darrow is developed mainly with Codex.";
+  const adjacentSupport =
+    "Evidence is documented workflow evidence only, and Darrow is developed primarily with Codex. Claude Code support is scoped to the documented bundles.";
   for (const [observations, status] of [
     [[final], "passed"],
+    [[{ ...final, data: { text: adjacentSupport } }], "passed"],
+    [
+      [
+        {
+          ...final,
+          data: { text: adjacentSupport.replace(". Claude", ".\n\nClaude") },
+        },
+      ],
+      "failed",
+    ],
+    [
+      [
+        {
+          ...final,
+          data: {
+            text: adjacentSupport.replace(
+              ". Claude",
+              ". An unrelated claim intervenes. Claude",
+            ),
+          },
+        },
+      ],
+      "failed",
+    ],
+    [
+      [
+        {
+          ...final,
+          data: {
+            text: "Workflow evidence exists. Claude Code support is scoped to the documented bundles. Darrow is developed primarily with Codex.",
+          },
+        },
+      ],
+      "failed",
+    ],
+    [
+      [
+        {
+          ...final,
+          data: {
+            text: adjacentSupport.replace(
+              "is scoped to the documented bundles",
+              "is unrestricted",
+            ),
+          },
+        },
+      ],
+      "failed",
+    ],
+    [[{ ...final, data: { text: documentedSupport } }], "passed"],
+    [
+      [
+        {
+          ...final,
+          data: { text: "Support here covers only what the documents show." },
+        },
+      ],
+      "failed",
+    ],
+    [
+      [
+        {
+          ...final,
+          data: {
+            text: "Claude support is unrestricted, and Darrow is developed mainly with Codex.",
+          },
+        },
+      ],
+      "failed",
+    ],
+    [
+      [
+        {
+          ...final,
+          data: {
+            text: "Support here covers only what the documents show, and Darrow is not developed mainly with Codex.",
+          },
+        },
+      ],
+      "failed",
+    ],
+    [
+      [
+        {
+          ...final,
+          data: {
+            text: "Claude support is best-effort; development is primarily with Codex.",
+          },
+        },
+      ],
+      "failed",
+    ],
     [[{ ...final, data: { text: "Claude is supported." } }], "failed"],
     [
       [
@@ -467,6 +563,8 @@ test("guide disclosure uses retained response evidence through Sevro", async () 
   const route = sevroCommand();
   for (const [text, complete, code, status] of [
     [final.data.text, true, 0, "passed"],
+    [documentedSupport, true, 0, "passed"],
+    [adjacentSupport, true, 0, "passed"],
     ["Claude is supported.", true, 1, "failed"],
     [final.data.text, false, 4, "unavailable"],
   ] as const) {

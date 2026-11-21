@@ -5,8 +5,9 @@ goal_route_checks: false
 prompt: >-
   Use {{skill_invocation}} to continue the existing candidate. Run bash check.sh and
   obtain its initial assessment before changing src/config.js. Select independent review
-  and the compatible QA-like cache assessment through the advertised verification
-  capability. The originating criteria are TIMEOUT_MS = 2500, RETRY_COUNT = 3, and
+  and the compatible QA-like cache observation through the advertised assess-candidate
+  capability. Invoke Review yourself before requesting that observation; retain
+  both results and account for acceptance in the main thread. The originating criteria are TIMEOUT_MS = 2500, RETRY_COUNT = 3, and
   CACHE_SIZE = 5. Repair is authorized only in src/config.js. Complete this local change
   when its selected assurance clears. No commits, publication, additional owner or new
   product behavior is authorized.
@@ -16,7 +17,7 @@ fixture:
       files:
         AGENTS.md: |
           Run bash check.sh before selected assessment. Keep scripts unchanged.
-          The bounded assess-candidate fixture supports both selected providers.
+          The bounded assess-candidate fixture observes QA after completed Review.
         src/config.js: |
           export const TIMEOUT_MS = 1000;
           export const RETRY_COUNT = 3;

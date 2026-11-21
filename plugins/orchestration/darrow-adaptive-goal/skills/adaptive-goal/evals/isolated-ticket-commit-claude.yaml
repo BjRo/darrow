@@ -9,7 +9,6 @@ harnesses:
   - claude
 additional_plugins:
   - plugins/capability/darrow-git
-  - plugins/capability/darrow-verification
   - plugins/capability/darrow-review
 candidate_routes:
   claude:
@@ -111,7 +110,7 @@ fixture:
           implementation commits and serial cherry-pick onto current integration branch.
           Preserve current checkout and PERSONAL.md edit, retain worker for repairs.
           Worker invokes no goal, assessment or publisher. Original main owns one goal,
-          full-spec final independent Verification with Review after successful combined
+          full-spec final acceptance accounting and independent Review after successful combined
           checks, shared two combined repair attempts, and completion. No
           push/PR/tracker changes. Required focused/combined check is bash test.sh, with
           meaningful failing-before/passing-after evidence. Preserve immutable

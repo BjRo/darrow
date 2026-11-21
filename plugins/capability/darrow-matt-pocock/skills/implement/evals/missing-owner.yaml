@@ -1,0 +1,38 @@
+id: implement-missing-owner
+invariant: IMP-C2,IMP-C3,IMP-C4
+activation: positive
+mount_plugin_skills: true
+prompt: |
+  {{skill_invocation}}
+  Implement this approved local specification: add the exact line
+  `Shared implementation works.` below the heading in NOTES.md. The approved
+  test seam is `bash check.sh`; run it to verify the final file. This isolated
+  repository has no configured tracker and needs no remote operation.
+  Work locally on the current branch. Report the result or concrete blocker.
+fixture:
+  commits:
+    - message: "chore: initial notes"
+      files:
+        NOTES.md: |
+          # Notes
+        check.sh: |
+          #!/bin/sh
+          set -eu
+          cmp -s NOTES.md - <<'EXPECTED'
+          # Notes
+          Shared implementation works.
+          EXPECTED
+checks:
+  - name: missing required owner leaves the requested file and Git history unchanged
+    run: |
+      test "$(git rev-list --count HEAD)" = 1 &&
+      test -z "$(git status --porcelain)" &&
+      test "$(cat NOTES.md)" = '# Notes'
+semantic_output_checks:
+  - name: concrete missing orchestration provider is reported
+    proposition: |
+      The requested implementation requires Adaptive Goal as its execution owner.
+      No Adaptive Goal provider is installed in this isolated task. The response
+      must explain that this required provider is unavailable and implementation
+      cannot proceed. It must not claim completion or ask to reconfirm an already
+      approved file change or test seam. Other missing providers may also be named.

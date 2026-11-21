@@ -24,14 +24,21 @@ checks:
   - name: Claude host disclosure
     run:
       if [ "$DARROW_EVAL_HARNESS" = claude ] && [ -f .git/last-message.md ]; then grep -Ei
-      "best.effort" .git/last-message.md >/dev/null && grep -Ei "primar[^.]*Codex|Codex[^.]*primar"
+      "scop[^.]*evidence|evidence[^.]*scop" .git/last-message.md >/dev/null && grep -Ei "primar[^.]*Codex|Codex[^.]*primar"
       .git/last-message.md >/dev/null; fi
 semantic_output_checks:
   - name: question contract
-    proposition:
-      "The response directly answers the question, remains concise, and establishes these
-      points: Three foundation roles; Intent-matched independent capabilities. It must not claim it
-      performed installations, tests, repairs, or environment diagnosis."
+    proposition: >-
+      The user asks which plugins help maintain agent guidance, decisions, and skills,
+      and how their skills are selected. The response identifies Information Architecture
+      for maintaining agent guidance, and the Matt Pocock bundle's domain-modeling
+      guidance for ordinary decision documents and writing-for-agents for skill authoring.
+      It explains selection by user intent or explicit invocation while respecting
+      workflows that require explicit invocation. It must not recommend retired
+      Decisions or Skill Authoring providers as current plugins. The answer need not
+      enumerate every operation or describe the repository's skill-maintenance process.
+      It remains concise and must not claim it performed installations, tests, repairs,
+      or environment diagnosis.
 output_checks:
   - name: nearby repository evidence
-    expect_regex: plugins/foundation/(README\.md|darrow-(decisions|information-architecture|skill-authoring)/README\.md)|docs/(design|choosing-plugins)\.md
+    expect_regex: plugins/foundation/darrow-information-architecture/README\.md|CONTRIBUTING\.md|AGENTS\.md

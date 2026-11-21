@@ -1,6 +1,6 @@
 ---
 name: adaptive-goal
-description: Orchestrate one bounded engineering request as a native main-thread goal with readiness, capability bindings, direct or delegated implementation, and verification. Start only for explicit adaptive-goal orchestration, preserved delegation from an invoked orchestration, or an unambiguous same-thread continuation of that orchestration. Never select for ordinary engineering intent, regardless of complexity or duration.
+description: Orchestrate one bounded engineering request as a native main-thread goal with readiness, capability bindings, direct or delegated implementation, and acceptance evidence. Start only for explicit adaptive-goal orchestration, preserved delegation from an invoked orchestration, or an unambiguous same-thread continuation of that orchestration. Never select for ordinary engineering intent, regardless of complexity or duration.
 ---
 
 # Adaptive Goal
@@ -8,10 +8,10 @@ description: Orchestrate one bounded engineering request as a native main-thread
 Keep the persistent native goal in this main thread on Codex and Claude. You own the request, decisions, acceptance and completion. Implement
 directly, or delegate bounded assignments on the selected route when it is
 stronger than this thread's route, this thread's route is unknown, or cost,
-focused ticket context or concurrency repays the handoff (section 7). Run verification and other
-selected capabilities through their public workflows; each keeps its own
-internals and routing. There is no separate delivery
-owner, workflow runtime or lifecycle ledger.
+focused ticket context or concurrency repays the handoff (section 7). Account for
+acceptance here; invoke selected independent Review and other capabilities
+through their public workflows. Each keeps its own internals and routing. There
+is no separate delivery owner, workflow runtime or lifecycle ledger.
 
 Read the active host guide before goal activation or delegation:
 [Codex](references/codex-launch.md) or [Claude](references/claude-launch.md).
@@ -44,7 +44,7 @@ ambiguous answer, or multiple plausible owners supplies no continuation
 authority. Delegation adds no permission, publication, or destructive authority.
 
 An explicit invocation that only asks a question gets a direct answer from the
-[verification lifecycle](references/verification-lifecycle.md) (beside this
+[acceptance lifecycle](references/verification-lifecycle.md) (beside this
 `SKILL.md`), with no preflight, helper call or goal.
 
 Without authority, make no helper call or mutation. Your entire response is
@@ -98,8 +98,11 @@ publication, or permission decision is missing, ask the smallest concrete
 question and do not launch.
 
 When authoritative input is missing, such as a referenced ticket, retrieve it
-through the matching read-only capability before deciding anything else, and
-stop dependent preflight if it refuses.
+through the matching advertised read-only capability when available. Otherwise
+use the established tracker's configured native read operation. Preserve its
+provider, project and canonical identity; no ticket-reading plugin or Darrow
+response format is required. Retrieve that input before dependent preflight,
+and stop dependent work on an actual refusal or unavailable source.
 
 When isolated ticket workers could repay their overhead, read
 [isolated ticket workers](references/isolated-ticket-workers.md) now. Select
@@ -158,7 +161,7 @@ mutation.
 result is preserved; otherwise the non-ready result or launch gap has been
 returned with nothing launched.
 
-## 4. Select evidence, risk, profile, and verification
+## 4. Select evidence, risk, profile, and independent review
 
 Decide the evidence the change needs. Several rows may apply:
 
@@ -177,7 +180,7 @@ Keep these three decisions separate:
 | --- | --- | --- |
 | Consequence risk | Impact of an incorrect change | Required final checks and assurance |
 | Reasoning profile | Implementation uncertainty, scope, and explicit correctness priority | Implementation model and effort |
-| Assurance | Risk policy and user or repository requirements | Verification and independent-review bindings |
+| Assurance | Risk policy and user or repository requirements | Independent-review and other assessment bindings |
 
 Select consequence risk:
 
@@ -197,7 +200,7 @@ Classify the reasoning demand of the implementor's engineering work:
 - `judgment`: unresolved cause across plausible layers or architecture,
   planning, or review judgment.
 
-Risk and selected verification never raise the profile: an exact security-policy
+Risk and selected assurance never raise the profile: an exact security-policy
 change is high risk but `routine`, while an unresolved cause across plausible
 layers is `judgment` even at routine risk. `routine-plus` needs a real
 implementation tradeoff or an explicit first-pass correctness instruction. Keep
@@ -212,43 +215,32 @@ Select assurance separately, preserving the independent-review policy:
 - high: required;
 - any risk: select when the user or repository requires it.
 
-The isolated ticket worker strategy requires independent verification of the
-complete specification at the end, with independent review as a required
-assessment, at every risk level. Bind both capabilities before activation or
-worker effects. This does not add ticket-level assessment cycles.
+The isolated ticket worker strategy requires acceptance accounting and independent
+Review of the complete specification at the end, at every risk level. Bind the
+review capability before activation or worker effects; do not add ticket-level
+assessment cycles.
 
-An independent-review request selects verification with review as its required
-assessment, including when review is the only selected assessment. Compile two
-distinct bindings: main thread -> verification, verification -> independent review.
+Bind the exact host-advertised public independent-review skill by intent when
+selected, including when review is the only assessment. Read its full contract
+before launch. Check that it accepts the repository, current candidate, criteria,
+constraints and checks; supplies fresh independent standards/acceptance judgments
+as applicable; preserves findings, dispositions, evidence and closed repair history;
+and keeps missing or stale evidence unavailable. Confirm fresh readers in its
+contract: a bare name, built-in reviewer or generic agent is not enough. Never
+manufacture compatibility by launching your own readers.
 
-When selected, bind the exact host-advertised verification skill that coordinates
-acceptance assurance and its compatible required independent code-review skill.
-Read both public contracts during preflight. Verify prerequisites, authorized
-effects, result evidence and stop conditions for initial and closed follow-up
-assessment. Use compatible replacements by intent, never provider identity or
-sibling files. The main thread invokes verification with the review binding; verification
-owns assessment coordination and review owns its independent judgments.
-
-Bind a review skill only by its exact `SKILL.md` path, after reading it and
-confirming it is an independent code-review provider. A bare name is not enough:
-a host built-in such as Claude Code's own `code-review` can share a provider's
-name. If you cannot confirm one, pass the review requirement and let
-verification select the provider.
-
-Run the bound Verification skill in this thread. Its own placement helper
-decides whether it coordinates here or hands off to one fallback coordinator.
-Verification and Review own every route they launch, including their readers,
-so pass none.
+Execute that provider's complete public workflow when due. Review owns placement,
+helpers, readers and every internal route; pass no route override. The main thread
+owns acceptance accounting and combined conclusions. Standalone Verification is
+not a prerequisite and must not become a second acceptance owner. Bind additional
+assessments only when selected by the request or policy; unavailable selected
+assessment remains a gap. Installation alone selects nothing.
 
 Read [`references/verification-lifecycle.md`](references/verification-lifecycle.md)
-completely; it owns the repair limit and when repair stops. Only a complete
-clear combined conclusion permits completion and remaining publication.
-
-High-risk review is never omitted because the implementation looks clear.
-Missing or incompatible verification or required review returns
-`Status: launch_required` naming each gap before goal activation; never
-substitute self-review or a generic agent. Installation alone selects no
-additional assessment.
+completely. It owns criterion accounting, retained history, repair limits and stop
+conditions. High-risk review cannot be omitted because an implementation is clear.
+Missing or incompatible required Review returns `Status: launch_required` with
+the concrete gap before activation. Do not install a substitute or self-review.
 
 An explicit user model and effort overrides the implementation route when the
 host supports that concrete tuple. Implementation agents need only their bounded
@@ -270,7 +262,7 @@ only when the user or host states this thread's route explicitly. Retain the
 returned `route_relation`; an unknown main route stays unknown.
 
 **Complete when:** evidence, risk, profile and assurance each have a one-line
-basis, required verification and review are bound or returned as
+basis, required review and other assessments are bound or returned as
 `launch_required`, and `route_relation` is retained.
 
 ## 5. Bind intent-matched skills
@@ -280,26 +272,27 @@ intent matches a host-advertised skill, record its exact advertised name and
 host-supplied public instruction reference as a required capability binding.
 For a file-backed Codex skill, include its installed absolute `SKILL.md` path.
 Common examples include ticket reads and
-updates, TDD, commits, pull requests, and verification with its required review.
+updates, TDD, commits, pull requests, and independent review.
 
-Each assignee invokes its bindings when due; assessment providers are bound
-through verification. A direct shell, Git, forge, tracker or generic-agent call
-is not a substitute for a bound skill, and a refusal stops that operation
+Each assignee invokes its bindings when due; the main thread invokes selected
+assessment providers through their public workflows. A direct shell, Git, forge,
+tracker or generic-agent call is not a substitute for a bound skill, and a refusal stops that operation
 without expanding authority. Pass the exact skill references and task facts in
 every handoff, because a fresh assignment cannot rely on this thread's reads.
 
 Check each bound skill's prerequisites, effects, evidence and stop conditions
 against the goal before it is due; compatible skills with other names are fine.
 A successful call or zero exit status does not prove its contract was met.
-When verification is selected, a dependent commit or publisher waits for its
-complete current-content clear assessment with criterion coverage; a review-only
-result does not satisfy it. Without selected verification, the required
-current-content checks are the gate.
+Before a dependent final commit or publisher, account for every material criterion
+and require current successful checks plus all selected assessment results.
+A review-only pass never supplies missing criterion evidence, even when the
+publisher's own readiness is clear. With no selected Review, checks and other
+current evidence must still cover every criterion.
 
 Explicitly authorized isolated-worker implementation commits are intermediate
 results for integration. They follow their focused checks; the combined
-candidate must pass final checks and independent verification before completion
-or publication. The exception preserves the exact commit skill binding, its
+candidate must pass final checks, independent Review and clear acceptance before
+completion or publication. The exception preserves the exact commit skill binding, its
 message invariants and refusals in every worker assignment; it grants no raw-Git
 substitute, delivery or publication authority.
 
@@ -313,6 +306,12 @@ matching advertised skill remains ordinary bounded work unless the request,
 repository, or selected gate requires that capability. Bind publication
 operations only when each effect was explicitly authorized; completion never
 adds commit, push, pull-request, merge, release, or deployment authority.
+
+For ordinary tracker work, use configured native tools with the established
+provider, project, exact identity and authorized effects. Do not change tracker
+configuration or bypass a bound capability's refusal. Handle ADR lifecycle and
+catalog maintenance as ordinary documents under repository and available
+domain-modeling guidance, without a dedicated decision-provider backend.
 
 **Complete when:** every authorized operation has an exact binding whose
 prerequisites and effects match the goal, or is recorded as ordinary bounded
@@ -401,7 +400,7 @@ competing whole-task implementations or another goal owner.
 
 Direct work follows the same required evidence, bound capabilities, checks,
 authority limits and preserved user-owned changes as an assignment. Selected
-verification keeps its fresh independent readers; inline coordination never
+Review keeps its fresh independent readers; inline coordination never
 permits self-assessment.
 
 Decide placement once. **A repair goes back to the implementor that produced the
@@ -430,22 +429,20 @@ blockers. Keep delivery state, attempt counts and delivery decisions here. Wait 
 the result before assigning conflicting work. A rejected route is a concrete
 launch failure, not permission to silently choose another model.
 
-Run Verification here with the intent to coordinate acceptance verification.
-Its inputs are the verification skill's exact installed
-path, compatible review binding, selected providers, originating acceptance,
-scope/base/current candidate, successful checks, constraints and existing
-evidence. Require its complete combined result and provider evidence; control
-then returns here. Verification and other selected capabilities
-own their provider selection, internal delegation and mechanics.
+Run selected Review's complete public workflow here with its exact public
+instruction reference, repository, scope/base/current candidate, originating
+criteria, constraints, successful checks and existing evidence. For repairs,
+carry the complete closed history and attempted set through its public
+repair-verification workflow. Review owns placement and fresh independent readers;
+you never write their judgments or inspect private provider mechanics.
 
-Evaluate returned evidence against acceptance and capability prerequisites.
-An accepted assignment, zero exit code or review-only pass does not establish a
-complete combined verification. Preserve complete reports and usable absolute
-artifact references when supplied; do not invent mandatory saved artifacts for
-a compatible capability whose complete public result is inline.
-
-Await every selected result, then apply the lifecycle reference to decide
-whether one combined repair is allowed and how its follow-up runs.
+Keep complete provider results and actual absolute report references when supplied.
+A promised missing report is an incomplete handoff; a compatible inline-only
+provider needs no invented artifact. Wait for every selected assessment, then
+apply the lifecycle reference to map criteria to current evidence or gaps and
+decide whether one combined repair is eligible. A zero exit status or review pass
+alone cannot establish acceptance. Preserve native provider outcomes separately
+from your combined conclusion and retain all prior results.
 
 A child's "missing helper" or "broken provider" claim needs the attempted
 path and observed error; a guessed path proves nothing. Send a real invocation
@@ -488,9 +485,9 @@ assignments, and every blocker names its condition, evidence and next action.
 
 Mark the main-thread goal complete only when the requested outcome and every
 required current-content check and selected assessment are supported, blockers
-are resolved, and all authorized required effects are established. Selected
-verification that is incomplete, or that assessed earlier content, blocks
-completion and dependent commit/publication even if review is clear. Goal completion creates no additional publication authority.
+are resolved, and all authorized required effects are established. Incomplete
+acceptance coverage, unavailable selected evidence or stale assessment blocks completion and dependent final commit/publication even if
+review is clear. Goal completion creates no additional publication authority.
 
 The self-contained user-facing result includes completion with no open decision,
 or the blockage; implementation placement, its basis and `route_relation`;

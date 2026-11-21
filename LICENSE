@@ -11,6 +11,13 @@ Licensor:             Björn Rochel <bjoern@bjro.de>
 
 Licensed Work:        Darrow — a marketplace of plugins for coding agents.
                       The Licensed Work is (c) 2026 Björn Rochel.
+                      It excludes plugins/capability/darrow-matt-pocock/ and
+                      plugins/capability/darrow-pstack/ in their entirety,
+                      including moved Darrow adaptations. Those directories
+                      are licensed under their included MIT licenses.
+                      Separately licensed third-party material retains its
+                      own notices and terms. No unrelated Darrow material
+                      is relicensed by these exclusions.
 
 Additional Use Grant: You may make production use of the Licensed Work only
                       as follows:

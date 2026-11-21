@@ -4,14 +4,13 @@ invariant: ADL-V1,ADL-A4,ADL-C2,ADL-L1,ADL-L2,ADL-L5,LC-C5,CR-C19,CR-E18
 activation: positive
 mount_plugin_skills: true
 additional_plugins:
-  - plugins/capability/darrow-verification
   - plugins/capability/darrow-review
 goal_report: forbidden
 goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Finish the existing
   src/config.js candidate. TIMEOUT_MS must equal 2500 and RETRY_COUNT must remain 3.
-  Run bash check.sh and obtain acceptance verification through verify-change with
+  Run bash check.sh and obtain independent review through
   the real darrow-review:code-review provider before changing the candidate.
   Repair only src/config.js, refresh invalidated checks, and obtain a closed
   follow-up assessment. Complete locally only when current verification clears.

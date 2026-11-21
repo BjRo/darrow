@@ -31,6 +31,15 @@ if [[ "$variant" == replacement ]]; then
     mkdir -p "$host/skills/ship-proposal"
     cp "$fixtures/ship-proposal.fixture.md" "$host/skills/ship-proposal/SKILL.md"
   done
+  printf '%s\n' '/.agents/skills/ship-proposal/SKILL.md' '/.claude/skills/ship-proposal/SKILL.md' >>.git/info/exclude
   cp "$fixtures/ship-proposal" .git/fixture-bin/ship-proposal
   chmod +x .git/fixture-bin/ship-proposal
 fi
+
+for host in .agents .claude; do
+  mkdir -p "$host/skills/independent-code-review"
+  cp "$fixtures/independent-code-review.fixture.md" "$host/skills/independent-code-review/SKILL.md"
+done
+printf '%s\n' '/.agents/skills/independent-code-review/SKILL.md' '/.claude/skills/independent-code-review/SKILL.md' >>.git/info/exclude
+cp "$fixtures/independent-review-protocol" .git/fixture-bin/independent-review-protocol
+chmod +x .git/fixture-bin/independent-review-protocol

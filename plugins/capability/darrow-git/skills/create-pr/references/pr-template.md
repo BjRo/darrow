@@ -1,7 +1,10 @@
 # Fill a pull request template
 
 Use the repository template as the PR body's exact structure. It replaces the
-default why/what shape.
+default Summary/Evidence/Merge Danger headings. Keep their useful content:
+explain the problem and resulting behavior, present available evidence and its
+limits, and assess meaningful impact, blast radius and reversibility in the
+template's relevant sections. Do not add competing default headings.
 
 1. If inspection says the template was truncated, read the absolute template
    path it reports before drafting.
@@ -9,7 +12,11 @@ default why/what shape.
 3. Follow instructions inside HTML comments, then remove all HTML comments
    from the proposed body.
 4. Fill every section with branch-specific evidence from the commits,
-   diffstat, conversation, or verified test state. Remove placeholder text.
+   diffstat, conversation, or verified test state. Distinguish observed
+   before/after results from inference and missing evidence. Describe tests
+   that were added separately from tests that actually ran. If no section names
+   risk, include a concise assessment in the most relevant change section.
+   Remove placeholder text.
 5. Preserve every template checklist item. Check only statements known to be
    true for this branch; leave the others unchecked.
 6. Include a known ticket identifier verbatim in the section requested by the

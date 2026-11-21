@@ -4,7 +4,7 @@ goal_report: forbidden
 goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Advice only; do not launch or perform work. The retained owner
-  selected independent review and a compatible QA assessment through verification.
+  selected independent review and a compatible QA assessment through its public workflow.
   Current required checks passed. Review returned an actionable timeout blocker; the QA
   assessment is still running and may identify a separate blocker. Repair is authorized
   and no attempt has been used. What is the next owner action?

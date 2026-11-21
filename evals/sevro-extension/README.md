@@ -82,8 +82,6 @@ Darrow's callers prepare that environment before launching Sevro:
   Warm-up preserves existing entries and the directory while other runs use it.
 - All repository runtime profiles use
   `runtime.sharedCacheDirectories` with `roles: ["candidate", "checks"]`.
-  The Tickets profile also selects `hooks` for its Claude SessionStart handler,
-  which invokes the frozen Python backend and needs cached build dependencies.
   Candidates and UV shell graders use the same persistent cache without per-role
   cache copies. Other current hooks and semantic/advisory graders need no UV grant.
   `UV_PYTHON_DOWNLOADS=never` requires the declared Python installation;
@@ -320,10 +318,8 @@ formats and provenance; it does not establish current evaluator equivalence.
 ## Host-state and local HTTP profiles
 
 Use [`runtime-codex-state.json`](runtime-codex-state.json) for
-`doctor-adaptive-goal-direct-codex` and
-`create-agent-skill-refuse-undefined-skill`. The profile exposes the actual isolated
-configuration and grants graders read-only access to all four original candidate
-user-skill roots. Preserve the seeded UV cache. Fixture config is represented
+`doctor-adaptive-goal-direct-codex`. The profile exposes the actual isolated
+configuration. Preserve the seeded UV cache. Fixture config is represented
 input, not the effective host config.
 
 Use [`runtime-local-http.json`](runtime-local-http.json) for

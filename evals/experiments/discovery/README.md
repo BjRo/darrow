@@ -1,103 +1,11 @@
-# Discovery skill evaluation
+# Retired Discovery evaluation
 
-This suite compares the installed `darrow-discovery` skill surface with an
-uncontaminated no-skill baseline. Both modes use the same prompts, fixtures,
-hidden checks, harness, model, effort, threshold, and trial count. The only
-difference is whether the unified skill is mounted.
+Standalone Discovery and its executable comparison suites are retired.
+The [retirement contract](../../../docs/specs/discovery.md) identifies the
+selected Matt replacements and immutable former implementation.
 
-The primary suite covers direct discovery behavior, incomplete input, adjacent
-planning intent, pressure to invent product choices, direct implementation
-planning with an unresolved frontier, and separation between feature,
-planning, and standalone grilling modes. The separate
-`implementation-negative-suite.yaml` keeps the settled implementation request
-visible without forcing its materially higher execution cost into every
-repeated activation run.
-
-`activation-suite.yaml` isolates selection evidence for representative
-fresh-context routes: explicit grilling, natural grilling, feature discovery,
-implementation planning, and ordinary advice that must not select the skill. Activation
-is reported independently from each case's existing outcome checks. Claude's
-structured harness stream exposes the direct `Skill` tool event; Codex reports
-the first completed mounted `SKILL.md` body read as an explicitly labeled
-controlled probe. Both adapters retain bounded selection and terminal
-accounting records rather than ordinary assistant messages or command output.
-
-After a broad N=1 comparison identifies decision-bearing deltas,
-`value-suite.yaml` repeats only direct frontier behavior, subjectless input,
-and pressure against inventing a final brief. This avoids multiplying cases
-where both modes already passed while still testing whether observed value is
-stable rather than a convenient single run.
-
-Dry validation:
-
-```sh
-cd evals
-bun runner/suite.ts --suite experiments/discovery/suite.yaml --dry --no-judge
-bun runner/suite.ts \
-  --suite experiments/discovery/activation-suite.yaml \
-  --dry \
-  --no-judge
-bun runner/suite.ts \
-  --suite experiments/discovery/implementation-negative-suite.yaml \
-  --dry \
-  --no-judge
-```
-
-Matched live comparison with pinned models:
-
-```sh
-cd evals
-bun runner/suite.ts \
-  --suite experiments/discovery/suite.yaml \
-  --trials 3 \
-  --threshold 0.8 \
-  --effort medium \
-  --claude-model claude-sonnet-5 \
-  --codex-model gpt-6-luna \
-  --no-judge
-```
-
-Matched cross-harness activation evidence:
-
-```sh
-cd evals
-bun runner/suite.ts \
-  --suite experiments/discovery/activation-suite.yaml \
-  --trials 3 \
-  --threshold 0.8 \
-  --effort medium \
-  --claude-model claude-sonnet-5 \
-  --codex-model gpt-6-luna \
-  --no-judge
-```
-
-Run the expensive settled-implementation probe as an explicitly limited N=1
-comparison and report that limitation instead of treating it as stable:
-
-```sh
-cd evals
-bun runner/suite.ts \
-  --suite experiments/discovery/implementation-negative-suite.yaml \
-  --trials 1 \
-  --threshold 0.8 \
-  --effort medium \
-  --claude-model claude-sonnet-5 \
-  --codex-model gpt-6-luna \
-  --no-judge
-```
-
-Raw results are written under the gitignored experiment-specific tree in
-`evals/results/`. Review `report.md` and, for a declared ablation,
-`ablation.md` together: the general report shows outcomes and activation as
-separate evidence, while the ablation report rejects unmatched cells and
-preserves every baseline-to-candidate task delta.
-
-Activation cases reference both discovery behavior and shared evaluation
-invariants. A discovery-scoped coverage check must therefore load both specs:
-
-```sh
-bun evals/coverage.ts \
-  --spec docs/specs/discovery.md \
-  --spec docs/specs/skill-evaluation.md \
-  --eval-root plugins/capability/darrow-discovery
-```
+The original reports remain unchanged under `snapshots/`. Their commands,
+activation observations, trial counts and limitations describe their recorded
+conditions; they do not establish current replacement behavior. The former
+[suite configuration and instructions](https://github.com/BjRo/darrow/tree/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/evals/experiments/discovery)
+remain available at the immutable migration baseline.

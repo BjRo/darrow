@@ -1,6 +1,6 @@
 ---
 name: doctor-adaptive-goal
-description: Diagnose whether the effective Codex or Claude Code host configuration supports Adaptive Goal ownership and its required verification/review delegation. Use for host-configuration checks, capacity troubleshooting, or concurrency-versus-nesting questions. Do not select this capability to implement work or start adaptive-goal orchestration.
+description: Diagnose whether the effective Codex or Claude Code host configuration supports Adaptive Goal ownership and its required independent-review delegation. Use for host-configuration checks, capacity troubleshooting, or concurrency-versus-nesting questions. Do not select this capability to implement work or start adaptive-goal orchestration.
 ---
 
 # Doctor Adaptive Goal

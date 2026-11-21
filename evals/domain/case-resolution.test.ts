@@ -214,10 +214,7 @@ test("Native goal evidence requirements follow the checks that consume them", as
         ),
       ).toEqual(["sevro.host.native-goal"]);
   }
-  for (const id of [
-    "doctor-adaptive-goal-direct-codex",
-    "create-agent-skill-refuse-undefined-skill",
-  ]) {
+  for (const id of ["doctor-adaptive-goal-direct-codex"]) {
     const { cases } = await resolveCase({
       projectRoot,
       selectors: { caseIds: [id] },

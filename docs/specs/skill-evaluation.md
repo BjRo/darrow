@@ -121,9 +121,10 @@ running. Preserve the same task, evidence, isolation and exit assertions.
 Current evals grade final responses through Sevro's public output or semantic
 checks. Shell checks inspect repository state and declared artifact grants;
 they must not read a retired runner's response file or materialize a compatibility
-copy. Verification handoff cases check the final absolute report reference in
-the response and validate retained report content separately. Missing references,
-relative references and prose after a required final handoff must fail.
+copy. Retained standalone Verification handoff results describe the former
+provider's contract; its retired response renderer is not a current evaluation
+obligation. Surviving Review and Adaptive Goal cases validate their own public
+reports, candidate binding and acceptance evidence.
 
 Review presentation output checks consume the complete public final-message
 observation. Human checks reject embedded canonical review or verification JSON.
@@ -243,8 +244,9 @@ not copy generic runner implementation. Keep the question, source inventory,
 and acceptance checks aligned with the copied source.
 
 The guide's legacy Claude host-disclosure assertion is graded from the complete
-retained final response. On Claude, it requires the declared best-effort and
-primary-Codex disclosures. Codex retains the assertion's non-applicable result.
+retained final response. On Claude, it requires the declared evidence-scoped support and
+primary-Codex disclosures. The former blanket best-effort statement does not
+satisfy the current support boundary. Codex retains the assertion's non-applicable result.
 Missing, duplicate, partial, or foreign response evidence stays unavailable;
 absence of legacy environment variables or a response file cannot make it pass.
 
@@ -265,6 +267,14 @@ For after-continuation absence checks, validate all receipt bindings and inspect
 every submission after the native boundary. A partial earlier submission does
 not by itself invalidate complete evidence for the later interval. Submitted
 labels cannot substitute for correlated owner acceptance.
+
+Adaptive Goal's `goal-preflight-ticket-input` no-agent assertion uses this same
+complete common native-controls boundary on Codex and Claude. It rejects every
+agent-launch attempt, including inspected Code Mode submissions, without
+requiring agent acceptance. Missing, partial, foreign, duplicate or inconsistent
+evidence remains unavailable. Its separate no-goal assertion is unchanged.
+This migration does not change other legacy native-call assertions or their
+required evidence.
 
 Explicit Codex owner dispatch can establish owner activation independently of
 supporting reads. Composition order, supporting-skill inclusion, and exclusions
@@ -1097,12 +1107,13 @@ Callers select the passive mode names when requesting native observational
 comparisons; selecting all modes also selects the original enforced variants.
 This adds no policy enforcement, launch rewriting, or benchmark correction.
 
-### Deprecated ticket-pipeline baseline
+### Retired ticket-pipeline baseline
 
-The deprecated ticket-pipeline baseline keeps task outcomes and explicitly
-requested self-reported evaluation counts through shared benchmark checks.
-It gains no dedicated grader, phase instrumentation, or active benchmark
-correction. The legacy phase, iteration, stable child ID, and phase-to-skill
+The ticket-pipeline installable payload and active executable benchmark are
+retired. Original task outcomes and explicitly requested self-reported counts
+remain historical evidence at the immutable source linked by the
+[retirement contract](ticket-pipeline.md). Shared benchmark checks remain only
+for surviving Adaptive Goal/native comparisons; no Pipeline cell is executable. The legacy phase, iteration, stable child ID, and phase-to-skill
 assertions are deliberately retired. Native agent acceptance alone cannot
 establish those facts. Recorded historical results keep their original
 interpretation and cannot become current phase-check passes.

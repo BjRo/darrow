@@ -35,11 +35,18 @@ mkdir -p docs/research
 for file in "$source_root"/docs/research/*.md; do
   # Keep public research available without exposing this task's acceptance ledger.
   case "$(basename "$file")" in
-    repository-guide-98-delivery.md|artificer-157-delivery.md) continue ;;
+    repository-guide-98-delivery.md|artificer-157-delivery.md|ten-plugin-migration-328.md) continue ;;
   esac
   cp "$file" docs/research/
 done
+cp "$source_root/docs/research/retired-links.json" docs/research/retired-links.json
 cp "$source_root/evals/sevro-extension/index.ts" evals/sevro-extension/index.ts
+# Retain only the two historical evidence files linked by the retirement contract.
+mkdir -p evals/experiments/orchestration/snapshots
+for extension in md json; do
+  snapshot="evals/experiments/orchestration/snapshots/2026-08-07-n1.$extension"
+  cp "$source_root/$snapshot" "$snapshot"
+done
 cp "$source_root/.claude-plugin/marketplace.json" .claude-plugin/marketplace.json
 for category in "$source_root"/plugins/*; do
   mkdir -p "plugins/$(basename "$category")"
@@ -51,14 +58,21 @@ for category in "$source_root"/plugins/*; do
     cp "$plugin/README.md" "$destination/README.md"
     cp "$plugin/.claude-plugin/plugin.json" "$destination/.claude-plugin/plugin.json"
     cp "$plugin/.codex-plugin/plugin.json" "$destination/.codex-plugin/plugin.json"
+    # The guide reads public skill metadata and support files without installing them.
+    for subtree in skills references; do
+      [ -d "$plugin/$subtree" ] || continue
+      while IFS= read -r -d '' file; do
+        relative=${file#"$plugin/"}
+        mkdir -p "$destination/$(dirname "$relative")"
+        cp "$file" "$destination/$relative"
+      done < <(find "$plugin/$subtree" -type d \( -name evals -o -name .git -o -name .fixture-state -o -name .venv -o -name __pycache__ -o -name node_modules \) -prune -o -type f -print0)
+    done
   done
 done
 artificer=plugins/automation/darrow-artificer
-mkdir -p "$artificer/backend" "$artificer/skills/manage-artificer"
+mkdir -p "$artificer/backend"
 cp -R "$source_root/$artificer/backend/src" "$artificer/backend/"
 cp "$source_root/$artificer/backend/pyproject.toml" "$source_root/$artificer/backend/uv.lock" "$artificer/backend/"
-cp "$source_root/$artificer/skills/manage-artificer/SKILL.md" "$artificer/skills/manage-artificer/"
-cp -R "$source_root/$artificer/skills/manage-artificer/references" "$source_root/$artificer/skills/manage-artificer/agents" "$artificer/skills/manage-artificer/"
 if [ "${1:-}" = conflict ]; then
   printf '\n## Activation claim\n\nComplex work starts adaptive-goal automatically without explicit invocation.\n' >> plugins/orchestration/darrow-adaptive-goal/README.md
 fi
@@ -68,7 +82,9 @@ if [ "${1:-}" = diagnosis ]; then
   cp "$DARROW_EVAL_CASE_DIR/fixtures/diagnose-plugin.template.md" .claude/skills/diagnose-plugin/SKILL.md
 fi
 : > .fixture-state/guide-effects
-git add README.md CONTRIBUTING.md LICENSE package.json docs evals/sevro-extension .claude-plugin plugins
+git add README.md CONTRIBUTING.md LICENSE package.json docs evals/sevro-extension .claude-plugin plugins \
+  evals/experiments/orchestration/snapshots/2026-08-07-n1.md \
+  evals/experiments/orchestration/snapshots/2026-08-07-n1.json
 git -c user.name=Fixture -c user.email=fixture@example.invalid commit -qm "chore: snapshot guide sources"
 git rev-parse HEAD > .git/guide-base
 cp .git/config .git/guide-config
