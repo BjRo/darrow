@@ -1,10 +1,8 @@
 # Darrow Readiness Gate
 
-This plugin determines whether authoritative inputs are sufficient for
-implementation to begin without inventing product intent, making an
-unauthorized architectural choice, or guessing how success will be observed.
-It evaluates implementation readiness rather than ticket formatting or process
-completeness.
+Assess whether implementation can begin with known intent, authorized decisions
+and observable acceptance criteria. A detailed ticket can still need a decision;
+a short request can already be ready.
 
 ## What it provides
 
@@ -19,7 +17,7 @@ action. Automated callers may explicitly request the versioned
 requires a raw typed value must enforce the schema at its host launcher or API
 boundary.
 
-Example: _“Is this ticket ready for implementation?”_
+Example: _"Is this ticket ready for implementation?"_
 
 The skill can also satisfy an explicit gate inside a larger native goal. It
 runs read-only before implementation and returns its assessment to the caller.
@@ -53,11 +51,10 @@ Codex and Claude Code with read access to the repository and request. No tracker
 
 Install `darrow-readiness-gate@darrow` using the
 [host installation, update, removal, and verification instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
-Review this plugin's local prerequisites and safety boundaries first.
 
 ## Usage
 
-An ordinary request can select the appropriate capability:
+Ask for the operation:
 
 > Assess whether this request is ready before any code changes.
 
@@ -72,11 +69,11 @@ without changing repository or tracker state.
 
 ## Troubleshooting
 
-A non-ready verdict is an assessment result. Resolve the named missing fact or decision. For missing discovery, verify installation and try the explicit invocation below.
-For a discovery or host problem, use the
-[documented installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md)
-and report the plugin version, host version, exact invocation, and error
-without credentials.
+For a non-ready verdict, resolve the named missing fact, decision or dependency.
+If the skill is missing, verify installation and try the explicit invocation above.
+For a missing skill or host error, follow the
+[installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md).
+Report the plugin and host versions, invocation and error. Omit credentials.
 
 ## License
 

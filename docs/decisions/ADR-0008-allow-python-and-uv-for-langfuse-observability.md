@@ -46,5 +46,5 @@ managed by UV.
   dependencies.
 - Frozen lock validation, both-Bash launcher tests, and pre-Python failure
   tests become part of the plugin's release evidence.
-- The exception increases installation weight and supply-chain surface for
+- The exception increases installation weight and dependency exposure for
   adopters of this plugin, but does not affect users who do not install it.

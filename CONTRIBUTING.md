@@ -1,7 +1,6 @@
 # Contributing to Darrow
 
-Contributions are welcome — issues, plugin fixes, new skills, eval cases, and
-documentation.
+Contribute issues, plugin fixes, skills, eval cases or documentation.
 
 ## Licensing of contributions
 
@@ -39,27 +38,13 @@ copyright in your work — say so in the pull request before it is reviewed.
 
 ## Working agreements
 
-Read [`AGENTS.md`](AGENTS.md) and [`CLAUDE.md`](CLAUDE.md) before changing
-plugin content. In particular:
-
-- Update the owning skill, local references, schemas and tests when behavior
-  changes. Record consequential architectural choices in ADRs.
-- For skill creation and audits, use available `writing-for-agents` guidance
-  with the repository's plugin, documentation, and eval standards. Keep
-  read-only audits read-only; implement findings under ordinary engineering rules.
-- Maintain ADRs and their catalog as ordinary documents, using available
-  `domain-modeling` guidance when applicable. Preserve decision authority,
-  status, history and supersession links; keep the catalog consistent with
-  its source ADRs and run the general documentation/link checks.
-- Keep each plugin self-contained. Never reference files outside a plugin or
-  assume a sibling plugin is installed.
-- Use imperative Conventional Commits without trailing periods, and no AI
-  attribution or `Co-authored-by` trailers.
+Read [`AGENTS.md`](AGENTS.md) before changing plugin content. `CLAUDE.md` links
+to the same instructions. Its conditional routes identify the development rules
+for the files you are changing.
 
 ## Documentation
 
-Use [Diátaxis](https://diataxis.fr/) as an editorial guide for reader-facing
-documentation. Give each page one primary user need:
+Give each page one reader need, using [Diátaxis](https://diataxis.fr/):
 
 - a **tutorial** helps a learner gain confidence through a guided experience;
 - a **how-to guide** helps a competent user accomplish a specific goal;
@@ -67,10 +52,9 @@ documentation. Give each page one primary user need:
 - **explanation** provides context and answers why the system is designed as it
   is.
 
-Apply the distinctions incrementally. Do not create empty four-part directory
-scaffolding or reorganize documents solely to make their paths match the four
-labels. Landing pages may route to multiple documentation types, but a content
-page should link to a different mode instead of interrupting its primary job.
+Use these distinctions to edit pages, not to impose a four-directory layout.
+Landing pages can route to several needs. Other pages should link to a different
+type of guidance when the reader needs it.
 
 Keep current instructions with the plugin or development guide that owns them.
 Use `docs/decisions/` for architectural choices and their rationale. Link ADRs
@@ -84,10 +68,9 @@ bun install
 bun run hooks:install
 ```
 
-The hook uses the repository formatting gate for staged files. Run `bun test`
-for deterministic TypeScript checks, and the relevant Bash tests and native
-skill evals described below. Raw eval evidence stays under ignored
-`evals/results/` paths.
+The hook checks staged files without changing them. Run `bun run test:evals`
+for deterministic evaluation-tooling tests. See [test ownership](evals/README.md)
+for narrower commands. Keep raw eval evidence under ignored `evals/results/` paths.
 
 Follow the [documentation review rubric](docs/documentation-quality.md)
 for user-facing pages. Run `bun run check:docs:external` separately from local

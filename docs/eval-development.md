@@ -271,26 +271,15 @@ quality from equal task pass rates. Record limits, unknowns and per-task regress
   owning skill. The runner treats that placeholder as the source of truth for
   explicit versus implicit activation; do not duplicate the distinction in
   case metadata.
-- An explicit Codex probe delivers the exact rendered host-native invocation
-  token once to a successfully completed turn; it needs no transcript-visible
-  skill-file read. The dispatch receipt establishes only the invoked owner.
-- Implicit Codex discovery requires the unique complete
-  `sevro.host.skill-activations` observation. Do not replace implicit selection
-  with explicit dispatch or missing observations with native transcripts.
-  Prepared-body matching proves exposure to a tool caller, not forwarding into
-  the model's context. Identical copies can match, so exposure does not identify
-  the opened file. Transformed, short, or unanchored text is outside its scope.
-- Apply the receipt conditions in [evidence interpretation](#evidence-interpretation)
-  before using a partial collection. Positive claims cannot establish absence,
-  exclusion, order or compliance. Historical receipts retain their original meaning.
-- Claude's `skill_tool_result` requires successful structured Skill calls.
-  Direct reads and native command expansion do not add observed skills.
-  Repository skill names stay unqualified; a foreign plugin's same-named skill
-  cannot substitute. Normalize only declared mounted plugin namespaces.
-- Keep exposure, primary selection, supporting membership, observed order,
-  collection health, and task outcomes separate. Incomplete collection cannot
-  establish exclusion or sequence; whole-run evidence cannot silently replace
-  a retired per-turn observation.
+- Apply [evidence interpretation](#evidence-interpretation) to dispatch,
+  implicit activation and partial collections. Keep exposure, primary selection,
+  supporting membership, order, collection health and task outcomes separate.
+- Claude's `skill_tool_result` counts successful structured Skill calls. Direct
+  reads and native command expansion do not add supporting skill membership.
+  Explicit command expansion can separately establish primary activation only
+  under the conditions in evidence interpretation.
+- Keep repository skill names unqualified and normalize only mounted plugin
+  namespaces. Another plugin's same-named skill cannot substitute.
 
 - Recipe composition evidence must positively establish the accepted agent and
   the bound supporting capability. Absence of a prohibited action alone cannot

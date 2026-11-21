@@ -56,7 +56,7 @@ not as a second execution runtime.
 
 The detailed preflight, route, launch, and safety contract remains in
 [Capability: Adaptive Goal](https://github.com/BjRo/darrow/commit/2258e604793a8b405dd290ea275e9e1a23e7d716). The frozen
-comparison surface remains in
+comparison is recorded in
 [Capability: Ticket Pipeline](https://github.com/BjRo/darrow/commit/2258e604793a8b405dd290ea275e9e1a23e7d716).
 
 ## Consequences

@@ -29,4 +29,4 @@ about: Fix a reproduced bug and retain evidence that it stays fixed
 
 ## Open questions
 
-<!-- Record missing incident, expected-behavior, or reproduction facts. -->
+<!-- Name the incident, expected behavior or reproduction facts still needed. -->

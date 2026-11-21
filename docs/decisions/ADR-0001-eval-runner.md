@@ -44,9 +44,9 @@ LLM-judge only for qualitative checks, added when needed.
 
 - New harness support = one adapter file; eval definitions stay agent-neutral,
   mirroring Darrow's runtime/adapter architecture.
-- MVP mounts skills via the fixture repo's `.claude/skills/` (project-level
-  discovery) rather than plugin installation — simpler and stable headless;
-  plugin-level mounting can replace it later without touching cases.
+- The MVP discovers skills in the fixture repo's `.claude/skills/`. This keeps
+  headless setup simpler than plugin installation. Plugin-level mounting can
+  replace it later without changing cases.
 - The runner is repository development infrastructure, not a plugin-shipped
   runtime dependency. Plugin mechanics follow the separate boundary in
   [ADR-0005](ADR-0005-use-portable-bash-facades-for-plugin-mechanics.md).

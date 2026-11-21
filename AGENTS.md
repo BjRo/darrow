@@ -1,21 +1,23 @@
-# darrow — Agent Instructions
+# Darrow agent instructions
 
 ## Writing style
 
-Lead with the result and next action. Use familiar words, active voice, and
-short sentences and paragraphs. Explain necessary Darrow terms on first use.
-Remove repetition and process narration while preserving technical meaning,
-safety rules, evidence, exact commands and identifiers, and required protocol fields.
+Lead with the result and next action. Use familiar words, active voice and short
+sentences. Explain Darrow terms on first use. Cut repetition and process narration;
+preserve technical meaning, safety rules, evidence, commands and protocol fields.
+
+When writing or editing agent instructions, use both `darrow-pstack:unslop` and
+`darrow-matt-pocock:writing-for-agents`.
 
 ## Read when relevant
 
-- Before changing plugin boundaries, orchestration, or the relationship between capabilities and orchestration, read [docs/design.md](docs/design.md).
+- Before changing plugin boundaries or capability/orchestration ownership, read [docs/design.md](docs/design.md).
 - Before changing any plugin, read [docs/plugin-development.md](docs/plugin-development.md).
 - Before creating or editing documentation, including plugin READMEs, read [docs/documentation-quality.md](docs/documentation-quality.md).
-- Before creating, changing, or running evals, read [docs/eval-development.md](docs/eval-development.md).
+- Before changing or running evals, read [docs/eval-development.md](docs/eval-development.md).
 - Before changing Python source, tests, project metadata, or locks, read [docs/python-quality.md](docs/python-quality.md). Run `bun run check:python` after the change.
-- For skill creation or a read-only skill audit, use available `writing-for-agents` guidance and the repository's plugin, documentation, and eval standards. Preserve the requested read-only boundary for audits.
-- Maintain ADRs and their catalog as ordinary documents under repository guidance, using available `domain-modeling` guidance when applicable. Preserve decision status, authority, supersession links, and history.
+- For skill creation or audits, use `writing-for-agents` with the plugin, documentation and eval standards. Keep audits read-only.
+- For ADRs and their catalog, use `domain-modeling` and ordinary document editing. Preserve status, authority, supersession links and history.
 
 Implement changes to existing skills, including audit findings, as ordinary
 engineering work under this repository's instructions.

@@ -15,9 +15,9 @@ adoption unreliable.
 
 A monolithic bundle or mandatory dependency graph would simplify some internal
 calls, but it would remove user choice and couple each capability's release and
-compatibility surface to the rest of Darrow. The alternative already expressed
+compatibility requirements to the rest of Darrow. The alternative already expressed
 through the capability specifications and [design principles](../design.md) is
-semantic composition through facilities the host exposes at runtime.
+composition through capabilities advertised by the host.
 
 ## Decision
 
@@ -37,14 +37,14 @@ Treat each plugin as Darrow's unit of adoption, compatibility, and ownership.
 - Shared repository development infrastructure may support plugin development,
   but it is not a runtime dependency shipped across plugin boundaries.
 
-Normative provider and consumer behavior remains in each applicable capability
-specification. This ADR owns the architectural reason that composition cannot
-be implemented as sibling-plugin dependencies.
+Current provider and consumer instructions live with their plugins under
+[ADR-0014](ADR-0014-keep-current-documentation-with-its-owner.md). This ADR records
+why composition must not create dependencies on sibling files.
 
 ## Consequences
 
 - Users can install one focused capability without accepting the rest of the
-  marketplace or an implicit control plane.
+  marketplace or implicit orchestration.
 - Plugins can evolve and release independently as long as their public intent
   and supported behavior remain compatible.
 - Composition depends on honest host-visible skill discovery and explicit

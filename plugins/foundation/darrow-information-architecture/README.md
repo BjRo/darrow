@@ -19,7 +19,7 @@ or an instruction layout that needs redesigning. The skill:
 - proposes a routed file structure before making changes; and
 - verifies the resulting structure for both supported runtimes.
 
-Example: _“Set up a lean agent information architecture for this repository.”_
+Example: _"Set up a lean agent information architecture for this repository."_
 
 ### `doctor-information-architecture`
 
@@ -28,7 +28,7 @@ finds broken routes, unnecessary resident context, duplication, scope drift,
 and guidance that belongs in a skill. It proposes keep, move, rewrite, or
 remove actions and reports the context impact before editing.
 
-Example: _“Doctor this repository's agent instructions.”_
+Example: _"Doctor this repository's agent instructions."_
 
 ### `context-usage`
 
@@ -43,7 +43,7 @@ window capacity minus recorded usage, in tokens and as a percentage of the windo
 It stacks on narrow terminals and uses color on interactive terminals unless
 `NO_COLOR` is set to a non-empty value or `TERM=dumb`. Piped output is plain text.
 
-Example: _“Show how this session's context window is split up.”_
+Example: _"Show how this session's context window is split up."_
 
 ### Bundled inspectors
 
@@ -74,8 +74,7 @@ remain part of the verification gate.
 
 The skills preserve settled decisions from explicit policy or accepted ADRs.
 When the repository supports multiple live patterns without an arbiter, they
-surface the choice instead of silently turning the dominant pattern into a
-rule.
+report the unresolved choice rather than treating the most common pattern as a rule.
 
 Setup and doctor inspect and propose first, require confirmation before changing
 checked-in guidance, and never commit or push implicitly.
@@ -113,7 +112,7 @@ unknown shapes.
 
 ## Validation
 
-The package follows the contained Python + UV migration pattern: committed lock,
+The package uses a committed UV lock,
 separate development tools, Ruff complexity ≤5, strict mypy, property tests, and
 separate 95% line/branch coverage gates. Run `scripts/check-python --package
 plugins/foundation/darrow-information-architecture/backend` from the Darrow checkout.
@@ -126,11 +125,10 @@ with locked runtime dependencies on Linux, macOS, and native Windows in CI.
 
 Install `darrow-information-architecture@darrow` using the
 [host installation, update, removal, and verification instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
-Review this plugin's local prerequisites and safety boundaries first.
 
 ## Usage
 
-An ordinary request can select the appropriate capability:
+Ask for the operation:
 
 > Set up a lean agent information architecture for this repository.
 
@@ -147,10 +145,9 @@ If `ia-context` refuses, check `CODEX_THREAD_ID`, `CODEX_HOME` and the reported
 Codex version. An unknown log shape usually means a newer Codex release.
 
 Resolve broken routes and unsettled policy through the named owner. The inspectors do not validate every host configuration format.
-For a discovery or host problem, use the
-[documented installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md)
-and report the plugin version, host version, exact invocation, and error
-without credentials.
+For a missing skill or host error, follow the
+[installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md).
+Report the plugin and host versions, invocation and error. Omit credentials.
 
 ## License
 

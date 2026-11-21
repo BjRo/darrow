@@ -1,7 +1,7 @@
 # Darrow Explanation
 
-This plugin turns an existing technical subject into a compact visual
-explanation without turning visual polish into an excuse to invent structure.
+Explain technical structure in a compact inline view grounded in inspected
+sources. The skill chooses a tree, diagram, table or pseudocode to answer the question.
 
 ## What it provides
 
@@ -15,11 +15,11 @@ needs to understand:
 - state diagrams or transition tables for lifecycle behavior;
 - structural diffs for a target change;
 - pseudocode for algorithms;
-- types and signatures for a proposed code surface; and
+- types and signatures for a proposed interface; and
 - tables for repeated exact mappings.
 
-Example: _“This explanation is too much prose. Show me the worker state
-transitions.”_
+Example: _"This explanation is too much prose. Show me the worker state
+transitions."_
 
 ## Design boundaries
 
@@ -37,7 +37,7 @@ transitions.”_
 The capability is inspired by HumanLayer's open-source
 [`show-me`](https://github.com/humanlayer/skills/blob/main/plugins/show-me/skills/show-me/SKILL.md)
 skill and Dexter Horthy's article
-[“show-me: a coding agent skill for compact visual representations”](https://www.linkedin.com/pulse/show-me-coding-agent-skill-compact-visual-dexter-horthy-w5yac/).
+["show-me: a coding agent skill for compact visual representations"](https://www.linkedin.com/pulse/show-me-coding-agent-skill-compact-visual-dexter-horthy-w5yac/).
 Darrow adapts the smallest-fitting-view idea with explicit evidence status,
 read-only boundaries, cross-host fallback behavior, and colocated evals.
 
@@ -53,11 +53,10 @@ Codex and Claude Code with access to the subject's sources. Plain text works whe
 
 Install `darrow-explanation@darrow` using the
 [host installation, update, removal, and verification instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
-Review this plugin's local prerequisites and safety boundaries first.
 
 ## Usage
 
-An ordinary request can select the appropriate capability:
+Ask for the operation:
 
 > Show me the worker state transitions.
 
@@ -80,10 +79,9 @@ skill creates no artifact and does not edit the subject.
 ## Troubleshooting
 
 Identify a missing subject and keep evidence gaps visible. If rendering fails, use plain text; do not invent structure to complete the view.
-For a discovery or host problem, use the
-[documented installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md)
-and report the plugin version, host version, exact invocation, and error
-without credentials.
+For a missing skill or host error, follow the
+[installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md).
+Report the plugin and host versions, invocation and error. Omit credentials.
 
 ## License
 

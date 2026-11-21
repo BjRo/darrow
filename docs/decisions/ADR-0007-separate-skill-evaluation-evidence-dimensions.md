@@ -37,7 +37,7 @@ Represent and report skill evaluation as separate evidence dimensions.
 - **Matched skill ablation** compares a no-skill baseline with a candidate while
   holding prompts, fixtures, checks, harness versions, models, effort, trial
   count, thresholds, and optional condition text constant. Only the mounted
-  skill surface may differ.
+  skill may differ.
 - **Skill activation** is graded independently from a normalized,
   harness-visible invocation event or a controlled host-protocol probe.
   Final-answer resemblance, hidden reasoning, and unbounded transcript capture

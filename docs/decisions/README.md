@@ -1,4 +1,4 @@
-# ADR Catalog
+# ADR catalog
 
 This catalog is a manually maintained navigation aid. ADR files remain canonical.
 Update each affected row alongside its ADR, preserving status and relationships.
@@ -22,7 +22,7 @@ and statuses remain unchanged.
 | --- | --- | --- | --- | --- |
 | [ADR-0002: Separate capabilities from orchestration](ADR-0002-separate-capabilities-from-orchestration.md) | Accepted | 2026-08-13 | Keep capabilities intent-matched and independently selectable while starting continuation-owning orchestration only through explicit user invocation. | None |
 | [ADR-0003: Treat plugins as optionality boundaries](ADR-0003-treat-plugins-as-optionality-boundaries.md) | Accepted | 2026-08-13 | Treat each plugin as a self-contained unit of adoption, compatibility, and ownership that composes through host-visible skill intent rather than sibling dependencies or a separate capability registry. | None |
-| [ADR-0006: Keep decisions with their authoritative owners](ADR-0006-keep-decisions-with-their-authoritative-owners.md) | Accepted | 2026-08-13 | Keep each decision at the narrowest durable authoritative owner its consumers obey, with one canonical sink per effect and honest gaps for inaccessible owners. | Partially superseded by: ADR-0014 |
+| [ADR-0006: Keep decisions with their authoritative owners](ADR-0006-keep-decisions-with-their-authoritative-owners.md) | Accepted | 2026-08-13 | Keep each decision at the narrowest durable authoritative owner its consumers obey, with one canonical owner per effect and honest gaps for inaccessible owners. | Partially superseded by: ADR-0014 |
 | [ADR-0007: Separate skill evaluation evidence dimensions](ADR-0007-separate-skill-evaluation-evidence-dimensions.md) | Accepted | 2026-08-13 | Represent invariant coverage, task outcomes, matched skill ablation, and skill activation as separate evaluation evidence dimensions. | Partially superseded by: ADR-0014 |
 | [ADR-0009: Adopt Python and UV for substantial plugin mechanics](ADR-0009-adopt-python-and-uv-for-substantial-plugin-mechanics.md) | Accepted | 2026-09-17 | Adopt contained Python packages managed by UV incrementally for substantial cross-platform plugin mechanics, invoking them directly from installed skill-relative paths. | Supersedes: ADR-0005; Revisit when: UV and supported Python cannot provide independently installable helpers across every supported native host, or a lighter common runtime offers materially better portability and containment. |
 | [ADR-0010: Extract the evaluation runner into Sevro](ADR-0010-extract-the-evaluation-runner-into-sevro.md) | Accepted | 2026-09-19 | Move generic evaluation infrastructure into the versioned Sevro package while Darrow retains its evaluation policy, cases, and product integration. | Supersedes: ADR-0001; Partially superseded by: ADR-0014 |

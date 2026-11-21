@@ -3,7 +3,7 @@ Thanks for contributing to Darrow.
 
 Before opening this pull request, read CONTRIBUTING.md, including the
 contribution licensing terms. Replace the comments below with concise,
-reviewer-focused context. Use "Not applicable — <reason>" when a section or
+reviewer-focused context. Use "Not applicable: <reason>" when a section or
 check does not apply.
 -->
 
@@ -18,7 +18,7 @@ exists (for example, "Closes #123").
 
 <!--
 Summarize the reviewer-visible behavior and design changes. Name affected
-plugins, specifications, or documentation where that helps orient the review.
+plugins, instructions or documentation where that helps orient the review.
 -->
 
 ## Verification
@@ -40,8 +40,8 @@ and direct reviewers to the riskiest parts. Write "None" when there are none.
 
 - [ ] I have read and followed `CONTRIBUTING.md`, including the contribution
       licensing terms.
-- [ ] I added or updated the applicable invariant before implementation, or
-      this change does not affect a capability invariant.
+- [ ] I updated the owning instructions, schemas or tests, or this change
+      does not affect current behavior.
 - [ ] I added or updated colocated evals, or this change does not affect skill
       behavior.
 - [ ] I confirmed that each changed plugin remains self-contained, or this

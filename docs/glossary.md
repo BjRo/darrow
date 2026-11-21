@@ -8,7 +8,7 @@ contract.
 | Plugin        | An independently installable unit of adoption and ownership; see [optionality boundaries](decisions/ADR-0003-treat-plugins-as-optionality-boundaries.md).                                           |
 | Skill         | A focused procedure advertised to the host through trigger metadata; see [Matt bundle](../plugins/capability/darrow-matt-pocock/README.md).                                                         |
 | Capability    | Intent-matched work with its own outcome and invariants; see [capabilities and orchestration](decisions/ADR-0002-separate-capabilities-from-orchestration.md).                                      |
-| Foundation    | A capability that maintains durable context or reusable agent surfaces; see [layer composition](design.md).                                                                                         |
+| Foundation    | A capability that maintains durable context or reusable agent guidance; see [layer composition](design.md).                                                                                         |
 | Orchestration | An explicitly invoked owner of the completion contract and execution handoff; see [Adaptive Goal](../plugins/orchestration/darrow-adaptive-goal/README.md).                                         |
 | Task recipe   | An explicit familiar outcome and permission envelope that delegates bounded work; see [ticket to PR](../plugins/task-recipe/darrow-ticket-to-pr/README.md).                                         |
 | Native owner  | The main thread that retains the native goal and completion while delegating bounded assignments; see [native goal ownership](decisions/ADR-0012-keep-native-goal-ownership-in-the-main-thread.md). |

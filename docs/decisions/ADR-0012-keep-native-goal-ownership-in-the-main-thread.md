@@ -34,8 +34,8 @@ The ticket pipeline remains a reference and benchmark baseline.
 
 ## Authority and provenance
 
-- **User statement, 2026-10-30:** “Treat the current spec’s main-thread ownership
-  as intended and reconcile ADR-0004.”
+- **User statement, 2026-10-30:** "Treat the current spec's main-thread ownership
+  as intended and reconcile ADR-0004."
 - **Repository fact:** [Adaptive Goal](https://github.com/BjRo/darrow/commit/2258e604793a8b405dd290ea275e9e1a23e7d716)
   and the [shipped skill](../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/SKILL.md)
   already describe main-thread ownership and bounded delegation.

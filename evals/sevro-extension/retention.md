@@ -1,8 +1,6 @@
 # Clean up Darrow evaluation attempts
 
-Run from the Darrow checkout:
-
-Before cleanup, stop all evaluation publishers for the selected root and check
+Run these commands from the Darrow checkout. Before cleanup, stop all evaluation publishers for the selected root and check
 that exported manifests or other external consumers no longer need the evidence
 you plan to remove. This is required because legacy attempts record neither
 publisher liveness nor exported output paths. Modification age cannot prove

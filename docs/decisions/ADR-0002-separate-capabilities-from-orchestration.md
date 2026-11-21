@@ -7,14 +7,14 @@ Summary: Keep capabilities intent-matched and independently selectable while sta
 ## Context
 
 Darrow packages both focused agent procedures and longer-running delivery
-helpers as independently adoptable plugins. Those surfaces have different
+helpers as independently adoptable plugins. Those workflows have different
 effects on a session. A focused procedure can satisfy matching user intent
 without taking ownership of unrelated work, while orchestration establishes a
 continuation and completion contract that can extend the session, consume
 material model budget, and coordinate later actions.
 
 Treating both kinds of plugin as implicitly selectable would make installing a
-capability an implicit opt-in to a control plane. Treating every capability as
+capability an implicit request for long-running coordination. Treating every capability as
 a required orchestration phase would also couple focused procedures to one
 delivery model. The repository's capability specifications and
 [design principles](../design.md) already rely on a stable activation boundary.
@@ -40,9 +40,9 @@ Separate intent-matched capabilities from explicitly invoked orchestration.
   delegate one bounded request to an orchestration helper while preserving the
   originating request and permissions.
 
-Normative behavior remains in the applicable capability specification. This
-ADR owns the cross-cutting product-architecture rationale for the activation
-and ownership split.
+Current behavior is documented with its owning plugin under
+[ADR-0014](ADR-0014-keep-current-documentation-with-its-owner.md). This ADR records
+why capabilities and orchestration have different activation and ownership rules.
 
 ## Consequences
 
@@ -53,7 +53,7 @@ and ownership split.
   monolithic workflow.
 - Users must explicitly request orchestration even when a task appears complex
   enough that orchestration might help.
-- New Darrow surfaces must be classified by the ownership they assume and use
+- New Darrow workflows must be classified by the ownership they assume and use
   the corresponding activation model.
-- A task recipe is a thin authority and ergonomics boundary, not a controller,
+- A task recipe is an explicit outcome and permission envelope, not a controller,
   lifecycle runtime, or an implicit activation path.

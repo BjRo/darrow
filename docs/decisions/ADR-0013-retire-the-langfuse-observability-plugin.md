@@ -65,7 +65,7 @@ This retirement does not implement that feature.
 ## Consequences
 
 - Darrow no longer distributes or maintains the plugin's reconstruction,
-  attribution, recovery, delivery, dependency or hook compatibility surface.
+  attribution, recovery, delivery, dependency or hook compatibility code.
 - Native telemetry needs explicit host exporter configuration and destination
   credentials. Adopters choose what data to export and the destination's
   retention policy through that configuration.

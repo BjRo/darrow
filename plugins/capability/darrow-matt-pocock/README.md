@@ -1,4 +1,4 @@
-# Darrow → Matt Pocock
+# Darrow Matt Pocock
 
 Use Matt Pocock's curated discovery, design, diagnosis, writing, TDD and approved
 implementation workflows on Codex or Claude Code. This independently installable MIT bundle includes the
@@ -40,7 +40,7 @@ before removing superseded copies; marketplace changes do not uninstall caches.
 
 ## Usage
 
-Ordinary request: “Diagnose why this test intermittently fails.”
+Ordinary request: "Diagnose why this test intermittently fails."
 
 Explicit Codex request: `$darrow-matt-pocock:to-tickets Break this approved spec into tickets.`
 

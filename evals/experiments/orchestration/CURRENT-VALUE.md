@@ -80,7 +80,7 @@ Report attempted duration, exclude them from completed-trial latency means, and
 identify missing tasks beside paired comparisons. An observer limit is a harness
 limitation, not a measured product outcome.
 
-## Reviewer-effort comparison
+## Replay a reviewer-effort comparison
 
 Freeze a variant of the original prepared snapshot rather than rebuilding its
 plugins from a later checkout:

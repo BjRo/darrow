@@ -16,7 +16,7 @@ repository guide can explain them and answer follow-up questions.
 ## Ask the repository guide
 
 Open this checkout in a fresh Codex or Claude Code session and ask:
-“What is Darrow, and which plugin should I try first?”
+"What is Darrow, and which plugin should I try first?"
 
 For explicit invocation, use `$darrow-guide` in Codex or `/darrow-guide` in
 Claude Code. No guide plugin installation is needed. The canonical

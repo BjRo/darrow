@@ -1,7 +1,5 @@
 # Plugin development
 
-Implementation constraints for changes to plugin content.
-
 Keep plugins independently installable and self-contained. Never reference
 files outside a plugin or assume a sibling plugin is installed.
 
@@ -30,7 +28,7 @@ Before adding, changing, or converting Python helpers, read `docs/python-quality
 It owns package registration, locks, dependency separation, installed runtime
 environments, conversions, tests, and release checks.
 
-Keep genuinely small host-specific launchers and command glue in portable
+Keep small host-specific launchers and command glue in portable
 Bash, using baseline Unix utilities and the host CLIs the capability wraps.
 Do not introduce JavaScript/TypeScript, Ruby, JVM, compiled, or shared Darrow
 runtime dependencies inside a plugin.

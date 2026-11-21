@@ -16,8 +16,8 @@ about: Retire a named behavior or dependency without leaving hidden obligations
 
 ## Remaining obligations or blockers
 
-<!-- Record any work that cannot be completed within the authorized scope. -->
+<!-- Name unfinished work, its blocker and the next action. -->
 
 ## Open questions
 
-<!-- Record any unknown target, scope, or migration obligation. -->
+<!-- Name unresolved removal scope or migration obligations. -->

@@ -77,7 +77,7 @@ Python, standard-library operations, direct control flow, and focused reuse
 within the owning module or package. Keep abstractions proportional to actual
 callers and plugins independently installable.
 
-Audit the complete invocation surface during the conversion. Remove unnecessary
+Audit every entrypoint during the conversion. Remove unnecessary
 Bash shims, obsolete aliases, and backward-compatibility branches. Update skill
 instructions, documentation, callers, fixtures, and tests to the canonical
 frozen package entrypoints. Retain an adapter only when an explicitly required

@@ -65,8 +65,8 @@ External link checks do not establish that a source's claims are correct.
   one primary need and follow the plain-language standard above, with terms
   defined or linked in the glossary?
 - Do headings form a meaningful hierarchy without skipped levels or labels
-  that need extra context? Do links describe their destination without “click
-  here”? Are tables readable on narrow screens?
+  that need extra context? Do links describe their destination without "click
+  here"? Are tables readable on narrow screens?
 - Are distinctions clear without relying on color? Do complex diagrams have
   useful alternatives and adjacent or linked explanations in source order that
   makes sense to a screen reader?
