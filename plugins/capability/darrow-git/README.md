@@ -1,10 +1,8 @@
 # Darrow Git
 
-This plugin turns common Git publication requests into small, explicit
-workflows. The agent still decides what the user's change means, while bundled
-Python commands enforce the mechanical boundaries that are easy to get subtly wrong:
-branch naming, staging, commit shape, duplicate pull requests, non-force
-publication, and candidate-bound reviewer evidence.
+Create branches, commits and pull requests through scoped Git workflows. The
+agent interprets the requested change; bundled Python commands validate naming,
+selected paths, hooks, duplicate PRs and publication of the intended commit.
 
 Each workflow is independently intent-triggered. Installing the plugin does not
 run Git commands automatically.
@@ -24,7 +22,7 @@ can switch the current checkout or, only when requested, create a linked
 worktree. Existing changes are preserved and existing branch names are never
 clobbered.
 
-Example: _“Create a branch for DAR-123 retry handling.”_
+Example: _"Create a branch for DAR-123 retry handling."_
 
 ### `prepare-task-branch`
 
@@ -40,7 +38,7 @@ checkout untouched.
 Creating a missing name refuses when another correlated local branch exists,
 so callers can reuse prior work even when a newly proposed suffix differs.
 
-Example: _“Prepare the existing branch for DAR-123 before continuing.”_
+Example: _"Prepare the existing branch for DAR-123 before continuing."_
 
 ### `create-commit`
 
@@ -53,7 +51,7 @@ the normal commit path; unrelated work remains excluded. An unambiguous,
 path-scoped hook diagnosis can also run through a snapshot-guarded remediation
 step before that retry.
 
-Example: _“Commit these changes.”_
+Example: _"Commit these changes."_
 
 ### `create-pr`
 
@@ -77,7 +75,7 @@ head/base, draft state and commit evidence without changing PR metadata.
 Creation returns that same verified repository, URL, shape and full
 intended/remote/forge commit evidence after observing the new PR.
 
-Example: _“Push this branch and open a draft PR.”_
+Example: _"Push this branch and open a draft PR."_
 
 ### `publish-pr-evidence`
 
@@ -88,7 +86,7 @@ comments by deterministic content identity, and makes at most one authorized
 comment invocation. Text-only evidence is supported. Partial or ambiguous
 remote state stops without retry or cleanup.
 
-Example: _“Attach these verification screenshots to the current PR.”_
+Example: _"Attach these verification screenshots to the current PR."_
 
 ### Bundled workflow commands
 
@@ -147,7 +145,7 @@ has no runtime dependencies. Fresh-install checks copy the whole plugin and
 exercise all five workflows with real local Git repositories and mocked GitHub
 boundaries, using
 `uv run --quiet --no-project backend/scripts/run_locked.py python backend/tests/fresh_install.py`
-on every supported platform. CI covers Python 3.10–3.13
+on every supported platform. CI covers Python 3.10 to 3.13
 on Linux, macOS, and Windows. Additional POSIX regression scenarios under
 `backend/tests/shell/` invoke the same UV entrypoints directly.
 Publication evidence regressions run in pytest through the console API, real Git,
@@ -157,11 +155,10 @@ and an independent fake GitHub process, without a shell test driver.
 
 Install `darrow-git@darrow` using the
 [host installation, update, removal, and verification instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
-Review this plugin's local prerequisites and safety boundaries first.
 
 ## Usage
 
-An ordinary request can select the appropriate capability:
+Ask for the operation:
 
 > Create a branch for retry handling.
 
@@ -175,10 +172,9 @@ The requested branch, one commit, or verified PR, with evidence. Existing user w
 ## Troubleshooting
 
 Keep exact conflict, existing-name, hook, or duplicate-PR refusals and follow the selected skill's recovery path. Do not force, bypass hooks, or invent another branch name.
-For a discovery or host problem, use the
-[documented installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md)
-and report the plugin version, host version, exact invocation, and error
-without credentials.
+For a missing skill or host error, follow the
+[installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md).
+Report the plugin and host versions, invocation and error. Omit credentials.
 
 ## License
 

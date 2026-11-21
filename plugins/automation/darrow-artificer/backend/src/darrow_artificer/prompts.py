@@ -45,7 +45,7 @@ def initial(site: Installation, claim: Claim) -> str:
         "If product intent or specification is missing, stop and return needs-attention with the complete blocker, "
         "detail, and null pr. Do not run product discovery, invent missing intent or wait for an issue reply. "
         "Recording the ticket's accepted requirements where repository rules require them, "
-        "such as invariants under docs/specs, is ordinary implementation work. "
+        "such as the owning skill or development guide, is ordinary implementation work. "
         "For completion return pr-open with the PR number, detail and null question, "
         "only after the native goal is complete and the recipe's evidence is satisfied. "
         "For failed readiness or unavailable native ownership return needs-attention. "
@@ -71,6 +71,6 @@ def recovery(claim: Claim) -> str:
         "using externally supplied intent before activating the first goal in this same session. "
         "Missing product intent remains a blocker; do not run product discovery or invent intent. "
         "Recording the ticket's accepted requirements where repository rules require them, "
-        "such as invariants under docs/specs, is ordinary implementation work. "
+        "such as the owning skill or development guide, is ordinary implementation work. "
         "Return the original status/detail/question/pr JSON result at the terminal boundary."
     )

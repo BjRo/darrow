@@ -42,4 +42,4 @@ semantic_output_checks:
       cron wrapper grants authority, or that the guide enabled a schedule.
 output_checks:
   - name: nearby repository evidence
-    expect_regex: plugins/task-recipe/darrow-ticket-to-pr/README\.md|docs/specs/(layer-composition|ticket-to-pr)\.md
+    expect_regex: plugins/task-recipe/darrow-ticket-to-pr/README\.md|docs/design\.md|plugins/task-recipe/darrow-ticket-to-pr/skills/ticket-to-pr/SKILL\.md

@@ -20,4 +20,4 @@ about: Upgrade a dependency with evidence that affected behavior remains compati
 
 ## Open questions
 
-<!-- Record any unknown dependency, version, release-note source, or affected usage. -->
+<!-- Name missing version, release-note or usage information. -->

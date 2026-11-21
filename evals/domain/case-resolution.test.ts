@@ -1,6 +1,13 @@
 import { fixtureExtensionRequest } from "./fixture-command";
 import { afterEach, expect, test } from "bun:test";
-import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -16,6 +23,75 @@ afterEach(async () => {
   await Promise.all(
     roots.splice(0).map((root) => rm(root, { recursive: true })),
   );
+});
+
+test("Claude repository skill links resolve only to the matching canonical skill", async () => {
+  const root = await mkdtemp(join(tmpdir(), "darrow-guide-link-"));
+  const outside = await mkdtemp(join(tmpdir(), "darrow-guide-outside-"));
+  roots.push(root, outside);
+  const canonical = join(root, ".agents/skills/probe");
+  const mirror = join(root, ".claude/skills/probe");
+  await mkdir(join(canonical, "evals"), { recursive: true });
+  await mkdir(join(root, ".claude/skills"), { recursive: true });
+  const body =
+    "---\nname: probe\ndescription: Fixture probe.\n---\nReturn ready.\n";
+  await writeFile(join(canonical, "SKILL.md"), body);
+  await writeFile(
+    join(canonical, "evals/probe.yaml"),
+    JSON.stringify({
+      id: "guide-link-probe",
+      invariant: "EXAMPLE-LINK",
+      prompt: "Return ready.",
+      fixture: {
+        commits: [
+          { message: "chore: init", files: { "README.md": "fixture\n" } },
+        ],
+      },
+      checks: [],
+    }),
+  );
+  const { cases } = await fixtureExtensionRequest<{ cases: unknown[] }>(
+    "resolve",
+    {
+      projectRoot: pathToFileURL(root).href,
+      selectors: { caseIds: ["guide-link-probe"] },
+      configuration: {},
+    },
+  );
+  const prepare = () =>
+    fixtureExtensionRequest<{
+      artifacts: { relativePath: string; contentBase64: string }[];
+    }>("prepare", {
+      case: cases[0],
+      host: {
+        id: "sevro.host.claude",
+        capabilities: ["sevro.claude.repository-invocation"],
+      },
+      condition: "passive",
+      configuration: {},
+    });
+  await symlink("../../.agents/skills/probe", mirror);
+  const { artifacts } = await prepare();
+  expect(artifacts.map((artifact) => artifact.relativePath)).toEqual([
+    ".claude/skills/probe/SKILL.md",
+  ]);
+  expect(Buffer.from(artifacts[0]!.contentBase64, "base64").toString()).toBe(
+    body,
+  );
+
+  const other = join(root, "other");
+  await mkdir(other);
+  await writeFile(join(other, "SKILL.md"), body);
+  for (const [target, error] of [
+    [other, "does not match the canonical skill"],
+    [outside, "escapes the project root"],
+    [join(canonical, "SKILL.md"), "missing or unsafe"],
+    [join(root, "missing"), "ENOENT"],
+  ]) {
+    await rm(mirror);
+    await symlink(target!, mirror);
+    await expect(prepare()).rejects.toThrow(error!);
+  }
 });
 
 test("case inventory names unsupported cases and fails closed", async () => {

@@ -1,11 +1,10 @@
 # Darrow Adaptive Goal
 
 Adaptive Goal keeps one bounded native goal in the main thread. That thread
-owns preflight, acceptance, user decisions and completion. It implements
-directly when its own route matches the selected implementation route. It
-delegates implementation when the selected route is stronger or the main
-route is unknown, or when a cheaper route, focused ticket context or concurrent parts repay the
-handoff. The main thread maps each acceptance criterion to current evidence or a gap.
+owns preflight, acceptance, user decisions and completion. A route is a model and reasoning effort. The main thread implements directly
+when its route matches the selected route. It delegates when the selected route
+is stronger, its own route is unknown, or cost, focused ticket context or
+concurrency justifies the handoff. The main thread maps each acceptance criterion to current evidence or a gap.
 Selected Review owns its workflow, placement and fresh independent readers.
 
 ```text
@@ -18,11 +17,9 @@ The plugin also provides `doctor-adaptive-goal`, a read-only host-capacity
 check. Doctor intent never starts orchestration. Adaptive Goal itself starts
 only through explicit invocation or preserved delegation from an invoked recipe.
 
-Version 0.24.0 changes the ownership boundary. Artificer 0.2.0 adds the matching
-main-thread continuation transport; earlier separate-owner releases are
-incompatible. Artificer's host and authentication requirements apply separately.
-Existing separate-owner deliveries require reconciliation in their original
-installation rather than automatic migration.
+Artificer's host and authentication requirements apply separately. Reconcile
+older deliveries in their original installation before upgrading; changing
+plugins does not migrate an active delivery or its evidence.
 
 [![Adaptive Goal: the main thread retains the native goal and coordinates bounded implementation and verification.](https://raw.githubusercontent.com/BjRo/darrow/main/docs/assets/adaptive-goal-capabilities.svg)](https://github.com/BjRo/darrow/blob/main/docs/assets/adaptive-goal-capabilities.svg)
 
@@ -208,7 +205,7 @@ The doctor changes nothing and prints no unrelated settings or secrets.
 
 Require UV, Git and the readable packaged project and lock. UV selects compatible
 Python; system Python is not a separate prerequisite. The helpers support Python
-3.10–3.13 on Linux, macOS and Windows without Bash.
+3.10 to 3.13 on Linux, macOS and Windows without Bash.
 
 Prefix commands with
 `uv run --quiet --no-project "<absolute-plugin-root>/backend/scripts/run_locked.py"`:
@@ -256,26 +253,10 @@ another owner or a nested host process.
 Install `darrow-adaptive-goal@darrow` using the
 [host installation instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
 
-### Upgrade acceptance ownership
-
-Version 0.30.0 moves acceptance accounting into Adaptive Goal. Independent Review
-remains independently installable and required where selected by risk or policy.
-Reinstall the updated plugin and start a fresh session to load its contract.
-Legacy Verification remains available until its other consumers migrate; do not
-rewrite an active delivery's installed skills or discard its assessment history.
-
-### Upgrade from Adaptive Delivery
-
-Version 0.25.0 renames `darrow-adaptive-delivery` to `darrow-adaptive-goal`.
-Install the new plugin and remove the old plugin using your host's plugin manager
-so both orchestration entrypoints are not advertised in the same session.
-Use `adaptive-goal` and `doctor-adaptive-goal` for new invocations. Update explicit
-local bindings, commands and automation configuration that name the old plugin.
-Restart or refresh the host session after changing the installed plugin set.
-
-The renamed release preserves main-thread ownership, model routes, verification
-requirements and repair limits. Existing goals and recorded eval evidence are
-not migrated or rewritten by installation.
+Update the delivery plugins together before starting new work, then open a fresh
+session. Preserve active goals and their assessment history. Use the current
+`adaptive-goal` and `doctor-adaptive-goal` entrypoints, and remove an older installed
+orchestration identity through the host's plugin manager before starting new work.
 
 ## Usage
 

@@ -6,21 +6,20 @@
 
 <a id="why-darrow"></a>
 
-Darrow publishes ten independently installable plugins for Codex and Claude
-Code: curated Matt Pocock and pstack workflows, Git, Readiness Gate, Review,
-Adaptive Goal, Explanation, Information Architecture, Ticket-to-PR and Artificer.
-Choose the help you need; each plugin documents its evidence and limits.
+Darrow adds reusable workflows to Codex and Claude Code. Install a plugin for
+focused work such as Git or review, or explicitly invoke a delivery workflow
+that coordinates a larger request.
 
-Install one plugin at a time. Focused capabilities match your request; selected
-upstream workflows retain explicit invocation. Orchestration starts only when
-explicitly invoked and keeps one host-native execution owner. Upgrading an older
-lineup? Follow the [replacement and cache migration guide](docs/migrating-to-ten-plugins.md).
+Start with one plugin. Focused capabilities match your request; orchestration
+requires explicit invocation and keeps one native execution owner. Selected
+upstream workflows also require explicit invocation. Use the
+[current catalog](docs/choosing-plugins.md) to choose, then follow the
+[installation and update guide](docs/installing-plugins.md).
 
-Codex remains the primary development host. Both Codex and Claude Code are
-required targets for the curated bundles and revised shared workflows. Support
-is scoped to documented workflow evidence; Artificer retains its explicit
-[Claude exception](plugins/automation/darrow-artificer/README.md). This does
-not establish support for other unverified operations.
+Codex is the primary development host. Both hosts are required targets for the
+curated bundles and shared workflows, but support claims depend on each
+workflow's evidence. Read [Artificer's Claude limitation](plugins/automation/darrow-artificer/README.md)
+before unattended delivery.
 
 <a id="status-and-compatibility"></a>
 
@@ -38,9 +37,9 @@ removal, verification, and recovery.
 
 ## Ask the guide
 
-Open this checkout in a fresh session and ask “What is Darrow?” Use
+Open this checkout in a fresh session and ask "What is Darrow?" Use
 `$darrow-guide` in Codex or `/darrow-guide` in Claude Code to invoke it explicitly.
-It reads repository sources and explains them; it does not install or run work.
+The guide reads repository sources and explains them without running work.
 
 Prefer browsing? The [documentation hub](docs/README.md) works without an agent.
 
@@ -61,8 +60,8 @@ describe responsibilities, not a mandatory sequence.
 
 ## Choose your next plugin
 
-Use the [intent-first catalog](docs/choosing-plugins.md), then read the selected
-plugin's prerequisites, examples, and safety boundaries.
+Choose by task in the [catalog](docs/choosing-plugins.md). Each plugin README
+explains its prerequisites, usage and safety boundaries.
 
 <a id="foundations"></a>[Foundations](plugins/foundation/README.md) ·
 <a id="capabilities"></a>[Capabilities](plugins/capability/README.md) ·
@@ -74,16 +73,15 @@ plugin's prerequisites, examples, and safety boundaries.
 
 <a id="how-darrow-works"></a>
 
-[Design principles](docs/design.md) and [layer contracts](docs/specs/layer-composition.md)
-explain ownership and architectural choices. For problems, start with
+[Design principles](docs/design.md) explain ownership and architectural choices. For problems, start with
 [troubleshooting](docs/troubleshooting.md).
 
 <a id="repository-reference"></a>
 <a id="development"></a>
 
-[Contributing](CONTRIBUTING.md) covers development and checks. Go deeper through
-[specifications](docs/specs/README.md), [accepted decisions](docs/decisions/README.md),
-and [research](docs/research/README.md).
+For changes, read [Contributing](CONTRIBUTING.md) and
+[plugin development](docs/plugin-development.md). [ADRs](docs/decisions/README.md)
+record architectural choices and their rationale.
 
 <a id="standing-on-the-shoulders-of-giants"></a>
 

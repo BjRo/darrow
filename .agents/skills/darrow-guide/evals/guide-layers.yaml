@@ -43,4 +43,4 @@ semantic_output_checks:
       the cause of an unobserved live failure. Read-only repository inspection is permitted.
 output_checks:
   - name: nearby repository evidence
-    expect_regex: docs/specs/layer-composition\.md|docs/design\.md
+    expect_regex: docs/design\.md|docs/design\.md

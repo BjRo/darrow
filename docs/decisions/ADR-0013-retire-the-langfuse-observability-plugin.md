@@ -21,8 +21,8 @@ rollout parser, hooks, local state and delivery machinery to maintain alongside
 the host. Its Claude registration did not export Claude turns, and its README
 documented Claude's incompatible `Interrupt` hook validation.
 
-**Repository fact:** The [native test record](../research/native-otel-issue-284.md)
-and [sanitized measurements](../research/native-otel-issue-284-results.json)
+**Repository fact:** The [native test record](https://github.com/BjRo/darrow/commit/1176e39d401fc7959fd291dd571b0523afcb2c79)
+and [sanitized measurements](https://github.com/BjRo/darrow/commit/1176e39d401fc7959fd291dd571b0523afcb2c79)
 retain the 2026-10-31 experiment. Two isolated headless Codex CLI 0.166.0
 invocations using the actual model `gpt-6.1-sol` completed the requested turn.
 Across those invocations, every captured native
@@ -65,7 +65,7 @@ This retirement does not implement that feature.
 ## Consequences
 
 - Darrow no longer distributes or maintains the plugin's reconstruction,
-  attribution, recovery, delivery, dependency or hook compatibility surface.
+  attribution, recovery, delivery, dependency or hook compatibility code.
 - Native telemetry needs explicit host exporter configuration and destination
   credentials. Adopters choose what data to export and the destination's
   retention policy through that configuration.
@@ -74,7 +74,7 @@ This retirement does not implement that feature.
   attributes are retained metadata; this decision makes no claim that Langfuse
   promotes them into top-level session fields or UI filters.
 - Existing installed copies and local plugin state are not removed by a source
-  change. The [migration guidance](../research/native-otel-issue-284.md#migration)
+  change. The [migration guidance](https://github.com/BjRo/darrow/commit/1176e39d401fc7959fd291dd571b0523afcb2c79)
   explains how to stop using them and configure native telemetry.
 - ADR-0008 is superseded by retirement, preserving its original context and
   consequences as history. ADR-0009 and unaffected plugins retain their policy,

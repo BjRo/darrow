@@ -15,9 +15,10 @@ commands and identifiers, prerequisites, recovery steps, or required protocol
 fields. When full evidence is long, summarize the outcome first and retain the
 evidence in later sections or link to its readable source.
 
-Historical research and retained eval results are evidence records. Do not
-rewrite their observations to match current style. Improve their summaries,
-indexes, and links instead.
+Keep documentation useful for the current product. Preserve architectural
+choices in ADRs with commit references. Completed investigations, migration
+reports and old experiment snapshots belong in Git history; do not maintain
+archives or special link exceptions for them on the main branch.
 
 ## Plugin README contract
 
@@ -40,10 +41,10 @@ Keep useful plugin internals, unique examples, developer test commands, and
 actionable compatibility and reliability limits. Preserve local safety
 guidance; avoid generic boilerplate and manifest inventories.
 
-Put historical eval results, trial counts, pass rates, comparisons, and
-investigation narratives in `docs/research/` or colocated eval/test documentation.
-Link to that evidence without repeating it in a README. Put eval-runner
-internals in development documentation.
+Keep active eval commands and interpretation rules with the evaluation tooling.
+Store run evidence outside tracked documentation. When a result motivates a
+durable choice, summarize the choice in an ADR and reference its source commit.
+Keep current compatibility limits in the plugin README.
 
 ## Deterministic local checks
 
@@ -57,13 +58,6 @@ Do not suppress
 local failures or rewrite a working link merely to make a network job green.
 External link checks do not establish that a source's claims are correct.
 
-Frozen historical reports may retain relative links to retired sources.
-`docs/research/retired-links.json` records each exact report SHA-256, missing
-target, target SHA-256 and immutable source URL. The archive index makes those
-links readable. Local checks accept only listed missing targets in unchanged
-reports; changed reports, unknown missing links and current broken links fail.
-This preserves history without restoring executable payloads or skipping pages.
-
 ## Human review rubric
 
 - Can readers reach first success, selection, architecture, troubleshooting,
@@ -71,8 +65,8 @@ This preserves history without restoring executable payloads or skipping pages.
   one primary need and follow the plain-language standard above, with terms
   defined or linked in the glossary?
 - Do headings form a meaningful hierarchy without skipped levels or labels
-  that need extra context? Do links describe their destination without “click
-  here”? Are tables readable on narrow screens?
+  that need extra context? Do links describe their destination without "click
+  here"? Are tables readable on narrow screens?
 - Are distinctions clear without relying on color? Do complex diagrams have
   useful alternatives and adjacent or linked explanations in source order that
   makes sense to a screen reader?
@@ -81,7 +75,7 @@ This preserves history without restoring executable payloads or skipping pages.
 - Are prerequisites, supported hosts, expected results, verification limits,
   recovery paths, and mutation effects explicit?
 - Did pruning preserve authoritative rules and unique safety knowledge, with
-  question mappings and passing cross-host evidence for each removal?
+  their current owners and working references?
 - Is the outcome easy to find, with complete evidence retained or linked?
 
 The [layer explanation](choosing-plugins.md#understand-the-layers) supplies the

@@ -41,4 +41,4 @@ semantic_output_checks:
       is not executing it.
 output_checks:
   - name: nearby repository evidence
-    expect_regex: docs/troubleshooting\.md|docs/specs/repository-guide\.md
+    expect_regex: docs/troubleshooting\.md|.agents/skills/darrow-guide/SKILL\.md

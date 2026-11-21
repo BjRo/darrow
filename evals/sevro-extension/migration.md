@@ -14,8 +14,6 @@ the extension, cases, policy, exact dependency pin and integration checks.
 The boundary is recorded in
 [ADR-0010](../../docs/decisions/ADR-0010-extract-the-evaluation-runner-into-sevro.md)
 and [ADR-0011](../../docs/decisions/ADR-0011-negotiate-evaluation-extensions-across-the-runner-boundary.md).
-Historical command changes and extraction observations are in the
-[research record](../../docs/research/sevro-extraction.md).
 Current caller behavior is in [README.md](README.md).
 
 ## Local and coordinated development

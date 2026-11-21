@@ -5,6 +5,10 @@ Date: 2026-09-19
 Summary: Move generic evaluation infrastructure into the versioned Sevro package while Darrow retains its evaluation policy, cases, and product integration.
 Supersedes: ADR-0001
 
+The tracked historical snapshot and separate-specification obligations below is replaced by
+[ADR-0014](ADR-0014-keep-current-documentation-with-its-owner.md).
+The other decisions and status remain unchanged.
+
 ## Context
 
 Darrow's shared evaluation runner has grown beyond the thin repository helper

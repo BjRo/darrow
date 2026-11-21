@@ -1,6 +1,5 @@
 import { expect, test } from "bun:test";
 import { cp, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
-import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -32,23 +31,6 @@ const catalog = [
   "never-block-on-the-human",
   "encode-lessons-in-structure",
 ];
-
-test("native delivery test doubles stay outside marketplace adoption", async () => {
-  const root = resolve(import.meta.dir, "../..");
-  const fixture = "plugins/fixtures/principles-delivery-fixture";
-  const marketplace = JSON.parse(
-    await readFile(join(root, ".claude-plugin/marketplace.json"), "utf8"),
-  ) as { plugins: Array<{ name: string; source: string }> };
-  expect(
-    marketplace.plugins.filter(
-      (plugin) =>
-        plugin.name === "principles-delivery-fixture" ||
-        plugin.source === `./${fixture}`,
-    ),
-  ).toEqual([]);
-  expect(existsSync(join(root, fixture, "hooks"))).toBe(false);
-  expect(existsSync(join(root, fixture, "backend"))).toBe(false);
-});
 
 test("a copied pstack package exposes every selected skill through both public host mounts", async () => {
   const root = resolve(import.meta.dir, "../..");

@@ -1,16 +1,14 @@
 # Darrow Review
 
-This plugin provides independent, read-only review of one precisely bounded
-change. It separates two questions that are often blurred together: whether the
-change follows repository standards, and whether it fulfills the specification
-or request that caused the work. Fresh reviewers evaluate those axes in
-isolation, then deterministic tooling validates and aggregates their evidence.
+Review one bounded change against repository standards and the request that
+caused it. Fresh read-only reviewers assess those questions independently;
+bundled tools validate their evidence and combine the results.
 
 Review is explicitly requested, either directly or as a selected clause in a
 larger goal contract. The plugin does not trigger merely because an agent edited
 code.
 
-### Session reminder
+## Session reminder
 
 This plugin includes a `SessionStart` hook that improves automatic selection for
 matching review and repair-verification requests and reminds the coordinator to
@@ -29,40 +27,25 @@ coordinator on that route runs the review. Readers always start fresh.
 
 ### `code-review`
 
-Reviews a pull request, branch, fixed-point diff, or selected working-tree
-layer. It pins the base, target, and complete changed-file set before review;
-runs applicable deterministic checks; delegates standards and specification
-analysis independently; then explains the outcome and evidence-backed findings directly in the session. The validated `darrow-review-result-v3` remains the
-canonical artifact beneath the review scope and is returned only when explicitly
-requested as raw machine format.
+Review a PR, branch, fixed-point diff or selected working-tree changes. The
+skill pins the base, target and changed files, captures applicable checks, and
+asks fresh readers to assess repository standards and the originating request.
+The response explains the verdict, findings, evidence, risks and next action
+inline. Complete JSON and Markdown records remain saved for follow-up.
 
-The response may use concise paraphrases and ordinary Markdown. It includes the
-issues, evidence, advice, and blockers inline; opening a report file is not
-required. Complete JSON and Markdown artifacts remain retained for verification.
+Each finding names the failure, source, evidence, suggested repair and observable
+resolution. Repair guidance is advisory; another implementation can satisfy the
+same requirement. A reviewer who cannot recommend a repair records that limitation.
 
-Each finding explains the failure and its cause, then carries the originating
-reviewer's suggested repair, rationale, important constraints, and observable
-resolution behavior or a regression test. Repair guidance is advisory: a
-different valid implementation can satisfy the original requirement. When a
-reviewer cannot confidently recommend an approach, the report preserves the
-supported finding and explains that limitation.
+After comprehensive review, the same skill verifies authorized repairs against
+the original finding set. It retains original, prior and current targets, attempt
+history and direct repair-caused regressions. The result is `clear`, `continue`,
+`no_progress` or `blocked`. Unrelated findings stay outside that set, and unresolved
+advisories do not block convergence. A defect missed initially is considered later
+only if the repair caused it.
 
-After that comprehensive review, the same skill can fix-verify authorized
-repairs against its closed original finding set. The additive
-`darrow-review-verification-v3` binds original, prior, history, and current
-target fingerprints and a checksum-linked prior verification chain; records
-resolved, unresolved, or blocked attempts; ties direct repair-caused
-regressions to attempted findings in a mechanically pinned prior-to-current
-repair delta; and derives `clear`, `continue`, `no_progress`, or `blocked`.
-Fix-axis records and the aggregate are validated independently, prior
-regressions cannot disappear between rounds, and a failed check must be scoped
-as a repair-caused regression. Unrelated findings cannot enter the closed set,
-and unresolved advisories never gate convergence.
-
-Example: _“Review all uncommitted changes.”_
-
-The default response starts with the decision a human needs and explains each
-issue inline. For example:
+For example, ask "Review all uncommitted changes." The default report includes
+findings directly in the session:
 
 ```md
 # Code review — FAIL
@@ -92,144 +75,77 @@ Return findings to the requester.
 - The requested rate limit remains unavailable.
 ```
 
-Ask for “raw v3 JSON” or “machine format” only when an integration needs the
-canonical record rather than this Markdown report.
-
-The same canonical skill supports both invocation modes. A composed review is
-requested by host-visible intent—independently review this pinned code
-change—without naming or assuming this plugin. It returns its normal review
-report to the goal owner, which interprets the findings and outcome under its
-own continuation contract. Any content-changing repair invalidates the initial
-target and requires exact-target fix verification. This intentionally gives up
-comprehensive rereview after repair: a defect missed initially will not be
-discovered later unless the repair directly caused it.
+Request "raw v3 JSON" only when an integration needs `darrow-review-result-v3`
+or `darrow-review-verification-v3`. Composition does not select JSON mode.
+A goal owner requests independent review of a pinned change through advertised
+intent, reads the report and retains continuation authority. Content changes
+invalidate prior clearance and require verification of the current target.
 
 ### `review-scope`
 
-Resolves and snapshots the requested review scope. It accounts for committed,
-staged, unstaged, renamed, deleted, and untracked paths as appropriate so every
-reviewer examines the same immutable change packet.
-For fix verification, `prepare --prior-manifest <absolute-scope.json>` derives
-the effective base from that validated manifest when `--base` is omitted.
-An explicitly different base is refused. The current target and working-tree
-layers still come from the requested repair.
+Snapshots the complete requested change, including applicable staged, unstaged,
+renamed, deleted and untracked paths. Every reader uses that same packet.
+For repair verification, `prepare --prior-manifest <absolute-scope.json>` derives
+the prior base when `--base` is omitted and refuses an explicitly different base.
+
+`prepare --report-terminal` saves blocked JSON and Markdown for scope exits 2,
+3 or 4 without launching readers. Use `--spec-source` for an available originating
+source. If preparation fails before creating a manifest, `allocate-terminal
+--repo <repo>` creates a private directory and terminal manifest.
 
 ### Review state and cleanup
 
-Generated review packets and evidence live under `~/.darrow/reviews` on Linux
-and macOS or `%LOCALAPPDATA%\Darrow\Reviews` on native Windows. Set
-`DARROW_REVIEW_STATE_DIR` to a nonempty absolute path to select another root.
-Each repository and worktree has a separate state directory, and each review
-gets a unique run directory. The scope command returns the absolute manifest
-path; `review-scope locate --repo <repo> --target <fingerprint>` finds one
-validated prior manifest when a follow-up did not retain its path.
-If preparation stops before producing a scope manifest, `review-scope
-allocate-terminal --repo <repo>` returns a private directory and terminal
-manifest for the blocked result. That manifest also supports `pin` and `unpin`.
-For comprehensive preparation, `--report-terminal` also saves validated blocked
-JSON and canonical Markdown on scope exit 2, 3 or 4, returning their absolute
-paths while preserving the original failure exit code. Supply `--spec-source`
-when an originating source is available. No reviewer is launched for a terminal
-scope failure.
+Evidence lives under `~/.darrow/reviews` on Linux and macOS or
+`%LOCALAPPDATA%\Darrow\Reviews` on Windows. `DARROW_REVIEW_STATE_DIR` selects a
+nonempty absolute override. Repositories and worktrees have separate directories;
+each review has its own run. The scope command returns the absolute manifest.
+Use `review-scope locate --repo <repo> --target <fingerprint>` to find one prior
+manifest when its path was not retained.
 
-The next review invocation prunes unpinned runs whose directories have not
-changed for 30 days across the
-user's review-state root. A retained fix-verification run keeps every prior
-scope and verification run it references. Use `review-scope pin --manifest
-<absolute-scope.json>` to retain a run and its dependencies, or `unpin` with the
-same argument to return it to normal retention. `review-scope prune --all`
-applies the 30-day rule immediately; `--older-than-days 0` removes all unpinned
-runs without retained dependents. These commands remove only generated review
-state. Expired follow-up evidence produces a clear refusal. Older `.git` review
-directories are neither migrated nor deleted automatically.
+A review invocation prunes unpinned runs unchanged for 30 days. A retained
+verification keeps the prior runs it references. `review-scope pin --manifest
+<absolute-scope.json>` retains a run and its dependencies; `unpin` restores normal
+retention. `prune --all` applies the 30-day rule immediately, while
+`--older-than-days 0` removes all unpinned runs without retained dependents.
+Expired follow-up evidence produces a refusal. Older `.git` review directories
+are not migrated or deleted automatically. Terminal manifests also support pinning.
 
-The separate UV project-environment cache lives under `~/.darrow/cache` on
-Linux and macOS or `%LOCALAPPDATA%\Darrow\Cache` on Windows. It is disposable;
-review evidence is retained until the review cleanup rule removes it.
+The disposable UV environment cache is separate from review evidence. It lives
+under `~/.darrow/cache` or `%LOCALAPPDATA%\Darrow\Cache`.
 
 ### `review-result`
 
-Validates the structured findings produced by each comprehensive axis, the final
-aggregate, each fix-verification axis, and additive repair-verification records.
-This keeps status, severity, lifecycle identity, progress, prior-artifact
-continuity, evidence, and target binding mechanically consistent while leaving
-code judgment to the reviewers.
-`read-evidence --repo <repository> --input <supplied-path>` reads an exact
-caller-owned JSON file before fix verification. Relative paths resolve against
-the repository, including extensionless files. The output contains its absolute
-path and unchanged record; directories and invalid or unreadable files produce
-concrete errors.
-`original-findings` copies the complete original finding entries with stable
-cross-axis keys; `validate-original` checks a follow-up against that retained
-comprehensive result, including advisory entries and exact source/evidence text,
-repair guidance, and resolution evidence. Every finding and regression requires
-both nonempty guidance fields. Since **0.9.0**, older records without those
-fields are rejected. External handoffs remain supported when their records are
-complete; they do not require an original review artifact.
+Prepares reader inputs, validates comprehensive and repair records, and derives
+aggregate results. Judgment stays with the independent readers.
 
-`finalize --manifest <scope.json> --reader <axis.json>` accepts each retained
-independent record through a repeated `--reader` argument. It validates current
-reader inputs and route bindings, rejects repeated axes or child IDs, copies
-reader judgments unchanged, and derives scope, checks and outcome. Native
-accepted-launch evidence remains separately required; a binding file alone
-does not prove an independent launch. Repeat `--check <absolute-check.json>`
-for every captured command. Use `--spec-not-available` only for comprehensive
-review without an originating objective; check inapplicability remains an
-explicit reader-context decision. `--next-action` and repeatable `--risk` supply
-coordinator context without copying findings.
+- `read-evidence --repo <repository> --input <supplied-path>` reads an exact JSON
+  file, including extensionless files. Relative paths resolve against the repo.
+  Unreadable files, invalid JSON and directories produce concrete errors.
+- `original-findings` returns complete findings with stable cross-axis keys.
+  `validate-original` checks their identity, source, evidence and repair guidance
+  against the original result. Records without the guidance fields introduced
+  in 0.9.0 are refused. Complete external handoffs need no original artifact.
+- `prepare-reader` binds the axis instructions, scope, sources and captured
+  checks into an immutable input. `read-reader` validates it before judgment.
+  Codex's `--route-record` adds complete native `launch` arguments; the launch
+  still needs actual acceptance evidence.
+- `reader-feedback` allows one diagnostic correction by the same route-bound
+  reader. Persistent input or record errors remain evidence gaps.
+- `finalize` validates retained readers and checks, preserves their judgments,
+  and saves `result.json` plus `review.md`, or `verification.json` plus
+  `verification.md`. `--present` also prints the human report.
 
-For fix verification add `--original` with the original comprehensive result,
-immediately prior verification or complete external handoff. Mechanics preserve
-immutable findings, target/history bindings and carried regression guidance,
-and assign new regression identity/order directly from verifier records. The
-helper saves `result.json` and `review.md`, or `verification.json` and
-`verification.md`, beneath the current private run. Readers retain judgment.
-Add `--present` to emit a ready-to-use human report after retaining and reading
-the canonical artifacts. It preserves scope, finding dispositions, reasoning,
-checks, risks and evidence gaps while omitting repeated finding history.
-Without `--present`, finalization returns the existing artifact-path JSON.
-
-The existing `--draft <draft.json> --output <result.json>` interface remains
-available for bounded evidence gaps, contextual duplicate/tool-output selection,
-assessment corrections and external protocol callers. It cannot be combined
-with `--reader`. Both paths preserve the same canonical formats and report
-validation; neither grants repair or publication authority.
-
-`prepare-reader` generates a separate immutable input and short launch
-message for each axis. It binds the complete reader instructions, scope, and
-retained checks, embeds readable
-source content with original citation paths, and resolves the installed
-Standards baseline. Fix inputs preserve the axis's original findings, prior
-scope, and carried regressions. `read-reader` rejects changed or unavailable
-required evidence before judgment and returns the full instructions and schema
-directly to the reader. The coordinator only relays the short loading command.
-On Codex, `--route-record <current-run/reviewer-route.json>` additionally returns
-complete native `launch` arguments, with explicit model/effort, fresh context,
-a scope-unique axis task name and the unchanged message. Apply the whole object;
-generation alone never proves native acceptance or an effective route.
-
-An input-read error or invalid returned record permits one diagnostic-only
-correction with the same route-bound native reader. `reader-feedback` retains
-that correction and refuses a different child, changed route, or second round.
-The reader owns any corrected judgment. Persistent failures remain evidence
-gaps rather than becoming product findings. See the
-[reader input workflow](skills/code-review/references/reader-inputs.md).
-
-The human renderer keeps ordinary identifiers such as `not_applicable` and
-leading underscores in paths such as `/_cache/file.js` readable. It preserves
-single underscores followed by a letter or digit, which cannot close Markdown
-emphasis, and escapes potential closing delimiters and repeated underscores.
-The same rule protects retained report content in both review modes. The session
-response explains the issues inline and may paraphrase without repeating the
-complete report or its artifact link.
+For the full fields, flags, draft interface and exceptional paths, read the
+[result protocol](skills/code-review/references/result-protocol.md),
+[reader input workflow](skills/code-review/references/reader-inputs.md), and
+[repair verification](skills/code-review/references/fix-verification.md).
+The human renderer preserves identifiers and paths, including single underscores.
 
 ### Reviewer routes
 
-Every fresh standards, specification, and fix-verification reader runs on one
-explicit strong route. Bundled defaults are `gpt-6.1-sol` / `xhigh` on Codex
-and `claude-opus-5-5` / `xhigh` on Claude. A repository can replace either host's
-route in the independent `reviewers` section of the same shared
-`.darrow/config.json` used by adaptive goal routing:
+Fresh standards, request-conformance and repair readers use explicit model and
+effort settings. Defaults are `gpt-6.1-sol`/`xhigh` on Codex and
+`claude-opus-5-5`/`xhigh` on Claude. Override them in `.darrow/config.json`:
 
 ```json
 {
@@ -252,66 +168,50 @@ route in the independent `reviewers` section of the same shared
 }
 ```
 
-The review capability owns only `reviewers`; it syntax-checks but otherwise
-ignores a sibling `routes` section. An absent or empty section and omitted hosts
-retain bundled reviewer policy. An unreadable, malformed, duplicate, unsafe,
-host/harness-mismatched, or host/provider-mismatched route stops review rather
-than inheriting or silently substituting a model.
+Review owns `reviewers`; it syntax-checks but otherwise ignores `routes`.
+An absent or empty section, or an omitted host, keeps the bundled policy.
+Invalid, duplicated, unsafe or mismatched routes stop review without substitution.
 
-Repository overrides remain inside a shipped strong-route catalog so config
-cannot downgrade review. Codex currently supports `gpt-6.1-sol` and
-`gpt-5.6-sol` at `high`/`xhigh`/`max`, and `gpt-5.5` at `high`/`xhigh`. Claude supports
-`claude-opus-5-5`/`xhigh` and `claude-sonnet-5-5`/`high`. Add a catalog entry and,
-for Claude, its exact-tuple plugin agent before selecting another route.
+Overrides must belong to the shipped strong-route catalog. Codex allows
+`gpt-6.1-sol` and `gpt-5.6-sol` at `high`/`xhigh`/`max`, and `gpt-5.5` at
+`high`/`xhigh`. Claude allows `claude-opus-5-5`/`xhigh` and
+`claude-sonnet-5-5`/`high`. Another Claude tuple needs its matching plugin agent.
 
-Codex supplies the exact model and effort to each native subagent boundary.
-Its application record is not standalone proof: the accepted native spawn
-event must bind the same child ID to the exact model, effort, fresh-context
-setting, and review axis. Missing native evidence blocks the reader.
-Claude follows the current Claude Code strategy: an exact-tuple foreground
-plugin agent pins the full model and effort together, and Agent receives no
-per-call model alias. The bundled Claude catalog supports `claude-opus-5-5` /
-`xhigh` and the supported override `claude-sonnet-5-5` / `high`; another tuple is
-unavailable until a matching plugin agent ships. The resulting
-`agent-<id>.jsonl` transcript must prove the same model/effort tuple on every
-assistant turn. Retained parent telemetry joins the current Agent tool-use ID
-to that exact host-reported child ID so stale transcripts cannot satisfy the
-gate. Any conflicting environment override, background launch, substitution,
-or unverifiable route blocks that review axis.
+Codex binds accepted native spawn evidence to the child, exact route, fresh
+context and axis. Claude uses a foreground exact-tuple plugin agent with no
+per-call model alias, and verifies the child transcript's model and effort on
+every assistant turn. Conflicting overrides, substitutions, background launches
+or unverifiable routes block that axis. The
+[Codex reader instructions](skills/code-review/references/codex-readers.md) and
+[Claude reader instructions](skills/code-review/references/claude-readers.md)
+own the launch protocol.
 
 ### `review-route`
 
-Resolves bundled and repository reviewer policy, owns selection and application
-record I/O at caller-supplied absolute paths, selects the Claude effort-specific
-plugin agent from the selection record, and binds every confirmed application
-to its axis and host-reported child ID.
+Selects reviewer policy, writes selection and application records at absolute
+caller-supplied paths, and binds each application to its axis and actual child ID.
 
 ### `review-claude-verify`
 
-Parses one completed Claude `agent-<id>.jsonl` transcript by exact agent ID and
-writes the one effective model and effort observed on every assistant turn to
-a caller-supplied absolute record path. Malformed, missing, partial, duplicate,
-or inconsistent evidence fails closed.
+Checks one completed `agent-<id>.jsonl` transcript by exact ID. Missing, partial,
+malformed, duplicated or inconsistent route evidence is refused.
 
 ### Review references
 
-The skill bundles axis prompts, a design-smell reference, and the result
-protocol used by fresh reviewers. These files make the two review questions
-explicit without relying on another installed plugin.
+The skill bundles its axis prompts, design-smell baseline and result protocol.
+It requires no other installed plugin.
 
 ## Assessment correction
 
-When concrete new evidence corrects an erroneous or incomplete assessment at
-unchanged code, the follow-up draft can include `assessment_correction` with
-the reason and new evidence. Bind the latest completed result, preserve its
-checksum and full finding/target history, and supply fresh judgments and checks.
-Only fully resolved current evidence can clear. The previous artifact remains
-unchanged; repeated unresolved conclusions remain blocked or no-progress.
-An empty original finding set can clear through this correction after a retained
-blocked verification, without inventing a finding or evidence gap. The same
-candidate, checksum-bound history and successful current checks remain required.
-This correction neither consumes nor resets an enclosing implementation repair
-allowance.
+To correct an erroneous assessment at unchanged code, supply
+`assessment_correction` with the concrete error and new evidence. Bind the latest
+completed result by checksum, retain all findings and target history, and obtain
+fresh judgments and successful current checks. The previous artifact stays intact.
+
+Only resolved evidence can clear. Repeated unresolved conclusions remain blocked
+or no-progress. A retained blocked verification with no original findings can be
+corrected without inventing a finding. Correction neither consumes nor resets
+the enclosing implementation repair allowance.
 
 ## Design boundaries
 
@@ -362,11 +262,10 @@ uv run --quiet --no-project plugins/capability/darrow-review/backend/scripts/run
 
 Install `darrow-review@darrow` using the
 [host installation, update, removal, and verification instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
-Review this plugin's local prerequisites and safety boundaries first.
 
 ## Usage
 
-An ordinary request can select the appropriate capability:
+Ask for the operation:
 
 > Review all uncommitted changes.
 
@@ -389,14 +288,12 @@ the review skill's explicit reader requirement satisfies that condition. An
 unconditional prohibition still blocks review.
 
 Unintended worktree changes remain an unresolved issue in Codex review sessions.
-Inspect the working tree after review. Historical evidence is retained in the
-[stabilization report](../../../docs/research/darrow-review-luna-medium-stabilization-2026-09-29.md).
+Inspect the working tree after review.
 
 A missing route, unverifiable child identity, invalid scope, or malformed result blocks review. Preserve the evidence and correct the exact input; selection alone does not prove a route ran.
-For a discovery or host problem, use the
-[documented installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md)
-and report the plugin version, host version, exact invocation, and error
-without credentials.
+For a missing skill or host error, follow the
+[installation checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md).
+Report the plugin and host versions, invocation and error. Omit credentials.
 
 ## License
 

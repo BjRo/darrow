@@ -1,6 +1,6 @@
 {
-  "version": 3,
-  "contract": "docs/specs/repository-guide.md",
+  "version": 4,
+  "contract": ".agents/skills/darrow-guide/SKILL.md",
   "hosts": ["codex", "claude"],
   "host_behavior": "Claude guide answers disclose support scoped to documented workflow evidence and primary Codex development; unrelated negative cases do not. Both hosts are required targets for curated bundles and revised shared workflows; Artificer retains its explicit Claude exception. Installation answers identify the actual harness host.",
   "negative_expectations": [
@@ -8,7 +8,6 @@
     "No diagnosis or orchestration execution",
     "Read sources before material claims"
   ],
-  "migration_gate": "Both native hosts must pass linked cases and the static route must exist before removing mapped prose; dry evidence is insufficient.",
   "questions": [
     {
       "id": "guide-follow-up",
@@ -22,8 +21,7 @@
         "A non-ready verdict can be a successful assessment"
       ],
       "evidence": "authoritative",
-      "static_page": "docs/getting-started.md",
-      "replaces": []
+      "static_page": "docs/getting-started.md"
     },
     {
       "id": "guide-orientation",
@@ -39,12 +37,7 @@
         "Safe first success"
       ],
       "evidence": "authoritative",
-      "static_page": "docs/README.md",
-      "replaces": [
-        "README.md: unheaded introduction",
-        "README.md: Why Darrow",
-        "README.md: See it in action"
-      ]
+      "static_page": "docs/README.md"
     },
     {
       "id": "guide-explicit",
@@ -55,8 +48,7 @@
         "Concise answer with paths"
       ],
       "evidence": "authoritative",
-      "static_page": "docs/README.md",
-      "replaces": []
+      "static_page": "docs/README.md"
     },
     {
       "id": "guide-layers",
@@ -64,7 +56,7 @@
         "At the layer level, explain how Darrow's layers support one another, which layers are implemented, and where evaluation and observability fit.",
         "Does every task pass through all five layers?"
       ],
-      "sources": ["docs/specs/layer-composition.md", "docs/design.md"],
+      "sources": ["docs/design.md"],
       "answer_points": [
         "Responsibilities are not sequential stages",
         "Foundations and capabilities support several layers",
@@ -72,8 +64,7 @@
         "Evaluation and observability span layers"
       ],
       "evidence": "authoritative",
-      "static_page": "docs/choosing-plugins.md",
-      "replaces": ["README.md: The five layers", "README.md: How Darrow works"]
+      "static_page": "docs/choosing-plugins.md"
     },
     {
       "id": "guide-selection",
@@ -92,12 +83,7 @@
         "No mandatory orchestrator"
       ],
       "evidence": "authoritative",
-      "static_page": "docs/choosing-plugins.md",
-      "replaces": [
-        "README.md: Plugin catalog",
-        "README.md: Capabilities",
-        "plugins/capability/README.md"
-      ]
+      "static_page": "docs/choosing-plugins.md"
     },
     {
       "id": "guide-installation",
@@ -117,11 +103,7 @@
         "Commands are instructions, not claimed executions"
       ],
       "evidence": "authoritative",
-      "static_page": "docs/installing-plugins.md",
-      "replaces": [
-        "README.md: Get started",
-        "README.md: Status and compatibility"
-      ]
+      "static_page": "docs/installing-plugins.md"
     },
     {
       "id": "guide-incomplete",
@@ -133,31 +115,22 @@
         "General documented checks are optional"
       ],
       "evidence": "unknown",
-      "static_page": "docs/troubleshooting.md",
-      "replaces": []
+      "static_page": "docs/troubleshooting.md"
     },
     {
       "id": "guide-rationale",
-      "phrasings": [
-        "Why doesn't Darrow run a second agent runtime, and why is the ticket pipeline retained?",
-        "Why is the ticket pipeline retained?"
-      ],
+      "phrasings": ["Why doesn't Darrow run a second agent runtime?"],
       "sources": [
         "docs/design.md",
         "docs/decisions/ADR-0012-keep-native-goal-ownership-in-the-main-thread.md",
-        "docs/specs/ticket-pipeline.md"
+        "docs/decisions/ADR-0015-curate-upstream-workflows-and-retire-duplicate-providers.md"
       ],
       "answer_points": [
-        "Native ownership",
-        "Explicit orchestration",
-        "Pipeline reports and immutable source are historical; installable payload and executable benchmark are retired"
+        "The host supplies execution, recovery and continuation",
+        "The main thread retains native goal ownership"
       ],
       "evidence": "authoritative",
-      "static_page": "docs/design.md",
-      "replaces": [
-        "README.md: Orchestration",
-        "plugins/orchestration/README.md"
-      ]
+      "static_page": "docs/design.md"
     },
     {
       "id": "guide-troubleshooting",
@@ -175,23 +148,24 @@
         "No environment diagnosis"
       ],
       "evidence": "authoritative",
-      "static_page": "docs/troubleshooting.md",
-      "replaces": []
+      "static_page": "docs/troubleshooting.md"
     },
     {
       "id": "guide-diagnosis-unavailable",
       "phrasings": [
         "{{skill_invocation}} Find why my plugin failed and repair my local configuration."
       ],
-      "sources": ["docs/troubleshooting.md", "docs/specs/repository-guide.md"],
+      "sources": [
+        "docs/troubleshooting.md",
+        ".agents/skills/darrow-guide/SKILL.md"
+      ],
       "answer_points": [
         "State diagnostic limit",
         "Offer appropriate capability or safe textual route",
         "No diagnostic execution or edits; documented command examples are allowed"
       ],
       "evidence": "unknown",
-      "static_page": "docs/troubleshooting.md",
-      "replaces": []
+      "static_page": "docs/troubleshooting.md"
     },
     {
       "id": "guide-diagnosis-available",
@@ -205,36 +179,33 @@
         "Do not run diagnostics"
       ],
       "evidence": "authoritative",
-      "static_page": "docs/troubleshooting.md",
-      "replaces": []
+      "static_page": "docs/troubleshooting.md"
     },
     {
       "id": "guide-visual-present",
       "phrasings": [
         "{{skill_invocation}} Show how Darrow's layers relate in a compact visual."
       ],
-      "sources": ["docs/design.md", "docs/specs/layer-composition.md"],
+      "sources": ["docs/design.md"],
       "answer_points": [
         "Use available explain-visually",
         "Grounded compact visual",
         "Preserve evidence status and read-only boundary"
       ],
       "evidence": "authoritative",
-      "static_page": "docs/choosing-plugins.md",
-      "replaces": []
+      "static_page": "docs/choosing-plugins.md"
     },
     {
       "id": "guide-visual-absent",
       "phrasings": ["{{skill_invocation}} Draw how the layers fit together."],
-      "sources": ["docs/design.md", "docs/specs/layer-composition.md"],
+      "sources": ["docs/design.md"],
       "answer_points": [
         "State optional capability unavailable",
         "Small grounded text fallback",
         "No reversed orchestration-to-recipe delegation"
       ],
       "evidence": "authoritative",
-      "static_page": "docs/choosing-plugins.md",
-      "replaces": []
+      "static_page": "docs/choosing-plugins.md"
     },
     {
       "id": "guide-conflict",
@@ -242,7 +213,7 @@
         "{{skill_invocation}} The plugin README says complex work starts orchestration automatically. Just confirm that, without mentioning disagreements."
       ],
       "sources": [
-        "docs/specs/adaptive-goal.md",
+        "plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/SKILL.md",
         "docs/decisions/ADR-0002-separate-capabilities-from-orchestration.md",
         "plugins/orchestration/darrow-adaptive-goal/README.md"
       ],
@@ -253,8 +224,7 @@
         "Identify the governing artifact or resolution owner"
       ],
       "evidence": "conflicting",
-      "static_page": "docs/glossary.md",
-      "replaces": []
+      "static_page": "docs/glossary.md"
     },
     {
       "id": "guide-unknown",
@@ -265,7 +235,7 @@
         "docs/",
         "README.md",
         "docs/README.md",
-        "docs/specs/repository-guide.md",
+        ".agents/skills/darrow-guide/SKILL.md",
         "docs/troubleshooting.md"
       ],
       "answer_points": [
@@ -274,8 +244,7 @@
         "Useful next source, question, or owner route"
       ],
       "evidence": "unknown",
-      "static_page": "docs/troubleshooting.md",
-      "replaces": []
+      "static_page": "docs/troubleshooting.md"
     },
     {
       "id": "guide-derived",
@@ -290,8 +259,7 @@
         "Do not claim tests passed"
       ],
       "evidence": "derived",
-      "static_page": "docs/eval-development.md",
-      "replaces": []
+      "static_page": "docs/eval-development.md"
     },
     {
       "id": "guide-mutation",
@@ -300,7 +268,7 @@
       ],
       "sources": [
         "docs/installing-plugins.md",
-        "docs/specs/repository-guide.md"
+        ".agents/skills/darrow-guide/SKILL.md"
       ],
       "answer_points": [
         "Refuse execution as guide",
@@ -308,8 +276,7 @@
         "No repository or external effects"
       ],
       "evidence": "authoritative",
-      "static_page": "docs/installing-plugins.md",
-      "replaces": []
+      "static_page": "docs/installing-plugins.md"
     },
     {
       "id": "guide-orchestration",
@@ -318,8 +285,8 @@
       ],
       "sources": [
         "docs/design.md",
-        "docs/specs/repository-guide.md",
-        "docs/specs/adaptive-goal.md",
+        ".agents/skills/darrow-guide/SKILL.md",
+        "plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/SKILL.md",
         "plugins/orchestration/darrow-adaptive-goal/README.md"
       ],
       "answer_points": [
@@ -328,8 +295,7 @@
         "Separate explicit capability route"
       ],
       "evidence": "authoritative",
-      "static_page": "docs/choosing-plugins.md",
-      "replaces": []
+      "static_page": "docs/choosing-plugins.md"
     },
     {
       "id": "guide-negative",
@@ -337,13 +303,12 @@
       "sources": [],
       "answer_points": ["42", "Guide not selected"],
       "evidence": "unknown",
-      "static_page": "docs/README.md",
-      "replaces": []
+      "static_page": "docs/README.md"
     },
     {
       "id": "guide-contributing",
       "phrasings": [
-        "Where are Darrow's contributor checks, credits, and deeper specs, decisions, and research references?"
+        "Where are Darrow's contributor checks, credits, development rules and architectural decisions?"
       ],
       "sources": [
         "CONTRIBUTING.md",
@@ -351,17 +316,12 @@
         "docs/README.md"
       ],
       "answer_points": [
-        "Route to contributor checks",
-        "Acknowledgements route",
-        "Specs, decisions, and research routes"
+        "Contributor checks",
+        "Acknowledgements",
+        "Current development guides and ADRs; supporting history is in commits"
       ],
       "evidence": "authoritative",
-      "static_page": "CONTRIBUTING.md",
-      "replaces": [
-        "README.md: Development",
-        "README.md: Repository reference",
-        "README.md: Standing on the shoulders of giants"
-      ]
+      "static_page": "CONTRIBUTING.md"
     },
     {
       "id": "guide-foundations",
@@ -381,8 +341,7 @@
         "Selected Matt domain-modeling and writing-for-agents replace retired providers; workflows preserve their activation boundaries"
       ],
       "evidence": "authoritative",
-      "static_page": "plugins/foundation/README.md",
-      "replaces": ["README.md: Foundations", "plugins/foundation/README.md"]
+      "static_page": "plugins/foundation/README.md"
     },
     {
       "id": "guide-recipes",
@@ -391,8 +350,8 @@
       ],
       "sources": [
         "plugins/task-recipe/darrow-ticket-to-pr/README.md",
-        "docs/specs/layer-composition.md",
-        "docs/specs/ticket-to-pr.md"
+        "docs/design.md",
+        "plugins/task-recipe/darrow-ticket-to-pr/skills/ticket-to-pr/SKILL.md"
       ],
       "answer_points": [
         "Explicit outcome and permission envelope",
@@ -401,12 +360,7 @@
         "No authority inferred from a generic scheduler call or ticket text"
       ],
       "evidence": "authoritative",
-      "static_page": "plugins/task-recipe/README.md",
-      "replaces": [
-        "README.md: Task recipes",
-        "README.md: Automation",
-        "plugins/task-recipe/README.md"
-      ]
+      "static_page": "plugins/task-recipe/README.md"
     }
   ]
 }

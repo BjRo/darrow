@@ -29,29 +29,14 @@ Git creates the complete PR without requiring Explanation.
 
 Use configured tracker guidance and native tools for issue operations. Maintain
 ADRs and their catalog as ordinary documents with domain-modeling guidance.
-The dedicated ticket wrappers/template installer and decision lifecycle backend
-are retired. The [migration guide](migrating-to-ten-plugins.md) maps all eight
-retirements, accepted losses and replacement steps. Historical Pipeline results
-remain in the [archive](research/retired-workflows.md), with no executable benchmark.
-
 Artificer's Claude path can hand off work and produce a PR but returns
 `needs-attention` when native completion evidence is unavailable. That exception
 remains; a PR is not proof of native completion. There is no shipped general
 troubleshooting plugin or general scheduler framework.
 
-For host telemetry, use configured native exporters. The
-[native ticket-attribution record](research/native-otel-issue-284.md) covers
-launch-time resource attributes, migration and the measured limits.
-
-### Planned names are not installation targets
-
-The former landing-page roadmap named `darrow-troubleshooting` for debugging,
-`darrow-domain-modelling` for domain work, and `darrow-evidence` for additional
-PR evidence. It also described `darrow-artificer` as a future scheduler above
-ticket-to-PR and GitHub tickets, with work-in-progress limits. The first three names remain roadmap ideas, not shipped packages or release
-promises. Artificer now supplies only the bounded admission described above; its
-former roadmap does not grant unattended authority.
-Check the marketplace and accepted specifications before relying on them.
+For host telemetry, use configured native exporters. See
+[the telemetry decision](decisions/ADR-0013-retire-the-langfuse-observability-plugin.md)
+for attribution limits and rationale.
 
 ## Understand the layers
 
@@ -74,8 +59,7 @@ Foundations and capabilities support several layers directly. Evaluation and
 observability assess behavior across the layers; neither grants execution
 authority. Every plugin remains optional. This is also the long text description
 of the [layer diagram](assets/darrow-plugin-layers.svg) on the landing page.
-See [layer ownership and handoffs](specs/layer-composition.md) for the normative
-contract and [design principles](design.md) for the rationale.
+See [design principles](design.md) for ownership, handoffs and rationale.
 
 ## Make the first choice
 

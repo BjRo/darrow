@@ -6,7 +6,9 @@ machine. The repository guide can explain them without running diagnostics.
 
 ## The repository guide is missing
 
-The guide belongs to this checkout, not the marketplace. Start the host at the
+The guide belongs to this checkout, not the marketplace. Its canonical source
+is `.agents/skills/darrow-guide`; `.claude/skills/darrow-guide` is a relative
+symlink to that directory. Start the host at the
 Darrow repository root and open a new session after pulling a version that
 contains it. Confirm that the checkout contains the appropriate entrypoint:
 
@@ -18,7 +20,7 @@ source, or a host restriction can explain missing discovery, but must be checked
 before naming a cause. If the skill is unavailable, the
 [documentation hub](README.md) is the complete static alternative.
 Codex remains the primary development host. Claude support is scoped to
-[documented workflow evidence and exceptions](migrating-to-ten-plugins.md#host-support-and-evidence).
+[plugin-specific evidence and exceptions](choosing-plugins.md).
 
 ## An installed plugin does not appear
 
@@ -36,8 +38,9 @@ host or edit credentials as a speculative fix.
 
 Marketplace removal does not uninstall cached plugins or repository-local skills.
 Check the exact installed identity and scope, compare local changes, and use the
-[ten-plugin migration guide](migrating-to-ten-plugins.md). Reinstall the selected
-replacement and compatible survivors, then open a fresh session. Preserve custom
+[current catalog](choosing-plugins.md) and
+[update/removal commands](installing-plugins.md). Reinstall the selected
+replacement, then open a fresh session. Preserve custom
 principle tables, relative custom files, removed routes and unrelated installations.
 Do not delete cache directories while old processes still use them.
 
@@ -79,12 +82,12 @@ host session after changing configuration yourself.
 
 ## Two sources disagree
 
-Cite both paths and the concrete claims. Specifications and accepted decisions
-govern invariants; plugin-local documentation and manifests govern local identity
-and published surface. Code and tests can supply a labelled derived fact.
-Research is context only. See [evidence states](glossary.md#evidence-states).
-Report stale published guidance to the owner of the affected plugin or
-specification; do not silently select the more convenient claim.
+Cite both paths and the concrete claims. Applicable repository instructions and
+accepted decisions govern policy; plugin-local skills, references, schemas and
+documentation govern current behavior. Manifests establish package identity.
+Code and tests can supply a labelled derived fact. See
+[evidence states](glossary.md#evidence-states). Report stale published guidance
+to its owner rather than silently selecting the more convenient claim.
 
 ## The answer is not documented
 

@@ -1,8 +1,6 @@
 # Clean up Darrow evaluation attempts
 
-Run from the Darrow checkout:
-
-Before cleanup, stop all evaluation publishers for the selected root and check
+Run these commands from the Darrow checkout. Before cleanup, stop all evaluation publishers for the selected root and check
 that exported manifests or other external consumers no longer need the evidence
 you plan to remove. This is required because legacy attempts record neither
 publisher liveness nor exported output paths. Modification age cannot prove
@@ -68,4 +66,4 @@ this retention scope. A root containing `suite-run.json` is preserved in full,
 including any selection attempts mixed into it. These manifests therefore do
 not acquire dangling references from cleanup. Sevro's own prune command remains
 separate; its nested-root defect and archived evidence portability are outside
-this command's contract. See the [retention invariants](../../docs/specs/evaluation-retention.md).
+this command's contract.

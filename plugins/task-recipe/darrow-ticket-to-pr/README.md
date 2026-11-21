@@ -47,8 +47,7 @@ authorizes the same one delegation. Ordinary scheduler calls are not authority.
 The unattended entry supports Claude Code and Codex using the host's existing
 profile. Missing product intent stops for preparation outside Artificer; technical
 recovery resumes the original native session without reinvoking the recipe.
-Host requirements and validation limits belong to Artificer. Earlier transport
-evidence is retained in [research](../../../docs/research/README.md#local-artificer).
+Host requirements and validation limits belong to Artificer.
 
 ## Hosts and prerequisites
 

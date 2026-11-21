@@ -1,7 +1,7 @@
 id: guide-rationale
 invariant: RG-C1,RG-C2,RG-C3,RG-C4,RG-C8
 activation: positive
-prompt: Why doesn't Darrow run a second agent runtime, and why is the ticket pipeline retained?
+prompt: Why doesn't Darrow run a second agent runtime?
 fixture:
   setup: bash "{{case_dir}}/fixtures/setup.sh"
 checks:
@@ -29,18 +29,11 @@ checks:
 semantic_output_checks:
   - name: question contract
     proposition: >-
-      The user asks why Darrow does not run a second agent runtime and why Ticket
-      Pipeline is retained. The response explains that the host supplies execution,
-      recovery, delegation, or continuation, so Darrow does not add a second execution
-      runtime. It corrects the question's outdated premise: Ticket Pipeline is retired
-      as an installable runtime and executable benchmark; historical reports and
-      immutable source references remain for inspecting past evidence. Equivalent
-      wording is sufficient. It must not recommend the retired Pipeline as a current
-      execution path or claim Darrow runs a second execution controller. A recital
-      of goal ownership, delegation policy, or ADR history is not required. The response
-      stays focused on the question; brief relevant context and a useful next source
-      are permitted. It does not claim to have performed installations, tests,
-      repairs, or environment diagnosis.
+      The response explains that the host supplies execution, recovery, delegation
+      and continuation, so Darrow does not add a second execution runtime. It
+      identifies the original main thread as the native goal owner and stays
+      focused on that rationale. It does not claim to have performed installations,
+      tests, repairs or environment diagnosis.
 output_checks:
   - name: nearby repository evidence
-    expect_regex: docs/design\.md|docs/decisions/ADR-0012-keep-native-goal-ownership-in-the-main-thread\.md|docs/specs/ticket-pipeline\.md
+    expect_regex: docs/design\.md|docs/decisions/ADR-0012-keep-native-goal-ownership-in-the-main-thread\.md|docs/decisions/ADR-0015-curate-upstream-workflows-and-retire-duplicate-providers\.md

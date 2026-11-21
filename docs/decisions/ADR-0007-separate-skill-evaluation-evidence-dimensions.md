@@ -4,6 +4,10 @@ Status: Accepted
 Date: 2026-08-13
 Summary: Represent invariant coverage, task outcomes, matched skill ablation, and skill activation as separate evaluation evidence dimensions.
 
+The required specification-ID coverage catalog below is replaced by
+[ADR-0014](ADR-0014-keep-current-documentation-with-its-owner.md).
+The other decisions and status remain unchanged.
+
 ## Context
 
 A plausible skill can pass hand-picked candidate-only cases while adding no
@@ -33,7 +37,7 @@ Represent and report skill evaluation as separate evidence dimensions.
 - **Matched skill ablation** compares a no-skill baseline with a candidate while
   holding prompts, fixtures, checks, harness versions, models, effort, trial
   count, thresholds, and optional condition text constant. Only the mounted
-  skill surface may differ.
+  skill may differ.
 - **Skill activation** is graded independently from a normalized,
   harness-visible invocation event or a controlled host-protocol probe.
   Final-answer resemblance, hidden reasoning, and unbounded transcript capture
@@ -45,7 +49,7 @@ Represent and report skill evaluation as separate evidence dimensions.
   to the claim and matched controls before calling a variant better.
 
 The schemas, validation rules, metrics, and gates remain normative in
-[Repository Infrastructure: Skill Evaluation Evidence](../specs/skill-evaluation.md).
+[Repository Infrastructure: Skill Evaluation Evidence](https://github.com/BjRo/darrow/commit/2258e604793a8b405dd290ea275e9e1a23e7d716).
 This ADR complements ADR-0001 without changing its runner technology decision.
 
 ## Consequences

@@ -1,8 +1,8 @@
 # Install a Darrow plugin
 
-Darrow is a marketplace of independent plugins. Choose a plugin from the
-[selection guide](choosing-plugins.md), then read its local README and manifests
-before installing: helpers run with the host's granted permissions.
+Choose a plugin from the [selection guide](choosing-plugins.md) and read its
+README and manifests before installing. Its helpers run with the permissions
+granted to your agent host.
 
 ## Prerequisites
 
@@ -20,7 +20,7 @@ network, installed state, or the desktop UI.
 ### UV and Python for plugin helpers
 
 Plugins with bundled Python helpers require **UV** (the `uv` command) and
-**Python 3.10–3.13** (`>=3.10,<3.14`). Check the selected plugin's
+**Python 3.10 to 3.13** (`>=3.10,<3.14`). Check the selected plugin's
 `Hosts and prerequisites` README section to see whether this setup applies,
 which additional tools it requires, and which platforms it supports.
 
@@ -76,8 +76,7 @@ the cleanup rules documented by `darrow-review`.
 Allow network access for Python, build requirements, and runtime dependency
 downloads, plus write access to the Darrow and UV caches. Subsequent runs reuse
 the backend-specific environment; plugin updates, moves, lock changes, and
-explicit Python selections use distinct environments. The bootstrap leaves
-`UV_CACHE_DIR` under UV and caller control. An installed `.venv` created by an
+explicit Python selections use distinct environments. An installed `.venv` created by an
 older Darrow version is stale and disposable; remove it only after older
 processes have exited. See [UV's environment synchronization documentation](https://docs.astral.sh/uv/concepts/projects/sync/).
 
@@ -137,7 +136,7 @@ Use the actual installation scope when it differs. Expect the result to name
 the updated or removed plugin. Start a new session after an update or removal.
 The [official Claude marketplace guide](https://code.claude.com/docs/en/discover-plugins)
 documents scope, trust, refresh behavior, and recovery. Codex remains the primary development host. Claude support is scoped to
-[documented workflow evidence and exceptions](migrating-to-ten-plugins.md#host-support-and-evidence).
+[plugin-specific evidence and exceptions](choosing-plugins.md).
 
 ## Codex
 
@@ -182,7 +181,7 @@ it without reinstalling, run only the first command. Review the reported
 target and your plugin configuration, then start a fresh session.
 
 See the [official Codex plugin documentation](https://developers.openai.com/codex/plugins)
-for supported surfaces and UI behavior. If your Codex surface has no plugin
+for supported interfaces and UI behavior. If your Codex interface has no plugin
 support, use Codex CLI or browse the static documentation; do not assume that
 a CLI installation enabled a different app or extension.
 
@@ -217,9 +216,10 @@ plugin installation stops the shortcut, returns a nonzero status, and names the
 plugin that failed. The success message appears only after every current
 marketplace entry has installed.
 
-The manifest now contains exactly ten plugins. The shortcut has no hidden
-identity exclusions and does not uninstall retired or cached copies. Follow the
-[replacement and migration instructions](migrating-to-ten-plugins.md) separately.
+The shortcut installs every current manifest entry without identity-specific
+exclusions. It does not uninstall cached copies. Inspect the installed identity
+and scope, preserve local edits, and use the update/removal commands above.
+Keep personal principle tables and custom guidance when replacing a plugin.
 
 For plugins with Python helpers, complete the
 [UV and Python setup](#uv-and-python-for-plugin-helpers) before using them.

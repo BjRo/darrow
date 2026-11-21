@@ -21,6 +21,6 @@ Missing product intent or specification stops delivery with a blocker for the
 local adapter to report on the source issue. Product discovery and deciding
 missing intent happen outside Artificer; do not wait for an issue-comment answer.
 Recording the ticket's accepted requirements where repository rules require
-them, such as invariants under `docs/specs/`, is ordinary implementation work. Technical recovery
+them, such as the owning skill or development guide, is ordinary implementation work. Technical recovery
 resumes the same native session without reinvoking this recipe. All ordinary
 authority, verification and CI requirements still apply.

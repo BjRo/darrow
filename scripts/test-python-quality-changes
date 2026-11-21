@@ -231,10 +231,10 @@ expect_scope \
   'packages=[]
 package_selected=false'
 expect_scope \
-  docs/specs/python-quality.md \
+  docs/python-quality.md \
   'packages=[]
 package_selected=false'
-expect_pin_for_path docs/specs/python-quality.md false
+expect_pin_for_path docs/python-quality.md false
 expect_pin_for_path README.md false
 expect_pin_for_path readme.rst false
 expect_pin_for_path plugins/capability/darrow-git/README.md true

@@ -2,7 +2,11 @@
 
 Status: Accepted
 Date: 2026-08-13
-Summary: Keep each decision at the narrowest durable authoritative owner its consumers obey, with one canonical sink per effect and honest gaps for inaccessible owners.
+Summary: Keep each decision at the narrowest durable authoritative owner its consumers obey, with one canonical owner per effect and honest gaps for inaccessible owners.
+
+The separate-specification ownership clause below is replaced by
+[ADR-0014](ADR-0014-keep-current-documentation-with-its-owner.md).
+The other decisions and status remain unchanged.
 
 ## Context
 
@@ -13,7 +17,7 @@ choice affects the repository beyond one implementation. External trackers and
 review systems also own state that a repository file cannot faithfully replace.
 
 A central Darrow decision database would make listing simple, but it would copy
-effects away from the surfaces their consumers already obey. The copies could
+effects away from the owners whose rules their consumers already obey. The copies could
 drift, erase lifecycle status, or falsely claim authority over foreign-owned
 state. Storing every explicit choice as an ADR would similarly elevate local or
 normative product choices into repository architecture.
@@ -28,21 +32,21 @@ must obey its effect.
 - Normative product and capability behavior remains in the applicable
   specification.
 - Durable team or repository policy remains in its authoritative policy or
-  scoped guidance surface.
+  scoped guidance.
 - Durable repository architecture is recorded in an existing related ADR or a
   new ADR when none exists.
 - Unresolved alternatives remain proposals or open questions until explicit
   authority selects an outcome.
-- One effect has one canonical sink. Other surfaces may reference it but do not
+- One effect has one canonical owner. Other documents may reference it but do not
   become competing authorities, and Darrow does not create a generic decision
   database or file-backed substitute for a foreign owner.
-- Read-only decision discovery may query several owner surfaces and deduplicate
+- Read-only decision discovery may query several owners and deduplicate
   their effects. An inaccessible requested owner makes the inventory incomplete
   rather than absent.
 
 The former plugin's detailed classification, lifecycle, mutation, and listing
 contract was normative in Decision Management. That executable-provider clause
-is superseded by the [Decisions retirement](../specs/decision-management.md)
+is superseded by the [Decisions retirement](https://github.com/BjRo/darrow/commit/2258e604793a8b405dd290ea275e9e1a23e7d716)
 under [migration #328](https://github.com/BjRo/darrow/issues/328).
 This ADR's accepted decision about distributed canonical ownership remains in
 force. ADRs and their catalog are maintained as ordinary documents.

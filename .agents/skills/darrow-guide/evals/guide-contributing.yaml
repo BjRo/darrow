@@ -1,7 +1,7 @@
 id: guide-contributing
 invariant: RG-C1,RG-C2,RG-C4,RG-C8
 activation: positive
-prompt: Where are Darrow's contributor checks, credits, and deeper specs, decisions, and research references?
+prompt: Where are Darrow's contributor checks, credits, development rules and architectural decisions?
 fixture:
   setup: bash "{{case_dir}}/fixtures/setup.sh"
 checks:
@@ -30,8 +30,8 @@ semantic_output_checks:
   - name: question contract
     proposition:
       "The response directly answers the question, remains concise, and establishes these
-      points: Route to contributor checks; Acknowledgements route; Specs, decisions, and research
-      routes. It must not claim it installed plugins, ran tests, changed configuration,
+      points: Route to contributor checks; Acknowledgements route; Current development guides and ADRs, with supporting history available through
+      commit references. It must not claim it installed plugins, ran tests, changed configuration,
       contacted services, or established the cause of an unobserved live failure. Read-only
       inspection and reporting of repository files and directories are permitted."
 output_checks:

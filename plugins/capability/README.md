@@ -14,7 +14,5 @@ retain their explicit-only boundaries; installation does not authorize execution
   PRs, and posts candidate-bound reviewer evidence.
 - [Explanation](darrow-explanation/README.md) gives compact grounded visuals.
 
-Read the chosen plugin's local prerequisites, expected effects, and safety
-boundaries before adopting it. See the [intent-first selection guide](../../docs/choosing-plugins.md)
-for the complete catalog and layer relationships, or the
-[documentation hub](../../docs/README.md) for first success and troubleshooting.
+See the [plugin catalog](../../docs/choosing-plugins.md) to choose by task, or
+the [documentation hub](../../docs/README.md) for setup and troubleshooting.

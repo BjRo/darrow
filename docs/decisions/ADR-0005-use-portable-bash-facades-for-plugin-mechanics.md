@@ -50,7 +50,7 @@ specification and direct script tests.
 
 - Plugin mechanics are inspectable, directly testable, and available on the
   supported hosts without an additional language installation.
-- Models receive smaller tool surfaces and spend less context reproducing
+- Models receive smaller command interfaces and spend less context reproducing
   protocol details.
 - Bash 3.2 and BSD utility constraints require more conservative implementations
   and explicit bounds than newer shells or GNU-only environments.

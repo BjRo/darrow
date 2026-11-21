@@ -18,7 +18,7 @@ hold their slots until closed or merged and execution has ended.
 
 Each new delivery gets a fresh native session and an isolated worktree from the
 latest fetched main/master. The worker can then take another ticket if shared
-capacity allows. Initially every ticket runs `ticket-to-pr`; the recipe and
+capacity allows. Every ticket runs `ticket-to-pr`; the recipe and
 native session own engineering, verification and internal subagents.
 
 The approved-work implement recipe and its required Adaptive Goal, selected TDD,
@@ -29,7 +29,7 @@ inherited. Artificer does not copy plugins, credentials or native histories.
 
 ## Hosts and prerequisites
 
-The first version runs locally on macOS with UV/Python 3.10–3.13, Git, GitHub CLI
+Artificer runs locally on macOS with UV/Python 3.10 to 3.13, Git, GitHub CLI
 write access and a configured Claude Code or Codex executable. Workers in one
 repository must select the same host. The host must support persistent native
 sessions, native goals and the structured streaming protocol used by its adapter.
@@ -163,8 +163,7 @@ repositories require `darrow-artificer init`.
 
 Every command refuses legacy `.git/artificer` state. Reconcile original execution
 and published effects, remove that legacy directory, then initialize again.
-There is no automatic conversion or deletion. Historical evidence remains in
-[research](../../../docs/research/README.md#local-artificer).
+There is no automatic conversion or deletion.
 
 ## Development
 
@@ -174,8 +173,6 @@ From the repository root:
 bun run check:python --package plugins/automation/darrow-artificer/backend
 uv run --frozen --no-dev --project plugins/automation/darrow-artificer/backend python plugins/automation/darrow-artificer/backend/tests/fresh_install.py
 ```
-
-Cloud execution, epic recipes and dispatch by subissues or labels are future work.
 
 ### Live assurance probe
 
