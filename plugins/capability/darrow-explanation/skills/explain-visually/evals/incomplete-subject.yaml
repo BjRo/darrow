@@ -12,8 +12,6 @@ checks:
   - name: incomplete request is read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: unrelated repository topic is not selected
-    run: '! grep -Ei "inventory service" .git/last-message.md'
 semantic_output_checks:
   - name: response asks compactly for the missing subject
     proposition: >-

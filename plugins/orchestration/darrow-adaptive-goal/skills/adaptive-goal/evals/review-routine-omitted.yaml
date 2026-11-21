@@ -20,7 +20,7 @@ fixture:
           printf '%s\n' '# Notes' 'Retries are bounded.' >.fixture-state/expected-notes
           cmp -s .fixture-state/expected-notes NOTES.md
   setup: >-
-    uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend"
+    uv run --quiet --no-project "{{case_dir}}/../../../backend/scripts/run_locked.py"
     adaptive-goal-fixture install review "$PWD" "{{case_dir}}/fixtures" codex
 checks:
   - name: routine change reaches its exact outcome

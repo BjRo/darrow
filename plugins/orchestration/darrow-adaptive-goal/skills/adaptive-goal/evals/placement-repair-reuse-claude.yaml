@@ -42,7 +42,7 @@ fixture:
           #!/usr/bin/env bash
           node --test test/range.test.js
   setup: >-
-    uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend"
+    uv run --quiet --no-project "{{case_dir}}/../../../backend/scripts/run_locked.py"
     adaptive-goal-fixture install review "$PWD" "{{case_dir}}/fixtures" claude &&
     printf 'blocking\t%s\nclear\n' 'test/range.test.js has no assertion that
     clamp(NaN, 0, 10) returns NaN, which rule 3 requires for a value that is neither

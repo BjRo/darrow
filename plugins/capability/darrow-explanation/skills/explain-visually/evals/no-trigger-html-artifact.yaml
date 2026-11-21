@@ -17,5 +17,7 @@ checks:
     run: >-
       test -f architecture.html;
       grep -Ei '<!doctype html|<html' architecture.html >/dev/null
+output_checks:
   - name: response does not refuse because the inline skill is read-only
-    run: '! grep -Ei "cannot create|will not create|read-only capability" .git/last-message.md'
+    not_regex: cannot create|will not create|read-only capability
+    flags: i

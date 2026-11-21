@@ -665,7 +665,7 @@ test("repository guide assertions forbid owner and goal-control attempts", async
   const resolved = await resolveGuide("guide-mutation");
   expect(resolved.code, resolved.stderr).toBe(0);
   const selected = resolved.value.result.cases[0]!;
-  expect(selected.requiredEvidence).toEqual(["sevro.host.native-controls"]);
+  expect(selected.requiredEvidence).toContain("sevro.host.native-controls");
   expect((await resolveGuide("guide-orchestration")).code).toBe(0);
   const native = {
     id: "sevro.codex.native-calls",
@@ -755,7 +755,7 @@ test("guide native control assertions prepare and grade on Claude", async () => 
     }),
   );
   const selected = resolved.value.result.cases[0]!;
-  expect(selected.requiredEvidence).toEqual(["sevro.host.native-controls"]);
+  expect(selected.requiredEvidence).toContain("sevro.host.native-controls");
   const capabilities = [
     "sevro.claude.repository-invocation",
     "sevro.host.native-controls",

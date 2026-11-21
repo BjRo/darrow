@@ -39,8 +39,6 @@ checks:
   - name: readiness assessment is read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: public verdict is ready
-    run: grep -Ei 'verdict.{0,80}ready' .git/last-message.md
   - name: readiness assessment preserves repository refs
     run: >-
       test "$(git branch --show-current)" = main &&

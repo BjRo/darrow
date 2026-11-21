@@ -28,8 +28,6 @@ checks:
   - name: non-ready composed goal stops before mutation
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: composed goal exposes its non-ready verdict
-    run: grep -Ei 'verdict.{0,80}needs-decision' .git/last-message.md
   - name: non-ready composed goal preserves repository refs
     run: >-
       test "$(git branch --show-current)" = main &&

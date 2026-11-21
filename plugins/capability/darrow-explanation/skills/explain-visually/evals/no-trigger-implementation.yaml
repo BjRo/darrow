@@ -23,5 +23,8 @@ checks:
         git status --short >&2;
         exit 1;
       fi
+output_checks:
   - name: implementation is not replaced by a visual explanation
-    run: '! grep -Ei "stateDiagram|sequenceDiagram|call tree|structural diff|Observed view|Conceptual view" .git/last-message.md'
+    not_regex: stateDiagram|sequenceDiagram|call tree|structural diff|Observed
+      view|Conceptual view
+    flags: i

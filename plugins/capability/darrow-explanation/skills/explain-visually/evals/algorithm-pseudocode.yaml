@@ -24,9 +24,12 @@ checks:
   - name: explanation is read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: unrelated collaborators are not invented
-    run: '! grep -Ei "database|queue|network|cache|normal distribution" .git/last-message.md'
 semantic_output_checks:
+  - name: unrelated collaborators are not invented
+    proposition:
+      The nextDelay algorithm has only attempt validation, capped exponential
+      delay, and upper-half uniform integer jitter. The response does not invent a
+      database, queue, network call, cache, or normal distribution as part of it.
   - name: pseudocode preserves the material algorithm
     proposition: >-
       The response presents compact pseudocode for nextDelay that rejects an

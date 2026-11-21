@@ -60,8 +60,6 @@ checks:
   - name: discovery verdict causes no repository mutation
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: public verdict needs discovery
-    run: grep -Ei 'verdict.{0,80}needs-discovery' .git/last-message.md
   - name: discovery verdict preserves repository refs
     run: >-
       test "$(git branch --show-current)" = main &&

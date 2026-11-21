@@ -24,12 +24,6 @@ checks:
   - name: explanation is read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: responsibility tree includes each owning area
-    run: >-
-      grep -F 'commands/' .git/last-message.md >/dev/null;
-      grep -F 'sessions/' .git/last-message.md >/dev/null;
-      grep -F 'transport/' .git/last-message.md >/dev/null;
-      grep -Ei 'pars(e|ing)|session state|API|request' .git/last-message.md >/dev/null
 semantic_output_checks:
   - name: directory ownership is visible without a redundant tour
     proposition: >-

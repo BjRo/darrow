@@ -37,6 +37,11 @@ import {
   reportedHeadOutcomes,
 } from "./reported-head";
 import {
+  contextMetricsCheck,
+  contextMetricsPolicy,
+  contextMetricsOutcomes,
+} from "./context-metrics";
+import {
   commonSkillActivation,
   commonSkillActivationClaims,
   commonSkillExposureClaims,
@@ -291,19 +296,6 @@ function caseFixture(value: unknown) {
   };
 }
 
-const GUIDE_DISCLOSURE_SCRIPT = `if [ "$DARROW_EVAL_HARNESS" = claude ] && [ -f .git/last-message.md ]; then grep -Ei "scop[^.]*evidence|evidence[^.]*scop" .git/last-message.md >/dev/null && grep -Ei "primar[^.]*Codex|Codex[^.]*primar" .git/last-message.md >/dev/null; fi`;
-
-function guideDisclosure(run: string, skillDir: string | null) {
-  if (skillDir !== ".agents/skills/darrow-guide") return false;
-  if (run.replace(/\s+/g, " ").trim() === GUIDE_DISCLOSURE_SCRIPT) return true;
-  if (
-    run.includes("$DARROW_EVAL_HARNESS") ||
-    run.includes(".git/last-message.md")
-  )
-    throw new Error("unsupported legacy guide response check");
-  return false;
-}
-
 function shellConfiguration(check: RecordValue, run: string) {
   if (check.exit_code !== undefined && check.expect_exit !== undefined)
     throw new Error("check declares both exit code fields");
@@ -323,7 +315,7 @@ function shellConfiguration(check: RecordValue, run: string) {
   };
 }
 
-function shellChecks(value: unknown, skillDir: string | null) {
+function shellChecks(value: unknown) {
   if (!Array.isArray(value)) throw new Error("case checks must be an array");
   return value.map((entry, index) => {
     const check = record(entry, `check ${index + 1}`);
@@ -344,15 +336,14 @@ function shellChecks(value: unknown, skillDir: string | null) {
     );
     string(check.name, `check ${index + 1} name`);
     const run = string(check.run, `check ${index + 1} run`);
-    const disclosure = guideDisclosure(run, skillDir);
-    if (disclosure) keys(check, ["name", "run"], "guide disclosure check");
-    const configuration = disclosure ? {} : shellConfiguration(check, run);
+    if (/\.git\/last[-_]message(?:\.md)?\b/.test(run))
+      throw new Error(
+        "shell checks cannot read the retired response file; use output_checks or semantic_output_checks",
+      );
     return {
-      id: disclosure
-        ? `darrow.evals.disclosure.${index + 1}`
-        : `darrow.shell.${index + 1}`,
-      grader: disclosure ? "darrow.evals.disclosure" : "sevro.shell",
-      configuration,
+      id: `darrow.shell.${index + 1}`,
+      grader: "sevro.shell",
+      configuration: shellConfiguration(check, run),
     };
   });
 }
@@ -402,6 +393,25 @@ function outputConfiguration(
   };
 }
 
+function guideDisclosureCheck(
+  check: RecordValue,
+  index: number,
+  skillDir: string | null,
+) {
+  if (check.guide_disclosure === undefined) return null;
+  keys(check, ["name", "guide_disclosure"], "guide disclosure check");
+  if (
+    check.guide_disclosure !== true ||
+    skillDir !== ".agents/skills/darrow-guide"
+  )
+    throw new Error("guide_disclosure requires true and the repository guide");
+  return {
+    id: `darrow.evals.disclosure.${index + 1}`,
+    grader: "darrow.evals.disclosure",
+    configuration: {},
+  };
+}
+
 async function outputCheck(
   entry: unknown,
   index: number,
@@ -409,15 +419,14 @@ async function outputCheck(
   skillDir: string | null,
 ) {
   const check = record(entry, `output check ${index + 1}`);
-  const reportedHead = reportedHeadCheck(check, index);
-  if (reportedHead) {
+  const custom =
+    guideDisclosureCheck(check, index, skillDir) ??
+    contextMetricsCheck(check, index) ??
+    reportedHeadCheck(check, index) ??
+    reviewOutputCheck(check, index);
+  if (custom) {
     string(check.name, `output check ${index + 1} name`);
-    return reportedHead;
-  }
-  const review = reviewOutputCheck(check, index);
-  if (review) {
-    string(check.name, `output check ${index + 1} name`);
-    return review;
+    return custom;
   }
   keys(
     check,
@@ -1738,7 +1747,7 @@ async function caseChecks(
   skillDir: string | null,
 ) {
   return [
-    ...shellChecks(selected.checks, skillDir),
+    ...shellChecks(selected.checks),
     ...headChecks(selected.expect_head_change),
     ...(await outputChecks(selected.output_checks, root, skillDir)),
     ...semanticOutputChecks(selected.semantic_output_checks),
@@ -1798,6 +1807,24 @@ function assessmentCaptureEvidence(selected: RecordValue): string[] {
   return ["sevro.host.native-transcripts"];
 }
 
+function responsePolicy(selected: RecordValue) {
+  const policies = [
+    reviewOutputPolicy(selected),
+    reportedHeadPolicy(selected),
+    contextMetricsPolicy(selected),
+  ];
+  const disclosure = (
+    selected.output_checks as RecordValue[] | undefined
+  )?.some((check) => check.guide_disclosure === true);
+  return {
+    requiredEvidence: [
+      ...policies.flatMap((policy) => policy.requiredEvidence),
+      ...(disclosure ? ["sevro.observation.final-message"] : []),
+    ],
+    details: Object.assign({}, ...policies.map((policy) => policy.details)),
+  };
+}
+
 async function caseAssessment(
   selected: RecordValue,
   root: string,
@@ -1815,8 +1842,7 @@ async function caseAssessment(
     skillDir,
     configuration.withoutSkill,
   );
-  const reviewOutput = reviewOutputPolicy(selected);
-  const reportedHead = reportedHeadPolicy(selected);
+  const response = responsePolicy(selected);
   return {
     policy: {
       ...policy,
@@ -1825,8 +1851,7 @@ async function caseAssessment(
           ...policy.requiredEvidence,
           ...benchmark.requiredEvidence,
           ...hooks.requiredEvidence,
-          ...reviewOutput.requiredEvidence,
-          ...reportedHead.requiredEvidence,
+          ...response.requiredEvidence,
           ...assessmentCaptureEvidence(selected),
         ]),
       ],
@@ -1834,8 +1859,7 @@ async function caseAssessment(
         ...policy.details,
         ...benchmark.details,
         ...hooks.details,
-        ...reviewOutput.details,
-        ...reportedHead.details,
+        ...response.details,
       },
     },
     checks: [
@@ -6510,6 +6534,10 @@ async function evaluateCase(params: RecordValue) {
     ...caseBenchmarkChecks(details, params),
     ...reviewOutputOutcomes(details.reviewOutputChecks, params.observations),
     ...reportedHeadOutcomes(details.reportedHeadChecks, params.observations),
+    ...contextMetricsOutcomes(
+      details.contextMetricsChecks,
+      params.observations,
+    ),
     ...workflow.checks,
   ];
   const domainOutcomes = workflow.domainOutcomes;
@@ -6596,6 +6624,7 @@ if (import.meta.main) {
               "darrow.evals.plugin-hook",
               "darrow.evals.review-output",
               "darrow.evals.reported-head",
+              "darrow.evals.context-metrics",
             ],
             taskVerdictPolicies: [],
           }

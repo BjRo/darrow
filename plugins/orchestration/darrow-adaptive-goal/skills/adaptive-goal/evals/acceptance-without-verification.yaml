@@ -17,7 +17,7 @@ fixture:
           #!/usr/bin/env bash
           grep -Fx 'export const requireMfa = true;' auth-policy.js
   setup: |
-    uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend" adaptive-goal-fixture install review "$PWD" "{{case_dir}}/fixtures" both
+    uv run --quiet --no-project "{{case_dir}}/../../../backend/scripts/run_locked.py" adaptive-goal-fixture install review "$PWD" "{{case_dir}}/fixtures" both
     printf '%s\n' '.agents/' '.claude/' >>.git/info/exclude
 checks:
   - name: requested authorization value is implemented

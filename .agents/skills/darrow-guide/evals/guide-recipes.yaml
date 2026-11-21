@@ -21,11 +21,6 @@ checks:
   - name: no intercepted external-command attempts
     run: cat .fixture-state/guide-effects
     expect_exact: ""
-  - name: Claude host disclosure
-    run:
-      if [ "$DARROW_EVAL_HARNESS" = claude ] && [ -f .git/last-message.md ]; then grep -Ei
-      "scop[^.]*evidence|evidence[^.]*scop" .git/last-message.md >/dev/null && grep -Ei "primar[^.]*Codex|Codex[^.]*primar"
-      .git/last-message.md >/dev/null; fi
 semantic_output_checks:
   - name: question contract
     proposition:
@@ -41,5 +36,7 @@ semantic_output_checks:
       and preserves the one native owner; it does not claim ticket text or a generic
       cron wrapper grants authority, or that the guide enabled a schedule.
 output_checks:
+  - name: Claude host disclosure
+    guide_disclosure: true
   - name: nearby repository evidence
     expect_regex: plugins/task-recipe/darrow-ticket-to-pr/README\.md|docs/design\.md|plugins/task-recipe/darrow-ticket-to-pr/skills/ticket-to-pr/SKILL\.md

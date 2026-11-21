@@ -33,12 +33,15 @@ checks:
   - name: explanation is read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
+output_checks:
+  - name: response names the observed entrypoint and source
+    expect_regex: submitJob[\s\S]*jobs\.ts|jobs\.ts[\s\S]*submitJob
+semantic_output_checks:
   - name: response is a grounded inline visual
-    run: >-
-      set -e;
-      grep -F 'submitJob' .git/last-message.md >/dev/null;
-      grep -Ei 'validateJob|kind' .git/last-message.md >/dev/null;
-      grep -Ei 'storeJob|database[.]jobs[.]insert|insert' .git/last-message.md >/dev/null;
-      grep -Ei 'enqueueJob|queue[.]publish|publish' .git/last-message.md >/dev/null;
-      grep -Eq -- '->|-->|─+>|▶|├|└|│|→|^[[:space:]][[:space:]]+[[:alnum:]_<]' .git/last-message.md;
-      grep -F 'jobs.ts' .git/last-message.md >/dev/null
+    proposition:
+      The response shows a compact inline call-flow visual for submitJob in
+      src/jobs.ts. It preserves validation before storage before queue publication.
+      validateJob rejects a missing job.kind, storeJob calls database.jobs.insert,
+      enqueueJob calls queue.publish with job.ready, and submitJob returns the stored
+      id. Validation failure stops storage and publication. It does not invent other
+      collaborators or claim to create an artifact.

@@ -44,7 +44,7 @@ fixture:
           review_target=$(uv run --quiet --no-project .agents/backend/scripts/run_locked.py adaptive-goal-fixture review "$PWD" fingerprint)
           printf 'check\t%s\n' "$review_target" >>.fixture-state/independent-review-events
   setup: >-
-    uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend"
+    uv run --quiet --no-project "{{case_dir}}/../../../backend/scripts/run_locked.py"
     adaptive-goal-fixture install review "$PWD" "{{case_dir}}/fixtures" codex
 checks:
   - name: sequenced persisted-format transition works

@@ -400,8 +400,9 @@ test("guide disclosure uses retained response evidence through Sevro", async () 
           { message: "chore: initialize", files: { "README.md": "source\n" } },
         ],
       },
-      checks: [
-        original.checks.find(
+      checks: [],
+      output_checks: [
+        original.output_checks.find(
           (check: { name: string }) => check.name === "Claude host disclosure",
         ),
       ],
@@ -605,7 +606,9 @@ test("guide disclosure uses retained response evidence through Sevro", async () 
   }
   const casePath = join(skill, "evals/disclosure.yaml");
   const changed = JSON.parse(await readFile(casePath, "utf8"));
-  changed.checks[0].run += "; echo changed";
+  changed.checks = [
+    { name: "retired response check", run: "cat .git/last-message.md" },
+  ];
   await writeFile(casePath, JSON.stringify(changed));
   const unsupported = await command<ExtensionReply>(
     [process.execPath, extension],
@@ -616,7 +619,7 @@ test("guide disclosure uses retained response evidence through Sevro", async () 
     }),
   );
   expect(unsupported.value.error.message).toContain(
-    "unsupported legacy guide response check",
+    "shell checks cannot read the retired response file",
   );
 });
 

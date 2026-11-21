@@ -62,6 +62,14 @@ requires `expect_head_change` so Git evidence is captured. Missing, partial,
 duplicate or malformed observations remain unavailable. Remote publication and
 CI state need their own fixture checks; no response-file adapter is created.
 
+Shell checks inspect fixture state. Checks that read the retired
+`.git/last-message.md` fail resolution. Use `output_checks` or
+`semantic_output_checks` for final responses. The repository guide declares
+its host-specific disclosure with `guide_disclosure: true` in `output_checks`.
+Doctor's `context_metrics: <shell check name>` compares its required per-runtime
+before/after lines with the named shell check's captured measurement digest.
+Missing or invalid response or measurement evidence stays unavailable.
+
 ## Runtime configuration
 
 Sevro reads the repository's [`sevro.json`](../../sevro.json) for every case in

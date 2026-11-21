@@ -31,7 +31,7 @@ fixture:
           printf '%s\n' '# Notes' 'existing = preserved' 'First revised line.' 'Second revised line.' >.fixture-state/expected-notes
           cmp -s .fixture-state/expected-notes NOTES.md
   setup: >-
-    uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend"
+    uv run --quiet --no-project "{{case_dir}}/../../../backend/scripts/run_locked.py"
     adaptive-goal-fixture install readiness "$PWD" "{{case_dir}}/fixtures" codex
 checks:
   - name: changed-scope plan is implemented
