@@ -42,4 +42,4 @@ semantic_output_checks:
       changes, or environment diagnosis.
 output_checks:
   - name: nearby repository evidence
-    expect_regex: docs/installing-plugins\.md|docs/specs/repository-guide\.md|\.agents/skills/darrow-guide/SKILL\.md
+    expect_regex: docs/installing-plugins\.md|.agents/skills/darrow-guide/SKILL\.md|\.agents/skills/darrow-guide/SKILL\.md

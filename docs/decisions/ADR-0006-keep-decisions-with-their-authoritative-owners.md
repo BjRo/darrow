@@ -4,6 +4,10 @@ Status: Accepted
 Date: 2026-08-13
 Summary: Keep each decision at the narrowest durable authoritative owner its consumers obey, with one canonical sink per effect and honest gaps for inaccessible owners.
 
+The separate-specification ownership clause below is replaced by
+[ADR-0014](ADR-0014-keep-current-documentation-with-its-owner.md).
+The other decisions and status remain unchanged.
+
 ## Context
 
 Decisions arise at different scopes and lifetimes. A ticket-local implementation
@@ -42,7 +46,7 @@ must obey its effect.
 
 The former plugin's detailed classification, lifecycle, mutation, and listing
 contract was normative in Decision Management. That executable-provider clause
-is superseded by the [Decisions retirement](../specs/decision-management.md)
+is superseded by the [Decisions retirement](https://github.com/BjRo/darrow/commit/2258e604793a8b405dd290ea275e9e1a23e7d716)
 under [migration #328](https://github.com/BjRo/darrow/issues/328).
 This ADR's accepted decision about distributed canonical ownership remains in
 force. ADRs and their catalog are maintained as ordinary documents.

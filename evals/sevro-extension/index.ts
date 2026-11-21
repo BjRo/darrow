@@ -2804,12 +2804,21 @@ async function claudeRepositorySources(
     sources.map(async ({ skillName }) => {
       const path = join(root, ".claude/skills", skillName);
       const entry = await lstat(path).catch(() => null);
-      if (!entry?.isDirectory() || entry.isSymbolicLink())
+      if (!entry || (!entry.isDirectory() && !entry.isSymbolicLink()))
         throw new Error("Claude repository skill mirror is missing or unsafe");
       const skillRoot = await realpath(path);
       if (!within(root, skillRoot))
         throw new Error(
           "Claude repository skill mirror escapes the project root",
+        );
+      if (!(await stat(skillRoot)).isDirectory())
+        throw new Error("Claude repository skill mirror is missing or unsafe");
+      if (
+        entry.isSymbolicLink() &&
+        skillRoot !== (await realpath(join(root, ".agents/skills", skillName)))
+      )
+        throw new Error(
+          "Claude repository skill mirror does not match the canonical skill",
         );
       return { skillRoot, skillName };
     }),

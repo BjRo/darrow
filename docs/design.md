@@ -1,200 +1,110 @@
 # Design principles
 
-Darrow deliberately separates **what an agent knows how to do** from **how
-longer-running work is kept moving**. It packages both as independently
-adoptable plugins, but gives them different activation and ownership models.
+Darrow separates focused agent capabilities from explicitly invoked workflows
+that coordinate longer work. Plugins remain independently installable.
 
-## Responsibility layers and their contracts
+## Five responsibility categories
 
-These responsibilities can be entered independently; they are not mandatory
-sequential stages. Foundations and capabilities support several layers directly.
+| Category      | Owns                                                                      |
+| ------------- | ------------------------------------------------------------------------- |
+| Foundations   | Durable repository context and reusable agent guidance                    |
+| Capabilities  | Focused operations and their checks                                       |
+| Orchestration | A bounded goal, implementation placement, acceptance and completion       |
+| Task recipes  | A familiar outcome and its permission envelope                            |
+| Automation    | Admission timing, eligibility and shared capacity under a recurring grant |
 
-| Responsibility | Decision owner                                                            | Delivered evidence                                                                      |
-| -------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Foundations    | Repository context, accepted policy and reusable skills                   | Ordinary repository artifacts that remain useful without the producing plugin installed |
-| Capabilities   | Focused operations and how they establish assurance                       | Result, inspected basis, effects and operation-specific refusal                         |
-| Orchestration  | Bounded goal, workflow, required assurance and one execution owner        | Contract and owner-sourced continuation/completion evidence                             |
-| Task recipes   | Familiar complete outcomes and consistent explicit permission envelopes   | One delegated outcome with preserved authority                                          |
-| Automation     | Admission timing, eligibility and capacity for explicitly authorized work | Grant-bound local entry and handoff; original native execution and continuation         |
-
-Evaluation and observability assess behavior across all of these responsibilities.
-They do not grant authority or act as another execution stage. The
-[layer-composition contract](specs/layer-composition.md) records decision
-ownership, recommendation dispositions, operation handoffs and the contracts
-every authorized automation entry must preserve. Local Artificer implements the
-bounded [local admission contract](specs/artificer.md).
+Keep these five repository categories even when a category currently contains
+one plugin. They describe responsibilities, not mandatory sequential stages.
+Foundations and capabilities support several categories directly. Evaluation
+and host telemetry assess work without granting execution authority.
 
 ## Capabilities and orchestration
 
-A capability is a focused procedure such as reviewing code, practicing TDD,
-creating a commit, or updating a ticket. Its skill description advertises the
-intent it serves, allowing the model to select and invoke it when that intent
-appears in a user request. A user may also invoke a capability by naming it
-explicitly. A capability:
+A capability matches a focused request, such as reviewing code or creating a
+commit. Users may also select it explicitly. It remains usable without an
+orchestrator. Upstream workflows that require explicit invocation keep that boundary.
 
-- owns one coherent kind of work and its invariants;
-- can be invoked directly or composed by a larger workflow;
-- remains useful without any Darrow orchestration helper; and
-- does not silently take ownership of an unrelated multi-step session.
+Orchestration changes how a session continues and completes, so it requires
+explicit invocation or preserved delegation from an authorized workflow.
+Complexity or duration alone does not start it. See
+[ADR-0002](decisions/ADR-0002-separate-capabilities-from-orchestration.md).
 
-Orchestration owns the continuation contract around work: how the outcome is
-framed, what must remain true, where state lives, how execution resumes or
-adapts, and what counts as complete. Because that changes the shape and extent
-of a session, orchestration starts only through explicit user invocation.
-Curated upstream explicit-only workflows keep their own invocation boundaries.
-An authorized parent can invoke adapted implement within its inherited envelope;
-installation alone supplies no execution or publication authority. The
-model must not infer orchestration merely because a task is complex,
-long-running, or multi-step. Once invoked, orchestration may use installed
-capabilities by their public intent. It may also delegate a bounded
-phase to another orchestration helper without requiring a second user
-invocation, provided the originating request and authority are preserved. That
-delegation is continuation of already-authorized orchestration, not inferred
-activation, and it must not turn every capability into a mandatory phase.
+Adaptive Goal keeps the native goal, user decisions and completion in the
+original main thread. It implements directly or delegates bounded assignments.
+The host supplies execution, recovery and continuation. Darrow adds no second
+execution controller or lifecycle ledger. See
+[ADR-0012](decisions/ADR-0012-keep-native-goal-ownership-in-the-main-thread.md).
 
-This split keeps focused procedures reusable while allowing orchestration to
-evolve independently. Installing a review or Git capability does not opt a user
-into a control plane, and improving orchestration does not require folding
-those capabilities into one monolithic workflow.
+## Independent plugins and public handoffs
 
-## Foundations are capability infrastructure
+Each plugin contains its runtime resources and documents its prerequisites.
+It neither reads sibling plugin files nor assumes another Darrow plugin is
+installed. Cooperating workflows select compatible host-advertised capabilities
+by intent, checking prerequisites, effects, result evidence and refusal conditions.
+There is no second capability-name registry. See
+[ADR-0003](decisions/ADR-0003-treat-plugins-as-optionality-boundaries.md).
 
-Foundation plugins maintain durable context and reusable agent surfaces that
-support other work. Information Architecture retains setup, doctor, host
-integration and context usage. Ordinary decision documents and selected Matt
-domain-modeling/writing guidance replace dedicated Decisions and Skill Authoring. `foundation` is a marketplace and repository
-layout category, not a third activation model. Its skills remain
-intent-matched capabilities, stay independently installable, and never start
-orchestration implicitly.
+A capability returns its result or refusal to the enclosing owner. The owner
+chooses authorized investigation, a user question or termination. A successful
+suboperation adds no authority; a required refusal cannot be bypassed through raw tools.
 
-## Plugins are optionality boundaries
+Recipes preserve approved intent, agreed test seams, checks and inherited
+permissions. Ticket-to-PR carries one ticket's branch, publication, reviewer
+proof and required-green-CI envelope through implement into the same native owner.
+A reused PR URL is insufficient: publication evidence must identify the intended
+remote commit and required CI must pass for that final commit.
 
-A plugin is Darrow's unit of adoption, compatibility, and ownership. Each
-plugin is self-contained and independently installable. It must not reference a
-sibling plugin's files or assume that another Darrow plugin is present.
+## Acceptance and independent review
 
-Plugins may cooperate through host-visible skill intent. For example, a
-consumer can ask for ticket operations without knowing which installed skill
-supplies them. Darrow does not add a second versioned capability-name registry
-on top of the host's skill discovery. If an optional skill is unavailable, the
-consumer follows its own documented stop or fallback behavior instead of
-reaching into another plugin.
+The goal owner accounts for each acceptance criterion using current evidence
+or an explicit gap. Independent Review owns its standards and request-conformance
+judgments, fresh readers, routes and repair verification. Review clearance alone
+does not establish acceptance. A combined repair attempt consumes the owner's
+shared finite budget, regardless of the number of assessment providers. See
+[ADR-0016](decisions/ADR-0016-keep-independent-review-separate-from-acceptance.md).
 
-Integrations may name a provider in the plugin identity or use contained
-provider adapters. Consumers honor the user's provider choice or established
-project context and resolve ambiguity before access. Adding a provider does
-not require another public skill or a sibling runtime dependency.
+## Automation admits work
 
-Advertised intent identifies a potential provider; the caller must also check
-its prerequisites, effects, returned evidence and stop conditions. A capability
-returns its operation's refusal to the enclosing owner, which decides authorized
-investigation, human feedback or termination. It cannot waive a failed gate or
-bypass a refused operation. This permits compatible replacements without a
-central registry and keeps continuation with the same owner.
+Artificer admits nominated issues under an explicit recurring grant, shared
+claims and capacity limits. The recipe and original native session retain
+engineering execution and completion. Technical recovery resumes that session;
+missing product intent requires attention. Installing a plugin grants no
+recurring execution or publication authority. See
+[ADR-0017](decisions/ADR-0017-limit-automation-to-authorized-admission.md).
 
-The [ten-plugin catalog](choosing-plugins.md) is the adoption inventory. Matt
-and pstack are pinned MIT bundles with recorded differences; all other licenses
-retain their scope. Package/import and host-entrypoint checks cover unchanged
-upstream skills; focused behavioral checks cover material Darrow adaptations.
-No per-skill upstream behavioral suite or scheduled update service is promised.
+## Skills and helpers
 
-This boundary preserves genuine choice: users can adopt one focused capability,
-several complementary capabilities, or an orchestration helper without
-accepting the rest of the marketplace.
+Skills own intent, judgment, authority and material choices. Bundled helpers
+handle repeatable command construction, validation, parsing and normalization.
+Their results expose the operation, target, effects, evidence and failure.
 
-## Task recipes are explicit delivery envelopes
+Substantial deterministic mechanics use contained Python packages managed by UV;
+small host launchers and command glue may use portable Bash. Repository evaluation
+tooling remains outside the plugin runtime. The
+[plugin development guide](plugin-development.md) and
+[Python quality standard](python-quality.md) own the current development rules.
 
-A task recipe packages one repeatable, explicitly invoked delivery outcome. It
-uses the orchestration activation model, but owns only the outcome-specific
-authority, intake, and publication envelope. A recipe can delegate its one
-bounded request to adaptive-goal without another user invocation, preserving
-the original request and permissions. It is not a controller, phase graph,
-ledger, queue, or durable workflow runtime.
+## Curated workflows
 
-## Scripts hide tool mechanics from the model
+Matt Pocock and pstack are pinned MIT bundles with complete notices and recorded
+Darrow adaptations. Trust upstream maintenance for unchanged workflows, checking
+packaged content and native entrypoints. Focus behavioral evals on material Darrow
+adaptations. Updates are deliberate, not scheduled. See
+[ADR-0015](decisions/ADR-0015-curate-upstream-workflows-and-retire-duplicate-providers.md).
 
-Skills own intent, judgment, authority, and material choices. Narrow bundled
-helpers own repeatable, error-prone command construction, tool discovery,
-escaping, validation, parsing, and normalization. They return compact, stable,
-machine-readable evidence. This makes mechanics
-deterministic and testable without asking the model to reconstruct a protocol
-on every run.
+Principles are optional guidance. They preserve the caller's scope, checks,
+authority and completion owner. Their routing and customization rules live in
+the pstack package.
 
-A helper must still identify its operation, target, material side effects,
-inspected evidence, failure, and any required next decision. Hiding mechanics
-must not hide authority or consequences.
+## Current documentation and evidence
 
-## Plugin mechanics use contained Python or portable Bash
+Usage belongs in plugin READMEs; execution instructions belong in skills and
+their local references. Development guides own contributor rules. ADRs preserve
+architectural choices with commit references. Completed investigations, migrations
+and experiment snapshots remain in Git history. See
+[ADR-0014](decisions/ADR-0014-keep-current-documentation-with-its-owner.md).
 
-Contained Python packages managed by UV support substantial deterministic
-mechanics when they improve clarity, testability, or native Windows support.
-Portable Bash remains appropriate for small host-specific launchers and command
-glue. Adoption is incremental; each plugin owns its prerequisites and remains
-independently installable.
-
-The [plugin development guide](plugin-development.md) owns runtime restrictions
-and shell compatibility. The [Python standard](specs/python-quality.md) owns
-packaging, locked execution, migration, and quality gates. Repository-level
-development tooling remains outside the plugin-runtime boundary.
-
-## Evals make development evidence-based
-
-Darrow-maintained behavior owns focused colocated eval cases that verify its public functionality,
-intent-triggering boundary, refusal and stop behavior, and relevant repository
-outcomes. Deterministic scripts also receive direct tests, including both
-supported Bash boundaries. The shared runner executes judgment cases in the
-real supported agent harnesses rather than treating transcript shape as proof
-of success.
-
-The same eval surface supports evidence-based development. A new prompt,
-workflow, route, or orchestration variant is compared with the relevant control
-on the same fixtures, task prompts, acceptance checks, harness, model, and
-effort. Depending on the claim, the control may be the released skill, vanilla
-Codex or Claude without the capability, raw native goal functionality, or a retained historical comparison. The retired Pipeline baseline has no
-current executable cells; its original observations remain historical.
-
-Comparisons report trial count and the metrics relevant to the claim, such as
-task pass rate, quality or escaped defects, false positives, tool and child
-invocations, human interruptions, tokens, cost, and wall time. A design is not
-called better because it is plausible or because one run succeeded; empirical
-claims carry their evidence, uncertainty, and limitations.
-
-## Adaptive Goal is the core orchestration helper
-
-[Adaptive Goal](../plugins/orchestration/darrow-adaptive-goal/README.md) makes
-acceptance, repository constraints, evidence, and implementation placement
-explicit before native execution. The main thread owns the goal, user decisions,
-and completion, as recorded in [ADR-0012](decisions/ADR-0012-keep-native-goal-ownership-in-the-main-thread.md).
-The host supplies execution, recovery, and continuation.
-
-Darrow's earlier orchestration benchmark found no incremental value from a
-duplicate controller and measured substantial wall-time and child-invocation
-overhead. Adaptive Goal keeps preflight without adding another execution runtime:
-
-```text
-request + repository -> read-only preflight/readiness -> native goal in the main thread
-                                                        -> direct or bounded implementation
-                                                        -> selected capabilities
-```
-
-Implementation may be direct or delegated. An owner on a supported route runs
-acceptance accounting and the selected Review workflow inline; a weaker or
-unknown route hands Review coordination to its supported fallback coordinator.
-Capabilities keep their protocols, helpers and reader routes, and assessment
-readers always start fresh.
-Results return to the same delivery owner. The helper adds no fixed phase pipeline, lifecycle ledger,
-daemon, queue, or publication authority.
-
-Before changing Adaptive Goal, read `docs/specs/adaptive-goal.md`.
-The [normative contract](specs/adaptive-goal.md) owns preflight, goal limits,
-route selection, placement, verification, repair, and completion.
-
-## Ticket Pipeline is retired
-
-Ticket Pipeline no longer ships as an installable runtime or an executable
-benchmark. Its [retirement contract](specs/ticket-pipeline.md) preserves immutable
-source links and the original reports. Those reports retain their dates,
-limitations, and observations; they do not promise current reproducibility.
-
-Shared comparison tooling remains available for Adaptive Goal and native-goal
-work. Retiring the static pipeline does not retire those surviving comparisons.
+Behavioral outcomes, activation and matched comparisons answer different questions.
+A dry run proves preparation, not execution. Report missing measurements as unknown
+and use matched controls before claiming an improvement. See
+[eval development](eval-development.md) for current commands and evidence rules.

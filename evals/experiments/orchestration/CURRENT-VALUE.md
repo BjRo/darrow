@@ -1,6 +1,6 @@
 # Current Codex value benchmark
 
-Compare the current Adaptive Goal with vanilla on the four historical OSS tasks:
+Compare the current Adaptive Goal with vanilla on four pinned OSS tasks:
 Click streams, Ajv instance paths, go-git insteadOf and Express Link headers.
 Measure ticket-to-PR delivery separately against vanilla delivery on those same
 engineering requirements. The recipe delegates to the current Adaptive Goal.
@@ -48,7 +48,7 @@ invocation. Eight implementation cells and eight delivery cells complete N=1.
 The caller uses Sevro's native app-server transport and passive observation,
 with one worker, a 30-minute native-host limit and retained startup diagnostics. Vanilla mounts no plugins;
 candidate cells mount only the skills needed for their track and allow the
-current Review, TDD and Tickets reminders. Native activation and capability
+current Review reminders and selected TDD instructions. Native activation and capability
 consumption must be inspected separately from code acceptance.
 
 Full delivery uses a real local bare Git remote through a local SSH transport,
@@ -75,28 +75,10 @@ models, host versions and an older evaluator, so its performance numbers remain
 historical context. Full delivery duration measures additional work and is not
 a matched latency comparison with the old no-publication runs.
 
-Recover October's retained native token counters without another model call:
-
-```sh
-bun evals/experiments/orchestration/recover-value-usage.ts \
-  --snapshot /absolute/path/to/2026-10-30-codex-n1.json \
-  --output /absolute/path/to/2026-10-30-codex-n1-usage.json
-```
-
-This retrospective checks artifact hashes, counts each parent and child session's
-final cumulative counters once, and preserves partial captures as lower bounds.
-Its dated Standard API-equivalent estimates are separate from actual charges
-and do not replace the original host-reported null fields. The source snapshot's
-raw evidence paths must still exist. The recorded pricing supports the observed
-Sol 6.1 and Luna 6 sessions below 272K input tokens with zero cache writes;
-incompatible inputs fail explicitly rather than receiving an invented price.
-
-Keep an interrupted host's `not_assessed` outcome separate from code or delivery
-failures. Report its attempted duration, but exclude it from completed-trial
-latency means and show the missing task beside paired comparisons. The installed
-Sevro 1.1.1 app-server capture has a fixed 8 MiB cumulative event-stream limit;
-the October Click delivery attempt reached it before grading. Resolve that host
-limit and freeze the changed evaluator before retrying that cell.
+Keep interrupted or unassessed attempts separate from code and delivery failures.
+Report attempted duration, exclude them from completed-trial latency means, and
+identify missing tasks beside paired comparisons. An observer limit is a harness
+limitation, not a measured product outcome.
 
 ## Reviewer-effort comparison
 

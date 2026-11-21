@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Acquire the exact upstream inputs documented in docs/specs/curated-upstream.md.
+# Acquire the exact upstream inputs documented in docs/plugin-development.md#curated-upstream-inputs.
 set -euo pipefail
 export LC_ALL=C
 

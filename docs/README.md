@@ -13,9 +13,6 @@ repository guide can explain them and answer follow-up questions.
 | Understand a project term                   | [Glossary](glossary.md)                          |
 | Change Darrow or its documentation          | [Contributing](../CONTRIBUTING.md)               |
 
-Upgrading? Use the [ten-plugin migration guide](migrating-to-ten-plugins.md) for
-replacement mapping, uninstall/reinstall and preserved local configuration.
-
 ## Ask the repository guide
 
 Open this checkout in a fresh Codex or Claude Code session and ask:
@@ -29,15 +26,15 @@ reads sources, cites its evidence, and handles missing or conflicting answers.
 The guide explains this checkout and remains read-only. It can suggest an
 installation or a diagnostic capability, but does not execute those steps.
 Codex remains the primary development host. Claude support is scoped to
-[documented workflow evidence and exceptions](migrating-to-ten-plugins.md#host-support-and-evidence).
+[plugin-specific evidence and exceptions](choosing-plugins.md).
 If discovery does not work, use the pages above and the
 [guide discovery checks](troubleshooting.md#the-repository-guide-is-missing).
 
 ## Go deeper
 
-- [Capability specifications](specs/README.md) define normative behavior.
+- [Plugin development](plugin-development.md) defines packaging and runtime rules.
+- [Python quality](python-quality.md) defines checks for contained backends.
 - [Accepted decisions](decisions/README.md) record settled choices and lifecycle.
-- [Research index](research/README.md) links exploratory, non-normative analysis.
 - [Eval development](eval-development.md) explains evidence and native trials.
 - [Documentation quality](documentation-quality.md) defines local checks and review.
 - [Acknowledgements](acknowledgements.md) credits the work that inspired Darrow.

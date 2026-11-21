@@ -163,8 +163,7 @@ repositories require `darrow-artificer init`.
 
 Every command refuses legacy `.git/artificer` state. Reconcile original execution
 and published effects, remove that legacy directory, then initialize again.
-There is no automatic conversion or deletion. Historical evidence remains in
-[research](../../../docs/research/README.md#local-artificer).
+There is no automatic conversion or deletion.
 
 ## Development
 

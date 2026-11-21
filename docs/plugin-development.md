@@ -5,7 +5,9 @@ Implementation constraints for changes to plugin content.
 Keep plugins independently installable and self-contained. Never reference
 files outside a plugin or assume a sibling plugin is installed.
 
-Add or adjust the applicable invariant under `docs/specs/` before implementation.
+Keep current behavior in the owning skill, its local references, schemas and tests.
+Record consequential architectural choices in `docs/decisions/`. A separate
+specification is not required for every change.
 
 ## Skills and versions
 
@@ -24,7 +26,7 @@ than silently skipping it.
 
 Use a contained Python package managed by UV for substantial deterministic
 mechanics when Python materially improves clarity or native Windows support.
-Before adding, changing, or converting Python helpers, read `docs/specs/python-quality.md`.
+Before adding, changing, or converting Python helpers, read `docs/python-quality.md`.
 It owns package registration, locks, dependency separation, installed runtime
 environments, conversions, tests, and release checks.
 
@@ -48,3 +50,28 @@ and edits in the requested checkout.
 - Support old BSD awk and Bash 3.2 in plugin shell scripts.
 - Avoid early-exit pipelines under `pipefail`; use here-strings for bounded matching.
 - Avoid `${var//pat/}` on unbounded input and `awk -v` for backslash-bearing values.
+
+## Curated upstream inputs
+
+Run `bash scripts/acquire-curated-skills <new-output-directory>` to acquire
+pinned inputs for the Matt and pstack bundles. Requires Bash 3.2 or later,
+Node 22.20.0 or later, npm/npx, Git, curl, shasum and network access. The script
+owns the exact source and installer pins. Package-local `references/upstream/`
+records own selections, required support files, full MIT notices and local differences.
+
+Acquisition uses isolated staging and refuses an existing destination. It must
+neither install into this checkout nor change the user's skills. Failure removes
+staging without leaving a destination that appears complete. Success retains
+`skills/`, `LICENSE`, provenance, selection, required files and content hashes
+for each input, plus original acquisition logs and lock records.
+
+Preserve original inputs and record adaptations separately. Do not attribute
+Darrow's principle adaptations to the unslop pin; their upstream revision is
+unknown. Updates require a deliberate new pin and complete notice/support closure.
+Verify `files.sha256` from each acquired package. Two fresh acquisitions can
+establish reproducible contents; downloading files does not establish host behavior.
+
+Check the public acquisition command with
+`bun test ./evals/domain/curated-inputs.test.ts` and repeat with
+`CURATED_TEST_SHELL=/bin/bash`. These fixtures substitute network collaborators
+and establish package contents and refusals, not upstream workflow reliability.

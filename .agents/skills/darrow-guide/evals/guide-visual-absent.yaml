@@ -47,4 +47,4 @@ semantic_output_checks:
       configuration, or diagnosed the environment.
 output_checks:
   - name: nearby repository evidence
-    expect_regex: docs/design\.md|docs/specs/layer-composition\.md
+    expect_regex: docs/design\.md|docs/design\.md

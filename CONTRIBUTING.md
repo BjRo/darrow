@@ -42,8 +42,8 @@ copyright in your work — say so in the pull request before it is reviewed.
 Read [`AGENTS.md`](AGENTS.md) and [`CLAUDE.md`](CLAUDE.md) before changing
 plugin content. In particular:
 
-- Add or adjust the applicable invariant under `docs/specs/` before
-  implementation.
+- Update the owning skill, local references, schemas and tests when behavior
+  changes. Record consequential architectural choices in ADRs.
 - For skill creation and audits, use available `writing-for-agents` guidance
   with the repository's plugin, documentation, and eval standards. Keep
   read-only audits read-only; implement findings under ordinary engineering rules.
@@ -72,9 +72,10 @@ scaffolding or reorganize documents solely to make their paths match the four
 labels. Landing pages may route to multiple documentation types, but a content
 page should link to a different mode instead of interrupting its primary job.
 
-The existing repository directories express authority and lifecycle rather
-than reader need. Keep normative contracts in `docs/specs/`, accepted choices
-in `docs/decisions/`, and exploratory material in `docs/research/`.
+Keep current instructions with the plugin or development guide that owns them.
+Use `docs/decisions/` for architectural choices and their rationale. Link ADRs
+to the relevant commits for supporting investigations. Git history preserves
+completed research, migration records and old experiment results.
 
 ## Set up repository development
 
@@ -105,7 +106,7 @@ bun run check:python
 
 `check:python` is required when Python source, tests, package metadata, or locks
 change; its standards and package inventory are defined in
-[`docs/specs/python-quality.md`](docs/specs/python-quality.md).
+[`docs/python-quality.md`](docs/python-quality.md).
 
 Run script tests with both `bash` and `/bin/bash`. Run relevant evals with:
 

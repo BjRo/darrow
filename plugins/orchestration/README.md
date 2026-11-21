@@ -9,9 +9,6 @@ installable from the capabilities they may compose.
 - [Adaptive Goal](darrow-adaptive-goal/README.md) provides the current
   bounded engineering helper and a separate read-only host-capacity doctor.
 
-Ticket Pipeline is retired. Its [historical reports and immutable source](../../docs/research/retired-workflows.md)
-remain readable; no executable reference or benchmark is installed.
-
 Read the chosen plugin's local prerequisites, expected effects, and safety
 boundaries before adopting it. See the [intent-first selection guide](../../docs/choosing-plugins.md)
 for the complete catalog and layer relationships, or the

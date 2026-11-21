@@ -1,10 +1,70 @@
 # Eval Development Guidance
 
-This scoped guidance applies when creating, changing, diagnosing, or running
-Darrow evals. The normative evidence model remains at the repository-root path
-`docs/specs/skill-evaluation.md`; this file owns the repository-specific
-constraints for producing and interpreting that evidence.
-Before changing evidence interpretation, read `docs/specs/skill-evaluation.md`.
+This guidance owns Darrow's evaluation authoring and evidence rules. The
+[Sevro extension reference](../evals/sevro-extension/README.md) owns current
+caller options, runtime profiles and protocol integration.
+
+## Evidence interpretation
+
+Keep task outcomes, skill activation, workflow diagnostics and matched comparisons
+separate. A passing task does not prove activation or added value. An activation
+receipt does not prove provider execution, publication or correct code. Dry runs
+establish preparation only. Missing, incomplete, duplicated or malformed required
+evidence remains unavailable; an observed violation fails. Do not convert either
+to a pass or missing measurements to zero. Retain original results when regrading
+and label a new assessment as a regrade rather than fresh execution.
+
+Activation classes are `positive`, `negative` and `competition`. Positive requires
+the owning skill as primary; negative excludes it as primary. Competition mounts
+all sibling skills before testing primary selection. Skill-less experiment and
+no-skill control modes have no target activation grade. Case `invariant` labels
+are descriptive metadata; they no longer refer to a maintained specification-ID
+coverage catalog. Observable checks and semantic propositions define pass criteria.
+
+Implicit activation uses the unique complete `sevro.host.skill-activations`
+collection. Codex reports prepared-body exposure through `tool_result_body_match`;
+Claude reports successful Skill calls through `skill_tool_result`. Exposure does
+not prove that a tool result reached the model or identify which identical copy
+was opened. Normalize only mounted namespaces. Final-answer resemblance and
+retired read diagnostics do not establish activation.
+
+A unique complete Codex `sevro.host.skill-activation-claims` receipt can establish
+a known primary and positively observed supporting membership while the paired
+common collection is partial only for the exact `pending_tool_calls` gap. Missing,
+duplicate, foreign, malformed or contradictory receipts remain unavailable.
+An explicitly unknown primary stays unknown even with a complete collection.
+Missing positive membership does not establish absence. Negative membership,
+exclusion and sequence require the complete common collection. Explicit dispatch
+retains its own receipt requirements and does not prove supporting activation.
+
+Explicit Codex probes require the exact rendered invocation token once in a
+successfully completed turn. Claude may expand an explicit command before its
+first assistant turn; accept that path only when namespace, skill, arguments and
+session match the mounted command and its complete body follows in that session.
+Partial, duplicate or foreign expansion is unavailable. Retain the bounded
+receipt rather than command or skill text.
+
+Native-goal declarations are `required`, `complete`, `forbidden` or `optional`.
+Bind observations to the original thread or session. `complete` requires observed
+terminal completion; activation alone is insufficient. `optional` accepts valid
+presence or valid observed absence, never failed observation. Codex goal objectives
+must fit the native 4,000-character boundary. Claude headless activation uses the
+native user-visible `/goal` entry, not synthetic continuation or a replacement owner.
+
+Ticket-to-PR task verdicts use observable output, repository effects and acceptance
+checks. Its native-goal, ownership and transcript assertions are separate workflow
+domain outcomes. Missing diagnostics stay unavailable without rewriting a proven
+task outcome. Adaptive Goal also treats auxiliary transcripts as diagnostics;
+native-goal requirements, explicitly tested implementation routes and no mutation
+before required user feedback remain task gates. Other plugins retain their
+declared task gates. Positive route checks consume accepted-child facts from the
+owning host. Absence checks still require complete control observations.
+
+Matched comparisons hold prompts, fixtures, checks, harness versions, models,
+effort, trial counts and thresholds constant. A skill-only ablation changes only
+the mounted skill. Complete-workflow comparisons include differences in assurance
+and coordination cost; they cannot isolate those costs or establish equal review
+quality from equal task pass rates. Record limits, unknowns and per-task regressions.
 
 ## Case contracts
 
@@ -220,16 +280,9 @@ Before changing evidence interpretation, read `docs/specs/skill-evaluation.md`.
   Prepared-body matching proves exposure to a tool caller, not forwarding into
   the model's context. Identical copies can match, so exposure does not identify
   the opened file. Transformed, short, or unanchored text is outside its scope.
-- Before interpreting partial activation collections, read `docs/specs/skill-evaluation.md`.
-  Use only its explicitly permitted primary-selection, positive-membership,
-  and exposure receipt exceptions. Preserve each receipt's claim scope,
-  collection diagnostics, and unknowns. A positive claim cannot establish
-  absence, exclusion, order, or compliance; older fields stay unknown.
-- Use `activation_sequence` only for contractual order, with the primary owner
-  first and complete supporting body reads. Use `activation_includes` for
-  unordered support and `activation_excludes` for absence from the complete
-  observed sequence. Excluded skills must be mounted, including independent
-  `additional_plugins` and selected `additional_skills`.
+- Apply the receipt conditions in [evidence interpretation](#evidence-interpretation)
+  before using a partial collection. Positive claims cannot establish absence,
+  exclusion, order or compliance. Historical receipts retain their original meaning.
 - Claude's `skill_tool_result` requires successful structured Skill calls.
   Direct reads and native command expansion do not add observed skills.
   Repository skill names stay unqualified; a foreign plugin's same-named skill
@@ -330,8 +383,7 @@ bunx --no-install sevro report --json --result-file /absolute/path/to/sevro-resu
 ```
 
 The [caller reference](../evals/sevro-extension/README.md#result-reporting) owns
-the separate Darrow reports. Historical research retains its original formats
-and provenance; it is not current-run evidence.
+the separate Darrow reports.
 
 Shell checks, including dry checks, use the same outer isolation mechanism as
 candidate execution with a separate credential-free home and environment.
@@ -351,6 +403,8 @@ Repository skills use canonical cases at `.agents/skills/<name>/evals/*.yaml`.
 Select them with `--skill <name>`. They have no owning plugin, so `--plugin`
 excludes them. Codex mounts the canonical project skill; Claude mounts the
 corresponding `.claude/skills/<name>` entrypoint and refuses a missing mirror.
+That mirror may be a directory or a symlink to the matching canonical skill
+inside the project. Links to another skill or outside the project are refused.
 Explicit tokens are `$<name>` and `/<name>`. Mirrors are not scanned twice.
 `--skill-dir` overrides the candidate after selecting ownership;
 `--without-skill` preserves the cases as an unmounted control.
@@ -472,9 +526,7 @@ Pass explicit `./evals/...` directory paths to Bun: bare paths are substring
 filters and can scan retained fixture trees outside the intended scope.
 
 The [test ownership guide](../evals/README.md) separates installed integration
-from Darrow policy. The source-copy launcher and comparison
-against the retired runner are gone. Their evidence and deliberate command
-changes are preserved in the [research record](research/sevro-extraction.md).
+from Darrow policy.
 
 For coordinated development, use one explicit absolute route:
 
@@ -535,5 +587,5 @@ own selection manifests, reports, user-supplied annotations, and unknowns.
   fix-verification outcome semantics, also run the affected review-composition
   evals under
   `plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/evals/`.
-- Keep activation, task outcome, invariant coverage, and matched ablation as
-  separate evidence dimensions; one does not substitute for another.
+- Keep activation, task outcome, workflow diagnostics and matched ablation
+  separate; one does not substitute for another.

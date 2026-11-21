@@ -389,8 +389,7 @@ the review skill's explicit reader requirement satisfies that condition. An
 unconditional prohibition still blocks review.
 
 Unintended worktree changes remain an unresolved issue in Codex review sessions.
-Inspect the working tree after review. Historical evidence is retained in the
-[stabilization report](../../../docs/research/darrow-review-luna-medium-stabilization-2026-09-29.md).
+Inspect the working tree after review.
 
 A missing route, unverifiable child identity, invalid scope, or malformed result blocks review. Preserve the evidence and correct the exact input; selection alone does not prove a route ran.
 For a discovery or host problem, use the

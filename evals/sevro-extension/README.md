@@ -9,8 +9,7 @@ Normal callers use the exact `@bjoernrochel/sevro@1.1.2` pin in [package.json](.
 Install it with `bun install --frozen-lockfile`. The installed command is `sevro`.
 It requires Node.js 24.13.0 or newer on `PATH`; Darrow tooling uses Bun 1.3.13.
 See [development and release](migration.md), [test ownership](../README.md),
-the [evidence specification](../../docs/specs/skill-evaluation.md), and
-[historical extraction evidence](../../docs/research/sevro-extraction.md).
+and [evidence interpretation](../../docs/eval-development.md#evidence-interpretation).
 
 ## Direct evaluation caller
 
@@ -311,9 +310,8 @@ bunx --no-install sevro report --json --result-file /absolute/path/to/sevro-resu
 ```
 
 The suite caller writes separate Darrow activation, quality, and ablation reports.
-Pre-Sevro result readers, comparison commands, reviewer-routing proof validators,
-and their tests have been removed. Retained research preserves its original
-formats and provenance; it does not establish current evaluator equivalence.
+Historical results retain their original formats and provenance in Git history;
+they do not establish current evaluator equivalence.
 
 ## Host-state and local HTTP profiles
 

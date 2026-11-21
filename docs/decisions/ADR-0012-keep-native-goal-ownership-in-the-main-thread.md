@@ -6,14 +6,14 @@ Summary: Keep the native goal, acceptance criteria, user decisions, and completi
 Supersedes: ADR-0004
 
 Pipeline retirement (2026-11-20): The executable-reference and benchmark-baseline
-clauses below are superseded by [Ticket Pipeline retirement](../specs/ticket-pipeline.md).
+clauses below are superseded by [Ticket Pipeline retirement](https://github.com/BjRo/darrow/commit/2258e604793a8b405dd290ea275e9e1a23e7d716).
 The native-goal ownership decision retains its existing status.
 
 ## Context
 
 ADR-0004 selected host-native execution instead of a second Darrow execution
 controller. Its owner boundary placed the whole goal in one subagent. The
-current [Adaptive Goal specification](../specs/adaptive-goal.md) keeps the goal
+current [Adaptive Goal specification](https://github.com/BjRo/darrow/commit/2258e604793a8b405dd290ea275e9e1a23e7d716) keeps the goal
 in the original main thread and delegates bounded assignments. Both sources
 remained current, leaving ownership contradictory.
 
@@ -36,7 +36,7 @@ The ticket pipeline remains a reference and benchmark baseline.
 
 - **User statement, 2026-10-30:** “Treat the current spec’s main-thread ownership
   as intended and reconcile ADR-0004.”
-- **Repository fact:** [Adaptive Goal](../specs/adaptive-goal.md#selected-design)
+- **Repository fact:** [Adaptive Goal](https://github.com/BjRo/darrow/commit/2258e604793a8b405dd290ea275e9e1a23e7d716)
   and the [shipped skill](../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/SKILL.md)
   already describe main-thread ownership and bounded delegation.
 

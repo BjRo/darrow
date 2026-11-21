@@ -1,6 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -381,77 +380,4 @@ BUSL.
   const result = await check(root);
   expect(result.code).toBe(1);
   expect(result.output).toContain("installed runtime command bypasses");
-});
-
-const archiveReport =
-  "# Frozen observation\n\n[retired source](../../plugins/capability/retired/SKILL.md)\n";
-function archiveFixture(report = archiveReport) {
-  const revision = "de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89";
-  return {
-    "docs/research/frozen.md": report,
-    "docs/research/retired-links.json": JSON.stringify({
-      revision,
-      files: [
-        {
-          path: "docs/research/frozen.md",
-          sha256: createHash("sha256").update(archiveReport).digest("hex"),
-          missingLinks: [
-            {
-              target: "../../plugins/capability/retired/SKILL.md",
-              source: `https://github.com/BjRo/darrow/blob/${revision}/plugins/capability/retired/SKILL.md`,
-              sha256: "a".repeat(64),
-            },
-          ],
-        },
-      ],
-    }),
-  };
-}
-test("accepts only exact frozen historical links with immutable source mappings", async () => {
-  const result = await check(await fixture(archiveFixture()));
-  expect(result.code, result.output).toBe(0);
-});
-test("rejects altered frozen reports even when their links still resolve through the archive", async () => {
-  const result = await check(
-    await fixture(archiveFixture(archiveReport + "Changed observation.\n")),
-  );
-  expect(result.code).toBe(1);
-  expect(result.output).toContain("frozen report hash differs");
-});
-test("archive mappings do not hide unknown or current broken links", async () => {
-  const files = archiveFixture();
-  const result = await check(
-    await fixture({
-      ...files,
-      "docs/current.md":
-        "# Current\n[broken](../plugins/capability/retired/SKILL.md)\n",
-      "docs/research/unknown.md": "# Unknown\n[broken](absent.md)\n",
-    }),
-  );
-  expect(result.code).toBe(1);
-  expect(result.output).toContain(
-    "missing internal link: ../plugins/capability/retired/SKILL.md",
-  );
-  expect(result.output).toContain("missing internal link: absent.md");
-});
-test("rejects an archive URL that does not identify the exact frozen target", async () => {
-  const files = archiveFixture();
-  files["docs/research/retired-links.json"] = files[
-    "docs/research/retired-links.json"
-  ].replace("/blob/de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89/", "/blob/main/");
-  const result = await check(await fixture(files));
-  expect(result.code).toBe(1);
-  expect(result.output).toContain("invalid archived target");
-});
-
-test("an exact frozen report cannot exempt an unlisted missing link", async () => {
-  const report = archiveReport + "[unknown](unknown.md)\n";
-  const files = archiveFixture(report);
-  const manifest = JSON.parse(files["docs/research/retired-links.json"]);
-  manifest.files[0].sha256 = createHash("sha256").update(report).digest("hex");
-  files["docs/research/retired-links.json"] = JSON.stringify(manifest);
-  const result = await check(await fixture(files));
-  expect(result.code).toBe(1);
-  expect(result.output).toContain("missing internal link: unknown.md");
-  expect(result.output).not.toContain("frozen report hash differs");
 });

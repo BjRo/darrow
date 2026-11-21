@@ -14,7 +14,8 @@ Choose the help you need; each plugin documents its evidence and limits.
 Install one plugin at a time. Focused capabilities match your request; selected
 upstream workflows retain explicit invocation. Orchestration starts only when
 explicitly invoked and keeps one host-native execution owner. Upgrading an older
-lineup? Follow the [replacement and cache migration guide](docs/migrating-to-ten-plugins.md).
+lineup? Compare installed identities with the [current catalog](docs/choosing-plugins.md)
+and use the [update and removal commands](docs/installing-plugins.md).
 
 Codex remains the primary development host. Both Codex and Claude Code are
 required targets for the curated bundles and revised shared workflows. Support
@@ -74,16 +75,15 @@ plugin's prerequisites, examples, and safety boundaries.
 
 <a id="how-darrow-works"></a>
 
-[Design principles](docs/design.md) and [layer contracts](docs/specs/layer-composition.md)
-explain ownership and architectural choices. For problems, start with
+[Design principles](docs/design.md) explain ownership and architectural choices. For problems, start with
 [troubleshooting](docs/troubleshooting.md).
 
 <a id="repository-reference"></a>
 <a id="development"></a>
 
 [Contributing](CONTRIBUTING.md) covers development and checks. Go deeper through
-[specifications](docs/specs/README.md), [accepted decisions](docs/decisions/README.md),
-and [research](docs/research/README.md).
+[accepted decisions](docs/decisions/README.md) and
+[plugin development](docs/plugin-development.md).
 
 <a id="standing-on-the-shoulders-of-giants"></a>
 

@@ -7,7 +7,7 @@ Superseded by: ADR-0012
 Revisit when: Matched multi-trial evidence on supported hosts shows that a Darrow-owned execution controller materially improves task outcomes over native goal ownership after accounting for wall time, model usage, child invocations, and human interruptions.
 
 Pipeline retirement (2026-11-20): The executable-reference and benchmark-baseline
-clauses below are superseded by [Ticket Pipeline retirement](../specs/ticket-pipeline.md).
+clauses below are superseded by [Ticket Pipeline retirement](https://github.com/BjRo/darrow/commit/2258e604793a8b405dd290ea275e9e1a23e7d716).
 The native-goal ownership decision retains its existing status.
 
 ## Context
@@ -17,10 +17,10 @@ model routing, recovery, and completion behavior. Darrow's former
 planner/executor/verifier controller duplicated those facilities through role
 agents, snapshots, ledgers, repair rules, and its own continuation logic.
 
-The [orchestration benchmark](../../evals/experiments/orchestration/README.md)
+The [orchestration benchmark](https://github.com/BjRo/darrow/commit/4220761db506cae056befa755846b41a17762051)
 did not demonstrate incremental value from that duplicate controller and
 measured substantial latency and child-agent overhead. A subsequent
-[native-preflight comparison](../../evals/experiments/orchestration/snapshots/2026-08-07-native-preflight-codex-n1.md)
+[native-preflight comparison](https://github.com/BjRo/darrow/commit/67165f21980db0d98ddb29f6fba78ecfe82c8454)
 passed every observed task with zero Darrow child sessions while the retired
 controller passed fewer tasks and took materially longer. The sample sizes and
 host coverage are limited, so the evidence supports a direction rather than a
@@ -55,9 +55,9 @@ not as a second execution runtime.
   second recommended orchestration path or a template for new runtime features.
 
 The detailed preflight, route, launch, and safety contract remains in
-[Capability: Adaptive Goal](../specs/adaptive-goal.md). The frozen
+[Capability: Adaptive Goal](https://github.com/BjRo/darrow/commit/2258e604793a8b405dd290ea275e9e1a23e7d716). The frozen
 comparison surface remains in
-[Capability: Ticket Pipeline](../specs/ticket-pipeline.md).
+[Capability: Ticket Pipeline](https://github.com/BjRo/darrow/commit/2258e604793a8b405dd290ea275e9e1a23e7d716).
 
 ## Consequences
 

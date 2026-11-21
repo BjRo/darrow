@@ -38,7 +38,7 @@ semantic_output_checks:
       A separate statement that the answer was read-only is not required.
 output_checks:
   - name: nearby repository evidence
-    expect_regex: docs/design\.md|docs/specs/layer-composition\.md
+    expect_regex: docs/design\.md|docs/design\.md
 additional_plugins:
   - plugins/capability/darrow-explanation
 activation_sequence:

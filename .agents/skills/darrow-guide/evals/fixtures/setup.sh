@@ -30,23 +30,8 @@ for file in README.md CONTRIBUTING.md LICENSE package.json; do
 done
 mkdir -p docs evals/sevro-extension .claude-plugin
 for file in "$source_root"/docs/*.md; do cp "$file" docs/; done
-for directory in specs decisions assets; do cp -R "$source_root/docs/$directory" docs/; done
-mkdir -p docs/research
-for file in "$source_root"/docs/research/*.md; do
-  # Keep public research available without exposing this task's acceptance ledger.
-  case "$(basename "$file")" in
-    repository-guide-98-delivery.md|artificer-157-delivery.md|ten-plugin-migration-328.md) continue ;;
-  esac
-  cp "$file" docs/research/
-done
-cp "$source_root/docs/research/retired-links.json" docs/research/retired-links.json
+for directory in decisions assets; do cp -R "$source_root/docs/$directory" docs/; done
 cp "$source_root/evals/sevro-extension/index.ts" evals/sevro-extension/index.ts
-# Retain only the two historical evidence files linked by the retirement contract.
-mkdir -p evals/experiments/orchestration/snapshots
-for extension in md json; do
-  snapshot="evals/experiments/orchestration/snapshots/2026-08-07-n1.$extension"
-  cp "$source_root/$snapshot" "$snapshot"
-done
 cp "$source_root/.claude-plugin/marketplace.json" .claude-plugin/marketplace.json
 for category in "$source_root"/plugins/*; do
   mkdir -p "plugins/$(basename "$category")"
@@ -82,9 +67,7 @@ if [ "${1:-}" = diagnosis ]; then
   cp "$DARROW_EVAL_CASE_DIR/fixtures/diagnose-plugin.template.md" .claude/skills/diagnose-plugin/SKILL.md
 fi
 : > .fixture-state/guide-effects
-git add README.md CONTRIBUTING.md LICENSE package.json docs evals/sevro-extension .claude-plugin plugins \
-  evals/experiments/orchestration/snapshots/2026-08-07-n1.md \
-  evals/experiments/orchestration/snapshots/2026-08-07-n1.json
+git add README.md CONTRIBUTING.md LICENSE package.json docs evals/sevro-extension .claude-plugin plugins
 git -c user.name=Fixture -c user.email=fixture@example.invalid commit -qm "chore: snapshot guide sources"
 git rev-parse HEAD > .git/guide-base
 cp .git/config .git/guide-config

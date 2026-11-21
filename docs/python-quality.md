@@ -1,0 +1,173 @@
+# Repository Python quality
+
+## Purpose
+
+These rules apply to every package in [`python-packages.txt`](../python-packages.txt).
+Every Python source file, `pyproject.toml`, and UV lock must belong to a
+registered package. Code must remain readable, typed, deterministic, and safe
+to release across its declared support range.
+
+## Installed runtime environments
+
+Installed plugin roots and their packaged Python backends are immutable runtime
+inputs. Every model-facing command and runtime hook launches its locked backend
+through a dependency-free bootstrap owned by that plugin. The bootstrap must
+set `UV_PROJECT_ENVIRONMENT` only for its `uv` child and must not override
+`UV_CACHE_DIR`.
+
+The bootstrap resolves the Darrow cache root in this order:
+
+1. a non-empty absolute `DARROW_CACHE_DIR`;
+2. on Linux and macOS, `$HOME/.darrow/cache`; and
+3. on native Windows, `%LOCALAPPDATA%\Darrow\Cache`.
+
+Missing path inputs and relative, unreadable, or unwritable roots fail clearly.
+There is no fallback to the plugin tree, repository, working directory, or
+temporary storage. Environments live below
+`<cache-root>/uv-environments/<plugin-name>/<environment-key>/`.
+The cache is disposable. A change to this default does not migrate or remove
+files at the previous location. `UV_CACHE_DIR` remains under UV or caller
+control; it does not select Darrow's project-environment cache.
+
+The deterministic environment key is the SHA-256 digest of a versioned,
+sorted-key JSON value containing the exact plugin name and synchronized plugin
+version, the native normalized absolute backend path, the SHA-256 digest of the
+complete `uv.lock` bytes, and the normalized explicit Python selection. A
+Python selection comes from the launcher's `--python` option or, when that is
+absent, `UV_PYTHON`. Interpreter paths become native normalized absolute paths
+relative to the caller; non-path requests are trimmed and case-folded; no
+selection is the literal `default`. On Windows, fully qualified paths include a
+drive root or UNC share. Root-relative interpreter paths inherit the caller's
+drive before hashing; drive-relative paths on another drive are refused. The
+key must isolate different plugins,
+backends, plugin versions or locations, lock contents, and incompatible
+explicit interpreters, while allowing repeated and concurrent calls to reuse
+the same environment.
+The bootstrap requires readable `pyproject.toml` and `uv.lock`, preserves the
+frozen runtime-only `uv` arguments and exit status, and never mutates or
+re-resolves the lock.
+
+Repository development and quality commands may continue to use package-local
+`.venv` directories. Existing `.venv` directories in installed plugins are
+stale and disposable, but runtime launchers ignore rather than delete them.
+
+## Source quality
+
+Packages use Ruff for formatting, import order, common correctness rules,
+modern syntax, naming, simplification, and a cyclomatic-complexity ceiling of
+five. Mypy runs in strict mode over production code, tests, and package tooling.
+Development tools belong in a locked development dependency group and must not
+enter the runtime dependency set.
+
+Use names that describe domain concepts or actions. Each module owns one
+coherent responsibility; each function performs one focused operation at one
+level of abstraction. Validate untrusted input at boundaries and report specific
+errors. Translate exceptions only to add useful domain context, retaining the
+cause. Catch broadly only at explicit process or protocol boundaries with
+documented failure semantics.
+
+Review names, cohesion, function focus, error boundaries, and whether tests
+assert observable behavior rather than implementation details.
+
+## Converting existing mechanics
+
+Before refactoring Bash, establish its public inputs, outputs, refusals, side
+effects, and ordering constraints. Preserve those contracts with idiomatic
+Python, standard-library operations, direct control flow, and focused reuse
+within the owning module or package. Keep abstractions proportional to actual
+callers and plugins independently installable.
+
+Audit the complete invocation surface during the conversion. Remove unnecessary
+Bash shims, obsolete aliases, and backward-compatibility branches. Update skill
+instructions, documentation, callers, fixtures, and tests to the canonical
+frozen package entrypoints. Retain an adapter only when an explicitly required
+external contract or actual host protocol needs it; an old script path alone
+is not such a requirement. Keep shell regression tests as tests, not runtime
+entrypoints, and verify the copied plugin without the removed paths.
+
+Use behavioral and differential checks for interface compatibility. Coverage
+supports simplification; it does not justify redundant code or tests that mirror
+the old implementation.
+
+Behavior-preserving simplifications retain literal argument values, diagnostic
+precedence, serialized bytes, and resource lifetimes. Standard-library replacements
+must preserve those contracts across the package's declared Python versions;
+resource cleanup must not implicitly change transaction or publication semantics.
+
+The same implementation boundary applies to validation mechanics: substantial
+eval fixture providers, structured JSON/TSV evidence checks, and copied-artifact
+installation checks belong in the owning plugin's Python package. Keep eval
+oracles independent of the implementation they assess. Share fixture mechanics
+within that plugin rather than duplicating them across YAML cases; case-specific
+input and expectations remain explicit in each case. Use one portable Python
+installation check for Unix and Windows, preserving platform-specific probes.
+Small host launchers and tests whose subject is shell behavior may remain shell.
+Invoking a shell launcher does not by itself make a test shell-specific: keep
+configuration matrices, protocol assertions, and fixture construction in Python,
+and invoke each supported shell from those tests when launcher coverage matters.
+
+## Tests and coverage
+
+Each package keeps fast unit tests for local behavior and integration tests for
+the real filesystem, database, subprocess, or protocol seams it owns. Every bug
+fix carries a regression test that fails for the reported trigger. Property
+tests are required where generated cases can test a meaningful invariant, such
+as parser normalization, validation, redaction, serialization round trips, or
+state-machine transitions. They use deterministic settings suitable for CI.
+
+Fixture helpers that prepare locked Python backends before offline checks must
+use the same UV cache in both stages. Cover an explicitly configured, initially
+empty `UV_CACHE_DIR` as well as the default cache; a warm developer cache must
+not hide missing build dependencies.
+
+Coverage is measured for the complete import package with branch measurement
+enabled. The aggregate gate calculates statement coverage and branch coverage
+separately for each registered package; both must be at least 95%. The gate
+must fail when statement coverage passes but branch coverage does not. Coverage
+exclusions require a concrete unreachable-platform or interpreter reason in
+the source and review.
+
+Each package owns its coverage source and branch configuration; repository
+quality infrastructure owns the shared calculation, thresholds, and failures.
+
+Packages exercising their public commands in child processes enable Coverage's
+subprocess patch. The canonical gate erases stale measurements and combines
+parallel process data before enforcing the same statement and branch thresholds.
+
+## Commands and enforcement
+
+`bun run check:python` is the canonical local and CI command. For every
+registered package it verifies the lock, synchronizes the complete development
+environment, checks formatting and lint, runs strict typing, executes all tests
+including property tests, and enforces both coverage measures. The pre-commit
+hook runs the fast formatting, lint, and type portion when staged Python or
+Python project files change.
+
+CI runs the canonical package gate on Linux and macOS for every declared Python
+minor version when that package or shared Python-quality infrastructure changes.
+Packages that claim native Windows support run the same change-scoped gate in a
+package-specific Windows matrix. Manual dispatch runs every package. The
+inventory guard runs on every workflow invocation, and a stable aggregate
+`Python quality` status verifies that every required scope passed or every
+unchanged scope was intentionally skipped. The inventory guard itself is tested
+by introducing a temporary unregistered package and proving that the gate
+refuses it.
+
+## Performance and release evidence
+
+Performance checks target observable workload invariants rather than arbitrary
+timing budgets. A benchmark identifies its fixture size and environment,
+reports startup and steady-state foreground capture separately, confirms that
+foreground capture does not depend on the network, checks bounded incremental
+rollout reads and exporter batching, and reports peak memory. A numeric
+regression threshold may be added only after representative measurements make
+the budget defensible.
+
+Keep benchmark workloads, comparison rules, and entrypoints in the owning
+plugin. Repository commands and CI invoke them without copying internal path
+resolution or benchmark logic.
+
+Release validation installs each Python-backed plugin from a fresh copied
+artifact using only locked runtime dependencies. Cross-platform helpers verify
+the locked runtime and immutable plugin root on Linux, macOS, and native
+Windows; they exercise public entrypoints on hosts that the plugin supports.

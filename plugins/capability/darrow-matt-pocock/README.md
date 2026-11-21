@@ -37,8 +37,6 @@ Install `darrow-matt-pocock@darrow` using the
 The package can be installed independently; it does not read sibling plugins.
 Restart the host after installing or updating. Compare and preserve local changes
 before removing superseded copies; marketplace changes do not uninstall caches.
-The [migration guide](https://github.com/BjRo/darrow/blob/main/docs/migrating-to-ten-plugins.md)
-lists replacements and the safe upgrade order.
 
 ## Usage
 

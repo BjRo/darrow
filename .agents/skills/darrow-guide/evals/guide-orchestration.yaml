@@ -47,4 +47,4 @@ semantic_output_checks:
       permitted. It need not enumerate every prohibited operation in the refusal.
 output_checks:
   - name: nearby repository evidence
-    expect_regex: docs/design\.md|docs/specs/(repository-guide|adaptive-goal)\.md|plugins/orchestration/darrow-adaptive-goal/README\.md
+    expect_regex: docs/design\.md|\.agents/skills/darrow-guide/SKILL\.md|plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/SKILL\.md|plugins/orchestration/darrow-adaptive-goal/README\.md

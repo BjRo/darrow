@@ -68,4 +68,4 @@ this retention scope. A root containing `suite-run.json` is preserved in full,
 including any selection attempts mixed into it. These manifests therefore do
 not acquire dangling references from cleanup. Sevro's own prune command remains
 separate; its nested-root defect and archived evidence portability are outside
-this command's contract. See the [retention invariants](../../docs/specs/evaluation-retention.md).
+this command's contract.
