@@ -106,6 +106,115 @@ export default {
   return { root, cases, adapter, suite, results: join(root, "results") };
 }
 
+test("suite planning respects canonical host eligibility and route defaults", async () => {
+  const { root, cases, suite, results } = await fixture();
+  for (const [id, harness] of [
+    ["suite-alpha", "codex"],
+    ["suite-beta", "claude"],
+  ] as const) {
+    const path = join(cases, `${id}.yaml`);
+    const definition = JSON.parse(await readFile(path, "utf8"));
+    definition.harnesses = [harness];
+    definition.candidate_routes = {
+      [harness]: { model: `${harness}-canonical`, effort: "medium" },
+    };
+    await writeFile(path, JSON.stringify(definition));
+  }
+  const definition = JSON.parse(await readFile(suite, "utf8"));
+  definition.harnesses = ["codex", "claude"];
+  definition.modes = {
+    canonical: {},
+    mode: {
+      model_by_harness: { codex: "codex-mode", claude: "claude-mode" },
+      effort: "high",
+    },
+    suite: { apply_case_routes: true, effort: "high" },
+  };
+  definition.case_routes = {
+    codex: { "suite-alpha": { model: "codex-suite", effort: "xhigh" } },
+    claude: { "suite-beta": { model: "claude-suite", effort: "xhigh" } },
+  };
+  await writeFile(suite, JSON.stringify(definition));
+  const hostOptions = join(root, "host-options.json");
+  await writeFile(
+    hostOptions,
+    JSON.stringify(
+      Object.fromEntries(
+        ["codex", "claude"].map((host) => [
+          host,
+          ["--host", host, "--model", `${host}-forwarded`, "--effort", "low"],
+        ]),
+      ),
+    ),
+  );
+  const planned = await plan([
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+    "--host-options-file",
+    hostOptions,
+    "--",
+  ]);
+  expect(planned.cells).toHaveLength(6);
+  expect(planned.manifest.caseIdsByHarness).toEqual({
+    codex: ["suite-alpha"],
+    claude: ["suite-beta"],
+  });
+  for (const cell of planned.cells) {
+    expect(cell.caseId).toBe(
+      cell.harness === "codex" ? "suite-alpha" : "suite-beta",
+    );
+    const route =
+      cell.mode === "canonical"
+        ? { model: `${cell.harness}-canonical`, effort: "medium" }
+        : cell.mode === "mode"
+          ? { model: `${cell.harness}-mode`, effort: "high" }
+          : { model: `${cell.harness}-suite`, effort: "xhigh" };
+    expect(cell.requestedRoute).toEqual(route);
+    expect(cell.command[cell.command.indexOf("--model") + 1]).toBe(route.model);
+    expect(cell.command[cell.command.indexOf("--effort") + 1]).toBe(
+      route.effort,
+    );
+  }
+});
+
+test("suite execution skips cases excluded from the selected host", async () => {
+  const { root, cases, suite, results, adapter } = await fixture();
+  const path = join(cases, "suite-beta.yaml");
+  const definition = JSON.parse(await readFile(path, "utf8"));
+  definition.harnesses = ["claude"];
+  await writeFile(path, JSON.stringify(definition));
+  const run = await invoke([
+    "--suite",
+    suite,
+    "--project-root",
+    root,
+    "--results-root",
+    results,
+    "--mode",
+    "passive",
+    "--trials",
+    "1",
+    "--threshold",
+    "1",
+    "--",
+    "--adapter-module",
+    adapter,
+    "--shell-isolation",
+  ]);
+  expect(run.code, run.stderr + run.stdout).toBe(0);
+  const manifest = JSON.parse(
+    await readFile(join(results, "suite-run.json"), "utf8"),
+  );
+  expect(manifest.caseIds).toEqual(["suite-alpha"]);
+  expect(manifest.caseIdsByHarness).toEqual({ codex: ["suite-alpha"] });
+  expect(manifest.cells).toHaveLength(1);
+  expect(manifest.cells[0].caseId).toBe("suite-alpha");
+});
+
 async function waitForFile(path: string) {
   const deadline = Date.now() + 10_000;
   while (!(await Bun.file(path).exists())) {
@@ -3118,9 +3227,20 @@ test("suite compares a mounted skill with a no-skill baseline", async () => {
     caseIds: manifest.caseIds,
     cells: manifest.cells,
     harnesses: manifest.harnesses,
+    caseIdsByHarness: manifest.caseIdsByHarness,
     report,
   };
   expect(analyzeAblations(input)).toEqual(ablation);
+  expect(
+    analyzeAblations({
+      ...input,
+      harnesses: ["codex", "claude"],
+      caseIdsByHarness: { codex: manifest.caseIds, claude: [] },
+    }),
+  ).toEqual(ablation);
+  expect(analyzeAblations({ ...input, caseIdsByHarness: {} }).errors).toContain(
+    "skill-value: codex: case eligibility is missing",
+  );
   const measured = structuredClone(report);
   Object.assign(
     measured.rows.find(

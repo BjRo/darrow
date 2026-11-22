@@ -6,6 +6,24 @@ detector="$repo_root/scripts/detect-python-quality-changes"
 verifier="$repo_root/scripts/verify-python-quality-results"
 sevro_workflow="$repo_root/.github/workflows/sevro-integration.yml"
 python_workflow="$repo_root/.github/workflows/python-quality.yml"
+matrices=$(awk '
+  /^  [a-zA-Z0-9_-]+:$/ { job = $1; sub(/:$/, "", job) }
+  /^        python-version:/ {
+    versions = $0
+    sub(/^[^[]*\[/, "", versions)
+    sub(/\]$/, "", versions)
+    gsub(/[[:space:]"]/, "", versions)
+    print job, versions
+  }
+' "$python_workflow")
+if [ "$matrices" != 'package 3.10,3.11,3.12,3.13
+git-windows 3.10,3.11,3.12,3.13
+review-windows 3.10,3.11,3.12,3.13
+information-architecture-windows 3.10,3.11,3.12,3.13
+adaptive-goal-windows 3.10,3.11,3.12,3.13' ]; then
+  printf 'error: Python quality matrices must cover every supported minor version\nactual:\n%s\n' "$matrices" >&2
+  exit 1
+fi
 # shellcheck disable=SC2016
 expected_output_ref='installed_pin_required: ${{ steps.scopes.outputs.installed_pin_required }}'
 if ! grep -Fq "$expected_output_ref" "$sevro_workflow" ||
@@ -342,8 +360,8 @@ for path in .github/workflows/python-quality.yml \
   scripts/check-python scripts/check-python-inventory scripts/detect-python-quality-changes \
   scripts/test-python-coverage scripts/test-python-inventory scripts/test-python-quality-changes \
   scripts/verify-python-coverage scripts/verify-python-quality-results; do
-  expect_scope "$path" 'packages=[]
-package_selected=false'
+  expect_scope "$path" 'packages=["plugins/capability/darrow-review/backend","plugins/capability/darrow-git/backend"]
+package_selected=true'
 done
 
 git -C "$fixture" reset -q --hard "$base"
@@ -353,8 +371,8 @@ git -C "$fixture" add python-packages.txt
 git -C "$fixture" commit -qm 'test: change package inventory'
 inventory_scope=$(cd "$fixture" && scripts/detect-python-quality-changes "$base" HEAD)
 case "$inventory_scope" in
-  *'packages=[]'*) ;;
-  *) printf 'error: inventory change selected plugins\n%s\n' "$inventory_scope" >&2; exit 1 ;;
+  *'packages=["plugins/capability/darrow-review/backend","plugins/capability/darrow-git/backend"]'*) ;;
+  *) printf 'error: inventory change omitted Python packages\n%s\n' "$inventory_scope" >&2; exit 1 ;;
 esac
 case "$inventory_scope" in
   *'installed_pin_required=true'*) ;;
@@ -370,7 +388,7 @@ git -C "$fixture" add .
 git -C "$fixture" commit -qm 'test: change a plugin and shared infrastructure'
 mixed=$(cd "$fixture" && scripts/detect-python-quality-changes "$base" HEAD)
 case "$mixed" in
-  *'packages=["plugins/capability/darrow-review/backend"]'*) ;;
+  *'packages=["plugins/capability/darrow-review/backend","plugins/capability/darrow-git/backend"]'*) ;;
   *) printf 'error: mixed infrastructure/plugin change selected the wrong packages\n%s\n' "$mixed" >&2; exit 1 ;;
 esac
 
@@ -419,6 +437,19 @@ if [ "$third_all" != 'packages=["plugins/capability/darrow-review/backend","plug
 package_selected=true' ]; then
   printf 'error: --all omitted a registered third package\nactual:\n%s\n' \
     "$third_all" >&2
+  exit 1
+fi
+
+git -C "$fixture" reset -q --hard "$third_base"
+printf '%s\n' '# changed' >>"$fixture/scripts/detect-python-quality-changes"
+git -C "$fixture" add scripts/detect-python-quality-changes
+git -C "$fixture" commit -qm 'test: change shared infrastructure with third package registered'
+third_shared=$(cd "$fixture" && scripts/detect-python-quality-changes "$third_base" HEAD)
+if [ "$third_shared" != 'packages=["plugins/capability/darrow-review/backend","plugins/capability/darrow-git/backend","plugins/capability/darrow-third/backend"]
+installed_pin_required=false
+package_selected=true' ]; then
+  printf 'error: shared infrastructure change omitted a registered package or selected the installed pin\nactual:\n%s\n' \
+    "$third_shared" >&2
   exit 1
 fi
 
