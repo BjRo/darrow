@@ -93,6 +93,12 @@ Use `assessment-readers` with placement, axes and routes for independent readers
 complete activation evidence. Command absence inspects actual command executions.
 Missing, partial or contradictory required evidence remains unavailable.
 
+Use `command-absence` with `forbiddenCommandTerms` for a command-only prohibition
+on either host. It checks Codex command executions or Claude Bash calls from a
+completed native event stream. It ignores returned text and normalizes command
+whitespace before matching literal terms. These bounded matches cannot detect
+every alias or indirect effect. Pair them with repository-state checks.
+
 Native-goal checks consume bound goal state. Transcript checks retain their declared
 task or diagnostic role. Historical transcript regexes and specification labels
 are not accepted case fields.
@@ -139,6 +145,11 @@ with native-goal hooks. The guide caller therefore selects
 tools and native transcripts without hooks. An explicit `--runtime-config-file` replaces either default.
 With a runtime file selected, direct and benchmark callers no longer add
 `--claude-project-settings` automatically.
+
+Plugin-mode Claude trials mount inline fixture skills inside the owning plugin,
+using its namespace. This keeps helper skills callable when isolated settings
+disable repository skills. Codex and repository-mode mounts keep their native
+repository paths.
 
 Native transcripts are enabled so Adaptive Goal's placement helper can read
 the current session's model and effort, as it does outside Sevro. Hook-free

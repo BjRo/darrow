@@ -939,6 +939,8 @@ function hasObservableTask(selected: RecordValue) {
 }
 
 const TASK_TRANSCRIPT_KINDS = new Set([
+  "command-absence",
+  "guide-no-owner-or-goal-control",
   "route",
   "repair-reuse",
   "unchanged-before-continuation",
@@ -2211,6 +2213,7 @@ async function fixtureSkillMounts(
 function appendFixtureSkillArtifacts(
   artifacts: SkillArtifact[],
   skills: Awaited<ReturnType<typeof fixtureSkillMounts>>,
+  claudePackage = false,
 ) {
   let total = artifacts.reduce(
     (size, artifact) =>
@@ -2222,7 +2225,14 @@ function appendFixtureSkillArtifacts(
     total += bytes.byteLength;
     checkSkillArtifactLimit(bytes, total, artifacts.length);
     artifacts.push(
-      skillArtifact(bytes, skill.path, artifacts.length + 1, false),
+      skillArtifact(
+        bytes,
+        claudePackage
+          ? `${MARKETPLACE_ROOT}/plugin/skills/${skill.skillName}/SKILL.md`
+          : skill.path,
+        artifacts.length + 1,
+        false,
+      ),
     );
   }
 }
@@ -2277,7 +2287,7 @@ async function preparedMounts(
   const artifacts = packagePlugins
     ? await codexPluginArtifacts(owner, ownerName!, additional)
     : await projectSkillArtifacts(mounted, owner[0]?.skillRoot);
-  appendFixtureSkillArtifacts(artifacts, fixtureMounts);
+  appendFixtureSkillArtifacts(artifacts, fixtureMounts, claudePackages);
   return {
     artifacts,
     ...packageDeclarations({

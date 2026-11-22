@@ -55,9 +55,16 @@ checks. Its native-goal and transcript assertions are separate workflow
 domain outcomes. Missing diagnostics stay unavailable without rewriting a proven
 task outcome. Adaptive Goal also treats auxiliary transcripts as diagnostics;
 native-goal requirements, explicitly tested implementation routes and no mutation
-before required user feedback remain task gates. Other plugins retain their
+before required user feedback remain task gates. Declared command-absence and
+owner/goal-control checks also gate Adaptive Goal tasks. Other plugins retain their
 declared task gates. Positive route checks consume accepted-child facts from the
 owning host. Absence checks still require complete control observations.
+
+The unauthorized-parent authority probe supplies the helper's native entrypoint and
+requires both helper and Adaptive Goal activation. Its negative activation class
+keeps Adaptive Goal out of the primary role while permitting the supporting call.
+Report discovery/activation separately from the exact refusal and effect checks.
+An exact refusal without both activations does not establish authority coverage.
 
 Matched comparisons hold prompts, fixtures, checks, harness versions, models,
 effort, trial counts and thresholds constant. A skill-only ablation changes only

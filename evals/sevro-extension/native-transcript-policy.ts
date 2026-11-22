@@ -1,3 +1,5 @@
+import { commandAbsence } from "./command-absence";
+
 type Row = Record<string, unknown>;
 type Status = "passed" | "failed" | "unavailable";
 export type NativeTranscript = {
@@ -6,6 +8,7 @@ export type NativeTranscript = {
   model?: string;
   effort?: string;
   claudeTypes?: string[];
+  forbiddenCommandTerms?: string[];
 };
 
 function row(value: unknown): Row | null {
@@ -24,12 +27,15 @@ export const NATIVE_TRANSCRIPT_KINDS = new Set([
   "readiness-no-retry",
   "no-claude-owner",
   "independent-review",
+  "command-absence",
 ]);
 
 export function nativeTranscriptEvidence(checks: NativeTranscript[]): string[] {
   return [
     ...new Set(
       checks.flatMap((check) => {
+        // The selected host determines which event artifact is required.
+        if (check.kind === "command-absence") return [];
         if (check.kind === "inactive")
           return ["sevro.host.skill-activations", "sevro.codex.events"];
         // The check validates the selected host's accepted-child facts itself.
@@ -346,6 +352,12 @@ function status(
   if (check.kind === "route") return hostRouteStatus(check, context);
   if (check.kind === "repair-reuse") return repairReuseStatus(check, context);
   if (check.kind === "inactive") return inactiveStatus(context);
+  if (check.kind === "command-absence")
+    return commandAbsence(
+      context.events,
+      context.eventId,
+      check.forbiddenCommandTerms!,
+    );
   if (check.kind.endsWith("before-feedback"))
     return feedbackStatus(check, values, context.spawns);
   return claudeStatus(check, context);
@@ -375,6 +387,7 @@ const SPAWN_KINDS = new Set(["route", "repair-reuse"]);
 
 function transcriptRefs(check: NativeTranscript, context: NativeContext) {
   const { eventId } = context;
+  if (check.kind === "command-absence") return [eventId];
   if (SPAWN_KINDS.has(check.kind))
     return eventId === "sevro.claude.events"
       ? ["sevro.claude.tool-calls", eventId]

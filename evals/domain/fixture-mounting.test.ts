@@ -43,7 +43,10 @@ test.each(["codex", "claude"] as const)(
     const selected = await project.resolve();
     const prepared = await preparePolicy(selected, host);
     const artifacts = prepared.artifacts as Artifact[];
-    const path = `.${host === "codex" ? "agents" : "claude"}/skills/supporting/SKILL.md`;
+    const path =
+      host === "codex"
+        ? ".agents/skills/supporting/SKILL.md"
+        : ".sevro-marketplace/plugin/skills/supporting/SKILL.md";
     const supporting = artifacts.find(
       (artifact) => artifact.relativePath === path,
     );
