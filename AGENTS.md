@@ -26,4 +26,3 @@ engineering work under this repository's instructions.
 
 - Use imperative Conventional Commits without trailing periods.
 - Do not add AI attribution or `Co-authored-by` trailers.
-- Never push unless explicitly asked.
