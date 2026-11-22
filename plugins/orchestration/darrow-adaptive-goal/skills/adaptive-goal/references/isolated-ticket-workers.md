@@ -20,20 +20,44 @@ self-review and routine-placement defaults do not satisfy this prerequisite.
 
 Worker branches, linked worktrees, local commits and integration need explicit
 user or preserved caller authority. Strategy selection grants none and does not
-relocate the delivery checkout. Follow the already-bound public Git capabilities
-for new branch and worktree creation and commits. Their refusals still stop the
-operation; raw Git is not a workaround.
+relocate the delivery checkout. Bind allocation for the active host during
+read-only preflight, separately from delivery-branch discovery or reuse.
 
-During read-only preflight, bind fresh worker allocation separately from
-delivery-branch discovery, reuse or exact preparation. Each worker needs the
-advertised **new-branch and linked-worktree creation** capability (Darrow Git's
-`create-branch`), which owns naming from the ticket work. Do not turn that
-creation intent into `prepare-task-branch` merely by constructing a name first.
-A correlated existing delivery branch remains the integration branch and cannot
-satisfy a fresh worker request. Invoke creation from the integration checkout
-after checking its branch and pinned current `HEAD`; use the capability's
-current-HEAD default. Pass `--from` only when its public contract permits the
-user-named base. This prebinding rule does not bypass an actual refusal.
+### Allocate on Claude
+
+Use the route-resolved native `Agent` call with `isolation: "worktree"` and
+`run_in_background: false`. Claude creates the worker's branch and linked
+worktree as part of that call. Keep its host-chosen name; the Git branch-creation
+capability is not required for this allocation. Do not pre-create it through
+Bash or a Git helper: Claude's native sandbox protects `.git/worktrees`.
+Preserve that sandbox and return an unavailable native isolation control as a
+blocker rather than falling back to shell allocation.
+
+Pin the current integration branch and full `HEAD` before each call. Give the
+worker that expected base and require it to inspect its own checkout before
+editing: its path must differ from the delivery checkout, its branch must be
+distinct, and its initial `HEAD` must equal the supplied base. A mismatch stops
+that assignment before implementation. The parent keeps the delivery checkout
+unchanged and supplies the bounded specification, checks and Git authority in
+the launch prompt without guessing the worker path or switching directories.
+
+Require the worker to return its absolute checkout path, actual branch, initial
+base, ordered full commit IDs and native identity. Reconcile its path and branch
+with the host result and `git worktree list --porcelain` before integration.
+Keep committed worktrees and the returned agent identity available for repairs;
+resume that same worker without requesting another isolated allocation.
+
+### Allocate on Codex
+
+Bind the advertised **new-branch and linked-worktree creation** capability
+(Darrow Git's `create-branch`), which owns naming from the ticket work. Do not
+turn creation intent into `prepare-task-branch` by constructing a name first.
+An existing delivery branch cannot satisfy a fresh worker request. Invoke
+creation from the integration checkout after checking its branch and pinned
+current `HEAD`; use the capability's current-HEAD default. Pass `--from` only
+when its public contract permits the user-named base. A refusal stops the
+operation; raw Git is not a workaround. Supply the resulting absolute path and
+base to the fresh worker through the native Codex launch control.
 
 Workers create authorized intermediate commits with native Git and repository
 instructions. Include the commit authority and relevant repository Git rules in
@@ -62,9 +86,9 @@ does not unblock a dependency.
 
 Keep the native goal, conversation, decisions, integration, verification
 scheduling, repair accounting, completion and publication in this main thread.
-Create a distinct worker branch and linked worktree from the known current
-integration commit. Give the fresh worker a self-contained assignment with that
-commit and absolute path, specification, criteria, interfaces, owned files,
+Allocate from the known current integration commit through the active host
+path above. Give the fresh worker a self-contained assignment with that
+commit, its allocated path when already known, specification, criteria, interfaces, owned files,
 allowed effects, preserved work, exact public capability references and checks.
 Preserve required readiness, public seams and failing-before/passing-after
 evidence. Keep the host-returned worker identity for repairs.

@@ -39,6 +39,8 @@ fixture:
           # Instructions
 
           Run `bash test.sh` for changes. Preserve unrelated local work.
+          Use imperative Conventional Commits without trailing periods.
+          Do not add AI attribution or Co-authored-by trailers.
         package.json: '{"type":"module"}'
         src/versions.js: |
           // Version parsing and matching belongs here.

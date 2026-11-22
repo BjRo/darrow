@@ -26,6 +26,7 @@ fixture:
         AGENTS.md: |
           # Project guidance
           Run bash test.sh for greeting changes. Preserve the public shell CLI.
+          Use imperative Conventional Commits without trailing periods.
           The independent Review provider is installed at this exact public
           instruction path: .agents/skills/independent-code-review/SKILL.md on
           Codex; .claude/skills/independent-code-review/SKILL.md on Claude Code.

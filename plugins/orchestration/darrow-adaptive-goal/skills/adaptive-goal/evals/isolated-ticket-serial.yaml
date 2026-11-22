@@ -63,6 +63,7 @@ fixture:
     git rev-parse HEAD > .git/integration-base
     bash "{{case_dir}}/../../../../../capability/darrow-review/skills/code-review/evals/fixtures/prepare-grading.sh" "{{case_dir}}/../../../../../capability/darrow-review/skills/code-review/evals"
     cp "{{case_dir}}/../../../backend/tests/evals/isolated_ticket_routes.py" .git/eval-checks/isolated_ticket_routes.py
+    cp "{{case_dir}}/../../../backend/tests/evals/isolated_ticket_batch.py" .git/eval-checks/isolated_ticket_batch.py
     cp "{{case_dir}}/../../../backend/tests/evals/isolated_ticket_assessment.py" .git/eval-checks/isolated_ticket_assessment.py
 checks:
   - name: complete ticket behavior is integrated
@@ -91,14 +92,7 @@ checks:
       test "$(git diff --name-only)" = PERSONAL.md &&
       test -z "$(git diff --cached --name-only)"
   - name: worker commit is retained in its separate linked worktree and integrated
-    run: |
-      worker=$(git for-each-ref refs/heads --format='%(refname:short)' | sed -n '/^[a-z]*\/issue-41-/p')
-      test -n "$worker" && test "$(printf '%s\n' "$worker" | wc -l | tr -d ' ')" = 1 &&
-      git worktree list --porcelain | grep -Fx "branch refs/heads/$worker" &&
-      test "$(git rev-parse "$worker")" != "$(cat .git/integration-base)" &&
-      comparison=$(git cherry HEAD "$worker") &&
-      ! printf '%s\n' "$comparison" | grep '^+' &&
-      test "$(git rev-parse HEAD)" != "$(cat .git/integration-base)"
+    run: python3 .git/eval-checks/isolated_ticket_batch.py landed --tickets 41 --host codex
   - name: worker changes land by cherry-pick on the integration branch
     run: |
       git reflog show "$(cat .git/integration-branch)" --format='%gs' |

@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 import runpy
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -319,6 +323,7 @@ def claude_records(helpers: Path, view: Path, defect: str) -> dict[str, str]:
     ]
     files[child + ".jsonl"] = json.dumps(row)
     parent = [json.loads(line) for line in files["project/root.jsonl"].splitlines()]
+    parent[0]["message"]["content"][0]["input"]["isolation"] = "worktree"
     parent[0]["timestamp"] = "2026-01-01T00:00:01Z"
     parent[1]["timestamp"] = "2026-01-01T00:00:02Z"
     parent[1]["message"]["content"][0]["content"] = "return " + (
@@ -432,3 +437,121 @@ def test_claude_execution_spans_exclude_api_request_copies() -> None:
     assert batch.claude_spans(
         {"blocks": blocks}, "\n".join(json.dumps(row) for row in rows)
     ) == [(batch.stamp(rows[0]), batch.stamp(rows[2]))]
+
+
+@pytest.mark.parametrize("isolation", [None, "none", "worktree"])
+def test_claude_worker_requires_native_worktree_allocation(
+    isolation: str | None, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    helpers = (
+        Path(__file__).resolve().parents[4]
+        / "capability/darrow-review/backend/tests/evals"
+    )
+    monkeypatch.syspath_prepend(str(helpers))
+    native = runpy.run_path(str(helpers / "native_claude_routes.py"))
+    files = claude_records(helpers, tmp_path, "none")
+    parent = [json.loads(line) for line in files["project/root.jsonl"].splitlines()]
+    parent[0]["message"]["content"][0]["input"]["isolation"] = isolation
+    files["project/root.jsonl"] = "\n".join(json.dumps(row) for row in parent)
+    commits = {"abcdef1" + "0" * 33}
+    if isolation == "worktree":
+        assert batch.claude_worker(native, "root", files, commits).returned == commits
+    else:
+        with pytest.raises(AssertionError, match="native worktree isolation"):
+            batch.claude_worker(native, "root", files, commits)
+
+
+def test_claude_worker_ignores_unrelated_nonisolated_capability(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    helpers = (
+        Path(__file__).resolve().parents[4]
+        / "capability/darrow-review/backend/tests/evals"
+    )
+    monkeypatch.syspath_prepend(str(helpers))
+    native = runpy.run_path(str(helpers / "native_claude_routes.py"))
+    files = claude_records(helpers, tmp_path, "none")
+    parent_name = "project/root.jsonl"
+    parent = [json.loads(line) for line in files[parent_name].splitlines()]
+    helper = [
+        json.loads(
+            json.dumps(row)
+            .replace("worker", "helper")
+            .replace("call-0", "call-helper")
+            .replace("abcdef1", "no commit")
+        )
+        for row in parent
+    ]
+    helper[0]["message"]["content"][0]["input"].pop("isolation")
+    helper[0]["timestamp"] = "2025-12-31T23:59:59Z"
+    helper[1]["timestamp"] = "2026-01-01T00:00:00Z"
+    files.update(
+        {
+            name.replace("worker", "helper"): text.replace("worker", "helper")
+            .replace("call-0", "call-helper")
+            .replace("abcdef1", "no commit")
+            for name, text in list(files.items())
+            if name != parent_name
+        }
+    )
+    files[parent_name] = "\n".join(json.dumps(row) for row in [*helper, *parent])
+    assert (
+        batch.claude_worker(native, "root", files, {"abcdef1" + "0" * 33}).identity
+        == "worker"
+    )
+
+
+@pytest.mark.parametrize("isolation", [None, "none", "worktree"])
+def test_landed_cli_validates_actual_native_worker_allocation(
+    isolation: str | None, tmp_path: Path
+) -> None:
+    helpers = (
+        Path(__file__).resolve().parents[4]
+        / "capability/darrow-review/backend/tests/evals"
+    )
+    root = tmp_path / "delivery"
+    root.mkdir()
+    command(root, "init", "-b", "main")
+    command(root, "config", "user.name", "Fixture")
+    command(root, "config", "user.email", "fixture@example.invalid")
+    command(root, "commit", "--allow-empty", "-m", "chore: init")
+    (root / ".git/integration-branch").write_text("main\n")
+    (root / ".git/integration-base").write_text(command(root, "rev-parse", "HEAD"))
+    worker = tmp_path / "worker"
+    command(root, "worktree", "add", "-b", "worktree-agent-opaque", str(worker))
+    (worker / "src").mkdir()
+    (worker / "src/versions.js").write_text("implementation\n")
+    command(worker, "add", "src/versions.js")
+    command(worker, "commit", "-m", "feat: implement versions")
+    commit = command(worker, "rev-parse", "HEAD")
+    command(root, "cherry-pick", commit)
+    shutil.copytree(helpers, root / ".git/eval-checks/review/tests/evals")
+    view = tmp_path / "native"
+    files = claude_records(helpers, view, "none")
+    parent = [json.loads(line) for line in files["project/root.jsonl"].splitlines()]
+    parent[0]["message"]["content"][0]["input"]["isolation"] = isolation
+    files["project/root.jsonl"] = "\n".join(json.dumps(row) for row in parent)
+    index = json.loads((view / "index.json").read_text())
+    for entry in index["files"]:
+        text = files[entry["path"]].replace("abcdef1", commit)
+        (view / "claude" / entry["path"]).write_text(text)
+        entry["sha256"] = hashlib.sha256(text.encode()).hexdigest()
+    (view / "index.json").write_text(json.dumps(index))
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(Path(batch.__file__).resolve()),
+            "landed",
+            "--tickets",
+            "41",
+            "--host",
+            "claude",
+        ],
+        cwd=root,
+        env={**os.environ, "SEVRO_CANDIDATE_TRANSCRIPTS": str(view)},
+        capture_output=True,
+        text=True,
+    )
+    assert (result.returncode == 0) == (isolation == "worktree"), result.stderr
+    if isolation != "worktree":
+        assert "native worktree isolation" in result.stderr

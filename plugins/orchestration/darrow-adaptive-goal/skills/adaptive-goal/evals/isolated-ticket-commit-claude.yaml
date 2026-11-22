@@ -40,6 +40,8 @@ fixture:
           # Instructions
 
           Run `bash test.sh` for changes. Preserve unrelated local work.
+          Use imperative Conventional Commits without trailing periods.
+          Do not add AI attribution or Co-authored-by trailers.
 
           Review environment: copy the complete returned reader JSON literally and
           unchanged into the bound files in the returned private Review run. Any
@@ -156,21 +158,7 @@ checks:
 
       test -z "$(git diff --cached --name-only)"
   - name: worker commit is retained in its separate linked worktree and integrated
-    run: >
-      worker=$(git for-each-ref refs/heads --format='%(refname:short)' | sed -n
-      '/^[a-z]*\/issue-41-/p')
-
-      test -n "$worker" && test "$(printf '%s\n' "$worker" | wc -l | tr -d ' ')" = 1 &&
-
-      git worktree list --porcelain | grep -Fx "branch refs/heads/$worker" &&
-
-      test "$(git rev-parse "$worker")" != "$(cat .git/integration-base)" &&
-
-      comparison=$(git cherry HEAD "$worker") &&
-
-      ! printf '%s\n' "$comparison" | grep '^+' &&
-
-      test "$(git rev-parse HEAD)" != "$(cat .git/integration-base)"
+    run: python3 .git/eval-checks/isolated_ticket_batch.py landed --tickets 41 --host claude
   - name: worker changes land by cherry-pick on the integration branch
     run: |
       git reflog show "$(cat .git/integration-branch)" --format='%gs' |

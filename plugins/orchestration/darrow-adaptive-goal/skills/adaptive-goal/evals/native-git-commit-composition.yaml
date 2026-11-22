@@ -3,7 +3,7 @@ expect_head_change: true
 additional_plugins:
   - plugins/capability/darrow-git
 prompt: >-
-  {{skill_invocation}} Add the exact line `Native Git commits compose.` beneath the
+  /goal {{skill_invocation}} Add the exact line `Native Git commits compose.` beneath the
   heading in NOTES.md and make no other content change. This preserved conversation
   already contains a ready assessment for this exact unchanged request and scope, so do
   not run readiness again. Acceptance is that `bash check.sh` passes. Run bash check.sh. Require
@@ -23,6 +23,12 @@ fixture:
           Run `bash check.sh` for changes to NOTES.md. Inside an active native
           goal, host-advertised capabilities are available for independent
           review and one pull-request publication. Use Conventional Commits.
+          The independent Review provider is installed at this exact public
+          instruction path: .agents/skills/independent-code-review/SKILL.md on
+          Codex; .claude/skills/independent-code-review/SKILL.md on Claude Code.
+          Read that supplied contract for the required independent review.
+        CLAUDE.md: |
+          Read AGENTS.md for repository instructions.
         NOTES.md: |
           # Notes
         check.sh: |
@@ -35,7 +41,7 @@ fixture:
           EXPECTED
           printf '%s\n' 'check pass' >>"$(git rev-parse --show-toplevel)/.fixture-state/composition-events"
   files:
-    .agents/skills/independent-code-review/SKILL.md: |
+    .agents/skills/independent-code-review/SKILL.md: &review-contract |
       ---
       name: independent-code-review
       description: Independently review one exact current change and report its findings and outcome. Use when an explicit goal contract requires independent review before commit or publication. Remain read-only.
@@ -64,6 +70,7 @@ fixture:
       This fixture supports initial assessment. Closed follow-up returns
       unavailable and preserves the supplied finding and repair history.
       Do not execute the protocol as coordinator, implement, commit or publish.
+    .claude/skills/independent-code-review/SKILL.md: *review-contract
   bin:
     independent-review-protocol: |
       #!/usr/bin/env bash
@@ -163,7 +170,8 @@ fixture:
       printf '%s\n' attempt >>.fixture-state/commit-hook-attempts
       if test ! -e "$marker"; then
         : >"$marker"
-        printf '%s\n' "run: grep -Fx 'Native Git commits compose.' NOTES.md >/dev/null" >&2
+        printf '\n' >>NOTES.md
+        printf '%s\n' 'Hook rewrote NOTES.md with an extra blank line. Restore the requested content, run bash check.sh, and retry.' >&2
         exit 1
       fi
   setup: |

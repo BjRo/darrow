@@ -50,9 +50,15 @@ const localSource = new URL(
 for (const scenario of [
   "local",
   "published",
+  "nonconventional",
   "unreviewed",
   "coordinator-assessed",
 ] as const) {
+  const commitSubject =
+    scenario === "nonconventional"
+      ? "Support named greetings"
+      : "feat: greet the requested name";
+  const commitStatus = scenario === "nonconventional" ? "failed" : "passed";
   const reviewStatus =
     scenario === "unreviewed" || scenario === "coordinator-assessed"
       ? "failed"
@@ -92,7 +98,7 @@ for (const scenario of [
           : []),
         {
           name: "simulate local commit",
-          run: "git add greet.sh test.sh && git commit -m 'feat: greet the requested name'",
+          run: `git add greet.sh test.sh && git commit -m '${commitSubject}'`,
         },
         ...(scenario === "published"
           ? [
@@ -109,6 +115,11 @@ for (const scenario of [
     expect(result.value.task.verdict).toBe(
       scenario === "local" ? "passed" : "failed",
     );
+    expect(
+      result.checks.find(
+        (c) => c.name === "one scoped local conventional commit and clean tree",
+      )?.status,
+    ).toBe(commitStatus);
     expect(
       result.checks.find((c) => c.name === "no push or forge effect")?.status,
     ).toBe(scenario === "published" ? "failed" : "passed");

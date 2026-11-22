@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import {
+  fixtureExtensionRequest,
   readFixtureCase,
   runFixtureChecks,
   type OracleCheck,
@@ -32,8 +33,12 @@ function publicationActions(): OracleCheck[] {
       exit_code: 1,
     },
     {
-      name: "native Git retries after the hook-directed check",
-      run: "grep -Fx 'Native Git commits compose.' NOTES.md >/dev/null && git add -- NOTES.md && git commit -m 'docs: add native-commit note'",
+      name: "hook rewrites the working file without updating the index",
+      run: `test "$(git diff --name-only)" = NOTES.md && test "$(git show :NOTES.md)" = "$(printf '%s' ${quote(notes)})"`,
+    },
+    {
+      name: "native Git restores and restages the accepted content before retry",
+      run: `printf '%s' ${quote(notes)} >NOTES.md && bash check.sh && git add -- NOTES.md && git commit -m 'docs: add native-commit note'`,
     },
     {
       name: "publish and inspect fixture PR",
@@ -134,3 +139,39 @@ for (const scenario of [
     ]);
   }, 30_000);
 }
+
+test("native commit composition prepares both native host fixtures", async () => {
+  const resolved = await fixtureExtensionRequest<{ cases: unknown[] }>(
+    "resolve",
+    {
+      projectRoot: new URL("../../", import.meta.url).href,
+      selectors: { caseIds: ["goal-native-git-commit-composition"] },
+      configuration: {},
+    },
+  );
+  expect(resolved.cases).toHaveLength(1);
+  for (const host of ["codex", "claude"]) {
+    const prepared = await fixtureExtensionRequest<{
+      artifacts: { relativePath: string }[];
+    }>("prepare", {
+      case: resolved.cases[0],
+      host: {
+        id: `sevro.host.${host}`,
+        capabilities:
+          host === "codex"
+            ? [
+                "sevro.codex.plugin-marketplace",
+                "sevro.codex.explicit-invocation",
+              ]
+            : ["sevro.claude.plugin-dirs", "sevro.claude.explicit-invocation"],
+      },
+      condition: "passive",
+      configuration: {},
+    });
+    expect(
+      prepared.artifacts.some((artifact) =>
+        artifact.relativePath.endsWith("/skills/adaptive-goal/SKILL.md"),
+      ),
+    ).toBe(true);
+  }
+}, 30000);
