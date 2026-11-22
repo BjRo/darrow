@@ -17,7 +17,7 @@ darrow-publish-pr-evidence = "darrow_git.cli:publish_evidence"
 dev = ["coverage[toml]>=7.10,<8", "hypothesis>=6.138,<7", "mypy>=1.18,<2", "pytest>=8.4,<9", "ruff>=0.12,<1"]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling==1.32.3"]
 build-backend = "hatchling.build"
 
 [tool.uv]

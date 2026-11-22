@@ -123,6 +123,7 @@ async function claudeEvidence(
   target: string,
   viaSkill = false,
   legacy = false,
+  implementorName?: string,
 ) {
   const root = await mkdtemp(join(tmpdir(), "darrow-repair-reuse-"));
   roots.push(root);
@@ -133,6 +134,7 @@ async function claudeEvidence(
     input: {
       subagent_type: "darrow-adaptive-goal:adaptive-goal-opus-5-5-high",
       run_in_background: false,
+      ...(id === "use-1" && implementorName ? { name: implementorName } : {}),
     },
   });
   const result = (id: string, content: string) => ({
@@ -237,6 +239,9 @@ test("Claude repair reuse requires SendMessage to the one retained implementor",
   for (const [target, expected] of [
     ["impl123", "passed"],
     ["verify456", "failed"],
+    ["impl", "failed"],
+    ["Implemented", "failed"],
+    ["agentId", "failed"],
   ] as const) {
     const evidence = await claudeEvidence(target);
     expect(
@@ -247,6 +252,22 @@ test("Claude repair reuse requires SendMessage to the one retained implementor",
       ),
     ).toBe(expected);
   }
+});
+
+test("Claude repair reuse accepts the exact declared implementor name", async () => {
+  const evidence = await claudeEvidence(
+    "range_implementor",
+    false,
+    false,
+    "range_implementor",
+  );
+  expect(
+    await reuseStatus(
+      "goal-placement-repair-reuse-claude",
+      evidence.observations,
+      evidence.artifacts,
+    ),
+  ).toBe("passed");
 });
 
 test("Claude repair reuse recognizes public Review and rejects retired provider ancestry", async () => {

@@ -76,7 +76,15 @@ else
   usage
 fi
 
+all_packages_required=$select_all
 if [ "$select_all" = false ]; then
+  if changed python-packages.txt .github/workflows/python-quality.yml \
+    scripts/check-python scripts/check-python-inventory scripts/detect-python-quality-changes \
+    scripts/test-python-coverage scripts/test-python-inventory scripts/test-python-quality-changes \
+    scripts/verify-python-coverage scripts/verify-python-quality-results; then
+    all_packages_required=true
+  fi
+
   if changed package.json bun.lock bunfig.toml tsconfig.json sevro.json python-packages.txt \
     scripts/setup-sevro-linux ':(glob)scripts/**/*.ts' evals \
     .agents/skills/darrow-guide .claude/skills/darrow-guide \
@@ -137,7 +145,7 @@ while IFS= read -r package; do
     installed_pin_required=true
   fi
 
-  selected=$select_all
+  selected=$all_packages_required
   if [ "$selected" = false ]; then
     root=$(plugin_root "$package")
     if changed "$root" ':(exclude,icase)**/README' ':(exclude,icase)**/README.*'; then

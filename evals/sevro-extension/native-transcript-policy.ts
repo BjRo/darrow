@@ -255,10 +255,14 @@ function claudeImplementors(tools: Row[], nested: Row[] | null): Row[] {
 function sendsTo(block: Row, name: unknown, resultText: string): boolean {
   if (block.type !== "tool_use" || block.name !== "SendMessage") return false;
   const target = row(block.input)?.to;
+  const returnedIds = [
+    ...resultText.matchAll(/(?:^|\n)\s*agentId:\s*([A-Za-z0-9_-]+)(?=\s|$)/g),
+  ];
   return (
     typeof target === "string" &&
     target.length > 0 &&
-    (target === name || resultText.includes(target))
+    (target === name ||
+      (returnedIds.length === 1 && target === returnedIds[0]![1]))
   );
 }
 

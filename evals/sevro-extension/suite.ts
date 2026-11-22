@@ -4,7 +4,7 @@ import { mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { isDeepStrictEqual, parseArgs } from "node:util";
 import { parse as parseYaml } from "yaml";
-import { preflightCaseDetails, selectCaseIds } from "./index";
+import { preflightCaseDetails, selectRunCases } from "./index";
 import { pathToFileURL } from "node:url";
 import { sevroCommand, sevroEnvironment } from "./sevro-command";
 import { activationGate, type ActivationExpectation } from "./activation";
@@ -44,6 +44,7 @@ import {
 
 const repositoryRoot = resolve(import.meta.dir, "../..");
 type Harness = "codex" | "claude";
+type CaseIdsByHarness = Partial<Record<Harness, string[]>>;
 
 function object(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value))
@@ -277,6 +278,8 @@ function suiteInvocation(argv: string[]) {
     cases: values.case,
     hostOptions: null as Partial<Record<Harness, string[]>> | null,
     caseRoutes: {} as CaseRoutes,
+    canonicalCaseRoutes: {} as CaseRoutes,
+    caseIdsByHarness: {} as CaseIdsByHarness,
     benchmarkConditions: {} as SuiteConditions,
     benchmarkConditionDefinitions: new Map<string, BenchmarkCondition>(),
     ...evidenceLimits(values.trials!, values.threshold!),
@@ -578,6 +581,25 @@ type CellSelection = {
   recordChecksRequested: boolean;
 };
 
+function requestedCellRoute(
+  request: SuiteRequest,
+  mode: SuiteConfig["modes"][number],
+  harness: Harness,
+  caseId: string,
+): CandidateRoute {
+  const route = requestedCandidateRoute(
+    mode,
+    harness,
+    caseId,
+    request.caseRoutes,
+  );
+  const canonical = request.canonicalCaseRoutes[harness]?.[caseId];
+  return {
+    model: route.model ?? canonical?.model ?? null,
+    effort: route.effort ?? canonical?.effort ?? null,
+  };
+}
+
 function cellCommand(request: SuiteRequest, selected: CellSelection) {
   const { mode, caseId, harness, index } = selected;
   const cellRoot = join(request.resultsRoot, `cell-${index}`);
@@ -597,7 +619,7 @@ function cellCommand(request: SuiteRequest, selected: CellSelection) {
     "--",
     ...candidateArguments(
       [...request.forwarded, ...(request.hostOptions?.[harness] ?? [])],
-      requestedCandidateRoute(mode, harness, caseId, request.caseRoutes),
+      requestedCellRoute(request, mode, harness, caseId),
     ),
     "--condition",
     mode.condition,
@@ -622,12 +644,7 @@ function cellExpectation(
     threshold: request.threshold,
     exitCode,
     activation: selected.activation,
-    requestedRoute: requestedCandidateRoute(
-      mode,
-      harness,
-      caseId,
-      request.caseRoutes,
-    ),
+    requestedRoute: requestedCellRoute(request, mode, harness, caseId),
     benchmarkCondition:
       request.benchmarkConditions[mode.name]?.[harness] ?? null,
     withoutSkill: mode.withoutSkill,
@@ -878,18 +895,24 @@ function metricText(value: number | null): string {
 
 function compareDefinition(input: {
   definition: Ablation;
-  caseIds: string[];
   cells: Cell[];
   rows: Record<string, unknown>[];
   hasReport: boolean;
   harnesses: Harness[];
+  caseIdsByHarness: CaseIdsByHarness;
 }) {
-  const { definition, caseIds, cells, rows, hasReport, harnesses } = input;
+  const { definition, cells, rows, hasReport, harnesses } = input;
   const errors: string[] = [];
   const cases: NonNullable<ReturnType<typeof matchedCell>["comparison"]>[] = [];
   if (!hasReport) errors.push("public Sevro report is unavailable");
+  for (const harness of harnesses)
+    if (!Array.isArray(input.caseIdsByHarness[harness]))
+      errors.push(`${harness}: case eligibility is missing`);
   for (const { caseId, harness } of harnesses.flatMap((harness) =>
-    caseIds.map((caseId) => ({ caseId, harness })),
+    (input.caseIdsByHarness[harness] ?? []).map((caseId) => ({
+      caseId,
+      harness,
+    })),
   )) {
     const baseline = cells.filter(
       (cell) =>
@@ -961,19 +984,20 @@ export function analyzeAblations(input: {
   cells: Cell[];
   report: Record<string, unknown> | null;
   harnesses: Harness[];
+  caseIdsByHarness: CaseIdsByHarness;
 }) {
-  const { definitions, caseIds, cells, report } = input;
+  const { definitions, cells, report } = input;
   const reportRows = Array.isArray(report?.rows)
     ? report.rows.map((row) => object(row, "public report row"))
     : [];
   const comparisons = definitions.map((definition) =>
     compareDefinition({
       definition,
-      caseIds,
       cells,
       rows: reportRows,
       hasReport: report !== null,
       harnesses: input.harnesses,
+      caseIdsByHarness: input.caseIdsByHarness,
     }),
   );
   const errors = comparisons.flatMap((comparison) =>
@@ -994,6 +1018,7 @@ async function ablationReports(input: {
   cells: Cell[];
   reportPath: string | null;
   harnesses: Harness[];
+  caseIdsByHarness: CaseIdsByHarness;
 }) {
   const { resultsRoot, definitions, reportPath } = input;
   if (!definitions.length) return null;
@@ -1025,11 +1050,7 @@ async function saveManifest(resultsRoot: string, manifest: unknown) {
   );
 }
 
-async function preflightCases(
-  request: SuiteRequest,
-  suite: SuiteConfig,
-  caseIds: string[],
-) {
+async function preflightCases(request: SuiteRequest, suite: SuiteConfig) {
   const expectations = new Map<
     string,
     {
@@ -1039,8 +1060,8 @@ async function preflightCases(
   >();
   for (const mode of suite.modes) {
     for (const harness of suite.harnesses) {
-      for (const caseId of caseIds) {
-        requestedCandidateRoute(mode, harness, caseId, request.caseRoutes);
+      for (const caseId of request.caseIdsByHarness[harness]!) {
+        requestedCellRoute(request, mode, harness, caseId);
         const policy = preflightBenchmarkPolicy(mode, harness, caseId);
         const details = await preflightCaseDetails({
           projectRoot: pathToFileURL(request.projectRoot).href,
@@ -1097,12 +1118,21 @@ function seededShuffle<T>(items: T[], seed: string): T[] {
   return result;
 }
 
-function plannedCells(suite: SuiteConfig, caseIds: string[], seed: string) {
+function plannedCells(
+  suite: SuiteConfig,
+  caseIdsByHarness: CaseIdsByHarness,
+  seed: string,
+) {
   const blocks = suite.harnesses.flatMap((harness) =>
     suite.modes.map((mode) => ({ harness, mode })),
   );
   return seededShuffle(blocks, seed)
-    .flatMap((block) => caseIds.map((caseId) => ({ ...block, caseId })))
+    .flatMap((block) =>
+      (caseIdsByHarness[block.harness] ?? []).map((caseId) => ({
+        ...block,
+        caseId,
+      })),
+    )
     .map((cell, index) => ({ ...cell, index: index + 1 }));
 }
 
@@ -1150,6 +1180,8 @@ function suiteManifest(
     hostOptionsSha256: inputs.hostOptionsDigest,
     modes: suite.modes,
     caseRoutes: suite.caseRoutes,
+    canonicalCaseRoutes: request.canonicalCaseRoutes,
+    caseIdsByHarness: request.caseIdsByHarness,
     benchmarkConditions: request.benchmarkConditions,
     ablations: suite.ablations,
     caseIds: inputs.caseIds,
@@ -1212,8 +1244,8 @@ async function suiteInputs(request: SuiteRequest) {
       resultsRoot.startsWith(`${projectRoot}${sep}`))
   )
     throw new Error("ablation results root must be outside the project root");
-  const caseIds = await selectCaseIds(projectRoot, suite.filters);
-  const expectations = await preflightCases(request, suite, caseIds);
+  const caseIds = await selectSuiteCases(request, suite);
+  const expectations = await preflightCases(request, suite);
   return {
     source,
     suite,
@@ -1223,11 +1255,35 @@ async function suiteInputs(request: SuiteRequest) {
   };
 }
 
+async function selectSuiteCases(request: SuiteRequest, suite: SuiteConfig) {
+  for (const harness of suite.harnesses) {
+    try {
+      const selected = await selectRunCases(
+        request.projectRoot,
+        suite.filters,
+        {},
+        harness,
+      );
+      request.caseIdsByHarness[harness] = selected.ids;
+      request.canonicalCaseRoutes[harness] = selected.routes;
+    } catch (error) {
+      if (!(error instanceof Error) || error.message !== "No cases matched.")
+        throw error;
+      request.caseIdsByHarness[harness] = [];
+    }
+  }
+  const ids = [
+    ...new Set(Object.values(request.caseIdsByHarness).flat()),
+  ].sort();
+  if (!ids.length) throw new Error("No cases matched.");
+  return ids;
+}
+
 async function prepareSuite(argv: string[]) {
   const request = suiteInvocation(argv);
   const inputs = await suiteInputs(request);
   const { suite, caseIds, expectations } = inputs;
-  const plan = plannedCells(suite, caseIds, request.orderSeed);
+  const plan = plannedCells(suite, request.caseIdsByHarness, request.orderSeed);
   const manifest = suiteManifest(request, suite, inputs, plan);
   const cells = plan.map((cell) => {
     const expectation = expectations.get(
@@ -1257,11 +1313,11 @@ export async function planSuite(argv: string[]) {
       condition: selected.mode.condition,
       activation: selected.activation,
       recordChecksRequested: selected.recordChecksRequested,
-      requestedRoute: requestedCandidateRoute(
+      requestedRoute: requestedCellRoute(
+        request,
         selected.mode,
         selected.harness,
         selected.caseId,
-        request.caseRoutes,
       ),
       ...requestedBenchmarkPolicy(selected.mode, selected.caseId),
       command,
@@ -1292,6 +1348,7 @@ export async function runSuite(argv: string[]) {
     cells: manifest.cells,
     reportPath: manifest.report.jsonPath,
     harnesses: suite.harnesses,
+    caseIdsByHarness: request.caseIdsByHarness,
   });
   await saveManifest(resultsRoot, manifest);
   return {
