@@ -327,7 +327,7 @@ test("Darrow extension resolves supported cases and rejects unsupported fixtures
   });
   const unchangedHead = await command<ExtensionReply>(
     [process.execPath, extension],
-    request("resolve", resolveParams("create-commit-clean-tree")),
+    request("resolve", resolveParams("prepare-task-branch-current")),
   );
   expect(unchangedHead.code, unchangedHead.stderr).toBe(0);
   expect(unchangedHead.value.result.cases[0]!.checks).toContainEqual({
@@ -337,7 +337,7 @@ test("Darrow extension resolves supported cases and rejects unsupported fixtures
   });
   const advancedHead = await command<ExtensionReply>(
     [process.execPath, extension],
-    request("resolve", resolveParams("create-commit-no-attribution")),
+    request("resolve", resolveParams("implement-approved-local")),
   );
   expect(advancedHead.code, advancedHead.stderr).toBe(0);
   expect(advancedHead.value.result.cases[0]!.checks).toEqual(
@@ -2669,7 +2669,7 @@ test("ticket composition packages only selected Git skills", async () => {
             ],
             additionalSkills: [
               "plugins/capability/darrow-git/skills/prepare-task-branch",
-              "plugins/capability/darrow-git/skills/create-commit",
+
               "plugins/capability/darrow-git/skills/create-pr",
             ],
             activation: {
@@ -2701,7 +2701,7 @@ test("ticket composition packages only selected Git skills", async () => {
   expect(paths).toEqual(
     expect.arrayContaining([
       ".sevro-marketplace/plugins/2-darrow-git/skills/prepare-task-branch/SKILL.md",
-      ".sevro-marketplace/plugins/2-darrow-git/skills/create-commit/SKILL.md",
+
       ".sevro-marketplace/plugins/2-darrow-git/skills/create-pr/SKILL.md",
     ]),
   );

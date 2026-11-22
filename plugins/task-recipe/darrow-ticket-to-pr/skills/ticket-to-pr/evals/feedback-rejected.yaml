@@ -180,36 +180,6 @@ fixture:
       `fixture-prepare-branch fix/DAR-42-migration` exactly once after the
 
       caller selected that name. Never prepare a branch during discovery.
-    .claude/skills/create-commit/SKILL.md: >
-      ---
-
-      name: create-commit
-
-      description: Create exactly one Conventional Commit for the ready fixture
-      change after verification.
-
-      ---
-
-
-      # Commit the fixture change
-
-
-      Run `fixture-create-commit` exactly once after `bash test.sh` passes.
-    .agents/skills/create-commit/SKILL.md: >
-      ---
-
-      name: create-commit
-
-      description: Create exactly one Conventional Commit for the ready fixture
-      change after verification.
-
-      ---
-
-
-      # Commit the fixture change
-
-
-      Run `fixture-create-commit` exactly once after `bash test.sh` passes.
     .claude/skills/create-pr/SKILL.md: >
       ---
 
@@ -244,6 +214,10 @@ fixture:
       Run `fixture-create-pr` exactly once after the intended commit exists and
 
       return its complete output.
+  hooks:
+    post-commit: |
+      #!/bin/sh
+      git rev-parse HEAD >>.fixture-state/commit-invocations
   bin:
     fixture-read-ticket: >
       #!/usr/bin/env bash
@@ -356,13 +330,6 @@ fixture:
           ;;
         *) exit 64 ;;
       esac
-    fixture-create-commit: |
-      #!/usr/bin/env bash
-      set -eu
-      bash test.sh
-      git add -- src/migration.js test/ test.sh
-      git commit -m 'feat(migration): select strict policy'
-      printf '%s\n' "$(git rev-parse HEAD)" >>.fixture-state/commit-invocations
     fixture-create-pr: >
       #!/usr/bin/env bash
 

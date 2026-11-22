@@ -95,7 +95,10 @@ wherever it runs. Expected cost or speed gains are not yet measured claims.
 
 Optional isolated ticket workers receive their own branches and linked
 worktrees when fresh context repays the overhead. Bind a finite ticket set and
-explicit authority for those effects first. The main thread keeps the delivery
+explicit authority for those effects first. Claude allocates workers through
+native `Agent` worktree isolation; Codex uses the bound Git branch/worktree
+capability. Claude retains host-chosen paths and branch names without changing
+the native sandbox. The main thread keeps the delivery
 checkout and cherry-picks returned commits into one integration branch. This
 strategy requires owner acceptance accounting and independent Review of the
 complete specification after successful combined checks, including routine-risk

@@ -52,7 +52,8 @@ Host requirements and validation limits belong to Artificer.
 ## Hosts and prerequisites
 
 Codex or Claude Code with a compatible host-visible approved-work implement recipe
-and its required Adaptive Goal, selected TDD, Review, Git and principles providers.
+and its required Adaptive Goal, selected TDD, Review and principles providers.
+Commits use native Git under repository instructions.
 The delegated owner needs the tracker, Git, forge access, and target repository
 tools required by the requested work. Missing capabilities remain missing;
 the recipe does not install them or read sibling plugin files.

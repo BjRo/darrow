@@ -28,7 +28,7 @@
     {
       "name": "darrow-git",
       "source": "./plugins/capability/darrow-git",
-      "description": "Intent-triggered Git skills for branches, commits, PRs, and candidate-bound PR evidence"
+      "description": "Intent-triggered Git skills for branches, PRs, and candidate-bound PR evidence"
     },
     {
       "name": "darrow-readiness-gate",

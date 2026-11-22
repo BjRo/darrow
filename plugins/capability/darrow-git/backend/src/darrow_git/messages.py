@@ -1,4 +1,4 @@
-"""Conventional subjects and attribution guards shared by commits and PRs."""
+"""Conventional subjects and attribution guards for PR titles and descriptions."""
 
 import re
 

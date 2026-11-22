@@ -57,7 +57,11 @@ all of them before integration or further assignment. Use only Adaptive Goal's
 own scoped agents; a sibling plugin's agent may not be installed.
 
 Invoke the returned exact `subagent_type` with `run_in_background: false`,
-no per-call model override and no unrequested worktree isolation. Its prompt
+no per-call model override. When the explicitly authorized isolated ticket
+worker strategy is selected, set `isolation: "worktree"` on this initial call;
+Claude owns allocation. Follow [isolated ticket workers](isolated-ticket-workers.md)
+for base checks, returned paths and retained repairs. Other assignments do not
+request worktree isolation. Its prompt
 contains the bounded assignment, repository/scope, acceptance, authority,
 preserved work, checks, exact skill references and expected evidence. State that
 the child owns its assignment, not the native goal. The scoped frontmatter pins
