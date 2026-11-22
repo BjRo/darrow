@@ -1,5 +1,4 @@
 id: orchestration-oss-go-git-insteadof
-invariant: ORCH-OSS-PUBLIC-CONFIG-API
 prompt: |-
   Work directly in this go-git repository and implement the requested behavior. Do not commit or publish changes.
 

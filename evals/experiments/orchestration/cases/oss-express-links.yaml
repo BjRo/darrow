@@ -1,5 +1,4 @@
 id: orchestration-oss-express-links
-invariant: ORCH-OSS-SECURITY-HARDENING
 prompt: |-
   Work directly in this Express repository and implement the requested behavior. Do not commit or publish changes.
 

@@ -1,7 +1,4 @@
 id: goal-verification-oscillation
-invariant: ADL-V1,ADL-A4,LC-C5
-goal_report: forbidden
-goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Advice only; do not launch or perform work. The retained owner
   used one shared repair attempt. Combined follow-up reports unchanged review failure

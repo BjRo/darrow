@@ -3,7 +3,6 @@ activation: positive
 activation_includes: [principle-type-system-discipline]
 activation_excludes: [principle-attack-the-premise]
 mount_plugin_skills: true
-invariant: PF-R1,PF-R2,PF-AC1,PF-AC3
 expect_head_change: false
 prompt: >-
   {{skill_invocation}} Recommend a TypeScript function signature for the

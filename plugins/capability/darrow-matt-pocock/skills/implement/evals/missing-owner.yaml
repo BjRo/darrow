@@ -1,5 +1,4 @@
 id: implement-missing-owner
-invariant: IMP-C2,IMP-C3,IMP-C4
 activation: positive
 mount_plugin_skills: true
 prompt: |

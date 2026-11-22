@@ -1,5 +1,4 @@
 id: create-commit-body-discipline
-invariant: GW-C5
 activation: positive
 mount_plugin_skills: true
 expect_head_change: true

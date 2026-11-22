@@ -40,7 +40,6 @@ test("Claude repository skill links resolve only to the matching canonical skill
     join(canonical, "evals/probe.yaml"),
     JSON.stringify({
       id: "guide-link-probe",
-      invariant: "EXAMPLE-LINK",
       prompt: "Return ready.",
       fixture: {
         commits: [
@@ -100,7 +99,6 @@ test("case inventory names unsupported cases and fails closed", async () => {
   const cases = join(root, "evals/experiments/sample/cases");
   await mkdir(cases, { recursive: true });
   const base = {
-    invariant: "EXAMPLE-C1",
     prompt: "Return ready.",
     fixture: {
       commits: [{ message: "chore: init", files: { "README.md": "ready\n" } }],
@@ -117,7 +115,7 @@ test("case inventory names unsupported cases and fails closed", async () => {
     JSON.stringify({
       ...base,
       id: "unsupported",
-      transcript_checks: [{ name: "raw", expect_regex: "tool" }],
+      transcript_checks: [{ name: "unknown assertion", kind: "unknown" }],
     }),
   );
   const inventory = await validateCaseInventory(root);
@@ -130,7 +128,7 @@ test("case inventory names unsupported cases and fails closed", async () => {
       {
         id: "unsupported",
         source: await realpath(unsupported),
-        error: expect.stringContaining("transcript check"),
+        error: expect.stringContaining("unsupported transcript kind"),
       },
     ],
   });
@@ -148,7 +146,6 @@ test("resolves continuation prompts including a later skill invocation", async (
   const cases = join(root, "evals/experiments/sample/cases");
   await mkdir(cases, { recursive: true });
   const base = {
-    invariant: "EXAMPLE-C1",
     fixture: {
       commits: [{ message: "chore: init", files: { "README.md": "ready\n" } }],
     },
@@ -227,7 +224,6 @@ test("case inventory includes repository invocation and composition", async () =
     source,
     JSON.stringify({
       id: "repository-probe",
-      invariant: "EXAMPLE-R1",
       activation: "positive",
       prompt: "{{skill_invocation}} Use the probe capability.",
       additional_plugins: ["plugins/capability/provider"],

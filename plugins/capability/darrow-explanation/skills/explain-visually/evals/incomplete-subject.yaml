@@ -1,5 +1,4 @@
 id: explain-visually-incomplete-subject
-invariant: VE-C1,VE-C3,VE-C7
 activation: positive
 mount_plugin_skills: true
 prompt: "{{skill_invocation}} Show me."

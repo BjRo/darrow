@@ -1,7 +1,6 @@
 id: context-usage-explicit-name
 harnesses:
   - codex
-invariant: IA-C1,IA-C3,IA-C4,IA-C6,IA-C7
 activation: positive
 prompt: "{{skill_invocation}} Show my current context usage."
 fixture:

@@ -1,5 +1,4 @@
 id: guide-conflict
-invariant: RG-C3,RG-C2,RG-C4,RG-C8
 activation: positive
 prompt:
   "{{skill_invocation}} The plugin README says complex work starts orchestration

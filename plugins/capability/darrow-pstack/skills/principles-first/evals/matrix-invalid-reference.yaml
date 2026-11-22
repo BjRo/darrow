@@ -1,7 +1,6 @@
 id: pstack-principles-first-matrix-invalid-reference
 activation: positive
 mount_plugin_skills: true
-invariant: PF-R6,PF-AC7
 expect_head_change: false
 prompt: Use a principles-first approach to compare request.md. Do not edit files.
 fixture:

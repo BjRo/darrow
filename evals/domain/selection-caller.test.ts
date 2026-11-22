@@ -36,7 +36,6 @@ async function caseFile(
     JSON.stringify({
       ...extra,
       id,
-      invariant: "SE-C29",
       prompt: "Return ready.",
       fixture: {
         commits: [

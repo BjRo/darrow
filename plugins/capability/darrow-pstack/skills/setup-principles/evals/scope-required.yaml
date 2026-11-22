@@ -1,7 +1,6 @@
 id: pstack-setup-principles-scope-required
 activation: positive
 mount_plugin_skills: true
-invariant: PF-R4,PF-AC5
 expect_head_change: false
 prompt: "{{skill_invocation}} Set up principles-first routing for me with the
   bundled defaults."

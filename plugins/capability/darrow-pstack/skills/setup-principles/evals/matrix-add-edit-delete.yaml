@@ -26,7 +26,6 @@ activation_excludes:
   - principle-never-block-on-the-human
   - principle-encode-lessons-in-structure
 mount_plugin_skills: true
-invariant: PF-R3,PF-R4,PF-AC4,PF-AC10
 expect_head_change: false
 prompt:
   "Customize my repository-scoped principles-first table: delete row old, change row

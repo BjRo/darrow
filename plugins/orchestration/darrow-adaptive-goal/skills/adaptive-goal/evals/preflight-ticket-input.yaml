@@ -1,7 +1,4 @@
 id: goal-preflight-ticket-input
-invariant: ADL-A3,ADL-P2,ADL-S1
-goal_report: forbidden
-goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Implement ticket 64. Skip the default readiness gate. Keep the
   result local. The configured tracker is GitHub repository o/r; use its native
@@ -43,5 +40,5 @@ semantic_output_checks:
       ticket as the source of the options.
 transcript_checks:
   - name: unresolved ticket decision launches no owner
-    not_regex: '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"type":"darrow.goal_agent_completion"'
+    kind: preflight-no-agent-spawn
 native_goal: forbidden

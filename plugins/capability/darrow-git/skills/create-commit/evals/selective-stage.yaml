@@ -1,5 +1,4 @@
 id: create-commit-selective-stage
-invariant: GW-C2
 activation: positive
 mount_plugin_skills: true
 expect_head_change: true

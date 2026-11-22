@@ -3,9 +3,7 @@ candidate_routes:
   codex:
     model: gpt-6.1-sol
     effort: medium
-invariant: TPR-C2,TPR-C3,TPR-C4,TPR-C5,TPR-C6,TPR-C7,TPR-C9,TPR-P2
 expect_head_change: true
-adaptive_goal_composition: true
 activation: positive
 mount_plugin_skills: true
 additional_plugins:
@@ -608,9 +606,9 @@ semantic_output_checks:
       blocked, incomplete, or still requiring action before publication.
 transcript_checks:
   - name: observable plaintext feedback is not rewritten
-    not_regex: '"type":"darrow.codex_native_feedback"[^\n]*"message_representation":"plaintext"[^\n]*"message_matches_expected":false'
+    kind: no-plaintext-feedback-mismatch
   - name: user answer resumes the same native thread
-    expect_regex: '"type":"darrow\.eval\.follow_up_turn"'
+    kind: continuation-boundary
 native_goal: required
 additional_skills:
   - plugins/capability/darrow-matt-pocock/skills/implement

@@ -2,9 +2,6 @@
 # Same follow-up and behavioral checks as goal-steering-without-question.
 # Diagnostic variant: windowctl inspect also supplies the complete parser body.
 id: diagnostic-direct-owner-parser-presented
-invariant: ADL-A2
-goal_report: forbidden
-goal_route_checks: false
 prompt: >-
   Add normalize(input) in src/normalize.js, returning a trimmed string. Keep this
   local. The implementation window is not open yet: inspect the existing parser
@@ -88,6 +85,6 @@ checks:
       EXPECTED
 transcript_checks:
   - name: host records the actual feedback boundary
-    expect_regex: '"type":"darrow\.eval\.follow_up_turn"'
+    kind: continuation-boundary
   - name: Codex feedback boundary retains unchanged-worktree evidence
-    not_regex: '"type":"darrow\.eval\.follow_up_turn"(?![^\n]*"pre_feedback_worktree_unchanged":true)[^\n]*[\s\S]*"type":"darrow\.codex_native_'
+    kind: unchanged-before-continuation

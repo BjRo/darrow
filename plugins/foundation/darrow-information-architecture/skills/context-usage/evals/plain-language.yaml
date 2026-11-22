@@ -1,7 +1,6 @@
 id: context-usage-plain-language
 harnesses:
   - codex
-invariant: IA-C1,IA-C3,IA-C4,IA-C6,IA-C7
 activation: positive
 prompt: Show me how this Codex session’s context window is split up, including
   repository instructions and skills.

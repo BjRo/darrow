@@ -1,8 +1,5 @@
 id: goal-steering-without-question
 activation: positive
-invariant: ADL-A2,ADL-L3,ADL-S3
-goal_report: forbidden
-goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Add normalize(input) in src/normalize.js, returning a trimmed
   string. Keep this local. The implementation window is not open yet: activate the
@@ -87,7 +84,7 @@ checks:
       EXPECTED
 transcript_checks:
   - name: host records the actual feedback boundary
-    expect_regex: '"type":"darrow\.eval\.follow_up_turn"'
+    kind: continuation-boundary
   - name: Codex feedback boundary retains unchanged-worktree evidence
-    not_regex: '"type":"darrow\.eval\.follow_up_turn"(?![^\n]*"pre_feedback_worktree_unchanged":true)[^\n]*[\s\S]*"type":"darrow\.codex_native_'
+    kind: unchanged-before-continuation
 native_goal: required

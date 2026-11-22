@@ -1,6 +1,5 @@
 id: pstack-unslop-explicit-entrypoint
 activation: positive
-invariant: Pstack packaged explicit-only upstream entrypoint
 expect_head_change: false
 prompt: >-
   {{skill_invocation}} Edit announcement.md. Preserve the concrete facts and save the

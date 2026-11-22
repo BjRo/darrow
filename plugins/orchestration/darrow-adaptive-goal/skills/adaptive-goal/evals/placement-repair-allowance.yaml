@@ -1,7 +1,4 @@
 id: goal-placement-repair-allowance
-invariant: ADL-R3,ADL-A4
-goal_report: forbidden
-goal_route_checks: false
 harnesses: [codex]
 prompt: >-
   {{skill_invocation}} Advice only; do not launch or perform work. The retained goal
@@ -28,5 +25,5 @@ semantic_output_checks:
       allowance or more than two attempts in total.
 transcript_checks:
   - name: advice launches no agent
-    not_regex: '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"type":"darrow.goal_agent_completion"'
+    kind: no-agent-spawn
 native_goal: forbidden

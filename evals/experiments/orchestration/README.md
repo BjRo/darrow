@@ -17,8 +17,8 @@ failure ownership and evidence interpretation. Use the suite caller's actual
 `--help` for selection, host and result-root options.
 
 The default [suite](suite.yaml) compares vanilla, native-goal and Adaptive Goal
-conditions. Other suites exercise routing, profiles and adaptation. These
-comparisons do not establish a benefit until measured on matched conditions.
+conditions using passive observation. These comparisons do not establish a
+benefit until measured on matched conditions.
 
 For a frozen current-candidate comparison, follow
 [the current-value benchmark](CURRENT-VALUE.md). It tests implementation and

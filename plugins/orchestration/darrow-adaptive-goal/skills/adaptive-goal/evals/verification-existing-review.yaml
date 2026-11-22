@@ -1,13 +1,10 @@
 id: goal-verification-existing-review
 required_plugin_hook: darrow-review
-invariant: ADL-V1,ADL-A4,ADL-C2,ADL-L1,ADL-L2,ADL-L5,LC-C5,CR-C19,CR-E18
 activation: positive
 mount_plugin_skills: true
 activation_includes: [code-review]
 additional_plugins:
   - plugins/capability/darrow-review
-goal_report: forbidden
-goal_route_checks: false
 prompt: "Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR, and UV_CACHE_DIR paths; use the existing Review state configuration. Use {{skill_invocation}} to continue the existing src/config.js candidate. Run bash check.sh, then independently assess the candidate before any change. Use the public workflow of the installed darrow-review:code-review provider. Independent review is the only selected assessment. Originating criteria: TIMEOUT_MS must equal 2500 and RETRY_COUNT must remain 3. Repair only src/config.js within those criteria, refresh invalidated checks and obtain closed follow-up assurance. Complete locally only when current verification clears. No commits, publication, new product behavior or replacement owner is authorized. Report the initial finding and final verification outcome."
 fixture:
   commits:
@@ -52,7 +49,4 @@ semantic_output_checks:
       outcomes suffice; it need not use the word "complete" or identify the owner by
       name. It must not claim publication, replacement of the owner, or an unresolved
       condition that prevents completion.
-transcript_checks:
-  - name: no lifecycle ledger
-    not_regex: adaptive-goal-preflight step
 native_goal: required

@@ -1,5 +1,4 @@
 id: guide-rationale
-invariant: RG-C1,RG-C2,RG-C3,RG-C4,RG-C8
 activation: positive
 prompt: Why doesn't Darrow run a second agent runtime?
 fixture:

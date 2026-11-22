@@ -1,7 +1,6 @@
 id: pstack-setup-principles-matrix-accept-new-default
 activation: positive
 mount_plugin_skills: true
-invariant: PF-R5,PF-AC6
 expect_head_change: false
 prompt: Review my repository-scoped principles-first setup for newly bundled
   routes. Present unconsidered choices before changing my routing.

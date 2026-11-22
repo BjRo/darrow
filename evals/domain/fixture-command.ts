@@ -188,7 +188,6 @@ async function prepareOracle(root: string, options: OracleOptions) {
     join(caseDir, "oracle.yaml"),
     JSON.stringify({
       id,
-      invariant: "SE-C28",
       prompt: "Return fixture ready. This is a deterministic oracle test.",
       fixture,
       checks: options.checks,

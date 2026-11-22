@@ -1,5 +1,4 @@
 id: explain-visually-no-trigger-implementation
-invariant: VE-C1,VE-E1
 activation: negative
 activation_excludes: [explain-visually]
 mount_plugin_skills: true

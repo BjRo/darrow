@@ -1,5 +1,4 @@
 id: readiness-json-explicit-ready
-invariant: IRG-C3,IRG-C9,IRG-E1,IRG-E2,IRG-E9,SE-C9,SE-C10,SE-C11,SE-C14
 activation: positive
 mount_plugin_skills: true
 prompt: >-

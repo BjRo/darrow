@@ -1,7 +1,6 @@
 id: pstack-setup-principles-new-default-offer
 activation: positive
 mount_plugin_skills: true
-invariant: PF-R5,PF-AC6
 expect_head_change: false
 prompt: >-
   {{skill_invocation}} Review my existing repository-scoped principles setup

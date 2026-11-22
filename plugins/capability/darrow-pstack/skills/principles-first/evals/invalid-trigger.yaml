@@ -1,7 +1,6 @@
 id: pstack-principles-first-invalid-trigger
 activation: positive
 mount_plugin_skills: true
-invariant: PF-R6,PF-AC7
 expect_head_change: false
 prompt: >-
   {{skill_invocation}} Compare the designs in request.md and recommend which

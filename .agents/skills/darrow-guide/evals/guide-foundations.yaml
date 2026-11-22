@@ -1,5 +1,4 @@
 id: guide-foundations
-invariant: RG-C1,RG-C2,RG-C4,RG-C8
 activation: positive
 prompt: Which plugins help maintain agent guidance, decisions, and skills, and how are their skills selected?
 fixture:

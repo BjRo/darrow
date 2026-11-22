@@ -4,8 +4,6 @@ candidate_routes:
     model: gpt-6.1-sol
     effort: medium
 activation: positive
-invariant: TPR-C2,TPR-C4,TPR-C7
-goal_report: forbidden
 expect_head_change: false
 prompt: "{{skill_invocation}} https://example.invalid/tickets/404"
 fixture:
@@ -39,4 +37,10 @@ output_checks:
     flags: i
 transcript_checks:
   - name: recipe does not substitute delivery work for adaptive goal
-    not_regex: '(?:"name":"Skill"[^\n]*(?:read-ticket|assess-implementation-readiness|prepare-task-branch)|"type":"darrow.skill_read_probe"[^\n]*"skill":"(?:read-ticket|assess-implementation-readiness|prepare-task-branch)|"tool":"spawn_agent"|"name":"Agent")'
+    kind: inactive-controls
+    forbiddenSkills:
+      - read-ticket
+      - assess-implementation-readiness
+      - prepare-task-branch
+    forbidSpawn: true
+    forbidAgentTool: true

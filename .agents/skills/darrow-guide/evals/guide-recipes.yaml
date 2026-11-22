@@ -1,5 +1,4 @@
 id: guide-recipes
-invariant: RG-C1,RG-C2,RG-C3,RG-C4,RG-C8
 activation: positive
 prompt: What does ticket-to-pr own and can a scheduler invoke it today?
 fixture:

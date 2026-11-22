@@ -1,13 +1,10 @@
 id: implement-ordinary-engineering-nonactivation
-invariant: IMP-C2,IMP-C4
 activation: negative
 activation_excludes:
   - implement
   - adaptive-goal
 additional_plugins:
   - plugins/orchestration/darrow-adaptive-goal
-goal_report: forbidden
-goal_route_checks: false
 native_goal: forbidden
 prompt: >-
   Add an exported triple(value) function to src/math.js and a focused test for a

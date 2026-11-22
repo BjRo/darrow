@@ -1,5 +1,4 @@
 id: guide-follow-up
-invariant: RG-C1,RG-C2,RG-C4,RG-C5,RG-C8
 activation: positive
 prompt: What is Darrow for?
 follow_up_prompt:

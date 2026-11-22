@@ -1,7 +1,6 @@
 import { expect, test } from "bun:test";
 import { readFixtureCase, runFixtureChecks } from "./fixture-command";
 import { prepareUvFixtureRuntime } from "./fixture-runtime";
-import { validateCaseInventory } from "../sevro-extension/index";
 import { policyProject } from "./policy-project";
 import { access, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -9,13 +8,6 @@ import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-
-test("the whole case inventory resolves without retired response checks", async () => {
-  const inventory = await validateCaseInventory(root);
-  expect(inventory.failures).toEqual([]);
-  expect(inventory.valid).toBe(true);
-  expect(inventory.supported).toBe(inventory.total);
-});
 
 test("fixture setup and checks reference existing case resources", async () => {
   for (const pattern of [

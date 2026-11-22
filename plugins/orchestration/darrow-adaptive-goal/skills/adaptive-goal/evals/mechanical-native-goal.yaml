@@ -1,7 +1,4 @@
 id: goal-preflight-mechanical-native-goal
-invariant: ADL-C1,ADL-R1,ADL-L1,ADL-L5
-goal_report: forbidden
-goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Alphabetize the three entries in NOTES.md. Acceptance is exact
   alphabetical order under the existing heading, covered completely by bash check.sh.
@@ -31,13 +28,8 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: verification evidence is returned
-    expect_regex: "check\\.sh"
+    expect_regex: check\.sh
     flags: i
-  - name: no lifecycle protocol is reported
-    not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
-transcript_checks:
-  - name: no lifecycle ledger is used
-    not_regex: adaptive-goal-preflight step|Protocol ledger
 semantic_output_checks:
   - name: mechanical owner reports completion
     proposition:

@@ -1,9 +1,6 @@
 id: implement-approved-local-claude
-invariant: IMP-C1,IMP-C2,IMP-C3,IMP-C4,IMP-C5
 activation: positive
 mount_plugin_skills: true
-goal_report: forbidden
-goal_route_checks: false
 expect_head_change: true
 native_goal: required
 additional_plugins:

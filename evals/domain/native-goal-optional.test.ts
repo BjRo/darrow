@@ -5,8 +5,6 @@ import { policyProject } from "./policy-project";
 test("optional native goal accepts observed activation or absence", async () => {
   const project = await policyProject(
     {
-      goal_report: "forbidden",
-      goal_route_checks: false,
       native_goal: "optional",
     },
     { plugin: "darrow-adaptive-goal", skill: "adaptive-goal" },
@@ -56,8 +54,6 @@ test("completed delivery requires native completion rather than activation or a 
   const project = await policyProject(
     {
       native_goal: "complete",
-      goal_report: "forbidden",
-      goal_route_checks: false,
     },
     { plugin: "darrow-adaptive-goal", skill: "adaptive-goal" },
   );

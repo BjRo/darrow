@@ -1,8 +1,5 @@
 id: goal-ordinary-engineering-does-not-activate
-invariant: ADL-P1,ADL-P3
 activation: negative
-goal_report: forbidden
-goal_route_checks: false
 prompt: >-
   Add an exported triple(value) function to src/math.js and a focused test for a
   negative number. Acceptance is that bash test.sh passes. Keep the change local.
@@ -30,5 +27,5 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
 transcript_checks:
   - name: Adaptive Goal is not selected for ordinary engineering intent
-    not_regex: '"skill":"adaptive-goal"|adaptive-goal-preflight prepare'
+    kind: inactive
 native_goal: forbidden

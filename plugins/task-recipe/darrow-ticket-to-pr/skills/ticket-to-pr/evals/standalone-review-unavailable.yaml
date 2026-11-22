@@ -6,7 +6,6 @@ harnesses: [claude]
 activation: negative
 activation_includes: [adaptive-goal]
 mount_plugin_skills: true
-invariant: PF-R7,PF-AC8,ADL-C1,ADL-C2,ADL-L2,ADL-X1
 additional_plugins:
   - plugins/orchestration/darrow-adaptive-goal
 prompt: >-

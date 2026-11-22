@@ -1,5 +1,4 @@
 id: create-commit-no-trigger-inspect-staged
-invariant: GW-C1
 activation: negative
 activation_excludes: [create-commit]
 mount_plugin_skills: true

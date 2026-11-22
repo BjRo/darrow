@@ -1,6 +1,5 @@
 id: doctor-adaptive-goal-direct-codex
 harnesses: [codex]
-invariant: ADL-D1
 activation: positive
 prompt: >-
   {{skill_invocation}} Check whether this isolated Codex environment is
@@ -40,4 +39,10 @@ semantic_output_checks:
       requirements of this check.
 transcript_checks:
   - name: orchestration does not activate
-    not_regex: '"skill":"adaptive-goal"|adaptive-goal-preflight|"tool":"spawn_agent"|"name":"Agent"'
+    kind: inactive-controls
+    forbiddenSkills:
+      - adaptive-goal
+    forbiddenCommandTerms:
+      - adaptive-goal-preflight
+    forbidSpawn: true
+    forbidAgentTool: true

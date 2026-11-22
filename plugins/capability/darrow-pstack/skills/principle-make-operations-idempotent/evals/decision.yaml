@@ -1,7 +1,6 @@
 id: pstack-principle-make-operations-idempotent-decision
 activation: positive
 mount_plugin_skills: true
-invariant: PF-R8,PF-AC9
 expect_head_change: false
 prompt:
   Use principle-make-operations-idempotent for the concrete decision in decision.md.

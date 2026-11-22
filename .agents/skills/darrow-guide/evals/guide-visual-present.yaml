@@ -1,5 +1,4 @@
 id: guide-visual-present
-invariant: RG-C6,RG-C2,RG-C4,RG-C8
 activation: positive
 prompt: "{{skill_invocation}} Show how Darrow's layers relate in a compact visual."
 fixture:

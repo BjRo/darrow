@@ -20,7 +20,6 @@ test("direct caller preserves an explicit Codex app-server route", async () => {
     join(directory, "case.yaml"),
     JSON.stringify({
       id: "route-probe",
-      invariant: "SE-C33",
       prompt: "Return ready",
       fixture: {
         commits: [{ message: "Initial", files: { "README.md": "fixture" } }],

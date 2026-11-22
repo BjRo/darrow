@@ -1,5 +1,4 @@
 id: create-branch-missing-provider-token
-invariant: GW-B1
 activation: positive
 mount_plugin_skills: true
 prompt: "Start a branch for the active ticket provider's ticket about preserving identifiers, but no canonical provider identifier was supplied."

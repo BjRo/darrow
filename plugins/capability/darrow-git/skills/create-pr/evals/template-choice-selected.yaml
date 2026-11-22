@@ -1,5 +1,4 @@
 id: create-pr-template-choice-selected
-invariant: GW-P8
 activation: positive
 mount_plugin_skills: true
 prompt: Open a PR for the retry work using the bugfix.md PR template.

@@ -41,7 +41,6 @@ async function fixture() {
       join(cases, id + ".yaml"),
       JSON.stringify({
         id,
-        invariant: "EXAMPLE-C1",
         prompt: "Return ready.",
         fixture: {
           commits: [
@@ -371,7 +370,7 @@ test("direct caller rejects invalid explicit Sevro routes without fallback", asy
   }
 });
 
-test("direct caller keeps the default enforced condition distinct from passive", async () => {
+test("direct caller preserves an explicitly unsupported enforced condition", async () => {
   const { root, binary, credential } = await fixture();
   const called = join(root, "candidate-called");
   await writeFile(
@@ -387,6 +386,8 @@ touch '${called.replaceAll("'", "'\\''")}'
     root,
     "--harness",
     "codex",
+    "--owner-evaluation",
+    "enforced",
     "--case",
     "alpha",
     "--trials",
@@ -840,7 +841,6 @@ test.skipIf(!supportsNativeSandbox)(
         join(skill, "evals/activation.yaml"),
         JSON.stringify({
           id: "direct-activation",
-          invariant: "EXAMPLE-ACTIVATION",
           activation: "positive",
           prompt: "Return ready.",
           fixture: {

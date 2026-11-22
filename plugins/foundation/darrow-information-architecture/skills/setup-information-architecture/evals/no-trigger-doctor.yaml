@@ -1,5 +1,4 @@
 id: setup-information-architecture-no-trigger-doctor
-invariant: IA-S7,IA-S11
 activation: negative
 activation_excludes: [setup-information-architecture, context-usage]
 mount_plugin_skills: true

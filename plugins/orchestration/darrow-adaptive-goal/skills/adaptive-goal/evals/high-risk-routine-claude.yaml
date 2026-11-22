@@ -1,8 +1,5 @@
 id: goal-preflight-high-risk-routine-claude
 required_plugin_hook: darrow-review
-invariant: ADL-C1,ADL-C2,ADL-L2,ADL-L5,ADL-S3,CR-E18
-goal_report: forbidden
-goal_route_checks: false
 activation: positive
 mount_plugin_skills: true
 activation_includes:
@@ -137,9 +134,6 @@ checks:
       uv run --quiet --no-project "$launcher" \
 
       adaptive-goal-fixture proof current
-output_checks:
-  - name: no lifecycle protocol is reported
-    not_regex: darrow-native-goal-report|Protocol ledger|route_verified
 semantic_output_checks:
   - name: high-risk owner reports completion
     proposition: The response reports the requested outcome as complete, with no
@@ -148,9 +142,6 @@ semantic_output_checks:
     proposition: The response reports that independent review passed or found no
       blocking findings for the completed change. It need not repeat the risk
       classification.
-transcript_checks:
-  - name: no lifecycle ledger is used
-    not_regex: adaptive-goal-preflight step|Protocol ledger
 native_goal: required
 harnesses:
   - claude

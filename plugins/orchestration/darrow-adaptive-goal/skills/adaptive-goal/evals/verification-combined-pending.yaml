@@ -1,7 +1,4 @@
 id: goal-verification-combined-pending
-invariant: ADL-A4,ADL-V1,LC-C5
-goal_report: forbidden
-goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Advice only; do not launch or perform work. The retained owner
   selected independent review and a compatible QA assessment through its public workflow.
@@ -33,5 +30,5 @@ semantic_output_checks:
       ownership transfer.
 transcript_checks:
   - name: advice launches no agent
-    not_regex: '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"type":"darrow.goal_agent_completion"'
+    kind: no-agent-spawn
 native_goal: forbidden

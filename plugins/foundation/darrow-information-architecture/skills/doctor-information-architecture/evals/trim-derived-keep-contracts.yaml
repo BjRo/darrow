@@ -1,5 +1,4 @@
 id: doctor-information-architecture-trim-derived-keep-contracts
-invariant: IA-D2,IA-D3,IA-D9,IA-D12
 activation: competition
 mount_plugin_skills: true
 prompt: >-

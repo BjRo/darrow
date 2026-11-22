@@ -1,7 +1,6 @@
 id: pstack-setup-principles-export-defaults
 activation: positive
 mount_plugin_skills: true
-invariant: PF-R3,PF-AC4,PF-AC9
 expect_head_change: false
 prompt: "{{skill_invocation}} Export the complete bundled editable default
   routing table to exported-principles.md. Do not create repository or personal

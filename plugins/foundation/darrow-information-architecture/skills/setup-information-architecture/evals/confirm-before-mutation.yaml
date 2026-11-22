@@ -1,5 +1,4 @@
 id: setup-information-architecture-confirm-before-mutation
-invariant: IA-S7,IA-S11
 activation: positive
 mount_plugin_skills: true
 prompt: >-

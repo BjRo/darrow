@@ -1,5 +1,4 @@
 id: explain-visually-indirect-state-transitions
-invariant: VE-C1,VE-C2,VE-C3,VE-C5,VE-C6,VE-C7
 activation: positive
 mount_plugin_skills: true
 prompt: >-

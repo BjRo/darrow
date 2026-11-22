@@ -1,7 +1,4 @@
 id: goal-placement-cheaper-delegation-claude
-invariant: ADL-R1,ADL-R3,ADL-L1,ADL-L5
-goal_report: forbidden
-goal_route_checks: false
 harnesses: [claude]
 candidate_routes:
   claude: { model: claude-opus-5-5, effort: high }

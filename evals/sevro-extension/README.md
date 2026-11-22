@@ -70,6 +70,33 @@ Doctor's `context_metrics: <shell check name>` compares its required per-runtime
 before/after lines with the named shell check's captured measurement digest.
 Missing or invalid response or measurement evidence stays unavailable.
 
+## Transcript checks
+
+Declare the observed fact directly. For example:
+
+```yaml
+transcript_checks:
+  - name: implementation uses the selected route
+    kind: route
+    model: gpt-6-luna
+    effort: high
+    claudeTypes: [darrow-adaptive-goal:adaptive-goal-sonnet-5-5-medium]
+  - name: source waits for the user answer
+    kind: unchanged-before-continuation
+```
+
+The [declaration validator](transcript-policy.ts) owns supported kinds and fields.
+Use `assessment-readers` with placement, axes and routes for independent readers;
+`supporting-skill-read` with `skill` for supporting activation; and
+`inactive-controls` with `forbiddenSkills`, `forbiddenCommandTerms`,
+`forbidSpawn` or `forbidAgentTool` for absence checks. Skill absence requires
+complete activation evidence. Command absence inspects actual command executions.
+Missing, partial or contradictory required evidence remains unavailable.
+
+Native-goal checks consume bound goal state. Transcript checks retain their declared
+task or diagnostic role. Historical transcript regexes and specification labels
+are not accepted case fields.
+
 ## Runtime configuration
 
 Sevro reads the repository's [`sevro.json`](../../sevro.json) for every case in
@@ -233,14 +260,14 @@ separately. A single passing trial is not a reliability claim.
 
 ```sh
 bun run eval:orchestration \
-  --suite evals/experiments/orchestration/localized-routing-policy-suite.yaml \
-  --harness codex --mode adaptive-policy-passive \
+  --suite evals/experiments/orchestration/suite.yaml \
+  --harness codex --mode darrow-adaptive-goal \
   --trials 1 --threshold 1 --no-judge \
   --output /absolute/path/to/results
 ```
 
-Use `--case`, `--harness` and `--mode` to focus a suite. Supported passive
-modes must be selected explicitly. Bundled hosts reject enforced execution;
+Use `--case`, `--harness` and `--mode` to focus a suite. Modes default to passive
+observation. Bundled hosts reject enforced execution;
 an enforced request never silently becomes passive. Native goal cases on Codex
 use `--codex-entrypoint app-server`.
 

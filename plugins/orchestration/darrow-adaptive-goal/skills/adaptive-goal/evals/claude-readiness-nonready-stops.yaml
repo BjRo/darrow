@@ -1,8 +1,5 @@
 id: claude-readiness-nonready-stops
 harnesses: [claude]
-invariant: ADL-P2,ADL-L2,ADL-X1
-goal_report: forbidden
-goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Implement the authoritative specification in REQUEST.md.
   Repository policy requires an implementation-readiness assessment before mutation, and
@@ -47,11 +44,9 @@ semantic_output_checks:
     proposition: The response does not claim that implementation occurred or completed.
 transcript_checks:
   - name: Claude invokes the readiness skill exactly once
-    expect_regex: '"name":"Skill"[^\r\n]*"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"'
+    kind: readiness-once
   - name: Claude does not retry readiness without a user resolution
-    not_regex: '"name":"Skill"[^\r\n]*"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"[\s\S]*"name":"Skill"[^\r\n]*"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"'
+    kind: readiness-no-retry
   - name: Claude launches no owner before ready
-    not_regex: '"name":"Agent"[^\r\n]*"subagent_type":"darrow-adaptive-goal:adaptive-goal-'
-  - name: Claude uses no lifecycle ledger
-    not_regex: adaptive-goal-preflight step|darrow-native-goal-report
+    kind: no-claude-owner
 native_goal: forbidden

@@ -1,7 +1,4 @@
 id: goal-placement-coupled-sequential-claude
-invariant: ADL-R3,ADL-L1,ADL-L5
-goal_report: forbidden
-goal_route_checks: false
 harnesses: [claude]
 candidate_routes:
   claude: { model: claude-sonnet-5-5, effort: low }

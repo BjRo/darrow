@@ -1,5 +1,4 @@
 id: guide-layers
-invariant: RG-C1,RG-C2,RG-C4,RG-C8
 activation: positive
 prompt:
   At the layer level, explain how Darrow's layers support one another, which layers are

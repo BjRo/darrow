@@ -1,7 +1,6 @@
 id: pstack-principles-first-matrix-deleted-and-unmatched
 activation: positive
 mount_plugin_skills: true
-invariant: PF-R1,PF-R3,PF-AC2,PF-AC10
 expect_head_change: false
 prompt:
   Use a principles-first approach to recommend a TypeScript renderer signature for

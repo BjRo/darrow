@@ -4,8 +4,6 @@ candidate_routes:
     model: gpt-6.1-sol
     effort: medium
 activation: positive
-invariant: TPR-C1,TPR-C2
-goal_report: forbidden
 expect_head_change: false
 prompt: >-
   {{skill_invocation}} https://example.invalid/tickets/42
@@ -36,4 +34,6 @@ semantic_output_checks:
       this requirement.
 transcript_checks:
   - name: ambiguous input is not delegated
-    not_regex: '(?:"name":"Skill"[^\n]*adaptive-goal|"type":"darrow.skill_read_probe"[^\n]*"skill":"adaptive-goal")'
+    kind: inactive-controls
+    forbiddenSkills:
+      - adaptive-goal

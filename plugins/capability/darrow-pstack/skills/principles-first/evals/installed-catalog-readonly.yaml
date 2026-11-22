@@ -29,7 +29,6 @@ activation_includes:
   - principle-never-block-on-the-human
   - principle-encode-lessons-in-structure
 mount_plugin_skills: true
-invariant: PF-R1,PF-R8,PF-AC9
 expect_head_change: false
 prompt: "Use a principles-first approach. I explicitly request reading every one
   of the 24 installed bundled principle skills for a catalog audit. Return a

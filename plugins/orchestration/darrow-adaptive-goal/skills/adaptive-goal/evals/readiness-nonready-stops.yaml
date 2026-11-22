@@ -1,7 +1,4 @@
 id: goal-readiness-nonready-stops
-invariant: ADL-P2,ADL-L2,ADL-X1
-goal_report: forbidden
-goal_route_checks: false
 additional_plugins:
   - plugins/capability/darrow-readiness-gate
 prompt: >-
@@ -39,9 +36,10 @@ semantic_output_checks:
     proposition: The response does not claim that implementation occurred or completed.
 transcript_checks:
   - name: readiness instructions are loaded
-    expect_regex: '"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"'
+    kind: supporting-skill-read
+    skill: assess-implementation-readiness
   - name: no work owner launches before ready
-    not_regex: '"tool":"spawn_agent"|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"|"name":"Agent"'
-  - name: no lifecycle ledger is used
-    not_regex: adaptive-goal-preflight step|darrow-native-goal-report
+    kind: inactive-controls
+    forbidSpawn: true
+    forbidAgentTool: true
 native_goal: forbidden

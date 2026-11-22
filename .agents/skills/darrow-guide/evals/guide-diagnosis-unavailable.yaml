@@ -1,5 +1,4 @@
 id: guide-diagnosis-unavailable
-invariant: RG-C7,RG-C2,RG-C4,RG-C8
 activation: positive
 prompt: "{{skill_invocation}} Find why my plugin failed and repair my local configuration."
 fixture:

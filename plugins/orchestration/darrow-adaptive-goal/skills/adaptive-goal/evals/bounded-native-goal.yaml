@@ -1,7 +1,4 @@
 id: goal-preflight-bounded-native-goal
-invariant: ADL-P1,ADL-P2,ADL-P4,ADL-C1,ADL-R1,ADL-R2,ADL-L1,ADL-L5,ADL-X1
-goal_report: forbidden
-goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Add an exported double(value) function to src/math.js. Add
   focused tests for zero and a negative number. Acceptance is that double returns
@@ -38,13 +35,7 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: verification evidence is returned
-    expect_regex: "bash test\\.sh|test/math\\.test\\.js"
-  - name: no canonical ledger report is required
-    not_regex: "darrow-native-goal-report|Protocol
-      ledger|route_verified|evaluation_child_invocations"
-transcript_checks:
-  - name: no lifecycle ledger is used
-    not_regex: adaptive-goal-preflight step
+    expect_regex: bash test\.sh|test/math\.test\.js
 semantic_output_checks:
   - name: owner reports completion
     proposition:

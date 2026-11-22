@@ -1,5 +1,4 @@
 id: doctor-adaptive-goal-indirect-claude
-invariant: ADL-D1
 activation: positive
 prompt: >-
   Before I use Darrow's delivery workflow, diagnose a represented Claude Code
@@ -21,4 +20,10 @@ semantic_output_checks:
     proposition: The response reports a completed helper diagnosis of the represented Claude Code 2.1.219 environment with concurrency five and nesting four. Reporting the returned helper conclusion or guidance establishes completion; using the supplied environment values for that command is valid. It identifies CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS and CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH as separate supported controls and concludes that the full path is supported. A response that says the helper could not run fails.
 transcript_checks:
   - name: orchestration does not activate
-    not_regex: '"skill":"adaptive-goal"|adaptive-goal-preflight|"tool":"spawn_agent"|"name":"Agent"'
+    kind: inactive-controls
+    forbiddenSkills:
+      - adaptive-goal
+    forbiddenCommandTerms:
+      - adaptive-goal-preflight
+    forbidSpawn: true
+    forbidAgentTool: true

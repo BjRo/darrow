@@ -1,5 +1,4 @@
 id: doctor-information-architecture-no-trigger-setup
-invariant: IA-D12
 activation: negative
 activation_excludes:
   - doctor-information-architecture

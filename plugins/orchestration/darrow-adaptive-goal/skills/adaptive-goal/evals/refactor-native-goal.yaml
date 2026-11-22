@@ -1,7 +1,4 @@
 id: goal-preflight-refactor-native-goal
-invariant: ADL-C1,ADL-R1,ADL-L1,ADL-L5
-goal_report: forbidden
-goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Refactor src/label.js by extracting the trim-and-lower operation
   into a private normalizeLabel(value) helper and have formatLabel call it. Preserve
@@ -34,9 +31,6 @@ checks:
       '^[[:space:]]*test[(]' test/label.test.js)" -ge 2 && bash test.sh
   - name: no publication occurred
     run: test "$(git rev-list --count HEAD)" -eq 1
-transcript_checks:
-  - name: no lifecycle ledger is used
-    not_regex: adaptive-goal-preflight step|Protocol ledger
 semantic_output_checks:
   - name: owner reports completion
     proposition:

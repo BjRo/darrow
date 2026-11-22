@@ -1,7 +1,6 @@
 id: pstack-principle-encode-lessons-in-structure-decision
 activation: positive
 mount_plugin_skills: true
-invariant: PF-R8,PF-AC9
 expect_head_change: false
 prompt: Use principle-encode-lessons-in-structure for the concrete decision in
   decision.md. Give a concise recommendation within its existing authority. Do not edit

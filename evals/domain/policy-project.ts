@@ -122,7 +122,6 @@ export async function policyProject(
   const caseFile = await projectLayout(root, options);
   const definition = {
     id: "activation-case",
-    invariant: "SE-C9",
     prompt: "Grill this plan.",
     fixture: {
       commits: [{ message: "Initial", files: { "README.md": "fixture\n" } }],
@@ -254,7 +253,6 @@ export async function runPolicyPrompt(
   expected: string,
 ) {
   await project.write({
-    invariant: "SE-C12",
     output_checks: [{ name: "emitted prompt", expect_exact: expected }],
   });
   const adapter = await promptAdapter(project.root, host);

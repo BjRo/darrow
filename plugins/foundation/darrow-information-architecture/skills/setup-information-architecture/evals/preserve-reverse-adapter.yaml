@@ -1,5 +1,4 @@
 id: setup-information-architecture-preserve-reverse-adapter
-invariant: IA-S1,IA-S6,IA-S11
 activation: competition
 mount_plugin_skills: true
 prompt: >-

@@ -12,8 +12,8 @@ import { isDeepStrictEqual } from "node:util";
 import { nativeOwnerRouteChecks } from "./benchmark-owner";
 import { nativeGoalPolicy, nativeGoalOutcomes } from "./native-goal-policy";
 import {
-  nativeTranscriptPolicy,
   nativeTranscriptOutcomes,
+  NATIVE_TRANSCRIPT_KINDS,
   nativeTranscriptEvidence,
   type NativeTranscript,
 } from "./native-transcript-policy";
@@ -60,6 +60,8 @@ import {
   skillMountConfiguration,
   type SkillMountConfiguration,
 } from "./skill-mount";
+
+import { transcriptPolicy } from "./transcript-policy";
 
 type RecordValue = Record<string, unknown>;
 
@@ -843,7 +845,6 @@ async function invocationForCase(
 
 const CASE_FIELDS = [
   "id",
-  "invariant",
   "prompt",
   "follow_up_prompt",
   "harnesses",
@@ -864,459 +865,8 @@ const CASE_FIELDS = [
   "required_plugin_hook",
   "additional_plugins",
   "additional_skills",
-  "goal_report",
-  "goal_route_checks",
-  "adaptive_goal_composition",
   "transcript_checks",
 ];
-
-const OWNERSHIP_CHECKS = [
-  "darrow.evals.ownership.single-owner",
-  "darrow.evals.ownership.parent-work",
-  "darrow.evals.ownership.internal-record",
-] as const;
-
-const NO_AGENT_TRANSCRIPT_PATTERN =
-  '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"type":"darrow.goal_agent_completion"';
-const NO_AGENT_TRANSCRIPT_PATTERNS = new Set([
-  NO_AGENT_TRANSCRIPT_PATTERN,
-  '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"name":"Agent"',
-  '"type":"darrow.codex_native_spawn"|"name":"Agent"',
-  String.raw`"tool":"spawn_agent"|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"`,
-  String.raw`"tool":"spawn_agent"|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"|"name":"Agent"`,
-  '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"name":"Agent"|"name":"Task"',
-]);
-const NO_LEDGER_TRANSCRIPT_PATTERN =
-  'adaptive-goal-preflight step|Protocol ledger|"tool":"create_goal"';
-const NO_PREFLIGHT_GOAL_PATTERN =
-  'adaptive-goal-preflight step|"tool":"create_goal"';
-const NO_LEDGER_TRANSCRIPT_PATTERNS = new Set([
-  NO_LEDGER_TRANSCRIPT_PATTERN,
-  NO_PREFLIGHT_GOAL_PATTERN,
-  "adaptive-goal-preflight step|darrow-native-goal-report",
-  "adaptive-goal-preflight step|Protocol ledger",
-]);
-const ONE_OWNER_TRANSCRIPT_PATTERNS = new Set([
-  '"type":"darrow.codex_native_single_agent_accepted"',
-  '"type":"(?:darrow.codex_native_single_agent_accepted|darrow.goal_agent_completion)"',
-  String.raw`"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"`,
-]);
-const CONTINUATION_BOUNDARY_PATTERNS = new Set([
-  String.raw`"type":"darrow\.eval\.follow_up_turn"`,
-  '"type":"darrow.eval.follow_up_turn","thread_id":"[^"]+"',
-]);
-const CONTINUATION_UNCHANGED_PATTERNS = new Set([
-  String.raw`"type":"darrow.eval.follow_up_turn"[^\n]*"pre_feedback_worktree_unchanged":true`,
-]);
-const CROSS_TURN_UNCHANGED_PATTERN =
-  '"type":"darrow.eval.follow_up_turn"[^\\n]*"pre_feedback_worktree_unchanged":true|"type":"darrow.goal_agent_completion"';
-const CROSS_TURN_OWNER_BEFORE_PATTERN =
-  '(?:"type":"darrow.goal_agent_completion"[^\\n]*"status":"completed"[^\\n]*"agent_id":"[^"]+"[\\s\\S]*"type":"darrow.eval.follow_up_turn"|"tool":"spawn_agent"[^\\n]*"status":"completed"[^\\n]*"receiver_thread_ids":\\["[^"]+"\\][^\\n]*"prompt":"- phase: adaptive-goal-owner"[\\s\\S]*"type":"darrow.eval.follow_up_turn"|"type":"darrow.codex_native_single_agent_accepted"[^\\n]*"accepted_before_follow_up":true)';
-const CROSS_TURN_SAME_OWNER_PATTERN =
-  '(?:"type":"darrow.goal_agent_completion"[^\\n]*"agent_id":"([^"]+)"[\\s\\S]*"type":"darrow.human_feedback_request"[^\\n]*"agent_id":"\\1"[^\\n]*"question_present":true[\\s\\S]*"type":"darrow.eval.follow_up_turn"[\\s\\S]*"type":"darrow.human_feedback_relay"[^\\n]*"agent_id":"\\1"[^\\n]*"same_owner":true[\\s\\S]*"type":"darrow.goal_agent_resumption"[^\\n]*"agent_id":"\\1"[^\\n]*"status":"completed"[^\\n]*"same_owner":true|"tool":"spawn_agent"[^\\n]*"status":"completed"[^\\n]*"receiver_thread_ids":\\["([^"]+)"\\][^\\n]*"agent_ref":"\\2"[\\s\\S]*"type":"darrow.eval.follow_up_turn"[\\s\\S]*"tool":"(?:followup_task|send_input)"[^\\n]*"status":"completed"[^\\n]*"receiver_thread_ids":\\["\\2"\\][^\\n]*"agent_ref":"\\2"|"type":"darrow.codex_native_single_agent_accepted"[^\\n]*"agent_ref":"([^"]+)"[\\s\\S]*"type":"darrow.codex_native_feedback"[^\\n]*"tool":"(?:followup_task|send_message)"[^\\n]*"agent_ref":"\\3"[^\\n]*"same_owner":true[^\\n]*"after_follow_up":true[^\\n]*"delivery":"unverified")';
-const CROSS_TURN_NO_REPLACEMENT_PATTERN =
-  '"type":"darrow.eval.follow_up_turn"[\\s\\S]*(?:"type":"darrow.parent_spawn_after_goal"|"tool":"spawn_agent"|adaptive-goal-preflight step|Protocol ledger|"tool":"create_goal")';
-const CONTINUATION_CHANGED_PATTERN = String.raw`"type":"darrow\.eval\.follow_up_turn"(?![^\n]*"pre_feedback_worktree_unchanged":true)[^\n]*[\s\S]*"type":"darrow\.codex_native_`;
-const OWNER_AFTER_CONTINUATION_PATTERN = String.raw`"type":"darrow.eval.follow_up_turn"[\s\S]*"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"`;
-const NO_OWNER_BEFORE_CONTINUATION_PATTERN = String.raw`"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"[\s\S]*"type":"darrow.eval.follow_up_turn"`;
-const NO_NATIVE_GOAL_CONTROL_PATTERN = String.raw`"type":"darrow\.codex_native_goal_control"[^\n]*"tool":"(?:create_goal|update_goal)"`;
-const NO_OWNER_OR_GOAL_CONTROL_PATTERN = String.raw`"type":"darrow\.(?:codex_native_goal_control|codex_native_spawn|codex_native_single_agent_accepted|goal_agent_completion|review_agent_launch)"`;
-const PR_EVIDENCE_INACTIVE_PATTERN = String.raw`"skill":"publish-pr-evidence"|"name":"Skill"[^\n]*publish-pr-evidence`;
-const TICKET_RECIPE_INACTIVE_PATTERN = String.raw`"skill":"ticket-to-pr"|"skill":"adaptive-goal"|"name":"Skill"[^\n]*(?:ticket-to-pr|adaptive-goal)|"tool":"spawn_agent"`;
-const STEERING_SAME_OWNER_PATTERN = String.raw`(?:"type":"darrow.codex_native_single_agent_accepted"[^\n]*"agent_ref":"([^"]+)"[\s\S]*"type":"darrow.codex_native_feedback"[^\n]*"tool":"(?:followup_task|send_message)"[^\n]*"agent_ref":"\1"[^\n]*"same_owner":true[^\n]*"after_follow_up":true[^\n]*"delivery":"unverified"|"type":"darrow.goal_agent_completion"[^\n]*"agent_id":"([^"]+)"[\s\S]*"type":"darrow.goal_agent_resumption"[^\n]*"agent_id":"\2"[^\n]*"same_owner":true)`;
-const REJECTED_FEEDBACK_PATTERN = String.raw`(?:"type":"darrow.human_feedback_relay"[^\n]*"same_owner":true[\s\S]*"type":"darrow.goal_agent_resumption"[^\n]*"same_owner":true|"type":"darrow.codex_native_feedback"[^\n]*"tool":"(?:followup_task|send_message)"[^\n]*"same_owner":true[^\n]*"after_follow_up":true[^\n]*"response_observed":true)`;
-const RELAYED_FEEDBACK_PATTERN = String.raw`(?:"type":"darrow.human_feedback_relay"[^\n]*"same_owner":true[\s\S]*"type":"darrow.goal_agent_resumption"[^\n]*"status":"completed"[^\n]*"same_owner":true|"type":"darrow.codex_native_feedback"[^\n]*"tool":"(?:followup_task|send_message)"[^\n]*"same_owner":true[^\n]*"after_follow_up":true[^\n]*"response_observed":true)`;
-const NONREADY_SKILL_READ_PATTERN =
-  '"skill":"(?:darrow-readiness-gate:)?assess-implementation-readiness"';
-const NONREADY_NO_OWNER_PATTERN =
-  '"tool":"spawn_agent"|"type":"(?:darrow\\.codex_native_spawn|darrow\\.codex_native_single_agent_accepted|darrow\\.goal_agent_completion)"|"name":"Agent"';
-const PLAINTEXT_FEEDBACK_MISMATCH_PATTERN = String.raw`"type":"darrow.codex_native_feedback"[^\n]*"message_representation":"plaintext"[^\n]*"message_matches_expected":false`;
-const SECOND_OWNER_PATTERN = String.raw`(?:"type":"darrow.parent_spawn_after_goal"|"tool":"spawn_agent"[^\n]*"status":"completed"[^\n]*[\s\S]*"tool":"spawn_agent"[^\n]*"status":"completed")`;
-const TWO_OWNER_COMPLETIONS_PATTERN = String.raw`"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"[\s\S]*"type":"(?:darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"`;
-const OWNER_ROUTE_PATTERNS = new Map([
-  [
-    String.raw`(?:"type":"darrow\.codex_native_single_agent_accepted"[^\n]*"model":"gpt-6-luna","reasoning_effort":"medium"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-adaptive-goal:adaptive-goal-sonnet-5-5-(?:low|medium)")`,
-    { model: "gpt-6-luna", reasoningEffort: "medium" },
-  ],
-  [
-    String.raw`(?:"type":"darrow\.codex_native_single_agent_accepted"[^\n]*"model":"gpt-6-luna","reasoning_effort":"high"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-adaptive-goal:adaptive-goal-sonnet-5-5-medium")`,
-    { model: "gpt-6-luna", reasoningEffort: "high" },
-  ],
-  [
-    String.raw`(?:"type":"darrow\.codex_native_single_agent_accepted"[^\n]*"model":"gpt-6-astra","reasoning_effort":"high"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-adaptive-goal:adaptive-goal-opus-5-5-high")`,
-    { model: "gpt-6-astra", reasoningEffort: "high" },
-  ],
-]);
-const SPEC_NESTED_READER_PATTERN = String.raw`"type":"darrow.codex_native_nested_spawn"[^\n]*"status":"accepted"[^\n]*"review_axis":"spec"[^\n]*"fork_turns":"none"[^\n]*"session_status":"available"[^\n]*"reader_result_status":"completed"[^\n]*"children_truncated":false[^\n]*"requests_truncated":false|"name":"Agent"[\s\S]*"name":"Agent"`;
-const DUAL_NESTED_READER_PATTERN = String.raw`(?=[\s\S]*"type":"darrow.codex_native_nested_spawn"[^\n]*"status":"accepted"[^\n]*"review_axis":"standards"[^\n]*"fork_turns":"none"[^\n]*"session_status":"available"[^\n]*"reader_result_status":"completed"[^\n]*"children_truncated":false[^\n]*"requests_truncated":false)(?=[\s\S]*"type":"darrow.codex_native_nested_spawn"[^\n]*"status":"accepted"[^\n]*"review_axis":"spec"[^\n]*"fork_turns":"none"[^\n]*"session_status":"available"[^\n]*"reader_result_status":"completed"[^\n]*"children_truncated":false[^\n]*"requests_truncated":false)[\s\S]+|"name":"Agent"[\s\S]*"name":"Agent"[\s\S]*"name":"Agent"`;
-const NO_INHERITED_READER_CONTEXT_PATTERN = String.raw`"subagent_type":"fork"|"type":"darrow.codex_native_(nested_)?spawn"[^\n]*"fork_turns":"(all|[1-9][0-9]*)"`;
-const FRESH_PROVIDER_CONTEXT_PATTERN = String.raw`"type":"darrow.codex_native_spawn"[^\n]*"fork_turns":"none"|"name":"Agent"`;
-const ACCEPTED_CHILD_SESSION_PATTERN = String.raw`"type":"darrow.codex_native_child_skill_evidence"[^\n]*"actor":"accepted_child"[^\n]*"session_status":"available"|"name":"Agent"`;
-const DOCTOR_NO_ORCHESTRATION_PATTERN = String.raw`"skill":"adaptive-goal"|adaptive-goal-preflight|"tool":"spawn_agent"`;
-const DOCTOR_NO_ORCHESTRATION_AGENT_PATTERN = String.raw`"skill":"adaptive-goal"|adaptive-goal-preflight|"tool":"spawn_agent"|"name":"Agent"`;
-const DOCTOR_NO_PREFLIGHT_AGENT_PATTERN = String.raw`adaptive-goal-preflight|"tool":"spawn_agent"|"name":"Agent"`;
-const DOCTOR_NO_HOST_CHOICE_PATTERN = String.raw`host-config-doctor|adaptive-goal-preflight|"tool":"spawn_agent"|"name":"Agent"`;
-const DOCTOR_INACTIVE_PATTERN = String.raw`"skill":"doctor-adaptive-goal"|host-config-doctor`;
-const TICKET_INPUT_NO_DELEGATION_PATTERN = String.raw`(?:"name":"Skill"[^\n]*adaptive-goal|"type":"darrow.skill_read_probe"[^\n]*"skill":"adaptive-goal")`;
-const ADVICE_ONLY_NO_OWNER_PATTERN = String.raw`"tool":"spawn_agent"|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"|"name":"Agent"|adaptive-goal-preflight (?:prepare|route|step)`;
-const ADAPTIVE_SUPPORTING_READ_PATTERN = String.raw`(?:"name":"Skill"[^\n]*adaptive-goal|"type":"darrow.skill_read_probe"[^\n]*"skill":"adaptive-goal"[^\n]*"status":"completed")`;
-const TICKET_PRE_RUN_PATTERN = String.raw`(?:"name":"Skill"[^\n]*(?:read-ticket|assess-implementation-readiness|prepare-task-branch)|"type":"darrow.skill_read_probe"[^\n]*"skill":"(?:read-ticket|assess-implementation-readiness|prepare-task-branch)")`;
-const TICKET_UNAVAILABLE_PATTERN = String.raw`(?:"name":"Skill"[^\n]*(?:read-ticket|assess-implementation-readiness|prepare-task-branch)|"type":"darrow.skill_read_probe"[^\n]*"skill":"(?:read-ticket|assess-implementation-readiness|prepare-task-branch)|"tool":"spawn_agent"|"name":"Agent")`;
-const PUBLISHER_READ_PATTERNS = new Map([
-  [
-    String.raw`(?:"type":"darrow.skill_read_probe"[^\n]*"skill":"create-pr"[^\n]*"status":"completed"|"name":"Skill"[^\n]*"skill":"[^"]*create-pr")`,
-    "create-pr",
-  ],
-  [
-    String.raw`(?:"type":"darrow.skill_read_probe"[^\n]*"skill":"ship-proposal"[^\n]*"status":"completed"|"name":"Skill"[^\n]*"skill":"[^"]*ship-proposal")`,
-    "ship-proposal",
-  ],
-]);
-const PARENT_TOOL_AFTER_AGENT_PATTERN =
-  '"type":"darrow.codex_native_parent_tool_after_agent"';
-const ORDINARY_ENGINEERING_NO_ADAPTIVE_DELIVERY_PATTERN = String.raw`"skill":"adaptive-goal"|adaptive-goal-preflight prepare|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"|"name":"Agent"[^\n]*"adaptive-goal-owner"`;
-const FORBIDDEN_EVENT_REGEX = new Map([
-  [
-    TICKET_INPUT_NO_DELEGATION_PATTERN,
-    new RegExp(TICKET_INPUT_NO_DELEGATION_PATTERN),
-  ],
-  [ADVICE_ONLY_NO_OWNER_PATTERN, new RegExp(ADVICE_ONLY_NO_OWNER_PATTERN)],
-  [
-    ORDINARY_ENGINEERING_NO_ADAPTIVE_DELIVERY_PATTERN,
-    new RegExp(ORDINARY_ENGINEERING_NO_ADAPTIVE_DELIVERY_PATTERN),
-  ],
-  [TICKET_PRE_RUN_PATTERN, new RegExp(TICKET_PRE_RUN_PATTERN)],
-  [TICKET_UNAVAILABLE_PATTERN, new RegExp(TICKET_UNAVAILABLE_PATTERN)],
-]);
-const SAME_OWNER_FEEDBACK_PATTERNS = new Map([
-  [STEERING_SAME_OWNER_PATTERN, false],
-  [CROSS_TURN_SAME_OWNER_PATTERN, false],
-  [REJECTED_FEEDBACK_PATTERN, true],
-  [RELAYED_FEEDBACK_PATTERN, true],
-]);
-const SPECIAL_NEGATIVE_TRANSCRIPT_KINDS = new Map<
-  string,
-  {
-    kind: string;
-    forbiddenSkills?: string[];
-    forbidSpawn?: boolean;
-    forbiddenEventTerms?: string[];
-    forbiddenCommandTerms?: string[];
-    forbiddenEventPattern?: string;
-    forbidAgentTool?: boolean;
-  }
->([
-  [
-    NONREADY_NO_OWNER_PATTERN,
-    {
-      kind: "inactive-controls",
-      forbidSpawn: true,
-      forbidAgentTool: true,
-    },
-  ],
-  [
-    CROSS_TURN_NO_REPLACEMENT_PATTERN,
-    { kind: "no-replacement-after-continuation" },
-  ],
-  [CONTINUATION_CHANGED_PATTERN, { kind: "unchanged-before-continuation" }],
-  [
-    NO_OWNER_BEFORE_CONTINUATION_PATTERN,
-    { kind: "no-owner-before-continuation" },
-  ],
-  [NO_NATIVE_GOAL_CONTROL_PATTERN, { kind: "no-native-goal-control" }],
-  [NO_OWNER_OR_GOAL_CONTROL_PATTERN, { kind: "no-owner-or-goal-control" }],
-  [
-    PLAINTEXT_FEEDBACK_MISMATCH_PATTERN,
-    { kind: "no-plaintext-feedback-mismatch" },
-  ],
-  [SECOND_OWNER_PATTERN, { kind: "no-second-owner" }],
-  [TWO_OWNER_COMPLETIONS_PATTERN, { kind: "no-second-owner" }],
-  [PARENT_TOOL_AFTER_AGENT_PATTERN, { kind: "no-parent-work-after-handoff" }],
-  [
-    DOCTOR_NO_ORCHESTRATION_PATTERN,
-    {
-      kind: "inactive-controls",
-      forbiddenSkills: ["adaptive-goal"],
-      forbiddenCommandTerms: ["adaptive-goal-preflight"],
-      forbidSpawn: true,
-    },
-  ],
-  [
-    DOCTOR_NO_ORCHESTRATION_AGENT_PATTERN,
-    {
-      kind: "inactive-controls",
-      forbiddenSkills: ["adaptive-goal"],
-      forbiddenCommandTerms: ["adaptive-goal-preflight"],
-      forbidSpawn: true,
-      forbidAgentTool: true,
-    },
-  ],
-  [
-    DOCTOR_NO_PREFLIGHT_AGENT_PATTERN,
-    {
-      kind: "inactive-controls",
-      forbiddenCommandTerms: ["adaptive-goal-preflight"],
-      forbidSpawn: true,
-      forbidAgentTool: true,
-    },
-  ],
-  [
-    DOCTOR_NO_HOST_CHOICE_PATTERN,
-    {
-      kind: "inactive-controls",
-      forbiddenCommandTerms: ["host-config-doctor", "adaptive-goal-preflight"],
-      forbidSpawn: true,
-      forbidAgentTool: true,
-    },
-  ],
-  [
-    DOCTOR_INACTIVE_PATTERN,
-    {
-      kind: "inactive-controls",
-      forbiddenSkills: ["doctor-adaptive-goal"],
-      forbiddenCommandTerms: ["host-config-doctor"],
-    },
-  ],
-  [
-    TICKET_INPUT_NO_DELEGATION_PATTERN,
-    {
-      kind: "inactive-controls",
-      forbiddenSkills: ["adaptive-goal"],
-      forbiddenEventPattern: TICKET_INPUT_NO_DELEGATION_PATTERN,
-    },
-  ],
-  [
-    ADVICE_ONLY_NO_OWNER_PATTERN,
-    {
-      kind: "inactive-controls",
-      forbiddenEventPattern: ADVICE_ONLY_NO_OWNER_PATTERN,
-      forbidSpawn: true,
-      forbidAgentTool: true,
-    },
-  ],
-  [
-    ORDINARY_ENGINEERING_NO_ADAPTIVE_DELIVERY_PATTERN,
-    {
-      kind: "inactive-controls",
-      forbiddenSkills: ["adaptive-goal"],
-      forbiddenEventPattern: ORDINARY_ENGINEERING_NO_ADAPTIVE_DELIVERY_PATTERN,
-    },
-  ],
-  [
-    TICKET_PRE_RUN_PATTERN,
-    {
-      kind: "inactive-controls",
-      forbiddenSkills: [
-        "read-ticket",
-        "assess-implementation-readiness",
-        "prepare-task-branch",
-      ],
-      forbiddenEventPattern: TICKET_PRE_RUN_PATTERN,
-    },
-  ],
-  [
-    TICKET_UNAVAILABLE_PATTERN,
-    {
-      kind: "inactive-controls",
-      forbiddenSkills: [
-        "read-ticket",
-        "assess-implementation-readiness",
-        "prepare-task-branch",
-      ],
-      forbiddenEventPattern: TICKET_UNAVAILABLE_PATTERN,
-      forbidSpawn: true,
-      forbidAgentTool: true,
-    },
-  ],
-  [
-    PR_EVIDENCE_INACTIVE_PATTERN,
-    { kind: "skills-inactive", forbiddenSkills: ["publish-pr-evidence"] },
-  ],
-  [
-    TICKET_RECIPE_INACTIVE_PATTERN,
-    {
-      kind: "skills-inactive",
-      forbiddenSkills: ["ticket-to-pr", "adaptive-goal"],
-      forbidSpawn: true,
-    },
-  ],
-]);
-
-function readerTranscriptSelection(pattern: unknown) {
-  if (pattern === FRESH_PROVIDER_CONTEXT_PATTERN)
-    return { kind: "fresh-provider-context" };
-  if (pattern === ACCEPTED_CHILD_SESSION_PATTERN)
-    return { kind: "accepted-child-session" };
-  if (pattern === "inspect-candidate")
-    return { kind: "event-term", term: "inspect-candidate" };
-  return null;
-}
-
-function ticketTranscriptSelection(pattern: unknown) {
-  if (pattern === ADAPTIVE_SUPPORTING_READ_PATTERN)
-    return { kind: "supporting-skill-read", skill: "adaptive-goal" };
-  const publisher = PUBLISHER_READ_PATTERNS.get(pattern as string);
-  if (publisher) return { kind: "supporting-skill-read", skill: publisher };
-  return null;
-}
-
-function continuationTranscriptSelection(pattern: unknown) {
-  if (CONTINUATION_BOUNDARY_PATTERNS.has(pattern as string))
-    return { kind: "continuation-boundary" };
-  if (
-    CONTINUATION_UNCHANGED_PATTERNS.has(pattern as string) ||
-    pattern === CROSS_TURN_UNCHANGED_PATTERN
-  )
-    return { kind: "unchanged-before-continuation" };
-  if (pattern === CROSS_TURN_OWNER_BEFORE_PATTERN)
-    return { kind: "owner-before-continuation" };
-  if (pattern === OWNER_AFTER_CONTINUATION_PATTERN)
-    return { kind: "owner-after-continuation" };
-  return null;
-}
-
-function expectedTranscriptSelection(pattern: unknown) {
-  const reader =
-    readerTranscriptSelection(pattern) ??
-    ticketTranscriptSelection(pattern) ??
-    continuationTranscriptSelection(pattern);
-  if (reader) return reader;
-  const route = OWNER_ROUTE_PATTERNS.get(pattern as string);
-  if (route) return { kind: "owner-route", ...route };
-  if (ONE_OWNER_TRANSCRIPT_PATTERNS.has(pattern as string))
-    return { kind: "one-owner-accepted" };
-  if (pattern === NONREADY_SKILL_READ_PATTERN)
-    return {
-      kind: "supporting-skill-read",
-      skill: "assess-implementation-readiness",
-    };
-  const responseRequired = SAME_OWNER_FEEDBACK_PATTERNS.get(pattern as string);
-  if (responseRequired !== undefined)
-    return { kind: "same-owner-feedback", responseRequired };
-  return null;
-}
-
-function nestedReaderSelection(check: RecordValue, id: string, name: string) {
-  if (check.not_regex !== NO_INHERITED_READER_CONTEXT_PATTERN) return null;
-  const axes =
-    check.expect_regex === SPEC_NESTED_READER_PATTERN
-      ? ["spec"]
-      : check.expect_regex === DUAL_NESTED_READER_PATTERN
-        ? ["standards", "spec"]
-        : null;
-  return axes ? { id, name, kind: "nested-readers", axes } : null;
-}
-
-function assessmentTranscriptSelection(
-  check: RecordValue,
-  id: string,
-  name: string,
-) {
-  if (check.assessment_readers === undefined) return null;
-  if (check.expect_regex !== undefined || check.not_regex !== undefined)
-    throw new Error(
-      "assessment_readers cannot be combined with regex assertions",
-    );
-  return {
-    id,
-    name,
-    kind: "assessment-readers",
-    ...assessmentReadersSelection(check.assessment_readers),
-  };
-}
-
-function childSessionTranscriptSelection(
-  check: RecordValue,
-  id: string,
-  name: string,
-) {
-  if (check.child_sessions === undefined) return null;
-  if (
-    check.child_sessions !== "none" ||
-    check.expect_regex !== undefined ||
-    check.not_regex !== undefined ||
-    check.assessment_readers !== undefined
-  )
-    throw new Error(
-      "child_sessions accepts only none, without other transcript assertions",
-    );
-  return { id, name, kind: "no-child-session" };
-}
-
-function caseTranscriptCheck(entry: unknown, index: number) {
-  const check = record(entry, `transcript check ${index + 1}`);
-  keys(
-    check,
-    [
-      "name",
-      "not_regex",
-      "expect_regex",
-      "assessment_readers",
-      "child_sessions",
-    ],
-    `transcript check ${index + 1}`,
-  );
-  const name = string(check.name, `transcript check ${index + 1} name`);
-  const id = `darrow.evals.transcript.${index + 1}`;
-  const children = childSessionTranscriptSelection(check, id, name);
-  if (children) return children;
-  const assessment = assessmentTranscriptSelection(check, id, name);
-  if (assessment) return assessment;
-  if (check.expect_regex !== undefined) {
-    const nested = nestedReaderSelection(check, id, name);
-    if (nested) return nested;
-    const selection = expectedTranscriptSelection(check.expect_regex);
-    if (selection && check.not_regex === undefined)
-      return { id, name, ...selection };
-    throw new Error(
-      `transcript check ${index + 1} has no Sevro evidence mapping`,
-    );
-  }
-  return negativeTranscriptSelection(check, id, name);
-}
-
-function negativeTranscriptSelection(
-  check: RecordValue,
-  id: string,
-  name: string,
-) {
-  const specialKind = SPECIAL_NEGATIVE_TRANSCRIPT_KINDS.get(
-    check.not_regex as string,
-  );
-  if (specialKind) return { id, name, ...specialKind };
-  const noAgent = NO_AGENT_TRANSCRIPT_PATTERNS.has(check.not_regex as string);
-  if (!noAgent && !NO_LEDGER_TRANSCRIPT_PATTERNS.has(check.not_regex as string))
-    throw new Error(`${id} has no Sevro evidence mapping`);
-  return {
-    id,
-    name,
-    kind: noAgent ? "no-agent-spawn" : "no-lifecycle-ledger",
-    ...(noAgent
-      ? {}
-      : {
-          terms: (check.not_regex as string).split("|"),
-          forbidGoal: (check.not_regex as string).includes(
-            '"tool":"create_goal"',
-          ),
-        }),
-  };
-}
-
-function caseTranscriptChecks(value: unknown) {
-  if (value === undefined) return null;
-  if (!Array.isArray(value) || !value.length)
-    throw new Error("transcript_checks must be a nonempty list");
-  return value.map(caseTranscriptCheck);
-}
-
-function ignoredGoalPolicy(selected: RecordValue, skillDir: string | null) {
-  return (
-    !skillDir?.endsWith("/adaptive-goal") &&
-    selected.goal_report === "forbidden" &&
-    (selected.goal_route_checks === undefined ||
-      selected.goal_route_checks === false)
-  );
-}
 
 function caseHostIds(value: unknown): string[] | null {
   if (value === undefined) return null;
@@ -1330,92 +880,21 @@ function caseHostIds(value: unknown): string[] | null {
   return value.map((name) => `sevro.host.${name}`);
 }
 
-function compositionOwnership(selected: RecordValue) {
-  if (
-    selected.adaptive_goal_composition !== undefined &&
-    typeof selected.adaptive_goal_composition !== "boolean"
-  )
-    throw new Error("adaptive delivery composition must be a boolean");
-  if (selected.adaptive_goal_composition !== true) return null;
-  if (
-    selected.goal_report !== undefined ||
-    selected.goal_route_checks !== undefined
-  )
-    throw new Error("composition and goal policies cannot be combined");
-  return {
-    mode: "composition" as const,
-    checks: OWNERSHIP_CHECKS.slice(0, 2).map((id) => ({
-      id,
-      grader: "darrow.evals.ownership",
-      configuration: {},
-    })),
-    requiredEvidence: ["sevro.codex.native-calls"],
-  };
-}
-
-function caseOwnership(selected: RecordValue, skillDir: string | null) {
-  const composition = compositionOwnership(selected);
-  if (composition) return composition;
-  if (
-    selected.goal_report === undefined &&
-    selected.goal_route_checks === undefined
-  )
-    return null;
-  if (ignoredGoalPolicy(selected, skillDir)) return null;
-  if (
-    !skillDir?.endsWith("/adaptive-goal") ||
-    selected.goal_route_checks !== false ||
-    (selected.goal_report !== undefined && selected.goal_report !== "forbidden")
-  )
-    throw new Error("case goal policy is unsupported by the Sevro extension");
-  return {
-    mode: "owner" as const,
-    checks: OWNERSHIP_CHECKS.map((id) => ({
-      id,
-      grader: "darrow.evals.ownership",
-      configuration: {},
-    })),
-    requiredEvidence: ["sevro.codex.native-calls"],
-  };
-}
-
 const TRANSCRIPT_EVIDENCE = new Map([
   ["guide-no-owner-or-goal-control", ["sevro.host.native-controls"]],
   ["review-no-agent-spawn", ["sevro.host.native-controls"]],
   ["doctor-no-agent-spawn", ["sevro.host.native-controls"]],
   ["preflight-no-agent-spawn", ["sevro.host.native-controls"]],
   ["no-agent-spawn", ["sevro.codex.native-calls"]],
-  ["one-owner-accepted", ["sevro.codex.native-calls"]],
-  ["owner-route", ["sevro.codex.native-calls"]],
-  ["assessment-readers", []],
-  ["nested-readers", ["sevro.codex.native-calls"]],
-  ["fresh-provider-context", ["sevro.codex.native-calls"]],
-  ["accepted-child-session", ["sevro.codex.native-calls"]],
-  ["no-child-session", ["sevro.codex.native-calls"]],
-  ["event-term", ["sevro.codex.events"]],
   ["supporting-skill-read", [SKILL_ACTIVATIONS]],
-  ["no-parent-work-after-handoff", ["sevro.codex.native-calls"]],
-  ["no-lifecycle-ledger", ["sevro.codex.native-calls", "sevro.codex.events"]],
-  ["owner-after-continuation", ["sevro.codex.native-calls"]],
-  ["owner-before-continuation", ["sevro.codex.native-calls"]],
-  ["no-owner-before-continuation", ["sevro.codex.native-calls"]],
-  [
-    "no-replacement-after-continuation",
-    ["sevro.codex.native-calls", "sevro.codex.follow-up-events"],
-  ],
-  ["no-native-goal-control", ["sevro.codex.native-calls"]],
-  ["no-owner-or-goal-control", ["sevro.codex.native-calls"]],
   ["skills-inactive", ["sevro.codex.native-calls", SKILL_ACTIVATIONS]],
-  ["same-owner-feedback", ["sevro.codex.native-calls"]],
   ["no-plaintext-feedback-mismatch", ["sevro.codex.native-calls"]],
-  ["no-second-owner", ["sevro.codex.native-calls"]],
 ]);
 
 function requiresCommandEvents(check: RecordValue): boolean {
   return (
-    [check.forbiddenEventTerms, check.forbiddenCommandTerms].some(
-      (value) => Array.isArray(value) && value.length > 0,
-    ) || typeof check.forbiddenEventPattern === "string"
+    Array.isArray(check.forbiddenCommandTerms) &&
+    check.forbiddenCommandTerms.length > 0
   );
 }
 
@@ -1436,150 +915,14 @@ function transcriptEvidence(check: RecordValue): string[] {
   return [
     ...(TRANSCRIPT_EVIDENCE.get(String(check.kind)) ?? []),
     ...inactiveControlEvidence(check),
+    ...(NATIVE_TRANSCRIPT_KINDS.has(String(check.kind))
+      ? nativeTranscriptEvidence([check as NativeTranscript])
+      : []),
   ];
 }
 
-function policyEvidence(
-  ownership: ReturnType<typeof caseOwnership>,
-  transcriptChecks: ReturnType<typeof caseTranscriptChecks>,
-) {
-  const required = new Set(ownership?.requiredEvidence ?? []);
-  for (const check of transcriptChecks ?? []) {
-    for (const id of transcriptEvidence(check)) required.add(id);
-  }
-  return [...required];
-}
-
-function claudeReadinessCasePolicy(transcript: unknown) {
-  if (
-    createHash("sha256").update(JSON.stringify(transcript)).digest("hex") !==
-    "7c4119bd1185600c9bf6fa6d578936cc956f1cf151beec1807c73577a7286bd7"
-  )
-    throw new Error("Claude readiness transcript policy has changed");
-  const checks = (transcript as RecordValue[]).map((entry, index) => ({
-    id: `darrow.evals.transcript.${index + 1}`,
-    name: string(entry.name, "Claude transcript check name"),
-    kind: [
-      "claude-readiness-once",
-      "claude-readiness-no-retry",
-      "claude-no-owner",
-      "claude-no-ledger",
-    ][index]!,
-  }));
-  return {
-    checks: [
-      ...OWNERSHIP_CHECKS.map((id) => ({
-        id,
-        grader: "darrow.evals.ownership",
-        configuration: {},
-      })),
-      ...checks.map(({ id }) => ({
-        id,
-        grader: "darrow.evals.transcript",
-        configuration: {},
-      })),
-    ],
-    requiredEvidence: [
-      "sevro.claude.tool-calls",
-      "sevro.claude.events",
-      "sevro.native-transcripts.bundle",
-    ],
-    details: { ownership: "claude", transcriptChecks: checks },
-  };
-}
-
-function claudeSelectedOwnerCasePolicy(transcript: unknown) {
-  if (
-    createHash("sha256").update(JSON.stringify(transcript)).digest("hex") !==
-    "60cd2a65222d3e639098086d2563a2a681a690e30cb9dcc20800be0eddad1c0c"
-  )
-    throw new Error("Claude selected-owner transcript policy has changed");
-  const kinds = [
-    "claude-selected-owner",
-    "claude-one-owner",
-    "claude-independent-review",
-    "claude-selected-route",
-    "claude-no-ledger",
-  ];
-  const checks = (transcript as RecordValue[]).map((entry, index) => ({
-    id: `darrow.evals.transcript.${index + 1}`,
-    name: string(entry.name, "Claude transcript check name"),
-    kind: kinds[index]!,
-  }));
-  return {
-    checks: [
-      ...OWNERSHIP_CHECKS.map((id) => ({
-        id,
-        grader: "darrow.evals.ownership",
-        configuration: {},
-      })),
-      ...checks.map(({ id }) => ({
-        id,
-        grader: "darrow.evals.transcript",
-        configuration: {},
-      })),
-    ],
-    requiredEvidence: [
-      "sevro.claude.tool-calls",
-      "sevro.claude.events",
-      "sevro.claude.nested-skills",
-    ],
-    details: { ownership: "claude-selected", transcriptChecks: checks },
-  };
-}
-
-function scopedTranscriptChecks(value: unknown, skillDir: string | null) {
-  return scopedTranscriptSelection(caseTranscriptChecks(value), skillDir);
-}
-
-function scopedTranscriptSelection(
-  checks: ReturnType<typeof caseTranscriptChecks>,
-  skillDir: string | null,
-) {
-  if (
-    skillDir ===
-    "plugins/orchestration/darrow-adaptive-goal/skills/doctor-adaptive-goal"
-  )
-    return (
-      checks?.map((check) =>
-        check.kind === "no-agent-spawn"
-          ? { ...check, kind: "doctor-no-agent-spawn" }
-          : check,
-      ) ?? null
-    );
-  if (skillDir === "plugins/capability/darrow-review/skills/code-review")
-    return (
-      checks?.map((check) =>
-        check.kind === "no-agent-spawn"
-          ? { ...check, kind: "review-no-agent-spawn" }
-          : check,
-      ) ?? null
-    );
-  if (skillDir !== ".agents/skills/darrow-guide") return checks;
-  return (
-    checks?.map((check) =>
-      check.kind === "no-owner-or-goal-control"
-        ? { ...check, kind: "guide-no-owner-or-goal-control" }
-        : check,
-    ) ?? null
-  );
-}
-
-function casePolicy(selected: RecordValue, skillDir: string | null) {
-  const policy =
-    selected.native_goal === undefined
-      ? legacyCasePolicy(selected, skillDir)
-      : nativeGoalCasePolicy(selected, skillDir);
-  if (
-    skillDir === "plugins/task-recipe/darrow-ticket-to-pr/skills/ticket-to-pr"
-  )
-    return {
-      ...policy,
-      checks: [],
-      requiredEvidence: [],
-      details: { ...policy.details, workflowDiagnostics: true },
-    };
-  return adaptiveGoalDiagnostics(selected, skillDir, policy);
+function policyEvidence(checks: RecordValue[]) {
+  return [...new Set(checks.flatMap(transcriptEvidence))];
 }
 
 function hasObservableTask(selected: RecordValue) {
@@ -1595,148 +938,67 @@ function hasObservableTask(selected: RecordValue) {
   );
 }
 
-const TASK_TRANSCRIPT_KINDS = new Set(["route", "repair-reuse"]);
+const TASK_TRANSCRIPT_KINDS = new Set([
+  "route",
+  "repair-reuse",
+  "unchanged-before-continuation",
+]);
 
-function adaptiveGoalDiagnostics(
+function transcriptGates(
   selected: RecordValue,
   skillDir: string | null,
-  policy:
-    | ReturnType<typeof legacyCasePolicy>
-    | ReturnType<typeof nativeGoalCasePolicy>,
+  checks: ReturnType<typeof transcriptPolicy>,
 ) {
+  if (
+    skillDir === "plugins/task-recipe/darrow-ticket-to-pr/skills/ticket-to-pr"
+  )
+    return { taskChecks: [], details: { workflowDiagnostics: true } };
   if (
     !skillDir?.startsWith(
       "plugins/orchestration/darrow-adaptive-goal/skills/",
     ) ||
     !hasObservableTask(selected)
   )
-    return policy;
-  const details: RecordValue = policy.details;
-  const current = (details.nativeTranscriptChecks ?? []) as NativeTranscript[];
-  const legacy = (details.transcriptChecks ?? []) as NonNullable<
-    ReturnType<typeof caseTranscriptChecks>
-  >;
-  const taskChecks = [
-    ...current.filter((check) => TASK_TRANSCRIPT_KINDS.has(check.kind)),
-    ...legacy.filter(
-      (check) =>
-        check.kind === "owner-route" ||
-        check.kind === "unchanged-before-continuation",
-    ),
-  ];
-  const taskIds = new Set(taskChecks.map((check) => check.id));
-  const diagnosticIds = [...current, ...legacy]
-    .filter((check) => !taskIds.has(check.id))
-    .map((check) => check.id);
+    return { taskChecks: checks, details: {} };
   return {
-    ...policy,
-    checks: policy.checks.filter((check) => !diagnosticIds.includes(check.id)),
-    requiredEvidence: [
-      ...new Set([
-        ...(details.nativeGoal === undefined ? [] : ["sevro.host.native-goal"]),
-        ...nativeTranscriptEvidence(
-          current.filter((check) => taskIds.has(check.id)),
-        ),
-        ...policyEvidence(
-          null,
-          legacy.filter((check) => taskIds.has(check.id)),
-        ),
-      ]),
-    ],
-    details: { ...policy.details, workflowDiagnosticIds: diagnosticIds },
-  };
-}
-
-function currentTranscriptSelection(value: unknown) {
-  const current: NativeTranscript[] = [];
-  const legacy: ReturnType<typeof caseTranscriptCheck>[] = [];
-  if (value === undefined) return { current, legacy };
-  if (!Array.isArray(value))
-    throw new Error("transcript checks must be an array");
-  for (const [index, entry] of value.entries()) {
-    try {
-      current.push({
-        ...nativeTranscriptPolicy([entry])[0]!,
-        id: `darrow.evals.transcript.${index + 1}`,
-      });
-    } catch {
-      legacy.push(caseTranscriptCheck(entry, index));
-    }
-  }
-  return { current, legacy };
-}
-
-function nativeGoalCasePolicy(selected: RecordValue, skillDir: string | null) {
-  const policy = nativeGoalPolicy(selected.native_goal);
-  const selection = currentTranscriptSelection(selected.transcript_checks);
-  const transcriptChecks = {
-    ...selection,
-    legacy: (scopedTranscriptSelection(selection.legacy, skillDir) ?? []).map(
-      (check) =>
-        selected.id === "goal-preflight-ticket-input" &&
-        skillDir ===
-          "plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal" &&
-        selected.native_goal === "forbidden" &&
-        check.kind === "no-agent-spawn"
-          ? { ...check, kind: "preflight-no-agent-spawn" }
-          : check,
-    ),
-  };
-  return {
-    checks: [
-      ...policy.checks,
-      ...[...transcriptChecks.current, ...transcriptChecks.legacy].map(
-        ({ id }) => ({
-          id,
-          grader: "darrow.evals.transcript",
-          configuration: {},
-        }),
-      ),
-    ],
-    requiredEvidence: [
-      ...new Set([
-        ...policy.requiredEvidence,
-        ...nativeTranscriptEvidence(transcriptChecks.current),
-        ...policyEvidence(null, transcriptChecks.legacy),
-      ]),
-    ],
+    taskChecks: checks.filter((check) => TASK_TRANSCRIPT_KINDS.has(check.kind)),
     details: {
-      ...policy.details,
-      ...(transcriptChecks.current.length
-        ? { nativeTranscriptChecks: transcriptChecks.current }
-        : {}),
-      ...(transcriptChecks.legacy.length
-        ? { transcriptChecks: transcriptChecks.legacy }
-        : {}),
+      workflowDiagnosticIds: checks
+        .filter((check) => !TASK_TRANSCRIPT_KINDS.has(check.kind))
+        .map((check) => check.id),
     },
   };
 }
 
-function legacyCasePolicy(selected: RecordValue, skillDir: string | null) {
-  if (selected.id === "claude-readiness-nonready-stops")
-    return claudeReadinessCasePolicy(selected.transcript_checks);
-  if (selected.id === "goal-review-high-selected-claude")
-    return claudeSelectedOwnerCasePolicy(selected.transcript_checks);
-  const ownership = caseOwnership(selected, skillDir);
-  const transcriptChecks = scopedTranscriptChecks(
-    selected.transcript_checks,
-    skillDir,
-  );
+function casePolicy(selected: RecordValue, skillDir: string | null) {
+  const transcriptChecks = transcriptPolicy(selected.transcript_checks);
+  const native =
+    selected.native_goal === undefined
+      ? { checks: [], requiredEvidence: [], details: {} }
+      : nativeGoalPolicy(selected.native_goal);
+  const gates = transcriptGates(selected, skillDir, transcriptChecks);
+  const taskGoal = gates.details.workflowDiagnostics
+    ? { checks: [], requiredEvidence: [] }
+    : native;
   return {
     checks: [
-      ...(ownership?.checks ?? []),
-      ...(transcriptChecks?.map(({ id }) => ({
+      ...taskGoal.checks,
+      ...gates.taskChecks.map(({ id }) => ({
         id,
         grader: "darrow.evals.transcript",
         configuration: {},
-      })) ?? []),
+      })),
     ],
-    requiredEvidence: policyEvidence(ownership, transcriptChecks),
+    requiredEvidence: [
+      ...new Set([
+        ...taskGoal.requiredEvidence,
+        ...policyEvidence(gates.taskChecks),
+      ]),
+    ],
     details: {
-      ...(ownership
-        ? { ownership: ownership.mode === "owner" ? true : "composition" }
-        : {}),
-      ...(transcriptChecks ? { transcriptChecks } : {}),
+      ...native.details,
+      ...(transcriptChecks.length ? { transcriptChecks } : {}),
+      ...gates.details,
     },
   };
 }
@@ -1964,7 +1226,6 @@ function caseFacts(
   const hostIds = caseHostIds(selected.harnesses);
   caseCandidateRoutes(selected.candidate_routes);
   return {
-    invariant: string(selected.invariant, "case invariant"),
     ...(hostIds ? { hostIds } : {}),
     source,
     ...caseActivation(selected, skillDirForSource(source), mountPluginSkills),
@@ -3055,49 +2316,36 @@ function requireCaseHost(hostIds: unknown, hostValue: unknown): void {
     throw new Error("selected case excludes the candidate host");
 }
 
-function requiredNativeRoute(details: RecordValue) {
-  const portable =
-    details.ownership === undefined &&
-    Array.isArray(details.transcriptChecks) &&
-    details.transcriptChecks.length > 0 &&
-    details.transcriptChecks.every((check) =>
-      [
-        "guide-no-owner-or-goal-control",
-        "review-no-agent-spawn",
-        "doctor-no-agent-spawn",
-        "preflight-no-agent-spawn",
-        "assessment-readers",
-      ].includes(String(activationData(check)?.kind)),
-    );
-  if (portable)
-    return {
-      ids: ["sevro.host.codex", "sevro.host.claude"],
-      capability: "sevro.host.native-controls",
-    };
-  const claude =
-    details.ownership === "claude" || details.ownership === "claude-selected";
-  return {
-    ids: [claude ? "sevro.host.claude" : "sevro.host.codex"],
-    capability: claude ? "sevro.claude.tool-calls" : "sevro.codex.native-calls",
-  };
-}
-
 function requireNativeEvidence(details: RecordValue, hostValue: unknown) {
-  if (details.ownership === undefined && details.transcriptChecks === undefined)
-    return;
+  const checks = ((details.transcriptChecks ?? []) as RecordValue[]).filter(
+    (check) => !NATIVE_TRANSCRIPT_KINDS.has(String(check.kind)),
+  );
+  if (!checks.length) return;
+  const portable = checks.every((check) =>
+    [
+      "guide-no-owner-or-goal-control",
+      "review-no-agent-spawn",
+      "doctor-no-agent-spawn",
+      "preflight-no-agent-spawn",
+      "assessment-readers",
+    ].includes(String(check.kind)),
+  );
   const host = record(hostValue, "candidate host");
-  const { ids, capability } = requiredNativeRoute(details);
+  const ids = portable
+    ? ["sevro.host.codex", "sevro.host.claude"]
+    : ["sevro.host.codex"];
+  const capability = portable
+    ? "sevro.host.native-controls"
+    : "sevro.codex.native-calls";
   if (
     !ids.includes(String(host.id)) ||
     !Array.isArray(host.capabilities) ||
     !host.capabilities.includes(capability)
   )
     throw new Error(
-      capability === "sevro.host.native-controls"
+      portable
         ? "native checks require native control evidence"
-        : capability === "sevro.claude.tool-calls"
-          ? "native checks require Claude tool-call evidence"
-          : "native checks require Codex native-call evidence",
+        : "native checks require Codex native-call evidence",
     );
 }
 
@@ -3982,124 +3230,6 @@ function nativeFeedbackEvidence(observations: unknown) {
   return { feedback: calls, spawns: ownership.spawns };
 }
 
-function ownershipCheck(
-  id: (typeof OWNERSHIP_CHECKS)[number],
-  status: "passed" | "failed" | "unavailable",
-  evidenceRef: string | null,
-  detail: string,
-) {
-  return {
-    id,
-    status,
-    detail,
-    evidenceRefs: evidenceRef ? [evidenceRef] : [],
-  };
-}
-
-function sameChildTarget(target: unknown, agentRef: string): boolean {
-  return (
-    target === agentRef ||
-    (agentRef.startsWith("/root/") &&
-      !agentRef.slice("/root/".length).includes("/") &&
-      target === agentRef.slice("/root/".length))
-  );
-}
-
-function parentWorkAfterAcceptance(
-  calls: RecordValue[],
-  accepted: RecordValue,
-): boolean {
-  return calls.some((call) => {
-    if ((call.ordinal as number) <= (accepted.acceptedOrdinal as number))
-      return false;
-    if (call.namespace !== "collaboration") return true;
-    if (call.name === "wait_agent") return false;
-    if (
-      ["followup_task", "send_message", "interrupt_agent"].includes(
-        String(call.name),
-      )
-    )
-      return !sameChildTarget(call.target, accepted.agentRef as string);
-    return true;
-  });
-}
-
-const INTERNAL_GOAL_FORMAT =
-  /format\tdarrow-(?:native-goal|goal-step|claude-(?:agent-route|owner-route|route-gate|verify-route))-[^\s]+/;
-
-type OwnershipStatus = "passed" | "failed" | "unavailable";
-
-function singleOwnerStatus(
-  evidence: ReturnType<typeof nativeOwnershipEvidence>,
-): OwnershipStatus {
-  if (!evidence) return "unavailable";
-  return evidence.calls.filter(
-    (call) => call.namespace === "collaboration" && call.name === "spawn_agent",
-  ).length <= 1
-    ? "passed"
-    : "failed";
-}
-
-function parentActivityStatus(
-  evidence: ReturnType<typeof nativeOwnershipEvidence>,
-): OwnershipStatus {
-  if (!evidence) return "unavailable";
-  const spawnCount = evidence.calls.filter(
-    (call) => call.namespace === "collaboration" && call.name === "spawn_agent",
-  ).length;
-  if (
-    evidence.spawns.length > 1 ||
-    (spawnCount > 0 && evidence.spawns.length !== 1)
-  )
-    return "unavailable";
-  return evidence.spawns.length === 1 &&
-    parentWorkAfterAcceptance(evidence.calls, evidence.spawns[0]!)
-    ? "failed"
-    : "passed";
-}
-
-function internalRecordCheck(observations: unknown, host = "sevro.host.codex") {
-  const final = uniqueObservation(
-    observations,
-    "sevro.observation.final-message",
-  );
-  const text = final ? activationData(final.data)?.text : undefined;
-  const available =
-    final?.source === host &&
-    final.completeness === "complete" &&
-    typeof text === "string";
-  return ownershipCheck(
-    OWNERSHIP_CHECKS[2],
-    !available
-      ? "unavailable"
-      : INTERNAL_GOAL_FORMAT.test(text)
-        ? "failed"
-        : "passed",
-    available ? "sevro.observation.final-message" : null,
-    "Internal goal records are absent from the caller-facing response",
-  );
-}
-
-function ownershipChecks(observations: unknown) {
-  const evidence = nativeOwnershipEvidence(observations);
-  const nativeRef = evidence ? "sevro.codex.native-calls" : null;
-  return [
-    ownershipCheck(
-      OWNERSHIP_CHECKS[0],
-      singleOwnerStatus(evidence),
-      nativeRef,
-      "No replacement owner is spawned after acceptance",
-    ),
-    ownershipCheck(
-      OWNERSHIP_CHECKS[1],
-      parentActivityStatus(evidence),
-      nativeRef,
-      "After acceptance the parent only waits or addresses the same owner",
-    ),
-    internalRecordCheck(observations),
-  ];
-}
-
 function controlOrdinals(
   items: RecordValue[],
   namespace: string,
@@ -4334,21 +3464,6 @@ function completeNativeControls(
   return native?.controlsComplete ? native : null;
 }
 
-function completeNativeOwnerControls(
-  native: ReturnType<typeof nativeControlEvidence>,
-) {
-  const complete = completeNativeControls(native);
-  return complete?.submittedSpawnAttempt ? null : complete;
-}
-
-function submittedAfterBoundary(
-  native: ReturnType<typeof nativeControlEvidence>,
-  boundary: number | null | undefined,
-) {
-  if (!native || typeof boundary !== "number") return null;
-  return submittedControlCalls(native.controlData, native.toolCalls, boundary);
-}
-
 function noAgentOutcome(native: ReturnType<typeof nativeControlEvidence>) {
   native = completeNativeControls(native);
   return {
@@ -4361,99 +3476,6 @@ function noAgentOutcome(native: ReturnType<typeof nativeControlEvidence>) {
       ? "Graded from complete native agent-spawn observations"
       : "Native agent-spawn observation unavailable or incomplete",
     evidenceRefs: native ? ["sevro.codex.native-calls"] : [],
-  };
-}
-
-function noNativeGoalControlOutcome(
-  native: ReturnType<typeof nativeControlEvidence>,
-) {
-  native = completeNativeControls(native);
-  return {
-    status: native
-      ? native.attemptedGoalControl
-        ? "failed"
-        : "passed"
-      : "unavailable",
-    detail: native
-      ? "Graded from complete native goal-control observations"
-      : "Native goal-control observation unavailable or incomplete",
-    evidenceRefs: native ? ["sevro.codex.native-calls"] : [],
-  };
-}
-
-function noOwnerOrGoalControlOutcome(
-  native: ReturnType<typeof nativeControlEvidence>,
-) {
-  native = completeNativeControls(native);
-  return {
-    status: !native
-      ? "unavailable"
-      : native.attemptedSpawn ||
-          native.attemptedGoalControl ||
-          native.acceptedSpawnCount > 0
-        ? "failed"
-        : "passed",
-    detail:
-      "Owner absence and goal-control absence require complete native evidence",
-    evidenceRefs: native ? ["sevro.codex.native-calls"] : [],
-  };
-}
-
-// Complete host session records establish whether a child ran, even when
-// submitted Code Mode programs cannot be inspected for unaccepted attempts.
-function noChildSessionOutcome(
-  native: ReturnType<typeof nativeControlEvidence>,
-  children: ReturnType<typeof boundChildSessions>,
-) {
-  if (!native || !children)
-    return {
-      status: "unavailable",
-      detail: "Complete native child-session records unavailable",
-      evidenceRefs: [],
-    };
-  const ran =
-    native.acceptedSpawnCount > 0 ||
-    children.children.length > 0 ||
-    children.truncated;
-  return {
-    status: ran ? "failed" : "passed",
-    detail: ran
-      ? "A native child session ran"
-      : "Complete native session records show no child session",
-    evidenceRefs: ["sevro.codex.native-calls"],
-  };
-}
-
-const NATIVE_CONTROL_GRADERS = new Map([
-  ["no-agent-spawn", noAgentOutcome],
-  ["no-native-goal-control", noNativeGoalControlOutcome],
-  ["no-owner-or-goal-control", noOwnerOrGoalControlOutcome],
-]);
-
-function noSecondOwnerOutcome(
-  native: ReturnType<typeof nativeControlEvidence>,
-) {
-  native = completeNativeOwnerControls(native);
-  if (!native)
-    return {
-      status: "unavailable",
-      detail: "Complete native owner evidence required",
-      evidenceRefs: [],
-    };
-  const first = native.acceptedSpawns[0];
-  const replacementAttempt = first
-    ? native.toolCalls.some(
-        (call) =>
-          call.namespace === "collaboration" &&
-          call.name === "spawn_agent" &&
-          (call.ordinal as number) > (first.acceptedOrdinal as number),
-      )
-    : false;
-  return {
-    status:
-      native.acceptedSpawnCount > 1 || replacementAttempt ? "failed" : "passed",
-    detail: "Graded from correlated native owner receipts and spawn order",
-    evidenceRefs: ["sevro.codex.native-calls"],
   };
 }
 
@@ -4516,27 +3538,6 @@ function supportingSkillOutcome(
   };
 }
 
-function noParentWorkAfterHandoffOutcome(
-  native: ReturnType<typeof nativeControlEvidence>,
-) {
-  if (!native || native.spawnCount !== 1 || native.acceptedSpawnCount !== 1)
-    return {
-      status: "unavailable",
-      detail: "One accepted handoff and complete parent calls required",
-      evidenceRefs: [],
-    };
-  return {
-    status: parentWorkAfterAcceptance(
-      native.toolCalls,
-      native.acceptedSpawns[0]!,
-    )
-      ? "failed"
-      : "passed",
-    detail: "Graded from parent calls after native owner acceptance",
-    evidenceRefs: ["sevro.codex.native-calls"],
-  };
-}
-
 function forbiddenControlTerms(value: unknown): string[] {
   const terms = skillSequence(value ?? []);
   if (!terms)
@@ -4551,20 +3552,12 @@ function inactiveControlsOutcome(
   events: string | null,
 ) {
   const forbiddenSkills = forbiddenControlTerms(selected.forbiddenSkills);
-  const forbiddenEventTerms = forbiddenControlTerms(
-    selected.forbiddenEventTerms,
-  );
   const forbiddenCommandTerms = forbiddenControlTerms(
     selected.forbiddenCommandTerms,
   );
   const commands = forbiddenCommandTerms.length
     ? codexCommandRecords(events)
     : [];
-  if (
-    selected.forbiddenEventPattern !== undefined &&
-    !FORBIDDEN_EVENT_REGEX.has(String(selected.forbiddenEventPattern))
-  )
-    throw new Error("inactive control check configuration is invalid");
   const required = inactiveControlEvidence(selected);
   if (
     commands === null ||
@@ -4577,12 +3570,10 @@ function inactiveControlsOutcome(
     };
   const violated = inactiveControlViolation(selected, {
     forbiddenSkills,
-    forbiddenEventTerms,
     forbiddenCommandTerms,
     commands,
     native,
     observed,
-    events,
   });
   return {
     status: violated ? "failed" : "passed",
@@ -4645,272 +3636,23 @@ function inactiveControlViolation(
   selected: RecordValue,
   context: {
     forbiddenSkills: string[];
-    forbiddenEventTerms: string[];
     forbiddenCommandTerms: string[];
     commands: string[];
     native: ReturnType<typeof nativeControlEvidence>;
     observed: ReturnType<typeof observedActivation>;
-    events: string | null;
   },
 ): boolean {
-  const {
-    forbiddenSkills,
-    forbiddenEventTerms,
-    forbiddenCommandTerms,
-    commands,
-    native,
-    observed,
-    events,
-  } = context;
+  const { forbiddenSkills, forbiddenCommandTerms, commands, native, observed } =
+    context;
   return (
     forbiddenSkills.some((skill) => observed!.observedSkills.includes(skill)) ||
-    forbiddenEventTerms.some((term) => events!.includes(term)) ||
     forbiddenCommandTerms.some((term) =>
       commands.some((command) => command.includes(term)),
     ) ||
-    (typeof selected.forbiddenEventPattern === "string" &&
-      FORBIDDEN_EVENT_REGEX.get(selected.forbiddenEventPattern)!.test(
-        events!,
-      )) ||
     (selected.forbidSpawn === true && native!.attemptedSpawn) ||
     (selected.forbidAgentTool === true &&
       native!.controlLabels.some((call) => call.name === "Agent"))
   );
-}
-
-function oneOwnerOutcome(native: ReturnType<typeof nativeControlEvidence>) {
-  native = completeNativeOwnerControls(native);
-  return {
-    status: native
-      ? native.spawnCount === 1 && native.acceptedSpawnCount === 1
-        ? "passed"
-        : "failed"
-      : "unavailable",
-    detail: native
-      ? "Graded from one correlated native owner acceptance"
-      : "Native owner acceptance observation unavailable or incomplete",
-    evidenceRefs: native ? ["sevro.codex.native-calls"] : [],
-  };
-}
-
-function ownerRouteOutcome(
-  selected: RecordValue,
-  native: ReturnType<typeof nativeControlEvidence>,
-) {
-  if (
-    typeof selected.model !== "string" ||
-    typeof selected.reasoningEffort !== "string"
-  )
-    throw new Error("owner route check configuration is invalid");
-  if (!native)
-    return {
-      status: "unavailable",
-      detail: "Complete native owner route evidence required",
-      evidenceRefs: [],
-    };
-  if (native.acceptedSpawnCount !== 1)
-    return {
-      status: "failed",
-      detail: "Expected exactly one accepted owner route",
-      evidenceRefs: ["sevro.codex.native-calls"],
-    };
-  const route = native.acceptedSpawns[0]!;
-  return {
-    status:
-      typeof route.model !== "string" ||
-      typeof route.reasoningEffort !== "string"
-        ? "unavailable"
-        : route.model === selected.model &&
-            route.reasoningEffort === selected.reasoningEffort
-          ? "passed"
-          : "failed",
-    detail: "Graded from the accepted native owner model and effort",
-    evidenceRefs: ["sevro.codex.native-calls"],
-  };
-}
-
-const REVIEW_AXIS_TOKENS = new Map([
-  ["standards", /(^|[-_])standards($|[-_])/],
-  ["spec", /(^|[-_])spec($|[-_])/],
-]);
-
-function nestedReviewAxis(taskName: unknown): string | null {
-  if (typeof taskName !== "string") return null;
-  const axes = [...REVIEW_AXIS_TOKENS].filter(([, pattern]) =>
-    pattern.test(taskName),
-  );
-  return axes.length === 1 ? axes[0]![0] : null;
-}
-
-function inheritedContextRequested(request: RecordValue): boolean {
-  return (
-    typeof request.forkTurns === "string" &&
-    /^(?:all|[1-9][0-9]*)$/.test(request.forkTurns)
-  );
-}
-
-function nestedAxisStatus(axis: string, requests: RecordValue[]) {
-  const matched = requests.filter(
-    (request) =>
-      request.status === "accepted" &&
-      nestedReviewAxis(request.taskName) === axis,
-  );
-  if (!matched.length)
-    return requests.some(
-      (request) =>
-        request.status === "accepted" &&
-        nestedReviewAxis(request.taskName) === null,
-    )
-      ? "unavailable"
-      : "failed";
-  if (
-    matched.some(
-      (request) =>
-        request.forkTurns === "none" &&
-        request.sessionStatus === "available" &&
-        request.readerResultStatus === "completed",
-    )
-  )
-    return "passed";
-  return matched.some(
-    (request) =>
-      request.forkTurns === undefined ||
-      request.sessionStatus !== "available" ||
-      request.readerResultStatus !== "completed",
-  )
-    ? "unavailable"
-    : "failed";
-}
-
-function nestedReadersOutcome(
-  selected: RecordValue,
-  native: ReturnType<typeof nativeControlEvidence>,
-  nested: RecordValue[] | null,
-) {
-  if (
-    !Array.isArray(selected.axes) ||
-    !selected.axes.every((axis) => axis === "spec" || axis === "standards")
-  )
-    throw new Error("nested reader axes are invalid");
-  if (!native || !nested)
-    return {
-      status: "unavailable",
-      detail: "Complete native nested-reader evidence required",
-      evidenceRefs: [],
-    };
-  const inherited =
-    native.acceptedSpawns.some(inheritedContextRequested) ||
-    nested.some(inheritedContextRequested);
-  if (inherited)
-    return {
-      status: "failed",
-      detail: "Inherited context was requested for a provider or reader",
-      evidenceRefs: ["sevro.codex.native-calls"],
-    };
-  if (native.spawnCount !== native.acceptedSpawnCount)
-    return {
-      status: "unavailable",
-      detail:
-        "An unaccepted provider request has no retained context-fork field",
-      evidenceRefs: ["sevro.codex.native-calls"],
-    };
-  const statuses = (selected.axes as string[]).map((axis) =>
-    nestedAxisStatus(axis, nested),
-  );
-  return {
-    status: statuses.includes("failed")
-      ? "failed"
-      : statuses.includes("unavailable")
-        ? "unavailable"
-        : "passed",
-    detail: "Graded from accepted nested readers and fresh-context receipts",
-    evidenceRefs: ["sevro.codex.native-calls"],
-  };
-}
-
-function freshProviderContextOutcome(
-  native: ReturnType<typeof nativeControlEvidence>,
-) {
-  if (!native)
-    return {
-      status: "unavailable",
-      detail: "Complete native owner evidence required",
-      evidenceRefs: [],
-    };
-  const spawns = native.acceptedSpawns;
-  return {
-    status: spawns.some((spawn) => spawn.forkTurns === "none")
-      ? "passed"
-      : native.spawnCount !== native.acceptedSpawnCount
-        ? "unavailable"
-        : spawns.some((spawn) => spawn.forkTurns === undefined)
-          ? "unavailable"
-          : "failed",
-    detail: "Graded from the accepted provider context-fork request",
-    evidenceRefs: ["sevro.codex.native-calls"],
-  };
-}
-
-function acceptedChildSessionOutcome(
-  bound: ReturnType<typeof boundChildSessions>,
-) {
-  if (!bound)
-    return {
-      status: "unavailable",
-      detail: "Bound native child-session evidence required",
-      evidenceRefs: [],
-    };
-  return {
-    status: bound.children.some((child) => child.status === "available")
-      ? "passed"
-      : bound.children.length > 0 || bound.truncated
-        ? "unavailable"
-        : "failed",
-    detail: "Graded from the accepted provider child session",
-    evidenceRefs: ["sevro.codex.native-calls"],
-  };
-}
-
-function eventTermOutcome(selected: RecordValue, events: string | null) {
-  if (selected.term !== "inspect-candidate")
-    throw new Error("event term check configuration is invalid");
-  return {
-    status:
-      events === null
-        ? "unavailable"
-        : events.includes(selected.term)
-          ? "passed"
-          : "failed",
-    detail: "Graded from the digest-verified Codex event artifact",
-    evidenceRefs: events === null ? [] : ["sevro.codex.events"],
-  };
-}
-
-function noLedgerOutcome(
-  native: ReturnType<typeof nativeControlEvidence>,
-  events: string | null,
-  terms: unknown,
-  forbidGoal: unknown,
-) {
-  if (!Array.isArray(terms) || !terms.every((term) => typeof term === "string"))
-    throw new Error("ledger terms are invalid");
-  if (typeof forbidGoal !== "boolean")
-    throw new Error("ledger goal policy is invalid");
-  if (forbidGoal) native = completeNativeControls(native);
-  if (!native || events === null)
-    return {
-      status: "unavailable",
-      detail: "Codex event or native goal-control evidence unavailable",
-      evidenceRefs: [],
-    };
-  const matched = terms.some((term) => events.includes(term));
-  return {
-    status:
-      (forbidGoal && native.attemptedGoal) || matched ? "failed" : "passed",
-    detail:
-      "Graded from retained Codex events and complete native goal-control observations",
-    evidenceRefs: ["sevro.codex.events", "sevro.codex.native-calls"],
-  };
 }
 
 function validContinuationThread(value: unknown): value is string {
@@ -4964,127 +3706,6 @@ function continuationEvidence(observations: unknown) {
       observation.completeness === "complete"
         ? (data.preFollowUpWorktreeUnchanged as boolean)
         : null,
-  };
-}
-
-function ownerBoundaryOutcome(
-  kind: string,
-  native: ReturnType<typeof nativeControlEvidence>,
-  continuation: ReturnType<typeof continuationEvidence>,
-) {
-  if (kind === "no-owner-before-continuation")
-    native = completeNativeOwnerControls(native);
-  const boundary = continuation?.nativeAfterOrdinal;
-  if (!native || boundary === null || boundary === undefined)
-    return {
-      status: "unavailable",
-      detail: "Complete native owner evidence and follow-up ordinal required",
-      evidenceRefs: [],
-    };
-  const acceptedAfter = native.acceptedSpawns.some(
-    (spawn) => (spawn.acceptedOrdinal as number) > boundary,
-  );
-  const acceptedBefore = native.acceptedSpawns.some(
-    (spawn) => (spawn.acceptedOrdinal as number) <= boundary,
-  );
-  return {
-    status: (
-      kind === "owner-after-continuation"
-        ? acceptedAfter
-        : kind === "owner-before-continuation"
-          ? acceptedBefore
-          : !acceptedBefore
-    )
-      ? "passed"
-      : "failed",
-    detail:
-      "Graded from correlated owner acceptance and native follow-up ordinal",
-    evidenceRefs: ["sevro.codex.native-calls", "sevro.codex.continuation"],
-  };
-}
-
-function noReplacementAfterContinuationOutcome(
-  native: ReturnType<typeof nativeControlEvidence>,
-  continuation: ReturnType<typeof continuationEvidence>,
-  followUpEvents: string | null,
-) {
-  const boundary = continuation?.nativeAfterOrdinal;
-  const submitted = submittedAfterBoundary(native, boundary);
-  if (
-    !native ||
-    boundary === null ||
-    boundary === undefined ||
-    followUpEvents === null ||
-    submitted === null
-  )
-    return {
-      status: "unavailable",
-      detail:
-        "Complete native follow-up calls and verified follow-up events required",
-      evidenceRefs: [],
-    };
-  const direct = native.toolCalls.filter(
-    (call) => (call.ordinal as number) > boundary,
-  );
-  const prohibitedCall = [...direct, ...submitted].some(
-    (call) =>
-      (call.namespace === "collaboration" && call.name === "spawn_agent") ||
-      (call.namespace === "functions" && call.name === "create_goal"),
-  );
-  const prohibitedEvent = [
-    '"type":"darrow.parent_spawn_after_goal"',
-    "adaptive-goal-preflight step",
-    "Protocol ledger",
-  ].some((term) => followUpEvents.includes(term));
-  return {
-    status: prohibitedCall || prohibitedEvent ? "failed" : "passed",
-    detail:
-      "Graded from native calls and digest-verified events after the follow-up boundary",
-    evidenceRefs: [
-      "sevro.codex.native-calls",
-      "sevro.codex.continuation",
-      "sevro.codex.follow-up-events",
-    ],
-  };
-}
-
-function sameOwnerFeedbackOutcome(
-  selected: RecordValue,
-  native: ReturnType<typeof nativeFeedbackEvidence>,
-  continuation: ReturnType<typeof continuationEvidence>,
-) {
-  if (typeof selected.responseRequired !== "boolean")
-    throw new Error("feedback check configuration is invalid");
-  const boundary = continuation?.nativeAfterOrdinal;
-  if (!native || boundary === null || boundary === undefined)
-    return {
-      status: "unavailable",
-      detail: "Native feedback and follow-up boundary evidence required",
-      evidenceRefs: [],
-    };
-  const priorOwners = native.spawns.filter(
-    (spawn) => (spawn.acceptedOrdinal as number) <= boundary,
-  );
-  const laterFeedback = native.feedback.filter(
-    (call) =>
-      (call.ordinal as number) > boundary &&
-      ["followup_task", "send_message"].includes(String(call.tool)),
-  );
-  const matched = laterFeedback.some((call) =>
-    priorOwners.some(
-      (owner) =>
-        (call.ordinal as number) > (owner.acceptedOrdinal as number) &&
-        sameChildTarget(call.target, owner.agentRef as string) &&
-        (!selected.responseRequired || call.responseObserved === true),
-    ),
-  );
-  const unreadableTarget =
-    priorOwners.length > 0 &&
-    laterFeedback.some((call) => call.target === null);
-  return {
-    status: matched ? "passed" : unreadableTarget ? "unavailable" : "failed",
-    detail: "Graded from the prior owner and bounded native feedback receipt",
-    evidenceRefs: ["sevro.codex.native-calls", "sevro.codex.continuation"],
   };
 }
 
@@ -5157,18 +3778,11 @@ function nativeTranscriptOutcome(
   native: ReturnType<typeof nativeControlEvidence>,
   skills: ReturnType<typeof observedActivation>,
 ) {
-  const control = NATIVE_CONTROL_GRADERS.get(String(selected.kind));
-  if (control) return control(native);
+  if (selected.kind === "no-agent-spawn") return noAgentOutcome(native);
   if (selected.kind === "skills-inactive")
     return skillsInactiveOutcome(selected, native, skills);
   if (selected.kind === "supporting-skill-read")
     return supportingSkillOutcome(selected, skills);
-  if (selected.kind === "no-parent-work-after-handoff")
-    return noParentWorkAfterHandoffOutcome(native);
-  if (selected.kind === "one-owner-accepted") return oneOwnerOutcome(native);
-  if (selected.kind === "owner-route")
-    return ownerRouteOutcome(selected, native);
-  if (selected.kind === "no-second-owner") return noSecondOwnerOutcome(native);
   return null;
 }
 
@@ -5177,11 +3791,9 @@ function feedbackTranscriptOutcome(
   feedback: ReturnType<typeof nativeFeedbackEvidence>,
   continuation: ReturnType<typeof continuationEvidence>,
 ) {
-  if (selected.kind === "same-owner-feedback")
-    return sameOwnerFeedbackOutcome(selected, feedback, continuation);
-  if (selected.kind === "no-plaintext-feedback-mismatch")
-    return noPlaintextFeedbackMismatchOutcome(feedback, continuation);
-  return null;
+  return selected.kind === "no-plaintext-feedback-mismatch"
+    ? noPlaintextFeedbackMismatchOutcome(feedback, continuation)
+    : null;
 }
 
 function assessmentReadersOutcome(
@@ -5228,16 +3840,6 @@ function policyTranscriptOutcome(
 ) {
   if (selected.kind === "assessment-readers")
     return assessmentReadersOutcome(selected, context);
-  if (selected.kind === "nested-readers")
-    return nestedReadersOutcome(selected, context.native, context.nested);
-  if (selected.kind === "fresh-provider-context")
-    return freshProviderContextOutcome(context.native);
-  if (selected.kind === "accepted-child-session")
-    return acceptedChildSessionOutcome(context.children);
-  if (selected.kind === "no-child-session")
-    return noChildSessionOutcome(context.native, context.children);
-  if (selected.kind === "event-term")
-    return eventTermOutcome(selected, context.events);
   if (selected.kind === "inactive-controls")
     return inactiveControlsOutcome(
       selected,
@@ -5245,40 +3847,18 @@ function policyTranscriptOutcome(
       context.skills,
       context.events,
     );
-  if (selected.kind === "no-lifecycle-ledger")
-    return noLedgerOutcome(
-      context.native,
-      context.events,
-      selected.terms,
-      selected.forbidGoal,
-    );
   return null;
 }
 
 function continuationTranscriptOutcome(
   selected: RecordValue,
-  native: ReturnType<typeof nativeControlEvidence>,
   continuation: ReturnType<typeof continuationEvidence>,
-  followUpEvents: string | null,
 ) {
-  if (
-    selected.kind === "continuation-boundary" ||
-    selected.kind === "unchanged-before-continuation"
+  return ["continuation-boundary", "unchanged-before-continuation"].includes(
+    String(selected.kind),
   )
-    return continuationOutcome(selected.kind, continuation);
-  if (
-    selected.kind === "owner-after-continuation" ||
-    selected.kind === "owner-before-continuation" ||
-    selected.kind === "no-owner-before-continuation"
-  )
-    return ownerBoundaryOutcome(selected.kind, native, continuation);
-  if (selected.kind === "no-replacement-after-continuation")
-    return noReplacementAfterContinuationOutcome(
-      native,
-      continuation,
-      followUpEvents,
-    );
-  return null;
+    ? continuationOutcome(String(selected.kind), continuation)
+    : null;
 }
 
 function transcriptOutcome(
@@ -5288,7 +3868,6 @@ function transcriptOutcome(
     nested: RecordValue[] | null;
     children: ReturnType<typeof boundChildSessions>;
     events: string | null;
-    followUpEvents: string | null;
     continuation: ReturnType<typeof continuationEvidence>;
     skills: ReturnType<typeof observedActivation>;
     feedback: ReturnType<typeof nativeFeedbackEvidence>;
@@ -5307,9 +3886,7 @@ function transcriptOutcome(
   if (policyOutcome) return policyOutcome;
   const continuationResult = continuationTranscriptOutcome(
     selected,
-    native,
     continuation,
-    context.followUpEvents,
   );
   if (continuationResult) return continuationResult;
   throw new Error("unsupported native transcript check");
@@ -5318,11 +3895,6 @@ function transcriptOutcome(
 const CONTINUATION_EVIDENCE_KINDS = new Set([
   "continuation-boundary",
   "unchanged-before-continuation",
-  "owner-after-continuation",
-  "owner-before-continuation",
-  "no-owner-before-continuation",
-  "no-replacement-after-continuation",
-  "same-owner-feedback",
   "no-plaintext-feedback-mismatch",
 ]);
 
@@ -5331,18 +3903,15 @@ function readerObservationContext(
   observations: unknown,
   native: ReturnType<typeof nativeControlEvidence>,
 ) {
-  const children =
-    kinds.has("nested-readers") ||
-    kinds.has("assessment-readers") ||
-    kinds.has("accepted-child-session") ||
-    kinds.has("no-child-session")
-      ? boundChildSessions(observations, native)
-      : null;
-  const nested =
-    kinds.has("nested-readers") || kinds.has("assessment-readers")
+  const children = kinds.has("assessment-readers")
+    ? boundChildSessions(observations, native)
+    : null;
+  return {
+    children,
+    nested: kinds.has("assessment-readers")
       ? completeNestedRequests(children)
-      : null;
-  return { children, nested };
+      : null,
+  };
 }
 
 function transcriptObservationContext(
@@ -5385,20 +3954,6 @@ function transcriptSkillObservation(
   return observation?.source === "sevro.host.codex"
     ? observedActivation(observation, false)
     : null;
-}
-
-function claudeTranscriptChecks(
-  selected: RecordValue[],
-  observations: unknown,
-  artifacts: unknown,
-) {
-  if (!selected.some((entry) => String(entry.kind).startsWith("claude-")))
-    return null;
-  if (!selected.every((entry) => String(entry.kind).startsWith("claude-")))
-    throw new Error("mixed native transcript policies are unsupported");
-  return selected.some((entry) => entry.kind === "claude-selected-owner")
-    ? claudeSelectedTranscriptChecks(selected, observations, artifacts)
-    : claudeReadinessTranscriptChecks(selected, observations, artifacts);
 }
 
 async function claudeAssessmentOutcomes(
@@ -5454,31 +4009,24 @@ async function nativeTranscriptChecks(
   if (value === undefined) return [];
   if (!Array.isArray(value) || !value.length)
     throw new Error("native transcript checks are invalid");
-  const selected = value.map((entry) =>
-    record(entry, "native transcript check"),
-  );
+  const selected = value
+    .map((entry) => record(entry, "native transcript check"))
+    .filter((entry) => !NATIVE_TRANSCRIPT_KINDS.has(String(entry.kind)));
+  if (!selected.length) return [];
   const assessment = await claudeAssessmentOutcomes(
     selected,
     observations,
     artifacts,
   );
   if (assessment) return assessment;
-  const claude = claudeTranscriptChecks(selected, observations, artifacts);
-  if (claude) return claude;
   const kinds = new Set(selected.map((entry) => String(entry.kind)));
-  const events =
-    kinds.has("no-lifecycle-ledger") ||
-    kinds.has("inactive-controls") ||
-    kinds.has("event-term")
-      ? await codexEventText(artifacts)
-      : null;
-  const followUpEvents = kinds.has("no-replacement-after-continuation")
-    ? await codexEventText(artifacts, "sevro.codex.follow-up-events")
+  const events = selected.some(requiresCommandEvents)
+    ? await codexEventText(artifacts)
     : null;
+
   const context = {
     ...transcriptObservationContext(kinds, observations, details),
     events,
-    followUpEvents,
   };
   return selected.map((entry) => ({
     id: string(entry.id, "native transcript check ID"),
@@ -5777,138 +4325,6 @@ function claudeCalls(observations: unknown): RecordValue[] | null {
   return calls as RecordValue[];
 }
 
-function claudeOwner(call: RecordValue) {
-  return (
-    call.name === "Agent" &&
-    String(call.subagentType).startsWith("darrow-adaptive-goal:adaptive-goal-")
-  );
-}
-
-function claudeReadinessSkill(call: RecordValue) {
-  return (
-    call.name === "Skill" &&
-    call.skill === "assess-implementation-readiness" &&
-    [
-      "assess-implementation-readiness",
-      "darrow-readiness-gate:assess-implementation-readiness",
-    ].includes(String(call.invocation))
-  );
-}
-
-function claudeReadinessOwnershipChecks(observations: unknown) {
-  const calls = claudeCalls(observations);
-  const ownerCount = calls?.filter(claudeOwner).length;
-  const ref = calls ? "sevro.claude.tool-calls" : null;
-  return [
-    ownershipCheck(
-      OWNERSHIP_CHECKS[0],
-      ownerCount === undefined
-        ? "unavailable"
-        : ownerCount <= 1
-          ? "passed"
-          : "failed",
-      ref,
-      "No replacement owner is launched",
-    ),
-    ownershipCheck(
-      OWNERSHIP_CHECKS[1],
-      ownerCount === 0 ? "passed" : "unavailable",
-      ref,
-      "No parent work follows an owner handoff",
-    ),
-    internalRecordCheck(observations, "sevro.host.claude"),
-  ];
-}
-
-function claudeReadinessPassed(
-  kind: string,
-  readinessCount: number | undefined,
-  ownerCount: number | undefined,
-  events: string | null,
-) {
-  if (kind === "claude-readiness-once") return readinessCount === 1;
-  if (kind === "claude-readiness-no-retry")
-    return readinessCount !== undefined && readinessCount <= 1;
-  if (kind === "claude-no-owner") return ownerCount === 0;
-  if (kind === "claude-no-ledger")
-    return (
-      events !== null &&
-      !events.includes("adaptive-goal-preflight step") &&
-      !events.includes("darrow-native-goal-report")
-    );
-  throw new Error("unsupported Claude readiness check");
-}
-
-function claudeReadinessTranscriptOutcome(
-  check: RecordValue,
-  readinessCount: number | undefined,
-  ownerCount: number | undefined,
-  events: string | null,
-) {
-  const kind = String(check.kind);
-  const ledger = kind === "claude-no-ledger";
-  const available = ledger ? events !== null : readinessCount !== undefined;
-  return {
-    id: string(check.id, "Claude transcript check ID"),
-    status: !available
-      ? "unavailable"
-      : claudeReadinessPassed(kind, readinessCount, ownerCount, events)
-        ? "passed"
-        : "failed",
-    detail: available
-      ? "Graded from complete Claude host evidence"
-      : "Claude host evidence unavailable or incomplete",
-    evidenceRefs: available
-      ? [ledger ? "sevro.claude.events" : "sevro.claude.tool-calls"]
-      : [],
-  };
-}
-
-async function claudeReadinessTranscriptChecks(
-  selected: RecordValue[],
-  observations: unknown,
-  artifacts: unknown,
-) {
-  const calls = claudeCalls(observations);
-  const events = await codexEventText(artifacts, "sevro.claude.events");
-  const readinessCount = calls?.filter(claudeReadinessSkill).length;
-  const ownerCount = calls?.filter(claudeOwner).length;
-  return selected.map((check) =>
-    claudeReadinessTranscriptOutcome(check, readinessCount, ownerCount, events),
-  );
-}
-
-const CLAUDE_OWNER_MARKER = createHash("sha256")
-  .update("- phase: adaptive-goal-owner")
-  .digest("hex");
-const CLAUDE_SELECTED_TYPE =
-  "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low";
-
-function claudeSelectedCalls(observations: unknown) {
-  const calls = claudeCalls(observations);
-  if (
-    !calls ||
-    calls.some(
-      (call) =>
-        !(
-          call.parentToolUseId === null || nonemptyString(call.parentToolUseId)
-        ) ||
-        (call.actor === "parent") !== (call.parentToolUseId === null) ||
-        (call.name === "Agent" &&
-          !/^[a-f0-9]{64}$/.test(String(call.promptFirstLineSha256))),
-    )
-  )
-    return null;
-  return calls;
-}
-
-function claudeSelectedOwner(calls: RecordValue[] | null) {
-  if (!calls) return null;
-  const owners = calls.filter(claudeOwner);
-  if (owners.length !== 1) return null;
-  return owners[0]!;
-}
-
 function claudeNestedSkills(observations: unknown): RecordValue[] | null {
   const observation = uniqueObservation(
     observations,
@@ -5961,294 +4377,6 @@ function claudeEventBlocks(event: RecordValue): RecordValue[] {
           !!block && typeof block === "object" && !Array.isArray(block),
       )
     : [];
-}
-
-function claudeWithinOwner(
-  call: RecordValue,
-  calls: RecordValue[],
-  ownerId: string,
-) {
-  let parent = call.parentToolUseId;
-  const seen = new Set<string>();
-  while (nonemptyString(parent) && !seen.has(parent)) {
-    if (parent === ownerId) return true;
-    seen.add(parent);
-    parent = calls.find(
-      (candidate) =>
-        candidate.name === "Agent" && candidate.toolUseId === parent,
-    )?.parentToolUseId;
-  }
-  return false;
-}
-
-function claudeResolverCommand(command: unknown) {
-  if (typeof command !== "string") return false;
-  const wrapper = command.match(/^cd "([^"\r\n]+)" && (.+) 2>&1$/);
-  const core = wrapper ? wrapper[2]! : command;
-  const match = core.match(
-    /^uv run --quiet --no-project ("[^"\r\n]+"|'[^'\r\n]+'|\/[A-Za-z0-9_./-]+) claude-agent-route --provider anthropic --model claude-sonnet-5 --effort low$/,
-  );
-  if (!match) return false;
-  const path = match[1]!.replace(/^(?:"|')|(?:"|')$/g, "");
-  return (
-    /^\/[A-Za-z0-9_./-]+$/.test(path) &&
-    !path.split("/").includes("..") &&
-    path.endsWith("/backend/scripts/run_locked.py") &&
-    (!wrapper ||
-      (/^\/[A-Za-z0-9_./-]+$/.test(wrapper[1]!) &&
-        path ===
-          `${wrapper[1]}/.sevro-marketplace/plugin/backend/scripts/run_locked.py`))
-  );
-}
-
-function claudeResolverResult(block: RecordValue) {
-  if (block.is_error === true) return false;
-  const content = block.content;
-  const text =
-    typeof content === "string"
-      ? content
-      : Array.isArray(content)
-        ? content
-            .filter(
-              (item): item is RecordValue =>
-                !!item && typeof item === "object" && !Array.isArray(item),
-            )
-            .filter(
-              (item) => item.type === "text" && typeof item.text === "string",
-            )
-            .map((item) => item.text)
-            .join("\n")
-        : "";
-  return /(?:^|\n)format\tdarrow-claude-agent-route-v1\r?\nselected_route\tclaude\tanthropic\tclaude-sonnet-5\tlow\r?\nsubagent_type\tdarrow-adaptive-goal:adaptive-goal-sonnet-5-5-low\r?\nagent_file\t\/[^\r\n]*\/agents\/adaptive-goal-sonnet-5-5-low\.md(?:\r?\n|$)/.test(
-    text,
-  );
-}
-
-function claudeRouteConfirmed(events: RecordValue[], owner: RecordValue) {
-  const uses = events.flatMap((event, index) =>
-    event.type === "assistant" && !event.parent_tool_use_id
-      ? claudeEventBlocks(event)
-          .filter(
-            (block) =>
-              block.type === "tool_use" &&
-              block.name === "Bash" &&
-              claudeResolverCommand(
-                block.input && typeof block.input === "object"
-                  ? (block.input as RecordValue).command
-                  : null,
-              ),
-          )
-          .map((block) => ({ id: block.id, index }))
-      : [],
-  );
-  if (uses.length !== 1 || !nonemptyString(uses[0]!.id)) return false;
-  const call = uses[0]!;
-  const resultIndex = events.findIndex(
-    (event, index) =>
-      index > call.index &&
-      event.type === "user" &&
-      !event.parent_tool_use_id &&
-      claudeEventBlocks(event).some(
-        (block) =>
-          block.type === "tool_result" &&
-          block.tool_use_id === call.id &&
-          claudeResolverResult(block),
-      ),
-  );
-  const ownerIndex = events.findIndex(
-    (event) =>
-      event.type === "assistant" &&
-      !event.parent_tool_use_id &&
-      claudeEventBlocks(event).some(
-        (block) => block.type === "tool_use" && block.id === owner.toolUseId,
-      ),
-  );
-  return resultIndex > call.index && ownerIndex > resultIndex;
-}
-
-function claudeParentWorkAfterOwner(
-  events: RecordValue[],
-  owner: RecordValue,
-): boolean | null {
-  const resultIndex = events.findIndex(
-    (event) =>
-      event.type === "user" &&
-      !event.parent_tool_use_id &&
-      claudeEventBlocks(event).some(
-        (block) =>
-          block.type === "tool_result" &&
-          block.tool_use_id === owner.toolUseId &&
-          block.is_error !== true,
-      ),
-  );
-  if (resultIndex < 0) return null;
-  return events
-    .slice(resultIndex + 1)
-    .some(
-      (event) =>
-        event.type === "assistant" &&
-        !event.parent_tool_use_id &&
-        claudeEventBlocks(event).some((block) => block.type === "tool_use"),
-    );
-}
-
-async function claudeSelectedOwnershipChecks(
-  observations: unknown,
-  artifacts: unknown,
-) {
-  const calls = claudeSelectedCalls(observations);
-  const owner = claudeSelectedOwner(calls);
-  const events = claudeRawEvents(
-    await codexEventText(artifacts, "sevro.claude.events"),
-  );
-  const after =
-    events && owner ? claudeParentWorkAfterOwner(events, owner) : null;
-  return [
-    ownershipCheck(
-      OWNERSHIP_CHECKS[0],
-      !calls
-        ? "unavailable"
-        : calls.filter(claudeOwner).length <= 1
-          ? "passed"
-          : "failed",
-      calls ? "sevro.claude.tool-calls" : null,
-      "No replacement owner is launched",
-    ),
-    ownershipCheck(
-      OWNERSHIP_CHECKS[1],
-      after === null ? "unavailable" : after ? "failed" : "passed",
-      after === null ? null : "sevro.claude.events",
-      "No parent tool call follows the foreground owner result",
-    ),
-    internalRecordCheck(observations, "sevro.host.claude"),
-  ];
-}
-
-function claudeMarkedOwner(owner: RecordValue | null) {
-  return (
-    !!owner &&
-    owner.actor === "parent" &&
-    owner.parentToolUseId === null &&
-    owner.subagentType === CLAUDE_SELECTED_TYPE &&
-    owner.runInBackground === false &&
-    owner.model === null &&
-    owner.promptFirstLineSha256 === CLAUDE_OWNER_MARKER
-  );
-}
-
-function claudeIndependentReview(
-  calls: RecordValue[] | null,
-  owner: RecordValue | null,
-  nested: RecordValue[] | null,
-) {
-  return (
-    !!owner &&
-    (!!calls?.some(
-      (call) =>
-        call.name === "Skill" &&
-        call.invocation === "independent-code-review" &&
-        claudeWithinOwner(call, calls, String(owner.toolUseId)),
-    ) ||
-      !!nested?.some(
-        (call) =>
-          call.invocation === "independent-code-review" &&
-          call.ancestorToolUseId === owner.toolUseId,
-      ))
-  );
-}
-
-function claudeNoLedger(eventsText: string | null) {
-  return (
-    eventsText !== null &&
-    ![
-      "adaptive-goal-preflight step",
-      "Protocol ledger",
-      "claude-route-gate",
-    ].some((term) => eventsText.includes(term))
-  );
-}
-
-type ClaudeSelectedContext = {
-  calls: RecordValue[] | null;
-  nested: RecordValue[] | null;
-  owner: RecordValue | null;
-  eventsText: string | null;
-  events: RecordValue[] | null;
-};
-
-function claudeSelectedPassed(kind: string, context: ClaudeSelectedContext) {
-  const { calls, nested, owner, eventsText, events } = context;
-  if (kind === "claude-selected-owner") return claudeMarkedOwner(owner);
-  if (kind === "claude-one-owner")
-    return calls?.filter(claudeOwner).length === 1;
-  if (kind === "claude-independent-review")
-    return claudeIndependentReview(calls, owner, nested);
-  if (kind === "claude-selected-route")
-    return !!events && !!owner && claudeRouteConfirmed(events, owner);
-  if (kind === "claude-no-ledger") return claudeNoLedger(eventsText);
-  throw new Error("unsupported Claude selected-owner check");
-}
-
-function claudeSelectedAvailable(kind: string, context: ClaudeSelectedContext) {
-  if (kind === "claude-no-ledger") return context.events !== null;
-  if (kind === "claude-selected-route")
-    return context.events !== null && context.calls !== null;
-  if (context.calls === null) return false;
-  if (kind !== "claude-independent-review") return true;
-  return (
-    context.nested !== null ||
-    claudeIndependentReview(context.calls, context.owner, null)
-  );
-}
-
-function claudeSelectedEvidenceRef(
-  kind: string,
-  context: ClaudeSelectedContext,
-) {
-  if (kind === "claude-selected-route" || kind === "claude-no-ledger")
-    return "sevro.claude.events";
-  const directReview =
-    kind === "claude-independent-review" &&
-    claudeIndependentReview(context.calls, context.owner, null);
-  return kind === "claude-independent-review" && !directReview
-    ? "sevro.claude.nested-skills"
-    : "sevro.claude.tool-calls";
-}
-
-function claudeSelectedTranscriptOutcome(
-  check: RecordValue,
-  context: ClaudeSelectedContext,
-) {
-  const kind = String(check.kind);
-  const available = claudeSelectedAvailable(kind, context);
-  return {
-    id: string(check.id, "Claude transcript check ID"),
-    status: !available
-      ? "unavailable"
-      : claudeSelectedPassed(kind, context)
-        ? "passed"
-        : "failed",
-    detail: available
-      ? "Graded from complete Claude host evidence"
-      : "Claude host evidence unavailable or incomplete",
-    evidenceRefs: available ? [claudeSelectedEvidenceRef(kind, context)] : [],
-  };
-}
-
-async function claudeSelectedTranscriptChecks(
-  selected: RecordValue[],
-  observations: unknown,
-  artifacts: unknown,
-) {
-  const calls = claudeSelectedCalls(observations);
-  const nested = claudeNestedSkills(observations);
-  const owner = claudeSelectedOwner(calls);
-  const eventsText = await codexEventText(artifacts, "sevro.claude.events");
-  const events = claudeRawEvents(eventsText);
-  const context = { calls, nested, owner, eventsText, events };
-  return selected.map((check) =>
-    claudeSelectedTranscriptOutcome(check, context),
-  );
 }
 
 function measuredMetric(
@@ -6313,16 +4441,6 @@ function caseMetrics(details: RecordValue, params: RecordValue) {
   });
 }
 
-async function caseOwnershipChecks(details: RecordValue, params: RecordValue) {
-  if (details.ownership === true || details.ownership === "composition")
-    return ownershipChecks(params.observations);
-  if (details.ownership === "claude")
-    return claudeReadinessOwnershipChecks(params.observations);
-  if (details.ownership === "claude-selected")
-    return claudeSelectedOwnershipChecks(params.observations, params.artifacts);
-  return [];
-}
-
 function guideSupportDisclosure(text: string): boolean {
   return (
     /(?:scop[^.]*evidence|evidence[^.]*scop)/i.test(text) ||
@@ -6344,7 +4462,9 @@ function guidePrimaryDevelopment(text: string): boolean {
   );
 }
 
-function guideDisclosureStatus(observations: unknown): OwnershipStatus {
+function guideDisclosureStatus(
+  observations: unknown,
+): "passed" | "failed" | "unavailable" {
   const final = uniqueObservation(
     observations,
     "sevro.observation.final-message",
@@ -6384,7 +4504,10 @@ async function currentNativeTranscriptChecks(
   details: RecordValue,
   params: RecordValue,
 ) {
-  if (details.nativeTranscriptChecks === undefined) return [];
+  const selected = (
+    details.transcriptChecks as NativeTranscript[] | undefined
+  )?.filter((check) => NATIVE_TRANSCRIPT_KINDS.has(check.kind));
+  if (!selected?.length) return [];
   const nativeGoal = uniqueObservation(
     params.observations,
     "sevro.host.native-goal",
@@ -6395,21 +4518,16 @@ async function currentNativeTranscriptChecks(
       : "sevro.codex.events";
   const events = await codexEventText(params.artifacts, eventId);
   const tools = claudeCalls(params.observations);
-  return nativeTranscriptOutcomes(
-    details.nativeTranscriptChecks as NativeTranscript[],
-    params.observations,
-    {
-      events,
-      eventId,
-      skills: transcriptSkillObservation(params.observations, details),
-      spawns:
-        nativeControlEvidence(params.observations)?.acceptedSpawns ?? null,
-      feedback: nativeFeedbackEvidence(params.observations)?.feedback ?? null,
-      claudeTools: tools,
-      claudeNestedSkills: claudeNestedSkills(params.observations),
-      claudeCompletedRoutes: currentClaudeCompletedRoutes(tools, events),
-    },
-  );
+  return nativeTranscriptOutcomes(selected, params.observations, {
+    events,
+    eventId,
+    skills: transcriptSkillObservation(params.observations, details),
+    spawns: nativeControlEvidence(params.observations)?.acceptedSpawns ?? null,
+    feedback: nativeFeedbackEvidence(params.observations)?.feedback ?? null,
+    claudeTools: tools,
+    claudeNestedSkills: claudeNestedSkills(params.observations),
+    claudeCompletedRoutes: currentClaudeCompletedRoutes(tools, events),
+  });
 }
 
 function currentClaudeCompletedRoutes(
@@ -6478,13 +4596,9 @@ function currentClaudeRouteCompleted(events: RecordValue[], call: RecordValue) {
 }
 
 async function workflowChecks(details: RecordValue, params: RecordValue) {
-  const ownership = await caseOwnershipChecks(details, params);
   return [
     ...nativeGoalOutcomes(details.nativeGoal, params.observations),
     ...(await currentNativeTranscriptChecks(details, params)),
-    ...(details.ownership === "composition"
-      ? ownership.slice(0, 2)
-      : ownership),
     ...(await nativeTranscriptChecks(
       details.transcriptChecks,
       params.observations,
@@ -6617,7 +4731,6 @@ if (import.meta.main) {
             ],
             graders: [
               "darrow.evals.native-goal",
-              "darrow.evals.ownership",
               "darrow.evals.transcript",
               "darrow.evals.disclosure",
               "darrow.evals.benchmark",

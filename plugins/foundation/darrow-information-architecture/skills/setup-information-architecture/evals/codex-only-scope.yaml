@@ -1,5 +1,4 @@
 id: setup-information-architecture-codex-only-scope
-invariant: IA-S6,IA-S8,IA-S11
 activation: competition
 mount_plugin_skills: true
 prompt: >-

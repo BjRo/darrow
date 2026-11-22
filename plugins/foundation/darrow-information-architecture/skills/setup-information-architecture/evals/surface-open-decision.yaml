@@ -1,5 +1,4 @@
 id: setup-information-architecture-surface-open-decision
-invariant: IA-S9,IA-S11
 activation: competition
 mount_plugin_skills: true
 prompt: >-

@@ -33,6 +33,7 @@ const sourceFiles = [
   join(import.meta.dir, "claude-assessment.ts"),
   join(import.meta.dir, "retention-lock.ts"),
   join(import.meta.dir, "native-transcript-policy.ts"),
+  join(import.meta.dir, "transcript-policy.ts"),
   join(repositoryRoot, "evals/fixture-ticket.ts"),
   join(import.meta.dir, "run.ts"),
   join(import.meta.dir, "selection.ts"),

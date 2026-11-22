@@ -1,5 +1,4 @@
 id: publish-pr-evidence-generic-comment-nonactivation
-invariant: GW-E1
 activation: negative
 activation_excludes: [publish-pr-evidence]
 mount_plugin_skills: true

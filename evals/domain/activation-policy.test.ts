@@ -816,41 +816,6 @@ describe("public skill activation policy", () => {
     ).toBeUndefined();
   });
 
-  test("preserves owner requirements for adaptive-goal and composition cases except negative activation", async () => {
-    const owner = await policyProject(
-      { goal_report: "forbidden", goal_route_checks: false },
-      { plugin: "darrow-adaptive-goal", skill: "adaptive-goal" },
-    );
-    expect(
-      (await owner.resolve()).checks.filter(
-        (check) => check.grader === "darrow.evals.ownership",
-      ),
-    ).toHaveLength(3);
-    const composition = await policyProject({
-      adaptive_goal_composition: true,
-    });
-    expect(
-      (await composition.resolve()).checks.filter(
-        (check) => check.grader === "darrow.evals.ownership",
-      ),
-    ).toHaveLength(2);
-    await owner.write({
-      activation: "negative",
-      goal_report: undefined,
-      goal_route_checks: undefined,
-    });
-    expect(
-      (await owner.resolve()).checks.filter(
-        (check) => check.grader === "darrow.evals.ownership",
-      ),
-    ).toEqual([]);
-    expect(
-      (await (await policyProject()).resolve()).checks.filter(
-        (check) => check.grader === "darrow.evals.ownership",
-      ),
-    ).toEqual([]);
-  });
-
   test("grades a positive primary selection and preserves unavailable evidence as unknown", async () => {
     const selected = await (
       await policyProject({ activation: "positive" })

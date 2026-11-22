@@ -1,7 +1,4 @@
 id: goal-blocked-retry-observes-publication
-invariant: ADL-S2,ADL-E1,SE-C14,SE-C15
-goal_report: forbidden
-goal_route_checks: false
 prompt: >-
   Use {{skill_invocation}} to decide the next lifecycle action only. The retained owner
   in this same thread is blocked because pull-request creation returned an ambiguous
@@ -25,7 +22,9 @@ semantic_output_checks:
       observation.
 transcript_checks:
   - name: advice-only invocation launches no owner or helper
-    not_regex:
-      '"tool":"spawn_agent"|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"|"name":"Agent"|adaptive-goal-preflight
-      (?:prepare|route|step)'
+    kind: inactive-controls
+    forbidSpawn: true
+    forbidAgentTool: true
+    forbiddenCommandTerms:
+      - adaptive-goal-preflight
 native_goal: forbidden

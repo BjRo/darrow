@@ -1,5 +1,4 @@
 id: orchestration-oss-click-streams
-invariant: ORCH-OSS-STREAM-LIFECYCLE
 prompt: |-
   Work directly in this Click repository and implement the requested behavior. Do not commit or publish changes.
 

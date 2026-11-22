@@ -1,7 +1,5 @@
 id: artificer-recovery-boundary
 activation: positive
-invariant: ART-C1,ART-C2,ART-C7,ART-C9,ART-C11
-goal_report: forbidden
 expect_head_change: false
 prompt: >-
   {{skill_invocation}} Recover delivery 11111111-1111-4111-8111-111111111111

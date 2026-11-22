@@ -1,5 +1,4 @@
 id: create-branch-no-trigger-list-branches
-invariant: GW-B3
 activation: negative
 activation_excludes: [create-branch]
 mount_plugin_skills: true

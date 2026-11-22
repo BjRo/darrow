@@ -1,7 +1,4 @@
 id: goal-isolated-ticket-shared-allowance
-invariant: ADL-R3,ADL-A4
-goal_report: forbidden
-goal_route_checks: false
 harnesses:
   - codex
   - claude

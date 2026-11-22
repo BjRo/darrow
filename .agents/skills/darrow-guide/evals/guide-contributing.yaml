@@ -1,5 +1,4 @@
 id: guide-contributing
-invariant: RG-C1,RG-C2,RG-C4,RG-C8
 activation: positive
 prompt: Where are Darrow's contributor checks, credits, development rules and architectural decisions?
 fixture:

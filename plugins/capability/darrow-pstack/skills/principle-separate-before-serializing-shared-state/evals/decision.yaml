@@ -1,7 +1,6 @@
 id: pstack-principle-separate-before-serializing-shared-state-decision
 activation: positive
 mount_plugin_skills: true
-invariant: PF-R8,PF-AC9
 expect_head_change: false
 prompt:
   Use principle-separate-before-serializing-shared-state for the concrete decision

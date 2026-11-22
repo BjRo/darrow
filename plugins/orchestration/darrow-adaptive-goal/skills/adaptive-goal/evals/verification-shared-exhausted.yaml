@@ -1,7 +1,4 @@
 id: goal-verification-shared-exhausted
-invariant: ADL-A4,ADL-V1,LC-C5
-goal_report: forbidden
-goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Advice only; do not launch or perform work. The retained owner
   selected review and QA through its public workflow. No explicit repair maximum was supplied.

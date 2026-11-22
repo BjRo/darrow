@@ -1,5 +1,4 @@
 id: context-usage-no-trigger-doctor
-invariant: IA-C6
 activation: negative
 activation_excludes: [context-usage]
 mount_plugin_skills: true

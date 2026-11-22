@@ -1,7 +1,6 @@
 id: pstack-principles-first-natural-request
 activation: positive
 mount_plugin_skills: true
-invariant: PF-R1,PF-R2,PF-R3,PF-R8,PF-AC10
 expect_head_change: false
 prompt: >-
   Use the principles-first approach to compare the two scoped designs in request.md and

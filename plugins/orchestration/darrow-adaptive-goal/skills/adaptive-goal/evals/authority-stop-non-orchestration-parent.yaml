@@ -1,7 +1,4 @@
 id: goal-preflight-authority-stop-non-orchestration-parent
-invariant: ADL-P1,ADL-S1
-goal_report: forbidden
-goal_route_checks: false
 prompt: >-
   /non-orchestration-parent Change auth.js from role checks to an unspecified new
   authorization policy. On Codex, invoke the $non-orchestration-parent skill. Follow

@@ -1,7 +1,6 @@
 id: pstack-principle-prove-it-works-static-type-property
 activation: positive
 mount_plugin_skills: true
-invariant: PF-R8,PF-AC9
 expect_head_change: false
 prompt: Use principle-prove-it-works for decision.md. Give advice only; do not edit files.
 fixture:

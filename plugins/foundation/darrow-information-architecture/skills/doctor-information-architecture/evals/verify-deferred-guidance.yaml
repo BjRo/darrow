@@ -1,5 +1,4 @@
 id: doctor-information-architecture-verify-deferred-guidance
-invariant: IA-D1,IA-D4,IA-D11,IA-D12,IA-S8
 activation: positive
 prompt: >-
   {{skill_invocation}} Audit only the Codex guidance graph and report any structural

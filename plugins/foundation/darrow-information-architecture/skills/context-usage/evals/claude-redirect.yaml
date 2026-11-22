@@ -1,7 +1,6 @@
 id: context-usage-claude-redirect
 harnesses:
   - claude
-invariant: IA-C6
 activation: positive
 prompt: "{{skill_invocation}} Show me my current context breakdown."
 fixture:

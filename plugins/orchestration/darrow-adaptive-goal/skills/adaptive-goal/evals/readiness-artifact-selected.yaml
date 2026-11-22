@@ -1,7 +1,4 @@
 id: goal-readiness-artifact-selected
-invariant: ADL-L2,ADL-L1,ADL-X1
-goal_report: forbidden
-goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Implement the authoritative specification in REQUEST.md. The
   specification has not previously been assessed for implementation readiness.
@@ -47,9 +44,6 @@ checks:
 output_checks:
   - name: completed goal does not expose internal readiness records
     not_regex: "readiness_selection\\t|readiness_verdict\\t"
-transcript_checks:
-  - name: no lifecycle ledger is used
-    not_regex: adaptive-goal-preflight step|Protocol ledger
 semantic_output_checks:
   - name: completed readiness-gated goal reports success
     proposition:

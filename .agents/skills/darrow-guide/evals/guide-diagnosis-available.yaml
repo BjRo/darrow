@@ -1,5 +1,4 @@
 id: guide-diagnosis-available
-invariant: RG-C7,RG-C2,RG-C4,RG-C8
 activation: positive
 prompt: "{{skill_invocation}} Where should I take an environment-specific plugin failure?"
 fixture:

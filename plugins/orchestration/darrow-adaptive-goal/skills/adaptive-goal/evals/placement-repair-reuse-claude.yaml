@@ -3,9 +3,6 @@ id: goal-placement-repair-reuse-claude
 # .claude/skills is not catalog-advertised; the prompt names its path instead.
 # Sevro 1.1.1 permits SendMessage for retained-agent repair. This case still
 # requires a native Claude trial to establish the observed repair behavior.
-invariant: ADL-R3,ADL-L2,ADL-L5
-goal_report: forbidden
-goal_route_checks: false
 harnesses: [claude]
 activation: positive
 mount_plugin_skills: true
@@ -78,5 +75,7 @@ semantic_output_checks:
       the finding.
 transcript_checks:
   - name: repair returns to the retained implementor
-    expect_regex: '"type":"darrow.codex_native_spawn"[^\n]*"model":"gpt-6.1-sol"[^\n]*"reasoning_effort":"high"[^\n]*"agent_ref":"([^"]+)"[\s\S]*"type":"darrow.codex_native_feedback"[^\n]*"agent_ref":"\1"|"name":"Agent"[\s\S]*"name":"SendMessage"'
+    kind: repair-reuse
+    model: gpt-6.1-sol
+    effort: high
 native_goal: required

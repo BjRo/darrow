@@ -1,5 +1,4 @@
 id: doctor-information-architecture-move-procedure-to-skill
-invariant: IA-D6,IA-D12
 activation: competition
 mount_plugin_skills: true
 prompt: >-

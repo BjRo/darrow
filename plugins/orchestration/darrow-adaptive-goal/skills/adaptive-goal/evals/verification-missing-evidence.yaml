@@ -1,7 +1,4 @@
 id: goal-verification-missing-evidence
-invariant: ADL-V1,ADL-A4,LC-C5
-goal_report: forbidden
-goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Advice only; do not launch or perform work. Review and QA are
   selected through its public workflow. Current checks and review are clear; QA returned

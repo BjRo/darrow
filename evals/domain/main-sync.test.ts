@@ -487,7 +487,6 @@ test("public extension mounts plugin references and excludes their evals", async
     join(plugin, "skills/probe/evals/case.yaml"),
     JSON.stringify({
       id: "reference-probe",
-      invariant: "SE-C18",
       prompt: "Read the reference",
       fixture: {
         commits: [{ message: "Initial", files: { "README.md": "fixture" } }],
@@ -530,8 +529,6 @@ test("public extension mounts plugin references and excludes their evals", async
 test("current native goal cases preserve task and diagnostic transcript assertions", async () => {
   const root = join(import.meta.dir, "../..");
   for (const id of [
-    "goal-preflight-bounded-native-goal",
-    "goal-preflight-high-risk-routine",
     "claude-readiness-nonready-stops",
     "goal-readiness-iterative-resolution",
     "goal-review-high-selected-claude",
@@ -542,7 +539,6 @@ test("current native goal cases preserve task and diagnostic transcript assertio
         checks: Array<{ id: string }>;
         extensionData: {
           "darrow.case": {
-            nativeTranscriptChecks?: { id: string }[];
             transcriptChecks?: { id: string }[];
             workflowDiagnosticIds?: string[];
           };
@@ -555,10 +551,9 @@ test("current native goal cases preserve task and diagnostic transcript assertio
     });
     const selected = reply.cases[0]!;
     const details = selected.extensionData["darrow.case"];
-    const transcriptIds = [
-      ...(details.nativeTranscriptChecks ?? []),
-      ...(details.transcriptChecks ?? []),
-    ].map((check) => check.id);
+    const transcriptIds = [...(details.transcriptChecks ?? [])].map(
+      (check) => check.id,
+    );
     expect(transcriptIds.length).toBeGreaterThan(0);
     expect([
       ...selected.checks.map((check) => check.id),
@@ -576,7 +571,6 @@ test("public extension translates saved-artifact checks for Sevro", async () => 
     join(directory, "case.yaml"),
     JSON.stringify({
       id: "artifact-probe",
-      invariant: "SE-R4",
       prompt: "Save a decision",
       fixture: {
         commits: [{ message: "Initial", files: { "README.md": "fixture" } }],
@@ -625,7 +619,6 @@ test("public extension grades native main-thread activation independently", asyn
     join(directory, "case.yaml"),
     JSON.stringify({
       id: "native-probe",
-      invariant: "SE-C33",
       prompt: "Return ready",
       fixture: {
         commits: [{ message: "Initial", files: { "README.md": "fixture" } }],

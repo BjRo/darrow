@@ -1,5 +1,4 @@
 id: prepare-task-branch-missing-token
-invariant: GW-TB1,GW-TB3
 activation: positive
 mount_plugin_skills: true
 expect_head_change: false

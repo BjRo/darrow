@@ -1,7 +1,6 @@
 id: pstack-principle-outcome-oriented-execution-no-breakage-allowance
 activation: positive
 mount_plugin_skills: true
-invariant: PF-R8,PF-AC9
 expect_head_change: false
 prompt:
   Use principle-outcome-oriented-execution for decision.md. Give advice only; do not

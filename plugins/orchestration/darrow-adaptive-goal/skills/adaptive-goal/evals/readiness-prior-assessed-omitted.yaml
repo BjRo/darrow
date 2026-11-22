@@ -1,7 +1,4 @@
 id: goal-readiness-prior-assessed-omitted
-invariant: ADL-L2,ADL-L1,ADL-X1
-goal_report: forbidden
-goal_route_checks: false
 prompt: >-
   Assess the authoritative accepted plan in REQUEST.md for implementation readiness
   using the exact advertised readiness capability. Return its complete result. Do not
@@ -40,9 +37,6 @@ checks:
     run:
       test "$(wc -l <.fixture-state/implementation-readiness-invocations | tr -d '
       ')" -eq 1
-transcript_checks:
-  - name: no lifecycle ledger is used
-    not_regex: adaptive-goal-preflight step|Protocol ledger
 semantic_output_checks:
   - name: previously assessed goal completes
     proposition:

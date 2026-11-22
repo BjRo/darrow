@@ -1,5 +1,4 @@
 id: guide-installation
-invariant: RG-C1,RG-C2,RG-C4,RG-C8
 activation: positive
 prompt: How do I install and verify the readiness gate in this host?
 fixture:

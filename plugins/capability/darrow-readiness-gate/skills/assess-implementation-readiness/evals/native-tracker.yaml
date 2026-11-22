@@ -1,5 +1,4 @@
 id: readiness-native-tracker
-invariant: IRG-C2,IRG-C3
 activation: positive
 mount_plugin_skills: true
 prompt: >-

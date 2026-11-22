@@ -1,8 +1,6 @@
 {
   "id": "artificer-path-repair",
   "activation": "positive",
-  "invariant": "ART-C14",
-  "goal_report": "forbidden",
   "expect_head_change": false,
   "fixture":
     {

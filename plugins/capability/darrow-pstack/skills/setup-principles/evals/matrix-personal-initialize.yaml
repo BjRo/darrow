@@ -26,7 +26,6 @@ activation_excludes:
   - principle-never-block-on-the-human
   - principle-encode-lessons-in-structure
 mount_plugin_skills: true
-invariant: PF-R4,PF-R5,PF-AC5,PF-AC6
 expect_head_change: false
 prompt: Set up personal-scoped principles-first routing with the complete
   bundled defaults. Do not customize routes yet.

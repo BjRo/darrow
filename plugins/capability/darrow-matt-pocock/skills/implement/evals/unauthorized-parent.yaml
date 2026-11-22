@@ -1,10 +1,7 @@
 id: implement-unauthorized-parent
-invariant: IMP-C2,IMP-C4
 activation: positive
 additional_plugins:
   - plugins/orchestration/darrow-adaptive-goal
-goal_report: forbidden
-goal_route_checks: false
 native_goal: forbidden
 prompt: >-
   /non-orchestration-parent Change auth.js from role checks to an unspecified new

@@ -1,5 +1,4 @@
 id: doctor-adaptive-goal-incomplete-host
-invariant: ADL-D1
 activation: positive
 prompt: >-
   Diagnose whether another machine's Claude Code configuration supports
@@ -16,4 +15,9 @@ semantic_output_checks:
     proposition: The response asks for the missing Claude Code version and effective values or diagnostic source from the other machine, and does not claim a capacity result.
 transcript_checks:
   - name: no diagnostic or orchestration starts before host choice
-    not_regex: 'host-config-doctor|adaptive-goal-preflight|"tool":"spawn_agent"|"name":"Agent"'
+    kind: inactive-controls
+    forbiddenCommandTerms:
+      - host-config-doctor
+      - adaptive-goal-preflight
+    forbidSpawn: true
+    forbidAgentTool: true

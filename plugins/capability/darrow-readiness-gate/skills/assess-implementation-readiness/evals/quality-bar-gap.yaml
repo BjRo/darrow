@@ -1,5 +1,4 @@
 id: readiness-quality-bar-gap
-invariant: IRG-E1,IRG-E2,IRG-E3,SE-C9,SE-C10,SE-C11,SE-C14
 activation: positive
 mount_plugin_skills: true
 prompt: >-
