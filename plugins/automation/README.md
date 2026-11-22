@@ -1,11 +1,16 @@
 # Automation
 
-[Local Artificer](darrow-artificer/README.md) admits explicitly nominated GitHub
-issues under a saved recurring human grant. Its macOS scheduler runs the selected
-Codex or Claude Code host; the ticket recipe and original native owner retain
-engineering execution. Read [Artificer's Claude completion limit](darrow-artificer/README.md#hosts-and-prerequisites)
-before choosing unattended delivery.
+No automation plugin currently ships. The automation category remains for
+admission timing, eligibility and shared capacity under explicit recurring
+authority. Task recipes and native sessions retain engineering execution.
 
-Automation is opt-in. Installing a plugin starts no schedule and grants no
-recurring publication authority. Admission pause, cancellation and revocation
-are separate operations. GitHub Actions execution remains a separate follow-up.
+Use [Ticket-to-PR](../task-recipe/darrow-ticket-to-pr/README.md) to explicitly
+deliver one ticket. Installing a plugin grants no recurring execution or
+publication authority.
+
+Before removing an existing Artificer installation, use its installed version
+to run `darrow-artificer revoke`, `darrow-artificer unschedule` and
+`darrow-artificer status`. Reconcile running deliveries in their original native
+sessions, or cancel an identified delivery with `darrow-artificer cancel DELIVERY_UUID`.
+Revocation and unscheduling do not stop running deliveries. This repository
+removal leaves local schedules, state, worktrees and published effects intact.

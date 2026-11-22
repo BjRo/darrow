@@ -1,8 +1,8 @@
 {
-  "version": 4,
+  "version": 5,
   "contract": ".agents/skills/darrow-guide/SKILL.md",
   "hosts": ["codex", "claude"],
-  "host_behavior": "Claude guide answers disclose support scoped to documented workflow evidence and primary Codex development; unrelated negative cases do not. Both hosts are required targets for curated bundles and revised shared workflows; Artificer retains its explicit Claude exception. Installation answers identify the actual harness host.",
+  "host_behavior": "Claude guide answers disclose support scoped to documented workflow evidence and primary Codex development; unrelated negative cases do not. Both hosts are required targets for curated bundles and revised shared workflows. Installation answers identify the actual harness host.",
   "negative_expectations": [
     "No repository or external mutations",
     "No diagnosis or orchestration execution",
@@ -60,7 +60,7 @@
       "answer_points": [
         "Responsibilities are not sequential stages",
         "Foundations and capabilities support several layers",
-        "Local Artificer supplies bounded authorized automation",
+        "Automation remains an architectural category with no shipped plugin",
         "Evaluation and observability span layers"
       ],
       "evidence": "authoritative",
@@ -356,7 +356,7 @@
       "answer_points": [
         "Explicit outcome and permission envelope",
         "One delegation",
-        "Local Artificer has a deliberate saved-grant unattended entry",
+        "Ticket-to-PR requires explicit invocation and has no scheduler entry",
         "No authority inferred from a generic scheduler call or ticket text"
       ],
       "evidence": "authoritative",

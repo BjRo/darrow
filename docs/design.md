@@ -13,8 +13,8 @@ that coordinate longer work. Plugins remain independently installable.
 | Task recipes  | A familiar outcome and its permission envelope                            |
 | Automation    | Admission timing, eligibility and shared capacity under a recurring grant |
 
-Keep these five repository categories even when a category currently contains
-one plugin. They describe responsibilities, not mandatory sequential stages.
+Keep these five repository categories even when a category contains no plugins.
+They describe responsibilities, not mandatory sequential stages.
 Foundations and capabilities support several categories directly. Evaluation
 and host telemetry assess work without granting execution authority.
 
@@ -65,12 +65,12 @@ shared finite budget, regardless of the number of assessment providers. See
 
 ## Automation admits work
 
-Artificer admits nominated issues under an explicit recurring grant, shared
-claims and capacity limits. The recipe and original native session retain
-engineering execution and completion. Technical recovery resumes that session;
-missing product intent requires attention. Installing a plugin grants no
-recurring execution or publication authority. See
-[ADR-0017](decisions/ADR-0017-limit-automation-to-authorized-admission.md).
+Automation owns admission timing, eligibility and shared capacity under explicit
+recurring authority. No automation plugin currently ships. The recipe and
+original native session retain engineering execution and completion. Installing
+a plugin grants no recurring execution or publication authority.
+[ADR-0017](decisions/ADR-0017-limit-automation-to-authorized-admission.md) records
+the former Artificer implementation and its admission boundary.
 
 ## Skills and helpers
 
