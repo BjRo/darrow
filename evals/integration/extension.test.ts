@@ -1531,17 +1531,6 @@ SEVRO_EVENTS
     join(root, "live-results"),
     "--retain-host-diagnostics",
   ]);
-  // [DEBUG-sevro120] Temporary: print retained host diagnostics on failure.
-  if (live.code !== 0)
-    for (const file of new Bun.Glob("**/*diagnostics*").scanSync({
-      cwd: join(root, "live-results"),
-      dot: true,
-    }))
-      console.error(
-        "[DEBUG-sevro120]",
-        file,
-        await readFile(join(root, "live-results", file), "utf8"),
-      );
   expect(live.code, live.stderr).toBe(0);
   expect(live.value.task.verdict).toBe("passed");
   expect(live.value.cases[0]!.trials[0]!.domainOutcomes).toMatchObject([
