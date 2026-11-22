@@ -1,4 +1,5 @@
 id: goal-steering-without-question
+harnesses: [codex]
 activation: positive
 prompt: >-
   {{skill_invocation}} Add normalize(input) in src/normalize.js, returning a trimmed

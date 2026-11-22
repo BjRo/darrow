@@ -29,6 +29,54 @@ const supportingFixture = {
 };
 
 test.each(["codex", "claude"] as const)(
+  "inline capability fixtures expose all supporting skills on %s",
+  async (host) => {
+    for (const [id, names] of [
+      [
+        "goal-failed-check-blocks-publication",
+        ["independent-code-review", "create-commit", "create-pr"],
+      ],
+      [
+        "goal-intent-capability-bindings",
+        [
+          "read-ticket",
+          "independent-code-review",
+          "create-commit",
+          "create-pr",
+        ],
+      ],
+      ["goal-real-create-commit-composition", ["independent-code-review"]],
+      [
+        "goal-verification-incomplete-blocks-publication",
+        ["inspect-delivery", "create-commit", "create-pr"],
+      ],
+    ] as const) {
+      const { cases } = await fixtureExtensionRequest<{ cases: unknown[] }>(
+        "resolve",
+        {
+          projectRoot: pathToFileURL(join(import.meta.dir, "../..")).href,
+          selectors: { caseIds: [id] },
+        },
+      );
+      const prepared = await preparePolicy(
+        cases[0] as Parameters<typeof preparePolicy>[0],
+        host,
+      );
+      const artifacts = prepared.artifacts as Artifact[];
+      for (const name of names)
+        expect(artifacts).toContainEqual(
+          expect.objectContaining({
+            relativePath:
+              host === "codex"
+                ? `.agents/skills/${name}/SKILL.md`
+                : `.sevro-marketplace/plugin/skills/${name}/SKILL.md`,
+          }),
+        );
+    }
+  },
+);
+
+test.each(["codex", "claude"] as const)(
   "Darrow declares inline supporting skills as byte-bound %s mounts",
   async (host) => {
     const project = await policyProject(

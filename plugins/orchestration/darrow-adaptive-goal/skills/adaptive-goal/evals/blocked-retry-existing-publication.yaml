@@ -24,9 +24,9 @@ semantic_output_checks:
       complete is allowed.
 transcript_checks:
   - name: advice-only invocation launches no owner or helper
-    kind: inactive-controls
-    forbidSpawn: true
-    forbidAgentTool: true
+    kind: preflight-no-agent-spawn
+  - name: advice-only invocation runs no preflight helper
+    kind: command-absence
     forbiddenCommandTerms:
       - adaptive-goal-preflight
 native_goal: forbidden

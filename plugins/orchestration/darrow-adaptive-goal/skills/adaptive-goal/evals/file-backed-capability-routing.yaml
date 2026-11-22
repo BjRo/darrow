@@ -21,10 +21,8 @@ fixture:
           Run `bash check.sh` for changes to NOTES.md.
           The host-advertised capabilities for an
           exact ticket read, one commit, and one pull-request publication are
-          available at `.agents/skills/read-ticket`,
-          `.agents/skills/create-commit`, and `.agents/skills/create-pr`. The
-          explicitly required independent review is available at
-          `.agents/skills/independent-code-review`.
+          read-ticket, create-commit, and create-pr. The explicitly required
+          independent review provider is independent-code-review.
           `adaptive-goal` preflight gathers required read-only ticket input and
           compiles review, commit, and publication for its owner.
         NOTES.md: |
@@ -38,7 +36,7 @@ fixture:
           EXPECTED
           printf '%s\n' 'check final-tree pass' >>.fixture-state/capability-events
   files:
-    .agents/skills/read-ticket/SKILL.md: |
+    .agents/skills/read-ticket/SKILL.md: &read_ticket |
       ---
       name: read-ticket
       description: Read one exact tracker ticket by ID. Use during authorized adaptive-goal preflight when the ticket is authoritative input, or when the accepted owner contract requires a refresh. Remain read-only.
@@ -50,7 +48,8 @@ fixture:
       `read-ticket-protocol <id> read-ticket-skill-contract-v1` and return its
       complete output. Do not use `gh`, `ticketctl`, or another tracker command
       directly.
-    .agents/skills/create-commit/SKILL.md: |
+    .claude/skills/read-ticket/SKILL.md: *read_ticket
+    .agents/skills/create-commit/SKILL.md: &create_commit |
       ---
       name: create-commit
       description: Create exactly one Conventional Commit when the accepted owner contract authorizes the commit; do not use during adaptive-goal preflight.
@@ -62,7 +61,8 @@ fixture:
       `create-commit-protocol NOTES.md "<subject>" create-commit-skill-contract-v1`,
       substituting one valid imperative Conventional Commit subject. Do not
       stage or commit through raw Git commands.
-    .agents/skills/create-pr/SKILL.md: |
+    .claude/skills/create-commit/SKILL.md: *create_commit
+    .agents/skills/create-pr/SKILL.md: &create_pr |
       ---
       name: create-pr
       description: Push the current feature branch and open exactly one pull request when the accepted owner contract authorizes publication; do not use during adaptive-goal preflight.
@@ -72,7 +72,8 @@ fixture:
 
       Run exactly `create-pr-protocol create-pr-skill-contract-v1`. Do not push
       or invoke `gh` directly.
-    .agents/skills/independent-code-review/SKILL.md: |
+    .claude/skills/create-pr/SKILL.md: *create_pr
+    .agents/skills/independent-code-review/SKILL.md: &independent_review |
       ---
       name: independent-code-review
       description: Independently review one exact current change and report its findings and outcome. Use when an explicit goal contract requires independent review before commit or publication. Remain read-only.
@@ -101,6 +102,7 @@ fixture:
       This fixture supports initial assessment. Closed follow-up returns
       unavailable and preserves the supplied finding and repair history.
       Do not execute the protocol as coordinator, implement, commit or publish.
+    .claude/skills/independent-code-review/SKILL.md: *independent_review
   ticket:
     id: "64"
     title: "Add the capability-routing note"

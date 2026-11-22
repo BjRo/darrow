@@ -11,7 +11,8 @@ prompt: >-
   wall-clock time matters. These modules are private to this repository with no other
   consumers, and the existing tests cover every caller, so the change is localized
   and reversible. Select and apply the policy route rather than pinning a
-  model. Keep the result local.
+  model. Keep the result local. Report whether the coupled implementation ran
+  directly or in sequential delegated assignments.
 fixture:
   commits:
     - message: "chore: init"
@@ -65,14 +66,17 @@ checks:
 output_checks:
   - name: verification evidence is returned
     expect_regex: "test\\.sh"
-transcript_checks:
-  - name: coupled same-route work launches no implementation agent
-    kind: inactive-controls
-    forbidSpawn: true
-    forbidAgentTool: true
 semantic_output_checks:
   - name: owner reports completion
     proposition:
       The response reports the requested outcome as complete, with no unresolved
       blocker or pending decision preventing completion.
+  - name: coupled work ran sequentially
+    proposition: >-
+      The response explicitly reports completed sequential implementation of the coupled
+      formatPrice interface and caller changes. Accept direct implementation,
+      one delegated assignment, or sequential delegated assignments. Reject
+      concurrent implementation of those coupled changes and future plans
+      without completed implementation. Reject responses without placement
+      information; completed edits and passed checks alone do not establish placement.
 native_goal: required

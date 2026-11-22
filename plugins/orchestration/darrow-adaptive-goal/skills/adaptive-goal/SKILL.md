@@ -8,7 +8,7 @@ description: Coordinate a bounded engineering request as a native main-thread go
 Own decisions, acceptance, coordination and completion here. Bound capabilities
 own their public workflows. Before activation/delegation, read the host guide:
 [Codex](references/codex-launch.md) or [Claude](references/claude-launch.md).
-Require native goals; retain the coordinator model. On Codex, recommend
+Require native goals after section 6's startup gate; retain the coordinator model. On Codex, recommend
 GPT-6.1 Sol/medium once, nonblocking, if the current model is known weaker.
 
 ## 1. Authority
@@ -132,8 +132,13 @@ current route only; otherwise observe session. Retain `route_relation`, includin
 
 ## 6. Activation and ledger
 
-After preflight, activate/continue the matching native goal; observe activation
-before implementation/assessment. Preserve unrelated goals. Objective: at most
+**Start.** Resolve blocking preflight decisions and clear readiness under section 3
+before creating/proposing a native goal or delegating. Otherwise return the
+unresolved question/result without activation.
+
+**Continue.** Retain an existing matching goal when later decisions stop affected work.
+
+Observe activation before implementation/assessment. Preserve unrelated goals. Objective: at most
 4,000 Unicode characters covering outcome/criteria/assurance/authority/completion.
 Token budget: explicit user request only.
 

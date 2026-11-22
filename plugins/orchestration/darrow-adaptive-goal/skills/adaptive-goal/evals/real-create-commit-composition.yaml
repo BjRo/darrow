@@ -36,7 +36,7 @@ fixture:
           EXPECTED
           printf '%s\n' 'check pass' >>"$(git rev-parse --show-toplevel)/.fixture-state/composition-events"
   files:
-    .agents/skills/independent-code-review/SKILL.md: |
+    .agents/skills/independent-code-review/SKILL.md: &independent_review |
       ---
       name: independent-code-review
       description: Independently review one exact current change and report its findings and outcome. Use when an explicit goal contract requires independent review before commit or publication. Remain read-only.
@@ -65,6 +65,7 @@ fixture:
       This fixture supports initial assessment. Closed follow-up returns
       unavailable and preserves the supplied finding and repair history.
       Do not execute the protocol as coordinator, implement, commit or publish.
+    .claude/skills/independent-code-review/SKILL.md: *independent_review
   bin:
     independent-review-protocol: |
       #!/usr/bin/env bash

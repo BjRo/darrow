@@ -2,8 +2,9 @@
 
 ## Native goal
 
-After preflight, continue a matching goal or call `create_goal`, including for an
-existing candidate when `get_goal` reports none. Observe activation before work.
+Apply section 6's startup gate before `create_goal`, including for an existing
+candidate when `get_goal` reports none. Continue matching goals; observe activation
+before work.
 Unavailable/refused controls: `Status: launch_required` plus concrete boundary.
 Use native continuation; never an owner child, nested Codex or custom scheduler.
 

@@ -12,6 +12,106 @@ import {
 type Call = { ordinal: number; namespace: string; name: string };
 const projectRoot = pathToFileURL(resolve(import.meta.dir, "../..")).href;
 
+test.each([
+  "goal-blocked-retry-existing-publication",
+  "goal-blocked-retry-observes-publication",
+  "goal-preflight-decision-gated",
+  "goal-readiness-nonready-stops",
+  "goal-readiness-required-unavailable",
+  "goal-review-required-unavailable",
+  "goal-verification-combined-pending",
+])("%s prepares and rejects agent launches on both hosts", async (id) => {
+  const { cases } = await fixtureExtensionRequest<{
+    cases: {
+      requiredEvidence: string[];
+      extensionData: { "darrow.case": Record<string, unknown> };
+    }[];
+  }>("resolve", { projectRoot, selectors: { caseIds: [id] } });
+  const selected = cases[0]!;
+  expect(selected.requiredEvidence).not.toContain("sevro.codex.native-calls");
+  const details = selected.extensionData["darrow.case"];
+  const checks = details.transcriptChecks as {
+    id: string;
+    kind: string;
+    forbiddenCommandTerms?: string[];
+  }[];
+  const control = checks.find((check) =>
+    [
+      "preflight-no-agent-spawn",
+      "inactive-controls",
+      "no-agent-spawn",
+    ].includes(check.kind),
+  );
+  expect(control).toBeDefined();
+  for (const host of ["claude", "codex"] as const) {
+    await fixtureExtensionRequest("prepare", {
+      case: selected,
+      configuration: {},
+      host: {
+        id: `sevro.host.${host}`,
+        capabilities: [
+          ...policyHostCapabilities(host).filter(
+            (capability) => capability !== "sevro.codex.native-calls",
+          ),
+          "sevro.host.native-controls",
+        ],
+      },
+    });
+    const data = {
+      method: "native_control_calls",
+      truncated: false,
+      acceptedAgentCount: host === "codex" ? 0 : null,
+      submittedExecCalls: host === "codex" ? 0 : null,
+      calls: [] as Call[],
+    };
+    const observation = {
+      id: "sevro.host.native-controls",
+      source: `sevro.host.${host}`,
+      completeness: "complete",
+      data,
+    };
+    const grade = async (observations: unknown[]) => {
+      const result = await fixtureExtensionRequest<{
+        checks: { id: string; status: string }[];
+        domainOutcomes: { id: string; status: string }[];
+      }>("evaluate", {
+        extensionData: selected.extensionData,
+        observations,
+        artifacts: [],
+      });
+      return policyOutcomes(result).find((check) => check.id === control!.id)
+        ?.status;
+    };
+    expect(await grade([observation])).toBe("passed");
+    expect(await grade([])).toBe("unavailable");
+    expect(
+      await grade([
+        {
+          ...observation,
+          data: {
+            ...data,
+            calls: [
+              {
+                ordinal: 1,
+                namespace: host === "codex" ? "collaboration" : "claude",
+                name: host === "codex" ? "spawn_agent" : "Agent",
+              },
+            ],
+          },
+        },
+      ]),
+    ).toBe("failed");
+  }
+  if (id.startsWith("goal-blocked-retry-"))
+    expect(
+      checks.find((check) => check.kind === "command-absence"),
+    ).toMatchObject({ forbiddenCommandTerms: ["adaptive-goal-preflight"] });
+  if (id === "goal-readiness-nonready-stops")
+    expect(details.activation).toMatchObject({
+      includes: ["assess-implementation-readiness"],
+    });
+});
+
 test("Adaptive Goal ticket preflight uses complete native controls on both hosts", async () => {
   const { cases } = await fixtureExtensionRequest<{
     cases: { id: string; requiredEvidence: string[]; extensionData: unknown }[];

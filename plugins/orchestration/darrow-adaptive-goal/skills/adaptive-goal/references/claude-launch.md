@@ -2,7 +2,9 @@
 
 ## Native goal
 
-1. **Activate.** Continue a matching session goal; otherwise, after preflight,
+Apply section 6's startup gate before proposing or preparing activation.
+
+1. **Activate.** Continue a matching session goal; otherwise,
    call `ProposeGoal` with section 6's objective. Use `ask_user: false` only with
    direct-setting authority; honor host confirmation. Proposal queues activation
    at turn end. Yield; await native kickoff before implementation/assessment.
@@ -10,7 +12,7 @@
    `Status: launch_required`, concrete boundary and `/goal <prepared-objective>`.
    Never invoke built-ins through Skill, start nested Claude or create custom stop hooks.
 3. **Client.** If advertised, return the settled objective through the headless
-   activation interface after preflight/readiness; yield. The client enters that
+   activation interface; yield. The client enters that
    exact native `/goal` here. Await kickoff. The client chooses no readiness,
    objective or workflow. Otherwise use `launch_required`.
 

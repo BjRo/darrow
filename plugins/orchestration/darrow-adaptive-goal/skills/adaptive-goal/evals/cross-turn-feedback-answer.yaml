@@ -1,4 +1,5 @@
 id: goal-cross-turn-feedback-answer
+harnesses: [codex]
 activation: positive
 prompt: >-
   {{skill_invocation}} Add an exported migrationMode() function to src/migration.js that

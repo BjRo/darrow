@@ -29,7 +29,5 @@ semantic_output_checks:
       choice concretely enough for the user to answer.
 transcript_checks:
   - name: no owner launches before the decision
-    kind: inactive-controls
-    forbidSpawn: true
-    forbidAgentTool: true
+    kind: preflight-no-agent-spawn
 native_goal: forbidden

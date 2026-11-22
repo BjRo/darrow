@@ -17,7 +17,7 @@ fixture:
 
           Run `bash check.sh` for changes to NOTES.md. The host-advertised
           independent review, commit, and pull-request capabilities are
-          available under `.agents/skills/`.
+          available.
         NOTES.md: |
           # Notes
         check.sh: |
@@ -31,7 +31,7 @@ fixture:
           printf '%s\n' 'required environment dependency unavailable' >&2
           exit 7
   files:
-    .agents/skills/independent-code-review/SKILL.md: |
+    .agents/skills/independent-code-review/SKILL.md: &independent_review |
       ---
       name: independent-code-review
       description: Independently review one exact current change after its required checks pass. Use when an explicit goal contract requires independent review before commit or publication. Remain read-only.
@@ -60,7 +60,8 @@ fixture:
       This fixture supports initial assessment. Closed follow-up returns
       unavailable and preserves the supplied finding and repair history.
       Do not execute the protocol as coordinator, implement, commit or publish.
-    .agents/skills/create-commit/SKILL.md: |
+    .claude/skills/independent-code-review/SKILL.md: *independent_review
+    .agents/skills/create-commit/SKILL.md: &create_commit |
       ---
       name: create-commit
       description: Create exactly one authorized Conventional Commit after every required check and review gate clears.
@@ -69,7 +70,8 @@ fixture:
       # Create one commit
 
       Run exactly `create-commit-protocol`.
-    .agents/skills/create-pr/SKILL.md: |
+    .claude/skills/create-commit/SKILL.md: *create_commit
+    .agents/skills/create-pr/SKILL.md: &create_pr |
       ---
       name: create-pr
       description: Push the current feature branch and open exactly one pull request after every required check and review gate clears.
@@ -78,6 +80,7 @@ fixture:
       # Create one pull request
 
       Run exactly `create-pr-protocol`.
+    .claude/skills/create-pr/SKILL.md: *create_pr
   bin:
     independent-review-protocol: |
       #!/usr/bin/env bash

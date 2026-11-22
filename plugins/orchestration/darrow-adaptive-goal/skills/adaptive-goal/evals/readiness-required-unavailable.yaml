@@ -36,5 +36,5 @@ semantic_output_checks:
       boundary as unavailable.
 transcript_checks:
   - name: unavailable readiness stops before generic delegation
-    kind: no-agent-spawn
+    kind: preflight-no-agent-spawn
 native_goal: forbidden
