@@ -259,7 +259,7 @@ test("benchmark caller uses the frozen package without route overrides", async (
   expect(manifest.cells[0].provenance.runner).toMatchObject({
     source: "package",
     packageName: "@bjoernrochel/sevro",
-    version: "1.1.2",
+    version: "1.2.1",
   });
   const result = JSON.parse(await readFile(manifest.cells[0].result, "utf8"));
   expect(result.task.verdict).toBe("not_assessed");
