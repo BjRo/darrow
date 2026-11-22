@@ -5,34 +5,24 @@ description: Coordinate a bounded engineering request as a native main-thread go
 
 # Adaptive Goal
 
-Own one native goal in this main thread: decisions, acceptance, coordination and
-completion. Place implementation under section 7. Invoke bound capabilities
-through their public workflows; each owns its internals and routing.
-
-Before activation or delegation, read the active host guide:
+Own decisions, acceptance, coordination and completion here. Bound capabilities
+own their public workflows. Before activation/delegation, read the host guide:
 [Codex](references/codex-launch.md) or [Claude](references/claude-launch.md).
-Native goal support is required. Keep the current coordinator model. On Codex,
-recommend GPT-6.1 Sol/medium with one nonblocking hint if the current model is
-known to be weaker.
+Require native goals; retain the coordinator model. On Codex, recommend
+GPT-6.1 Sol/medium once, nonblocking, if the current model is known weaker.
 
-## 1. Confirm authority
+## 1. Authority
 
-Proceed for explicit adaptive-goal invocation, preserved delegation of a bounded
-request from an explicitly invoked orchestration, or unambiguous same-thread
-feedback to the retained preflight or goal. Complexity, duration, a fresh
-conversation or ambiguous ownership supplies no authority. Delegation expands
-neither scope nor permissions.
-
-Keep user-withheld work read-only until the user's actual release message.
-Native continuation, elapsed time and changed local state cannot release it or
-justify completion. If repository acknowledgement is required, pass the complete
-user reply unchanged as one argument and require success before affected work.
-A rejected approval needs new user authority.
-
-For an explicit question-only invocation, answer from the
-[acceptance lifecycle](references/verification-lifecycle.md) without preflight,
-helpers or activation. Otherwise, without authority, make no helper call or
-mutation and return exactly:
+- **Entry.** Require explicit user adaptive-goal invocation, bounded delegation from explicitly
+  invoked orchestration, or unambiguous continuation of this preflight/goal.
+- **Least privilege.** Delegation adds no scope/permissions. User-withheld work
+  stays read-only until actual user release. Continuation/time/local changes
+  cannot release it or justify completion. Required acknowledgement must accept
+  the complete user reply unchanged as one argument; rejection needs new authority.
+- **Questions.** Explicit user invocation also authorizes advice-only questions.
+  Answer them from the
+  [lifecycle](references/verification-lifecycle.md), without preflight/helpers/activation.
+  Otherwise, absent authority, make no helper call/mutation; return exactly:
 
 ```text
 format: darrow-adaptive-goal-authority-stop-v1
@@ -40,118 +30,80 @@ status: invocation_required
 reason: explicit-orchestration-entrypoint-required
 ```
 
-## 2. Prepare read-only
+## 2. Read-only preflight
 
-Find capabilities in the host's skill catalog and read their exact supplied
-`SKILL.md` paths. Expand aliases using the skill-root table, never a reconstructed
-plugin path. Skills use ordinary host tools; an absent dedicated tool proves
-nothing. Require an actual invocation failure before declaring a command missing.
-
-Resolve the repository and bundled backend: `${CLAUDE_PLUGIN_ROOT}/backend` on
-Claude; `<plugin-root>/backend` for the activated
-`<plugin-root>/skills/adaptive-goal/SKILL.md` on Codex. Require UV and Git.
-A missing helper returns `Status: launch_required` with the failure; do not
-search other installations. On native Windows, use one PowerShell line per command.
+1. **Discover.** Read catalog-supplied skill paths; expand aliases. Use ordinary
+   host tools; require actual invocation failure before declaring unavailability.
+2. **Prepare.** Resolve repository and this plugin's backend:
+   `${CLAUDE_PLUGIN_ROOT}/backend` on Claude; activated skill's
+   `<plugin-root>/backend` on Codex. Require UV/Git; run below. Use returned
+   repository/tree/instructions/routes, read relevant files, preserve existing work.
+   Preflight excludes tests/builds/lint/review/implementation.
+3. **Retrieve.** Obtain authoritative input before dependent preflight via
+   advertised reads or configured tracker reads. Preserve provider/project/canonical
+   identity; no Darrow response format required. Refusal/unavailability stops dependents.
+4. **Specify.** Derive observable criteria without inventing behavior. Settle
+   missing product/security/destructive-scope/publication/permission decisions.
+5. **Isolate?** When fresh ticket context repays overhead, read
+   [isolated workers](references/isolated-ticket-workers.md); preselect finite scope,
+   effects and final assurance. Size/count alone is insufficient.
 
 ```sh
 uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" adaptive-goal-preflight prepare \
   --repo <absolute-repository> --host <codex|claude>
 ```
 
-Use its repository, working-tree, instruction and route records. Read applicable
-repository guidance and task-relevant files. Preserve existing work. Preflight
-permits reads only, including no tests, builds, lint, review or implementation.
+Windows: one PowerShell line per command. Missing helper/required capability,
+incompatible assurance or invalid/unreadable policy: return `Status: launch_required`
+with observed failure; launch nothing. Never search alternate installations/fallbacks.
 
-Retrieve missing authoritative input before dependent preflight. Prefer the
-advertised read capability, otherwise the established tracker's configured
-native read operation. Preserve provider, project and canonical identity; no
-Darrow response format is required. A refusal or unavailable source stops
-dependent work.
+## 3. Readiness
 
-Derive observable acceptance without inventing product behavior. Ask the smallest
-question for a missing product, security, destructive-scope, publication or
-permission decision; do not launch until settled.
+**Branches.** Immediately before ticket-branch preparation, refresh Git's exact
+`ticket-id` discovery. One match: reuse. Several: ask among exact matches before
+mutation. None: prepare caller's exact name or let creation name it.
 
-If fresh ticket context could repay delegation overhead, read
-[isolated ticket workers](references/isolated-ticket-workers.md). Select its
-finite scope, worker effects and required final assurance during preflight.
-Size or ticket count alone does not select it.
+- Unassessed authoritative ticket/specification/accepted plan: select.
+- Complete bounded conversation: omit by default.
+- Same scope assessed, findings resolved: omit.
+- Material scope/criteria/constraint/input change: reassess.
+- User requests omission: omit unless explicit policy requires.
+- User/repository/caller requires: select.
 
-## 3. Resolve readiness
+Approval/completeness is no assessment or conversational reclassification.
+Retain applicable conversational assessments; require no artifact.
+Selected: invoke exact advertised readiness skill read-only; preserve full result.
+Only `ready` clears launch. Return other results verbatim first, then smallest
+unresolved questions. Reassess resolved findings; repeat only while findings
+materially change. Record `ready` or omission row; derive criteria without mutation.
 
-For ticket delivery needing a branch, refresh the Git capability's exact
-`ticket-id` discovery immediately before preparation. Reuse one match. For
-several, ask the user to choose among those exact branches before mutation.
-For none, prepare the caller's exact name or let branch creation name it.
+## 4. Evidence and route
 
-| Situation | Readiness |
-| --- | --- |
-| Unassessed authoritative ticket, specification or accepted plan | Select |
-| Complete bounded conversational request | Omit by default |
-| Same scope assessed, every finding resolved | Omit |
-| Material scope, acceptance, constraint or authoritative-input change | Reassess |
-| User asks to skip | Omit unless explicit policy requires it |
-| User, repository or delegating orchestration requires it | Select |
+Choose evidence before editing, at original public entrypoints/callers:
 
-Retain an applicable conversational assessment; no standalone artifact is needed.
-Approval or source completeness alone is not an assessment and cannot turn a
-specification into a conversational request.
+- **Behavior/bug.** Red for intended reason, then green at stable public seam; update affected callers/examples/docs.
+- **Refactoring.** Passing baseline before/after.
+- **Consumer/format transition.** Map all criteria/conversion to original callers and transition order; test compatibility; retain tested forwarding entrypoints when moved.
+- **Exact non-behavioral edit.** Complete oracle, then passing result.
 
-When selected, invoke the exact advertised implementation-readiness skill during
-read-only preflight. Preserve its complete result. Continue only on `ready`.
-For `needs-discovery`, `needs-decision` or `blocked`, return the complete result
-verbatim first, followed only by the smallest unresolved questions. After the
-user resolves findings, reassess the same scope. Repeat only while concrete
-findings materially change. Missing required readiness returns
-`Status: launch_required`; launch nothing.
+Record separate bases for consequence risk, implementation uncertainty/profile
+and assurance. Assurance never raises profile. User/repository overrides govern
+assurance/check cadence; isolated workers always require full-specification Review.
 
-Record the table row permitting omission or preserve the `ready` result.
-Every criterion must follow from retrieved input without mutation.
+- **`routine`.** Local/reversible/limited. Scoped checks; omit Review by default.
+- **`elevated`.** Compatibility/consumers/persistence/operations. Caller evidence/counterexample; Review when judgment needed, always for sequenced consumer/format transitions.
+- **`high`.** Security/authorization/destruction/privacy/safety/broad impact. Adversarial boundary check and Review.
 
-## 4. Select evidence, risk, profile and assurance
+- `routine`: Clear local/mechanical.
+- `routine-plus`: Local alternatives or explicit first-pass boundary correctness.
+- `scaled`: Straightforward multi-component.
+- `repo-wide`: Straightforward repository-wide.
+- `judgment`: Unresolved multi-layer cause/architecture/planning/review.
 
-Select evidence before editing:
-
-| Change | Required evidence |
-| --- | --- |
-| New, changed or broken behavior | A focused check at a stable public seam fails for the intended reason before the edit, then passes; update affected callers, examples and docs |
-| Behavior-preserving restructuring | Passing public-seam baseline before and after |
-| Sequenced consumer or format transition | Map every criterion, including record conversion, to original entrypoints/callers and transition order; check compatibility there, retaining a tested forwarding entrypoint when moved |
-| Exact non-behavioral transformation | State a complete oracle, then pass it |
-
-Choose consequence risk, reasoning profile and assurance separately. Risk sets
-final evidence; implementation uncertainty sets model/effort. Assurance never
-raises the profile. Retain a one-line basis for each decision.
-
-| Risk | Consequence | Final evidence and independent Review |
-| --- | --- | --- |
-| `routine` | Localized, reversible, limited impact | Scoped repository checks; omit Review by default |
-| `elevated` | Compatibility, several consumers, persisted formats or operational impact | Affected-caller evidence and a counterexample; select Review when independent judgment is needed, always for sequenced consumer/format transitions |
-| `high` | Security, authorization, destructive/irreversible state, privacy, safety or broad impact | Adversarial boundary check and required Review |
-
-User and repository requirements override assurance defaults and check cadence.
-The isolated-ticket strategy always requires final acceptance accounting and
-independent Review of the complete specification, bound before activation.
-
-| Profile | Implementation demand |
-| --- | --- |
-| `routine` | Clear localized or exact mechanical work |
-| `routine-plus` | Localized competing implementations or explicit first-pass boundary-correctness priority |
-| `scaled` | Straightforward multi-component work |
-| `repo-wide` | Straightforward repository-wide work |
-| `judgment` | Unresolved cause across plausible layers, architecture, planning or review judgment |
-
-Read the [acceptance lifecycle](references/verification-lifecycle.md) completely.
-It owns assessment inputs, compatibility, criterion accounting, history, repairs
-and stop conditions, including when Review is omitted. When selecting Review,
-read the exact advertised public skill before launch and require its fresh
-independent readers and applicable standards/acceptance judgments. Review owns
-its placement and routes; pass no override and create no substitute readers.
-Bind other assessments only when selected by the request or policy.
-Missing/incompatible required assurance returns `Status: launch_required`
-before activation; installation alone selects nothing.
-
-Resolve the implementation policy route and its relation to this thread:
+Read the complete [lifecycle](references/verification-lifecycle.md), even without
+Review. Read selected Review's public skill before launch; it owns fresh independent
+standards/acceptance judgments/readers/routes. Bind other assessments only by
+request/policy. Installation alone selects nothing.
 
 ```sh
 uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" adaptive-goal-preflight route \
@@ -159,139 +111,83 @@ uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" ad
   [--route 'harness|provider|model|effort'] [--main-route 'harness|provider|model|effort']
 ```
 
-Pass `--route` only for an exact supported user model/effort override, and
-`--main-route` only for an explicitly host- or user-stated current route.
-Otherwise the helper observes the session. Retain `route_relation`, including
-`unknown`. Invalid or unreadable policy stops launch without fallback.
+`--route`: exact supported user override only. `--main-route`: explicit host/user
+current route only; otherwise observe session. Retain `route_relation`, including `unknown`.
 
-## 5. Bind capabilities
+## 5. Bindings
 
-For each authorized operation matching an advertised skill's intent, bind its
-exact name and public instruction reference. Codex file references must be
-installed absolute `SKILL.md` paths. Read prerequisites, effects, evidence and
-stop conditions before the operation is due. Compatible names are valid;
-sibling installation cannot be assumed.
+- **Bind/invoke.** Match authorized operations to advertised skill intent. Retain
+  exact names/public references; Codex needs installed absolute `SKILL.md` paths.
+  Read prerequisites/effects/evidence/stops before use; pass bindings/facts to fresh
+  assignees. Compatible names qualify; assume no sibling installation.
+  Raw tools/generic agents cannot replace bindings/bypass refusal. Unmatched work
+  stays ordinary unless a selected requirement mandates a capability.
+- **Publication.** Completion adds no commit/push/PR/merge/release/deploy authority.
+  Require explicit effects, lifecycle clearance and publisher-verified commit identity.
+  PR URLs prove no delivery; content reuse/push authority excludes metadata edits.
+  Intermediate worker commits retain only their focused-check exception, bindings
+  and message rules.
+- **Records.** Preserve tracker identity/configuration. ADR lifecycle/catalog work
+  follows repository/domain-modeling guidance as ordinary document work.
 
-Each assignee invokes its bindings when due. Pass the exact references and task
-facts to every fresh assignment. Shell, Git, forge, tracker or generic-agent calls
-cannot replace a bound skill or bypass its refusal. Operations without a matching
-skill remain ordinary bounded work unless the request, repository or selected
-gate requires that capability.
+## 6. Activation and ledger
 
-Bind publication only for explicitly authorized effects. Completion adds no
-commit, push, PR, merge, release or deployment authority. Before dependent final
-commits/publication, require clear acceptance under the lifecycle reference.
-Intermediate isolated-worker commits have only its focused-check exception and
-still require the bound commit skill, message rules and respect for refusals.
+After preflight, activate/continue the matching native goal; observe activation
+before implementation/assessment. Preserve unrelated goals. Objective: at most
+4,000 Unicode characters covering outcome/criteria/assurance/authority/completion.
+Token budget: explicit user request only.
 
-Require the publisher's verified result to name the verified commit; an existing
-PR URL proves no delivery. Reuse/non-force-push authority covers content, not
-metadata updates.
+Retain criteria/constraints/decisions/preserved work/effects, risk/readiness,
+route/placement/bases, bindings, checks, assessment history/repair counts.
+Reconcile before assignments, after continuation and before terminal responses.
+Ask children for missing task facts; own bookkeeping here. Obtain required
+red/baseline before mutation and focused/final-tree green for current content.
 
-Ordinary tracker operations preserve configured provider, project and exact
-identity without configuration changes. ADR lifecycle/catalog work follows
-repository and available domain-modeling guidance as ordinary document work.
+## 7. Placement
 
-## 6. Activate and retain context
+Preserve authority/bindings/evidence/user work; record basis/`route_relation`.
+Use preselected [isolated workers](references/isolated-ticket-workers.md); otherwise:
 
-After read-only preflight clears, activate or continue the matching native goal
-using the host guide. Require observed activation before implementation or
-assessment. Never replace an unrelated goal. Keep the objective within 4,000
-Unicode characters: outcome, material acceptance, assurance, authority limits and
-completion. Set a token budget only on explicit user request. Keep coordination
-instructions here and overall goal ownership out of implementation agents.
+1. **Parallel.** Substantial independent parts, disjoint owned files, settled
+   interfaces, separate checks, host capacity and net time savings. Settle interfaces
+   first; keep coupling sequential. Return out-of-scope edits here. No competing
+   whole-task implementations/goal owners. Await all; integrate/check final tree.
+2. **Sequential.** `same`: direct. `higher`/`unknown`: delegate. `lower`: delegate
+   only when savings repay handoff/rereading/waiting/validation.
+3. **Assign.** Use selected model/effort and host controls; retain implementor id.
+   Supply repository/scope/files/effects/criteria/constraints/preserved work,
+   exact bindings and concrete checks/evidence; require files/results/gaps.
+   Assignment grants no Adaptive Goal/goal control/assessment coordination/extra
+   publication. Route refusal stops assignment without substitution.
+4. **Assess.** Settle implementation; invoke full selected public workflows here.
+   Apply lifecycle; direct authors cannot self-assess.
+5. **Repair.** Return combined findings/constraints/checks to producing implementor.
+   Replace only if unavailable/unsuited; explain and transfer context/history.
+   Splitting/replacement cannot multiply allowance. Wait before conflicting work.
 
-Retain criteria, constraints, decisions, preserved work, authorized effects,
-risk, readiness, route/placement and basis, bindings, focused/final checks,
-assessment history and consumed repair attempts. Reconcile outstanding work and
-evidence before assignments, after native continuation and before terminal
-responses. Ask the relevant child for missing task facts, not reconstruction of
-delivery bookkeeping.
+## 8. Feedback and blockers
 
-Assign concrete evidence requirements. For existing behavior, name its original
-public entrypoints/callers; testing only a parallel replacement proves nothing
-about them. Obtain required pre-edit failure or baseline evidence before mutation.
-A later passing check cannot establish an earlier failure. After edits, require successful focused and final-tree checks for current content.
+- **Steer.** Preserve restrictions; update criteria/readiness. Deliver complete
+  relevant feedback before affected child actions; reuse applicable implementors.
+  Reusing a component means calling it. Enforce section 1's waits/acknowledgement.
+- **Wait.** Ask smallest material question; stop affected mutation. Resume same
+  goal/ledger after answer. Status continues; cancellation stops/reports effects.
+  Use native controls truthfully, without goal resets/custom retry loops.
+- **Idempotency.** Observe before ambiguous retries; never duplicate completed
+  effects. Include this in affected assignments.
+- **Retry.** Unchanged deterministic failure needs changed evidence/conditions.
+  Report blocker/evidence/next action; native recurrence needs no command replay.
+  Missing-helper/provider claims need attempted path/error checked against contract;
+  return real invocation errors to the same provider. Unverified causes remain gaps.
 
-## 7. Place and coordinate work
+## 9. Definition of done
 
-Placement preserves evidence, assurance, bindings, authority and user-owned work.
-Record its basis and `route_relation`. If selected during preflight, use
-[isolated ticket workers](references/isolated-ticket-workers.md); otherwise:
+Require lifecycle `clear`, current checks/assessments, resolved blockers and all
+requested authorized effects. Missing/stale evidence blocks completion and
+final commits/publication even after Review passes.
 
-1. Run substantial independent parts concurrently on the selected route when
-   time saved exceeds handoff cost. Require disjoint owned files, settled shared
-   interfaces, separate focused checks and host capacity. Settle interfaces first
-   under the sequential rule. Assign only listed files; return out-of-scope edits
-   to the main thread. Keep coupled work sequential. Launch no competing whole-task
-   implementations or other goal owner. Wait for all parts, resolve conflicts,
-   integrate and run final-tree checks before proceeding.
-2. Place sequential work by route:
-
-| `route_relation` | Placement |
-| --- | --- |
-| `same` | Direct in this thread |
-| `higher` or `unknown` | Delegate on the selected route |
-| `lower` | Delegate when cheaper execution repays handoff, rereading, waiting and validation; otherwise direct |
-
-Use the host guide's delegation controls with the selected model/effort. Retain
-the accepted implementor identity. Each self-contained assignment includes the
-repository, scope/owned files, allowed effects, acceptance, constraints,
-preserved work, exact bound skill references, concrete evidence requirements and
-checks. Require changed files, actual check results, evidence and blockers.
-The implementor owns only its assignment, without Adaptive Goal invocation,
-overall goal ownership, independent-assessment coordination or extra publication
-authority. Route refusal stops the assignment without silent substitution.
-
-Settle implementation before candidate-bound checks and assessments. Invoke each
-selected provider's full public workflow in this main thread, then apply the
-lifecycle reference. Direct implementation never permits self-assessment.
-
-Send combined repairs to the producing implementor: this thread for direct work,
-otherwise its retained host identity. Include findings, changed constraints and
-checks to rerun. Replace it only if unavailable or no longer suited to the route
-or scope; state why and carry its context/history. One combined repair consumes
-one shared attempt regardless of splitting or replacement. Wait before assigning
-conflicting work.
-
-A missing-helper/provider claim requires the attempted path and observed error.
-Compare it with the loaded contract and return a real invocation error to the
-same capability; an unverified cause remains a gap.
-
-## 8. Handle feedback and blockers
-
-Keep feedback in this main thread. Preserve restrictions and implementation
-requirements, update acceptance and reassess changed readiness assumptions.
-Send complete relevant feedback to active assignments before their next affected
-action; reuse still-applicable implementors. Using an existing component means
-calling it. Apply section 1's acknowledgement and user-wait boundaries.
-
-Ask the smallest question for a missing material decision and stop affected
-mutation. Resume the same goal with its decisions, evidence and attempts when
-answered. Status requests do not stop work. Cancellation stops further work and
-reports observed effects. Use native goal controls truthfully, without clearing
-and recreating the goal or custom retry loops.
-
-Observe external state before repeating ambiguous effects; completed effects
-must not be duplicated. Carry this rule in affected assignments. Retry an
-unchanged deterministic failure only after evidence or conditions change.
-Report its condition, evidence and next action. Native blocked-state recurrence
-can retain that blocker without rerunning the failed command.
-
-## 9. Complete from evidence
-
-Complete the native goal only when the lifecycle's clear acceptance covers the
-requested outcome, every current check and selected assessment, resolved blockers
-and all authorized required effects. Missing/stale evidence blocks completion and
-dependent final commit/publication, even after a review pass.
-
-Return a self-contained result with completion or blockage; placement, basis and
-`route_relation`; changed files, checks and readiness; selected assessment
-conclusions, findings/repairs and supplied report links; criterion evidence/gaps;
-performed publication and remaining risks. Preserve substantive provider evidence;
-summarize completed assessments without treating their earlier next actions as
-open work. Missing facts remain gaps.
-
-Every terminal response, including later native continuations of a blocker,
-states attempts used, authorized maximum and its source. Success does not reduce
-the authorized maximum.
+Return self-contained ledger/evidence: completion/blockage, placement/basis/`route_relation`,
+files/checks/readiness, substantive assessment findings/repairs/reports, criteria/gaps,
+publication/risks. Completed next actions are history; missing facts remain gaps.
+Every terminal response, including repeated blockers, states attempts used,
+authorized maximum/source. Success never reduces the maximum.

@@ -2,31 +2,22 @@
 
 ## Native goal
 
-After section 6's preflight clears, continue the matching active goal or call
-`create_goal`. If `get_goal` reports none, create the first goal here even for
-an existing candidate. Require successful activation before implementation or
-assessment. Unavailable/refused controls return `Status: launch_required` with
-the concrete boundary. Use native continuation, never an owner child, nested
-Codex process or custom scheduler.
+After preflight, continue a matching goal or call `create_goal`, including for an
+existing candidate when `get_goal` reports none. Observe activation before work.
+Unavailable/refused controls: `Status: launch_required` plus concrete boundary.
+Use native continuation; never an owner child, nested Codex or custom scheduler.
 
-## Bounded delegation
+## Delegation and feedback
 
-For direct placement, spawn no implementor. Otherwise call `spawn_agent` with:
-
-- `fork_turns: none`;
-- `task_name` containing lowercase letters, digits and underscores only;
-- explicit selected `model` and `reasoning_effort`;
-- section 7's self-contained assignment and exact public skill paths.
-
-For concurrent parts, use distinct task names and owned files, supply the shared
-interface, and wait for all before integration. Retain accepted identities.
-Send later work and repairs to that implementor with `send_message` while
-running or `followup_task` while idle. Section 7 governs replacement.
-
-Deliver relevant feedback through those same controls, interrupting affected
-work when needed. Report unconfirmed delivery or stopping honestly.
-Native `paused` requires an explicit user pause request. A pending question
-stops affected work without that transition. A host-generated continuation,
-including a user-role `codex_internal_context`, cannot release a user-owned wait.
-Respect native blocked-state recurrence. Continue the same goal after an answer
-and apply section 9 before `update_goal` completion.
+1. **Spawn.** Only for delegated placement: `spawn_agent` with `fork_turns: none`,
+   lowercase/digit/underscore `task_name`, selected `model`/`reasoning_effort` and
+   section 7's complete assignment/public skill paths. Parallel parts get distinct
+   names/files and shared interfaces; await all before integration.
+2. **Reuse.** Retain accepted identities. Use `send_message` while running,
+   `followup_task` while idle; section 7 governs replacement.
+3. **Steer.** Deliver relevant feedback through those controls; interrupt affected
+   work when needed. Report unconfirmed delivery/stopping.
+4. **Wait.** `paused` requires explicit user pause. Questions stop affected work
+   without that transition. Host continuations, including user-role
+   `codex_internal_context`, cannot release user-owned waits. Honor native blocked
+   recurrence; resume the same goal after answers. Apply section 9 before completion.
