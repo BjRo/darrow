@@ -21,7 +21,7 @@ and host telemetry assess work without granting execution authority.
 ## Capabilities and orchestration
 
 A capability matches a focused request, such as reviewing code or creating a
-commit. Users may also select it explicitly. It remains usable without an
+branch. Users may also select it explicitly. It remains usable without an
 orchestrator. Upstream workflows that require explicit invocation keep that boundary.
 
 Orchestration changes how a session continues and completes, so it requires

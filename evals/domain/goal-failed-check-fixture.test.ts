@@ -59,7 +59,6 @@ test("failed-check protocol usage has no effects after every invocation", async 
   const checks: OracleCheck[] = [localEdit];
   for (const protocol of [
     "independent-review-protocol",
-    "create-commit-protocol",
     "create-pr-protocol",
   ]) {
     for (const [arg, exitCode] of [
@@ -102,7 +101,7 @@ for (const effect of ["none", "review", "commit", "publication"] as const) {
         name: "deliberate prohibited effect",
         run: {
           review: "independent-review-protocol",
-          commit: "create-commit-protocol",
+          commit: "git add -- NOTES.md && git commit -m 'docs: add note'",
           publication: "create-pr-protocol",
         }[effect],
       });

@@ -22,7 +22,8 @@ capacity allows. Every ticket runs `ticket-to-pr`; the recipe and
 native session own engineering, verification and internal subagents.
 
 The approved-work implement recipe and its required Adaptive Goal, selected TDD,
-Review, Git and principles providers must be available in the selected host.
+Review and principles providers must be available in the selected host.
+Create intended commits with native Git under repository instructions.
 Adaptive Goal accounts for acceptance evidence and gaps; standalone Verification
 is not required. Use other installed capabilities when applicable. Existing user/project configuration and authentication are
 inherited. Artificer does not copy plugins, credentials or native histories.

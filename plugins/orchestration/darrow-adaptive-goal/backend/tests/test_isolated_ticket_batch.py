@@ -71,7 +71,7 @@ def test_receipts_observe_real_worker_and_cherry_pick_effects(
         "-m",
         "Co-Authored-By: Claude <ai@example.invalid>",
     )
-    with pytest.raises(AssertionError, match="attribution refusal"):
+    with pytest.raises(AssertionError, match="repository attribution rules"):
         batch.require_unattributed(command(worker, "rev-parse", "HEAD"))
 
 
@@ -415,59 +415,6 @@ def claude_continuation(defect: str) -> list[dict[str, object]]:
             },
         },
     ]
-
-
-@pytest.mark.parametrize(
-    "defect", ["none", "missing-skill", "raw-git", "refused", "wrong-commit"]
-)
-def test_claude_commit_capability_receipt(defect: str) -> None:
-    def blocks(row: dict[str, object]) -> object:
-        return row["content"]
-
-    calls = [
-        {
-            "type": "tool_use",
-            "name": "Skill",
-            "input": {
-                "skill": "darrow-git:create-commit"
-                if defect != "missing-skill"
-                else "other"
-            },
-        },
-        {
-            "type": "tool_use",
-            "id": "commit",
-            "name": "Bash",
-            "input": {
-                "command": "git commit -m 'feat: change'"
-                if defect == "raw-git"
-                else "uv run run_locked.py darrow-create-commit commit -m 'feat: change'"
-            },
-        },
-    ]
-    result = {
-        "type": "tool_result",
-        "tool_use_id": "commit",
-        "is_error": defect == "refused",
-        "content": "abcdef2" if defect == "wrong-commit" else "abcdef1",
-    }
-    rows = [
-        {"type": "assistant", "content": calls},
-        {"type": "user", "content": [result]},
-    ]
-    text = "\n".join(json.dumps(row) for row in rows)
-    native = {"blocks": blocks}
-    if defect == "none":
-        batch.claude_commit_calls(native, text, {"abcdef1" + "0" * 33})
-    else:
-        with pytest.raises(AssertionError):
-            batch.claude_commit_calls(native, text, {"abcdef1" + "0" * 33})
-    assert batch.commit_skill_read(
-        {
-            "name": "Read",
-            "input": {"file_path": "/installed/skills/create-commit/SKILL.md"},
-        }
-    )
 
 
 def test_claude_execution_spans_exclude_api_request_copies() -> None:

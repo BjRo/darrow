@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from darrow_git import branch, cli, evidence, pr
+from darrow_git import branch, evidence, pr
 from darrow_git.process import RefusalError, git
 from forge import Forge
 
@@ -73,33 +73,6 @@ def test_worktree_keeps_caller_work(
             task=task,
         )
         assert "worktree-current" in capsys.readouterr().out
-
-
-def test_commit_scope_and_retry(
-    repository: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    (repository / "one.txt").write_text("staged")
-    (repository / "two.txt").write_text("outside")
-    git("add", "one.txt")
-    cli.run_commit(["inspect"])
-    assert "mode: staged" in capsys.readouterr().out
-    before = git("write-tree")
-    with pytest.raises(RefusalError, match="a staged set exists"):
-        cli.run_commit(["commit", "-m", "feat: scope", "two.txt"])
-    assert git("write-tree") == before
-    (repository / "one.txt").write_text("corrected")
-    cli.run_commit(
-        [
-            "retry",
-            "--after-hook-failure",
-            "--refresh-staged",
-            "one.txt",
-            "-m",
-            "feat: scope",
-        ]
-    )
-    assert git("show", "HEAD:one.txt") == "corrected"
-    assert git("status", "--short", "two.txt") == "?? two.txt"
 
 
 def test_pr_creation_and_verification(

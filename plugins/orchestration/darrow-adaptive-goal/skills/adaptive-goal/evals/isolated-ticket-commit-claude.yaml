@@ -201,7 +201,7 @@ checks:
       throws(()=>maxSatisfying(['1.0.0','bad'],'^1.0.0'),{message:'invalid version: bad'});
       const versions=Object.freeze(['1.2.3','1.10.0','1.9.9','2.0.0']);equal(maxSatisfying(versions,'^1.2.0'),'1.10.0');equal(maxSatisfying([],'^1.0.0'),null);
       NODE
-  - name: worker commits preserve bound public commit capability
+  - name: worker commits preserve repository Git rules
     run:
       python3 .git/eval-checks/isolated_ticket_batch.py commits --host claude --tickets
       41

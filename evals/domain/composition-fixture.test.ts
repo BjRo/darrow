@@ -331,7 +331,7 @@ test.each(["bash", "/bin/bash"])(
         },
         {
           name: "scoped implementation is committed and published",
-          run: "printf '%s\\n' 'export const identity = (value) => value;' 'export const migrationMode = () => \"strict\";' >src/migration.js && fixture-create-commit && fixture-create-pr && bash .git/fixture-bin/fixture-ci \"$(git rev-parse HEAD)\"",
+          run: "printf '%s\\n' 'export const identity = (value) => value;' 'export const migrationMode = () => \"strict\";' >src/migration.js && git add -- src/migration.js test/ test.sh && git commit -m 'feat(migration): select strict policy' && fixture-create-pr && bash .git/fixture-bin/fixture-ci \"$(git rev-parse HEAD)\"",
         },
         ...checks,
         {

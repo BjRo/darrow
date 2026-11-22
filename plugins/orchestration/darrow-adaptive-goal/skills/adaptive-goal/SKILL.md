@@ -267,12 +267,13 @@ basis, required review and other assessments are bound or returned as
 
 ## 5. Bind intent-matched skills
 
-Enumerate the exact authorized operations in the goal. For each operation whose
+Enumerate the exact authorized operations in the goal. Create authorized commits
+with native Git under repository instructions. For each other operation whose
 intent matches a host-advertised skill, record its exact advertised name and
 host-supplied public instruction reference as a required capability binding.
 For a file-backed Codex skill, include its installed absolute `SKILL.md` path.
 Common examples include ticket reads and
-updates, TDD, commits, pull requests, and independent review.
+updates, TDD, pull requests, and independent review.
 
 Each assignee invokes its bindings when due; the main thread invokes selected
 assessment providers through their public workflows. A direct shell, Git, forge,
@@ -292,9 +293,9 @@ current evidence must still cover every criterion.
 Explicitly authorized isolated-worker implementation commits are intermediate
 results for integration. They follow their focused checks; the combined
 candidate must pass final checks, independent Review and clear acceptance before
-completion or publication. The exception preserves the exact commit skill binding, its
-message invariants and refusals in every worker assignment; it grants no raw-Git
-substitute, delivery or publication authority.
+completion or publication. The exception preserves repository Git instructions,
+and the assigned scope in every worker assignment. It grants no delivery or
+publication authority.
 
 For authorized publication, the publisher's own verified result establishes
 what was published; check that it names the verified commit. An existing PR URL

@@ -6,7 +6,6 @@ expect_head_change: true
 native_goal: required
 additional_plugins:
   - plugins/orchestration/darrow-adaptive-goal
-  - plugins/capability/darrow-git
   - plugins/capability/darrow-pstack
 prompt: |-
   {{skill_invocation}}

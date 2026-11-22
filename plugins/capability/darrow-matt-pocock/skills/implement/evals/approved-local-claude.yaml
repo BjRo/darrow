@@ -5,7 +5,6 @@ expect_head_change: true
 native_goal: required
 additional_plugins:
   - plugins/orchestration/darrow-adaptive-goal
-  - plugins/capability/darrow-git
   - plugins/capability/darrow-pstack
 prompt: |-
   {{skill_invocation}}
@@ -196,7 +195,7 @@ follow_up_prompt:
   confirmed public seam remains bash greet.sh NAME, with regression coverage in test.sh and bash
   test.sh as the required check. Preserve the existing ready assessment and provider bindings; apply
   the selected principles and TDD, obtain independent Review through the exact public contract
-  supplied in AGENTS.md, and complete the recipe's default local commit through the bound Git
-  capability after checks and acceptance clear. This is native kickoff of the same approved work,
+  supplied in AGENTS.md, and complete the recipe's default local commit using native Git
+  under repository instructions after checks and acceptance clear. This is native kickoff of the same approved work,
   not a new owner or scope. No push, PR, tracker mutation, merge, release or deployment is
   authorized."

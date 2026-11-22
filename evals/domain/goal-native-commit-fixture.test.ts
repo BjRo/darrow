@@ -4,14 +4,12 @@ import {
   runFixtureChecks,
   type OracleCheck,
 } from "./fixture-command";
-import { prepareUvFixtureRuntime } from "./fixture-runtime";
-import { gitPluginFixtureFiles } from "./fixture-git-plugin";
 
 const source = new URL(
-  "../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/evals/real-create-commit-composition.yaml",
+  "../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/evals/native-git-commit-composition.yaml",
   import.meta.url,
 );
-const notes = "# Notes\nReal commit capability composes.\n";
+const notes = "# Notes\nNative Git commits compose.\n";
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 const reviewAssets = {
   fixtureAssets: new URL(
@@ -20,18 +18,6 @@ const reviewAssets = {
   ),
   fixtureAssetFiles: ["backend/tests/evals/review_receipts.py"],
 };
-const commit =
-  "uv run --quiet --frozen --no-dev --project .git/eval-plugin/backend darrow-create-commit";
-
-async function realCommitFixture() {
-  const { fixture } = await readFixtureCase(source);
-  const runtime = await prepareUvFixtureRuntime();
-  fixture.files = { ...fixture.files, ...(await gitPluginFixtureFiles()) };
-  fixture.bin = { ...fixture.bin, ...runtime.bin };
-  fixture.setup = `${runtime.setupPrefix}\n${fixture.setup ?? ""}\nmv .fixture-plugin .git/eval-plugin\nuv sync --quiet --frozen --no-dev --project .git/eval-plugin/backend`;
-  return fixture;
-}
-
 function publicationActions(): OracleCheck[] {
   return [
     {
@@ -41,22 +27,22 @@ function publicationActions(): OracleCheck[] {
     { name: "current check", run: "bash check.sh" },
     { name: "actual review", run: "independent-review-protocol" },
     {
-      name: "real helper records hook failure",
-      run: `${commit} commit -m 'docs: add real-commit note' NOTES.md`,
-      exit_code: 4,
+      name: "native commit reports hook failure",
+      run: "git add -- NOTES.md && git commit -m 'docs: add native-commit note'",
+      exit_code: 1,
     },
     {
-      name: "real helper executes the authorized guarded remediation",
-      run: `${commit} remediate --after-hook-failure --command ${quote("grep -Fx 'Real commit capability composes.' NOTES.md >/dev/null")} --refresh-staged NOTES.md -m 'docs: add real-commit note'`,
+      name: "native Git retries after the hook-directed check",
+      run: "grep -Fx 'Native Git commits compose.' NOTES.md >/dev/null && git add -- NOTES.md && git commit -m 'docs: add native-commit note'",
     },
     {
       name: "publish and inspect fixture PR",
-      run: "git push -u origin HEAD && gh pr create --title 'Add note' --body 'Add requested note' --base main --head fix/real-create-commit-composition && gh repo view fixture/repository && gh pr list --repo fixture/repository",
+      run: "git push -u origin HEAD && gh pr create --title 'Add note' --body 'Add requested note' --base main --head fix/native-git-commit-composition && gh repo view fixture/repository && gh pr list --repo fixture/repository",
     },
   ];
 }
 
-test("real commit composes after read-only reviewer usage", async () => {
+test("native commit composes after read-only reviewer usage", async () => {
   const canonical = await readFixtureCase(source);
   const usage: OracleCheck[] = [];
   for (const [arg, exitCode] of [
@@ -81,7 +67,7 @@ test("real commit composes after read-only reviewer usage", async () => {
   const result = await runFixtureChecks({
     ...reviewAssets,
     source,
-    fixture: await realCommitFixture(),
+    fixture: canonical.fixture,
     checks,
   });
   expect(result.exitCode, result.diagnostic).toBe(0);
@@ -99,7 +85,7 @@ for (const scenario of [
   "failed-check",
   "extra-file",
 ] as const) {
-  test(`real commit reviewer checks current acceptance: ${scenario}`, async () => {
+  test(`native commit reviewer checks current acceptance: ${scenario}`, async () => {
     const canonical = await readFixtureCase(source);
     if (scenario === "failed-check") {
       const files = canonical.fixture.commits?.[0]?.files;

@@ -197,7 +197,7 @@ checks:
       Review artifact grant is required}"
 
       python3 .git/eval-checks/isolated_ticket_routes.py --host claude
-  - name: worker commits preserve the bound public capability contract
+  - name: worker commits preserve repository Git rules
     run: python3 .git/eval-checks/isolated_ticket_batch.py commits --host claude
   - name: authoritative specification remains unchanged
     run:

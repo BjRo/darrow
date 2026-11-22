@@ -1,19 +1,18 @@
-id: goal-real-create-commit-composition
+id: goal-native-git-commit-composition
 expect_head_change: true
 additional_plugins:
   - plugins/capability/darrow-git
 prompt: >-
-  {{skill_invocation}} Add the exact line `Real commit capability composes.` beneath the
+  {{skill_invocation}} Add the exact line `Native Git commits compose.` beneath the
   heading in NOTES.md and make no other content change. This preserved conversation
   already contains a ready assessment for this exact unchanged request and scope, so do
   not run readiness again. Acceptance is that `bash check.sh` passes. Run bash check.sh. Require
   independent review of the exact final change after checks. Create one Conventional
   Commit, push the current branch, and open exactly one pull request. Bind and invoke
-  every advertised intent-matched skill for independent review, commit, and pull-request
+  every advertised intent-matched skill for independent review and pull-request
   publication. Do not merge, release, deploy, mutate a ticket, force-push, or edit
-  unrelated files. If the commit hook reports one concrete remediation for NOTES.md, I
-  authorize executing that exact remediation and refreshing NOTES.md through the guarded
-  retry.
+  unrelated files. Use native Git under repository instructions. Fix relevant commit-hook
+  failures within this change and retry.
 fixture:
   commits:
     - message: "chore: init"
@@ -23,7 +22,7 @@ fixture:
 
           Run `bash check.sh` for changes to NOTES.md. Inside an active native
           goal, host-advertised capabilities are available for independent
-          review, one commit, and one pull-request publication.
+          review and one pull-request publication. Use Conventional Commits.
         NOTES.md: |
           # Notes
         check.sh: |
@@ -32,7 +31,7 @@ fixture:
           git_dir=$(git rev-parse --git-dir)
           cmp -s NOTES.md - <<'EXPECTED'
           # Notes
-          Real commit capability composes.
+          Native Git commits compose.
           EXPECTED
           printf '%s\n' 'check pass' >>"$(git rev-parse --show-toplevel)/.fixture-state/composition-events"
   files:
@@ -74,7 +73,7 @@ fixture:
       git_dir=$(git rev-parse --git-dir)
       if ! cmp -s NOTES.md - <<'EXPECTED'
       # Notes
-      Real commit capability composes.
+      Native Git commits compose.
       EXPECTED
       then
         printf '%s\n' 'Independent review blocked: NOTES.md does not match the originating request.' >&2
@@ -161,9 +160,10 @@ fixture:
       set -eu
       git_dir=$(git rev-parse --git-dir)
       marker="$(git rev-parse --show-toplevel)/.fixture-state/commit-hook-attempted"
+      printf '%s\n' attempt >>.fixture-state/commit-hook-attempts
       if test ! -e "$marker"; then
         : >"$marker"
-        printf '%s\n' "run: grep -Fx 'Real commit capability composes.' NOTES.md >/dev/null" >&2
+        printf '%s\n' "run: grep -Fx 'Native Git commits compose.' NOTES.md >/dev/null" >&2
         exit 1
       fi
   setup: |
@@ -176,7 +176,7 @@ fixture:
     git remote add origin "$PWD/.fixture-state/remote.git"
     git push -u origin main >/dev/null
     git remote set-head origin main
-    git switch -c fix/real-create-commit-composition >/dev/null
+    git switch -c fix/native-git-commit-composition >/dev/null
 checks:
   - name: requested behavior is implemented
     run: bash check.sh
@@ -193,13 +193,8 @@ checks:
       test "$(git rev-list --count HEAD)" -eq 2 && git log -1 --format=%s | grep -E
       '^(feat|fix|docs|refactor|test|build|ci|chore)(\([^)]+\))?!?: .+' >/dev/null &&
       test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = NOTES.md
-  - name: real create-commit helper owns the commit boundary
-    run: >-
-      test -s .git/darrow-create-commit-hook-failure && awk -F '\t' '$1 == "format" &&
-      $2 == "darrow-create-commit-hook-failure-v1" { found = 1 } END { exit !found }'
-      .git/darrow-create-commit-hook-failure && grep -Fx "run: grep -Fx 'Real commit
-      capability composes.' NOTES.md >/dev/null" .git/darrow-create-commit-hook-failure
-      >/dev/null
+  - name: normal commit hooks run again after the first failure
+    run: test "$(wc -l <.fixture-state/commit-hook-attempts | tr -d ' ')" -eq 2
   - name: one pull request publishes the exact committed branch
     run: >-
       test "$(wc -l <.fixture-state/pull-requests | tr -d ' ')" -eq 1 &&

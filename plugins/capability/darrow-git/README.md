@@ -1,11 +1,15 @@
 # Darrow Git
 
-Create branches, commits and pull requests through scoped Git workflows. The
+Create branches and pull requests through scoped Git workflows. The
 agent interprets the requested change; bundled Python commands validate naming,
-selected paths, hooks, duplicate PRs and publication of the intended commit.
+duplicate PRs and publication of the intended commit.
 
 Each workflow is independently intent-triggered. Installing the plugin does not
 run Git commands automatically.
+
+Create commits with native Git under repository instructions, including the
+repository's Conventional Commit convention. This plugin does not own staging
+or recovery from commit-hook failures.
 
 Claude Code receives a static SessionStart reminder to select the matching
 installed skill before preflight, including clean trees, missing inputs, and
@@ -39,19 +43,6 @@ Creating a missing name refuses when another correlated local branch exists,
 so callers can reuse prior work even when a newly proposed suffix differs.
 
 Example: _"Prepare the existing branch for DAR-123 before continuing."_
-
-### `create-commit`
-
-Creates one new Conventional Commit. An existing staged set is treated as the
-user's exact selection; otherwise the skill deliberately selects only paths
-belonging to the requested change. Hooks run normally, and history is never
-rewritten as part of this workflow. After a reported hook failure, it can
-refresh only explicitly authorized paths already in that staged set and rerun
-the normal commit path; unrelated work remains excluded. An unambiguous,
-path-scoped hook diagnosis can also run through a snapshot-guarded remediation
-step before that retry.
-
-Example: _"Commit these changes."_
 
 ### `create-pr`
 
@@ -104,16 +95,14 @@ Git's own discovery output returns the unchanged identifier as `ticket-id:`.
 
 ## Design boundaries
 
-- The skills do not chain implicitly: creating a commit does not push, and
-  creating or preparing a branch does not commit.
-- Commit and pull-request text follows Conventional Commits and contains no AI
-  attribution.
+- Creating or preparing a branch does not commit or publish.
+- Pull-request text follows Conventional Commits and contains no AI attribution.
 - Hooks and repository safety checks are respected rather than bypassed.
 - No workflow force-pushes, amends, rebases, merges, releases, or deploys.
 
 ## When to use
 
-Create or prepare a branch, create a commit, publish a requested PR, or publish
+Create or prepare a branch, publish a requested PR, or publish
 explicitly authorized evidence to its exact verified head. Do not use these
 workflows to rewrite history, merge, release, deploy, or post generic comments.
 
@@ -126,11 +115,7 @@ authenticated GitHub CLI access and a usable remote. Attachment publication
 requires a GitHub host and a `gh pr comment` implementation that advertises
 `--attach`.
 
-Provider calls use literal argument vectors and native filesystem APIs. The
-existing hook-remediation `--command` interface is the sole shell exception:
-it passes the exact authorized diagnostic to POSIX `sh` or native Windows `cmd`.
-Its saved HEAD/index checks and staged-path limits still apply. A diagnostic's
-command syntax must match its host.
+Provider calls use literal argument vectors and native filesystem APIs.
 
 Successful PR reports link the PR and name its base, draft state, and verified
 commit once. Complete structured publication evidence remains available from
@@ -142,7 +127,7 @@ apart, without repeating a push or PR creation.
 `bun run check:python` runs formatting, Ruff, strict typing, deterministic and
 property tests, and separate 95% statement/branch coverage gates. The package
 has no runtime dependencies. Fresh-install checks copy the whole plugin and
-exercise all five workflows with real local Git repositories and mocked GitHub
+exercise all four workflows with real local Git repositories and mocked GitHub
 boundaries, using
 `uv run --quiet --no-project backend/scripts/run_locked.py python backend/tests/fresh_install.py`
 on every supported platform. CI covers Python 3.10 to 3.13
@@ -167,7 +152,7 @@ or use `/darrow-git:create-branch` in Claude Code, followed by your request.
 
 ## Expected result
 
-The requested branch, one commit, or verified PR, with evidence. Existing user work and safety checks are preserved.
+The requested branch or verified PR, with evidence. Existing user work and safety checks are preserved.
 
 ## Troubleshooting
 

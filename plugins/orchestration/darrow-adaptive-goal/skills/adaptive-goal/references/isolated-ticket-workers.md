@@ -35,15 +35,11 @@ after checking its branch and pinned current `HEAD`; use the capability's
 current-HEAD default. Pass `--from` only when its public contract permits the
 user-named base. This prebinding rule does not bypass an actual refusal.
 
-Prebind the matching public **commit** skill too. Every worker assignment must
-carry its exact advertised name and instruction reference and require the worker
-to invoke it for each local implementation or repair commit. A fresh worker
-cannot inherit the parent's skill reads. Do not say the capability is optional
-or allow plain `git commit` instead. Reconcile repository rules and the bound
-provider's message constraints before assigning work; do not introduce forbidden
-attribution or waive a provider refusal. Intermediate commits are exempt only
-from the final-candidate assurance dependency, never from capability bindings,
-message invariants or refusals.
+Workers create authorized intermediate commits with native Git and repository
+instructions. Include the commit authority and relevant repository Git rules in
+each assignment. Preserve unrelated work and run normal hooks. A hook failure
+may be repaired within the assigned change and retried under the same authority;
+ask only when the repair needs a new material choice or broader scope.
 
 ## Plan bounded batches
 

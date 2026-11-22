@@ -451,54 +451,7 @@ def require_unattributed(commit: str) -> None:
     message = git("show", "-s", "--format=%B", commit)
     assert not re.search(
         r"(?im)^co-authored-by:.*\b(?:claude|codex|gpt|ai)\b", message
-    ), f"worker commit violates bound Git attribution refusal: {commit}"
-
-
-def claude_commit_calls(native: dict[str, Any], text: str, commits: set[str]) -> None:
-    rows = [json.loads(line) for line in text.splitlines()]
-    calls = [
-        block
-        for row in rows
-        if row.get("type") == "assistant"
-        for block in native["blocks"](row)
-        if block.get("type") == "tool_use"
-    ]
-    assert any(commit_skill_read(call) for call in calls), (
-        "worker did not load bound commit skill"
-    )
-    invoked = {
-        call["id"]
-        for call in calls
-        if call.get("name") == "Bash"
-        and re.search(
-            r"\bdarrow-create-commit\s+commit\b",
-            call.get("input", {}).get("command", ""),
-        )
-    }
-    returned = {
-        commit
-        for row in rows
-        if row.get("type") == "user"
-        for block in native["blocks"](row)
-        if block.get("tool_use_id") in invoked and not block.get("is_error")
-        for commit in returned_commits(json.dumps(block.get("content", "")), commits)
-    }
-    assert commits <= returned, (
-        "worker commit lacks successful public capability receipt"
-    )
-
-
-def commit_skill_read(call: dict[str, Any]) -> bool:
-    args = call.get("input", {})
-    if call.get("name") == "Skill":
-        skill = args.get("skill")
-        return isinstance(skill, str) and skill == "darrow-git:create-commit"
-    path = args.get("file_path", "")
-    return (
-        call.get("name") == "Read"
-        and isinstance(path, str)
-        and path.endswith("/skills/create-commit/SKILL.md")
-    )
+    ), f"worker commit violates repository attribution rules: {commit}"
 
 
 def verify_commits(host: str, tickets: tuple[int, ...] = (41, 42, 43)) -> None:
@@ -506,25 +459,6 @@ def verify_commits(host: str, tickets: tuple[int, ...] = (41, 42, 43)) -> None:
     events = [row for row in receipts() if row["branch"] != integration]
     for row in events:
         require_unattributed(row["commit"])
-    if host == "claude":
-        helpers = Path(".git/eval-checks/review/tests/evals").resolve()
-        sys.path.insert(0, str(helpers))
-        native = runpy.run_path(str(helpers / "native_claude_routes.py"))
-        root, files = native["captured"](
-            Path(os.environ["SEVRO_CANDIDATE_TRANSCRIPTS"])
-        )
-        for branch in worker_branches(integration, tickets):
-            commits = {row["commit"] for row in events if row["branch"] == branch}
-            worker = claude_worker(native, root, files, commits)
-            child = one(
-                [
-                    text
-                    for name, text in files.items()
-                    if name.endswith(f"/agent-{worker.identity}.jsonl")
-                ],
-                "commit worker transcript",
-            )
-            claude_commit_calls(native, child, commits)
 
 
 def verify_barrier(

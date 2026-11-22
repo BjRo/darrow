@@ -29,7 +29,7 @@ def initial(site: Installation, claim: Claim) -> str:
         "This is not a claim that a human invoked the recipe in this CLI thread.\n"
         f"Grant receipt: {json.dumps(receipt)}\n"
         f"Deliver https://github.com/{grant.repository}/issues/{claim.issue} "
-        "through its documented unattended entry. Establish readiness before implementation. Require the approved-work implement recipe and its Adaptive Goal owner, selected TDD, independent Review, Git commit and principles providers. Adaptive Goal accounts for acceptance evidence and gaps; standalone Verification is not required. Preserve every required provider and refusal; native abilities do not bypass them. "
+        "through its documented unattended entry. Establish readiness before implementation. Require the approved-work implement recipe and its Adaptive Goal owner, selected TDD, independent Review and principles providers. Create intended commits with native Git under repository instructions. Adaptive Goal accounts for acceptance evidence and gaps; standalone Verification is not required. Preserve every required provider and refusal; native abilities do not bypass them. "
         "Caller option: if a standalone readiness provider is absent, omit the default "
         "standalone readiness gate while retaining read-only preflight and stopping for "
         "missing material intent. Never waive a present provider's refusal. "
