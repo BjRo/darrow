@@ -38,9 +38,8 @@ copyright in your work — say so in the pull request before it is reviewed.
 
 ## Working agreements
 
-Read [`AGENTS.md`](AGENTS.md) before changing plugin content. `CLAUDE.md` links
-to the same instructions. Its conditional routes identify the development rules
-for the files you are changing.
+Read [`AGENTS.md`](AGENTS.md) before changing plugin content. Its conditional
+routes identify the development rules for the files you are changing.
 
 ## Documentation
 
