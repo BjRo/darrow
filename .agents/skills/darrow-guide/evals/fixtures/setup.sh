@@ -54,10 +54,6 @@ for category in "$source_root"/plugins/*; do
     done
   done
 done
-artificer=plugins/automation/darrow-artificer
-mkdir -p "$artificer/backend"
-cp -R "$source_root/$artificer/backend/src" "$artificer/backend/"
-cp "$source_root/$artificer/backend/pyproject.toml" "$source_root/$artificer/backend/uv.lock" "$artificer/backend/"
 if [ "${1:-}" = conflict ]; then
   printf '\n## Activation claim\n\nComplex work starts adaptive-goal automatically without explicit invocation.\n' >> plugins/orchestration/darrow-adaptive-goal/README.md
 fi

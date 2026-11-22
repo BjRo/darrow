@@ -301,14 +301,6 @@ test("Darrow extension resolves supported cases and rejects unsupported fixtures
   expect(
     selected.checks.map((check: { grader: string }) => check.grader),
   ).toEqual(["sevro.shell", "sevro.shell"]);
-  const artificer = await command<ExtensionReply>(
-    [process.execPath, extension],
-    request("resolve", resolveParams("artificer-status")),
-  );
-  expect(artificer.code, artificer.stderr).toBe(0);
-  expect(
-    artificer.value.result.cases[0]!.checks.map((check) => check.grader),
-  ).toEqual(["sevro.shell", "sevro.git-head", "sevro.semantic"]);
   const branchGuard = await command<ExtensionReply>(
     [process.execPath, extension],
     request(
@@ -430,14 +422,14 @@ test("Darrow preserves case host restrictions", async () => {
     [process.execPath, extension],
     request("resolve", {
       projectRoot: pathToFileURL(projectRoot).href,
-      selectors: { caseIds: ["ticket-to-pr-unattended-grant"] },
+      selectors: { caseIds: ["ticket-to-pr-standalone-review-unavailable"] },
       configuration: {},
     }),
   );
   expect(recipe.code, recipe.stderr).toBe(0);
   const selected = recipe.value.result.cases[0]!;
   expect(selected.extensionData["darrow.case"]).toMatchObject({
-    hostIds: ["sevro.host.codex", "sevro.host.claude"],
+    hostIds: ["sevro.host.claude"],
   });
   const refused = await command<ExtensionReply>(
     [process.execPath, extension],

@@ -177,59 +177,6 @@ test("ticket-to-pr options oracle preserves a stricter caller repair limit", asy
   assertPassed(result);
 }, 20_000);
 
-test("unattended handoff recorder and oracle require the exact ticket", async () => {
-  const source = new URL("unattended-grant.yaml", cases);
-  const { fixture, checks } = await readFixtureCase(source);
-  const oracle = checks[1];
-  if (!oracle)
-    throw new Error("canonical unattended receipt oracle is missing");
-  const receipt =
-    "unattended recurring grant grant-157 grantor maintainer repository fixture/repo " +
-    "delivery delivery-157 activation activation-157 reserved worktree /fixture/worktree-157 " +
-    "branch feat/157-existing effects claims,questions,worktrees,recipe,commits,push,pr,archives; " +
-    "not authorized: merge, deploy, release, ticket mutation, destructive Git operations, " +
-    "unrelated changes, generic comments or any other external effect";
-  const result = await runFixtureChecks({
-    source,
-    fixture,
-    checks: [
-      {
-        name: "recorder is an executable shell command",
-        run: "command -v record-unattended-request",
-      },
-      {
-        name: "missing exact ticket fails the oracle",
-        run: `record-unattended-request '${receipt}' && (${oracle.run})`,
-        exit_code: 1,
-      },
-      {
-        name: "wrong exact ticket fails the oracle",
-        run: `record-unattended-request '${receipt} https://github.com/fixture/repo/issues/158' && (${oracle.run})`,
-        exit_code: 1,
-      },
-      {
-        name: "longer issue number fails the oracle",
-        run: `record-unattended-request '${receipt} https://github.com/fixture/repo/issues/1570' && (${oracle.run})`,
-        exit_code: 1,
-      },
-      {
-        name: "suffixed URL fails the oracle",
-        run: `record-unattended-request '${receipt} https://github.com/fixture/repo/issues/157/comments' && (${oracle.run})`,
-        exit_code: 1,
-      },
-      {
-        name: "complete exact-ticket receipt passes",
-        run: `record-unattended-request '${receipt} https://github.com/fixture/repo/issues/157' && (${oracle.run})`,
-      },
-      {
-        name: "exact ticket with prose punctuation passes",
-        run: `record-unattended-request '${receipt} Deliver (https://github.com/fixture/repo/issues/157).' && (${oracle.run})`,
-      },
-    ],
-  });
-  assertPassed(result);
-}, 20_000);
-
 test.each(["bash", "/bin/bash"])(
   "feedback fixture validates branch creation without consuming it (%s)",
   async (shell) => {
