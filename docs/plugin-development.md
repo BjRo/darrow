@@ -52,7 +52,9 @@ and edits in the requested checkout.
 ## Curated upstream inputs
 
 Run `bash scripts/acquire-curated-skills <new-output-directory>` to acquire
-pinned inputs for the Matt and pstack bundles. Requires Bash 3.2 or later,
+pinned inputs for the Matt and pstack bundles. The output separates Matt, the original pstack
+`unslop` selection and the newer `pstack-workflows` selection so their source
+pins remain independent. Requires Bash 3.2 or later,
 Node 22.20.0 or later, npm/npx, Git, curl, shasum and network access. The script
 owns the exact source and installer pins. Package-local `references/upstream/`
 records own selections, required support files, full MIT notices and local differences.

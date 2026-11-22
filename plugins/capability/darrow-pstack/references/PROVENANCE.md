@@ -14,7 +14,7 @@ The [acquisition receipt](upstream-provenance.txt),
 and [source digests](upstream-files.sha256) preserve the exact input inventory.
 The inventory's `LICENSE` digest describes [the unmodified upstream notice](UPSTREAM-LICENSE);
 the package [LICENSE](LICENSE) also includes Darrow's MIT notice.
-No local changes were made to `unslop`. No benchmark or TypeScript helper is selected.
+No local changes were made to `unslop`. This original selection contains no benchmark or TypeScript helper. The separately pinned workflow selection now includes `benchmark-checklist`.
 
 ## Darrow adaptations
 
@@ -50,3 +50,7 @@ The contained `references/` directory mirrors the full root license, upstream
 notice and provenance/input records so native filtered package copies preserve
 the same notices and pins. README links use those contained copies. Standard
 root distribution notices remain; no preserved skill or routing-table body changes.
+
+## Additional engineering workflows
+
+Six explicitly invoked workflows are pinned separately from `unslop`. Their source, full notice, support files and Darrow adaptations live in [workflow provenance](workflows/LOCAL-DIFFERENCES.md). The original pins and preserved principle bodies above remain unchanged.

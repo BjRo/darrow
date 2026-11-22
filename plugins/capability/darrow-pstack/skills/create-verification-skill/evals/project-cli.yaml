@@ -1,0 +1,66 @@
+id: pstack-create-verification-project-cli
+# Claude exercises generation for a Codex target project. Creation of Claude
+# skill entrypoints remains unverified where native sensitive-path rules refuse it.
+harnesses: [claude]
+activation: positive
+mount_plugin_skills: true
+expect_head_change: false
+prompt: >-
+  {{skill_invocation}} Create verify-greeter for the project rooted at target/, targeting
+  Codex only. Use target/.agents/skills/verify-greeter. Do not create Claude
+  entrypoints or change this evaluation host's configuration. The app is the local
+  CLI in target/app.sh; run it from target/ with bash. You may execute local verification commands
+  and create the skill, its map, helpers and retained local proof artifacts under target/proof/greeter/.
+  Prove the generated instructions work before delivery. Do not edit target/app.sh,
+  commit, push, publish or contact external services.
+fixture:
+  commits:
+    - message: "feat: seed greeter CLI"
+      files:
+        target/README.md: |
+          # Greeter
+          Run `bash app.sh greet` to print a greeting. No dependencies or server.
+        target/app.sh: |
+          #!/bin/sh
+          set -eu
+          case "${1:-}" in
+            greet) printf 'hello Darrow\n' ;;
+            *) printf 'usage: bash app.sh greet\n' >&2; exit 2 ;;
+          esac
+  setup: |
+    set -eu
+    : "${DARROW_EVAL_MOUNT_EXCLUDES:?declared mount exclusions required}"
+    mkdir -p .git/eval-checks
+    bun build "{{case_dir}}/fixtures/assert-verification.ts" --target=node --outfile .git/eval-checks/assert-verification.mjs
+    node .git/eval-checks/assert-verification.mjs prepare
+checks:
+  - name: generated Codex artifact registers and changes stay in scope
+    run: node .git/eval-checks/assert-verification.mjs create
+  - name: Codex entrypoint and a feature map exist without product edits
+    run: |
+      test -f target/.agents/skills/verify-greeter/SKILL.md &&
+      test -f target/.agents/skills/verify-greeter/features/README.md &&
+      test -d target/proof/greeter && rg -q "hello Darrow" target/proof/greeter &&
+      git diff --exit-code -- target/app.sh target/README.md &&
+      test "$(git rev-list --count HEAD)" = 1 && test -z "$(git remote)"
+semantic_output_checks:
+  - name: reports actual local proof and surviving evidence
+    proposition: >-
+      The response reports executing the generated verification instructions
+      against the local Greeter CLI, whose greet command prints hello Darrow,
+      and names retained proof artifacts that survive cleanup. It identifies
+      the generated Codex project entrypoint. It does not claim native Codex
+      model execution merely from creating its entrypoint on Claude.
+semantic_artifact:
+  path: target/.agents/skills/verify-greeter/SKILL.md
+  checks:
+    - name: generated skill provides a runnable verification contract
+      proposition: >-
+        The saved skill explains how to launch or invoke the local Greeter CLI
+        using bash app.sh greet, check prerequisites, follow its feature map,
+        capture the command and observed result, and clean up
+        without deleting retained evidence. It contains concrete usable steps
+        rather than placeholders. No server, external service or installation
+        is needed for this fixture. Feature-specific expected output may live in
+        the linked map or helper rather than being repeated in the skill body.
+native_goal: forbidden

@@ -13,7 +13,7 @@
     {
       "name": "darrow-pstack",
       "source": "./plugins/capability/darrow-pstack",
-      "description": "Lauren Tan’s unslop and preserved Darrow principles with optional routing and customization"
+      "description": "Lauren Tan's explicit engineering workflows, unslop and routed Darrow principles"
     },
     {
       "name": "darrow-artificer",

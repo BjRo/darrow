@@ -1,15 +1,15 @@
 {
   "name": "darrow-pstack",
-  "version": "0.1.2",
-  "description": "Lauren Tan's unslop and customizable Darrow principle adaptations",
+  "version": "0.2.0",
+  "description": "Lauren Tan's engineering workflows, unslop and customizable Darrow principles",
   "skills": "./skills/",
   "interface": {
     "displayName": "Darrow -> Pstack",
-    "shortDescription": "Edit writing and apply selected principles",
-    "longDescription": "Use Lauren Tan's unslop and 24 Darrow principle adaptations with editable routing and customization.",
+    "shortDescription": "Investigate changes and maintain verification",
+    "longDescription": "Use six explicit engineering workflows, unslop and 24 Darrow principle adaptations with editable routing.",
     "developerName": "Björn Rochel",
     "category": "Productivity",
-    "capabilities": ["Interactive", "Read"],
+    "capabilities": ["Interactive", "Read", "Write"],
     "defaultPrompt": ["Use a principles-first approach for this work."]
   },
   "license": "MIT"

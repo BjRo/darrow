@@ -205,7 +205,7 @@ test.each(["darrow-matt-pocock", "darrow-pstack"])(
         await verifyPackageClosure(
           source,
           files,
-          { "darrow-matt-pocock": 17, "darrow-pstack": 27 }[name]!,
+          { "darrow-matt-pocock": 17, "darrow-pstack": 33 }[name]!,
         );
         expect(files.get("references/LICENSE")).toBe(
           await readFile(join(source, "LICENSE"), "utf8"),
@@ -217,7 +217,9 @@ test.each(["darrow-matt-pocock", "darrow-pstack"])(
           await readFile(
             join(
               source,
-              matt ? "references/LOCAL-DIFFERENCES.md" : "PROVENANCE.md",
+              matt
+                ? "references/LOCAL-DIFFERENCES.md"
+                : "references/PROVENANCE.md",
             ),
             "utf8",
           ),

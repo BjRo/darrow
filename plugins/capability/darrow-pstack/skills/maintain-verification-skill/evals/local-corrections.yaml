@@ -1,0 +1,75 @@
+id: pstack-maintain-verification-keeps-corrections-local
+activation: positive
+mount_plugin_skills: true
+expect_head_change: false
+prompt: >-
+  {{skill_invocation}} Audit .agents/skills/verify-greeter and correct its
+  verification instructions and feature map against the real app. You may run
+  bash app.sh greet locally and save proof artifacts. Keep changes local. Do not
+  commit, create branches, push, open a PR, or change product files. Native source
+  readers are optional in this fixture; disclose sequential inspection if needed.
+fixture:
+  commits:
+    - message: "chore: seed drifted verification map"
+      files:
+        app.sh: |
+          #!/bin/sh
+          set -eu
+          test "${1:-}" = greet
+          printf 'hello Darrow\n'
+        .agents/skills/verify-greeter/SKILL.md: |
+          ---
+          name: verify-greeter
+          description: Verify the local Greeter CLI greeting.
+          ---
+          # Verify Greeter
+          ## Launch
+          No server or dependencies. Use bash app.sh greet from the repo root.
+          ## Doctor
+          Confirm app.sh exists before each drive.
+          ## Drive
+          Read features/README.md and exercise every mapped entry point.
+          ## Evidence
+          Save the command, stdout, stderr and exit code under proof/greeter/.
+          ## Cleanup
+          The CLI exits itself. Retain proof/greeter/.
+        .agents/skills/verify-greeter/features/README.md: |
+          # Feature map
+          - [Greeting](greeting.md)
+        .agents/skills/verify-greeter/features/greeting.md: |
+          # Greeting
+          Print the product greeting from the CLI.
+          ## Sub-features
+          - greet prints a single greeting.
+          ## How to get to it (user POV)
+          Run bash app.sh greet.
+          ## Driving it with bash
+          Preconditions: app.sh exists. Run bash app.sh greet and require exit 0
+          with stdout exactly hello Cursor followed by a newline.
+          ## Gotchas
+          Keep proof after the process exits.
+  setup: |
+    set -eu
+    : "${DARROW_EVAL_MOUNT_EXCLUDES:?declared mount exclusions required}"
+    mkdir -p .git/eval-checks
+    bun build "{{case_dir}}/../../create-verification-skill/evals/fixtures/assert-verification.ts" --target=node --outfile .git/eval-checks/assert-verification.mjs
+    node .git/eval-checks/assert-verification.mjs prepare
+checks:
+  - name: all changed and untracked files stay within authorized resources
+    run: node .git/eval-checks/assert-verification.mjs maintain
+  - name: only verification resources change and no Git publication occurs
+    run: |
+      git diff --exit-code -- app.sh &&
+      ! git diff --quiet -- .agents/skills/verify-greeter &&
+      grep -q 'hello Darrow' .agents/skills/verify-greeter/features/greeting.md &&
+      test -d proof/greeter && test -n "$(ls -A proof/greeter)" &&
+      test "$(git rev-list --count HEAD)" = 1 && test -z "$(git remote)" &&
+      test "$(git branch --format='%(refname)' | wc -l | tr -d ' ')" = 1
+semantic_output_checks:
+  - name: reports proven local correction without requiring a PR
+    proposition: >-
+      The response identifies hello Cursor as map drift and hello Darrow as the
+      observed local greeting. It reports the corrected verification resource,
+      actual live coverage and retained evidence. It does not require a PR to
+      finish the authorized local maintenance task or claim product repairs.
+native_goal: forbidden
