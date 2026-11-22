@@ -7,6 +7,7 @@ import runpy
 import shutil
 import subprocess
 import sys
+from functools import partialmethod
 from pathlib import Path
 
 import pytest
@@ -502,9 +503,16 @@ def test_claude_worker_ignores_unrelated_nonisolated_capability(
 
 
 @pytest.mark.parametrize("isolation", [None, "none", "worktree"])
+@pytest.mark.parametrize("text_newline", ["\n", "\r\n"], ids=["unix", "windows"])
 def test_landed_cli_validates_actual_native_worker_allocation(
-    isolation: str | None, tmp_path: Path
+    isolation: str | None,
+    text_newline: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr(
+        Path, "write_text", partialmethod(Path.write_text, newline=text_newline)
+    )
     helpers = (
         Path(__file__).resolve().parents[4]
         / "capability/darrow-review/backend/tests/evals"
@@ -533,9 +541,9 @@ def test_landed_cli_validates_actual_native_worker_allocation(
     files["project/root.jsonl"] = "\n".join(json.dumps(row) for row in parent)
     index = json.loads((view / "index.json").read_text())
     for entry in index["files"]:
-        text = files[entry["path"]].replace("abcdef1", commit)
-        (view / "claude" / entry["path"]).write_text(text)
-        entry["sha256"] = hashlib.sha256(text.encode()).hexdigest()
+        data = files[entry["path"]].replace("abcdef1", commit).encode("utf-8")
+        (view / "claude" / entry["path"]).write_bytes(data)
+        entry["sha256"] = hashlib.sha256(data).hexdigest()
     (view / "index.json").write_text(json.dumps(index))
     result = subprocess.run(
         [
