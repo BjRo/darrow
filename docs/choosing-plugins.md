@@ -6,18 +6,16 @@ alone; its README owns its prerequisites, behavior, and safety rules.
 
 ## Choose by intent
 
-| Your next task                                                                                                                                  | Plugin and local instructions                                                               |
-| ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| Clarify a decision, research, diagnose, model a domain, write skills, use TDD or implement approved work                                        | [Matt Pocock](../plugins/capability/darrow-matt-pocock/README.md)                           |
-| Investigate change impact or rationale, correct recurring mistakes, maintain verification, check measurements, edit writing or apply principles | [Pstack](../plugins/capability/darrow-pstack/README.md)                                     |
-| Create a branch or evidence-backed PR                                                                                                           | [Git](../plugins/capability/darrow-git/README.md)                                           |
-| Assess whether a request is ready to implement                                                                                                  | [Readiness Gate](../plugins/capability/darrow-readiness-gate/README.md)                     |
-| Review a bounded change or verify repairs independently                                                                                         | [Review](../plugins/capability/darrow-review/README.md)                                     |
-| Explicitly execute bounded engineering work with acceptance accounting                                                                          | [Adaptive Goal](../plugins/orchestration/darrow-adaptive-goal/README.md)                    |
-| Understand architecture, ownership, call flow or state in conversation                                                                          | [Explanation](../plugins/capability/darrow-explanation/README.md)                           |
-| Set up or doctor agent guidance, host integration, or inspect context usage                                                                     | [Information Architecture](../plugins/foundation/darrow-information-architecture/README.md) |
-| Explicitly deliver one ticket through a PR and required green CI                                                                                | [Ticket-to-PR](../plugins/task-recipe/darrow-ticket-to-pr/README.md)                        |
-| Explicitly admit nominated GitHub issues for local unattended delivery                                                                          | [Artificer](../plugins/automation/darrow-artificer/README.md)                               |
+- [Matt Pocock](../plugins/capability/darrow-matt-pocock/README.md): clarify decisions, research, diagnose, model a domain, write skills, use TDD, or implement approved work.
+- [Pstack](../plugins/capability/darrow-pstack/README.md): investigate impact or rationale, correct mistakes, maintain verification, check measurements, edit writing, or apply principles.
+- [Git](../plugins/capability/darrow-git/README.md): create a branch or an evidence-backed PR.
+- [Readiness Gate](../plugins/capability/darrow-readiness-gate/README.md): assess whether a request is ready to implement.
+- [Review](../plugins/capability/darrow-review/README.md): review a bounded change or independently verify repairs.
+- [Adaptive Goal](../plugins/orchestration/darrow-adaptive-goal/README.md): explicitly execute bounded engineering work with acceptance accounting.
+- [Explanation](../plugins/capability/darrow-explanation/README.md): show architecture, ownership, call flow, or state in conversation.
+- [Information Architecture](../plugins/foundation/darrow-information-architecture/README.md): set up or audit agent guidance and host integration, or inspect context usage.
+- [Ticket-to-PR](../plugins/task-recipe/darrow-ticket-to-pr/README.md): explicitly deliver one ticket through a PR and required green CI.
+- [Artificer](../plugins/automation/darrow-artificer/README.md): explicitly admit nominated GitHub issues for local unattended delivery.
 
 These are the ten entries in the [marketplace manifest](../.claude-plugin/marketplace.json).
 Matt contains 17 selected skills; pstack contains 33. Their unchanged explicit-only

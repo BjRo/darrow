@@ -4,6 +4,10 @@ Choose a plugin from the [selection guide](choosing-plugins.md) and read its
 README and manifests before installing. Its helpers run with the permissions
 granted to your agent host.
 
+Jump to [Codex](#codex), [Claude Code](#claude-code), or
+[installation verification](#verify-the-installation). Some plugins also need
+[UV and Python](#uv-and-python-for-plugin-helpers).
+
 ## Prerequisites
 
 Use a signed-in Codex CLI or Claude Code installation with plugin support and
