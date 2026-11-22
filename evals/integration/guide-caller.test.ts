@@ -169,6 +169,6 @@ test("guide caller uses the frozen package without route overrides", async () =>
   expect(evidence.runner).toMatchObject({
     source: "package",
     packageName: "@bjoernrochel/sevro",
-    version: "1.1.2",
+    version: "1.2.0",
   });
 }, 30_000);
