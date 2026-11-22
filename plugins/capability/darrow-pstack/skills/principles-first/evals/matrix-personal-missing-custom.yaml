@@ -1,7 +1,6 @@
 id: pstack-principles-first-matrix-personal-missing-custom
 activation: positive
 mount_plugin_skills: true
-invariant: PF-R2,PF-R3,PF-R6,PF-AC7,PF-AC10
 expect_head_change: false
 prompt:
   Use a principles-first approach to compare request.md. Treat src as the task

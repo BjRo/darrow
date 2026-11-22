@@ -1,5 +1,4 @@
 id: orchestration-routing-localized-quality-feature
-invariant: ORCH-ROUTING-LOCALIZED-QUALITY
 prompt: |-
   Work directly in this small JavaScript repository and add an exported `isStableVersion(value)` function to `src/version.js`. It must return true only for canonical stable semantic versions: three dot-separated non-negative integer components with no leading zeroes except the value zero itself. Reject prerelease tags, build metadata, omitted components, extra components, non-string inputs, and surrounding whitespace.
 

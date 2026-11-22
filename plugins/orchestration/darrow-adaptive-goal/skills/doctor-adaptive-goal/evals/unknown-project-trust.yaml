@@ -1,5 +1,4 @@
 id: doctor-adaptive-goal-unknown-project-trust
-invariant: ADL-D1
 activation: positive
 prompt: >-
   {{skill_invocation}} Diagnose the represented Codex V2 effective
@@ -19,4 +18,9 @@ semantic_output_checks:
     proposition: The response asks whether the represented project is trusted and does not claim a capacity conclusion before that applicability fact is supplied.
 transcript_checks:
   - name: helper waits for trust
-    not_regex: 'host-config-doctor|adaptive-goal-preflight|"tool":"spawn_agent"|"name":"Agent"'
+    kind: inactive-controls
+    forbiddenCommandTerms:
+      - host-config-doctor
+      - adaptive-goal-preflight
+    forbidSpawn: true
+    forbidAgentTool: true

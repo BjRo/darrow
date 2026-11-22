@@ -1,5 +1,4 @@
 id: create-branch-worktree-request
-invariant: GW-B6
 activation: positive
 mount_plugin_skills: true
 prompt: Use {{skill_invocation}} to create a worktree for the retry work on DAR-123.

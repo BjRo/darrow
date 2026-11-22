@@ -1,7 +1,6 @@
 id: pstack-setup-principles-initialize-repository
 activation: positive
 mount_plugin_skills: true
-invariant: PF-R4,PF-R5,PF-AC5,PF-AC6
 expect_head_change: false
 prompt: "{{skill_invocation}} Initialize repository-scoped principles-first
   routing with the complete bundled defaults. Do not add, edit or delete any

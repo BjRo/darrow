@@ -33,7 +33,6 @@ activation_includes:
     principle-encode-lessons-in-structure,
   ]
 mount_plugin_skills: true
-invariant: PF-R1,PF-R8,PF-AC9
 expect_head_change: false
 prompt: >-
   {{skill_invocation}} I explicitly request reading every one of the 24

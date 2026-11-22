@@ -1,7 +1,5 @@
 id: artificer-revoke
 activation: positive
-invariant: ART-C1,ART-C2,ART-C11
-goal_report: forbidden
 expect_head_change: false
 prompt: >-
   {{skill_invocation}} Revoke the recurring Artificer grant at .fixture-state.

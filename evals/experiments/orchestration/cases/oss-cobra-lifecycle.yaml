@@ -1,5 +1,4 @@
 id: orchestration-oss-cobra-lifecycle
-invariant: ORCH-OSS-HELDOUT-REFACTOR
 prompt: |-
   Work directly in this Cobra repository and perform a behavior-preserving refactor. Do not commit or publish changes.
 

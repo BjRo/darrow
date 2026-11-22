@@ -1,7 +1,6 @@
 id: code-review-placement-weaker
 required_plugin_hook: darrow-review
 activation: positive
-invariant: CR-C9,CR-C21,CR-E2,CR-E4,CR-E7,CR-E8,CR-E14,CR-E15,CR-E17,CR-E18
 prompt:
   "{{skill_invocation}} The harness reports this exact active owner on Codex
   gpt-6-luna/medium or Claude claude-haiku-5-5/medium according to the active host.
@@ -111,14 +110,14 @@ candidate_routes:
     effort: medium
 transcript_checks:
   - name: v2 assessment placement and completed independent readers
-    assessment_readers:
-      placement: fallback
-      axes:
-        - standards
-        - spec
-      model: gpt-6.1-sol
+    kind: assessment-readers
+    placement: fallback
+    axes:
+      - standards
+      - spec
+    model: gpt-6.1-sol
+    effort: xhigh
+    claude:
+      agent: darrow-review:review-reader-claude-opus-5-5-xhigh
+      model: claude-opus-5-5
       effort: xhigh
-      claude:
-        agent: darrow-review:review-reader-claude-opus-5-5-xhigh
-        model: claude-opus-5-5
-        effort: xhigh

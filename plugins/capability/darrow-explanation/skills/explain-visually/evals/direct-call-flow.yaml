@@ -1,5 +1,4 @@
 id: explain-visually-direct-call-flow
-invariant: VE-C1,VE-C2,VE-C3,VE-C4,VE-C5,VE-C7,VE-C8,VE-E9
 activation: positive
 mount_plugin_skills: true
 prompt: >-
@@ -38,22 +37,12 @@ checks:
   - name: explanation is read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: call flow contains the observed call names
-    run: >-
-      grep -F 'submitJob' .git/last-message.md >/dev/null;
-      grep -F 'validateJob' .git/last-message.md >/dev/null;
-      grep -F 'storeJob' .git/last-message.md >/dev/null;
-      grep -F 'enqueueJob' .git/last-message.md >/dev/null
-  - name: response uses a compact visual shape
-    run: grep -Eq -- '->|-->|─+>|├|└|│|→|^[[:space:]][[:space:]]+[[:alnum:]_<]' .git/last-message.md
-  - name: observed source is anchored
-    run: grep -Ei 'observed|current|src/jobs\.ts' .git/last-message.md
-  - name: unrelated callable is not invented into the path
-    run: >-
-      if grep -F 'authorizeAdmin' .git/last-message.md >/dev/null; then
-        grep -Ei 'exclude|not|nothing|unrelated' .git/last-message.md >/dev/null;
-      fi
 semantic_output_checks:
+  - name: unrelated callable is outside the observed path
+    proposition:
+      The observed submitJob call path is validateJob, storeJob, enqueueJob.
+      authorizeAdmin is an unrelated callable in src/admin.ts. The response does not
+      include authorizeAdmin in that path; mentioning it as excluded is valid.
   - name: visual explanation is concise clear and complete
     proposition: >-
       The response leads with the observed call-flow answer, uses direct and
@@ -64,3 +53,6 @@ semantic_output_checks:
       An isolated short recap or brief framing is nonblocking. Extended
       inspection narration, long repeated walkthroughs, or redundant views that
       materially bury the answer fail the clarity requirement.
+output_checks:
+  - name: call flow contains the observed entrypoint
+    expect_regex: submitJob

@@ -1,5 +1,4 @@
 id: orchestration-oss-commander-env
-invariant: ORCH-OSS-HELDOUT-NEW-FEATURE
 prompt: |-
   Work directly in this Commander.js repository and implement a new public option feature. Do not commit or publish changes.
 

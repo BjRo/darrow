@@ -1,7 +1,4 @@
 id: goal-placement-coupled-sequential
-invariant: ADL-R3,ADL-L1,ADL-L5
-goal_report: forbidden
-goal_route_checks: false
 harnesses: [codex]
 candidate_routes:
   codex: { model: gpt-6-luna, effort: medium }
@@ -70,9 +67,9 @@ output_checks:
     expect_regex: "test\\.sh"
 transcript_checks:
   - name: coupled same-route work launches no implementation agent
-    not_regex: '"tool":"spawn_agent"|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"|"name":"Agent"'
-  - name: no lifecycle ledger is used
-    not_regex: adaptive-goal-preflight step|Protocol ledger
+    kind: inactive-controls
+    forbidSpawn: true
+    forbidAgentTool: true
 semantic_output_checks:
   - name: owner reports completion
     proposition:

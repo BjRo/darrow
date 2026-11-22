@@ -1,7 +1,6 @@
 id: context-usage-agent-decision
 harnesses:
   - codex
-invariant: IA-C1,IA-C3,IA-C4,IA-C6
 activation: positive
 prompt: Before you start a large multi-step implementation phase, check your
   own current context usage. Report what you find, then stop.

@@ -1,7 +1,6 @@
 id: pstack-principle-sequence-verifiable-units-decision
 activation: positive
 mount_plugin_skills: true
-invariant: PF-R8,PF-AC9
 expect_head_change: false
 prompt:
   Use principle-sequence-verifiable-units for the concrete decision in decision.md.

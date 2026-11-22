@@ -1,7 +1,6 @@
 id: pstack-principles-first-matrix-ordinary-engineering
 activation: negative
 mount_plugin_skills: true
-invariant: PF-R1,PF-AC2
 expect_head_change: false
 prompt: Change greeting.txt to contain exactly Welcome followed by one newline.
 fixture:

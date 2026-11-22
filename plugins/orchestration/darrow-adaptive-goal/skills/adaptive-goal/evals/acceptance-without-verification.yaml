@@ -1,7 +1,4 @@
 id: goal-acceptance-without-verification
-invariant: ADL-V1,ADL-C2,ADL-L1,ADL-L2
-goal_report: forbidden
-goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Change requireMfa from false to true in auth-policy.js. This
   authorization boundary is high risk, but localized and fully specified. Keep it local.
@@ -17,7 +14,7 @@ fixture:
           #!/usr/bin/env bash
           grep -Fx 'export const requireMfa = true;' auth-policy.js
   setup: |
-    uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend" adaptive-goal-fixture install review "$PWD" "{{case_dir}}/fixtures" both
+    uv run --quiet --no-project "{{case_dir}}/../../../backend/scripts/run_locked.py" adaptive-goal-fixture install review "$PWD" "{{case_dir}}/fixtures" both
     printf '%s\n' '.agents/' '.claude/' >>.git/info/exclude
 checks:
   - name: requested authorization value is implemented

@@ -6,7 +6,6 @@ activation_includes:
 activation_excludes:
   - principle-type-system-discipline
 mount_plugin_skills: true
-invariant: PF-R1,PF-R6,PF-R8,PF-AC1,PF-AC7
 expect_head_change: false
 prompt: "{{skill_invocation}} For now, just suggest a concise name for a pure
   function that renders a status label. Do not edit files."

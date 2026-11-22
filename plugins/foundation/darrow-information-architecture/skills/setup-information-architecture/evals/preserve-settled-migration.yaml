@@ -1,5 +1,4 @@
 id: setup-information-architecture-preserve-settled-migration
-invariant: IA-S2,IA-S8,IA-S9,IA-S11
 activation: competition
 mount_plugin_skills: true
 prompt: >-

@@ -1,7 +1,4 @@
 id: goal-preflight-routing-difficult-routine-diagnosis
-invariant: ADL-C1,ADL-R1,ADL-L5
-goal_report: forbidden
-goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Diagnose and fix summarizeSegments intermittently double-counting
   the final segment when input ends with a delimiter. This is a hard diagnosis: the
@@ -58,15 +55,15 @@ checks:
     run: bash test.sh
 output_checks:
   - name: diagnosis and verification evidence are returned
-    expect_regex: "test\\.sh"
+    expect_regex: test\.sh
     flags: i
-  - name: no lifecycle protocol is reported
-    not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
 transcript_checks:
   - name: selected implementation policy route has accepted bounded-child evidence
-    expect_regex: (?:"type":"darrow\.codex_native_spawn","status":"accepted"[^\n]*"model":"gpt-6-astra","reasoning_effort":"high"|"type":"darrow\.goal_agent_completion"[^\n]*"subagent_type":"darrow-adaptive-goal:adaptive-goal-opus-5-5-high")
-  - name: no lifecycle ledger is used
-    not_regex: adaptive-goal-preflight step|Protocol ledger
+    kind: route
+    model: gpt-6-astra
+    effort: high
+    claudeTypes:
+      - darrow-adaptive-goal:adaptive-goal-opus-5-5-high
 semantic_output_checks:
   - name: difficult diagnosis retains routine consequence risk
     proposition:

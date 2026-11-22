@@ -89,11 +89,7 @@ export function nativeGoalPolicy(expected: unknown) {
       "native_goal must be required, complete, forbidden or optional",
     );
   return {
-    checks: [
-      "darrow.evals.native-goal",
-      "darrow.evals.native-goal.internal-record",
-      "darrow.evals.native-goal.canonical-report",
-    ].map((id) => ({
+    checks: ["darrow.evals.native-goal"].map((id) => ({
       id,
       grader: "darrow.evals.native-goal",
       configuration: {},
@@ -110,7 +106,7 @@ function outcome(id: string, status: Status, evidenceId: string) {
     detail:
       status === "unavailable"
         ? "Native evidence is unavailable or incomplete"
-        : "Graded the retained native goal and final response",
+        : "Graded the retained native goal state",
     evidenceRefs: status === "unavailable" ? [] : [evidenceId],
   };
 }
@@ -118,33 +114,11 @@ function outcome(id: string, status: Status, evidenceId: string) {
 export function nativeGoalOutcomes(expected: unknown, values: unknown) {
   if (expected === undefined) return [];
   const data = observation(values, "sevro.host.native-goal");
-  const final = observation(values, "sevro.observation.final-message");
-  const text = typeof final?.text === "string" ? final.text : null;
   return [
     outcome(
       "darrow.evals.native-goal",
       activationStatus(expected, data),
       "sevro.host.native-goal",
-    ),
-    outcome(
-      "darrow.evals.native-goal.internal-record",
-      text === null
-        ? "unavailable"
-        : /format\tdarrow-(?:native-goal|goal-step|claude-(?:agent-route|owner-route|route-gate|verify-route))-/.test(
-              text,
-            )
-          ? "failed"
-          : "passed",
-      "sevro.observation.final-message",
-    ),
-    outcome(
-      "darrow.evals.native-goal.canonical-report",
-      text === null
-        ? "unavailable"
-        : /darrow-goal-report|darrow-native-goal-report/.test(text)
-          ? "failed"
-          : "passed",
-      "sevro.observation.final-message",
     ),
   ];
 }

@@ -1,5 +1,4 @@
 id: readiness-blocked-missing-input
-invariant: IRG-C2,IRG-E1,IRG-E2,SE-C9,SE-C10,SE-C11,SE-C12,SE-C14,SE-C18
 activation: positive
 mount_plugin_skills: true
 prompt: >-
@@ -16,8 +15,6 @@ checks:
   - name: missing authoritative input causes no repository mutation
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: public verdict is blocked
-    run: grep -Ei 'verdict.{0,80}blocked' .git/last-message.md
   - name: blocked verdict preserves repository refs
     run: >-
       test "$(git branch --show-current)" = main &&

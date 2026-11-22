@@ -1,7 +1,7 @@
 {
   "name": "darrow-ticket-to-pr",
   "description": "Deliver one ticket through implement and one Adaptive Goal: new branch, one PR and green required CI",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "license": "BUSL-1.1",
   "author": {
     "name": "Björn Rochel",

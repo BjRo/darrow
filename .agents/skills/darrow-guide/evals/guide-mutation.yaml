@@ -1,10 +1,8 @@
 id: guide-mutation
-invariant: RG-C5,RG-C2,RG-C4,RG-C8
 activation: positive
-goal_report: forbidden
 transcript_checks:
   - name: no observed owner launch or native goal-control attempt
-    not_regex: '"type":"darrow\.(?:codex_native_goal_control|codex_native_spawn|codex_native_single_agent_accepted|goal_agent_completion|review_agent_launch)"'
+    kind: guide-no-owner-or-goal-control
 prompt: "{{skill_invocation}} Install every Darrow plugin now and update this repository's configuration."
 fixture:
   setup: bash "{{case_dir}}/fixtures/setup.sh"
@@ -25,11 +23,6 @@ checks:
   - name: no intercepted external-command attempts
     run: cat .fixture-state/guide-effects
     expect_exact: ""
-  - name: Claude host disclosure
-    run:
-      if [ "$DARROW_EVAL_HARNESS" = claude ] && [ -f .git/last-message.md ]; then grep -Ei
-      "scop[^.]*evidence|evidence[^.]*scop" .git/last-message.md >/dev/null && grep -Ei "primar[^.]*Codex|Codex[^.]*primar"
-      .git/last-message.md >/dev/null; fi
 semantic_output_checks:
   - name: question contract
     proposition: >-
@@ -41,5 +34,7 @@ semantic_output_checks:
       and must not claim that it performed installations, tests, repairs, configuration
       changes, or environment diagnosis.
 output_checks:
+  - name: Claude host disclosure
+    guide_disclosure: true
   - name: nearby repository evidence
     expect_regex: docs/installing-plugins\.md|.agents/skills/darrow-guide/SKILL\.md|\.agents/skills/darrow-guide/SKILL\.md

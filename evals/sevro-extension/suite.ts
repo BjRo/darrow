@@ -74,7 +74,7 @@ function modeConfig(name: string, raw: unknown) {
     throw new Error(
       `unsupported ${name} mode fields: ${unsupported.join(", ")}`,
     );
-  const requested = mode.owner_evaluation ?? "enforced";
+  const requested = mode.owner_evaluation ?? "passive";
   if (requested !== "passive" && requested !== "enforced")
     throw new Error(`invalid ${name} owner_evaluation`);
   const condition: "passive" | "enforced" = requested;

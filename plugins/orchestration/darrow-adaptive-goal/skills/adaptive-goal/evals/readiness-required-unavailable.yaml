@@ -1,7 +1,4 @@
 id: goal-readiness-required-unavailable
-invariant: ADL-L2,ADL-X1
-goal_report: forbidden
-goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Implement the authoritative specification in REQUEST.md. The
   specification has not previously been assessed for implementation readiness.
@@ -39,7 +36,5 @@ semantic_output_checks:
       boundary as unavailable.
 transcript_checks:
   - name: unavailable readiness stops before generic delegation
-    not_regex: '"tool":"spawn_agent"|"type":"(?:darrow\.codex_native_spawn|darrow\.codex_native_single_agent_accepted|darrow\.goal_agent_completion)"'
-  - name: unavailable readiness uses no lifecycle ledger
-    not_regex: adaptive-goal-preflight step|darrow-native-goal-report
+    kind: no-agent-spawn
 native_goal: forbidden

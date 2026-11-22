@@ -3,17 +3,21 @@ experiment: orchestration-value
 case_filter: orchestration-oss-
 modes:
   vanilla:
+    owner_evaluation: passive
     condition: conditions/vanilla.md
+    without_skill: true
     require_evaluation_records: true
   native-goal:
+    owner_evaluation: passive
     condition_by_harness:
       claude: conditions/native-goal-claude.md
       codex: conditions/native-goal-codex.md
+    without_skill: true
     require_evaluation_records: true
   darrow-adaptive-goal:
+    owner_evaluation: passive
     condition_by_harness:
       claude: conditions/darrow-adaptive-goal-claude.md
       codex: conditions/darrow-adaptive-goal-codex.md
     skill_dir: ../../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal
     mount_plugin_skills: true
-    require_evaluation_records: true

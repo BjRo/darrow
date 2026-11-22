@@ -109,7 +109,6 @@ test("Doctor source records accept valid isolated reports and reject wrong sourc
     join(cases, "probe.yaml"),
     JSON.stringify({
       id: "doctor-records-control",
-      invariant: "ADL-D1",
       prompt: "Return the supplied diagnostic control.",
       fixture: {
         commits: [

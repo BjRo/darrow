@@ -1,9 +1,6 @@
 id: goal-ticket-branch-reuse
-invariant: ADL-B1,ADL-C2,ADL-L1,ADL-P2
 activation: positive
 mount_plugin_skills: true
-goal_report: forbidden
-goal_route_checks: false
 expect_head_change: false
 additional_plugins:
   - plugins/capability/darrow-git

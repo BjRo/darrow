@@ -1,5 +1,4 @@
 id: create-pr-no-trigger-list-prs
-invariant: GW-P6
 activation: negative
 activation_excludes: [create-pr]
 mount_plugin_skills: true

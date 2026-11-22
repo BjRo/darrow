@@ -1,7 +1,4 @@
 id: goal-review-routine-omitted
-invariant: ADL-C1,ADL-L2,ADL-L5
-goal_report: forbidden
-goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Add the exact line "Retries are bounded." beneath the heading in
   NOTES.md. This is a localized, reversible documentation edit with a complete oracle
@@ -20,7 +17,7 @@ fixture:
           printf '%s\n' '# Notes' 'Retries are bounded.' >.fixture-state/expected-notes
           cmp -s .fixture-state/expected-notes NOTES.md
   setup: >-
-    uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend"
+    uv run --quiet --no-project "{{case_dir}}/../../../backend/scripts/run_locked.py"
     adaptive-goal-fixture install review "$PWD" "{{case_dir}}/fixtures" codex
 checks:
   - name: routine change reaches its exact outcome
@@ -36,7 +33,4 @@ semantic_output_checks:
       blocker or pending decision preventing completion.
   - name: completion does not claim a performed review
     proposition: The response does not claim that an independent review was performed or cleared.
-transcript_checks:
-  - name: no lifecycle ledger is used
-    not_regex: adaptive-goal-preflight step|Protocol ledger
 native_goal: required

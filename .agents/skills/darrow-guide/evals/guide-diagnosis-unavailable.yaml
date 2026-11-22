@@ -1,5 +1,4 @@
 id: guide-diagnosis-unavailable
-invariant: RG-C7,RG-C2,RG-C4,RG-C8
 activation: positive
 prompt: "{{skill_invocation}} Find why my plugin failed and repair my local configuration."
 fixture:
@@ -21,11 +20,6 @@ checks:
   - name: no intercepted external-command attempts
     run: cat .fixture-state/guide-effects
     expect_exact: ""
-  - name: Claude host disclosure
-    run:
-      if [ "$DARROW_EVAL_HARNESS" = claude ] && [ -f .git/last-message.md ]; then grep -Ei
-      "scop[^.]*evidence|evidence[^.]*scop" .git/last-message.md >/dev/null && grep -Ei "primar[^.]*Codex|Codex[^.]*primar"
-      .git/last-message.md >/dev/null; fi
 semantic_output_checks:
   - name: question contract
     proposition: >-
@@ -40,5 +34,7 @@ semantic_output_checks:
       documented commands and read-only repository inspection are permitted; quoting a command
       is not executing it.
 output_checks:
+  - name: Claude host disclosure
+    guide_disclosure: true
   - name: nearby repository evidence
     expect_regex: docs/troubleshooting\.md|.agents/skills/darrow-guide/SKILL\.md

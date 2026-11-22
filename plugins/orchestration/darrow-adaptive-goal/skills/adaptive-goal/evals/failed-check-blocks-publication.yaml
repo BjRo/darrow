@@ -1,7 +1,4 @@
 id: goal-failed-check-blocks-publication
-invariant: ADL-L1,ADL-L2,ADL-L5,ADL-S3
-goal_report: forbidden
-goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Add the exact line `Publication waits for green checks.` beneath
   the heading in NOTES.md and make no other content change. This preserved conversation
@@ -152,7 +149,4 @@ semantic_output_checks:
       proceeded despite the failed check fails.
   - name: owner does not claim completion
     proposition: The response does not claim that the requested outcome completed successfully.
-transcript_checks:
-  - name: no lifecycle ledger is used
-    not_regex: adaptive-goal-preflight step|Protocol ledger
 native_goal: required

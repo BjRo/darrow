@@ -1,7 +1,4 @@
 id: goal-authorized-publication
-invariant: ADL-P3,ADL-C2,ADL-S3,ADL-E1
-goal_report: forbidden
-goal_route_checks: false
 expect_head_change: true
 prompt: >-
   {{skill_invocation}} Add the exact line "Native publication authority is explicit."
@@ -162,9 +159,6 @@ checks:
   - name: published tree is clean
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-output_checks:
-  - name: no lifecycle protocol is reported
-    not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
 semantic_output_checks:
   - name: owner reports completion
     proposition:
@@ -187,7 +181,4 @@ semantic_output_checks:
     proposition:
       The response says the requested draft pull request was successfully opened
       and does not say pull-request creation failed.
-transcript_checks:
-  - name: no lifecycle ledger is used
-    not_regex: adaptive-goal-preflight step|Protocol ledger
 native_goal: required

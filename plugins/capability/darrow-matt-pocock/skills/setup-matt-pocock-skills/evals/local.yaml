@@ -1,5 +1,4 @@
 id: matt-bundle-setup-local
-invariant: MP-C5
 activation: positive
 harnesses: [codex]
 

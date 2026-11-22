@@ -8,8 +8,9 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, extname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import ts from "typescript";
 import { sevroEnvironment } from "../sevro-extension/sevro-command";
 import { invocation } from "../sevro-extension/run";
 import { captureTestCommand } from "../test-command";
@@ -23,6 +24,48 @@ import {
 
 const repository = resolve(import.meta.dir, "../..");
 const roots: string[] = [];
+
+function relativeRuntimeImports(file: string, contents: string) {
+  const source = ts.createSourceFile(file, contents, ts.ScriptTarget.Latest);
+  return source.statements.flatMap((node) => {
+    if (!ts.isImportDeclaration(node) && !ts.isExportDeclaration(node))
+      return [];
+    if (ts.isImportDeclaration(node) && node.importClause?.isTypeOnly)
+      return [];
+    const name = node.moduleSpecifier;
+    return name && ts.isStringLiteral(name) && name.text.startsWith(".")
+      ? [resolve(dirname(file), name.text + (extname(name.text) ? "" : ".ts"))]
+      : [];
+  });
+}
+
+test("run identity covers every local evaluator runtime dependency", async () => {
+  const command = invocation([
+    "--case-id",
+    "source-closure",
+    "--project-root",
+    repository,
+    "--results-root",
+    await scratch(),
+    "--",
+  ]).command;
+  const declared = new Set(
+    command.flatMap((argument, i) =>
+      argument === "--extension-source-file" ? [command[i + 1]!] : [],
+    ),
+  );
+  for (const file of declared) {
+    if (!file.endsWith(".ts")) continue;
+    for (const dependency of relativeRuntimeImports(
+      file,
+      await readFile(file, "utf8"),
+    ))
+      expect(
+        declared.has(dependency),
+        `${file} imports unbound evaluator source ${dependency}`,
+      ).toBe(true);
+  }
+});
 
 test("fresh test preparation makes runtime fixtures independent of file order", async () => {
   const home = await scratch();

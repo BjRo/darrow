@@ -1,5 +1,4 @@
 id: prepare-task-branch-no-trigger-branch-listing
-invariant: GW-TB1,GW-TB6
 activation: negative
 activation_excludes: [prepare-task-branch]
 mount_plugin_skills: true
@@ -17,9 +16,8 @@ checks:
   - name: ordinary listing leaves current branch unchanged
     run: git branch --show-current
     expect_exact: "main"
+output_checks:
   - name: response lists the existing branch
-    run: cat .git/last-message.md
-    expect_regex: "feat/existing"
+    expect_regex: feat/existing
   - name: skill preparation protocol was not invoked
-    run: cat .git/last-message.md
     not_regex: "## mode: (current|reused|created|worktree-)"

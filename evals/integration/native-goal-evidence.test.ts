@@ -76,7 +76,6 @@ for (const [name, goalComplete, routeMode, expected] of [
         join(cases, "probe.yaml"),
         JSON.stringify({
           id: "goal-evidence-probe",
-          invariant: "SE-C33",
           native_goal: "required",
           prompt: "Return done.",
           fixture: {

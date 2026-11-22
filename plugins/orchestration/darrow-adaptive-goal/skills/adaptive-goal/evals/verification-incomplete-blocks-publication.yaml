@@ -1,7 +1,4 @@
 id: goal-verification-incomplete-blocks-publication
-invariant: ADL-V1,ADL-C2,ADL-L2,ADL-S3
-goal_report: forbidden
-goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Add the exact line `Verification precedes publication.` beneath
   the heading in NOTES.md and change no other content. Run bash check.sh, require

@@ -1,5 +1,4 @@
 id: guide-layers
-invariant: RG-C1,RG-C2,RG-C4,RG-C8
 activation: positive
 prompt:
   At the layer level, explain how Darrow's layers support one another, which layers are
@@ -23,11 +22,6 @@ checks:
   - name: no intercepted external-command attempts
     run: cat .fixture-state/guide-effects
     expect_exact: ""
-  - name: Claude host disclosure
-    run:
-      if [ "$DARROW_EVAL_HARNESS" = claude ] && [ -f .git/last-message.md ]; then grep -Ei
-      "scop[^.]*evidence|evidence[^.]*scop" .git/last-message.md >/dev/null && grep -Ei "primar[^.]*Codex|Codex[^.]*primar"
-      .git/last-message.md >/dev/null; fi
 semantic_output_checks:
   - name: question contract
     proposition:
@@ -42,5 +36,7 @@ semantic_output_checks:
       have installed plugins, run tests, changed configuration, contacted services, or established
       the cause of an unobserved live failure. Read-only repository inspection is permitted.
 output_checks:
+  - name: Claude host disclosure
+    guide_disclosure: true
   - name: nearby repository evidence
     expect_regex: docs/design\.md|docs/design\.md

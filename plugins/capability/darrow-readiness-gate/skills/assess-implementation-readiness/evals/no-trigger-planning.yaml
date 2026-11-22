@@ -1,5 +1,4 @@
 id: readiness-no-trigger-planning
-invariant: IRG-C1,IRG-E1,SE-C9,SE-C10,SE-C11
 activation: negative
 mount_plugin_skills: true
 prompt: >-
@@ -19,12 +18,13 @@ checks:
   - name: planning intent causes no repository mutation
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: response addresses the requested planning dimensions
-    run: >-
-      grep -Ei 'public|interface|seam' .git/last-message.md >/dev/null &&
-      grep -Ei 'config|timeout' .git/last-message.md >/dev/null &&
-      grep -Ei 'verify|test|check' .git/last-message.md >/dev/null
 output_checks:
   - name: planning intent does not become a readiness verdict
     not_regex: "(^|\\n)#{1,3}\\s+Implementation readiness|darrow-implementation-readiness-v1|needs-discovery|needs-decision"
     flags: i
+semantic_output_checks:
+  - name: response addresses the requested planning dimensions
+    proposition:
+      The response gives a concise implementation plan for configurable request
+      timeouts. It identifies the public interface or configuration seam, likely work
+      areas around src/config.js, and a test or verification strategy.

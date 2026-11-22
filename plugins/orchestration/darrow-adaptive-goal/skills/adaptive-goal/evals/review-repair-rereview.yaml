@@ -1,7 +1,4 @@
 id: goal-review-repair-verification
-invariant: ADL-C2,ADL-L2,ADL-L5,ADL-S3,CR-E15
-goal_report: forbidden
-goal_route_checks: false
 activation: positive
 mount_plugin_skills: true
 # The fixture's target/round-trip checks prove provider execution. Its public
@@ -43,7 +40,7 @@ fixture:
       export const TIMEOUT_MS = 2500;
       export const RETRY_COUNT = 0;
   setup: >-
-    uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend"
+    uv run --quiet --no-project "{{case_dir}}/../../../backend/scripts/run_locked.py"
     adaptive-goal-fixture install review "$PWD" "{{case_dir}}/fixtures" codex &&
     printf '%s\n' 'RETRY_COUNT = 0' > .git/fixture-review-reject-pattern && printf
     '%s\n' 'src/config.js' > .git/fixture-review-event-path && printf '%s\n' '2' >
@@ -99,9 +96,6 @@ checks:
       <.fixture-state/review-targets | tr -d ' ')" -eq 2
   - name: repair and fix verification stay local
     run: test "$(git rev-list --count HEAD)" -eq 1
-output_checks:
-  - name: no lifecycle protocol is reported
-    not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
 semantic_output_checks:
   - name: repair accounting preserves the authorized default maximum
     proposition: >-
@@ -122,7 +116,4 @@ semantic_output_checks:
       response conveys that review found this wrong retry count, numerically or as a
       retry-count defect. Merely listing the final value 3 or the final clear review
       verdict is insufficient.
-transcript_checks:
-  - name: no lifecycle ledger is used
-    not_regex: adaptive-goal-preflight step|Protocol ledger
 native_goal: required

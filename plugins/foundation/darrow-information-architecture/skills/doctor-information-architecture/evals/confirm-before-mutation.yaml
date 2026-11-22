@@ -1,5 +1,4 @@
 id: doctor-information-architecture-confirm-before-mutation
-invariant: IA-D7,IA-D12
 activation: positive
 mount_plugin_skills: true
 prompt: >-

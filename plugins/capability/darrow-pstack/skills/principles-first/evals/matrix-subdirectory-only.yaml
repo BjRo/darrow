@@ -1,7 +1,6 @@
 id: pstack-principles-first-matrix-subdirectory-only
 activation: positive
 mount_plugin_skills: true
-invariant: PF-R1,PF-R2,PF-R3,PF-AC3,PF-AC10
 expect_head_change: false
 prompt:
   Use a principles-first approach from src as the task working directory. Recommend

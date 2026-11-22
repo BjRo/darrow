@@ -96,7 +96,6 @@ async function fixture() {
       join(skill, `evals/${id}.yaml`),
       JSON.stringify({
         id,
-        invariant: "RG-C1",
         activation: "positive",
         prompt: id,
         fixture: {

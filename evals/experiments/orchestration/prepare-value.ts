@@ -38,7 +38,6 @@ export const deliveryRequest =
 
 export interface ValueCase {
   id: string;
-  invariant: string;
   prompt: string;
   harnesses?: string[];
   additional_skills?: string[];

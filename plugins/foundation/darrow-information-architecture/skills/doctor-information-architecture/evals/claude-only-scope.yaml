@@ -1,5 +1,4 @@
 id: doctor-information-architecture-claude-only-scope
-invariant: IA-D4,IA-D9,IA-D12
 activation: competition
 mount_plugin_skills: true
 prompt: >-

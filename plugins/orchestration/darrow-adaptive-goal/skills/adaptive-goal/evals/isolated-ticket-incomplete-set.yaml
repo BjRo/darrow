@@ -1,7 +1,4 @@
 id: goal-isolated-ticket-incomplete-set
-invariant: ADL-P3,ADL-P4,ADL-S1,ADL-R3
-goal_report: forbidden
-goal_route_checks: false
 additional_plugins:
   - plugins/capability/darrow-git
   - plugins/capability/darrow-review

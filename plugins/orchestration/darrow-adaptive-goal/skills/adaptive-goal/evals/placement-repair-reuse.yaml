@@ -1,7 +1,4 @@
 id: goal-placement-repair-reuse
-invariant: ADL-R3,ADL-L2,ADL-L5
-goal_report: forbidden
-goal_route_checks: false
 harnesses: [codex]
 activation: positive
 mount_plugin_skills: true
@@ -37,7 +34,7 @@ fixture:
           #!/usr/bin/env bash
           node --test test/range.test.js
   setup: >-
-    uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend"
+    uv run --quiet --no-project "{{case_dir}}/../../../backend/scripts/run_locked.py"
     adaptive-goal-fixture install review "$PWD" "{{case_dir}}/fixtures" codex &&
     printf 'blocking\t%s\nclear\n' 'test/range.test.js has no assertion that
     clamp(NaN, 0, 10) returns NaN, which rule 3 requires for a value that is neither
@@ -73,5 +70,7 @@ semantic_output_checks:
       the finding.
 transcript_checks:
   - name: repair returns to the retained implementor
-    expect_regex: '"type":"darrow.codex_native_spawn"[^\n]*"model":"gpt-6.1-sol"[^\n]*"reasoning_effort":"high"[^\n]*"agent_ref":"([^"]+)"[\s\S]*"type":"darrow.codex_native_feedback"[^\n]*"agent_ref":"\1"|"name":"Agent"[\s\S]*"name":"SendMessage"'
+    kind: repair-reuse
+    model: gpt-6.1-sol
+    effort: high
 native_goal: required

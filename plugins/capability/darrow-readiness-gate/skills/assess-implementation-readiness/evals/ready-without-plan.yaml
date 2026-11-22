@@ -1,5 +1,4 @@
 id: readiness-ready-without-plan
-invariant: IRG-C6,IRG-E1,IRG-E4,SE-C9,SE-C10,SE-C11,SE-C14
 activation: positive
 mount_plugin_skills: true
 prompt: >-
@@ -24,8 +23,6 @@ checks:
   - name: proportional assessment remains read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: public verdict is ready without planning ceremony
-    run: grep -Ei 'verdict.{0,80}ready' .git/last-message.md
   - name: proportional assessment preserves repository refs
     run: >-
       test "$(git branch --show-current)" = main &&

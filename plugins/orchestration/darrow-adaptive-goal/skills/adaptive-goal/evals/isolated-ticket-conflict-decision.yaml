@@ -1,7 +1,4 @@
 id: goal-isolated-ticket-conflict-decision
-invariant: ADL-R3,ADL-L1,ADL-P3
-goal_report: forbidden
-goal_route_checks: false
 harnesses:
   - codex
   - claude

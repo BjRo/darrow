@@ -3,7 +3,6 @@ activation: positive
 mount_plugin_skills: true
 activation_excludes:
   - principle-encode-lessons-in-structure
-invariant: PF-R1,PF-R5,PF-AC6
 expect_head_change: false
 prompt: Use a principles-first approach for a local design choice. Compare
   Design A (required shared registry) with Design B (optional public handoff and

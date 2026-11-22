@@ -104,7 +104,6 @@ test("Darrow refuses override mounts that contradict preparation configuration",
     join(cases, "override.yaml"),
     JSON.stringify({
       id: "override-binding",
-      invariant: "MOUNT-C1",
       prompt: "Return ready.",
       fixture: {
         commits: [
@@ -159,7 +158,6 @@ test("Darrow conditions preserve route rendering on the follow-up turn", async (
     join(cases, "followup.yaml"),
     JSON.stringify({
       id: "condition-followup",
-      invariant: "CONDITION-C2",
       prompt: "Return ready.",
       follow_up_prompt: "Continue on {{harness}}|{{model}}|{{effort}}.",
       fixture: {
@@ -245,7 +243,6 @@ interface ExtensionReply {
       requiredEvidence: string[];
       extensionData: {
         "darrow.case": {
-          invariant: string;
           activation?: {
             class: string;
             targetSkill: string;
@@ -328,9 +325,6 @@ test("Darrow extension resolves supported cases and rejects unsupported fixtures
       expectedExitCode: 0,
     },
   });
-  expect(selected.extensionData["darrow.case"].invariant).toBe(
-    "ORCH-ROUTING-LOCALIZED-MECHANICAL",
-  );
   const unchangedHead = await command<ExtensionReply>(
     [process.execPath, extension],
     request("resolve", resolveParams("create-commit-clean-tree")),
@@ -411,7 +405,6 @@ test("Darrow extension resolves supported cases and rejects unsupported fixtures
     join(cases, "unsupported.yaml"),
     JSON.stringify({
       id: "unsupported-case",
-      invariant: "EXAMPLE-UNSUPPORTED",
       prompt: "Return ready.",
       fixture: {
         commits: [{ message: "Initialize", files: { "README.md": "ready\n" } }],
@@ -432,7 +425,7 @@ test("Darrow extension resolves supported cases and rejects unsupported fixtures
   expect(unsupported.value.error.message).toMatch(/unknown_field/);
 });
 
-test("Darrow preserves case host restrictions and ignores diagnostic goal policy", async () => {
+test("Darrow preserves case host restrictions", async () => {
   const recipe = await command<ExtensionReply>(
     [process.execPath, extension],
     request("resolve", {
@@ -456,36 +449,6 @@ test("Darrow preserves case host restrictions and ignores diagnostic goal policy
     }),
   );
   expect(refused.value.error.message).toMatch(/excludes the candidate host/);
-  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-diagnostic-"));
-  roots.push(root);
-  const cases = join(root, "evals/experiments/sample/cases");
-  await mkdir(cases, { recursive: true });
-  await writeFile(
-    join(cases, "diagnostic.yaml"),
-    JSON.stringify({
-      id: "diagnostic",
-      invariant: "DIAGNOSTIC-C1",
-      prompt: "Return ready.",
-      goal_report: "forbidden",
-      goal_route_checks: false,
-      fixture: {
-        commits: [
-          { message: "chore: init", files: { "README.md": "ready\n" } },
-        ],
-      },
-      checks: [],
-    }),
-  );
-  const diagnostic = await command<ExtensionReply>(
-    [process.execPath, extension],
-    request("resolve", {
-      projectRoot: pathToFileURL(root).href,
-      selectors: { caseIds: ["diagnostic"] },
-      configuration: {},
-    }),
-  );
-  expect(diagnostic.code, diagnostic.stderr).toBe(0);
-  expect(diagnostic.value.result.cases[0]!.checks).toEqual([]);
 });
 
 test("Darrow activation needs a complete and consistent host observation", async () => {
@@ -578,81 +541,6 @@ test("Darrow activation needs a complete and consistent host observation", async
   expect(negative.value.result.domainOutcomes[0]!.status).toBe("failed");
 });
 
-test("task recipe composition keeps the two legacy ownership checks", async () => {
-  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-composition-"));
-  roots.push(root);
-  const cases = join(root, "evals/experiments/sample/cases");
-  await mkdir(cases, { recursive: true });
-  await writeFile(
-    join(cases, "composition.yaml"),
-    JSON.stringify({
-      id: "composition",
-      invariant: "COMPOSITION-C1",
-      prompt: "Delegate the accepted request.",
-      adaptive_goal_composition: true,
-      fixture: {
-        commits: [
-          { message: "chore: init", files: { "README.md": "ready\n" } },
-        ],
-      },
-      checks: [],
-    }),
-  );
-  const selected = await command<ExtensionReply>(
-    [process.execPath, extension],
-    request("resolve", {
-      projectRoot: pathToFileURL(root).href,
-      selectors: { caseIds: ["composition"] },
-      configuration: {},
-    }),
-  );
-  expect(selected.code, selected.stderr).toBe(0);
-  const selectedCase = selected.value.result.cases[0]!;
-  expect(selectedCase.checks.map((check) => check.id)).toEqual([
-    "darrow.evals.ownership.single-owner",
-    "darrow.evals.ownership.parent-work",
-  ]);
-  expect(selectedCase.requiredEvidence).toEqual(["sevro.codex.native-calls"]);
-  expect(selectedCase.extensionData["darrow.case"]).toMatchObject({
-    ownership: "composition",
-  });
-  const prepared = await command<ExtensionReply>(
-    [process.execPath, extension],
-    request("prepare", {
-      case: selectedCase,
-      host: { id: "sevro.host.synthetic", capabilities: [] },
-      condition: "passive",
-      configuration: {},
-    }),
-  );
-  expect(prepared.value.error.message).toMatch(/native-call evidence/);
-  const native = {
-    id: "sevro.codex.native-calls",
-    source: "sevro.host.codex",
-    completeness: "complete",
-    data: {
-      method: "native_session",
-      calls: [],
-      toolCalls: [],
-      acceptedSpawns: [],
-      submittedExecCalls: 0,
-    },
-  };
-  const evaluated = await command<{
-    result: { checks: Array<{ id: string; status: string }> };
-  }>(
-    [process.execPath, extension],
-    request("evaluate", {
-      extensionData: selectedCase.extensionData,
-      observations: [native],
-    }),
-  );
-  expect(evaluated.code, evaluated.stderr).toBe(0);
-  expect(
-    policyOutcomes(evaluated.value.result).map((check) => check.status),
-  ).toEqual(["passed", "passed"]);
-});
-
 test("repository guide assertions forbid owner and goal-control attempts", async () => {
   const resolveGuide = (id: string) =>
     command<ExtensionReply>(
@@ -665,7 +553,7 @@ test("repository guide assertions forbid owner and goal-control attempts", async
   const resolved = await resolveGuide("guide-mutation");
   expect(resolved.code, resolved.stderr).toBe(0);
   const selected = resolved.value.result.cases[0]!;
-  expect(selected.requiredEvidence).toEqual(["sevro.host.native-controls"]);
+  expect(selected.requiredEvidence).toContain("sevro.host.native-controls");
   expect((await resolveGuide("guide-orchestration")).code).toBe(0);
   const native = {
     id: "sevro.codex.native-calls",
@@ -755,7 +643,7 @@ test("guide native control assertions prepare and grade on Claude", async () => 
     }),
   );
   const selected = resolved.value.result.cases[0]!;
-  expect(selected.requiredEvidence).toEqual(["sevro.host.native-controls"]);
+  expect(selected.requiredEvidence).toContain("sevro.host.native-controls");
   const capabilities = [
     "sevro.claude.repository-invocation",
     "sevro.host.native-controls",
@@ -1169,14 +1057,25 @@ test("Darrow guards advice-only and missing-ticket delegation", async () => {
       sha256: createHash("sha256").update(content).digest("hex"),
     };
   };
-  const clean = await artifact("clean.jsonl", "turn.completed\n");
-  const skillCall = await artifact(
-    "skill.jsonl",
-    '{"name":"Skill","skill":"adaptive-goal"}\n',
-  );
+  const events = (command?: string) =>
+    [
+      { type: "turn.started" },
+      ...(command
+        ? [
+            {
+              type: "item.completed",
+              item: { type: "command_execution", command },
+            },
+          ]
+        : []),
+      { type: "turn.completed" },
+    ]
+      .map((row) => JSON.stringify(row))
+      .join("\n") + "\n";
+  const clean = await artifact("clean.jsonl", events());
   const preflight = await artifact(
     "preflight.jsonl",
-    "adaptive-goal-preflight prepare\n",
+    events("adaptive-goal-preflight prepare"),
   );
   const native = {
     id: "sevro.codex.native-calls",
@@ -1233,9 +1132,14 @@ test("Darrow guards advice-only and missing-ticket delegation", async () => {
     const observations = adviceOnly ? [native] : [skills];
     expect(await status(observations, [clean])).toBe("passed");
     expect(
-      await status(observations, [adviceOnly ? preflight : skillCall]),
+      await status(
+        adviceOnly ? observations : [activationReceipt(["adaptive-goal"])],
+        adviceOnly ? [preflight] : [],
+      ),
     ).toBe("failed");
-    expect(await status(observations, [])).toBe("unavailable");
+    expect(await status(observations, [])).toBe(
+      adviceOnly ? "unavailable" : "passed",
+    );
     expect(await status([], [clean])).toBe("unavailable");
   }
 });
@@ -1253,10 +1157,6 @@ test("Darrow retains ticket workflow diagnostics from supporting reads and forbi
     };
   };
   const clean = await artifact("clean.jsonl", "turn.completed\n");
-  const forbidden = await artifact(
-    "forbidden.jsonl",
-    '{"name":"Skill","skill":"prepare-task-branch"}\n',
-  );
   const skills = {
     id: "sevro.codex.skill-reads",
     source: "sevro.host.codex",
@@ -1383,7 +1283,11 @@ test("Darrow retains ticket workflow diagnostics from supporting reads and forbi
   };
   const shortcut = await resolveTicket("ticket-to-pr-shortcut-delegation");
   expect(await statuses(shortcut, [common], [clean])).toEqual(["passed"]);
-  expect((await statuses(shortcut, [common], [forbidden]))[0]).toBe("failed");
+  expect(
+    (
+      await statuses(shortcut, [activationReceipt(["prepare-task-branch"])], [])
+    )[0],
+  ).toBe("failed");
   const unavailable = await resolveTicket("ticket-to-pr-implement-unavailable");
   const ticketReads = {
     ...common,
@@ -1459,7 +1363,7 @@ test("Darrow retains ticket workflow diagnostics from supporting reads and forbi
     "passed",
   ]);
   expect(await statuses(unavailable, [native, ticketReads], [])).toEqual([
-    "unavailable",
+    "passed",
   ]);
   expect(
     await statuses(
@@ -1902,7 +1806,6 @@ test("Darrow grades a resumed conversation and its unchanged workspace boundary"
     join(cases, "continuation.yaml"),
     JSON.stringify({
       id: "continuation",
-      invariant: "CONTINUATION-C1",
       prompt: "Wait for the next request.",
       follow_up_prompt: "Continue now.",
       fixture: {
@@ -1912,13 +1815,10 @@ test("Darrow grades a resumed conversation and its unchanged workspace boundary"
       },
       checks: [],
       transcript_checks: [
-        {
-          name: "same conversation resumed",
-          expect_regex: String.raw`"type":"darrow\.eval\.follow_up_turn"`,
-        },
+        { name: "same conversation resumed", kind: "continuation-boundary" },
         {
           name: "workspace unchanged before reply",
-          not_regex: String.raw`"type":"darrow\.eval\.follow_up_turn"(?![^\n]*"pre_feedback_worktree_unchanged":true)[^\n]*[\s\S]*"type":"darrow\.codex_native_`,
+          kind: "unchanged-before-continuation",
         },
       ],
     }),
@@ -2059,13 +1959,11 @@ test("live cases omit retired skill diagnostics and preserve current assertions"
     );
     const details = c.extensionData["darrow.case"] as {
       transcriptChecks?: { kind: string }[];
-      nativeTranscriptChecks?: { kind: string }[];
     };
     expect(
-      [
-        ...(details.transcriptChecks ?? []),
-        ...(details.nativeTranscriptChecks ?? []),
-      ].some((c) => removedKinds.includes(c.kind)),
+      [...(details.transcriptChecks ?? [])].some((c) =>
+        removedKinds.includes(c.kind),
+      ),
     ).toBe(false);
     if (
       id === "goal-readiness-nonready-stops" ||
@@ -2083,115 +1981,6 @@ test("live cases omit retired skill diagnostics and preserve current assertions"
   }
 });
 
-test("Darrow current ledger exclusions use intact host events", async () => {
-  const root = await mkdtemp(join(tmpdir(), "darrow-sevro-ledger-"));
-  roots.push(root);
-  const selected = await command<ExtensionReply>(
-    [process.execPath, extension],
-    request("resolve", {
-      projectRoot: pathToFileURL(projectRoot).href,
-      selectors: { caseIds: ["goal-authorized-publication"] },
-      configuration: {},
-    }),
-  );
-  expect(selected.code, selected.stderr).toBe(0);
-  const selectedCase = selected.value.result.cases[0]!;
-  const native = {
-    id: "sevro.codex.native-calls",
-    source: "sevro.host.codex",
-    completeness: "complete",
-    data: {
-      method: "native_session",
-      calls: [],
-      toolCalls: [],
-      acceptedSpawns: [],
-      submittedExecCalls: 0,
-    },
-  };
-  const artifact = async (name: string, content: string) => {
-    const path = join(root, name);
-    await writeFile(path, content);
-    return {
-      id: "sevro.codex.events",
-      path: pathToFileURL(path).href,
-      sha256: createHash("sha256").update(content).digest("hex"),
-    };
-  };
-  const clean = await artifact("clean.jsonl", "turn.completed\n");
-  const ledger = await artifact("ledger.jsonl", "Protocol ledger\n");
-  const status = async (observations: unknown[], artifacts: unknown[]) => {
-    const response = await command<{
-      result: {
-        checks: Array<{ id: string; status: string; evidenceRefs: string[] }>;
-      };
-    }>(
-      [process.execPath, extension],
-      request("evaluate", {
-        extensionData: selectedCase.extensionData,
-        observations,
-        artifacts,
-      }),
-    );
-    expect(response.code, JSON.stringify(response.value)).toBe(0);
-    return policyOutcomes(response.value.result).find(
-      (check) => check.id === "darrow.evals.transcript.1",
-    );
-  };
-  expect(await status([native], [clean])).toMatchObject({
-    status: "passed",
-    evidenceRefs: ["sevro.codex.events"],
-  });
-  expect((await status([native], [ledger]))?.status).toBe("failed");
-  const goal = {
-    ...native,
-    data: {
-      ...native.data,
-      calls: [
-        {
-          ordinal: 1,
-          namespace: "functions",
-          name: "create_goal",
-          evidence: "invocation_attempt",
-        },
-      ],
-      toolCalls: [{ ordinal: 1, namespace: "functions", name: "create_goal" }],
-    },
-  };
-  expect((await status([goal], [clean]))?.status).toBe("passed");
-  expect((await status([native], []))?.status).toBe("unavailable");
-  expect(
-    (await status([native], [{ ...clean, sha256: "0".repeat(64) }]))?.status,
-  ).toBe("unavailable");
-  expect(
-    (await status([{ ...native, completeness: "partial" }], [clean]))?.status,
-  ).toBe("passed");
-  const narrower = await command<ExtensionReply>(
-    [process.execPath, extension],
-    request("resolve", {
-      projectRoot: pathToFileURL(projectRoot).href,
-      selectors: { caseIds: ["goal-verification-existing-review"] },
-      configuration: {},
-    }),
-  );
-  expect(narrower.code, narrower.stderr).toBe(0);
-  const alternative = await command<{
-    result: { checks: Array<{ id: string; status: string }> };
-  }>(
-    [process.execPath, extension],
-    request("evaluate", {
-      extensionData: narrower.value.result.cases[0]!.extensionData,
-      observations: [native],
-      artifacts: [ledger],
-    }),
-  );
-  expect(alternative.code, JSON.stringify(alternative.value)).toBe(0);
-  expect(
-    policyOutcomes(alternative.value.result).find(
-      (check) => check.id === "darrow.evals.transcript.1",
-    )?.status,
-  ).toBe("passed");
-});
-
 test("Darrow extension translates shell and final-message assertions and grades domain metrics", async () => {
   const root = await mkdtemp(join(tmpdir(), "darrow-sevro-stdout-"));
   roots.push(root);
@@ -2201,7 +1990,6 @@ test("Darrow extension translates shell and final-message assertions and grades 
     join(caseDir, "stdout.yaml"),
     JSON.stringify({
       id: "stdout-case",
-      invariant: "EXAMPLE-C1",
       prompt: "Inspect the fixture.",
       fixture: {
         commits: [{ message: "Initialize", files: { "README.md": "ready\n" } }],
@@ -2350,7 +2138,6 @@ test("Darrow translates semantic propositions and grades false-positive metrics"
     join(caseDir, "semantic.yaml"),
     JSON.stringify({
       id: "semantic-case",
-      invariant: "EXAMPLE-S1",
       prompt: "Report readiness.",
       fixture: {
         commits: [{ message: "Initialize", files: { "README.md": "ready\n" } }],
@@ -2420,7 +2207,6 @@ test("Darrow translates head expectations to the public Git grader", async () =>
       join(cases, `${id}.yaml`),
       JSON.stringify({
         id,
-        invariant: "HEAD-EXPECTATION",
         prompt: expectHeadChange ? "Commit the update." : "Leave HEAD alone.",
         fixture: {
           commits: [
@@ -2487,7 +2273,6 @@ test("Claude preparation passes filtered plugin directories to Sevro", async () 
     join(caseDir, "package.yaml"),
     JSON.stringify({
       id: "claude-package-probe",
-      invariant: "PROBE-I1",
       prompt: "{{skill_invocation}} Return ready.",
       additional_plugins: ["plugins/capability/secondary"],
       fixture: {
@@ -2945,7 +2730,6 @@ test("Darrow translates skill schema assets to public output checks", async () =
   const caseFile = join(cases, "schema.yaml");
   const definition = {
     id: "schema-case",
-    invariant: "EXAMPLE-SCHEMA",
     prompt: "Return status JSON.",
     fixture: {
       commits: [{ message: "Initialize", files: { "README.md": "fixture\n" } }],

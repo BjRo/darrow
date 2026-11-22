@@ -59,7 +59,7 @@ const directOptions = {
   trials: { type: "string", default: "5" },
   jobs: { type: "string", default: "3" },
   threshold: { type: "string", default: "0.8" },
-  "owner-evaluation": { type: "string", default: "enforced" },
+  "owner-evaluation": { type: "string", default: "passive" },
   "codex-entrypoint": { type: "string" },
   dry: { type: "boolean", default: false },
   "no-color": { type: "boolean" },

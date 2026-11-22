@@ -1,5 +1,4 @@
 id: create-branch-native-tracker
-invariant: GW-B1,GW-B2
 activation: positive
 mount_plugin_skills: true
 prompt: >-

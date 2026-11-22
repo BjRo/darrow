@@ -350,7 +350,6 @@ test("original selection publication protects active attempts and starts age at 
     source,
     JSON.stringify({
       id: "selected",
-      invariant: "ER-C4",
       prompt: "Return ready.",
       fixture: {
         commits: [

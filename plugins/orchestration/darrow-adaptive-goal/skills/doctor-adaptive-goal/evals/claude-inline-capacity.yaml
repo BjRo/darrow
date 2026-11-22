@@ -4,7 +4,6 @@ candidate_routes:
   claude:
     model: claude-sonnet-5-5
     effort: medium
-invariant: ADL-D1
 activation: positive
 native_goal: forbidden
 prompt: >-
@@ -33,4 +32,4 @@ semantic_output_checks:
       a prerequisite refusal, or a conclusion based on the executing host fails.
 transcript_checks:
   - name: doctor launches no children
-    not_regex: '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"name":"Agent"'
+    kind: doctor-no-agent-spawn

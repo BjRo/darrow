@@ -1,5 +1,4 @@
 id: publish-pr-evidence-text-only
-invariant: GW-E1,GW-E4,GW-E5,GW-E6,GW-E8
 activation: positive
 mount_plugin_skills: true
 prompt: >-

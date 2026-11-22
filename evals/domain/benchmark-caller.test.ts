@@ -38,7 +38,6 @@ async function fixture() {
       join(cases, `${id}.yaml`),
       JSON.stringify({
         id,
-        invariant: "EXAMPLE-C1",
         prompt: "Return ready.",
         fixture: {
           commits: [

@@ -1,5 +1,4 @@
 id: create-branch-base-from-main
-invariant: GW-B4
 activation: positive
 mount_plugin_skills: true
 expect_head_change: null

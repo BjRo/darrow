@@ -1,5 +1,4 @@
 id: explain-visually-no-trigger-html-artifact
-invariant: VE-C1,VE-C7,VE-E1
 activation: negative
 activation_excludes: [explain-visually]
 mount_plugin_skills: true
@@ -17,5 +16,7 @@ checks:
     run: >-
       test -f architecture.html;
       grep -Ei '<!doctype html|<html' architecture.html >/dev/null
+output_checks:
   - name: response does not refuse because the inline skill is read-only
-    run: '! grep -Ei "cannot create|will not create|read-only capability" .git/last-message.md'
+    not_regex: cannot create|will not create|read-only capability
+    flags: i

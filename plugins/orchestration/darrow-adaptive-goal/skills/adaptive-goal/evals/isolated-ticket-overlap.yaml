@@ -1,9 +1,6 @@
 id: goal-isolated-ticket-overlap
-invariant: ADL-R3,ADL-L1,ADL-L5,ADL-P3
 required_plugin_hook: darrow-review
 assessment_capture: required
-goal_report: forbidden
-goal_route_checks: false
 expect_head_change: true
 harnesses:
   - codex

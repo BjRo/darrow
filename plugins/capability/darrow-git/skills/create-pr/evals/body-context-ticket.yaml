@@ -1,5 +1,4 @@
 id: create-pr-body-context-ticket
-invariant: GW-P2
 activation: positive
 mount_plugin_skills: true
 prompt: >-

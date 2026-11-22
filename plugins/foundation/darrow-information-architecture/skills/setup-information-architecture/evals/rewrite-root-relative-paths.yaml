@@ -1,5 +1,4 @@
 id: setup-information-architecture-rewrite-root-relative-paths
-invariant: IA-S10,IA-S11
 activation: positive
 prompt: >-
   Reorganize the existing routed guidance into a valid lean information

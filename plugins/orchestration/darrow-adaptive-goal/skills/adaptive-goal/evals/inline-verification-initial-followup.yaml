@@ -1,14 +1,11 @@
 id: goal-inline-verification-initial-and-followup
 required_plugin_hook: darrow-review
-invariant: ADL-V1,ADL-A4,ADL-C2,ADL-L1,ADL-L2,ADL-L5,LC-C5,CR-C19,CR-E18
 activation: positive
 mount_plugin_skills: true
 activation_includes:
   - code-review
 additional_plugins:
   - plugins/capability/darrow-review
-goal_report: forbidden
-goal_route_checks: false
 prompt:
   "The harness pins this exact original owner to Codex gpt-6.1-sol/medium; preserve
   that observed route when placing public coordination. Preserve the configured
@@ -94,9 +91,6 @@ semantic_output_checks:
       completed outcomes suffice; it need not use the word "complete" or identify the
       owner by name. It must not claim publication, replacement of the owner, or an
       unresolved condition that prevents completion.
-transcript_checks:
-  - name: no lifecycle ledger
-    not_regex: adaptive-goal-preflight step
 native_goal: complete
 assessment_capture: required
 harnesses:

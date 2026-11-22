@@ -1,7 +1,6 @@
 id: pstack-principle-redesign-from-first-principles-decision
 activation: positive
 mount_plugin_skills: true
-invariant: PF-R8,PF-AC9
 expect_head_change: false
 prompt:
   Use principle-redesign-from-first-principles for the concrete decision in

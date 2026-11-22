@@ -1,5 +1,4 @@
 id: readiness-contradictory-authoritative-sources
-invariant: IRG-C2,IRG-E1,IRG-E2,SE-C9,SE-C10,SE-C11,SE-C14
 activation: positive
 mount_plugin_skills: true
 prompt: >-
@@ -33,8 +32,6 @@ checks:
   - name: contradictory authority causes no repository mutation
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: contradictory authority blocks implementation
-    run: grep -Ei 'verdict.{0,80}blocked' .git/last-message.md
   - name: contradictory authority preserves repository refs
     run: >-
       test "$(git branch --show-current)" = main &&

@@ -1,5 +1,4 @@
 id: readiness-caller-resolution-continuation
-invariant: IRG-C7,IRG-C8,IRG-E6,LC-C2
 activation: positive
 mount_plugin_skills: true
 prompt: >-
@@ -58,7 +57,7 @@ checks:
       test "$(cat .fixture-state/config-at-resolved.json)" = '{"timeoutMs":1000}'
 transcript_checks:
   - name: resolution resumes the same host conversation
-    expect_regex: '"type":"darrow.eval.follow_up_turn","thread_id":"[^"]+"'
+    kind: continuation-boundary
 semantic_output_checks:
   - name: final result reports resolved readiness and verified implementation
     proposition: >-

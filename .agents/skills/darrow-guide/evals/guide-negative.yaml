@@ -1,5 +1,4 @@
 id: guide-negative
-invariant: RG-C1,RG-C2,RG-C4,RG-C8
 activation: negative
 prompt: What is 17 plus 25?
 fixture:

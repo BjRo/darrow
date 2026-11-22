@@ -1,9 +1,6 @@
 id: implement-missing-commit
-invariant: IMP-C3,IMP-C4
 activation: positive
 mount_plugin_skills: true
-goal_report: forbidden
-goal_route_checks: false
 additional_plugins:
   - plugins/orchestration/darrow-adaptive-goal
   - plugins/capability/darrow-pstack

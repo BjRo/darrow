@@ -8,8 +8,6 @@ mount_plugin_skills: true
 activation_sequence:
   - ticket-to-pr
   - implement
-invariant: TPR-C2,TPR-C3,TPR-C6
-goal_report: forbidden
 expect_head_change: false
 prompt: >-
   {{skill_invocation}} https://example.invalid/tickets/99 using a linked

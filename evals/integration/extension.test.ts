@@ -62,7 +62,6 @@ test("Darrow separates case discovery from imported Codex configuration", async 
     join(cases, "selected.yaml"),
     JSON.stringify({
       id: "separate-configuration",
-      invariant: "SE-C29",
       prompt: "Return ready.",
       fixture: {
         commits: [
@@ -141,7 +140,6 @@ test("Darrow condition files render the actual candidate route through Sevro", a
       join(cases, "condition.yaml"),
       JSON.stringify({
         id: "condition-case",
-        invariant: "CONDITION-C1",
         prompt: "Return ready.",
         fixture: {
           commits: [
@@ -235,7 +233,6 @@ test("Darrow condition routes resolve after corpus preflight", async () => {
     join(cases, "preflight.yaml"),
     JSON.stringify({
       id: "condition-preflight",
-      invariant: "CONDITION-C4",
       prompt: "Start on {{harness}}.",
       follow_up_prompt: "Continue on {{model}}|{{effort}}.",
       fixture: {
@@ -306,7 +303,6 @@ test("Darrow rejects invalid condition inputs before candidate execution", async
     join(cases, "invalid.yaml"),
     JSON.stringify({
       id: "condition-invalid",
-      invariant: "CONDITION-C3",
       prompt: "Return ready.",
       fixture: {
         commits: [
@@ -393,15 +389,15 @@ test("guide disclosure uses retained response evidence through Sevro", async () 
     join(skill, "evals/disclosure.yaml"),
     JSON.stringify({
       id: "guide-disclosure",
-      invariant: "RG-C8",
       prompt: "Explain the repository.",
       fixture: {
         commits: [
           { message: "chore: initialize", files: { "README.md": "source\n" } },
         ],
       },
-      checks: [
-        original.checks.find(
+      checks: [],
+      output_checks: [
+        original.output_checks.find(
           (check: { name: string }) => check.name === "Claude host disclosure",
         ),
       ],
@@ -605,7 +601,9 @@ test("guide disclosure uses retained response evidence through Sevro", async () 
   }
   const casePath = join(skill, "evals/disclosure.yaml");
   const changed = JSON.parse(await readFile(casePath, "utf8"));
-  changed.checks[0].run += "; echo changed";
+  changed.checks = [
+    { name: "retired response check", run: "cat .git/last-message.md" },
+  ];
   await writeFile(casePath, JSON.stringify(changed));
   const unsupported = await command<ExtensionReply>(
     [process.execPath, extension],
@@ -616,7 +614,7 @@ test("guide disclosure uses retained response evidence through Sevro", async () 
     }),
   );
   expect(unsupported.value.error.message).toContain(
-    "unsupported legacy guide response check",
+    "shell checks cannot read the retired response file",
   );
 });
 
@@ -666,7 +664,6 @@ interface ExtensionReply {
       requiredEvidence: string[];
       extensionData: {
         "darrow.case": {
-          invariant: string;
           activation?: {
             class: string;
             targetSkill: string;
@@ -734,7 +731,6 @@ test("Sevro grades no-agent evidence through the public CLI", async () => {
     join(skill, "evals/no-agent.yaml"),
     JSON.stringify({
       id: "no-agent-probe",
-      invariant: "EXAMPLE-C1",
       prompt: "Return ready.",
       fixture: {
         commits: [
@@ -744,16 +740,7 @@ test("Sevro grades no-agent evidence through the public CLI", async () => {
       checks: [],
       output_checks: [{ name: "response", expect_exact: "ready" }],
       transcript_checks: [
-        {
-          name: "advice launches no agent",
-          not_regex:
-            '"tool":"spawn_agent"|"type":"darrow.codex_native_spawn"|"type":"darrow.goal_agent_completion"',
-        },
-        {
-          name: "no lifecycle ledger or nested goal is used",
-          not_regex:
-            'adaptive-goal-preflight step|Protocol ledger|"tool":"create_goal"',
-        },
+        { name: "advice launches no agent", kind: "no-agent-spawn" },
       ],
     }),
   );
@@ -815,14 +802,6 @@ test("Sevro grades no-agent evidence through the public CLI", async () => {
     detail: "Graded from complete native agent-spawn observations",
     evidenceRefs: ["sevro.codex.native-calls"],
   });
-  expect(
-    run.value.cases[0]!.trials[0]!.checks.find(
-      (check) => check.id === "darrow.evals.transcript.2",
-    ),
-  ).toMatchObject({
-    status: "passed",
-    evidenceRefs: ["sevro.codex.events", "sevro.codex.native-calls"],
-  });
 });
 
 test("Darrow mounts sibling skills for a competition activation case", async () => {
@@ -840,7 +819,6 @@ test("Darrow mounts sibling skills for a competition activation case", async () 
     join(skills, "primary/evals/competition.yaml"),
     JSON.stringify({
       id: "sibling-competition",
-      invariant: "EXAMPLE-C1",
       activation: "competition",
       activation_sequence: ["primary", "rival"],
       activation_includes: ["rival"],
@@ -1027,7 +1005,6 @@ test("Darrow extension mounts a plugin skill without exposing its evals", async 
     join(skillDir, "evals/mount.yaml"),
     JSON.stringify({
       id: "example-skill-mount",
-      invariant: "EXAMPLE-M1",
       activation: "positive",
       prompt: "Use the example skill in {{repo_dir}} and return ready.",
       fixture: {
@@ -1351,7 +1328,6 @@ test("explicit Codex skill invocation packages the owning plugin for Sevro", asy
     join(skill, "evals/invocation.yaml"),
     JSON.stringify({
       id: "probe-invocation",
-      invariant: "PROBE-I1",
       activation: "positive",
       prompt: "Run {{skill_invocation}} in {{repo_dir}} and return ready.",
       fixture: {
@@ -1597,7 +1573,6 @@ test("Darrow fixture setup runs through Sevro and rejects changed source", async
   const caseFile = join(cases, "setup.yaml");
   const definition = {
     id: "setup-case",
-    invariant: "EXAMPLE-S1",
     prompt: "Return ready.",
     fixture: {
       commits: [{ message: "Initialize", files: { "README.md": "fixture\n" } }],
@@ -1762,7 +1737,6 @@ test("Darrow runs implicit and explicit repository skills without a plugin wrapp
     join(skillRoot, "evals/probe.yaml"),
     JSON.stringify({
       id: "repository-probe",
-      invariant: "EXAMPLE-R1",
       activation: "positive",
       prompt: "Use the probe capability to return ready.",
       fixture: {
@@ -1936,7 +1910,6 @@ test("Darrow runs native Claude repository skills using their required mirror", 
   const caseFile = join(canonical, "evals/probe.yaml");
   const definition = {
     id: "claude-repository-probe",
-    invariant: "EXAMPLE-CLAUDE",
     activation: "positive",
     prompt: "Return ready with the probe capability.",
     fixture: {
@@ -2059,7 +2032,6 @@ test("Darrow runs a pinned corpus repository with committed overlay and setup", 
   );
   const definition = {
     id: "corpus-case",
-    invariant: "EXAMPLE-CORPUS",
     prompt: "Return ready.",
     fixture: {
       source: "sample",
@@ -2149,7 +2121,6 @@ test("Darrow Git hook fixtures run through Sevro before candidate commits", asyn
     join(cases, "hook.yaml"),
     JSON.stringify({
       id: "hook-case",
-      invariant: "EXAMPLE-HOOK",
       prompt: "Return ready.",
       fixture: {
         commits: [
@@ -2237,7 +2208,6 @@ test("Darrow fixture binaries reach the host and hidden checks", async () => {
     join(cases, "bin.yaml"),
     JSON.stringify({
       id: "bin-case",
-      invariant: "EXAMPLE-BIN",
       prompt: "Return ready.",
       fixture: {
         commits: [
@@ -2319,7 +2289,6 @@ test("Darrow local ticket works through Sevro and binds its source", async () =>
   const caseFile = join(cases, "ticket.yaml");
   const definition = {
     id: "ticket-case",
-    invariant: "EXAMPLE-TICKET",
     prompt: "Update the local ticket.",
     fixture: {
       commits: [{ message: "Initialize", files: { "README.md": "fixture\n" } }],
@@ -2463,7 +2432,6 @@ test("additional plugins and selected skills remain independent Codex packages",
   const caseFile = join(cases, "providers.yaml");
   const definition = {
     id: "provider-composition",
-    invariant: "PROVIDER-C1",
     activation: "positive",
     activation_includes: ["provider", "selective"],
     additional_plugins: ["plugins/capability/provider"],

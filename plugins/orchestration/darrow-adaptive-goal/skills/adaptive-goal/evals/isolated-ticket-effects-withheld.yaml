@@ -1,7 +1,4 @@
 id: goal-isolated-ticket-effects-withheld
-invariant: ADL-R3,ADL-L2,ADL-V1,ADL-P3
-goal_report: forbidden
-goal_route_checks: false
 candidate_routes:
   codex:
     model: gpt-6.1-sol

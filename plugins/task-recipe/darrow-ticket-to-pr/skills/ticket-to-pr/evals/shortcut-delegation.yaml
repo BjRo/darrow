@@ -8,8 +8,6 @@ mount_plugin_skills: true
 activation_sequence:
   - ticket-to-pr
   - implement
-invariant: TPR-C1,TPR-C2,TPR-C3,TPR-C4,TPR-C6,TPR-C7,TPR-C8,TPR-C9,TPR-P1,TPR-P2,TPR-P3
-goal_report: forbidden
 expect_head_change: false
 prompt: >-
   {{skill_invocation}} https://example.invalid/tickets/42
@@ -89,4 +87,8 @@ output_checks:
     expect_regex: "fixture-delegation-observed"
 transcript_checks:
   - name: recipe does not pre-run adaptive-owned capabilities
-    not_regex: '(?:"name":"Skill"[^\n]*(?:read-ticket|assess-implementation-readiness|prepare-task-branch)|"type":"darrow.skill_read_probe"[^\n]*"skill":"(?:read-ticket|assess-implementation-readiness|prepare-task-branch)")'
+    kind: inactive-controls
+    forbiddenSkills:
+      - read-ticket
+      - assess-implementation-readiness
+      - prepare-task-branch

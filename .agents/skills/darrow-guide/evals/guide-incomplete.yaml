@@ -1,5 +1,4 @@
 id: guide-incomplete
-invariant: RG-C7,RG-C2,RG-C4,RG-C8
 activation: positive
 prompt: Darrow isn't showing up. What should I do?
 fixture:
@@ -21,11 +20,6 @@ checks:
   - name: no intercepted external-command attempts
     run: cat .fixture-state/guide-effects
     expect_exact: ""
-  - name: Claude host disclosure
-    run:
-      if [ "$DARROW_EVAL_HARNESS" = claude ] && [ -f .git/last-message.md ]; then grep -Ei
-      "scop[^.]*evidence|evidence[^.]*scop" .git/last-message.md >/dev/null && grep -Ei "primar[^.]*Codex|Codex[^.]*primar"
-      .git/last-message.md >/dev/null; fi
 semantic_output_checks:
   - name: useful clarification
     proposition: >-
@@ -38,3 +32,6 @@ semantic_output_checks:
     proposition: >-
       The response does not claim the assistant installed anything, ran tests, repaired configuration,
       or diagnosed the live environment. Showing commands for the user to run is allowed.
+output_checks:
+  - name: Claude host disclosure
+    guide_disclosure: true

@@ -1,32 +1,8 @@
-import { createHash } from "node:crypto";
-// Exact current-main assertions: changed contracts must acquire a new mapping.
-const allowedPatterns = new Set([
-  "05c5a2051ea2b6c2bdda8c649172c7ddf3d137e983e05212cd5562d4f89895c1",
-  "1ae6f1f4348e9f39147d79d5f17715b278f81042286f85b6b837a44f306d9879",
-  "26a68e5004bdf564c604d616bb2144c1bf1311ab8c8e5ab44a0d0524c8e89c1a",
-  "2735c8032bdd1be400866c55cfa9c0782c3af8c6c7e675a7303fba32508ab9c0",
-  "2d668c865b4e4a7bef79675b032261b7a2f1f8cba097b1f334780d0aeabdddb4",
-  "477494af9a187a707b1a0294209a427f71fdec078c7535deddb8597f08960d43",
-  "4944ca41ef44b3b23773882700d0153d23c5d3e70b03551d6b9da9a5f429aa0d",
-  "529783053bc77eeaf2ab39e8cc4a98627d80928510e1b98a372d3f12315e2210",
-  "53308d6805d0dc9f795b3efb0aa60ff819b28ffb29ab0ec63da41aac0a4909ed",
-  "59a0afb6b55236dedf7c92857157c6ae23a8d385324c825679cc9dccaf5f97c8",
-  "62587f212854141760bc4e63bd727e4a0b879b6290b8d172a6ec9e5e98f8de27",
-  "725b7caac1d68e60343d587efcaa4e94b1f3fe9f6dd7a13c6fa30f14df8c4a81",
-  "cc420b42519baee8419c5c35e814b15c38f4b0cd84a76411f1d1f704d1ef4eec",
-  "d05e07668e4ada9a7e10472137ef2208ac66cdab73bdaee13304fbd22d5d35fb",
-  "d8555dc9ae9af86e5eaa5e3bebb563b1e29f4d5227bbb3dbaf0375bfd440769f",
-  "de6257a3fc8e46a7b07e9588317c5782960be7f76d0ec1160f03fad2a32c5dd3",
-  "f0604873d6c89049370d65fa114902823ab3765251a019a85f26543bdcf16361",
-  "f6f40a471e9f6feca32be3ae6d1ee2c07b94e1a0c8f668ea1f95e62b3099a5b8",
-  "ff68c888dc9ef2db7774dfa11285e3d4c05a9b383ed90b5ded2cacb96c3510ff",
-]);
 type Row = Record<string, unknown>;
 type Status = "passed" | "failed" | "unavailable";
 export type NativeTranscript = {
   id: string;
   kind: string;
-  terms?: string[];
   model?: string;
   effort?: string;
   claudeTypes?: string[];
@@ -38,130 +14,22 @@ function row(value: unknown): Row | null {
     : null;
 }
 
-function checkKind(check: Row): Omit<NativeTranscript, "id"> | null {
-  const pattern = check.not_regex;
-  if (
-    typeof pattern === "string" &&
-    pattern
-      .split("|")
-      .every((term) =>
-        [
-          "adaptive-goal-preflight step",
-          "Protocol ledger",
-          "darrow-native-goal-report",
-          "claude-route-gate",
-        ].includes(term),
-      )
-  )
-    return { kind: "ledger", terms: pattern.split("|") };
-  if (pattern === '"skill":"adaptive-goal"|adaptive-goal-preflight prepare')
-    return { kind: "inactive" };
-  if (
-    pattern ===
-    '"type":"darrow.codex_native_spawn"[^\\n]*"status":"accepted"[\\s\\S]*"type":"darrow.eval.follow_up_turn"'
-  )
-    return { kind: "no-child-before-feedback" };
-  return positiveKind(check) ?? repairReuseKind(check) ?? claudeKind(check);
-}
-
-function positiveKind(check: Row): Omit<NativeTranscript, "id"> | null {
-  const pattern = check.expect_regex;
-  if (
-    pattern ===
-    '"type":"darrow.eval.follow_up_turn"[^\\n]*"native_goal_observed":false[^\\n]*"native_goal_status":null'
-  )
-    return { kind: "no-goal-before-feedback" };
-  if (
-    check.name !==
-      "selected implementation policy route has accepted bounded-child evidence" ||
-    typeof pattern !== "string"
-  )
-    return null;
-  if (
-    !pattern.includes('"status":"accepted"') ||
-    !pattern.includes("darrow\\.codex_native_spawn")
-  )
-    return null;
-  const model = pattern.includes('"model":"gpt-6-astra"')
-    ? "gpt-6-astra"
-    : pattern.includes('"model":"gpt-6-luna"')
-      ? "gpt-6-luna"
-      : null;
-  if (!model) return null;
-  return {
-    kind: "route",
-    model,
-    effort: pattern.includes('"reasoning_effort":"high"') ? "high" : "medium",
-    claudeTypes: implementationClaudeTypes(model, pattern),
-  };
-}
-
-function implementationClaudeTypes(model: string, pattern: string) {
-  if (model === "gpt-6-astra")
-    return ["darrow-adaptive-goal:adaptive-goal-opus-5-5-high"];
-  if (pattern.includes('"reasoning_effort":"high"'))
-    return ["darrow-adaptive-goal:adaptive-goal-sonnet-5-5-medium"];
-  return [
-    "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-low",
-    "darrow-adaptive-goal:adaptive-goal-sonnet-5-5-medium",
-  ];
-}
-
-// Repairs return to the one implementor that produced the candidate.
-const REPAIR_REUSE_NAME = "repair returns to the retained implementor";
-const REPAIR_REUSE_PATTERN = String.raw`"type":"darrow.codex_native_spawn"[^\n]*"model":"gpt-6.1-sol"[^\n]*"reasoning_effort":"high"[^\n]*"agent_ref":"([^"]+)"[\s\S]*"type":"darrow.codex_native_feedback"[^\n]*"agent_ref":"\1"|"name":"Agent"[\s\S]*"name":"SendMessage"`;
-
-function repairReuseKind(check: Row): Omit<NativeTranscript, "id"> | null {
-  if (
-    check.name !== REPAIR_REUSE_NAME ||
-    check.expect_regex !== REPAIR_REUSE_PATTERN
-  )
-    return null;
-  return {
-    kind: "repair-reuse",
-    model: "gpt-6.1-sol",
-    effort: "high",
-  };
-}
-
-function claudeKind(check: Row): Omit<NativeTranscript, "id"> | null {
-  const names: Record<string, string> = {
-    "Claude invokes the readiness skill exactly once": "readiness-once",
-    "Claude does not retry readiness without a user resolution":
-      "readiness-no-retry",
-    "Claude launches no owner before ready": "no-claude-owner",
-    "advertised independent review skill is invoked": "independent-review",
-  };
-  const kind = names[String(check.name)];
-  return kind ? { kind } : null;
-}
-
-export function nativeTranscriptPolicy(value: unknown): NativeTranscript[] {
-  if (value === undefined) return [];
-  if (!Array.isArray(value))
-    throw new Error("native transcript checks must be an array");
-  return value.map((entry, index) => {
-    const check = row(entry);
-    if (
-      !allowedPatterns.has(
-        createHash("sha256").update(JSON.stringify(check)).digest("hex"),
-      )
-    )
-      throw new Error("Native transcript assertion has changed");
-    const selected = check ? checkKind(check) : null;
-    if (!selected)
-      throw new Error(
-        `native transcript check ${index + 1} has no Sevro evidence mapping`,
-      );
-    return { id: `darrow.evals.transcript.${index + 1}`, ...selected };
-  });
-}
+export const NATIVE_TRANSCRIPT_KINDS = new Set([
+  "route",
+  "repair-reuse",
+  "inactive",
+  "no-goal-before-feedback",
+  "no-child-before-feedback",
+  "readiness-once",
+  "readiness-no-retry",
+  "no-claude-owner",
+  "independent-review",
+]);
 
 export function nativeTranscriptEvidence(checks: NativeTranscript[]): string[] {
   return [
     ...new Set(
       checks.flatMap((check) => {
-        if (check.kind === "ledger") return [];
         if (check.kind === "inactive")
           return ["sevro.host.skill-activations", "sevro.codex.events"];
         // The check validates the selected host's accepted-child facts itself.
@@ -471,13 +339,6 @@ function status(
   values: unknown,
   context: NativeContext,
 ): Status {
-  const { events } = context;
-  if (check.kind === "ledger")
-    return events === null
-      ? "unavailable"
-      : check.terms!.some((term) => events.includes(term))
-        ? "failed"
-        : "passed";
   if (check.kind === "route") return hostRouteStatus(check, context);
   if (check.kind === "repair-reuse") return repairReuseStatus(check, context);
   if (check.kind === "inactive") return inactiveStatus(context);
@@ -521,7 +382,6 @@ function transcriptRefs(check: NativeTranscript, context: NativeContext) {
         ? ["sevro.codex.native-calls"]
         : []),
     ];
-  if (check.kind === "ledger") return [eventId];
   if (check.kind === "inactive") return [context.skills!.evidenceRef, eventId];
   if (
     check.kind === "independent-review" &&

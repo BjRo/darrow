@@ -1,7 +1,4 @@
 id: goal-preflight-verification-cadence
-invariant: ADL-P4,ADL-L5,ADL-S3
-goal_report: forbidden
-goal_route_checks: false
 prompt: >-
   {{skill_invocation}} Add an exported isEven(value) function to src/math.js. Acceptance
   is that it returns true exactly for even integer inputs, focused evidence covers zero,
@@ -58,9 +55,7 @@ checks:
     run: test "$(git rev-list --count HEAD)" -eq 1
 output_checks:
   - name: final verification command is reported
-    expect_regex: "final\\.sh"
-  - name: no lifecycle protocol is reported
-    not_regex: "darrow-native-goal-report|Protocol ledger|route_verified"
+    expect_regex: final\.sh
 semantic_output_checks:
   - name: owner reports complete focused and final verification
     proposition:
@@ -78,7 +73,4 @@ semantic_output_checks:
       reports that this command completed successfully, rather than merely advising or
       planning to run it. It need not repeat the label 'final verification' alongside
       the command name.
-transcript_checks:
-  - name: no lifecycle ledger is used
-    not_regex: adaptive-goal-preflight step|Protocol ledger
 native_goal: required

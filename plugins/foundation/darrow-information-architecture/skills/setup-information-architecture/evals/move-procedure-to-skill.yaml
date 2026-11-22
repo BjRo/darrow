@@ -1,5 +1,4 @@
 id: setup-information-architecture-move-procedure-to-skill
-invariant: IA-S5,IA-S11
 activation: competition
 mount_plugin_skills: true
 prompt: >-

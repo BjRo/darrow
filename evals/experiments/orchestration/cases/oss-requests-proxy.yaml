@@ -1,5 +1,4 @@
 id: orchestration-oss-requests-proxy
-invariant: ORCH-OSS-HELDOUT-BUG-FIX
 prompt: |-
   Work directly in this Requests repository and fix the reported defect. Do not commit or publish changes.
 

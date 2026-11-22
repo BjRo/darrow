@@ -1,5 +1,4 @@
 id: doctor-adaptive-goal-effective-project
-invariant: ADL-D1
 activation: positive
 prompt: >-
   {{skill_invocation}} Diagnose the represented Codex V2 host configuration,
@@ -30,4 +29,8 @@ semantic_output_checks:
       a different diagnosed value or a failed diagnosis is insufficient.
 transcript_checks:
   - name: orchestration does not activate
-    not_regex: 'adaptive-goal-preflight|"tool":"spawn_agent"|"name":"Agent"'
+    kind: inactive-controls
+    forbiddenCommandTerms:
+      - adaptive-goal-preflight
+    forbidSpawn: true
+    forbidAgentTool: true

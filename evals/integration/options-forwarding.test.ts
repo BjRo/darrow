@@ -32,7 +32,6 @@ test("Darrow exact and filtered callers forward the trial concurrency limit", as
     join(cases, "selected.yaml"),
     JSON.stringify({
       id: "selected",
-      invariant: "SE-C16",
       prompt: "Return ready.",
       fixture: {
         commits: [{ message: "Initial", files: { "README.md": "fixture" } }],

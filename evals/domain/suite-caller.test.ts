@@ -54,7 +54,6 @@ async function fixture() {
       join(cases, `${id}.yaml`),
       JSON.stringify({
         id,
-        invariant: "EXAMPLE-C1",
         prompt: "Return ready.",
         fixture: {
           commits: [
@@ -1960,7 +1959,6 @@ async function activationFixture() {
     join(skill, "evals/suite-activation.yaml"),
     JSON.stringify({
       id: "suite-activation",
-      invariant: "EXAMPLE-ACTIVATION",
       activation: "positive",
       prompt: "Return ready.",
       fixture: {
@@ -2382,7 +2380,6 @@ test("suite reports activation classes and selection metrics separately from tas
       join(skill, `evals/activation-${activation}.yaml`),
       JSON.stringify({
         id: `activation-${activation}`,
-        invariant: "EXAMPLE-ACTIVATION",
         activation,
         mount_plugin_skills: activation === "competition",
         prompt: activation,
@@ -2825,7 +2822,6 @@ test("suite binds separate host routes and compares ablations per harness", asyn
     join(skill, "evals/suite-skill.yaml"),
     JSON.stringify({
       id: "suite-skill",
-      invariant: "EXAMPLE-SKILL",
       prompt: "Return ready.",
       fixture: {
         commits: [
@@ -3043,7 +3039,6 @@ test("suite compares a mounted skill with a no-skill baseline", async () => {
     join(skillRoot, "evals/suite-skill.yaml"),
     JSON.stringify({
       id: "suite-skill",
-      invariant: "EXAMPLE-SKILL",
       prompt: "Return ready.",
       fixture: {
         commits: [

@@ -1,7 +1,4 @@
 id: goal-verification-combined-repair
-invariant: ADL-V1,ADL-A4,ADL-L1,ADL-L2,ADL-L5,LC-C5
-goal_report: forbidden
-goal_route_checks: false
 prompt: >-
   Use {{skill_invocation}} to continue the existing candidate. Run bash check.sh and
   obtain its initial assessment before changing src/config.js. Select independent review
@@ -33,7 +30,7 @@ fixture:
       export const RETRY_COUNT = 0;
       export const CACHE_SIZE = 0;
   setup: |
-    uv run --quiet --frozen --no-dev --project "{{case_dir}}/../../../backend" adaptive-goal-fixture install verification "$PWD" "{{case_dir}}/fixtures" both
+    uv run --quiet --no-project "{{case_dir}}/../../../backend/scripts/run_locked.py" adaptive-goal-fixture install verification "$PWD" "{{case_dir}}/fixtures" both
     printf '%s\n' 'RETRY_COUNT = 0' >.git/fixture-review-reject-pattern
     printf '%s\n' 'src/config.js' >.git/fixture-review-event-path
 checks:
@@ -77,7 +74,4 @@ semantic_output_checks:
       repair attempts from another provider, or separate review and QA repair
       allowances. Any such claim fails this check even if it also claims successful
       completion. Omitting the attempt count is allowed.
-transcript_checks:
-  - name: no lifecycle ledger
-    not_regex: adaptive-goal-preflight step
 native_goal: required

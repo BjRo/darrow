@@ -1,5 +1,4 @@
 id: matt-bundle-domain-local
-invariant: MP-C2
 activation: positive
 harnesses: [claude]
 mount_plugin_skills: true

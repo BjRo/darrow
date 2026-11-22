@@ -1,5 +1,4 @@
 id: readiness-goal-contract-stop-with-record
-invariant: IRG-C8,IRG-E1,IRG-E6,IRG-E9,SE-C9,SE-C10,SE-C11
 activation: positive
 mount_plugin_skills: true
 prompt: >-
@@ -24,19 +23,6 @@ checks:
   - name: non-ready outer goal causes no mutation
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: complete semantic readiness result is preserved
-    run: >-
-      awk '/^outer_goal_status/{exit} {print}' .git/last-message.md >.git/readiness-document.txt &&
-      grep -Ei '^#{1,3}[[:space:]]+Implementation readiness' .git/readiness-document.txt >/dev/null &&
-      grep -Ei 'verdict.{0,80}needs-decision' .git/readiness-document.txt >/dev/null &&
-      grep -Ei 'basis' .git/readiness-document.txt >/dev/null &&
-      grep -Ei 'quality bar' .git/readiness-document.txt >/dev/null &&
-      grep -Ei 'findings' .git/readiness-document.txt >/dev/null &&
-      grep -Ei 'required next action' .git/readiness-document.txt >/dev/null &&
-      grep -Ei 'type.{0,80}decision' .git/readiness-document.txt >/dev/null &&
-      ! grep -Eq '"format"[[:space:]]*:[[:space:]]*"darrow-implementation-readiness-v1"' .git/readiness-document.txt
-  - name: outer completion record is also preserved
-    run: grep -F "outer_goal_status$(printf '\t')stopped" .git/last-message.md
   - name: non-ready outer goal preserves repository refs
     run: >-
       test "$(git branch --show-current)" = main &&

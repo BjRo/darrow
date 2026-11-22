@@ -1,5 +1,4 @@
 id: readiness-no-trigger-implementation
-invariant: IRG-C1,IRG-E1,SE-C9,SE-C10,SE-C11
 activation: negative
 mount_plugin_skills: true
 prompt: >-

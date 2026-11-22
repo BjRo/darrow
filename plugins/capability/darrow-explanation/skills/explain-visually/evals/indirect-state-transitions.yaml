@@ -1,5 +1,4 @@
 id: explain-visually-indirect-state-transitions
-invariant: VE-C1,VE-C2,VE-C3,VE-C5,VE-C6,VE-C7
 activation: positive
 mount_plugin_skills: true
 prompt: >-
@@ -19,15 +18,12 @@ checks:
   - name: explanation is read-only
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: documented states and transition condition remain visible
-    run: >-
-      grep -Ei 'queued' .git/last-message.md >/dev/null;
-      grep -Ei 'running' .git/last-message.md >/dev/null;
-      grep -Ei 'succeeded' .git/last-message.md >/dev/null;
-      grep -Ei 'failed' .git/last-message.md >/dev/null
-  - name: undocumented states are absent
-    run: '! grep -Ei "cancelled|canceled|dead[- ]letter|paused" .git/last-message.md'
 semantic_output_checks:
+  - name: undocumented states are not invented
+    proposition:
+      The worker lifecycle has exactly queued, running, succeeded, and failed
+      states. The response does not introduce cancelled, dead-letter, paused, or other
+      undocumented states. Mentioning that such states are not documented is valid.
   - name: compact state view preserves the retry frontier
     proposition: >-
       The response uses a compact state-oriented view preserving normal

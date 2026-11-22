@@ -1,5 +1,4 @@
 id: doctor-information-architecture-trim-derived-keep-contracts
-invariant: IA-D2,IA-D3,IA-D9,IA-D12
 activation: competition
 mount_plugin_skills: true
 prompt: >-
@@ -61,23 +60,28 @@ checks:
     run: >-
       uv run --quiet --frozen --no-dev --project .git/ia-backend ia-doctor verify --runtime both . >/dev/null && echo verified
     expect_regex: "^verified$"
-  - name: response reports exact per-runtime before and after bytes and tokens
-    run: >-
+  - name: canonical runtime metrics
+    run: >
       before_codex=$(git show HEAD:AGENTS.md | wc -c | tr -d ' ');
-      before_codex_tokens=$(( (before_codex + 3) / 4 ));
-      before_claude=$(git show HEAD:CLAUDE.md | wc -c | tr -d ' ');
-      before_claude_tokens=$(( (before_claude + 3) / 4 ));
-      summary=$(uv run --quiet --frozen --no-dev --project .git/ia-backend ia-doctor inspect --runtime both . | sed -n '/^summary:/p');
-      after_codex=$(printf '%s\n' "$summary" | sed -n 's/.*codex_root_bytes=\([0-9][0-9]*\).*/\1/p');
-      after_codex_tokens=$(printf '%s\n' "$summary" | sed -n 's/.*codex_root_approx_tokens=\([0-9][0-9]*\).*/\1/p');
-      after_claude=$(printf '%s\n' "$summary" | sed -n 's/.*claude_root_bytes=\([0-9][0-9]*\).*/\1/p');
-      after_claude_tokens=$(printf '%s\n' "$summary" | sed -n 's/.*claude_root_approx_tokens=\([0-9][0-9]*\).*/\1/p');
-      flat=$(tr '\n' ' ' < .git/last-message.md);
-      printf '%s\n' "$flat" | grep -Eiq "Codex.{0,240}(before|previous|from)[^0-9]{0,80}$before_codex[[:space:]]*bytes.{0,240}(after|now|to)[^0-9]{0,80}$after_codex[[:space:]]*bytes" &&
-      printf '%s\n' "$flat" | grep -Eiq "Codex.{0,240}(before|previous|from)[^0-9]{0,80}$before_codex_tokens[~[:space:]]*tokens.{0,240}(after|now|to)[^0-9]{0,80}$after_codex_tokens[~[:space:]]*tokens" &&
-      printf '%s\n' "$flat" | grep -Eiq "Claude.{0,240}(before|previous|from)[^0-9]{0,80}$before_claude[[:space:]]*bytes.{0,240}(after|now|to)[^0-9]{0,80}$after_claude[[:space:]]*bytes" &&
-      printf '%s\n' "$flat" | grep -Eiq "Claude.{0,240}(before|previous|from)[^0-9]{0,80}$before_claude_tokens[~[:space:]]*tokens.{0,240}(after|now|to)[^0-9]{0,80}$after_claude_tokens[~[:space:]]*tokens" && echo metrics-ok
-    expect_regex: "^metrics-ok$"
+      before_codex_tokens=$(( (before_codex + 3) / 4 )); before_claude=$(git
+      show HEAD:CLAUDE.md | wc -c | tr -d ' '); before_claude_tokens=$((
+      (before_claude + 3) / 4 )); summary=$(uv run --quiet --frozen --no-dev
+      --project .git/ia-backend ia-doctor inspect --runtime both . | sed -n
+      '/^summary:/p'); after_codex=$(printf '%s\n' "$summary" | sed -n
+      's/.*codex_root_bytes=\([0-9][0-9]*\).*/\1/p');
+      after_codex_tokens=$(printf '%s\n' "$summary" | sed -n
+      's/.*codex_root_approx_tokens=\([0-9][0-9]*\).*/\1/p');
+      after_claude=$(printf '%s\n' "$summary" | sed -n
+      's/.*claude_root_bytes=\([0-9][0-9]*\).*/\1/p');
+      after_claude_tokens=$(printf '%s\n' "$summary" | sed -n
+      's/.*claude_root_approx_tokens=\([0-9][0-9]*\).*/\1/p'); printf 'codex %s
+      %s %s %s\nclaude %s %s %s %s\n' "$before_codex" "$before_codex_tokens"
+      "$after_codex" "$after_codex_tokens" "$before_claude"
+      "$before_claude_tokens" "$after_claude" "$after_claude_tokens"
+    expect_regex: ^codex [0-9]+ [0-9]+ [0-9]+ [0-9]+\nclaude [0-9]+ [0-9]+ [0-9]+ [0-9]+$
   - name: doctor creates no commit
     run: git rev-list --all --reflog --count
     expect_regex: "^1$"
+output_checks:
+  - name: response reports exact per-runtime before and after bytes and tokens
+    context_metrics: canonical runtime metrics

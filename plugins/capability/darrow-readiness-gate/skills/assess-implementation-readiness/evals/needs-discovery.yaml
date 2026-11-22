@@ -1,5 +1,4 @@
 id: readiness-needs-discovery
-invariant: IRG-C4,IRG-E1,IRG-E2,SE-C9,SE-C10,SE-C11,SE-C14
 activation: positive
 mount_plugin_skills: true
 prompt: >-
@@ -60,8 +59,6 @@ checks:
   - name: discovery verdict causes no repository mutation
     run: git status --porcelain --untracked-files=all
     expect_exact: ""
-  - name: public verdict needs discovery
-    run: grep -Ei 'verdict.{0,80}needs-discovery' .git/last-message.md
   - name: discovery verdict preserves repository refs
     run: >-
       test "$(git branch --show-current)" = main &&

@@ -17,9 +17,8 @@ and label a new assessment as a regrade rather than fresh execution.
 Activation classes are `positive`, `negative` and `competition`. Positive requires
 the owning skill as primary; negative excludes it as primary. Competition mounts
 all sibling skills before testing primary selection. Skill-less experiment and
-no-skill control modes have no target activation grade. Case `invariant` labels
-are descriptive metadata; they no longer refer to a maintained specification-ID
-coverage catalog. Observable checks and semantic propositions define pass criteria.
+no-skill control modes have no target activation grade. Observable checks and
+semantic propositions define pass criteria.
 
 Implicit activation uses the unique complete `sevro.host.skill-activations`
 collection. Codex reports prepared-body exposure through `tool_result_body_match`;
@@ -52,7 +51,7 @@ must fit the native 4,000-character boundary. Claude headless activation uses th
 native user-visible `/goal` entry, not synthetic continuation or a replacement owner.
 
 Ticket-to-PR task verdicts use observable output, repository effects and acceptance
-checks. Its native-goal, ownership and transcript assertions are separate workflow
+checks. Its native-goal and transcript assertions are separate workflow
 domain outcomes. Missing diagnostics stay unavailable without rewriting a proven
 task outcome. Adaptive Goal also treats auxiliary transcripts as diagnostics;
 native-goal requirements, explicitly tested implementation routes and no mutation
@@ -287,7 +286,7 @@ quality from equal task pass rates. Record limits, unknowns and per-task regress
   accepted result; missing, duplicate, malformed or mismatched evidence stays
   unaccepted. When the host encrypts the launch message, the receipt leaves the
   agent's role unverified. Combine it with supporting capability activation,
-  observed outcomes and absence of parent work after acceptance for composition
+  observed outcomes for composition
   evidence; it cannot establish a complete goal contract or selected/effective
   route equivalence. Retain only bounded identity/route facts and parent work
   observations, without private command or contract contents.
@@ -308,8 +307,7 @@ quality from equal task pass rates. Record limits, unknowns and per-task regress
   exact copying and intact wrapping from other relay forms, but do not grade
   semantic preservation or claim host delivery.
   Continuation cases combine those observations with an unchanged worktree at
-  the boundary, fixture acknowledgement and effects, one accepted agent, and
-  no parent work.
+  the boundary, fixture acknowledgement and effects, and any declared accepted-child facts.
   These establish bounded task behavior, not independent proof of exact message
   delivery. Interrupts and pre-feedback messages cannot satisfy the attempt
   check.
@@ -423,22 +421,11 @@ Only a declared follow-up starts another client-requested turn. Requested
 transport contributes to run identity and the host retains its actual transport.
 Historical separate-owner guards remain historical architecture measurements.
 
-Use `--owner-evaluation passive` for observational native trials of the shipped
-adaptive-goal skill. The default `--owner-evaluation enforced` preserves
-the requested historical diagnostic condition, which bundled Sevro hosts
-currently reject as unsupported. It never becomes passive implicitly.
-Neither mode removes ordinary fixture/credential isolation. Suite modes can
-set `owner_evaluation: passive|enforced` independently. Results retain requested
-mode on the case and actual assistance on each harness result; historical
-absence stays unknown. A dry run is not an observed passive trial.
-
-The retired Codex guard used a strict structured contract template and could
-reject valid presentation variants allowed by the shipped skill. Retained
-results from that guard remain historical enforcement-profile measurements.
-Passive native session evidence proves correlated acceptance and
-same-target message attempts but leaves delivery and encrypted role/contract contents
-unverified. Combine it with task and authority evidence; do not infer missing
-contract or route-selection facts.
+Direct evaluations and suite modes default to passive observation. Bundled Sevro
+hosts reject an explicit enforced request without silently changing its condition.
+Passive trials retain fixture and credential isolation. Results distinguish the
+requested condition from the observed condition. Dry runs establish preparation
+only.
 
 Before changing caller selection, mounting, or route handling, read `evals/sevro-extension/README.md`.
 The [caller reference](../evals/sevro-extension/README.md) owns plugin/skill

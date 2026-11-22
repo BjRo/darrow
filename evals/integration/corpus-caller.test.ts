@@ -88,7 +88,6 @@ async function fixture() {
     join(cases, "corpus.yaml"),
     JSON.stringify({
       id: "custom-corpus",
-      invariant: "EXAMPLE-CORPUS",
       prompt: "Return ready.",
       fixture: {
         source: "sample",

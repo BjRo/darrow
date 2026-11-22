@@ -1,5 +1,4 @@
 id: guide-visual-present
-invariant: RG-C6,RG-C2,RG-C4,RG-C8
 activation: positive
 prompt: "{{skill_invocation}} Show how Darrow's layers relate in a compact visual."
 fixture:
@@ -21,11 +20,6 @@ checks:
   - name: no intercepted external-command attempts
     run: cat .fixture-state/guide-effects
     expect_exact: ""
-  - name: Claude host disclosure
-    run:
-      if [ "$DARROW_EVAL_HARNESS" = claude ] && [ -f .git/last-message.md ]; then grep -Ei
-      "scop[^.]*evidence|evidence[^.]*scop" .git/last-message.md >/dev/null && grep -Ei "primar[^.]*Codex|Codex[^.]*primar"
-      .git/last-message.md >/dev/null; fi
 semantic_output_checks:
   - name: question contract
     proposition: >-
@@ -37,6 +31,8 @@ semantic_output_checks:
       files, installed plugins, run tests, repaired configuration, or diagnosed the environment.
       A separate statement that the answer was read-only is not required.
 output_checks:
+  - name: Claude host disclosure
+    guide_disclosure: true
   - name: nearby repository evidence
     expect_regex: docs/design\.md|docs/design\.md
 additional_plugins:

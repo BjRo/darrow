@@ -1,7 +1,4 @@
 id: goal-real-create-commit-composition
-invariant: ADL-C2,ADL-L1,ADL-L2,ADL-L5,ADL-S3
-goal_report: forbidden
-goal_route_checks: false
 expect_head_change: true
 additional_plugins:
   - plugins/capability/darrow-git
@@ -243,7 +240,4 @@ semantic_output_checks:
       Reject a plan-only response, a claim of a different or unfinished requested
       change, failing checks, unavailable required review, pending commit or
       publication, or a remaining required step or blocker.
-transcript_checks:
-  - name: no lifecycle ledger is used
-    not_regex: adaptive-goal-preflight step|Protocol ledger
 native_goal: required
