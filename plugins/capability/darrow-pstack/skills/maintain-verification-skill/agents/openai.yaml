@@ -1,0 +1,5 @@
+interface:
+  display_name: "Maintain verification skill"
+  short_description: "Maintain a project verification skill"
+policy:
+  allow_implicit_invocation: false

@@ -8,7 +8,7 @@ retain their explicit-only boundaries; installation does not authorize execution
 
 - [Readiness](darrow-readiness-gate/README.md) assesses whether implementation can begin.
 - [Matt Pocock](darrow-matt-pocock/README.md) supplies selected discovery, design, TDD and implementation workflows.
-- [Pstack](darrow-pstack/README.md) supplies unslop and routed engineering principles.
+- [Pstack](darrow-pstack/README.md) supplies explicit engineering workflows, unslop and routed principles.
 - [Review](darrow-review/README.md) independently checks a bounded change.
 - [Git](darrow-git/README.md) creates branches and commits, publishes verified
   PRs, and posts candidate-bound reviewer evidence.

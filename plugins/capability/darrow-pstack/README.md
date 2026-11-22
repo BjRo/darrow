@@ -1,12 +1,29 @@
 # Darrow Pstack
 
-Edit writing with Lauren Tan's explicitly invoked `unslop`, or apply optional
-engineering guidance through an editable Markdown routing table.
+Investigate changes, correct recurring mistakes, maintain project verification,
+and check performance measurements with six explicitly invoked workflows from
+Lauren Tan's pstack. Edit writing with `unslop`, or apply optional engineering
+guidance through an editable Markdown routing table.
 The `principles-first` entry reads the selected table and loads only matching
 instructions from 24 bundled principles or your own plain Markdown files.
 `setup-principles` initializes, exports and customizes that table.
 
 ## When to use
+
+Invoke a focused workflow for one of these tasks:
+
+| Skill                         | Result                                                                            |
+| ----------------------------- | --------------------------------------------------------------------------------- |
+| `blast-radius`                | Downstream risks and executable proof of the change's safety assumptions          |
+| `correct`                     | Bounded fixes that prevent evidenced, recurring agent mistakes                    |
+| `create-verification-skill`   | A project-local skill and feature map, exercised on the real app                  |
+| `maintain-verification-skill` | Source and live checks of an existing verification skill, with proven corrections |
+| `why`                         | Design rationale cited from commits, PR discussions and other records             |
+| `benchmark-checklist`         | A performance verdict supported by checked measurements                           |
+
+These six workflows require explicit invocation on both hosts. Ordinary matching
+intent does not activate them. They do not replace independent review or delivery
+orchestration.
 
 Explicitly invoke `unslop` to edit supplied writing. It does not activate from
 ordinary writing requests. Ask for a principles-first approach to authorized design, implementation or
@@ -19,6 +36,11 @@ Codex and Claude Code. Git identifies repository scope and the current linked
 worktree root; outside Git, personal configuration and bundled defaults remain
 available. No other Darrow plugin, execution controller or additional runtime
 is required.
+Workflows need the tools for their target: Git and optional forge access for
+history, a runnable application for verification, or measurement tools for
+performance. Verification maintenance uses native source readers when available
+and otherwise discloses sequential source inspection. Missing live evidence is
+reported as a gap.
 
 ## Installation
 
@@ -28,6 +50,15 @@ The plugin is independently installable. Updating it never adds routes to an
 existing configuration automatically.
 
 ## Usage
+
+For example, invoke `$darrow-pstack:blast-radius` in Codex or
+`/darrow-pstack:blast-radius` in Claude Code, followed by:
+
+> Check this local diff. Prove the assumption that makes the changed cache cleanup safe.
+
+Use the same host prefix with each workflow name in the table. An ordinary
+request such as "what could this break?" does not select these explicit-only
+workflows.
 
 Invoke `$darrow-pstack:unslop` in Codex or `/darrow-pstack:unslop` in Claude
 Code with the text you want edited. For principle guidance:
@@ -66,6 +97,12 @@ route does not cause it to return as new. An explicit reset restores defaults.
 
 ## Expected result
 
+The selected workflow returns its findings, evidence and unresolved gaps.
+`correct` may edit the authorized repository area. Verification creation writes
+a project skill, its feature map and helpers, then exercises one mapped feature.
+Maintenance edits only the existing verification skill and its own resources.
+Investigation and performance proof scripts use disposable scratch space.
+
 `unslop` rewrites supplied text while preserving its meaning and intended tone.
 The selected guidance informs the existing task. Applying guidance reads the
 effective table and matching bodies; setup writes only the explicitly chosen
@@ -73,6 +110,13 @@ configuration or export. Setup asks for scope when none is given and preserves
 existing customization unless you explicitly request reset.
 
 ## Safety boundaries
+
+Explicit invocation selects the workflow and its documented local effects.
+It grants no unrelated product repair, commit, push, PR or merge authority.
+Verification runs use isolated local or approved test environments; external
+side effects require request-specific authority. Maintenance publishes a PR only
+when explicitly or previously authorized. Generated skills use the target
+repository's conventions for Codex and Claude entrypoints, never plugin caches.
 
 Principles grant no implementation, publication or Git authority. They change
 no accepted scope, compatibility obligation, verification, review, repair
@@ -82,6 +126,14 @@ request the approach through public skill discovery; Adaptive Goal remains
 independent and owns its ordinary assurance and delivery contract.
 
 ## Troubleshooting
+
+For an unavailable history source, profiling tool or app prerequisite, retain
+the gap in the report. A verification skill whose instructions never ran is a
+draft. Do not repair product startup or weaken a feature map merely to report
+success. Workflow source pins, support files and adaptations are recorded in
+[workflow provenance](references/workflows/LOCAL-DIFFERENCES.md).
+If the host protects a project skill directory, report the refused write and
+undelivered skill. A declared project path does not override host permissions.
 
 An unreadable selected table stops application with its path and read error.
 An unintelligible row stops with the file, row and needed correction. Correct

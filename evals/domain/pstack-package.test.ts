@@ -3,6 +3,7 @@ import { cp, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { parse } from "yaml";
 
 // Independent original-source bytes: Darrow de1809c8bcd2dc29ce8d664fbf4ba8b36a259e89;
 // unslop: cursor/plugins aaeb0ea3a0584995aa8f55ce44c6c5259414b896.
@@ -65,6 +66,31 @@ const sourceDigests: Record<string, string> = {
     "2b823fd069e031c1420180be8e0d4f5e2fd25bf2c428049e5c835c59a489b5e0",
 };
 
+const workflowSources: Record<string, string> = {
+  "skills/benchmark-checklist/SKILL.md":
+    "5efd79495e3eebf3b53814861330fe812458212958f8f009492e866c329161f6",
+  "skills/blast-radius/SKILL.md":
+    "4248d03e22365207d2e5f90c9542720f80a88a6b42fd542ef88dde3cf9f9223f",
+  "skills/correct/SKILL.md":
+    "e347045d00c967a0b831ef883cc6ac79d21329aa10b5968637df95de7febf0ba",
+  "skills/create-verification-skill/SKILL.md":
+    "d353973547bf8ad8977eca645f4cd4feaed0d32f4b43d1448f906b0a76c4d694",
+  "skills/create-verification-skill/references/feature-map-example/README.md":
+    "cb7bd782cf89968a4ba3d58a5151db837430db92d19a6f52a906973b77b516ba",
+  "skills/create-verification-skill/references/feature-map-example/create-note.md":
+    "644a44c74f35d38c2feb7cd05a0121fdebbb623e8dc376c185b565a581d1ccf7",
+  "skills/create-verification-skill/references/feature-map-example/search.md":
+    "6e87b9e7f2791a7776ba1bb83f371cd285c306c67f19d245cc4dd6ca3015c823",
+  "skills/maintain-verification-skill/SKILL.md":
+    "515c0eaa054b3f6be1b1fb06f2c2f173c80fddb58bbcac57576f89c479bc68e8",
+  "skills/why/SKILL.md":
+    "6b65b3180f1f1bd3b696d7933daf900747410c82931d220a3f57a98addb1c0fd",
+  LICENSE: "bc957ca6bee02792566a1a028d105e02e247c6e77cf057061674273da77b200e",
+};
+const workflowNames = Object.keys(workflowSources)
+  .filter((path) => /^skills\/[^/]+\/SKILL\.md$/.test(path))
+  .map((path) => path.split("/")[1]!);
+
 test("standalone pstack package preserves selected source and both host entrypoints", async () => {
   const scratch = await mkdtemp(join(tmpdir(), "darrow-pstack-package-"));
   const artifact = join(scratch, "darrow-pstack");
@@ -76,10 +102,12 @@ test("standalone pstack package preserves selected source and both host entrypoi
     );
     const skills = await readdir(join(artifact, "skills"));
     expect(skills.sort()).toEqual(
-      Object.keys(sourceDigests)
-        .filter((path) => path.endsWith("/SKILL.md"))
-        .map((path) => path.split("/")[1]!)
-        .sort(),
+      [
+        ...Object.keys(sourceDigests)
+          .filter((path) => path.endsWith("/SKILL.md"))
+          .map((path) => path.split("/")[1]!),
+        ...workflowNames,
+      ].sort(),
     );
     for (const [path, digest] of Object.entries(sourceDigests)) {
       expect(
@@ -89,6 +117,62 @@ test("standalone pstack package preserves selected source and both host entrypoi
         path,
       ).toBe(digest);
     }
+    for (const name of workflowNames) {
+      const body = await readFile(
+        join(artifact, "skills", name, "SKILL.md"),
+        "utf8",
+      );
+      expect(parse(body.split("---")[1]!).name).toBe(name);
+      expect(parse(body.split("---")[1]!)["disable-model-invocation"]).toBe(
+        true,
+      );
+      const config = parse(
+        await readFile(
+          join(artifact, "skills", name, "agents/openai.yaml"),
+          "utf8",
+        ),
+      );
+      expect(config.policy.allow_implicit_invocation).toBe(false);
+    }
+    const inventory = await readFile(
+      join(artifact, "references/workflows/upstream-files.sha256"),
+      "utf8",
+    );
+    expect(
+      Object.fromEntries(
+        inventory
+          .trim()
+          .split("\n")
+          .map((line) => {
+            const [digest, path] = line.split("  ");
+            return [path, digest];
+          }),
+      ),
+    ).toEqual(workflowSources);
+    for (const [path, digest] of Object.entries(workflowSources)) {
+      if (!path.includes("/references/")) continue;
+      expect(
+        createHash("sha256")
+          .update(await readFile(join(artifact, path)))
+          .digest("hex"),
+        path,
+      ).toBe(digest);
+    }
+    expect(
+      createHash("sha256")
+        .update(
+          await readFile(
+            join(artifact, "references/workflows/UPSTREAM-LICENSE"),
+          ),
+        )
+        .digest("hex"),
+    ).toBe(workflowSources.LICENSE!);
+    expect(
+      await readFile(
+        join(artifact, "references/workflows/upstream-provenance.txt"),
+        "utf8",
+      ),
+    ).toContain("7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9");
     const claude = JSON.parse(
       await readFile(join(artifact, ".claude-plugin/plugin.json"), "utf8"),
     );

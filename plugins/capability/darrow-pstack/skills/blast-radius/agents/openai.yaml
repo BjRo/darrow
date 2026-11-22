@@ -1,0 +1,5 @@
+interface:
+  display_name: "Blast radius"
+  short_description: "Prove what a change could break"
+policy:
+  allow_implicit_invocation: false
