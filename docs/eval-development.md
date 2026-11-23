@@ -1,4 +1,8 @@
-# Eval Development Guidance
+# Eval development guidance
+
+Find [case contracts](#case-contracts), [activation probes](#activation-probes),
+[retained results](#retained-results-and-interrupted-runs), [live-run controls](#live-run-controls),
+and [installed Sevro verification](#installed-sevro-verification).
 
 This guidance owns Darrow's evaluation authoring and evidence rules. The
 [Sevro extension reference](../evals/sevro-extension/README.md) owns current

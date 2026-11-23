@@ -6,15 +6,15 @@
 
 <a id="why-darrow"></a>
 
-Darrow adds reusable workflows to Codex and Claude Code. Install a plugin for
-focused work such as Git or review, or explicitly invoke a delivery workflow
-that coordinates a larger request.
+Darrow gives Codex and Claude Code reusable workflows for software work.
+Use a focused plugin to review a change, create a branch, or assess whether a
+request is ready to implement. For a larger task, explicitly invoke a workflow
+that coordinates the work.
 
-Start with one plugin. Focused capabilities match your request; orchestration
-requires explicit invocation and keeps one native execution owner. Selected
-upstream workflows also require explicit invocation. Use the
-[current catalog](docs/choosing-plugins.md) to choose, then follow the
-[installation and update guide](docs/installing-plugins.md).
+Plugins are independently installable. Start with the [read-only tutorial](docs/getting-started.md)
+or [choose a plugin](docs/choosing-plugins.md) for your task. Capabilities can
+match a request automatically. Orchestration requires explicit invocation and
+keeps one native execution owner. Some upstream workflows are explicit-only.
 
 Codex is the primary development host. Both hosts are required targets for the
 curated bundles and shared workflows, but support claims depend on each
