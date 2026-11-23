@@ -114,6 +114,16 @@ uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" ad
 `--route`: exact supported user override only. `--main-route`: explicit host/user
 current route only; otherwise observe session. Retain `route_relation`, including `unknown`.
 
+**Dispatch.** Preserve preselected isolated workers. Otherwise, before editing
+source/tests, apply the returned `route_relation` for sequential work:
+
+- `same`: implement directly.
+- `higher`/`unknown`: call the host's delegation tool with the selected model/effort;
+  require an accepted implementor id, then give implementation to that worker.
+- `lower`: delegate only when savings repay handoff/rereading/waiting/validation.
+
+Keep the coordinator's route. Section 7 owns parallel placement and assignments.
+
 ## 5. Bindings
 
 - **Bind/invoke.** Match authorized operations to advertised skill intent. Retain
@@ -157,13 +167,14 @@ Use preselected [isolated workers](references/isolated-ticket-workers.md); other
    interfaces, separate checks, host capacity and net time savings. Settle interfaces
    first; keep coupling sequential. Return out-of-scope edits here. No competing
    whole-task implementations/goal owners. Await all; integrate/check final tree.
-2. **Sequential.** `same`: direct. `higher`/`unknown`: delegate. `lower`: delegate
-   only when savings repay handoff/rereading/waiting/validation.
-3. **Assign.** Use selected model/effort and host controls; retain implementor id.
+2. **Sequential.** Apply section 4's route decision.
+3. **Assign.** For delegated placement, require host acceptance of an implementor
+   on the selected model/effort before implementation; retain its id.
    Supply repository/scope/files/effects/criteria/constraints/preserved work,
    exact bindings and concrete checks/evidence; require files/results/gaps.
    Assignment grants no Adaptive Goal/goal control/assessment coordination/extra
-   publication. Route refusal stops assignment without substitution.
+   publication. Launch refusal stops affected implementation without substitution;
+   return `Status: launch_required` with the actual failure.
 4. **Assess.** Settle implementation; invoke full selected public workflows here.
    Apply lifecycle; direct authors cannot self-assess.
 5. **Repair.** Return combined findings/constraints/checks to producing implementor.

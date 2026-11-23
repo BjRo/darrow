@@ -1,5 +1,7 @@
 import { expect, test } from "bun:test";
+import { fileURLToPath } from "node:url";
 import { readFixtureCase, runFixtureChecks } from "./fixture-command";
+import { selectRunCases } from "../sevro-extension/index";
 
 const plugin = new URL(
   "../../plugins/orchestration/darrow-adaptive-goal/",
@@ -18,6 +20,50 @@ const budgetSource = new URL(
   "skills/adaptive-goal/evals/placement-cheaper-delegation.yaml",
   plugin,
 );
+
+test("quality placement compares the same task from distinct owner routes", async () => {
+  const delegated = await readFixtureCase(
+    new URL(
+      "skills/adaptive-goal/evals/quality-sensitive-localized.yaml",
+      plugin,
+    ),
+  );
+  const direct = await readFixtureCase(
+    new URL(
+      "skills/adaptive-goal/evals/quality-sensitive-same-route.yaml",
+      plugin,
+    ),
+  );
+  expect(direct.fixture).toEqual(delegated.fixture);
+  expect(direct.checks).toEqual(delegated.checks);
+  const root = fileURLToPath(new URL("../../", import.meta.url));
+  const ownership = { plugin: "darrow-adaptive-goal", skill: "adaptive-goal" };
+  const codex = await selectRunCases(
+    root,
+    ["goal-preflight-quality-sensitive"],
+    ownership,
+    "codex",
+  );
+  expect(codex.routes[delegated.id]).toEqual({
+    model: "gpt-6-luna",
+    effort: "medium",
+  });
+  expect(codex.routes[direct.id]).toEqual({
+    model: "gpt-6-luna",
+    effort: "high",
+  });
+  const claude = await selectRunCases(
+    root,
+    ["goal-preflight-quality-sensitive"],
+    ownership,
+    "claude",
+  );
+  expect(claude.ids).toEqual([delegated.id]);
+  expect(claude.routes[delegated.id]).toEqual({
+    model: "claude-sonnet-5-5",
+    effort: "low",
+  });
+});
 
 test("placement host variants share their fixtures and oracles", async () => {
   for (const source of [coupledSource, budgetSource]) {

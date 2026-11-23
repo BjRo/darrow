@@ -1,4 +1,7 @@
 id: goal-preflight-quality-sensitive-localized
+candidate_routes:
+  codex: { model: gpt-6-luna, effort: medium }
+  claude: { model: claude-sonnet-5-5, effort: low }
 prompt: >-
   {{skill_invocation}} Add an exported isStableVersion(value) to src/version.js that
   returns true only for canonical stable semantic versions: three dot-separated
