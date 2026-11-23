@@ -47,6 +47,12 @@ reason: explicit-orchestration-entrypoint-required
 5. **Isolate?** When fresh ticket context repays overhead, read
    [isolated workers](references/isolated-ticket-workers.md); preselect finite scope,
    effects and final assurance. Size/count alone is insufficient.
+6. **Branch.** For ticket-linked delivery branches, run bound Git's exact-ID
+   discovery before activation. One match: bind its full name as preparation input; suggested
+   creation names apply only with no matches. Several: ask among exact matches.
+   None: use caller's exact name or let creation name it. Refresh discovery
+   immediately before preparation; reconcile changed matches before mutation.
+   Prepare the bound branch after section 6's native goal activation.
 
 ```sh
 uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" adaptive-goal-preflight prepare \
@@ -58,10 +64,6 @@ incompatible assurance or invalid/unreadable policy: return `Status: launch_requ
 with observed failure; launch nothing. Never search alternate installations/fallbacks.
 
 ## 3. Readiness
-
-**Branches.** Immediately before ticket-branch preparation, refresh Git's exact
-`ticket-id` discovery. One match: reuse. Several: ask among exact matches before
-mutation. None: prepare caller's exact name or let creation name it.
 
 - Unassessed authoritative ticket/specification/accepted plan: select.
 - Complete bounded conversation: omit by default.

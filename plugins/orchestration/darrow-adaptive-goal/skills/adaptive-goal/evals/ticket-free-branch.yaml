@@ -1,0 +1,35 @@
+id: goal-branch-ticket-free
+activation: positive
+mount_plugin_skills: true
+expect_head_change: false
+additional_plugins:
+  - plugins/capability/darrow-git
+prompt: >-
+  {{skill_invocation}} Deliver this already-assessed ready conversation request:
+  append the exact line `Resumed.` to NOTES.md on a new local branch named
+  docs/resumed-notes. This work has no ticket. The scope and acceptance are
+  unchanged from that assessment. Prepare the branch before editing. Keep existing
+  branch tips intact; do not commit, publish, or create a worktree. The only
+  required check is `grep -Fx 'Resumed.' NOTES.md`.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        NOTES.md: "# Notes\n"
+checks:
+  - name: requested branch is active
+    run: git branch --show-current
+    expect_exact: docs/resumed-notes
+  - name: only the requested branch is added
+    run: git for-each-ref refs/heads --format='%(refname)' | wc -l | tr -d ' '
+    expect_exact: "2"
+  - name: original branch tip is preserved
+    run: test "$(git rev-parse main)" = "$(git rev-parse docs/resumed-notes)"
+  - name: requested work is implemented
+    run: grep -Fx 'Resumed.' NOTES.md
+  - name: no worktree is allocated
+    run: git worktree list --porcelain | grep -c '^worktree '
+    expect_exact: "1"
+activation_includes:
+  - create-branch
+native_goal: required
