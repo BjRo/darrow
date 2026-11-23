@@ -126,7 +126,7 @@ OUT="$FIXTURE/current-marketplace.out"
 run_default_installer "$OUT" --host codex
 check "default manifest drives every Codex call" "$(marketplace_calls)" "$(cat "$CALLS")"
 contains "adaptive goal remains included" "codex plugin add darrow-adaptive-goal@darrow" "$CALLS"
-check "current marketplace contains ten entries" 10 "$(wc -l <"$CALLS" | tr -d ' ')"
+check "current marketplace contains nine entries" 9 "$(wc -l <"$CALLS" | tr -d ' ')"
 
 echo "# marketplace installation success"
 make_fixture

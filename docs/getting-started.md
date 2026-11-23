@@ -84,7 +84,7 @@ For ordinary focused requests, intent matching is usually enough.
 
 ## 5. Choose your next plugin
 
-The [catalog](choosing-plugins.md) lists the complete ten-plugin lineup, including
+The [catalog](choosing-plugins.md) lists the available plugins, including
 the MIT Matt Pocock and pstack bundles. Each plugin README includes example
 requests and its safety boundaries. Install capabilities as
 you need them rather than installing the entire marketplace.

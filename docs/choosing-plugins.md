@@ -15,9 +15,8 @@ alone; its README owns its prerequisites, behavior, and safety rules.
 - [Explanation](../plugins/capability/darrow-explanation/README.md): show architecture, ownership, call flow, or state in conversation.
 - [Information Architecture](../plugins/foundation/darrow-information-architecture/README.md): set up or audit agent guidance and host integration, or inspect context usage.
 - [Ticket-to-PR](../plugins/task-recipe/darrow-ticket-to-pr/README.md): explicitly deliver one ticket through a PR and required green CI.
-- [Artificer](../plugins/automation/darrow-artificer/README.md): explicitly admit nominated GitHub issues for local unattended delivery.
 
-These are the ten entries in the [marketplace manifest](../.claude-plugin/marketplace.json).
+These are the nine entries in the [marketplace manifest](../.claude-plugin/marketplace.json).
 Matt contains 17 selected skills; pstack contains 33. Their unchanged explicit-only
 workflows stay explicit. Adapted implement accepts explicit invocation or authorized
 parent delegation and defaults to local commits. Ticket-to-PR supplies publication
@@ -27,10 +26,8 @@ Git creates the complete PR without requiring Explanation.
 
 Use configured tracker guidance and native tools for issue operations. Maintain
 ADRs and their catalog as ordinary documents with domain-modeling guidance.
-Artificer's Claude path can hand off work and produce a PR but returns
-`needs-attention` when native completion evidence is unavailable. That exception
-remains; a PR is not proof of native completion. There is no shipped general
-troubleshooting plugin or general scheduler framework.
+There is no shipped automation plugin, general troubleshooting plugin or
+general scheduler framework.
 
 For host telemetry, use configured native exporters. See
 [the telemetry decision](decisions/ADR-0013-retire-the-langfuse-observability-plugin.md)
@@ -49,9 +46,9 @@ These are responsibilities, not steps every task must traverse.
   proportionate workflow while the main thread keeps the native goal and completion.
 - **Task recipes** package a familiar outcome and permission envelope, then
   delegate the bounded work. The current recipe is ticket to PR.
-- **Automation** owns admission under explicit recurring authority. Local Artificer
-  handles capacity, duplicate prevention, questions and local native continuation;
-  task recipes and their native owners retain engineering work.
+- **Automation** describes admission under explicit recurring authority. No
+  automation plugin currently ships. Task recipes and their native owners retain
+  engineering work.
 
 Foundations and capabilities support several layers directly. Evaluation and
 observability assess behavior across the layers; neither grants execution

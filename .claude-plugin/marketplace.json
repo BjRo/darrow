@@ -16,11 +16,6 @@
       "description": "Lauren Tan's explicit engineering workflows, unslop and routed Darrow principles"
     },
     {
-      "name": "darrow-artificer",
-      "source": "./plugins/automation/darrow-artificer",
-      "description": "Explicit local admission and original Codex continuation for nominated GitHub tickets"
-    },
-    {
       "name": "darrow-information-architecture",
       "source": "./plugins/foundation/darrow-information-architecture",
       "description": "Set up and doctor lean, routed repository information architecture"

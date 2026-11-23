@@ -31,9 +31,6 @@ cmp .git/guide-expected-public-files .git/guide-copied-public-files
 test -z "$(find plugins -type d \( -name evals -o -name .git -o -name .fixture-state -o -path '*/backend/tests' \) -print)"
 test ! -e evals/runner
 test -f plugins/capability/darrow-git/.codex-plugin/plugin.json
-test -f plugins/automation/darrow-artificer/backend/src/darrow_artificer/cli.py
-test -f plugins/automation/darrow-artificer/skills/manage-artificer/SKILL.md
-test ! -e plugins/automation/darrow-artificer/skills/manage-artificer/evals
 test -f plugins/capability/darrow-matt-pocock/.codex-plugin/plugin.json
 test -f plugins/capability/darrow-pstack/.claude-plugin/plugin.json
 test ! -e .agents/skills/darrow-guide/evals/inventory.json

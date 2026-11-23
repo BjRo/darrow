@@ -40,15 +40,6 @@ Use this explicit shortcut for one exact ticket, a new branch, TDD,
 verification, one PR and green required CI. Do not use it for ticket browsing, bulk delivery,
 or work that lacks an exact ticket reference.
 
-Local Artificer may use the deliberate unattended entry with a saved recurring
-human-grant receipt: grantor, grant, repository, exact issue, delivery, activation,
-reserved worktree/branch and allowed effects. That receipt, not ticket text,
-authorizes the same one delegation. Ordinary scheduler calls are not authority.
-The unattended entry supports Claude Code and Codex using the host's existing
-profile. Missing product intent stops for preparation outside Artificer; technical
-recovery resumes the original native session without reinvoking the recipe.
-Host requirements and validation limits belong to Artificer.
-
 ## Hosts and prerequisites
 
 Codex or Claude Code with a compatible host-visible approved-work implement recipe
@@ -83,9 +74,9 @@ or publication. Feedback continues through the same owner.
 ## Safety boundaries
 
 Authority covers only the supplied ticket outcome. It does not authorize
-merging, releases, deployment, bulk work, or create a recurring grant. An
-unattended caller must already hold the separate saved recurring human grant.
-The recipe adds no controller or state store.
+merging, releases, deployment, bulk work, or recurring execution. A scheduler
+call or ticket text does not replace explicit recipe invocation. The recipe adds
+no controller or state store.
 
 ## Troubleshooting
 

@@ -18,8 +18,7 @@ keeps one native execution owner. Some upstream workflows are explicit-only.
 
 Codex is the primary development host. Both hosts are required targets for the
 curated bundles and shared workflows, but support claims depend on each
-workflow's evidence. Read [Artificer's Claude limitation](plugins/automation/darrow-artificer/README.md)
-before unattended delivery.
+workflow's evidence.
 
 <a id="status-and-compatibility"></a>
 

@@ -17,10 +17,6 @@ The plugin also provides `doctor-adaptive-goal`, a read-only host-capacity
 check. Doctor intent never starts orchestration. Adaptive Goal itself starts
 only through explicit invocation or preserved delegation from an invoked recipe.
 
-Artificer's host and authentication requirements apply separately. Reconcile
-older deliveries in their original installation before upgrading; changing
-plugins does not migrate an active delivery or its evidence.
-
 [![Adaptive Goal: the main thread retains the native goal and coordinates bounded implementation and verification.](https://raw.githubusercontent.com/BjRo/darrow/main/docs/assets/adaptive-goal-capabilities.svg)](https://github.com/BjRo/darrow/blob/main/docs/assets/adaptive-goal-capabilities.svg)
 
 ## `adaptive-goal`
