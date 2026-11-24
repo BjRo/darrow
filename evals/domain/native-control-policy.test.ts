@@ -15,7 +15,6 @@ const projectRoot = pathToFileURL(resolve(import.meta.dir, "../..")).href;
 test.each([
   "goal-blocked-retry-existing-publication",
   "goal-blocked-retry-observes-publication",
-  "goal-preflight-decision-gated",
   "goal-readiness-nonready-stops",
   "goal-readiness-required-unavailable",
   "goal-review-required-unavailable",

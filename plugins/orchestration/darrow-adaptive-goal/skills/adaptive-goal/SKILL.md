@@ -32,11 +32,11 @@ reason: explicit-orchestration-entrypoint-required
 
 ## 2. Read-only preflight
 
-1. **Discover.** Read catalog-supplied skill paths; expand aliases. Use ordinary
-   host tools; require actual invocation failure before declaring unavailability.
+1. **Discover.** Read advertised skill paths; expand aliases. Use ordinary
+   host tools; verify claimed invocation failures.
 2. **Prepare.** Resolve repository and this plugin's backend:
-   `${CLAUDE_PLUGIN_ROOT}/backend` on Claude; activated skill's
-   `<plugin-root>/backend` on Codex. Require UV/Git; run below. Use returned
+   `${CLAUDE_PLUGIN_ROOT}/backend` on Claude;
+   `<absolute-skill-directory>/../../backend` on Codex. Require UV/Git; run below. Use returned
    repository/tree/instructions/routes, read relevant files, preserve existing work.
    Preflight excludes tests/builds/lint/review/implementation.
 3. **Retrieve.** Obtain authoritative input before dependent preflight via
@@ -59,7 +59,7 @@ uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" ad
   --repo <absolute-repository> --host <codex|claude>
 ```
 
-Windows: one PowerShell line per command. Missing helper/required capability,
+Windows: one PowerShell line per command. Missing helper,
 incompatible assurance or invalid/unreadable policy: return `Status: launch_required`
 with observed failure; launch nothing. Never search alternate installations/fallbacks.
 
@@ -144,18 +144,20 @@ Keep the coordinator's route. Section 7 owns parallel placement and assignments.
 
 ## 6. Activation and ledger
 
-**Start.** Resolve blocking preflight decisions and clear readiness under section 3
-before creating/proposing a native goal or delegating. Otherwise return the
-unresolved question/result without activation.
+**Start.** Resolve preflight decisions, clear readiness and bind every required
+capability before creating/proposing a native goal or delegating. Missing required
+bindings return `Status: launch_required`; unresolved decisions/results return
+without activation.
 
 **Continue.** Retain an existing matching goal when later decisions stop affected work.
 
-Observe activation before implementation/assessment. Preserve unrelated goals. Objective: at most
-4,000 Unicode characters covering outcome/criteria/assurance/authority/completion.
-Token budget: explicit user request only.
+Observe activation before implementation/verification. Preserve unrelated goals.
+**Objective.** At most 4,000 Unicode characters: outcome/criteria/assurance/authority/completion.
+**Tokens.** Default unbudgeted; explicit user request only.
 
 Retain criteria/constraints/decisions/preserved work/effects, risk/readiness,
-route/placement/bases, bindings, checks, assessment history/repair counts.
+route/placement/bases, bindings, checks, assessment history and repair ledger
+`{used, maximum, source}` from the lifecycle.
 Reconcile before assignments, after continuation and before terminal responses.
 Ask children for missing task facts; own bookkeeping here. Obtain required
 red/baseline before mutation and focused/final-tree green for current content.
@@ -211,5 +213,5 @@ final commits/publication even after Review passes.
 Return self-contained ledger/evidence: completion/blockage, placement/basis/`route_relation`,
 files/checks/readiness, substantive assessment findings/repairs/reports, criteria/gaps,
 publication/risks. Completed next actions are history; missing facts remain gaps.
-Every terminal response, including repeated blockers, states attempts used,
-authorized maximum/source. Success never reduces the maximum.
+Every terminal response copies the repair ledger's used/maximum/source.
+Success never reduces the maximum.

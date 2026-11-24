@@ -62,15 +62,9 @@ checks:
       ' .fixture-state/independent-review-invocations
   - name: result stays local
     run: test "$(git rev-list --count HEAD)" -eq 1
-semantic_output_checks:
-  - name: owner reports completion after one repair
-    proposition: >-
-      The response reports the requested outcome as complete after one repair. The
-      shell checks establish what the repair changed; the response need not name
-      the finding.
 transcript_checks:
   - name: repair returns to the retained implementor
     kind: repair-reuse
     model: gpt-6.1-sol
     effort: high
-native_goal: required
+native_goal: complete

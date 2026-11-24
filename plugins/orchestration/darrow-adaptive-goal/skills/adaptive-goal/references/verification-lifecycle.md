@@ -26,6 +26,7 @@ is optional.
    reports block handoff; never search/guess paths. Inline providers need no artifact.
 
 Keep provider outcomes separate. Combined precedence: gaps, no-progress, progress.
+These are verification conclusions; native goal transitions follow host controls.
 
 - **`clear`.** Every selected assessment is current and clear; all criteria have
   current evidence, checks pass, no eligible blocker/direct regression.
@@ -61,7 +62,7 @@ alone cannot replace facts.
 
 Default: **2 implementation repair attempts total**, shared across findings/providers. Only explicit
 finite user/repository overrides change it. Provider allowances never extend it. Progress, "keep trying", singular repair
-requests/finding count cannot raise it. Honor stricter invocation/time/token/authority
+requests/finding count cannot change it. Honor stricter invocation/time/token/authority
 limits. Unknown counts stop repairs. First matching row; decision before advice:
 
 1. **`blocked`.** Stop speculative repair.

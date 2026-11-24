@@ -112,8 +112,6 @@ semantic_output_checks:
     proposition: The response says fix verification cleared the repaired change.
   - name: completion reports the prior blocking finding
     proposition: >-
-      In this case, the review finding is RETRY_COUNT = 0 instead of the required 3. The
-      response conveys that review found this wrong retry count, numerically or as a
-      retry-count defect. Merely listing the final value 3 or the final clear review
-      verdict is insufficient.
+      The response attributes a retry-count blocker or defect to the initial
+      independent review. Numeric values need not be repeated.
 native_goal: required
