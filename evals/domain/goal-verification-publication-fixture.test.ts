@@ -16,11 +16,7 @@ const localEdit: OracleCheck = {
 
 test("verification protocol usage has no effects after every invocation", async () => {
   const checks: OracleCheck[] = [localEdit];
-  for (const protocol of [
-    "inspect-delivery-protocol",
-    "create-commit-protocol",
-    "create-pr-protocol",
-  ]) {
+  for (const protocol of ["inspect-delivery-protocol", "create-pr-protocol"]) {
     for (const [argument, exitCode] of [
       ["--help", 0],
       ["-h", 0],
@@ -64,7 +60,9 @@ for (const effect of ["none", "commit", "publication"] as const) {
       actions.push({
         name: "deliberate prohibited effect remains executable",
         run:
-          effect === "commit" ? "create-commit-protocol" : "create-pr-protocol",
+          effect === "commit"
+            ? "git add -- NOTES.md && git commit -m 'docs: add note'"
+            : "create-pr-protocol",
       });
     const result = await runFixtureChecks({
       source,

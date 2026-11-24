@@ -96,15 +96,8 @@ def validate(copy: Path, fixture: Path) -> None:
         "181",
     )
     (repo / "tracked.txt").write_text("fresh\n", encoding="utf-8")
-    assert "fix: fresh candidate" in runtime(
-        backend,
-        repo,
-        "darrow-create-commit",
-        "commit",
-        "-m",
-        "fix: fresh candidate",
-        "tracked.txt",
-    )
+    command(repo, "git", "add", "--", "tracked.txt")
+    command(repo, "git", "commit", "-m", "fix: fresh candidate")
     output = runtime(backend, repo, "python", str(backend / "tests" / "fresh_probe.py"))
     assert (
         "publication: verified" in output
@@ -148,7 +141,7 @@ def main() -> None:
         assert not list(copy.rglob(".venv"))
         assert not list(copy.rglob("__pycache__"))
         make_writable(copy)
-    print("fresh copied Git plugin: all five workflows passed")
+    print("fresh copied Git plugin: all four workflows passed")
 
 
 if __name__ == "__main__":

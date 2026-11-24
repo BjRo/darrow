@@ -1,0 +1,5 @@
+interface:
+  display_name: "Benchmark checklist"
+  short_description: "Check performance measurements"
+policy:
+  allow_implicit_invocation: false

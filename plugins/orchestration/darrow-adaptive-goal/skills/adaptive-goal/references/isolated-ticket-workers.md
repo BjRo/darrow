@@ -13,15 +13,22 @@ including sequentially on the same route. Record basis; size/count alone is insu
    accounting stays here.
 3. **Authority.** Require explicit user/preserved caller authority for worker
    branches/worktrees/commits/integration; preserve the delivery checkout. Prebind
-   branch/worktree creation separately from delivery-branch discovery/reuse.
-   `create-branch` owns ticket naming; invented names cannot justify
-   `prepare-task-branch`. Existing delivery branches cannot satisfy fresh-worker
-   requests. Create from verified integration branch/pinned `HEAD`, using current-HEAD
-   default. `--from` requires a user-named base permitted by the public contract.
-4. **Commits.** Prebind the public commit skill; reconcile message rules. Give each
-   fresh worker exact name/reference; require invocation for every implementation/
-   repair commit. Focused checks permit intermediate commits before final assurance,
-   without bypassing bindings/message rules/refusals. Raw Git cannot substitute.
+   allocation for the active host separately from delivery-branch discovery/reuse.
+4. **Allocate.** Pin the integration branch/`HEAD`; require distinct worker
+   branches/checkouts with initial `HEAD` equal to that base before edits.
+   - **Claude.** Use native `Agent(isolation: "worktree", run_in_background: false)`.
+     The host chooses the name and allocates the worktree; Bash/Git allocation
+     cannot bypass native protection of `.git/worktrees`. Reconcile host results
+     with Git's worktree list. Reuse retained agents without new isolation.
+   - **Codex.** Bound `create-branch` owns fresh allocation and ticket naming.
+     Invented names cannot justify `prepare-task-branch`; existing delivery
+     branches cannot satisfy fresh-worker requests. Use the current-HEAD default.
+     `--from` requires a user-named base permitted by the public contract.
+     Refusal stops allocation; raw Git cannot substitute.
+5. **Commits.** Use native Git under repository rules for authorized implementation/
+   repair commits. Focused checks permit intermediate commits before final assurance.
+   Preserve unrelated work and normal hooks. Repair concrete in-scope hook failures
+   and retry under the same authority; ask only for material scope/choice changes.
 
 ## Dispatch
 
@@ -32,11 +39,12 @@ including sequentially on the same route. Record basis; size/count alone is insu
   next batch. Land serially; dispatch dependents only after prerequisites land.
   Worker completion/tracker closure cannot unblock dependencies.
 - **Handoff.** Distinct branch/worktree per worker; section 7's assignment plus
-  absolute checkout/pinned commit/specification/interfaces. Preserve readiness and
+  absolute checkout/worker branch/pinned commit/specification/interfaces. Preserve readiness and
   pre/post-edit public-seam evidence. Retain worker identity for repairs.
   Main thread owns integration/assessments/repairs/publication. Workers get no
   Adaptive Goal/goal control, scope expansion, PR publication or tracker changes.
-  Require ordered full commit IDs, files, actual checks/gaps as intermediate results.
+  Require absolute checkout, branch, initial base, native worker identity, ordered
+  full commit IDs, files and actual checks/gaps as intermediate results.
 
 ## Integration
 

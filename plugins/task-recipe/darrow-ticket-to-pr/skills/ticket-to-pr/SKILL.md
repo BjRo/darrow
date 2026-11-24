@@ -1,6 +1,6 @@
 ---
 name: ticket-to-pr
-description: Start only for explicit invocation of the ticket-to-pr recipe or its authorized grant-bound unattended entry. Never select for ordinary ticket reading, implementation, branch work, feedback, or pull-request requests, even when they describe the same delivery outcome. This explicit shortcut delegates one ticket to the approved-work implement recipe and its one Adaptive Goal owner, retaining a new branch, one PR and green required CI.
+description: Start only for explicit invocation of the ticket-to-pr recipe. Never select for ordinary ticket reading, implementation, branch work, feedback, or pull-request requests, even when they describe the same delivery outcome. This explicit shortcut delegates one ticket to the approved-work implement recipe and its one Adaptive Goal owner, retaining a new branch, one PR and green required CI.
 disable-model-invocation: true
 ---
 
@@ -9,13 +9,12 @@ disable-model-invocation: true
 Delegate shared implementation to the approved-work implementation recipe
 (`implement`) in this thread. Retain ticket intake, branch, publication and
 required-green-CI responsibility as the enclosing delivery envelope.
-Require explicit recipe invocation or the authorized unattended entry. Ordinary
+Require explicit recipe invocation. Ordinary
 engineering intent and later feedback do not start this recipe.
 
 Before discovering implement, require one exact ticket ID or URL. For missing
 or competing references, ask the user which ticket to use and end the response.
 Treat the chosen reference as opaque; Implement reads its authoritative content.
-For an authorized unattended entry, first read [unattended.md](references/unattended.md).
 
 Find one host-advertised recipe for approved ticket/spec implementation
 through one Adaptive Goal owner, starting with the skill catalog, regardless of

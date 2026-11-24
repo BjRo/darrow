@@ -38,9 +38,8 @@ copyright in your work — say so in the pull request before it is reviewed.
 
 ## Working agreements
 
-Read [`AGENTS.md`](AGENTS.md) before changing plugin content. `CLAUDE.md` links
-to the same instructions. Its conditional routes identify the development rules
-for the files you are changing.
+Read [`AGENTS.md`](AGENTS.md) before changing plugin content. Its conditional
+routes identify the development rules for the files you are changing.
 
 ## Documentation
 
@@ -64,7 +63,7 @@ completed research, migration records and old experiment results.
 ## Set up repository development
 
 ```sh
-bun install
+bun install --frozen-lockfile
 bun run hooks:install
 ```
 
@@ -84,12 +83,11 @@ bun run lint:ts
 bun run lint:shell
 bun run typecheck
 bun run check:docs
-bun run check:python
 ```
 
-`check:python` is required when Python source, tests, package metadata, or locks
-change; its standards and package inventory are defined in
-[`docs/python-quality.md`](docs/python-quality.md).
+When Python source, tests, package metadata, or locks change, also run
+`bun run check:python`. See the [Python quality standard](docs/python-quality.md)
+for its scope and package inventory.
 
 Run script tests with both `bash` and `/bin/bash`. Run relevant evals with:
 

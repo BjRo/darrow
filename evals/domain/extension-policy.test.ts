@@ -301,14 +301,6 @@ test("Darrow extension resolves supported cases and rejects unsupported fixtures
   expect(
     selected.checks.map((check: { grader: string }) => check.grader),
   ).toEqual(["sevro.shell", "sevro.shell"]);
-  const artificer = await command<ExtensionReply>(
-    [process.execPath, extension],
-    request("resolve", resolveParams("artificer-status")),
-  );
-  expect(artificer.code, artificer.stderr).toBe(0);
-  expect(
-    artificer.value.result.cases[0]!.checks.map((check) => check.grader),
-  ).toEqual(["sevro.shell", "sevro.git-head", "sevro.semantic"]);
   const branchGuard = await command<ExtensionReply>(
     [process.execPath, extension],
     request(
@@ -327,7 +319,7 @@ test("Darrow extension resolves supported cases and rejects unsupported fixtures
   });
   const unchangedHead = await command<ExtensionReply>(
     [process.execPath, extension],
-    request("resolve", resolveParams("create-commit-clean-tree")),
+    request("resolve", resolveParams("prepare-task-branch-current")),
   );
   expect(unchangedHead.code, unchangedHead.stderr).toBe(0);
   expect(unchangedHead.value.result.cases[0]!.checks).toContainEqual({
@@ -337,7 +329,7 @@ test("Darrow extension resolves supported cases and rejects unsupported fixtures
   });
   const advancedHead = await command<ExtensionReply>(
     [process.execPath, extension],
-    request("resolve", resolveParams("create-commit-no-attribution")),
+    request("resolve", resolveParams("implement-approved-local")),
   );
   expect(advancedHead.code, advancedHead.stderr).toBe(0);
   expect(advancedHead.value.result.cases[0]!.checks).toEqual(
@@ -430,14 +422,14 @@ test("Darrow preserves case host restrictions", async () => {
     [process.execPath, extension],
     request("resolve", {
       projectRoot: pathToFileURL(projectRoot).href,
-      selectors: { caseIds: ["ticket-to-pr-unattended-grant"] },
+      selectors: { caseIds: ["ticket-to-pr-standalone-review-unavailable"] },
       configuration: {},
     }),
   );
   expect(recipe.code, recipe.stderr).toBe(0);
   const selected = recipe.value.result.cases[0]!;
   expect(selected.extensionData["darrow.case"]).toMatchObject({
-    hostIds: ["sevro.host.codex", "sevro.host.claude"],
+    hostIds: ["sevro.host.claude"],
   });
   const refused = await command<ExtensionReply>(
     [process.execPath, extension],
@@ -2715,7 +2707,7 @@ test("ticket composition packages only selected Git skills", async () => {
             ],
             additionalSkills: [
               "plugins/capability/darrow-git/skills/prepare-task-branch",
-              "plugins/capability/darrow-git/skills/create-commit",
+
               "plugins/capability/darrow-git/skills/create-pr",
             ],
             activation: {
@@ -2747,7 +2739,7 @@ test("ticket composition packages only selected Git skills", async () => {
   expect(paths).toEqual(
     expect.arrayContaining([
       ".sevro-marketplace/plugins/2-darrow-git/skills/prepare-task-branch/SKILL.md",
-      ".sevro-marketplace/plugins/2-darrow-git/skills/create-commit/SKILL.md",
+
       ".sevro-marketplace/plugins/2-darrow-git/skills/create-pr/SKILL.md",
     ]),
   );

@@ -1,0 +1,5 @@
+interface:
+  display_name: "Why"
+  short_description: "Recover recorded design rationale"
+policy:
+  allow_implicit_invocation: false

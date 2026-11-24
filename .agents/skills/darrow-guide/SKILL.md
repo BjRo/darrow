@@ -187,9 +187,9 @@ In Claude Code, disclose that support is scoped to documented workflow evidence
 and Darrow is developed primarily with Codex. Include that concise qualification
 in short refusals and clarification answers too. When explaining host support,
 state the current boundary: both Codex and Claude Code are required targets for
-the curated bundles and revised shared workflows. Artificer retains its explicit
-Claude exception. Do not extend that scope to unverified operations or turn a
-support target into a claim that every native task passed.
+the curated bundles and revised shared workflows. Do not extend that scope to
+unverified operations or turn a support target into a claim that every native
+task passed.
 
 Before sending, verify that each material claim follows from a source you
 read, uncertainty remains visible, the answer directly addresses the question,

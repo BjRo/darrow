@@ -13,9 +13,23 @@ the result.
 
 ## 1. Install the readiness gate
 
-Follow [Install a Darrow plugin](installing-plugins.md) and install
-`darrow-readiness-gate` for your host. Start a new session in your chosen
-repository after installation.
+For Codex, run these commands in your shell:
+
+```sh
+codex plugin marketplace add BjRo/darrow
+codex plugin add darrow-readiness-gate@darrow
+```
+
+For Claude Code, run these commands inside an interactive session:
+
+```text
+/plugin marketplace add BjRo/darrow
+/plugin install darrow-readiness-gate@darrow
+```
+
+Confirm that the host reports the marketplace and plugin installation. Start a
+new session in your chosen repository. For installation scopes, updates, removal,
+and host-specific limitations, see [Install a Darrow plugin](installing-plugins.md).
 
 ## 2. Ask for a readiness assessment
 
@@ -70,7 +84,7 @@ For ordinary focused requests, intent matching is usually enough.
 
 ## 5. Choose your next plugin
 
-The [catalog](choosing-plugins.md) lists the complete ten-plugin lineup, including
+The [catalog](choosing-plugins.md) lists the available plugins, including
 the MIT Matt Pocock and pstack bundles. Each plugin README includes example
 requests and its safety boundaries. Install capabilities as
 you need them rather than installing the entire marketplace.

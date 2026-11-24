@@ -26,8 +26,8 @@ its runtime behavior is unchanged. These differences are recorded by file.
 The paired manifests, README, compatibility guidance, this record, and focused
 evals are Darrow additions. Implement is materially adapted: it carries approved
 intent and inherited seams into one Adaptive Goal owner, composes selected TDD,
-independent Review, Git and principles through advertised public contracts, and
-defaults to local commit. Missing required providers stop dependent work;
+independent Review and principles through advertised public contracts, and
+defaults to a local commit with native Git under repository instructions. Missing required providers stop dependent work;
 push/PR require explicit or inherited authority. Only adapted implement removes
 the Claude `disable-model-invocation` and Codex `allow_implicit_invocation: false`
 controls so an explicitly invoked parent can discover and invoke it. Its

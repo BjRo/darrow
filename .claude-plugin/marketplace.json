@@ -13,12 +13,7 @@
     {
       "name": "darrow-pstack",
       "source": "./plugins/capability/darrow-pstack",
-      "description": "Lauren Tan’s unslop and preserved Darrow principles with optional routing and customization"
-    },
-    {
-      "name": "darrow-artificer",
-      "source": "./plugins/automation/darrow-artificer",
-      "description": "Explicit local admission and original Codex continuation for nominated GitHub tickets"
+      "description": "Lauren Tan's explicit engineering workflows, unslop and routed Darrow principles"
     },
     {
       "name": "darrow-information-architecture",
@@ -28,7 +23,7 @@
     {
       "name": "darrow-git",
       "source": "./plugins/capability/darrow-git",
-      "description": "Intent-triggered Git skills for branches, commits, PRs, and candidate-bound PR evidence"
+      "description": "Intent-triggered Git skills for branches, PRs, and candidate-bound PR evidence"
     },
     {
       "name": "darrow-readiness-gate",

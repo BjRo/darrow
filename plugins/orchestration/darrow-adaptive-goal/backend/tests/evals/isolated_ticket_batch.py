@@ -232,6 +232,7 @@ def claude_worker(
                     None,
                 )
                 if returned is not None:
+                    require_native_allocation(native, rows[start], bound["toolUseId"])
                     returned_set = returned_commits(json.dumps(returned), commits)
                     matches.append(
                         Worker(
@@ -249,6 +250,20 @@ def claude_worker(
                         )
                     )
     return one(matches, "commit-returning implementation worker")
+
+
+def require_native_allocation(
+    native: dict[str, Any], row: dict[str, Any], identity: str
+) -> None:
+    arguments = one(
+        [
+            block["input"]
+            for block in native["blocks"](row)
+            if block.get("id") == identity
+        ],
+        "native worker allocation request",
+    )
+    assert arguments.get("isolation") == "worktree", "missing native worktree isolation"
 
 
 def claude_continuations(
@@ -385,18 +400,41 @@ def observe(
 def worker_branches(
     integration: str, tickets: tuple[int, ...] = (41, 42, 43)
 ) -> list[str]:
-    names = git("for-each-ref", "refs/heads", "--format=%(refname:short)").splitlines()
+    sources = {41: "src/versions.js", 42: "src/expenses.js", 43: "src/summary.js"}
+    names = [
+        row.removeprefix("branch refs/heads/")
+        for row in git("worktree", "list", "--porcelain").splitlines()
+        if row.startswith("branch refs/heads/")
+        and row != "branch refs/heads/" + integration
+    ]
+    changes = {
+        name: git("diff", "--name-only", branch_base(name), name, "--").splitlines()
+        for name in names
+    }
     return [
         one(
-            [
-                name
-                for name in names
-                if name != integration and re.match(rf"^[a-z]+/issue-{ticket}-", name)
-            ],
+            [name for name in names if sources[ticket] in changes[name]],
             f"issue-{ticket} worker branch",
         )
         for ticket in tickets
     ]
+
+
+def verify_landed(tickets: tuple[int, ...], host: str) -> None:
+    integration = Path(".git/integration-branch").read_text().strip()
+    base = Path(".git/integration-base").read_text().strip()
+    branches = worker_branches(integration, tickets)
+    for branch in branches:
+        assert git("rev-parse", branch) != base, "worker has no implementation commit"
+        require_landed("HEAD", branch)
+    assert git("rev-parse", "HEAD") != base, "integration has no implementation commit"
+    if host == "claude":
+        verify_claude_workers(
+            [
+                set(git("rev-list", base + ".." + branch).splitlines())
+                for branch in branches
+            ]
+        )
 
 
 def receipts() -> list[dict[str, Any]]:
@@ -451,54 +489,7 @@ def require_unattributed(commit: str) -> None:
     message = git("show", "-s", "--format=%B", commit)
     assert not re.search(
         r"(?im)^co-authored-by:.*\b(?:claude|codex|gpt|ai)\b", message
-    ), f"worker commit violates bound Git attribution refusal: {commit}"
-
-
-def claude_commit_calls(native: dict[str, Any], text: str, commits: set[str]) -> None:
-    rows = [json.loads(line) for line in text.splitlines()]
-    calls = [
-        block
-        for row in rows
-        if row.get("type") == "assistant"
-        for block in native["blocks"](row)
-        if block.get("type") == "tool_use"
-    ]
-    assert any(commit_skill_read(call) for call in calls), (
-        "worker did not load bound commit skill"
-    )
-    invoked = {
-        call["id"]
-        for call in calls
-        if call.get("name") == "Bash"
-        and re.search(
-            r"\bdarrow-create-commit\s+commit\b",
-            call.get("input", {}).get("command", ""),
-        )
-    }
-    returned = {
-        commit
-        for row in rows
-        if row.get("type") == "user"
-        for block in native["blocks"](row)
-        if block.get("tool_use_id") in invoked and not block.get("is_error")
-        for commit in returned_commits(json.dumps(block.get("content", "")), commits)
-    }
-    assert commits <= returned, (
-        "worker commit lacks successful public capability receipt"
-    )
-
-
-def commit_skill_read(call: dict[str, Any]) -> bool:
-    args = call.get("input", {})
-    if call.get("name") == "Skill":
-        skill = args.get("skill")
-        return isinstance(skill, str) and skill == "darrow-git:create-commit"
-    path = args.get("file_path", "")
-    return (
-        call.get("name") == "Read"
-        and isinstance(path, str)
-        and path.endswith("/skills/create-commit/SKILL.md")
-    )
+    ), f"worker commit violates repository attribution rules: {commit}"
 
 
 def verify_commits(host: str, tickets: tuple[int, ...] = (41, 42, 43)) -> None:
@@ -507,24 +498,20 @@ def verify_commits(host: str, tickets: tuple[int, ...] = (41, 42, 43)) -> None:
     for row in events:
         require_unattributed(row["commit"])
     if host == "claude":
-        helpers = Path(".git/eval-checks/review/tests/evals").resolve()
-        sys.path.insert(0, str(helpers))
-        native = runpy.run_path(str(helpers / "native_claude_routes.py"))
-        root, files = native["captured"](
-            Path(os.environ["SEVRO_CANDIDATE_TRANSCRIPTS"])
-        )
-        for branch in worker_branches(integration, tickets):
-            commits = {row["commit"] for row in events if row["branch"] == branch}
-            worker = claude_worker(native, root, files, commits)
-            child = one(
-                [
-                    text
-                    for name, text in files.items()
-                    if name.endswith(f"/agent-{worker.identity}.jsonl")
-                ],
-                "commit worker transcript",
-            )
-            claude_commit_calls(native, child, commits)
+        branches = worker_branches(integration, tickets)
+        groups = [
+            {row["commit"] for row in events if row["branch"] == branch}
+            for branch in branches
+        ]
+        verify_claude_workers(groups)
+
+
+def verify_claude_workers(groups: list[set[str]]) -> None:
+    assert groups and all(groups), "missing actual worker commit effects"
+    workers, _ = observe("claude", groups)
+    assert len({worker.identity for worker in workers}) == len(groups), (
+        "each ticket requires its own native worker"
+    )
 
 
 def verify_barrier(
@@ -596,7 +583,9 @@ def verify(host: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("operation", choices=("record", "git", "verify", "commits"))
+    parser.add_argument(
+        "operation", choices=("record", "git", "verify", "commits", "landed")
+    )
     parser.add_argument("--host", choices=("codex", "claude"))
     parser.add_argument("--tickets", type=int, nargs="+", default=[41, 42, 43])
     args = parser.parse_args()
@@ -604,6 +593,9 @@ def main() -> None:
         record()
     elif args.operation == "git":
         verify_git()
+    elif args.operation == "landed":
+        assert args.host, "native host is required"
+        verify_landed(tuple(args.tickets), args.host)
     elif args.operation == "commits":
         assert args.host, "native host is required"
         verify_commits(args.host, tuple(args.tickets))

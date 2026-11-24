@@ -34,21 +34,16 @@ test.each(["codex", "claude"] as const)(
     for (const [id, names] of [
       [
         "goal-failed-check-blocks-publication",
-        ["independent-code-review", "create-commit", "create-pr"],
+        ["independent-code-review", "create-pr"],
       ],
       [
         "goal-intent-capability-bindings",
-        [
-          "read-ticket",
-          "independent-code-review",
-          "create-commit",
-          "create-pr",
-        ],
+        ["read-ticket", "independent-code-review", "create-pr"],
       ],
-      ["goal-real-create-commit-composition", ["independent-code-review"]],
+      ["goal-native-git-commit-composition", ["independent-code-review"]],
       [
         "goal-verification-incomplete-blocks-publication",
-        ["inspect-delivery", "create-commit", "create-pr"],
+        ["inspect-delivery", "create-pr"],
       ],
     ] as const) {
       const { cases } = await fixtureExtensionRequest<{ cases: unknown[] }>(

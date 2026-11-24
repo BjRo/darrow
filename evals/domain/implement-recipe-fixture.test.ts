@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { parse } from "yaml";
 import {
   fixtureExtensionRequest,
   readFixtureCase,
@@ -49,9 +50,15 @@ const localSource = new URL(
 for (const scenario of [
   "local",
   "published",
+  "nonconventional",
   "unreviewed",
   "coordinator-assessed",
 ] as const) {
+  const commitSubject =
+    scenario === "nonconventional"
+      ? "Support named greetings"
+      : "feat: greet the requested name";
+  const commitStatus = scenario === "nonconventional" ? "failed" : "passed";
   const reviewStatus =
     scenario === "unreviewed" || scenario === "coordinator-assessed"
       ? "failed"
@@ -91,7 +98,7 @@ for (const scenario of [
           : []),
         {
           name: "simulate local commit",
-          run: "git add greet.sh test.sh && git commit -m 'feat: greet the requested name'",
+          run: `git add greet.sh test.sh && git commit -m '${commitSubject}'`,
         },
         ...(scenario === "published"
           ? [
@@ -109,6 +116,11 @@ for (const scenario of [
       scenario === "local" ? "passed" : "failed",
     );
     expect(
+      result.checks.find(
+        (c) => c.name === "one scoped local conventional commit and clean tree",
+      )?.status,
+    ).toBe(commitStatus);
+    expect(
       result.checks.find((c) => c.name === "no push or forge effect")?.status,
     ).toBe(scenario === "published" ? "failed" : "passed");
     expect(
@@ -120,17 +132,6 @@ for (const scenario of [
     ).toBe(reviewStatus);
   }, 30000);
 }
-
-test("missing-commit case preserves the approved-local fixture", async () => {
-  const local = await readFixtureCase(localSource);
-  const missing = await readFixtureCase(
-    new URL(
-      "../../plugins/capability/darrow-matt-pocock/skills/implement/evals/missing-commit.yaml",
-      import.meta.url,
-    ),
-  );
-  expect(missing.fixture).toEqual(local.fixture);
-});
 
 test("implementation composition prepares both native host fixtures", async () => {
   for (const host of ["codex", "claude"]) {
@@ -176,13 +177,18 @@ test("implementation composition prepares both native host fixtures", async () =
 
 test("Claude native kickoff preserves the same approved repository fixture", async () => {
   const local = await readFixtureCase(localSource);
-  const claude = await readFixtureCase(
-    new URL(
-      "../../plugins/capability/darrow-matt-pocock/skills/implement/evals/approved-local-claude.yaml",
-      import.meta.url,
-    ),
+  const claudeSource = new URL(
+    "../../plugins/capability/darrow-matt-pocock/skills/implement/evals/approved-local-claude.yaml",
+    import.meta.url,
   );
+  const claude = await readFixtureCase(claudeSource);
   expect(claude.fixture).toEqual(local.fixture);
+  const kickoff = parse(await Bun.file(claudeSource).text());
+  expect(kickoff.additional_plugins).not.toContain(
+    "plugins/capability/darrow-git",
+  );
+  expect(kickoff.follow_up_prompt).toContain("native Git");
+  expect(kickoff.follow_up_prompt).not.toContain("bound Git capability");
 });
 
 test("read-only target inquiry succeeds without assessment or review receipts", async () => {

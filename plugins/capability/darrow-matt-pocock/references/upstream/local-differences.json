@@ -76,8 +76,8 @@
     "sha256": "92b7638b5311f67f36762c2888aaef8745d6e52c46621bf0b120fdb1e2de3c41"
   },
   "skills/implement/SKILL.md": {
-    "reason": "Materially adapt upstream implement into an approved-work recipe: preserve inherited seams and authority, compose one Adaptive Goal owner with public TDD/Review/Git/principles contracts, stop missing providers, default to local commit. Remove the Claude model-invocation restriction only for this adapted recipe; require explicit user invocation or preserved authorized delegation in its description and first workflow guard.",
-    "sha256": "24529ef4febee9fabd1d15be59760e4903cbd6e15ccb3710f2d17efb0ca9b00c"
+    "reason": "Materially adapt upstream implement into an approved-work recipe: preserve inherited seams and authority, compose one Adaptive Goal owner with public TDD/Review/principles contracts, stop missing providers, default to a native Git local commit under repository instructions. Remove the Claude model-invocation restriction only for this adapted recipe; require explicit user invocation or preserved authorized delegation in its description and first workflow guard.",
+    "sha256": "d627e09eb01fb23fe9df4b9c3400caed135da0cca1a95c5b273ef72602ab3ecd"
   },
   "skills/implement/agents/openai.yaml": {
     "reason": "Remove the Codex implicit-invocation restriction only for adapted implement so authorized parent recipes can discover its public contract. Preserve UI metadata and enforce explicit/delegated authority in the skill description and first workflow guard.",

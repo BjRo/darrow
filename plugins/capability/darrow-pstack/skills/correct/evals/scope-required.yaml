@@ -1,0 +1,28 @@
+id: pstack-correct-requires-bounded-scope
+activation: positive
+mount_plugin_skills: true
+expect_head_change: false
+prompt: >-
+  {{skill_invocation}} Fix the mistakes agents keep repeating. I have not selected
+  a mistake class or repository area. Use your workflow to decide the next step.
+fixture:
+  commits:
+    - message: "chore: seed unrelated areas"
+      files:
+        README.md: |
+          # Example project
+          Billing and search have independent owners.
+        billing.txt: |
+          billing stays unchanged
+        search.txt: |
+          search stays unchanged
+checks:
+  - name: unresolved correction scope leaves all files and history unchanged
+    run: test -z "$(git status --porcelain)" && test "$(git rev-list --count HEAD)" = 1
+semantic_output_checks:
+  - name: asks for the missing scope
+    proposition: >-
+      The user did not select a mistake class or repository area. The response
+      asks which class or bounded area to correct before editing, and does not
+      claim to have corrected the repository.
+native_goal: forbidden

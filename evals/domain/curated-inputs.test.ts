@@ -18,6 +18,16 @@ const matt =
   "grilling wayfinder grill-with-docs domain-modeling diagnosing-bugs to-spec to-tickets wizard codebase-design improve-codebase-architecture writing-for-agents wait-what tdd implement research prototype setup-matt-pocock-skills".split(
     " ",
   );
+const workflows =
+  "blast-radius correct create-verification-skill maintain-verification-skill why benchmark-checklist".split(
+    " ",
+  );
+const workflowRevision = "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9";
+const workflowSupport = [
+  "create-verification-skill/references/feature-map-example/README.md",
+  "create-verification-skill/references/feature-map-example/create-note.md",
+  "create-verification-skill/references/feature-map-example/search.md",
+];
 const support = [
   "domain-modeling/ADR-FORMAT.md",
   "domain-modeling/GLOSSARY-FORMAT.md",
@@ -51,6 +61,8 @@ async function setup() {
     ...support.map((path) => `matt/${path}`),
     "matt/tdd/references/additional.txt",
     "pstack/unslop/SKILL.md",
+    ...workflows.map((name) => `pstack-workflows/${name}/SKILL.md`),
+    ...workflowSupport.map((path) => `pstack-workflows/${path}`),
   ]) {
     await mkdir(join(root, "source", path, ".."), { recursive: true });
     await writeFile(join(root, "source", path), `fixture ${path}\n`);
@@ -62,6 +74,7 @@ set -eu
 case "$*" in
   '--yes skills@1.9.0 add mattpocock/skills@abeeaf95660ba9e8b7c753eb38f441ca707a8823 --agent codex --copy --yes --skill ${matt.join(" ")}' ) source=matt ;;
   '--yes skills@1.9.0 add https://github.com/cursor/plugins/tree/aaeb0ea3a0584995aa8f55ce44c6c5259414b896/pstack --agent codex --copy --yes --skill unslop' ) source=pstack ;;
+  '--yes skills@1.9.0 add https://github.com/cursor/plugins/tree/${workflowRevision}/pstack --agent codex --copy --yes --skill ${workflows.join(" ")}' ) source=pstack-workflows ;;
   *) echo 'Unexpected acquisition request' >&2; exit 2 ;;
 esac
 mkdir -p .agents/skills
@@ -76,6 +89,7 @@ set -eu
 case "$2" in
   https://raw.githubusercontent.com/mattpocock/skills/abeeaf95660ba9e8b7c753eb38f441ca707a8823/LICENSE) source=matt ;;
   https://raw.githubusercontent.com/cursor/plugins/aaeb0ea3a0584995aa8f55ce44c6c5259414b896/pstack/LICENSE) source=pstack ;;
+  https://raw.githubusercontent.com/cursor/plugins/${workflowRevision}/pstack/LICENSE) source=pstack ;;
   *) exit 2 ;;
 esac
 test "$1" = -fsSL && test "$3" = -o
@@ -140,9 +154,25 @@ test("acquires the pinned selection, complete support and notices into disposabl
     expect(
       await readFile(join(fixture.output, "matt/skills", path), "utf8"),
     ).toBe(`fixture matt/${path}\n`);
-  for (const name of ["matt", "pstack"]) {
+  expect(
+    (await readdir(join(fixture.output, "pstack-workflows/skills"))).sort(),
+  ).toEqual([...workflows].sort());
+  for (const path of workflowSupport)
+    expect(
+      await readFile(
+        join(fixture.output, "pstack-workflows/skills", path),
+        "utf8",
+      ),
+    ).toBe(`fixture pstack-workflows/${path}\n`);
+  for (const name of ["matt", "pstack", "pstack-workflows"]) {
     expect(await readFile(join(fixture.output, name, "LICENSE"), "utf8")).toBe(
-      await readFile(join(fixtures, `${name}.LICENSE`), "utf8"),
+      await readFile(
+        join(
+          fixtures,
+          `${name === "pstack-workflows" ? "pstack" : name}.LICENSE`,
+        ),
+        "utf8",
+      ),
     );
     expect(
       await readFile(join(fixture.output, name, "files.sha256"), "utf8"),
@@ -169,10 +199,27 @@ test("acquires the pinned selection, complete support and notices into disposabl
 });
 
 test("rejects incomplete or expanded inputs and damaged notices without publishing a destination", async () => {
-  for (const variant of ["support", "selection", "notice"]) {
+  for (const variant of [
+    "support",
+    "workflow-support",
+    "selection",
+    "workflow-selection",
+    "notice",
+  ]) {
     const fixture = await setup();
     if (variant === "support")
       await rm(join(fixture.root, "source/matt/prototype/UI.md"));
+    if (variant === "workflow-support")
+      await rm(
+        join(fixture.root, "source/pstack-workflows", workflowSupport[0]!),
+      );
+    if (variant === "workflow-selection") {
+      await mkdir(join(fixture.root, "source/pstack-workflows/arena"));
+      await writeFile(
+        join(fixture.root, "source/pstack-workflows/arena/SKILL.md"),
+        "unselected",
+      );
+    }
     if (variant === "selection") {
       await mkdir(join(fixture.root, "source/pstack/benchmark-checklist"));
       await writeFile(

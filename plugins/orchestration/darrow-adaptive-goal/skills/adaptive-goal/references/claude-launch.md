@@ -30,11 +30,14 @@ On Windows, use one PowerShell line. The helper verifies scoped model/effort and
 rejects conflicting higher-priority environment overrides. Refusal stops assignment.
 
 - **Assign.** Use returned `subagent_type`, `run_in_background: false` and section 7's
-  complete assignment. No per-call model override/unrequested worktree isolation.
+  complete assignment. No per-call model override. For authorized
+  [isolated workers](isolated-ticket-workers.md), set `isolation: "worktree"`
+  on initial allocation; verify the returned checkout, branch and base. Other
+  assignments use no isolation.
   Use this plugin's scoped agents. Parallel parts: one Agent call each in the same
   message; settle all before integration/another assignment.
 - **Reuse.** Retain agent id/result. Send later work/repairs via `SendMessage` to
-  that id. If unloaded, use `ToolSearch` with `select:SendMessage`. Only an actual
+  that id without allocating another worktree. If unloaded, use `ToolSearch` with `select:SendMessage`. Only an actual
   failed send establishes unavailability for replacement.
 - **Steer.** Use native question/continuation/user controls; retain goal/history.
   Deliver complete feedback; require supplied acknowledgement before mutation.

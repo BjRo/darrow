@@ -14,7 +14,6 @@ from darrow_git.process import RefusalError, command, invoke
     [
         (cli.create_branch, ["inspect"]),
         (cli.prepare_branch, ["inspect"]),
-        (cli.create_commit, ["inspect"]),
         (cli.create_pr, ["inspect"]),
     ],
 )
@@ -35,7 +34,6 @@ def test_console_inspect(
     [
         (cli.create_branch, "darrow-create-branch"),
         (cli.prepare_branch, "darrow-prepare-task-branch"),
-        (cli.create_commit, "darrow-create-commit"),
         (cli.create_pr, "darrow-create-pr"),
         (cli.publish_evidence, "darrow-publish-pr-evidence"),
     ],
@@ -68,13 +66,6 @@ def test_cli_filesystem_boundary(capsys: pytest.CaptureFixture[str]) -> None:
     [
         (cli.create_branch, ["create", "--from"], 2, "--from needs a value"),
         (cli.prepare_branch, ["prepare", "--at", ""], 2, "--at needs a non-empty path"),
-        (
-            cli.create_commit,
-            ["retry", "--command", "x"],
-            2,
-            "retry accepts only --after-hook-failure, --refresh-staged, and -m",
-        ),
-        (cli.create_commit, ["remediate", "--command"], 2, "--command needs a value"),
         (cli.create_pr, ["inspect", "--base", ""], 2, "--base needs a non-empty value"),
         (cli.create_pr, ["create", "-b", " "], 2, "-b section is empty"),
         (

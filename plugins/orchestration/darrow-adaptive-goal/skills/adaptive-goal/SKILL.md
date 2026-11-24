@@ -128,7 +128,8 @@ Keep the coordinator's route. Section 7 owns parallel placement and assignments.
 
 ## 5. Bindings
 
-- **Bind/invoke.** Match authorized operations to advertised skill intent. Retain
+- **Commits.** Create authorized commits with native Git under repository rules.
+- **Bind/invoke.** Match other authorized operations to advertised skill intent. Retain
   exact names/public references; Codex needs installed absolute `SKILL.md` paths.
   Read prerequisites/effects/evidence/stops before use; pass bindings/facts to fresh
   assignees. Compatible names qualify; assume no sibling installation.
@@ -137,8 +138,8 @@ Keep the coordinator's route. Section 7 owns parallel placement and assignments.
 - **Publication.** Completion adds no commit/push/PR/merge/release/deploy authority.
   Require explicit effects, lifecycle clearance and publisher-verified commit identity.
   PR URLs prove no delivery; content reuse/push authority excludes metadata edits.
-  Intermediate worker commits retain only their focused-check exception, bindings
-  and message rules.
+  Intermediate worker commits retain only their focused-check exception and
+  repository Git rules.
 - **Records.** Preserve tracker identity/configuration. ADR lifecycle/catalog work
   follows repository/domain-modeling guidance as ordinary document work.
 

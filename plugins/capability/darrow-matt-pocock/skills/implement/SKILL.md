@@ -49,13 +49,11 @@ search alone cannot establish that an advertised skill is missing.
 | Adaptive Goal orchestration | One native main-thread continuation and acceptance owner; its readiness, placement, repair and completion rules |
 | Selected Matt TDD           | Test-first vertical slices at inherited approved public seams                                                   |
 | Independent Review          | Fresh independent assessment of the exact candidate; native findings, evidence and closed repair history        |
-| Git commit                  | The advertised commit workflow, message rules, selection and authoritative refusals                             |
 | Principles-first approach   | Effective routing and applicable guidance within the same scope and authority                                   |
 
 These are required providers for standalone implement, not optional suggestions.
 If any is absent or incompatible, report the exact missing contract and stop
-before implementation. In particular, a missing Git capability does not permit
-a raw Git commit. Preserve a provider's failed prerequisite or refusal and stop
+before implementation. Preserve a provider's failed prerequisite or refusal and stop
 its dependent work; return it to the same owner. Do not search sibling plugin
 installations, add a central registry, copy provider internals, self-review or
 substitute raw tools to bypass a required provider. An advertised path that
@@ -97,9 +95,9 @@ another acceptance or review cycle.
 
 ## Commit and preserve publication authority
 
-Standalone implement defaults to one local commit on the current branch through
-the bound Git capability, after required current checks, acceptance evidence and
-independent Review clear. Honor an inherited no-commit instruction or narrower
+Standalone implement defaults to one local commit on the current branch using
+native Git and repository instructions, after required current checks, acceptance
+evidence and independent Review clear. Honor an inherited no-commit instruction or narrower
 assignment. Intermediate commits require the enclosing owner's explicit allowance
 and focused checks; they do not establish final acceptance.
 

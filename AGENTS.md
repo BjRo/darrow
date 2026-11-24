@@ -11,6 +11,9 @@ When writing or editing agent instructions, use both `darrow-pstack:unslop` and
 
 ## Read when relevant
 
+For step-by-step troubleshooting and debugging, use
+`darrow-matt-pocock:diagnosing-bugs` with `darrow-pstack:principles-first`.
+
 - Before changing plugin boundaries or capability/orchestration ownership, read [docs/design.md](docs/design.md).
 - Before changing any plugin, read [docs/plugin-development.md](docs/plugin-development.md).
 - Before creating or editing documentation, including plugin READMEs, read [docs/documentation-quality.md](docs/documentation-quality.md).
@@ -26,4 +29,3 @@ engineering work under this repository's instructions.
 
 - Use imperative Conventional Commits without trailing periods.
 - Do not add AI attribution or `Co-authored-by` trailers.
-- Never push unless explicitly asked.

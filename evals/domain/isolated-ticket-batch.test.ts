@@ -50,91 +50,98 @@ test("native batch hosts use identical fixtures and effect assertions", () => {
   );
 });
 
-for (const state of [
-  "valid",
-  "different base",
-  "missing dependency",
-  "unlanded",
-  "later repair",
-  "unlanded repair",
-] as const) {
-  test(`batch Git oracle: ${state}`, () => {
-    const root = mkdtempSync(join(tmpdir(), "darrow-ticket-batch-"));
-    const repo = join(root, "repo");
-    mkdirSync(repo);
-    const git = (args: string[], cwd = repo) => {
-      const result = spawnSync("git", args, { cwd, encoding: "utf8" });
-      assert.equal(result.status, 0, result.stderr);
-      return result.stdout.trim();
-    };
-    try {
-      git(["init", "-b", "feat/issue-41-delivery"]);
-      git(["config", "user.name", "Fixture"]);
-      git(["config", "user.email", "fixture@example.invalid"]);
-      git(["commit", "--allow-empty", "-m", "initial"]);
-      const base = git(["rev-parse", "HEAD"]);
-      writeFileSync(
-        join(repo, ".git/integration-branch"),
-        "feat/issue-41-delivery\n",
-      );
-      writeFileSync(join(repo, ".git/integration-base"), base + "\n");
-      mkdirSync(join(repo, ".git/eval-checks"));
-      copyFileSync(
-        new URL(
-          "../../../backend/tests/evals/isolated_ticket_batch.py",
-          source,
-        ),
-        join(repo, ".git/eval-checks/isolated_ticket_batch.py"),
-      );
-      writeFileSync(join(repo, ".git/hooks/post-commit"), "");
-      writeFileSync(join(repo, ".git/eval-checks/expected-post-commit"), "");
-      const commits: string[] = [];
-      for (const ticket of [41, 42]) {
-        if (ticket === 42 && state === "different base")
-          git(["cherry-pick", commits[0]!]);
-        const worker = join(root, String(ticket));
-        git(["worktree", "add", "-b", `feat/issue-${ticket}-worker`, worker]);
-        mkdirSync(join(worker, "src"), { recursive: true });
+for (const allocation of ["git", "native"] as const) {
+  const workerBranch = (ticket: number) =>
+    allocation === "native"
+      ? `worktree-agent-${ticket}`
+      : `feat/issue-${ticket}-worker`;
+  for (const state of [
+    "valid",
+    "different base",
+    "missing dependency",
+    "unlanded",
+    "later repair",
+    "unlanded repair",
+  ] as const) {
+    test(`batch Git oracle: ${allocation} allocation, ${state}`, () => {
+      const root = mkdtempSync(join(tmpdir(), "darrow-ticket-batch-"));
+      const repo = join(root, "repo");
+      mkdirSync(repo);
+      const git = (args: string[], cwd = repo) => {
+        const result = spawnSync("git", args, { cwd, encoding: "utf8" });
+        assert.equal(result.status, 0, result.stderr);
+        return result.stdout.trim();
+      };
+      try {
+        git(["init", "-b", "feat/issue-41-delivery"]);
+        git(["config", "user.name", "Fixture"]);
+        git(["config", "user.email", "fixture@example.invalid"]);
+        git(["commit", "--allow-empty", "-m", "initial"]);
+        const base = git(["rev-parse", "HEAD"]);
         writeFileSync(
-          join(worker, "src", ticket === 41 ? "versions.js" : "expenses.js"),
-          ticket === 41
-            ? "export const parseVersion = true;\n"
-            : "export const normalizeExpenses = true;\n",
+          join(repo, ".git/integration-branch"),
+          "feat/issue-41-delivery\n",
         );
-        git(["add", "src"], worker);
-        git(["commit", "-m", `ticket ${ticket}`], worker);
-        commits.push(git(["rev-parse", "HEAD"], worker));
+        writeFileSync(join(repo, ".git/integration-base"), base + "\n");
+        mkdirSync(join(repo, ".git/eval-checks"));
+        copyFileSync(
+          new URL(
+            "../../../backend/tests/evals/isolated_ticket_batch.py",
+            source,
+          ),
+          join(repo, ".git/eval-checks/isolated_ticket_batch.py"),
+        );
+        writeFileSync(join(repo, ".git/hooks/post-commit"), "");
+        writeFileSync(join(repo, ".git/eval-checks/expected-post-commit"), "");
+        const commits: string[] = [];
+        for (const ticket of [41, 42]) {
+          if (ticket === 42 && state === "different base")
+            git(["cherry-pick", commits[0]!]);
+          const worker = join(root, String(ticket));
+          git(["worktree", "add", "-b", workerBranch(ticket), worker]);
+          mkdirSync(join(worker, "src"), { recursive: true });
+          writeFileSync(
+            join(worker, "src", ticket === 41 ? "versions.js" : "expenses.js"),
+            ticket === 41
+              ? "export const parseVersion = true;\n"
+              : "export const normalizeExpenses = true;\n",
+          );
+          git(["add", "src"], worker);
+          git(["commit", "-m", `ticket ${ticket}`], worker);
+          commits.push(git(["rev-parse", "HEAD"], worker));
+        }
+        if (state !== "different base") git(["cherry-pick", commits[0]!]);
+        if (state !== "missing dependency") git(["cherry-pick", commits[1]!]);
+        const dependent = join(root, "43");
+        git(["worktree", "add", "-b", workerBranch(43), dependent]);
+        mkdirSync(join(dependent, "src"), { recursive: true });
+        writeFileSync(
+          join(dependent, "src", "summary.js"),
+          "export const summary = true;\n",
+        );
+        git(["add", "src/summary.js"], dependent);
+        git(["commit", "-m", "ticket 43"], dependent);
+        if (state !== "unlanded")
+          git(["cherry-pick", git(["rev-parse", "HEAD"], dependent)]);
+        addLaterRepair(state, root, git);
+        const check = selected.checks.find(
+          (c) =>
+            c.name ===
+            "distinct workers share the batch base and dependent sees landed prerequisites",
+        );
+        assert.ok(check);
+        const result = spawnSync("bash", ["-c", check.run], {
+          cwd: repo,
+          encoding: "utf8",
+        });
+        assert.equal(
+          result.status === 0,
+          state === "valid" || state === "later repair",
+          result.stdout + result.stderr,
+        );
+      } finally {
+        rmSync(root, { recursive: true, force: true });
       }
-      if (state !== "different base") git(["cherry-pick", commits[0]!]);
-      if (state !== "missing dependency") git(["cherry-pick", commits[1]!]);
-      const dependent = join(root, "43");
-      git(["worktree", "add", "-b", "feat/issue-43-worker", dependent]);
-      writeFileSync(
-        join(dependent, "summary.js"),
-        "export const summary = true;\n",
-      );
-      git(["add", "summary.js"], dependent);
-      git(["commit", "-m", "ticket 43"], dependent);
-      if (state !== "unlanded")
-        git(["cherry-pick", git(["rev-parse", "HEAD"], dependent)]);
-      addLaterRepair(state, root, git);
-      const check = selected.checks.find(
-        (c) =>
-          c.name ===
-          "distinct workers share the batch base and dependent sees landed prerequisites",
-      );
-      assert.ok(check);
-      const result = spawnSync("bash", ["-c", check.run], {
-        cwd: repo,
-        encoding: "utf8",
-      });
-      assert.equal(
-        result.status === 0,
-        state === "valid" || state === "later repair",
-        result.stdout + result.stderr,
-      );
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  });
+    });
+  }
 }

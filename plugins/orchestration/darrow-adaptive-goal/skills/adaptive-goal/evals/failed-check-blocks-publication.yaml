@@ -16,8 +16,8 @@ fixture:
           # Instructions
 
           Run `bash check.sh` for changes to NOTES.md. The host-advertised
-          independent review, commit, and pull-request capabilities are
-          available.
+          independent review and pull-request capabilities are
+          available under `.agents/skills/`.
         NOTES.md: |
           # Notes
         check.sh: |
@@ -61,16 +61,6 @@ fixture:
       unavailable and preserves the supplied finding and repair history.
       Do not execute the protocol as coordinator, implement, commit or publish.
     .claude/skills/independent-code-review/SKILL.md: *independent_review
-    .agents/skills/create-commit/SKILL.md: &create_commit |
-      ---
-      name: create-commit
-      description: Create exactly one authorized Conventional Commit after every required check and review gate clears.
-      ---
-
-      # Create one commit
-
-      Run exactly `create-commit-protocol`.
-    .claude/skills/create-commit/SKILL.md: *create_commit
     .agents/skills/create-pr/SKILL.md: &create_pr |
       ---
       name: create-pr
@@ -90,15 +80,6 @@ fixture:
       git_dir=$(git rev-parse --git-dir)
       printf '%s\n' 'review invoked' >>"${DARROW_FIXTURE_RECEIPTS_DIR:?configured receipt directory required}/gate-events"
       printf '%s\n' 'Independent review outcome: no blocking findings'
-    create-commit-protocol: |
-      #!/usr/bin/env bash
-      set -eu
-      case "${1-}" in -h|--help) printf '%s\n' 'Usage: create-commit-protocol'; exit 0 ;; esac
-      test "$#" -eq 0 || { printf '%s\n' 'Usage: create-commit-protocol' >&2; exit 2; }
-      git_dir=$(git rev-parse --git-dir)
-      printf '%s\n' 'commit invoked' >>"${DARROW_FIXTURE_RECEIPTS_DIR:?configured receipt directory required}/gate-events"
-      git add -- NOTES.md
-      git commit -m 'docs: add publication gate note'
     create-pr-protocol: |
       #!/usr/bin/env bash
       set -eu
@@ -130,11 +111,7 @@ checks:
       || ! grep -Fq 'review invoked'
       "${SEVRO_CANDIDATE_ARTIFACT_RECEIPTS:?original receipt grant required}/gate-events"
   - name: failed check prevents commit
-    run: >-
-      test "$(git rev-list --count HEAD)" -eq 1 && { test ! -e
-      "${SEVRO_CANDIDATE_ARTIFACT_RECEIPTS:?original receipt grant required}/gate-events"
-      || ! grep -Fq 'commit invoked'
-      "${SEVRO_CANDIDATE_ARTIFACT_RECEIPTS:?original receipt grant required}/gate-events"; }
+    run: test "$(git rev-list --count HEAD)" -eq 1
   - name: failed check prevents publication
     run: >-
       { test ! -e "${SEVRO_CANDIDATE_ARTIFACT_RECEIPTS:?original receipt grant required}/gate-events"

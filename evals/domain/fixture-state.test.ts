@@ -62,7 +62,7 @@ test("Darrow setup resolves system Git before declared wrappers", async () => {
 test("Darrow prepares state for a canonical fixture without setup", async () => {
   const result = await runFixtureChecks({
     source: new URL(
-      "../../plugins/capability/darrow-git/skills/create-commit/evals/clean-tree.yaml",
+      "../../plugins/capability/darrow-git/skills/create-branch/evals/derive-name-feat.yaml",
       import.meta.url,
     ),
     checks: [
@@ -119,7 +119,7 @@ test "$standards_status" -eq 0 && test "$acceptance_status" -eq 0`,
     },
     {
       name: "one intended commit",
-      run: 'create-commit-protocol NOTES.md "docs: add capability routing note" create-commit-skill-contract-v1',
+      run: 'git add -- NOTES.md && git commit -m "docs: add capability routing note"',
     },
     { name: "preserve original receipts", run: `cp ${log} ${backup}` },
     {
@@ -179,9 +179,9 @@ test "$standards_status" -eq 0 && test "$acceptance_status" -eq 0`,
   );
 }, 30_000);
 
-test("real-commit review receipts accept repeated current assessments", async () => {
+test("native-commit review receipts accept repeated current assessments", async () => {
   const source = new URL(
-    "../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/evals/real-create-commit-composition.yaml",
+    "../../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/evals/native-git-commit-composition.yaml",
     import.meta.url,
   );
   const canonical = await readFixtureCase(source);
@@ -199,7 +199,7 @@ test("real-commit review receipts accept repeated current assessments", async ()
   const checks = [
     {
       name: "exact requested change",
-      run: "printf '%s\\n' '# Notes' 'Real commit capability composes.' >NOTES.md",
+      run: "printf '%s\\n' '# Notes' 'Native Git commits compose.' >NOTES.md",
     },
     { name: "current check", run: "bash check.sh && /bin/bash check.sh" },
     {
@@ -250,7 +250,7 @@ test "$standards_status" -eq 0 && test "$acceptance_status" -eq 0`,
       run: `cp ${backup} ${log}\n${oracle.run}`,
     },
   ];
-  // Only the receipt oracle is under test; the native case covers the real commit helper.
+  // Only the receipt oracle is under test; the native case covers native Git hook recovery.
   const result = await runFixtureChecks({
     source,
     ...reviewAssets,

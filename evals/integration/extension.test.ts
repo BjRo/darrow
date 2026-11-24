@@ -1529,6 +1529,7 @@ SEVRO_EVENTS
     "low",
     "--results-root",
     join(root, "live-results"),
+    "--retain-host-diagnostics",
   ]);
   expect(live.code, live.stderr).toBe(0);
   expect(live.value.task.verdict).toBe("passed");

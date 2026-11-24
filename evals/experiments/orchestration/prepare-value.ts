@@ -75,12 +75,9 @@ function supportingSkills(track: "implementation" | "delivery") {
       ? [
           capability("darrow-matt-pocock", "implement"),
           `${adaptive}/skills/adaptive-goal`,
-          ...[
-            "create-branch",
-            "prepare-task-branch",
-            "create-commit",
-            "create-pr",
-          ].map((skill) => capability("darrow-git", skill)),
+          ...["create-branch", "prepare-task-branch", "create-pr"].map(
+            (skill) => capability("darrow-git", skill),
+          ),
         ]
       : []),
   ];

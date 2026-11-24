@@ -24,7 +24,7 @@ Use a host with plugin support and the tools required by the chosen workflow:
 repository read/write access, native delegation for research/design exploration,
 and the configured tracker's authenticated tools for remote publication.
 Implement requires host-advertised Adaptive Goal with native goal support,
-independent Review and Git commit capabilities, and a principles-first approach
+independent Review capabilities and a principles-first approach
 (such as the pstack bundle). Its TDD provider is included. Independent review can
 use an installed provider such as Darrow Review.
 Missing capabilities remain explicit gaps. No JavaScript or Sevro runtime is
