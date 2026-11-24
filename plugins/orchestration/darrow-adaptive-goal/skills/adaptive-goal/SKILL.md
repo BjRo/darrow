@@ -162,6 +162,10 @@ red/baseline before mutation and focused/final-tree green for current content.
 
 ## 7. Placement
 
+**Assessment first.** For assessment-before-change requests, run current checks
+and every selected initial assessment before assigning or performing implementation.
+Apply the lifecycle to their combined result before authorizing repair.
+
 Preserve authority/bindings/evidence/user work; record basis/`route_relation`.
 Use preselected [isolated workers](references/isolated-ticket-workers.md); otherwise:
 
