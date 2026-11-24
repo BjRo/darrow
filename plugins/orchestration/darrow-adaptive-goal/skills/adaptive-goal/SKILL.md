@@ -20,8 +20,8 @@ GPT-6.1 Sol/medium once, nonblocking, if the current model is known weaker.
   cannot release it or justify completion. Required acknowledgement must accept
   the complete user reply unchanged as one argument; rejection needs new authority.
 - **Questions.** Explicit user invocation also authorizes advice-only questions.
-  Answer them from the
-  [lifecycle](references/verification-lifecycle.md), without preflight/helpers/activation.
+  Read the complete [lifecycle](references/verification-lifecycle.md). Apply its
+  first matching repair-budget row before answering, without preflight/helpers/activation.
   Otherwise, absent authority, make no helper call/mutation; return exactly:
 
 ```text

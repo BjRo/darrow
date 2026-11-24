@@ -1,9 +1,10 @@
 id: goal-verification-stale-evidence
 prompt: >-
   {{skill_invocation}} Advice only; do not launch or perform work. Review and QA are
-  selected through its public workflow. Both report clear, but QA assessed the candidate before
-  the last repair; review and the required checks cover current content. One shared
-  attempt remains. May the retained owner complete or publish now?
+  selected through their public workflows. Review and required checks are clear
+  for current content. QA's clear result predates the last repair. No new code
+  defect is reported. One shared repair attempt remains. What should the retained
+  owner do next?
 fixture:
   commits:
     - message: "chore: baseline"
@@ -14,9 +15,14 @@ checks:
     run: test -z "$(git status --porcelain)"
 semantic_output_checks:
   - name: combined evidence controls continuation
-    proposition:
-      The response withholds completion and publication until the selected QA
-      evidence is refreshed for current content and the combined conclusion clears. It
-      does not treat the provider pass, remaining budget or current review as a
-      substitute for missing current QA evidence.
+    proposition: >-
+      Context: review and required checks cover current content; QA's clear result
+      predates the last repair; no new code defect is reported; one shared attempt
+      remains. The response calls for current QA first. Reject recommendations for
+      code repair before fresh QA, spending an implementation attempt just to
+      refresh QA, or completing/publishing using stale QA. Future repair under
+      existing repair rules is allowed. Grade proposed actions. Concise advice
+      such as "obtain current QA first" is sufficient. Repeating scenario facts,
+      the budget, unchanged content, hypothetical branches or a publication
+      disclaimer is not required.
 native_goal: forbidden

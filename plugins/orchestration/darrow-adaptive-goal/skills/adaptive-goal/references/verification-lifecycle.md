@@ -27,10 +27,12 @@ is optional.
 
 Keep provider outcomes separate. Combined precedence: gaps, no-progress, progress.
 
-- **`clear`.** All criteria have current evidence, checks pass, no eligible blocker/direct regression.
+- **`clear`.** Every selected assessment is current and clear; all criteria have
+  current evidence, checks pass, no eligible blocker/direct regression.
 - **`progress`.** Initial actionable evidenced defects; follow-up material improvement/new eligible direct repair-caused regression.
 - **`no-progress`.** Unchanged/repeated/oscillating follow-up failure.
-- **`blocked`.** Required input/provider/check/result/coverage/conclusive evidence missing/unavailable.
+- **`blocked`.** Any selected assessment is missing/stale/unavailable/inconclusive,
+  or required input/check/result/coverage evidence is missing/unavailable.
 
 Advisories stay visible/nonblocking. Pass/zero exit alone proves no acceptance.
 Require `clear` before final commits/publication/completion. Bound intermediate
@@ -57,14 +59,18 @@ alone cannot replace facts.
 
 ## Repair budget
 
-Default: **2 repair attempts total**, shared across findings/providers. Only explicit
+Default: **2 implementation repair attempts total**, shared across findings/providers. Only explicit
 finite user/repository overrides change it. Provider allowances never extend it. Progress, "keep trying", singular repair
 requests/finding count cannot raise it. Honor stricter invocation/time/token/authority
 limits. Unknown counts stop repairs. First matching row; decision before advice:
 
-1. **Clear/all criteria supported.** Stop repairing.
-2. **Maximum/other limit exhausted.** Stop.
-3. **Missing/unavailable/inconclusive evidence.** Stop speculative repair; authorized investigation/environment decision.
+1. **`blocked`.** Stop speculative repair.
+   Refresh stale assessments on unchanged content before deciding further repair.
+   This uses no implementation repair attempt. Other gaps need authorized
+   investigation/environment decision.
+2. **`clear`.** Stop repairing.
+3. **Maximum/other limit exhausted.** Stop repairs despite progress or provider
+   allowance; report unresolved blockers.
 4. **No progress.** Stop repairs; report blocker; only authorized investigation.
 5. **Authorized blocker, evidenced action, attempts remain.** One combined repair/refreshed checks/closed follow-up; after prior repair require provider-observed resolution/narrowed cause.
 
