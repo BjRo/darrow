@@ -96,8 +96,9 @@ adding competing headings.
 - **Summary.** Start the change summary with a small fenced `diff` sketch
   when it can show a meaningful change in behavior or structure. Sketch
   only the relevant calls, branches, or ownership changes. Follow with a
-  short explanation of the problem and resulting behavior. Use one sentence
-  for a straightforward correction.
+  short explanation of the problem and resulting behavior. For a
+  straightforward correction such as a typo, use a sentence in place of
+  the sketch.
 - **Evidence:** Present available before/after observations with their source
   and scope: supplied screenshots, output, or actual failing/passing runs. Label
   inferred behavior as inference. If only one side is observed, say which is
@@ -138,7 +139,9 @@ no Explanation skill or second PR publisher is required.
 
 Pass each heading with its content as a separate `-b` section. For the default
 body, each section starts with its `##` heading, followed by a blank line and
-the content. Include a ticket
+the content. Use a quoted shell heredoc or equivalent literal argument for
+each section so Markdown backticks and dollar signs reach the PR intact.
+Include a ticket
 identifier verbatim when the branch name or conversation supplies one, for
 example `Refs DAR-123`. Omit filler and boilerplate checklists. Never add tool
 attribution to the title or body. Presentation sources and applicable notices
