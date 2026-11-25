@@ -95,7 +95,7 @@ adding competing headings.
 
 - **Summary.** Start the change summary with a small fenced `diff` sketch
   when it can show a meaningful change in behavior or structure. Sketch
-  only the relevant calls, branches, or ownership changes. Follow with a
+  the relevant calls, branch conditions, or ownership changes. Follow with a
   sentence explaining why the change is needed and what it does. For a
   straightforward correction such as a typo, use a sentence in place of
   the sketch.
@@ -147,9 +147,9 @@ Pass each heading with its content as a separate `-b` section. For the default
 body, each section starts with its `##` heading, followed by a blank line and
 the content. Use a quoted shell heredoc or equivalent literal argument for
 each section so Markdown backticks and dollar signs reach the PR intact.
-Include a ticket
-identifier verbatim when the branch name or conversation supplies one, for
-example `Refs DAR-123`. Omit filler and boilerplate checklists. Never add tool
+If the branch name or conversation supplies a ticket identifier, add it
+verbatim to the body as `Refs <identifier>` or in the template's ticket
+section. Omit filler and boilerplate checklists. Never add tool
 attribution to the title or body. Presentation sources and applicable notices
 are recorded in [CREDITS.md](CREDITS.md).
 
