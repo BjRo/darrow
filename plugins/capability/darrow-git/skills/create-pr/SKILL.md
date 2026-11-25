@@ -7,19 +7,17 @@ description: Publish the current feature branch through one pull request. Use wh
 
 Propose the current branch's committed delta through one pull request.
 
-Run every Git and GitHub operation through the frozen UV entrypoint below;
-`<skill-dir>` contains this file. It supports Linux, macOS, and Windows and owns repository
-inspection, duplicate detection, validation, non-force pushing, and PR
-creation; execute it without reading or reimplementing it. Treat its refusals
-as authoritative.
+Run every Git and GitHub operation through the frozen UV entrypoint. It
+supports Linux, macOS, and Windows. It owns repository inspection, duplicate
+detection, validation, non-force pushing, and PR creation. Execute it without
+reading or reimplementing it. Treat its refusals as authoritative.
 
-Set `<skill-dir>` to the directory containing the `SKILL.md` you successfully
-read, including its final `create-pr` segment. Keep that actual path when
-resolving `../../backend`; do not add a guessed plugin namespace or substitute
-the parent `skills` directory. If a launcher path fails, correct that path
-before declaring the runtime unavailable.
-
-The package lives at `<skill-dir>/../../backend` inside this plugin.
+Start from the directory of the `SKILL.md` you successfully read, including
+its final `create-pr` segment. Resolve `../../backend` from that directory
+once and use its normalized absolute path as `<backend>` below. Pass the
+launcher path literally with all `..` segments removed so Claude's read
+isolation can allow it. If the launcher path fails, correct it before
+declaring the runtime unavailable.
 
 ## Working model
 
@@ -39,7 +37,7 @@ The package lives at `<skill-dir>/../../backend` inside this plugin.
 Run:
 
 ```sh
-uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-create-pr inspect [--base <branch>] [--template <filename>]
+uv run --quiet --no-project "<backend>/scripts/run_locked.py" darrow-create-pr inspect [--base <branch>] [--template <filename>]
 ```
 
 When the user names a base, pass that exact `--base` to inspection, every
@@ -128,7 +126,7 @@ commit` and `intended commit`, in that order. Start with relevant paths from
 the diffstat when the change is broad.
 
 ```sh
-uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-create-pr diff <comparison-commit> <intended-commit> [<repo-relative-path>...]
+uv run --quiet --no-project "<backend>/scripts/run_locked.py" darrow-create-pr diff <comparison-commit> <intended-commit> [<repo-relative-path>...]
 ```
 
 The command shows the committed patch since the merge base. Quote paths
@@ -163,7 +161,7 @@ and preserves any known ticket identifier.
 Run exactly one creation command:
 
 ```sh
-uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-create-pr create --title <title> -b <section>... [--template <filename>] [--base <branch>] [--draft]
+uv run --quiet --no-project "<backend>/scripts/run_locked.py" darrow-create-pr create --title <title> -b <section>... [--template <filename>] [--base <branch>] [--draft]
 ```
 
 Pass `--base` only when the user named that base. Pass `--draft` only when the
@@ -214,7 +212,7 @@ inspection; when the enclosing owner supplies an ID for its verified content,
 require that same ID. Do not silently replace it with a later local head.
 
 ```sh
-uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-create-pr publish-existing --expected-head <full-commit-id> [--base <branch>] [--draft]
+uv run --quiet --no-project "<backend>/scripts/run_locked.py" darrow-create-pr publish-existing --expected-head <full-commit-id> [--base <branch>] [--draft]
 ```
 
 The script checks one open same-repository PR and its exact branch, base and
@@ -230,7 +228,7 @@ When the caller requires verified published content after creation, or needs
 to observe an ambiguous prior publication, run the read-only operation:
 
 ```sh
-uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-create-pr verify --expected-head <full-commit-id> [--base <branch>] [--draft]
+uv run --quiet --no-project "<backend>/scripts/run_locked.py" darrow-create-pr verify --expected-head <full-commit-id> [--base <branch>] [--draft]
 ```
 
 Use the same concise success report as §4, retaining the complete publication
