@@ -107,10 +107,12 @@ adding competing headings.
   limits such as stub-only checks, absent suite results, or untested live services.
 - **Merge Danger.** Put each bold label on its own line under the relevant
   heading.
-  - **Rollback** starts with **Two-way door** if a revert or routine rollback
+  - **Rollback** starts with **Two-way door** if reverting or routine rollback
     restores the previous state, or **One-way door** if effects are irreversible
-    or costly to undo. Explain what rollback restores and what effects can
-    persist. Say when reversibility is unknown.
+    or costly to undo. Check for persisted writes, deletions, migrations, and
+    external effects before classifying. A revert can stop future deletions
+    while leaving already deleted records lost. That is a one-way door when
+    there is no routine restore. Say when reversibility is unknown.
   - **Blast radius** names who or what is affected, the condition that puts
     them in scope, and what changes for them. For example, a cleanup may
     affect users who still have records in the old format. Qualify unknown
