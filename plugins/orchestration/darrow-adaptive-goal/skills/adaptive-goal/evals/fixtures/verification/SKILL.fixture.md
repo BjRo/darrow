@@ -16,10 +16,15 @@ missing, unavailable or stale evidence remains blocked. For follow-up require
 original/prior results, finding identities, dispositions, targets, attempted
 repairs and direct-regression lineage. Do not reconstruct or reset history.
 
+From this file's absolute location,
+derive the normalized absolute path to the host directory (`.agents` or `.claude`)
+that contains its `skills/` directory. Substitute that path literally for
+`<absolute-host-dir>` in the helper command.
+
 Use `initial` for the first observation or `follow-up` after owner repair:
 
 ```sh
-uv run --quiet --no-project "$skill_dir/../../backend/scripts/run_locked.py" adaptive-goal-fixture verification "$repo" "$mode" "$review_report"
+uv run --quiet --no-project "<absolute-host-dir>/backend/scripts/run_locked.py" adaptive-goal-fixture verification "$repo" "$mode" "$review_report"
 ```
 
 Wait for its complete response and return it unchanged as fixture evidence. The
