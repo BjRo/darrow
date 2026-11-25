@@ -135,6 +135,7 @@ semantic_artifact:
     - name: the sketch and merge danger match the migration
       proposition: >-
         The opening diff sketch shows the migration changing from reading the
-        legacy preferences key to deleting it. The merge danger notes identify
-        users with stored legacy preferences and explain that reverting code
-        cannot restore preferences that have already been deleted.
+        legacy preferences key to deleting it. The merge danger notes scope
+        data loss to existing legacy entries in storage passed through
+        migration, or to users with those entries. They explain that reverting
+        code cannot restore preferences that have already been deleted.
