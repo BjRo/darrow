@@ -90,6 +90,12 @@ checks:
   - name: default presentation sections
     run: cat .fixture-state/gh/body
     expect_regex: "^## Summary$[\\s\\S]*^## Evidence$[\\s\\S]*^## Merge Danger$"
+  - name: diff sketch opens the summary
+    run: cat .fixture-state/gh/body
+    expect_regex: '^## Summary\n\s*```diff\b'
+  - name: merge danger labels
+    run: cat .fixture-state/gh/body
+    expect_regex: '^## Merge Danger\n[\s\S]*\*\*Rollback[\s\S]*\*\*Blast radius'
 semantic_artifact:
   path: .fixture-state/gh/body
   checks:
@@ -100,6 +106,11 @@ semantic_artifact:
         describes the change at a high level, such as adding retries or
         exponential backoff. The relevant meaning may be shared across the
         whole body without separate paragraphs or repeated terms.
+    - name: sketch follows the committed retry flow
+      proposition: >-
+        The opening diff sketch contrasts the original single fetch with
+        bounded retries and exponential backoff after a fetch rejection.
+        It does not show retries on HTTP status codes.
     - name: available before and after evidence with limits
       proposition: >-
         The PR body presents the supplied local stub observation: the base
@@ -114,5 +125,4 @@ semantic_artifact:
         requests, such as added latency or additional requests, and relates
         the affected scope to callers of the HTTP get helper. It addresses
         reversibility without claiming that all consumer effects or production
-        rollback safety have been verified. A short qualified assessment is
-        sufficient; no fixed risk label or score is required.
+        rollback safety have been verified.
