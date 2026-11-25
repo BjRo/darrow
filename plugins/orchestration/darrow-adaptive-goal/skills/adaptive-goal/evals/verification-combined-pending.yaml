@@ -30,5 +30,5 @@ semantic_output_checks:
       ownership transfer.
 transcript_checks:
   - name: advice launches no agent
-    kind: no-agent-spawn
+    kind: preflight-no-agent-spawn
 native_goal: forbidden

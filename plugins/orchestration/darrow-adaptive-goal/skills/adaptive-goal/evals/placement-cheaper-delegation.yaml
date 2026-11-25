@@ -3,7 +3,7 @@ harnesses: [codex]
 candidate_routes:
   codex: { model: gpt-6-astra, effort: high }
 prompt: >-
-  {{skill_invocation}} Build an expense report module in src/expenses.js with focused
+  {{skill_invocation}} Category labels are food, travel, rent or misc, with optional surrounding spaces and ASCII capitalization. Build an expense report module in src/expenses.js with focused
   tests in test/expenses.test.js covering every rule below. (1) parseExpenses(text)
   takes CSV text whose header is date,category,amount,note and returns one
   { date, category, cents, note } object per non-empty data row. (2) amount has at most

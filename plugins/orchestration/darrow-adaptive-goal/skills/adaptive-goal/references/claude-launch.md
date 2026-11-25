@@ -1,43 +1,30 @@
-# Claude native goal and bounded assignments
+# Claude controls
 
-Use the same main-thread ownership design as Codex. Claude's native controls
-activate and continue the goal; bounded Agent calls never own that goal.
+## Native goal
 
-## Activate the native goal
+Apply section 6's startup gate before proposing or preparing activation.
 
-Retain a matching active session goal when present. Otherwise use an available
-native `ProposeGoal` tool with a condition of at most 4,000 Unicode characters.
-State the outcome, material acceptance, authority and completion criteria. Keep
-coordination instructions in the skill. Use `ask_user: false` only when the
-user's stated outcome authorizes the tool's direct-setting mode; honor host
-confirmation requirements.
+1. **Activate.** Continue a matching session goal; otherwise,
+   call `ProposeGoal` with section 6's objective. Use `ask_user: false` only with
+   direct-setting authority; honor host confirmation. Proposal queues activation
+   at turn end. Yield; await native kickoff before implementation/assessment.
+2. **Headless.** Without matching goal/usable control, return
+   `Status: launch_required`, concrete boundary and `/goal <prepared-objective>`.
+   Never invoke built-ins through Skill, start nested Claude or create custom stop hooks.
+3. **Client.** If advertised, return the settled objective through the headless
+   activation interface; yield. The client enters that
+   exact native `/goal` here. Await kickoff. The client chooses no readiness,
+   objective or workflow. Otherwise use `launch_required`.
 
-A proposal queues native activation at the end of the current turn. It is not
-yet an active goal. Finish read-only preparation and yield for the native kickoff
-before implementation or assessment. Do not claim activation from the proposal
-alone or overwrite an unrelated active goal.
+## Agent calls
 
-Availability is host-dependent. In headless sessions, model-side `ProposeGoal`
-may be unavailable; a client can enter with the native `/goal <condition>`
-command. When no matching goal or usable activation control exists, return
-`Status: launch_required`, identify the missing boundary and provide the compact
-native command for this session. Do not pretend to invoke a built-in command
-through Skill, start a nested Claude process or create a custom stop hook.
+Start every Agent call from this thread with `run_in_background: false`. This
+includes readers that a bound workflow starts here without naming a placement.
+Background agents cannot ask for permission, so a denied command hides its reason.
 
-An explicitly advertised headless client may supply a native activation
-interface. After all read-only preflight and readiness requirements are settled,
-return the prepared objective through that interface and yield. The client may
-enter native `/goal` in this same session with that exact objective. This is a
-request for activation, not observed activation; wait for the native kickoff
-before engineering or assessment. The client does not choose the objective,
-readiness or engineering workflow. Without such an interface, retain the normal
-`launch_required` response and compact native command above.
+## Delegation
 
-## Resolve bounded agent routes
-
-Direct placement implements in this thread and launches no implementation
-agent. For each bounded assignment launched by the main thread, resolve its explicit
-route with the bundled helper:
+For delegated placement only, resolve the selected route:
 
 ```sh
 uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" claude-agent-route \
@@ -45,56 +32,22 @@ uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" cl
   --effort <low|medium|high>
 ```
 
-On native Windows use one PowerShell line without continuation backslashes.
-The helper verifies the scoped agent's model and effort and refuses conflicting
-higher-priority environment overrides. A refusal stops the affected assignment;
-do not launch anyway or silently select another route.
+On Windows, use one PowerShell line. The helper verifies scoped model/effort and
+rejects conflicting higher-priority environment overrides. Refusal stops assignment.
 
-Delegated implementation and repair use the preflight-selected route. For
-concurrent implementation, issue one Agent call per independent part in the
-same message, each with its owned files and the shared interface, and settle
-all of them before integration or further assignment. Use only Adaptive Goal's
-own scoped agents; a sibling plugin's agent may not be installed.
-
-Invoke the returned exact `subagent_type` with `run_in_background: false`,
-no per-call model override. When the explicitly authorized isolated ticket
-worker strategy is selected, set `isolation: "worktree"` on this initial call;
-Claude owns allocation. Follow [isolated ticket workers](isolated-ticket-workers.md)
-for base checks, returned paths and retained repairs. Other assignments do not
-request worktree isolation. Its prompt
-contains the bounded assignment, repository/scope, acceptance, authority,
-preserved work, checks, exact skill references and expected evidence. State that
-the child owns its assignment, not the native goal. The scoped frontmatter pins
-the route; no overall owner marker or nested goal is needed.
-
-Retain the host-returned agent id and result. Settle conflicting work before
-another assignment. Review and other selected assessments keep their own internal delegation
-and response contracts. The main thread consumes those results and owns repair
-accounting and overall completion.
-
-Send every repair and later implementation request to the retained implementor
-with `SendMessage`, addressed to the agent id the Agent call returned. If
-`SendMessage` is not loaded, load it with `ToolSearch` (`select:SendMessage`)
-first; an unloaded tool does not make the implementor unavailable. A failed
-`SendMessage` to that agent is a concrete reason for a replacement under skill
-section 7, which also governs what the repair carries.
-
-## Feedback and completion
-
-Ask material questions in the main thread and stop affected mutation. Use native
-goal question/continuation behavior and supported user controls. Preserve the
-same goal, acceptance, decisions and repair history when the answer arrives;
-do not clear and recreate it. Send affected children complete relevant feedback
-through the available host control, targeting the retained id. Required
-acknowledgements must succeed before mutation.
-
-Status questions do not cancel work. For cancellation, use available stop
-controls and report observed results and effects already performed. If a
-foreground Agent prevents immediate delivery or stopping, report that limitation;
-do not claim that an in-flight effect was prevented.
-
-The main thread can inspect state, run checks and run capability workflows
-inline, but never writes independent reader judgments. Apply section 9 of the skill before
-claiming completion, give the user substantive results here, and allow native
-goal evaluation to consume that evidence. A child return alone cannot complete
-delivery. Do not claim a native lifecycle transition the host has not confirmed.
+- **Assign.** Use returned `subagent_type` and section 7's complete assignment.
+  No per-call model override. For authorized
+  [isolated workers](isolated-ticket-workers.md), set `isolation: "worktree"`
+  on initial allocation; verify the returned checkout, branch and base. Other
+  assignments use no isolation.
+  Use this plugin's scoped agents. Parallel parts: one Agent call each in the same
+  message; settle all before integration/another assignment.
+- **Reuse.** Retain agent id/result. Send later work/repairs via `SendMessage` to
+  that id without allocating another worktree. If unloaded, use `ToolSearch` with `select:SendMessage`. Only an actual
+  failed send establishes unavailability for replacement.
+- **Steer.** Use native question/continuation/user controls; retain goal/history.
+  Deliver complete feedback; require supplied acknowledgement before mutation.
+  Cancellation uses available stop controls and reports observed effects. Foreground
+  Agent can delay delivery/stopping; never claim prevention of in-flight effects.
+- **Complete.** Apply section 9; report substantive evidence here for native
+  evaluation. Child returns prove no delivery. Claim only host-confirmed transitions.

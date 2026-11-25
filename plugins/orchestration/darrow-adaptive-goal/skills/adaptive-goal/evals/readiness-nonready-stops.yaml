@@ -1,4 +1,6 @@
 id: goal-readiness-nonready-stops
+activation: positive
+activation_includes: [assess-implementation-readiness]
 additional_plugins:
   - plugins/capability/darrow-readiness-gate
 prompt: >-
@@ -35,11 +37,6 @@ semantic_output_checks:
   - name: non-ready result does not claim implementation
     proposition: The response does not claim that implementation occurred or completed.
 transcript_checks:
-  - name: readiness instructions are loaded
-    kind: supporting-skill-read
-    skill: assess-implementation-readiness
   - name: no work owner launches before ready
-    kind: inactive-controls
-    forbidSpawn: true
-    forbidAgentTool: true
+    kind: preflight-no-agent-spawn
 native_goal: forbidden

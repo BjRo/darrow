@@ -18,15 +18,14 @@ semantic_output_checks:
       that the pull request already exists.
   - name: uses the observed publication
     proposition:
-      The response uses the observed existing pull request for validation and
-      reuse rather than treating another PR-creation request as necessary. Verifying
-      repository, branch, draft state, or commit evidence before declaring publication
-      complete is allowed.
+      Given that the matching pull request has already been observed, the response
+      continues with or reuses it. Extra validation is allowed but need not be
+      mentioned. It must not require creating another pull request.
 transcript_checks:
   - name: advice-only invocation launches no owner or helper
-    kind: inactive-controls
-    forbidSpawn: true
-    forbidAgentTool: true
+    kind: preflight-no-agent-spawn
+  - name: advice-only invocation runs no preflight helper
+    kind: command-absence
     forbiddenCommandTerms:
       - adaptive-goal-preflight
 native_goal: forbidden

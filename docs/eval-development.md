@@ -59,9 +59,16 @@ checks. Its native-goal and transcript assertions are separate workflow
 domain outcomes. Missing diagnostics stay unavailable without rewriting a proven
 task outcome. Adaptive Goal also treats auxiliary transcripts as diagnostics;
 native-goal requirements, explicitly tested implementation routes and no mutation
-before required user feedback remain task gates. Other plugins retain their
+before required user feedback remain task gates. Declared command-absence and
+owner/goal-control checks also gate Adaptive Goal tasks. Other plugins retain their
 declared task gates. Positive route checks consume accepted-child facts from the
 owning host. Absence checks still require complete control observations.
+
+The unauthorized-parent authority probe supplies the helper's native entrypoint and
+requires both helper and Adaptive Goal activation. Its negative activation class
+keeps Adaptive Goal out of the primary role while permitting the supporting call.
+Report discovery/activation separately from the exact refusal and effect checks.
+An exact refusal without both activations does not establish authority coverage.
 
 Matched comparisons hold prompts, fixtures, checks, harness versions, models,
 effort, trial counts and thresholds constant. A skill-only ablation changes only
@@ -248,6 +255,14 @@ quality from equal task pass rates. Record limits, unknowns and per-task regress
 - Keep fixture skills inert in source with a non-discoverable template filename.
   Materialize the native SKILL.md entrypoint only inside the isolated eval
   repository during setup.
+- In Claude fixture instructions, tell the agent to derive the helper's
+  normalized absolute path from the installed fixture location before calling
+  Bash. Pass that path literally in the command. Claude's read isolation can
+  deny paths containing `..`.
+- When a Review fixture launches both Claude readers, emit both Agent calls
+  in one assistant message before either result. Set `run_in_background: false`
+  on both calls, as required by the
+  [Claude Review launch contract](../plugins/capability/darrow-review/skills/code-review/references/claude-readers.md).
 - Quote YAML prompts containing `#` and make fixture binaries succeed on valid
   empty state.
 

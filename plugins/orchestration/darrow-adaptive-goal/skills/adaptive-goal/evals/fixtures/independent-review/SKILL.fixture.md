@@ -15,21 +15,28 @@ target and repair history and direct-regression lineage; only the closed set is
 assessed. Return clear, material progress, unchanged failure or unavailable
 judgment as observed, preserving its meaning and complete check evidence.
 
-Resolve this file's directory and the repository root. Use `comprehensive` for
-the first assessment and `verify` for closed follow-up after owner repairs.
+Resolve the repository root as `repo`. From this file's absolute location,
+derive the normalized absolute path to the host directory (`.agents` or `.claude`)
+that contains its `skills/` directory. Substitute that path literally for
+`<absolute-host-dir>` in the helper commands.
+
+Use `comprehensive` for the first assessment and `verify` for closed
+follow-up after owner repairs.
 Never restart comprehensive review or verify before the original assessment.
 
 Launch separate fresh Standards and Acceptance readers with their axis, this
-absolute skill directory, repository, candidate, acceptance, constraints, checks
+literal helper path, repository, candidate, acceptance, constraints, checks
 and closed history when applicable. On Codex use native `spawn_agent` with
 `fork_turns: "none"`, `model: "gpt-6.1-sol"` and `reasoning_effort: "xhigh"`
-for both. On Claude use fresh native Agent contexts pinned to Opus/high. Keep
-the caller's provider-coordinator route unchanged. Start both before waiting.
+for both. Start both Codex readers before waiting. On Claude, emit both native
+Agent calls in one assistant message before either result. Use
+`run_in_background: false` and keep both readers pinned to Opus/high. Keep the
+caller's provider-coordinator route unchanged.
 Each reader runs this bounded read-only command once and returns its complete
 output; readers do not coordinate another review, launch agents or save reports:
 
 ```sh
-uv run --quiet --no-project "$skill_dir/../../backend/scripts/run_locked.py" adaptive-goal-fixture review-preview "$repo" "$mode" independent-review-skill-contract-v1
+uv run --quiet --no-project "<absolute-host-dir>/backend/scripts/run_locked.py" adaptive-goal-fixture review-preview "$repo" "$mode" independent-review-skill-contract-v1
 ```
 
 Require both complete reader results to name the same current target and
@@ -38,7 +45,7 @@ never fill in a missing reader result yourself. After both return, record one
 canonical assessment as coordinator, passing their literal shared target:
 
 ```sh
-uv run --quiet --no-project "$skill_dir/../../backend/scripts/run_locked.py" adaptive-goal-fixture review "$repo" "$mode" independent-review-skill-contract-v1 "$reader_target"
+uv run --quiet --no-project "<absolute-host-dir>/backend/scripts/run_locked.py" adaptive-goal-fixture review "$repo" "$mode" independent-review-skill-contract-v1 "$reader_target"
 ```
 
 The helper refuses a changed candidate and preserves the closed history.

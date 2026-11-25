@@ -5,7 +5,7 @@ Darrow translates its cases and grades repository policy through
 built-in graders and retained results. This is repository development tooling;
 marketplace plugins have no Sevro, Bun or TypeScript runtime dependency.
 
-Normal callers use the exact `@bjoernrochel/sevro@1.2.1` pin in [package.json](../../package.json).
+Normal callers use the exact `@bjoernrochel/sevro@1.2.2` pin in [package.json](../../package.json).
 Install it with `bun install --frozen-lockfile`. The installed command is `sevro`.
 It requires Node.js 24.13.0 or newer on `PATH`; Darrow tooling uses Bun 1.3.13.
 See [development and release](migration.md), [test ownership](../README.md),
@@ -93,6 +93,12 @@ Use `assessment-readers` with placement, axes and routes for independent readers
 complete activation evidence. Command absence inspects actual command executions.
 Missing, partial or contradictory required evidence remains unavailable.
 
+Use `command-absence` with `forbiddenCommandTerms` for a command-only prohibition
+on either host. It checks Codex command executions or Claude Bash calls from a
+completed native event stream. It ignores returned text and normalizes command
+whitespace before matching literal terms. These bounded matches cannot detect
+every alias or indirect effect. Pair them with repository-state checks.
+
 Native-goal checks consume bound goal state. Transcript checks retain their declared
 task or diagnostic role. Historical transcript regexes and specification labels
 are not accepted case fields.
@@ -139,6 +145,11 @@ with native-goal hooks. The guide caller therefore selects
 tools and native transcripts without hooks. An explicit `--runtime-config-file` replaces either default.
 With a runtime file selected, direct and benchmark callers no longer add
 `--claude-project-settings` automatically.
+
+Plugin-mode Claude trials mount inline fixture skills inside the owning plugin,
+using its namespace. This keeps helper skills callable when isolated settings
+disable repository skills. Codex and repository-mode mounts keep their native
+repository paths.
 
 Native transcripts are enabled so Adaptive Goal's placement helper can read
 the current session's model and effort, as it does outside Sevro. Hook-free
@@ -219,7 +230,7 @@ its identity between cells.
 Darrow translates `follow_up_prompt`; Sevro owns continuation on the original
 Claude session. The extension grades declared feedback boundaries from complete,
 bound observations. Missing or contradictory evidence remains unavailable.
-See Sevro's [extension protocol](https://github.com/BjRo/sevro/blob/v1.2.1/docs/extension-protocol-v1.md)
+See Sevro's [extension protocol](https://github.com/BjRo/sevro/blob/v1.2.2/docs/extension-protocol-v1.md)
 for the host capability contract.
 
 Repository-skill trials require the `.claude/skills/<name>` mirror and
@@ -334,7 +345,7 @@ prompt, fixture, host, routes, checks and instrumentation.
 Callers validate results against public schemas shipped by the pinned Sevro
 package. They bind the selected case, process exit and evidence path before
 applying Darrow policy. Public protocol, result and identity mechanics are
-documented in [Sevro](https://github.com/BjRo/sevro/tree/v1.2.1/docs).
+documented in [Sevro](https://github.com/BjRo/sevro/tree/v1.2.2/docs).
 
 ## Result reporting
 

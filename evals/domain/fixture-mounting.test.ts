@@ -29,6 +29,49 @@ const supportingFixture = {
 };
 
 test.each(["codex", "claude"] as const)(
+  "inline capability fixtures expose all supporting skills on %s",
+  async (host) => {
+    for (const [id, names] of [
+      [
+        "goal-failed-check-blocks-publication",
+        ["independent-code-review", "create-pr"],
+      ],
+      [
+        "goal-intent-capability-bindings",
+        ["read-ticket", "independent-code-review", "create-pr"],
+      ],
+      ["goal-native-git-commit-composition", ["independent-code-review"]],
+      [
+        "goal-verification-incomplete-blocks-publication",
+        ["inspect-delivery", "create-pr"],
+      ],
+    ] as const) {
+      const { cases } = await fixtureExtensionRequest<{ cases: unknown[] }>(
+        "resolve",
+        {
+          projectRoot: pathToFileURL(join(import.meta.dir, "../..")).href,
+          selectors: { caseIds: [id] },
+        },
+      );
+      const prepared = await preparePolicy(
+        cases[0] as Parameters<typeof preparePolicy>[0],
+        host,
+      );
+      const artifacts = prepared.artifacts as Artifact[];
+      for (const name of names)
+        expect(artifacts).toContainEqual(
+          expect.objectContaining({
+            relativePath:
+              host === "codex"
+                ? `.agents/skills/${name}/SKILL.md`
+                : `.sevro-marketplace/plugin/skills/${name}/SKILL.md`,
+          }),
+        );
+    }
+  },
+);
+
+test.each(["codex", "claude"] as const)(
   "Darrow declares inline supporting skills as byte-bound %s mounts",
   async (host) => {
     const project = await policyProject(
@@ -43,7 +86,10 @@ test.each(["codex", "claude"] as const)(
     const selected = await project.resolve();
     const prepared = await preparePolicy(selected, host);
     const artifacts = prepared.artifacts as Artifact[];
-    const path = `.${host === "codex" ? "agents" : "claude"}/skills/supporting/SKILL.md`;
+    const path =
+      host === "codex"
+        ? ".agents/skills/supporting/SKILL.md"
+        : ".sevro-marketplace/plugin/skills/supporting/SKILL.md";
     const supporting = artifacts.find(
       (artifact) => artifact.relativePath === path,
     );
