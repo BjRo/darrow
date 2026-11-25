@@ -7,6 +7,7 @@ import {
   policyProject,
   preparePolicy,
   type ActivationOutcome,
+  type PolicyCase,
 } from "./policy-project";
 
 const selectedTrials = (outcomes: ActivationOutcome[]) => ({
@@ -112,6 +113,77 @@ const supportingDefinition = {
   additional_plugins: ["plugins/capability/provider"],
   activation_includes: ["verify-change", "code-review"],
 };
+
+test.each([
+  ["ticket-to-pr-explicit-options-delegation", "implement"],
+  ["ticket-to-pr-shortcut-delegation", "implement"],
+  ["ticket-to-pr-compatible-orchestrator", "bounded-delivery"],
+])(
+  "ticket handoff %s accepts batched exposure and requires its provider",
+  async (caseId, provider) => {
+    const { cases } = await fixtureExtensionRequest<{ cases: PolicyCase[] }>(
+      "resolve",
+      {
+        projectRoot: new URL("../../", import.meta.url).href,
+        selectors: { caseIds: [caseId] },
+        configuration: {},
+      },
+    );
+    const selected = cases[0];
+    if (cases.length !== 1 || selected?.id !== caseId)
+      throw new Error("exact ticket handoff case was not resolved");
+    const dispatch = {
+      ...explicitOwner,
+      data: { method: "explicit_invocation", primarySkill: "ticket-to-pr" },
+    };
+    const skills = [provider, "darrow-ticket-to-pr:ticket-to-pr"];
+    const collection = {
+      ...commonActivation(skills),
+      data: {
+        ...commonActivation(skills).data,
+        primarySkill: null,
+        primarySkillCompleteness: "partial",
+      },
+    };
+    const claim = {
+      id: "sevro.host.skill-exposure-claims",
+      source: "sevro.host.codex",
+      completeness: "complete",
+      data: {
+        method: "tool_result_body_match",
+        scope: "positive_exposure",
+        collectionStatus: "complete",
+        skillExposures: skills.map((skill) => ({ skill, status: "full" })),
+      },
+    };
+    expect(
+      await evaluateActivation(selected, [dispatch, collection, claim]),
+    ).toMatchObject({
+      status: "passed",
+      data: {
+        primarySkill: "ticket-to-pr",
+        positiveExposureSkills: skills.map((skill) => skill.split(":").at(-1)),
+        supportingSkillOrder: "unverified",
+      },
+    });
+    for (const incomplete of [[dispatch], [collection, claim]])
+      expect((await evaluateActivation(selected, incomplete)).status).toBe(
+        "unavailable",
+      );
+    expect(
+      (
+        await evaluateActivation(selected, [
+          {
+            ...dispatch,
+            data: { ...dispatch.data, primarySkill: "unrelated" },
+          },
+          collection,
+          claim,
+        ])
+      ).status,
+    ).toBe("failed");
+  },
+);
 
 test("explicit Claude plugin invocations use native Skill receipts and preserve order", async () => {
   const project = await policyProject({

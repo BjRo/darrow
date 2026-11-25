@@ -38,6 +38,12 @@ checks:
     run: >-
       test "$(git branch --show-current)" = main &&
       test "$(git rev-list --count HEAD)" -eq 1 && git diff --exit-code
+semantic_output_checks:
+  - name: owner blocker is relayed without recipe-owned provider preflight
+    proposition: >-
+      The response relays compatible-command-observed as a blocker before
+      preflight or goal activation. It does not request confirmation merely
+      because a downstream principles provider is unavailable.
 semantic_artifact:
   path: .fixture-state/command-request.md
   checks:
@@ -49,6 +55,11 @@ semantic_artifact:
         merge, deployment, release, ticket mutation, destructive Git operations,
         unrelated changes and generic comments. A worktree is optional unless
         requested.
+    - name: required implementation providers remain required
+      proposition: >-
+        The request preserves the shared implementation recipe and its required
+        providers. It does not waive a required principles provider or permit
+        fallback around a provider refusal.
 output_checks:
   - name: command blocker is relayed
     expect_regex: compatible-command-observed
