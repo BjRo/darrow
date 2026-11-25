@@ -96,7 +96,7 @@ adding competing headings.
 - **Summary.** Start the change summary with a small fenced `diff` sketch
   when it can show a meaningful change in behavior or structure. Sketch
   only the relevant calls, branches, or ownership changes. Follow with a
-  short explanation of the problem and resulting behavior. For a
+  sentence explaining why the change is needed and what it does. For a
   straightforward correction such as a typo, use a sentence in place of
   the sketch.
 - **Evidence:** Present available before/after observations with their source
@@ -105,18 +105,22 @@ adding competing headings.
   missing; if neither is observed, state that rather than inventing a comparison.
   A test added in a commit is coverage, not evidence of a passing run. Preserve
   limits such as stub-only checks, absent suite results, or untested live services.
-- **Merge Danger.** Put each bold label on its own line under the relevant
-  heading.
-  - **Rollback** starts with **Two-way door** if reverting or routine rollback
-    restores the previous state, or **One-way door** if effects are irreversible
-    or costly to undo. Check for persisted writes, deletions, migrations, and
-    external effects before classifying. A revert can stop future deletions
-    while leaving already deleted records lost. That is a one-way door when
-    there is no routine restore. Say when reversibility is unknown.
-  - **Blast radius** names who or what is affected, the condition that puts
-    them in scope, and what changes for them. For example, a cleanup may
-    affect users who still have records in the old format. Qualify unknown
-    downstream effects.
+- **Merge Danger.** Use both bold labels in the default body and within
+  the selected template. For example, a cleanup that deletes old records
+  could use these two lines.
+
+  > **Rollback:** One-way door. Reverting stops future deletions. Already
+  > deleted records need separate recovery.
+  >
+  > **Blast radius:** Users who still have records in the old format lose
+  > those records when the cleanup runs.
+
+  Use **Two-way door** when a revert or routine rollback undoes the effects
+  of the change. Classify any lasting effects, including writes, deletions,
+  migrations, and external actions. If they are irreversible or costly to
+  undo, use **One-way door**. Say when reversibility is unknown. Identify the
+  condition that puts people, data, or systems in scope and what changes for
+  them. Qualify unknown downstream effects.
 
 When the available context cannot ground a sketch, read the committed diff
 before drafting. Pass both full IDs reported by inspection as `comparison
