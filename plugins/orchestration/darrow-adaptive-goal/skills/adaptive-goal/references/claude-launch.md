@@ -16,6 +16,12 @@ Apply section 6's startup gate before proposing or preparing activation.
    exact native `/goal` here. Await kickoff. The client chooses no readiness,
    objective or workflow. Otherwise use `launch_required`.
 
+## Agent calls
+
+Start every Agent call from this thread with `run_in_background: false`. This
+includes readers that a bound workflow starts here without naming a placement.
+Background agents cannot ask for permission, so a denied command hides its reason.
+
 ## Delegation
 
 For delegated placement only, resolve the selected route:
@@ -29,8 +35,8 @@ uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" cl
 On Windows, use one PowerShell line. The helper verifies scoped model/effort and
 rejects conflicting higher-priority environment overrides. Refusal stops assignment.
 
-- **Assign.** Use returned `subagent_type`, `run_in_background: false` and section 7's
-  complete assignment. No per-call model override. For authorized
+- **Assign.** Use returned `subagent_type` and section 7's complete assignment.
+  No per-call model override. For authorized
   [isolated workers](isolated-ticket-workers.md), set `isolation: "worktree"`
   on initial allocation; verify the returned checkout, branch and base. Other
   assignments use no isolation.
