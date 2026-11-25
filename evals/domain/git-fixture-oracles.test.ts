@@ -230,7 +230,7 @@ test("correlated-branch guard accounts for declared mounts without accepting ign
   ).toEqual(["passed", "failed", "failed", "failed", "failed", "passed"]);
 }, 30_000);
 
-test("PR motivation oracle accepts a leading failure word and rejects placeholder content", async () => {
+test("PR motivation oracle accepts migration context and rejects a placeholder", async () => {
   const source = new URL(
     "../../plugins/capability/darrow-git/skills/create-pr/evals/template-fill.yaml",
     import.meta.url,
@@ -246,15 +246,15 @@ test("PR motivation oracle accepts a leading failure word and rejects placeholde
       commits: [{ message: "Initial", files: { "README.md": "fixture\n" } }],
       files: {
         ".fixture-state/valid-body.md":
-          "  ## Why\n\nFailed HTTP requests need another opportunity to succeed after transient errors. Refs DAR-123; no ticket URL was supplied.\n\n  ## What Changed\n\nAdd bounded retries with exponential backoff.\n",
+          "  ## Why\n\nStored preferences in the retired format should be cleared during migration. Refs DAR-123.\n\n  ## What Changed\n\nRemove the legacy preferences key.\n",
         ".fixture-state/placeholder-body.md":
-          "  ## Why\n\nN/A\n\n  ## What Changed\n\nAdd bounded retries with exponential backoff.\n",
+          "  ## Why\n\nN/A\n\n  ## What Changed\n\nRemove the legacy preferences key.\n",
       },
     },
     checks: [
       {
         ...motivation,
-        name: "retained valid motivation beginning with Failed",
+        name: "migration motivation is accepted",
         run:
           "mkdir -p .fixture-state/gh && cp .fixture-state/valid-body.md .fixture-state/gh/body\n" +
           motivation.run,
