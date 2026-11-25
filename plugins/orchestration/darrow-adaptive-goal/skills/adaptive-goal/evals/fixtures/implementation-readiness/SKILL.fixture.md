@@ -5,10 +5,13 @@ description: Assess whether one authoritative ticket, specification, plan, or re
 
 # Assess implementation readiness
 
-Resolve this file's directory and the repository root, then run exactly:
+Resolve the repository root as `repo`. From this file's absolute location,
+derive the normalized absolute path to the host directory (`.agents` or `.claude`)
+that contains its `skills/` directory. Substitute that path literally for
+`<absolute-host-dir>` in the helper command.
 
 ```sh
-uv run --quiet --no-project "$skill_dir/../../backend/scripts/run_locked.py" adaptive-goal-fixture readiness "$repo"
+uv run --quiet --no-project "<absolute-host-dir>/backend/scripts/run_locked.py" adaptive-goal-fixture readiness "$repo"
 ```
 
 Treat its human-readable response as this capability's complete result. Return
