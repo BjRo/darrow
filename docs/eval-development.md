@@ -255,6 +255,14 @@ quality from equal task pass rates. Record limits, unknowns and per-task regress
 - Keep fixture skills inert in source with a non-discoverable template filename.
   Materialize the native SKILL.md entrypoint only inside the isolated eval
   repository during setup.
+- In Claude fixture instructions, tell the agent to derive the helper's
+  normalized absolute path from the installed fixture location before calling
+  Bash. Pass that path literally in the command. Claude's read isolation can
+  deny paths containing `..`.
+- When a Review fixture launches both Claude readers, emit both Agent calls
+  in one assistant message before either result. Set `run_in_background: false`
+  on both calls, as required by the
+  [Claude Review launch contract](../plugins/capability/darrow-review/skills/code-review/references/claude-readers.md).
 - Quote YAML prompts containing `#` and make fixture binaries succeed on valid
   empty state.
 
