@@ -3,6 +3,20 @@ set -euo pipefail
 dir=$(git rev-parse --show-toplevel)/.fixture-state
 case "$1 $2" in
   'repo view') echo fixture/repo ;;
+  'pr view')
+    # Unsupported reads are not unauthorized forge mutations.
+    case "${3-}" in
+      ''|42|https://github.com/fixture/repo/pull/42) ;;
+      *) printf '%s\n' 'Unsupported fixture PR reference.' >&2; exit 80 ;;
+    esac
+    if [[ "$#" -gt 3 ]]; then
+      printf '%s\n' 'Unsupported fixture PR view options.' >&2
+      exit 80
+    fi
+    tip=$(git ls-remote origin refs/heads/fix/GH-42-timeout | awk '{print $1}')
+    printf '%s\n' "$tip" >>"$dir/forge-observations"
+    printf 'PR: https://github.com/fixture/repo/pull/42\nState: OPEN\nHead: fix/GH-42-timeout (%s)\nBase: main\nDraft: false\n' "$tip"
+    ;;
   'pr list')
     tip=$(git ls-remote origin refs/heads/fix/GH-42-timeout | awk '{print $1}')
     if [[ " $* " == *' --json '* ]]; then

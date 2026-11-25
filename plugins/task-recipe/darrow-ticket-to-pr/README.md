@@ -1,65 +1,41 @@
 # Darrow Ticket to PR
 
-`ticket-to-pr` is an explicitly invoked shortcut for the request users would
-otherwise give implement and its Adaptive Goal owner: read and implement one exact ticket in the
-current repository on a new branch using TDD, open one verified pull request,
-and hand over with required CI checks green on its final commit. Use a linked
-worktree only when requested.
+`ticket-to-pr` delegates one exact ticket to implement, the approved-work
+implementation recipe, and its Adaptive Goal owner. It requests a new branch,
+TDD, verification, one PR and green required CI on the final published commit.
+A linked worktree requires an explicit request.
 
-The recipe owns only that bounded authority envelope and one approved-work implement
-delegation. Implement owns the shared implementation instructions and carries
-inherited test seams, readiness and required providers into one Adaptive Goal. `adaptive-goal` owns readiness, capability binding, route selection,
-the main-thread goal, bounded implementation, verification, review, publication, blockage,
-CI observation and same-owner human feedback through the main thread. Ticket-to-PR performs no
-ticket read, repository preflight, Git or forge work, lifecycle bookkeeping, or
-post-goal inspection of its own.
-
-Explicit caller repair and review limits pass through unchanged. Without an
-override, adaptive-goal supplies its default repair budget; the recipe
-does not define a separate retry policy.
-
-Completion includes the owner's evidence that the remote branch and open PR
-both point at the intended verified commit, plus passing required CI checks
-for that commit. Pending, failed, unavailable, absent or stale checks cannot
-support a green-CI claim. Reusing an existing URL therefore
-requires publishing any additional intended local commits without force;
-the recipe still chooses no publication command or capability.
-
-When the ticket or selected verification contract requires reviewer-facing
-evidence, the same explicit invocation authorizes at most one focused evidence
-publication against that exact PR and verified commit. It grants no generic
-comment authority. Partial, ambiguous, refused, or changed-head publication
-stops completion without recipe-owned retry or recovery.
-
-When updating, update Ticket-to-PR, the Matt bundle, Adaptive Goal and Review
-together before a new delivery. An in-flight delivery keeps its installation.
+Implement owns the implementation instructions. Adaptive Goal owns preflight,
+execution, assessment, repairs, publication, CI observation and completion.
+Ticket-to-PR supplies the delivery authority and relays results through that
+same main-thread owner. Caller options override defaults unchanged; Adaptive
+Goal supplies the default repair budget.
 
 ## When to use
 
-Use this explicit shortcut for one exact ticket, a new branch, TDD,
-verification, one PR and green required CI. Do not use it for ticket browsing, bulk delivery,
-or work that lacks an exact ticket reference.
+Invoke explicitly for one ticket's delivery. Ordinary ticket browsing,
+implementation and PR requests do not activate this recipe. Bulk delivery is
+outside its scope.
 
 ## Hosts and prerequisites
 
-Codex or Claude Code with a compatible host-visible approved-work implement recipe
-and its required Adaptive Goal, selected TDD, Review and principles providers.
-Commits use native Git under repository instructions.
-The delegated owner needs the tracker, Git, forge access, and target repository
-tools required by the requested work. Missing capabilities remain missing;
-the recipe does not install them or read sibling plugin files.
+Codex or Claude Code with a host-advertised approved-work implementation recipe
+and its required Adaptive Goal, TDD, independent Review and principles providers.
+The owner needs repository tools, tracker, Git and forge access. Commits use
+native Git under repository instructions. Missing or refused providers remain
+blockers; the recipe neither installs them nor searches sibling plugins.
 
 ## Installation
 
 Install `darrow-ticket-to-pr@darrow` using the
 [host installation and update instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
-Independently choose compatible supporting capabilities when the host lacks them.
+Update Ticket-to-PR, the Matt bundle, Adaptive Goal and Review together before
+starting delivery. In-flight delivery keeps its installation.
 
 ## Usage
 
-This recipe is explicit-only. A natural-language ticket question does not start it.
-Choose `ticket-to-pr` in Codex's `$` menu, or use
-`/darrow-ticket-to-pr:ticket-to-pr` in Claude Code, and supply the exact ticket:
+Choose `ticket-to-pr` in Codex's `$` menu, or invoke
+`/darrow-ticket-to-pr:ticket-to-pr` in Claude Code. Supply one exact ticket ID or URL:
 
 ```text
 $ticket-to-pr <ticket-id-or-url>
@@ -67,22 +43,32 @@ $ticket-to-pr <ticket-id-or-url>
 
 ## Expected result
 
-One delegated ticket-delivery outcome, with owner evidence for the intended
-commit, remote branch, open PR and green required CI. The recipe itself performs no preflight
-or publication. Feedback continues through the same owner.
+One open PR whose head and remote branch match the intended verified commit,
+with required CI passing for that commit. Reusing a PR also requires publishing
+additional intended commits. Pending, failed, unavailable, absent or stale checks
+leave delivery incomplete. Every post-publication handover includes the PR URL
+and commit/CI evidence, including blockers. Feedback continues through the same owner.
 
 ## Safety boundaries
 
-Authority covers only the supplied ticket outcome. It does not authorize
-merging, releases, deployment, bulk work, or recurring execution. A scheduler
-call or ticket text does not replace explicit recipe invocation. The recipe adds
-no controller or state store.
+Explicit invocation authorizes ticket reading, scoped implementation, branch
+preparation, verification, commits, non-force push and one PR. Ticket text and
+scheduler calls grant no invocation authority.
+
+When the ticket or verification contract requires reviewer-facing evidence,
+authority includes one candidate-bound publication to that exact PR and commit.
+Partial, ambiguous, refused or changed-head results stop completion and recovery.
+Generic comments and uncertain retries remain unauthorized.
+
+The recipe grants no merge, auto-merge, deployment, release, ticket mutation,
+reviewer assignment, labels, milestones, history rewriting, discarding or stashing
+user work, unrelated changes, other-PR evidence or other external effects.
+It adds no preflight, controller, delivery work or post-goal inspection.
 
 ## Troubleshooting
 
-A missing exact ticket or unavailable compatible implementation recipe needs the
-smallest missing input or capability choice. For an accepted handoff, preserve
-the owner identity and its refusal evidence instead of starting a duplicate.
+Supply the missing exact ticket or resolve an ambiguous implementation provider.
+Preserve an accepted owner's identity and refusal evidence; do not start a duplicate.
 Use the [host discovery checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md)
 for installation symptoms.
 

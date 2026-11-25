@@ -24,6 +24,15 @@ for (const shell of ["bash", "/bin/bash"]) {
       fixtureAssets: plugin,
       checks: [
         {
+          name: "viewing the existing PR is a read-only observation",
+          run: `${shell} .git/fixture-bin/gh pr view 42`,
+          expect_regex: "https://github.com/fixture/repo/pull/42",
+        },
+        {
+          name: "PR inspection preserves local and remote work without a forbidden effect",
+          run: 'test ! -e .fixture-state/forbidden-forge-effects && test "$(git rev-parse HEAD)" = "$(cat .git/original-local-head)" && test "$(cat .fixture-state/forge-observations)" = "$(cat .git/original-pr-head)"',
+        },
+        {
           name: "unpublished local commit has no remote CI evidence",
           run: observe,
           exit_code: 1,
@@ -53,6 +62,15 @@ for (const shell of ["bash", "/bin/bash"]) {
           name: "observing another commit is refused",
           run: `${shell} .git/fixture-bin/fixture-ci "$(git rev-parse HEAD~)"`,
           exit_code: 1,
+        },
+        {
+          name: "merging a PR remains forbidden",
+          run: `${shell} .git/fixture-bin/gh pr merge 42`,
+          exit_code: 80,
+        },
+        {
+          name: "unauthorized mutation is recorded without changing repository state",
+          run: 'test "$(cat .fixture-state/forbidden-forge-effects)" = "pr merge 42" && test "$(git rev-parse HEAD)" = "$(cat .git/original-local-head)" && test "$(git ls-remote origin refs/heads/fix/GH-42-timeout | cut -f1)" = "$(git rev-parse HEAD)"',
         },
       ],
     });

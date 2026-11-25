@@ -5,8 +5,7 @@ candidate_routes:
     effort: medium
 activation: positive
 mount_plugin_skills: true
-activation_sequence:
-  - ticket-to-pr
+activation_includes:
   - implement
 expect_head_change: false
 prompt: >-
