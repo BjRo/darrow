@@ -11,11 +11,13 @@ template's relevant sections. Do not add competing default headings.
 2. Keep every template heading verbatim and in its original order.
 3. Follow instructions inside HTML comments, then remove all HTML comments
    from the proposed body.
-4. Fill every section with branch-specific evidence from the commits,
-   diffstat, conversation, or verified test state. Distinguish observed
+4. Fill every section with branch-specific evidence from the committed change,
+   conversation, or verified test state. When a diff sketch is useful, put it
+   first in the section that describes what changed. Distinguish observed
    before/after results from inference and missing evidence. Describe tests
    that were added separately from tests that actually ran. If no section names
-   risk, include a concise assessment in the most relevant change section.
+   risk, put the Rollback and Blast radius assessments in the most relevant
+   change section.
    Remove placeholder text.
 5. Preserve every template checklist item. Check only statements known to be
    true for this branch; leave the others unchecked.

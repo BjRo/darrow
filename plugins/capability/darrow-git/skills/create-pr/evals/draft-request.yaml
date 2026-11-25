@@ -9,7 +9,7 @@ fixture:
     - message: "chore: init"
       files:
         README.md: "# Fixture\n"
-        src/report.ts: "export function report() { return []; }\n"
+        src/report.ts: "export const reportTitle = 'Weekly usgae';\n"
   bin:
     gh: |
       #!/bin/sh
@@ -71,10 +71,10 @@ fixture:
     git remote add origin "$PWD/.fixture-state/remote.git"
     git push -qu origin main
     git remote set-head origin main
-    git switch -qc feat/weekly-usage-report
-    printf 'export function report() { return ["usage"]; }\n' > src/report.ts
+    git switch -qc fix/weekly-report-title
+    printf "export const reportTitle = 'Weekly usage';\n" > src/report.ts
     git add src/report.ts
-    git commit -qm "feat: assemble weekly usage report"
+    git commit -qm "fix: correct weekly report title typo"
 checks:
   - name: PR created
     run: test -f .fixture-state/gh/title && echo created
@@ -82,3 +82,6 @@ checks:
   - name: created as draft
     run: test -f .fixture-state/gh/draft && echo draft
     expect_regex: "^draft$"
+  - name: simple correction opens in prose
+    run: cat .fixture-state/gh/body
+    expect_regex: '^## Summary\n\s*[A-Za-z]'

@@ -1,11 +1,13 @@
 """Read-only PR readiness and template context."""
 
 import shutil
+from pathlib import Path
 
 from . import templates
 from .pr_options import PrOptions
 from .pr_repository import compare_ref, default_branch, validate_base
-from .process import decode, emit, git, invoke, probe, succeeds
+from .process import decode, emit, git, invoke, probe, require, succeeds
+from .publication import FULL_COMMIT
 from .repository import current_ref, in_progress
 
 
@@ -92,18 +94,19 @@ def report_readiness(
             f"## mode: no-commits (no commits ahead of {comparison} — nothing to propose; report and stop)\n## cur branch: {branch}\n## base branch ({base_source}): {base}"
         )
     else:
+        head = git("rev-parse", "HEAD")
         print(
-            f"## mode: ready\n## intended commit: {git('rev-parse', 'HEAD')}\n## cur branch: {branch}\n## base branch ({base_source}): {base}"
+            f"## mode: ready\n## intended commit: {head}\n## cur branch: {branch}\n## base branch ({base_source}): {base}"
         )
         if source == "guess":
             print(
                 "## note: default branch guessed from local branches (origin/HEAD unset, remote unreachable)"
             )
         emit(note)
-        context(comparison, ahead, options.template)
+        context(comparison, ahead, head, options.template)
 
 
-def context(comparison: str, ahead: str, template: str) -> None:
+def context(comparison: str, ahead: str, head: str, template: str) -> None:
     upstream = probe("rev-parse", "-q", "--verify", "--abbrev-ref", "@{u}")
     if upstream:
         print(
@@ -111,13 +114,42 @@ def context(comparison: str, ahead: str, template: str) -> None:
         )
     else:
         print("## upstream: none (create will push with -u)")
-    if comparison and ahead:
+    comparison_commit = probe(
+        "rev-parse", "--verify", "--end-of-options", f"{comparison}^{{commit}}"
+    )
+    if comparison_commit and ahead:
+        print(f"## comparison commit: {comparison_commit}")
         print(f"## commits to include ({comparison}..HEAD)")
-        emit(probe("log", "--format=%h %s", f"{comparison}..HEAD"), 50)
+        emit(probe("log", "--format=%h %s", f"{comparison_commit}..{head}"), 50)
         print("## diffstat")
-        emit(probe("diff", "--stat", f"{comparison}...HEAD"), 50)
+        emit(probe("diff", "--stat", f"{comparison_commit}...{head}"), 50)
     selected = templates.select(template, inspecting=True)
     if selected:
         templates.show(selected)
     print("## working tree (uncommitted changes will NOT be in the PR)")
     emit(git("status", "--porcelain") or "clean", 50)
+
+
+def diff(args: list[str]) -> None:
+    require(
+        len(args) >= 2 and all(FULL_COMMIT.fullmatch(value) for value in args[:2]),
+        "diff requires the full comparison and intended commit IDs from inspection",
+        2,
+    )
+    comparison, head, *paths = args
+    patch = git(
+        "--literal-pathspecs",
+        "diff",
+        "--patch",
+        "--no-color",
+        "--no-ext-diff",
+        "--no-textconv",
+        f"{comparison}...{head}",
+        "--",
+        *paths,
+        cwd=Path(git("rev-parse", "--show-toplevel")),
+    )
+    lines = patch[:16_000].splitlines()
+    emit("\n".join(lines[:200]))
+    if len(patch) > 16_000 or len(lines) > 200:
+        print("## note: diff truncated — request specific paths for more detail")

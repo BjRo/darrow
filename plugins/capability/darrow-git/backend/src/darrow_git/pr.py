@@ -157,10 +157,12 @@ def run(args: list[str]) -> None:
         )
     elif operation == "inspect":
         pr_inspection.inspect(parse(args[1:], creating=False))
+    elif operation == "diff":
+        pr_inspection.diff(args[1:])
     elif operation == "create":
         create(parse(args[1:], creating=True))
     else:
         raise RefusalError(
-            "usage: darrow-create-pr inspect [--base <branch>] [--template <filename>] | create --title <t> -b <body-section>... [--template <filename>] [--base <branch>] [--draft] | publish-existing|verify --expected-head <full-commit-id> [--base <branch>] [--draft]",
+            "usage: darrow-create-pr inspect [--base <branch>] [--template <filename>] | diff <comparison-commit> <head-commit> [<repo-relative-path>...] | create --title <t> -b <body-section>... [--template <filename>] [--base <branch>] [--draft] | publish-existing|verify --expected-head <full-commit-id> [--base <branch>] [--draft]",
             64,
         )

@@ -49,8 +49,8 @@ the default branch.
 
 Follow the reported mode:
 
-- `ready`: use the reported branch, base, commits, diffstat, template state,
-  and working-tree state as the complete creation context.
+- `ready`: use the reported branch, base, commit IDs, commit summaries,
+  diffstat, template state, and working-tree state to prepare the proposal.
 - `exists`: report the existing PR and stop for ordinary creation. With explicit
   publish-and-reuse authority, retain the reported intended commit and follow
   the existing-publication path below; never run `create` for that PR.
@@ -93,23 +93,41 @@ Without a repository template, use the Markdown headings `## Summary`,
 useful content under its relevant headings; preserve its structure instead of
 adding competing headings.
 
-- **Summary:** Explain the problem and resulting committed behavior. Choose
-  the smallest representation that makes the change clear: short prose often
-  suffices. Use a compact diff sketch, pseudocode, tree, or Mermaid diagram only
-  when it clarifies logic, ownership, or flow; keep it beside the text it supports.
+- **Summary.** Start the change summary with a small fenced `diff` sketch
+  when it can show a meaningful change in behavior or structure. Sketch
+  only the relevant calls, branches, or ownership changes. Follow with a
+  short explanation of the problem and resulting behavior. Use one sentence
+  for a straightforward correction.
 - **Evidence:** Present available before/after observations with their source
   and scope: supplied screenshots, output, or actual failing/passing runs. Label
   inferred behavior as inference. If only one side is observed, say which is
   missing; if neither is observed, state that rather than inventing a comparison.
   A test added in a commit is coverage, not evidence of a passing run. Preserve
   limits such as stub-only checks, absent suite results, or untested live services.
-- **Merge Danger:** Assess meaningful impact, affected callers or systems
-  (blast radius), and reversibility. Explain the concrete failure or behavior
-  change reviewers should consider and whether reverting code would undo its
-  effects; data loss, migrations, and external effects can make rollback costly
-  or incomplete. Distinguish supported scope from unknown consumer effects.
-  Do not infer safe rollback or negligible risk from a small diffstat, or add
-  unsupported risk scores.
+- **Merge Danger.** Put each bold label on its own line under the relevant
+  heading.
+  - **Rollback** starts with **Two-way door** if a revert or routine rollback
+    restores the previous state, or **One-way door** if effects are irreversible
+    or costly to undo. Explain what rollback restores and what effects can
+    persist. Say when reversibility is unknown.
+  - **Blast radius** names who or what is affected, the condition that puts
+    them in scope, and what changes for them. For example, a cleanup may
+    affect users who still have records in the old format. Qualify unknown
+    downstream effects.
+
+When the available context cannot ground a sketch, read the committed diff
+before drafting. Pass both full IDs reported by inspection as `comparison
+commit` and `intended commit`, in that order. Start with relevant paths from
+the diffstat when the change is broad.
+
+```sh
+uv run --quiet --no-project "<skill-dir>/../../backend/scripts/run_locked.py" darrow-create-pr diff <comparison-commit> <intended-commit> [<repo-relative-path>...]
+```
+
+The command shows the committed patch since the merge base. Quote paths
+that contain spaces. If the output is truncated, narrow the paths. If the
+patch is unavailable or still lacks the detail needed for a faithful sketch,
+write a short summary using the evidence you have.
 
 Scale detail to the change: a sentence per section may be enough for a small
 change. Use available committed context and conversation evidence; identify
@@ -126,10 +144,10 @@ example `Refs DAR-123`. Omit filler and boilerplate checklists. Never add tool
 attribution to the title or body. Presentation sources and applicable notices
 are recorded in [CREDITS.md](CREDITS.md).
 
-**Complete when:** the title names the branch-wide effect and the body explains
-the problem and resulting behavior, available evidence and its limits, and
-proportionate impact, blast radius and reversibility; the body follows the
-selected template when present and preserves any known ticket identifier.
+**Complete when:** the title names the branch-wide effect. The body opens the
+change summary with a grounded sketch when useful, states evidence and its
+limits, and labels rollback and blast radius. It follows the selected template
+and preserves any known ticket identifier.
 
 ### 3. Push and create
 
