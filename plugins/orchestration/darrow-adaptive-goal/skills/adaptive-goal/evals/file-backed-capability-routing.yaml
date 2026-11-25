@@ -37,7 +37,7 @@ fixture:
           EXPECTED
           printf '%s\n' 'check final-tree pass' >>.fixture-state/capability-events
   files:
-    .agents/skills/read-ticket/SKILL.md: |
+    .agents/skills/read-ticket/SKILL.md: &read_ticket |
       ---
       name: read-ticket
       description: Read one exact tracker ticket by ID. Use during authorized adaptive-goal preflight when the ticket is authoritative input, or when the accepted owner contract requires a refresh. Remain read-only.
@@ -49,7 +49,8 @@ fixture:
       `read-ticket-protocol <id> read-ticket-skill-contract-v1` and return its
       complete output. Do not use `gh`, `ticketctl`, or another tracker command
       directly.
-    .agents/skills/create-pr/SKILL.md: |
+    .claude/skills/read-ticket/SKILL.md: *read_ticket
+    .agents/skills/create-pr/SKILL.md: &create_pr |
       ---
       name: create-pr
       description: Push the current feature branch and open exactly one pull request when the accepted owner contract authorizes publication; do not use during adaptive-goal preflight.
@@ -59,7 +60,8 @@ fixture:
 
       Run exactly `create-pr-protocol create-pr-skill-contract-v1`. Do not push
       or invoke `gh` directly.
-    .agents/skills/independent-code-review/SKILL.md: |
+    .claude/skills/create-pr/SKILL.md: *create_pr
+    .agents/skills/independent-code-review/SKILL.md: &independent_review |
       ---
       name: independent-code-review
       description: Independently review one exact current change and report its findings and outcome. Use when an explicit goal contract requires independent review before commit or publication. Remain read-only.
@@ -88,6 +90,7 @@ fixture:
       This fixture supports initial assessment. Closed follow-up returns
       unavailable and preserves the supplied finding and repair history.
       Do not execute the protocol as coordinator, implement, commit or publish.
+    .claude/skills/independent-code-review/SKILL.md: *independent_review
   ticket:
     id: "64"
     title: "Add the capability-routing note"

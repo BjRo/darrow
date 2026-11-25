@@ -3,7 +3,7 @@ harnesses: [codex]
 candidate_routes:
   codex: { model: gpt-6.1-sol, effort: medium }
 prompt: >-
-  {{skill_invocation}} Implement two independent modules; minimizing wall-clock time
+  {{skill_invocation}} Expense category labels are food, travel, rent or misc, with optional surrounding spaces and ASCII capitalization. Implement two independent modules; minimizing wall-clock time
   matters more than token cost. They share no files, code or interfaces, and each has
   its own focused test command.
 

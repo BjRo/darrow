@@ -1070,14 +1070,14 @@ test("Darrow guards advice-only and missing-ticket delegation", async () => {
     events("adaptive-goal-preflight prepare"),
   );
   const native = {
-    id: "sevro.codex.native-calls",
+    id: "sevro.host.native-controls",
     source: "sevro.host.codex",
     completeness: "complete",
     data: {
-      method: "native_session",
+      method: "native_control_calls",
+      truncated: false,
       calls: [],
-      toolCalls: [],
-      acceptedSpawns: [],
+      acceptedAgentCount: 0,
       submittedExecCalls: 0,
     },
   };
@@ -1117,22 +1117,34 @@ test("Darrow guards advice-only and missing-ticket delegation", async () => {
       );
       expect(reply.code, reply.stderr).toBe(0);
       const outcomes = reply.value.result.domainOutcomes;
-      return outcomes.find(
+      const controls = outcomes.find(
         (check) => check.id === "darrow.evals.workflow.transcript.1",
       )?.status;
+      return adviceOnly
+        ? [
+            controls,
+            reply.value.result.checks.find(
+              (check) => check.id === "darrow.evals.transcript.2",
+            )?.status,
+          ]
+        : [controls];
     };
     const observations = adviceOnly ? [native] : [skills];
-    expect(await status(observations, [clean])).toBe("passed");
+    expect(await status(observations, [clean])).toEqual(
+      adviceOnly ? ["passed", "passed"] : ["passed"],
+    );
     expect(
       await status(
         adviceOnly ? observations : [activationReceipt(["adaptive-goal"])],
         adviceOnly ? [preflight] : [],
       ),
-    ).toBe("failed");
-    expect(await status(observations, [])).toBe(
-      adviceOnly ? "unavailable" : "passed",
+    ).toEqual(adviceOnly ? ["passed", "failed"] : ["failed"]);
+    expect(await status(observations, [])).toEqual(
+      adviceOnly ? ["passed", "unavailable"] : ["passed"],
     );
-    expect(await status([], [clean])).toBe("unavailable");
+    expect(await status([], [clean])).toEqual(
+      adviceOnly ? ["unavailable", "passed"] : ["unavailable"],
+    );
   }
 });
 
@@ -1877,49 +1889,83 @@ test("Darrow grades a resumed conversation and its unchanged workspace boundary"
 async function assertReadinessExposure(
   c: ExtensionReply["result"]["cases"][number],
 ) {
-  const ready = activationReceipt([
-    "darrow-readiness-gate:assess-implementation-readiness",
-  ]);
-  const foreign = {
-    ...ready,
-    source: "sevro.host.claude",
-    data: {
-      ...ready.data,
-      method: "skill_tool_result",
-      visibility: "skill_tool",
-    },
-  };
-  for (const [observations, expected] of [
-    [[ready], "passed"],
-    [[activationReceipt([])], "failed"],
-    [[], "unavailable"],
-    [[{ ...ready, completeness: "partial" }], "unavailable"],
-    [
-      [{ ...ready, data: { ...ready.data, observedSkills: "invalid" } }],
-      "unavailable",
-    ],
-    [[ready, ready], "unavailable"],
-    [[foreign], "unavailable"],
-  ] as const) {
-    const graded = await command<{
-      result?: { checks: { id: string; status: string }[] };
-      error?: { message: string };
-    }>(
-      [process.execPath, extension],
-      request("evaluate", {
-        extensionData: c.extensionData,
-        observations,
-      }),
-    );
-    expect(graded.code, graded.stderr).toBe(0);
-    expect(graded.value.result, graded.value.error?.message).toBeDefined();
-    const checks = policyOutcomes(graded.value.result!);
-    expect(
-      checks.find((c) => c.id === "darrow.evals.transcript.1")?.status,
-    ).toBe(expected);
-    expect(
-      checks.find((c) => c.id === "darrow.evals.transcript.2")?.status,
-    ).toBe("unavailable");
+  for (const host of ["codex", "claude"]) {
+    const receipt = (skills: string[]) =>
+      host === "codex"
+        ? activationReceipt(skills)
+        : {
+            id: "sevro.host.skill-activations",
+            source: "sevro.host.claude",
+            completeness: "complete",
+            data: {
+              method: "skill_tool_result",
+              visibility: "skill_tool",
+              truncated: false,
+              observedSkills: skills,
+              calls: skills.map((invocation, index) => ({
+                invocation,
+                status: "succeeded",
+                sessionId: "session",
+                parentToolUseId: null,
+                toolUseId: "skill-" + index,
+              })),
+            },
+          };
+    const ready = receipt([
+      "darrow-adaptive-goal:adaptive-goal",
+      "darrow-readiness-gate:assess-implementation-readiness",
+    ]);
+    const dispatch =
+      host === "codex"
+        ? [
+            {
+              id: "sevro.codex.explicit-invocation",
+              source: "sevro.host.codex",
+              completeness: "complete",
+              data: {
+                method: "explicit_invocation",
+                primarySkill: "adaptive-goal",
+              },
+            },
+          ]
+        : [];
+    for (const [observations, expected] of [
+      [[ready], "passed"],
+      [[receipt(["darrow-adaptive-goal:adaptive-goal"])], "failed"],
+      [[], "unavailable"],
+      [[{ ...ready, completeness: "partial" }], "unavailable"],
+      [
+        [{ ...ready, data: { ...ready.data, observedSkills: "invalid" } }],
+        "unavailable",
+      ],
+      [[ready, ready], "unavailable"],
+      [[{ ...ready, source: "foreign" }], "unavailable"],
+    ] as const) {
+      const graded = await command<{
+        result?: {
+          checks: { id: string; status: string }[];
+          domainOutcomes: { id: string; status: string }[];
+        };
+        error?: { message: string };
+      }>(
+        [process.execPath, extension],
+        request("evaluate", {
+          extensionData: c.extensionData,
+          observations: [...dispatch, ...observations],
+        }),
+      );
+      expect(graded.code, graded.stderr).toBe(0);
+      expect(graded.value.result, graded.value.error?.message).toBeDefined();
+      const checks = policyOutcomes(graded.value.result!);
+      expect(
+        graded.value.result!.domainOutcomes.find(
+          (outcome) => outcome.id === "darrow.evals.activation",
+        )?.status,
+      ).toBe(expected);
+      expect(
+        checks.find((c) => c.id === "darrow.evals.transcript.1")?.status,
+      ).toBe("unavailable");
+    }
   }
 }
 

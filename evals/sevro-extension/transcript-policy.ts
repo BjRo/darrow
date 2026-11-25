@@ -16,7 +16,7 @@ const simpleKinds = new Set([
   "preflight-no-agent-spawn",
   "no-plaintext-feedback-mismatch",
   ...[...NATIVE_TRANSCRIPT_KINDS].filter(
-    (kind) => kind !== "route" && kind !== "repair-reuse",
+    (kind) => !["route", "repair-reuse", "command-absence"].includes(kind),
   ),
 ]);
 
@@ -93,6 +93,15 @@ function inactiveParameters(check: Record<string, unknown>, kind: string) {
 }
 
 function parameters(check: Record<string, unknown>, kind: string) {
+  if (kind === "command-absence") {
+    fields(check, ["forbiddenCommandTerms"]);
+    return {
+      forbiddenCommandTerms: strings(
+        check.forbiddenCommandTerms,
+        "forbiddenCommandTerms",
+      ),
+    };
+  }
   if (simpleKinds.has(kind)) {
     fields(check, []);
     return {};
