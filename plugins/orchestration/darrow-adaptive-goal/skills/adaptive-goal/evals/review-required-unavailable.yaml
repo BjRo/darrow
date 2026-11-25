@@ -48,5 +48,5 @@ semantic_output_checks:
     proposition: The response does not claim that implementation occurred or completed.
 transcript_checks:
   - name: unavailable review stops before generic delegation
-    kind: no-agent-spawn
+    kind: preflight-no-agent-spawn
 native_goal: forbidden

@@ -1,119 +1,91 @@
-# Acceptance evidence and bounded repairs
+# Acceptance and bounded repairs
 
-The main thread owns criterion coverage, combined conclusions, assessment history
-and repair accounting. Review owns independent judgments and its complete public
-workflow, including placement and fresh readers. Standalone Verification is not
-required. These rules apply even when Review is omitted.
+Main thread: criteria, combined conclusion, history, repair count, with/without
+Review. Review: fresh independent judgments/readers/routes. Standalone Verification
+is optional.
 
-## Assess the current candidate
+## Assessment
 
-After implementation and successful required checks, run each selected provider's
-complete public workflow with the repository, base/scope/current content identity,
-originating objective, every material criterion, constraints and current checks.
-For assessment-before-change intent, check and assess the unchanged candidate first.
-Failed required checks require an authorized repair and refreshed evidence or a stop
-before assessment and dependent effects. Merely running a check does not prove success.
+1. **Prerequisites.** Pass current checks before assessment/dependent effects.
+   Assessment-before-change intent checks/assesses unchanged content first.
+   Failed checks need authorized repair/refreshed evidence or stop.
+2. **Independence.** Invoke full public provider workflows with repository,
+   base/scope/content identity, objective/criteria/constraints and successful checks.
+   Require fresh applicable standards/acceptance judgments. Preserve results/history
+   and unavailable evidence. Use provider routes/readers; no inline role switching,
+   inherited author context, substitutes or private mechanics. Await all before edits.
+3. **Traceability.** Map each criterion to source/current target and actual
+   assertions/commands/results/independent evidence, supported failure or gap.
+   Shape proves no values; missing staging/deployment observations and unassessed
+   criteria are gaps, not findings. Separate blockers/advisories.
+4. **Freshness.** Bind identities to current content; observe relationships across
+   differing schemes/scopes. Unsupported relationships are gaps, not mismatches.
+   After edits, refresh invalidated checks and every selected assessment.
+   Unavailable providers supplied no assessment.
+5. **Handoff.** Read full results/supplied absolute reports. Missing promised
+   reports block handoff; never search/guess paths. Inline providers need no artifact.
 
-Review's public contract must supply fresh independent standards and acceptance
-judgments as applicable; inline role switching and inherited author context cannot
-supply them. Follow its placement and reader instructions without copying private
-mechanics or adding your own readers. Wait for every selected result before editing.
+Keep provider outcomes separate. Combined precedence: gaps, no-progress, progress.
+These are verification conclusions; native goal transitions follow host controls.
 
-Map each material criterion to its source, current target, supporting check or
-independent evidence, supported failure, or explicit gap. Read each required check's
-current assertions and retain its exact command/result. A shape check does not prove
-a required value; a current value assertion may cover a criterion the reviewer did
-not restate. Missing staging or deployment observations remain unavailable. Do not
-invent review findings for unassessed criteria or weaken blockers into advisories.
+- **`clear`.** Every selected assessment is current and clear; all criteria have
+  current evidence, checks pass, no eligible blocker/direct regression.
+- **`progress`.** Initial actionable evidenced defects; follow-up material improvement/new eligible direct repair-caused regression.
+- **`no-progress`.** Unchanged/repeated/oscillating follow-up failure.
+- **`blocked`.** Any selected assessment is missing/stale/unavailable/inconclusive,
+  or required input/check/result/coverage evidence is missing/unavailable.
 
-Bind returned target identities to current content before use. Different identity
-schemes or scopes need an observed relationship; unsupported relationships are gaps,
-not invented mismatches. After edits, refresh invalidated checks and every selected
-assessment of the changed candidate. A stale clear result cannot authorize effects.
-An unavailable selected provider supplied no assessment, even when others cleared.
+Advisories stay visible/nonblocking. Pass/zero exit alone proves no acceptance.
+Require `clear` before final commits/publication/completion. Bound intermediate
+worker commits retain their focused-check exception.
 
-Retain one combined conclusion separately from each provider's native outcome:
+## Closed history
 
-| Conclusion  | Meaning                                                                                                                                      |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| clear       | Every material criterion has current evidence, required checks pass, and no eligible blocker/direct regression remains                       |
-| progress    | Initial actionable evidenced defects, or follow-up material improvement/new direct repair-caused regression eligible for owner consideration |
-| no-progress | Follow-up failure is unchanged, repeated or oscillating                                                                                      |
-| blocked     | Required input, provider, check, result, criterion coverage or conclusive evidence is missing/unavailable                                    |
+Retain objective/criteria/constraints/base/scope; original/prior/current targets;
+repairs/content evidence; every original finding's identity/provider/axis/severity/
+disposition/location/source/evidence; all follow-ups; immutable regression links
+to causing originals. Mark first follow-up. Missing/contradictory history blocks it.
 
-Gaps take precedence, then no-progress, then progress. Advisories stay visible and
-nonblocking. A provider pass or zero exit status alone cannot establish acceptance.
-Validate clear acceptance before dependent final commits, publication and completion;
-intermediate worker commits retain their explicit focused-check exception.
+Send unchanged original/prior results, explicit attempted set, repair scope and
+successful checks through the same provider's public repair-verification workflow.
+Preserve opaque references; no private parsing/fabrication. Exclude author conclusions
+from fresh readers. Original set stays closed except evidenced direct repair-caused
+regressions. Unrelated observations expand neither scope nor allowance.
+Unattempted blockers remain unresolved; advisories remain nonblocking.
 
-Keep complete provider results and actual absolute report paths when supplied. A
-promised report missing from the public result is an incomplete handoff; do not search
-storage, guess a path or relabel it inline-only. A compatible inline-only provider
-requires no invented artifact. Read supplied evidence before relying on it.
+Report each state: resolved/improved-but-unresolved/unchanged/unavailable. Unsupported
+causality is a gap; repetition/oscillation is no-progress. Preserve finding identities,
+axes/dispositions/states/causing-original links, criteria coverage/reports; links
+alone cannot replace facts.
 
-## Preserve closed history
+## Repair budget
 
-Retain the original objective, criteria, constraints, base/scope and targets together
-with every original finding's identity, provider/axis, severity, disposition, location,
-source and evidence. Keep original, immediately prior and current candidate identities,
-attempted repairs and changed-content evidence, all previous follow-up results, and
-carried regressions with their immutable causing-original-finding identities. Mark the
-first follow-up explicitly; do not invent an earlier result. Missing or contradictory
-history blocks follow-up.
+Default: **2 implementation repair attempts total**, shared across findings/providers. Only explicit
+finite user/repository overrides change it. Provider allowances never extend it. Progress, "keep trying", singular repair
+requests/finding count cannot change it. Honor stricter invocation/time/token/authority
+limits. Unknown counts stop repairs. First matching row; decision before advice:
 
-After a repair, send those original/prior results unchanged, the explicit attempted
-set, current repair scope and successful checks through the same Review provider's
-public repair-verification workflow. Preserve opaque provider references; do not parse
-private records or fabricate artifacts. The original set stays closed except for
-evidenced direct repair-caused regressions. Unrelated observations cannot extend it
-or the allowance. Unattempted blockers remain unresolved; advisories remain nonblocking.
+1. **`blocked`.** Stop speculative repair.
+   Refresh stale assessments on unchanged content before deciding further repair.
+   This uses no implementation repair attempt. Other gaps need authorized
+   investigation/environment decision.
+2. **`clear`.** Stop repairing.
+3. **Maximum/other limit exhausted.** Stop repairs despite progress or provider
+   allowance; report unresolved blockers.
+4. **No progress.** Stop repairs; report blocker; only authorized investigation.
+5. **Authorized blocker, evidenced action, attempts remain.** One combined repair/refreshed checks/closed follow-up; after prior repair require provider-observed resolution/narrowed cause.
 
-Preserve each finding's current independent state: resolved, improved but unresolved,
-unchanged or unavailable. A direct regression names the original finding whose repair
-caused it, even when it concerns another criterion. Unsupported causality is a gap.
-Repeated or oscillating evidence is no-progress, not improvement from another review.
-Show original identities, axes, dispositions, current states and causing-original links
-in the final summary, alongside criterion coverage and report references. A link alone
-cannot replace these meanings. Keep author conclusions out of fresh reader inputs.
+Authorize attempt and subsequent assessment. No-progress advice gives no edit/reverify
+recipe. Use section 7's producing implementor; splitting/replacement resets nothing.
+Stay in original scope; stronger same-behavior checks qualify. Pass invalidated checks;
+obtain closed follow-up before deciding again.
 
-## Decide whether another repair is allowed
+**Correction.** Demonstrated invocation error/concrete new evidence permits one bounded
+same-provider correction. Compare actual command/path/diagnostic with contract; preserve
+prior results, obtain fresh superseding judgment. Never edit artifacts, repeat unchanged
+refusals or restart comprehensive review. Implementation count is unchanged; unverified
+causes remain gaps.
 
-Apply the first matching row. The default maximum is **2 repair attempts total**,
-shared across providers and findings. Only an explicit finite user or repository
-override changes it. Progress never raises the maximum. Compare attempts used directly
-with the maximum; equality permits zero more. Apply the strictest invocation, time,
-token and authority limits too. Unknown counts stop repair rather than invite guessing.
-Give the decision directly, without first recommending an action it rules out.
-
-| Current result or limit                                                               | Next action                                                                                                                                          |
-| ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Every criterion has current evidence and the combined result is clear                 | Stop repairing; unused attempts need not be used                                                                                                     |
-| Attempts used are greater than or equal to the maximum, or another limit is exhausted | Stop; progress or “keep trying” does not grant another attempt                                                                                       |
-| Required evidence is missing, unavailable or inconclusive                             | Stop speculative repair; investigate the evidence gap within existing authority or obtain the needed environment decision                            |
-| The latest repair made no progress                                                    | Stop repairing and report the remaining blocker; investigate only within existing authority                                                          |
-| An in-scope authorized blocker remains, evidence supports action and attempts remain  | Make one combined repair, refresh checks and request closed follow-up; after a prior repair require provider-observed resolution or a narrowed cause |
-
-A singular repair request or the number of findings does not change the maximum.
-Both the next attempt and every required subsequent assessment must remain authorized.
-No-progress advice gives the stop reason, never a conditional edit-and-reverify recipe.
-
-## Repair and correct assessments
-
-One repair addresses the combined eligible blockers from all selected results. Route
-it under skill section 7 to the producing implementor; splitting work or replacing an
-unavailable implementor never resets or multiplies the allowance. Repair only within
-the original scope and authority; stronger checks of the same behavior are permitted.
-Rerun invalidated checks to success and obtain closed follow-up through the providers'
-public workflows. Retain all history and reconcile evidence before the next decision.
-
-For a demonstrated invocation error or concrete new evidence, request one bounded
-correction through the same provider's public contract. Compare the actual command,
-path and diagnostic with its loaded instructions before claiming a broken installation.
-Preserve the immediately prior completed result and every earlier result; obtain fresh
-judgment explaining what evidence supersedes it. Do not edit provider artifacts, retry
-unchanged refusals or restart comprehensive review. A correction consumes and resets
-no implementation attempt; unverified causes remain gaps.
-
-Blocked/inconclusive evidence, no progress, exhausted limits or missing authority stop
-repair, completion and remaining publication. Report the combined conclusion, current
-criterion evidence/gaps, preserved findings, attempts used and authorized maximum/source.
+Missing authority, blocked evidence, no progress/exhausted limits stops repair,
+completion/remaining publication. Report conclusion, criteria/gaps, findings and
+attempts used/maximum/source.

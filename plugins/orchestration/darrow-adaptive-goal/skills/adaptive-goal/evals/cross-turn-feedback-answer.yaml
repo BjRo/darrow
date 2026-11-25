@@ -1,4 +1,5 @@
 id: goal-cross-turn-feedback-answer
+harnesses: [codex]
 activation: positive
 prompt: >-
   {{skill_invocation}} Add an exported migrationMode() function to src/migration.js that
@@ -92,9 +93,4 @@ checks:
 transcript_checks:
   - name: native source is unchanged at the actual feedback boundary
     kind: unchanged-before-continuation
-semantic_output_checks:
-  - name: resumed owner reports completion
-    proposition:
-      The response reports the requested outcome as complete, with no unresolved
-      blocker or pending decision preventing completion.
-native_goal: required
+native_goal: complete

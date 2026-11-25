@@ -14,10 +14,8 @@ fixture:
       files:
         AGENTS.md: |
           Run bash check.sh for NOTES.md changes. The repository-approved
-          independent review provider is inspect-delivery. Its public contract
-          is under .agents/skills. Preserve the fixture service and scripts.
-          The selected staging-render observation is unavailable in this environment;
-          local content checks do not observe staging.
+          independent review provider is the host-advertised inspect-delivery
+          skill. Preserve the fixture service and scripts.
         NOTES.md: "# Notes\n"
         check.sh: |
           #!/usr/bin/env bash
@@ -26,29 +24,31 @@ fixture:
           cmp -s .fixture-state/expected-notes NOTES.md
           printf '%s\n' 'check passed' >>.fixture-state/gate-events
   files:
-    .agents/skills/inspect-delivery/SKILL.md: |
+    .agents/skills/inspect-delivery/SKILL.md: &inspect_delivery |
       ---
       name: inspect-delivery
-      description: Independently assess one exact implementation candidate against repository standards and originating acceptance in a fresh assessment context. Remain read-only.
+      description: Independently assess one exact candidate against repository standards and acceptance, including requested staging-render evidence. Remain read-only.
       ---
 
       # Inspect the candidate
 
       Accept the repository, exact candidate, originating criteria, constraints
       and current successful check evidence. The deterministic service supplies
-      fresh independent standards and local acceptance judgments. It cannot observe
-      staging; preserve that gap. Return source-bound findings or gaps,
+      fresh independent standards, acceptance judgments and staging-render
+      evidence or an explicit unavailable result. Return source-bound findings or gaps,
       target identity, checks and evidence. Missing or stale evidence cannot
       clear; follow-up preserves original findings and direct-regression lineage.
       Run `inspect-delivery-protocol` and return its complete result. No edits,
       repairs, commit or publication are authorized by this capability.
-    .agents/skills/create-pr/SKILL.md: |
+    .claude/skills/inspect-delivery/SKILL.md: *inspect_delivery
+    .agents/skills/create-pr/SKILL.md: &create_pr |
       ---
       name: create-pr
       description: Push the current branch and open one pull request when the enclosing request authorizes publication.
       ---
 
       Run `create-pr-protocol` and return its result.
+    .claude/skills/create-pr/SKILL.md: *create_pr
   bin:
     inspect-delivery-protocol: |
       #!/usr/bin/env bash

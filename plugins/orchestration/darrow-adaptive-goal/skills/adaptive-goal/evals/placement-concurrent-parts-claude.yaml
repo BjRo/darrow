@@ -3,7 +3,7 @@ harnesses: [claude]
 candidate_routes:
   claude: { model: claude-opus-5-5, effort: high }
 prompt: >-
-  /goal {{skill_invocation}} Implement two independent modules; minimizing wall-clock time
+  /goal {{skill_invocation}} Expense category labels are food, travel, rent or misc, with optional surrounding spaces and ASCII capitalization. Implement two independent modules; minimizing wall-clock time
   matters more than token cost. They share no files, code or interfaces, and each has
   its own focused test command.
 
