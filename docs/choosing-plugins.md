@@ -15,8 +15,9 @@ alone; its README owns its prerequisites, behavior, and safety rules.
 - [Explanation](../plugins/capability/darrow-explanation/README.md): show architecture, ownership, call flow, or state in conversation.
 - [Information Architecture](../plugins/foundation/darrow-information-architecture/README.md): set up or audit agent guidance and host integration, or inspect context usage.
 - [Ticket-to-PR](../plugins/task-recipe/darrow-ticket-to-pr/README.md): explicitly deliver one ticket through a PR and required green CI.
+- [Documentation Drift](../plugins/task-recipe/darrow-documentation-drift/README.md): explicitly check documentation against authoritative sources and file verified correction tickets.
 
-These are the nine entries in the [marketplace manifest](../.claude-plugin/marketplace.json).
+These are the ten entries in the [marketplace manifest](../.claude-plugin/marketplace.json).
 Matt contains 17 selected skills; pstack contains 33. Their unchanged explicit-only
 workflows stay explicit. Adapted implement accepts explicit invocation or authorized
 parent delegation and defaults to local commits. Ticket-to-PR supplies publication
@@ -45,7 +46,7 @@ These are responsibilities, not steps every task must traverse.
   It begins only through explicit invocation. Adaptive Goal selects a
   proportionate workflow while the main thread keeps the native goal and completion.
 - **Task recipes** package a familiar outcome and permission envelope, then
-  delegate the bounded work. The current recipe is ticket to PR.
+  delegate the bounded work. Recipes cover ticket delivery and documentation-drift investigation.
 - **Automation** describes admission under explicit recurring authority. No
   automation plugin currently ships. Task recipes and their native owners retain
   engineering work.

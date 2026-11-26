@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+set -eu
+state=.fixture-state
+printf '%s\n' "$*" >>"$state/calls"
+
+equivalent_issues() {
+  jq -c '[range(200;300) | {number:.,title:"Unrelated maintenance",body:"A different claim and correction",state:"open"}] + .' "$state/existing.json"
+}
+
+return_equivalent_page() {
+  page=1
+  page_size=30
+  query=$*
+  case "$query" in
+    *per_page=*) value=${query#*per_page=}; page_size=${value%%[!0-9]*} ;;
+  esac
+  case "$query" in
+    *'&page='*) value=${query#*&page=}; page=${value%%[!0-9]*} ;;
+    *'?page='*) value=${query#*\?page=}; page=${value%%[!0-9]*} ;;
+    *' page='*) value=${query#* page=}; page=${value%%[!0-9]*} ;;
+  esac
+  offset=$(((page - 1) * page_size))
+  end=$((offset + page_size))
+  case "$query" in
+    'issue list '*)
+      limit=30
+      while test "$#" -gt 0; do
+        case "$1" in
+          --limit|-L) limit=$2; shift 2 ;;
+          --limit=*) limit=${1#--limit=}; shift ;;
+          -L[0-9]*) limit=${1#-L}; shift ;;
+          *) shift ;;
+        esac
+      done
+      offset=0
+      end=$limit
+      ;;
+    *--paginate*) end=$(equivalent_issues | jq length) ;;
+  esac
+  response=$(equivalent_issues | jq -c --argjson start "$offset" --argjson end "$end" '.[$start:$end]')
+  printf '%s\n' "$response" >>"$state/returned-pages.jsonl"
+  printf '%s\n' "$response"
+}
+
+case "$*" in
+  *--help*|help*|--version|'auth status'*)
+    printf '%s\n' 'gh fixture 1.0; authenticated for fixture/manual'
+    ;;
+  'repo view'*)
+    printf '%s\n' '{"nameWithOwner":"fixture/manual","url":"https://github.com/fixture/manual"}'
+    ;;
+  'api '*| 'issue list'*| 'issue view '*101*| 'issue view '*102*)
+    if test -e "$state/unavailable"; then exit 1; fi
+    if test -e "$state/created-issues.jsonl"; then
+      case "$*" in
+        'issue view '*101*) jq -sc 'map(select(.number == 101))[0]' "$state/created-issues.jsonl" ;;
+        'issue view '*102*) jq -sc 'map(select(.number == 102))[0]' "$state/created-issues.jsonl" ;;
+        *) jq -s . "$state/created-issues.jsonl" ;;
+      esac
+    elif test -e "$state/equivalent"; then
+      case "$*" in
+        'issue view '*) jq '.[0]' "$state/existing.json" ;;
+        *) return_equivalent_page "$@" ;;
+      esac
+    else
+      printf '%s\n' '[]'
+    fi
+    ;;
+  'issue create '*)
+    shift 2
+    body='' title='' repo=''
+    while test "$#" -gt 0; do
+      case "$1" in
+        --repo|-R) repo=$2; shift 2 ;;
+        --title|-t) title=$2; shift 2 ;;
+        --body-file|-F) body=$2; shift 2 ;;
+        --body|-b) printf '%s' "$2" >"$state/submitted-inline"; body="$state/submitted-inline"; shift 2 ;;
+        *) printf '%s\n' "Unsupported creation argument: $1" >&2; exit 64 ;;
+      esac
+    done
+    test -z "$repo" || test "$repo" = fixture/manual
+    test -n "$title"
+    test -r "$body"
+    digest=$(git hash-object "$body")
+    reviews=0
+    if test -e "$state/reviewed-drafts"; then reviews=$(wc -l <"$state/reviewed-drafts" | tr -d ' '); fi
+    cat "$body" >>"$state/created-bodies"
+    printf '%s\n' "$title" >>"$state/created-titles"
+    printf '%s\n' create >>"$state/created"
+    count=$(wc -l <"$state/created" | tr -d ' ')
+    number=$((100 + count))
+    url="https://github.com/fixture/manual/issues/$number"
+    printf '%s %s %s\n' "$number" "$digest" "$reviews" >>"$state/reviews-before-create"
+    jq -cn --arg title "$title" --rawfile body "$body" --arg url "$url" --argjson number "$number" \
+      '{number:$number,title:$title,body:$body,url:$url,html_url:$url,state:"open"}' >>"$state/created-issues.jsonl"
+    if test -e "$state/uncertain"; then exit 1; fi
+    printf '%s\n' "$url"
+    ;;
+  *) printf '%s\n' "$*" >>"$state/forbidden"; exit 64 ;;
+esac
