@@ -2,7 +2,12 @@
 
 Status: Accepted
 Date: 2026-11-21
-Summary: Let Artificer admit nominated work under a saved recurring grant while the original native session owns engineering execution and recovery.
+Summary: Limit recurring automation to admitting nominated work under an explicit grant. The original native session owns engineering execution and recovery.
+
+Darrow ships no automation plugin. The Artificer retirement is recorded in the
+[retirement commit](https://github.com/BjRo/darrow/commit/796d29d151433fd21722a947ee71d41d97c8db90).
+For recovery of an existing installation, follow the
+[automation README](../../plugins/automation/README.md).
 
 ## Context
 
@@ -12,19 +17,22 @@ second workflow owner and make recovery or uncertain publication harder to recon
 
 ## Decision
 
-Artificer owns local scheduling, eligibility, claims and shared capacity under a
-saved human recurring grant. Installing it starts no schedule. The delivery
-recipe preserves that grant, and the original native session retains the goal,
+Automation owns scheduling, eligibility, claims and shared capacity under an
+explicit recurring grant. Installing Artificer started no schedule. The delivery
+recipe preserves that grant, and the original native session owns the goal,
 implementation, acceptance and completion.
+
+The original native session must provide completion evidence. A PR alone is
+insufficient evidence that the original native session completed.
 
 Resume the same session for authorized technical recovery. Missing product intent
 requires attention rather than autonomous discovery or an issue-comment answer
 loop. Uncertain execution or publication keeps its reservation until reconciled.
 Cancellation and revocation do not undo published effects.
 
-Keep the current local macOS boundary explicit. Claude may produce a PR while
-still returning `needs-attention` when native completion evidence is unavailable.
-A PR alone is not proof of completed native work.
+The former Artificer implementation had a local macOS boundary. In that
+implementation, Claude could produce a PR while still returning
+`needs-attention` when native completion evidence was unavailable.
 
 ## Authority and provenance
 
@@ -35,4 +43,4 @@ The maintainer requested retaining useful choices as ADRs on 2026-11-21.
 ## Consequences
 
 Automation supplies no broader engineering, merge, release or deployment
-authority. Current setup, recovery commands and capacity rules live with Artificer.
+authority.

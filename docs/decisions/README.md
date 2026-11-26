@@ -32,7 +32,7 @@ and statuses remain unchanged.
 | [ADR-0014: Keep current documentation with its owner](ADR-0014-keep-current-documentation-with-its-owner.md) | Accepted | 2026-11-21 | Keep current rules with their owners, architectural rationale in ADRs, and completed investigations in Git history. | Partially replaces clauses in ADR-0006, ADR-0007 and ADR-0010 |
 | [ADR-0015: Curate upstream workflows and retire duplicate providers](ADR-0015-curate-upstream-workflows-and-retire-duplicate-providers.md) | Accepted | 2026-11-21 | Curate pinned MIT upstream workflows and retain Darrow-specific capabilities instead of maintaining duplicate standalone providers. | None |
 | [ADR-0016: Keep independent review separate from acceptance](ADR-0016-keep-independent-review-separate-from-acceptance.md) | Accepted | 2026-11-21 | Review standards and requested behavior independently, verify repairs against the original findings, and leave overall acceptance with the goal owner. | None |
-| [ADR-0017: Limit automation to authorized admission](ADR-0017-limit-automation-to-authorized-admission.md) | Accepted | 2026-11-21 | Let Artificer admit nominated work under a saved recurring grant while the original native session owns engineering execution and recovery. | None |
+| [ADR-0017: Limit automation to authorized admission](ADR-0017-limit-automation-to-authorized-admission.md) | Accepted | 2026-11-21 | Limit recurring automation to admitting nominated work under an explicit grant. The original native session owns engineering execution and recovery. | None |
 
 ## Rejected
 
