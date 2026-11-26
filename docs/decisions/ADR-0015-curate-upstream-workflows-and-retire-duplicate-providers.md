@@ -32,11 +32,8 @@ Ticket-to-PR supplies its delivery envelope. Capability refusals remain binding.
 
 Codex is the primary development host. Codex and Claude Code are required targets
 for the curated bundles and shared workflows, with evidence scoped to the tested
-workflow. The Claude completion limitation documented for the former Artificer
-implementation is historical. See
-[ADR-0017](ADR-0017-limit-automation-to-authorized-admission.md). Installation
-alone grants no execution or publication authority and never rewrites user-owned
-principle tables or custom guidance.
+workflow. Installation alone grants no execution or publication authority and
+never rewrites user-owned principle tables or custom guidance.
 
 ## Authority and provenance
 
