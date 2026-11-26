@@ -1,0 +1,6 @@
+interface:
+  display_name: "Documentation drift"
+  short_description: "Turn verified documentation drift into correction tickets"
+  default_prompt: "Use $documentation-drift with the documentation to check, its authoritative sources, a tracker destination and filing grant."
+policy:
+  allow_implicit_invocation: false

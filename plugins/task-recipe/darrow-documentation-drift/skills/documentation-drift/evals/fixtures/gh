@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -eu
 state=.fixture-state
+seed=.git/fixture-tracker
 printf '%s\n' "$*" >>"$state/calls"
 
 equivalent_issues() {
-  jq -c '[range(200;300) | {number:.,title:"Unrelated maintenance",body:"A different claim and correction",state:"open"}] + .' "$state/existing.json"
+  jq -c '[range(200;300) | {number:.,title:"Unrelated maintenance",body:"A different claim and correction",state:"open"}] + .' "$seed/existing.json"
 }
 
 return_equivalent_page() {
@@ -43,14 +44,11 @@ return_equivalent_page() {
 }
 
 case "$*" in
-  *--help*|--version|'auth status'*)
+  *--help*|help*|--version|'auth status'*)
     printf '%s\n' 'gh fixture 1.0; authenticated for fixture/manual'
     ;;
-  'repo view '*)
+  'repo view'*)
     printf '%s\n' '{"nameWithOwner":"fixture/manual","url":"https://github.com/fixture/manual"}'
-    ;;
-  'issue view '*100*)
-    cat "$state/standing.json"
     ;;
   'api '*| 'issue list '*| 'issue view '*101*| 'issue view '*102*)
     if test -e "$state/unavailable"; then exit 1; fi
@@ -62,7 +60,7 @@ case "$*" in
       esac
     elif test -e "$state/equivalent"; then
       case "$*" in
-        'issue view '*) jq '.[0]' "$state/existing.json" ;;
+        'issue view '*) jq '.[0]' "$seed/existing.json" ;;
         *) return_equivalent_page "$@" ;;
       esac
     else
@@ -81,7 +79,7 @@ case "$*" in
         *) printf '%s\n' "Unsupported creation argument: $1" >&2; exit 64 ;;
       esac
     done
-    test "$repo" = fixture/manual
+    test -z "$repo" || test "$repo" = fixture/manual
     test -n "$title"
     test -r "$body"
     digest=$(git hash-object "$body")

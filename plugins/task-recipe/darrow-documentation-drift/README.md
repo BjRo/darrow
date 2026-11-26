@@ -1,28 +1,25 @@
 # Darrow Documentation Drift
 
-`investigate-documentation-drift` investigates documentation against named
-authoritative sources and files worthwhile correction tickets. One standing
-GitHub issue defines the investigation scope. Repeated runs match existing open
-issues by the affected claim and requested correction before creating anything.
+`documentation-drift` checks named documentation against authoritative sources
+and files one verified issue per correction in your ticket tracker. Each issue
+is ready for a separate `ticket-to-pr` run. Repeated runs match existing open
+issues by claim and correction before creating anything.
 
 ## When to use
 
 Invoke manually when documentation may mislead readers about current behavior.
-Harmless wording and isolated typos do not qualify. Use a separate delivery
-recipe to implement a correction after its ticket is ready.
+Harmless wording and isolated typos do not qualify.
 
 ## Hosts and prerequisites
 
 Codex and Claude Code need host-advertised Adaptive Goal orchestration and an
 independent review provider that can assess exact issue drafts and verify
-repairs. Adaptive Goal keeps the native goal and acceptance in the main thread.
-Review owns independent judgment. The owner needs read access to the scoped
-documentation and authoritative sources, plus GitHub Issues read and create
-access. GitHub CLI or a compatible configured connector must expose complete
-relevant open issues and allow uncertain creations to be reconciled.
+repairs. The owner needs read access to the documentation and sources, plus
+read and create access to the tracker. The tracker interface must return every
+open issue with its full body. Name the tracker in the invocation or in project
+guidance such as `AGENTS.md`.
 
-Missing inputs, providers, permissions or reliable tracker state stop their
-dependent work. Installing this plugin grants no filing authority.
+Installing this plugin grants no filing authority.
 
 ## Installation
 
@@ -32,61 +29,49 @@ Install compatible orchestration and review capabilities separately.
 
 ## Usage
 
-Implicit activation is forbidden. Select `investigate-documentation-drift` in
-Codex's `$` menu, or use `/darrow-documentation-drift:investigate-documentation-drift`
-in Claude Code. For example:
+Select `documentation-drift` in Codex's `$` menu, or use
+`/darrow-documentation-drift:documentation-drift` in Claude Code. The skill
+never activates implicitly. For example:
 
 ```text
-$darrow-documentation-drift:investigate-documentation-drift https://github.com/example/project/issues/42
-The effective project is example/project. The configured tracker destination is
-GitHub Issues in example/project. Create verified correction tickets there
-without per-finding confirmation. For this run, create at most one new ticket.
+/darrow-documentation-drift:documentation-drift Check docs/install.md against
+package.json and scripts/install.sh. File verified correction tickets in GitHub
+Issues for example/project without per-finding confirmation. Create at most one.
 ```
 
-Supply the project, tracker destination and filing grant through the invocation
-or effective trusted project guidance outside the standing issue. The standing
-issue supplies documentation scope and authoritative sources, never permission
-to publish or change destinations. Caller limits apply unchanged.
+Give the scope inline or name a scope file. A committed scope file keeps scope
+changes under code review. Give the destination and filing grant in the
+invocation or trusted project guidance. Issue text never supplies scope or
+authority.
 
 ## Expected result
 
 A summary reports checked scope, new and matching existing issue links, coverage
-and review gaps, and full or partial outcome. A complete investigation with no
-qualifying drift is successful. Each new ticket states the affected claim,
-authoritative evidence, requested correction and observable acceptance. It is
-ready for separate ticket-to-PR delivery.
+and review gaps, and a full or partial outcome. A complete check with no
+qualifying drift succeeds. Each new issue states the affected claim, evidence,
+requested correction and observable acceptance.
 
 ## Safety boundaries
 
-The recipe authorizes scoped investigation and, only under the caller's filing
-grant, new correction issues in the configured destination. It neither edits
-application documentation nor changes existing issues. It does not schedule
-runs, deliver fixes, open PRs, audit agent guidance, or broaden investigation.
-Supported historical claims and accepted ADR history remain intact.
+The recipe reads the scope and creates new issues in the configured
+destination. It leaves documentation, existing issues, branches and PRs
+unchanged. Supported historical claims and accepted ADRs stay intact.
 
-Review can use a temporary Git repository with a private empty baseline and
-the exact draft, separate from the inspected project. It contains no credential
-files or remote. Only necessary pinned evidence is copied or referenced there.
-This preparation grants no project commits or publication beyond issue creation.
-
-Routine discrepancies are verified directly. Higher-consequence drafts require
-independent review of their exact contents, including a revised candidate after
-repairs. Unsupported claims are withheld. Uncertain creation is reconciled
-before retrying. Indeterminate results block that correction while cleared
-independent work can continue.
+Higher-consequence drafts need independent review of their exact contents,
+including each revision. Review may use a temporary Git repository outside the
+project with an empty baseline, no credentials and no remote. An uncertain
+create is reconciled against the tracker before any retry.
 
 ## Troubleshooting
 
-Supply missing scope or external authority before dependent work. If open issue
-coverage or creation status is unavailable, restore tracker access and reconcile
-the specific correction before another create attempt. A search result or a
-truncated issue list cannot establish that no matching issue exists.
+If open issue coverage or creation status is unavailable, restore tracker access
+before another run. A search result or truncated list cannot show that no
+matching issue exists.
 
-Run scoped preparation with `bun eval --skill investigate-documentation-drift
---harness codex --dry` from the Darrow checkout. Repeat with `--harness claude`.
-Remove `--dry` for measured behavior. Fixture providers test the public handoff
-and tracker effects; they do not establish native goal or independent reader execution.
-The fixture tracker uses `jq` to preserve exact submitted issue bodies.
+Run `bun eval --skill documentation-drift --harness codex --dry` from the
+Darrow checkout, then repeat with `--harness claude`. Remove `--dry` for
+measured behavior. Fixture providers test the public handoff and tracker
+effects, not native goals or independent readers. The fixture tracker needs `jq`.
 
 ## License
 

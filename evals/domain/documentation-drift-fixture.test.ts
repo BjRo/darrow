@@ -7,7 +7,7 @@ import { parse } from "yaml";
 import { captureTestCommand } from "../test-command";
 
 const cases = new URL(
-  "../../plugins/task-recipe/darrow-documentation-drift/skills/investigate-documentation-drift/evals/",
+  "../../plugins/task-recipe/darrow-documentation-drift/skills/documentation-drift/evals/",
   import.meta.url,
 );
 const fixtures = fileURLToPath(new URL("fixtures/", cases));

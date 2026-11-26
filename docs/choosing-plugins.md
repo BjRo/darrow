@@ -15,7 +15,7 @@ alone; its README owns its prerequisites, behavior, and safety rules.
 - [Explanation](../plugins/capability/darrow-explanation/README.md): show architecture, ownership, call flow, or state in conversation.
 - [Information Architecture](../plugins/foundation/darrow-information-architecture/README.md): set up or audit agent guidance and host integration, or inspect context usage.
 - [Ticket-to-PR](../plugins/task-recipe/darrow-ticket-to-pr/README.md): explicitly deliver one ticket through a PR and required green CI.
-- [Documentation Drift](../plugins/task-recipe/darrow-documentation-drift/README.md): manually investigate scoped documentation drift and file verified correction tickets.
+- [Documentation Drift](../plugins/task-recipe/darrow-documentation-drift/README.md): explicitly check documentation against authoritative sources and file verified correction tickets.
 
 These are the ten entries in the [marketplace manifest](../.claude-plugin/marketplace.json).
 Matt contains 17 selected skills; pstack contains 33. Their unchanged explicit-only

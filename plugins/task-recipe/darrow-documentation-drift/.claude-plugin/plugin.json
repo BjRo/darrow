@@ -1,6 +1,6 @@
 {
   "name": "darrow-documentation-drift",
-  "description": "Investigate scoped documentation drift and file verified correction tickets",
+  "description": "Check named documentation against authoritative sources and file one verified ticket per correction",
   "version": "0.1.0",
   "license": "BUSL-1.1",
   "author": {

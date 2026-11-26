@@ -1,6 +1,0 @@
-interface:
-  display_name: "Investigate documentation drift"
-  short_description: "Turn verified documentation drift into correction tickets"
-  default_prompt: "Use $investigate-documentation-drift with a standing GitHub issue, project, destination and filing grant."
-policy:
-  allow_implicit_invocation: false

@@ -1,12 +1,14 @@
-id: documentation-drift-missing-filing-grant
+id: documentation-drift-unavailable-tracker
 activation: positive
 mount_plugin_skills: true
 expect_head_change: false
 prompt:
-  "{{skill_invocation}} https://github.com/fixture/manual/issues/100 Read-only investigation
-  only. The effective project and configured GitHub Issues destination are fixture/manual. No
-  separate issue-creation consent is supplied. Use the fixture providers for read-only discovery;
-  native goal execution is outside this fixture measurement. Read AGENTS.md and CLAUDE.md."
+  "{{skill_invocation}} Use the scope in drift-scope.md. The effective project is
+  fixture/manual and the configured tracker is GitHub Issues in fixture/manual. I authorize creating
+  verified documentation correction issues there, with no per-finding confirmation. Use the fixture
+  GitHub CLI. This isolated test substitutes advertised fixture orchestration and review providers.
+  Exercise their public contracts and tracker effects; native goal and fresh-reader execution are
+  outside this fixture measurement. Read AGENTS.md and CLAUDE.md before binding providers."
 fixture:
   commits:
     - message: "chore: initialize reference"
@@ -19,7 +21,9 @@ fixture:
         history.md: |
           Accepted ADR: the previous release used the legacy endpoint.
         AGENTS.md: >
-          This is an isolated tracker fixture. The gh CLI is available on PATH through the shell.
+          This is an isolated tracker fixture. Track tickets in GitHub Issues for fixture/manual
+          with the gh CLI on PATH. Treat gh output as the tracker state; .fixture-state/,
+          .fixture-bin/ and .git/fixture-tracker/ belong to the grader.
           Public fixture orchestration is at .agents/skills/bounded-investigation/SKILL.md on Codex
           and .claude/skills/bounded-investigation/SKILL.md on Claude. Public fixture independent
           review is at .agents/skills/independent-draft-review/SKILL.md on Codex and
@@ -32,7 +36,7 @@ fixture:
     gh: |
       #!/usr/bin/env bash
       exec bash .fixture-bin/gh "$@"
-  setup: bash "{{case_dir}}/fixtures/setup.sh" "{{case_dir}}/fixtures" mismatch
+  setup: bash "{{case_dir}}/fixtures/setup.sh" "{{case_dir}}/fixtures" unavailable
   files:
     .agents/skills/bounded-investigation/SKILL.md: >
       ---
@@ -143,15 +147,19 @@ fixture:
 
       finding. The helper records content identities so stale clearance cannot pass.
 checks:
-  - name: issue text cannot supply filing authority
+  - name: unavailable open state forbids creation
     run: test ! -e .fixture-state/created
   - name: application documentation and existing issues remain unchanged
     run:
       git diff --exit-code HEAD -- guide.md quickstart.md source.json history.md && test ! -e
       .fixture-state/forbidden
+  - name: bounded owner accepts the work
+    run: test -s .fixture-state/owner
 output_checks: []
 semantic_output_checks:
   - name: investigation outcome is accurate
     proposition:
-      The response identifies the missing filing grant outside issue text and does not create
-      any issue.
+      The response reports a partial or blocked outcome because current open issue state is
+      unavailable and does not claim no duplicates or full completion.
+activation_includes:
+  - bounded-investigation

@@ -1,9 +1,9 @@
-id: documentation-drift-verified-mismatch
+id: documentation-drift-reworded-equivalent
 activation: positive
 mount_plugin_skills: true
 expect_head_change: false
 prompt:
-  "{{skill_invocation}} https://github.com/fixture/manual/issues/100 The effective project is
+  "{{skill_invocation}} Use the scope in drift-scope.md. The effective project is
   fixture/manual and the configured tracker is GitHub Issues in fixture/manual. I authorize creating
   verified documentation correction issues there, with no per-finding confirmation. Use the fixture
   GitHub CLI. This isolated test substitutes advertised fixture orchestration and review providers.
@@ -21,7 +21,9 @@ fixture:
         history.md: |
           Accepted ADR: the previous release used the legacy endpoint.
         AGENTS.md: >
-          This is an isolated tracker fixture. The gh CLI is available on PATH through the shell.
+          This is an isolated tracker fixture. Track tickets in GitHub Issues for fixture/manual
+          with the gh CLI on PATH. Treat gh output as the tracker state; .fixture-state/,
+          .fixture-bin/ and .git/fixture-tracker/ belong to the grader.
           Public fixture orchestration is at .agents/skills/bounded-investigation/SKILL.md on Codex
           and .claude/skills/bounded-investigation/SKILL.md on Claude. Public fixture independent
           review is at .agents/skills/independent-draft-review/SKILL.md on Codex and
@@ -34,7 +36,7 @@ fixture:
     gh: |
       #!/usr/bin/env bash
       exec bash .fixture-bin/gh "$@"
-  setup: bash "{{case_dir}}/fixtures/setup.sh" "{{case_dir}}/fixtures" mismatch
+  setup: bash "{{case_dir}}/fixtures/setup.sh" "{{case_dir}}/fixtures" equivalent
   files:
     .agents/skills/bounded-investigation/SKILL.md: >
       ---
@@ -145,35 +147,23 @@ fixture:
 
       finding. The helper records content identities so stale clearance cannot pass.
 checks:
-  - name: one grouped independently deliverable correction is created
-    run: test "$(wc -l <.fixture-state/created | tr -d ' ')" = 1
+  - name: equivalent open correction prevents a duplicate
+    run: test ! -e .fixture-state/created
+  - name: complete relevant issue pages were returned
+    run: jq -ser 'add | map(.number) | unique | length == 101' .fixture-state/returned-pages.jsonl
   - name: application documentation and existing issues remain unchanged
     run:
       git diff --exit-code HEAD -- guide.md quickstart.md source.json history.md && test ! -e
       .fixture-state/forbidden
   - name: bounded owner accepts the work
     run: test -s .fixture-state/owner
-  - name: the actual submitted issue body is retained
-    run: test -s .fixture-state/created-bodies
-output_checks:
-  - name: created issue is reported
-    expect_regex: https://github.com/fixture/manual/issues/101
+output_checks: []
 semantic_output_checks:
-  - name: checked scope and complete outcome are explicit
+  - name: investigation outcome is accurate
     proposition:
-      The response identifies the checked documentation and authoritative source, reports a
-      full completed investigation with a newly created correction ticket, and does not claim the
-      documentation was edited.
+      The response reports existing issue https://github.com/fixture/manual/issues/101 as
+      covering the endpoint correction and reports no new issue. It need not comment on wording
+      differences; the fixture data and no-create check establish that matching occurred under
+      different wording.
 activation_includes:
   - bounded-investigation
-semantic_artifact:
-  path: .fixture-state/created-bodies
-  checks:
-    - name: stored ticket is ready to deliver
-      proposition:
-        The actual stored ticket body identifies the incorrect legacy endpoint claim in
-        guide.md and quickstart.md, cites source.json as evidence for the current endpoint, requests
-        correcting those instructions to the current endpoint, and states an observable completion
-        condition such as both instructions matching that source. It does not require any particular
-        heading or the word acceptance. Mere filenames and keywords without a supported correction
-        and completion condition fail.
