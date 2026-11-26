@@ -186,7 +186,13 @@ Use preselected [isolated workers](references/isolated-ticket-workers.md); other
    return `Status: launch_required` with the actual failure.
 4. **Assess.** Settle implementation; invoke full selected public workflows here.
    Apply lifecycle; direct authors cannot self-assess.
-5. **Repair.** Return combined findings/constraints/checks to producing implementor.
+5. **Repair.** Check that each blocker is supported by evidence and that its
+   repair stays within the agreed scope. Choose an in-scope fix that resolves the
+   blocker, even if Review suggested a broader change. If concrete new evidence
+   challenges a blocker, raise it with the same provider before assigning a repair.
+   Use its [correction workflow](references/verification-lifecycle.md#repair-budget)
+   when supported. Keep the blocker open until independent evidence resolves it.
+   Return combined findings/constraints/checks to producing implementor.
    Replace only if unavailable/unsuited; explain and transfer context/history.
    Splitting/replacement cannot multiply allowance. Wait before conflicting work.
 
