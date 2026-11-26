@@ -2,9 +2,20 @@
 
 Status: Accepted
 Date: 2026-09-17
-Summary: Adopt contained Python packages managed by UV incrementally for substantial cross-platform plugin mechanics, invoking them directly from installed skill-relative paths.
+Summary: Adopt contained Python packages managed by UV incrementally for substantial cross-platform plugin mechanics, invoked through plugin-owned bootstraps resolved from installed skill paths.
 Supersedes: ADR-0005
 Revisit when: UV and supported Python cannot provide independently installable helpers across every supported native host, or a lighter common runtime offers materially better portability and containment.
+
+## Amendment — 2026-11-26
+
+The maintainer confirmed the implemented storage model as intended policy in
+[#370](https://github.com/BjRo/darrow/issues/370). This amendment updates the
+package, dependency, environment and state placement clause and clarifies
+runtime invocation through a plugin-owned bootstrap. It records the
+[environment migration](https://github.com/BjRo/darrow/commit/bb55806db8080c440c8965b57bd587edd7f4b492)
+and [state migration](https://github.com/BjRo/darrow/commit/18bda9065d8791ead4bb3e8682e90b7bf3e6cf8f).
+The original decision date, authority and unaffected architectural choices
+remain in force.
 
 ## Context
 
@@ -25,8 +36,15 @@ Use a contained Python package managed by UV for substantial deterministic
 plugin mechanics when Python materially improves clarity, testing, or native
 Windows support.
 
-- Keep the package, `pyproject.toml`, `uv.lock`, entrypoints, dependencies,
-  environments, and state inside the owning plugin.
+- Keep package source, shipped resources, dependency declarations in
+  `pyproject.toml`, `uv.lock`, entrypoints and bootstrap code inside the owning
+  plugin. Installed plugin roots are immutable runtime inputs. Store installed
+  dependencies, writable runtime environments and retained runtime state outside
+  those roots under the owning plugin's rules. The
+  [Python quality standard](../python-quality.md#installed-runtime-environments)
+  owns environment storage and configuration. Provider documentation, such as
+  [Review's state guidance](../../plugins/capability/darrow-review/README.md#review-state-and-cleanup),
+  owns retained state and its lifecycle.
 - Colocate a backend used by one skill inside that skill directory. Use a
   plugin-root backend only when multiple skills or non-skill plugin components
   share it.
@@ -35,9 +53,11 @@ Windows support.
   group and register each package in the repository Python inventory.
 - Resolve contained backends from the installed skill directory supplied by
   the host, such as Claude Code's `${CLAUDE_SKILL_DIR}` or the absolute
-  `SKILL.md` path in Codex's skill catalog, and invoke its locked UV
-  entrypoints directly. Do not add a launcher whose only responsibility is
-  locating the same backend and forwarding arguments. Retain portable Bash only
+  `SKILL.md` path in Codex's skill catalog. Invoke the plugin-owned bootstrap,
+  which selects the external runtime environment and executes the locked backend
+  through UV with frozen resolution and without development dependencies. Do not
+  add a launcher whose only responsibility is locating the same backend and
+  forwarding arguments. Retain portable Bash only
   when a host contract requires command, lifecycle, or protocol adaptation that
   direct invocation cannot express.
 - Validate cross-platform entrypoints from a fresh copied plugin artifact on
