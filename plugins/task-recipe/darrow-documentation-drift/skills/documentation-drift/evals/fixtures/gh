@@ -49,7 +49,7 @@ case "$*" in
   'repo view'*)
     printf '%s\n' '{"nameWithOwner":"fixture/manual","url":"https://github.com/fixture/manual"}'
     ;;
-  'api '*| 'issue list '*| 'issue view '*101*| 'issue view '*102*)
+  'api '*| 'issue list'*| 'issue view '*101*| 'issue view '*102*)
     if test -e "$state/unavailable"; then exit 1; fi
     if test -e "$state/created-issues.jsonl"; then
       case "$*" in

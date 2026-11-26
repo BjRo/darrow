@@ -162,9 +162,10 @@ output_checks:
 semantic_output_checks:
   - name: checked scope and complete outcome are explicit
     proposition:
-      The response identifies the checked documentation and authoritative source, reports a
-      full completed investigation with a newly created correction ticket, and does not claim the
-      documentation was edited.
+      The response identifies the checked documentation and authoritative source, reports that
+      every scoped document was checked and a new correction ticket was created, and does not claim
+      the documentation was edited. Noting that the fixture does not measure native goals or fresh
+      readers does not count against completeness.
 activation_includes:
   - bounded-investigation
 semantic_artifact:

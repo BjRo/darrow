@@ -41,8 +41,9 @@ fi
 if test "$scenario" = rejected-review; then
   cat >drift-scope.md <<'EOF'
 Check guide.md and quickstart.md against source.json and security-evidence.md.
-The diagnostic snapshot contests the token encryption guarantee. Verify the
-endpoint instructions separately. Preserve history.md as accepted historical
+The diagnostic snapshot contests the token encryption guarantee. Get
+independent review of any proposed security correction and its evidence before
+deciding whether to file it. Verify the endpoint instructions separately. Preserve history.md as accepted historical
 context. Restrict the check to these documents and sources.
 EOF
 fi

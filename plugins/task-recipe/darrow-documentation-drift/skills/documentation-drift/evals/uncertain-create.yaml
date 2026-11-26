@@ -163,7 +163,7 @@ semantic_output_checks:
   - name: investigation outcome is accurate
     proposition:
       The response reports https://github.com/fixture/manual/issues/101 as the one
-      issue for the endpoint correction and reports no second issue for it. It need not mention
+      issue for the endpoint correction and does not report a second issue for it. It need not mention
       the transient creation error.
 activation_includes:
   - bounded-investigation
