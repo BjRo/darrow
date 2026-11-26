@@ -2,7 +2,7 @@
 set -eu
 fixtures=$1
 scenario=$2
-mkdir -p .fixture-state .fixture-bin .git/fixture-tracker
+mkdir -p .fixture-state .fixture-bin
 cp "$fixtures/gh" .fixture-bin/gh
 cp "$fixtures/review-draft" .fixture-bin/review-draft
 chmod +x .fixture-bin/gh .fixture-bin/review-draft
@@ -12,9 +12,11 @@ Check guide.md and quickstart.md against source.json. The accepted ADR in
 history.md describes the old release and must remain historical. Restrict the
 check to these files.
 EOF
-cat >.git/fixture-tracker/existing.json <<'EOF'
+if test "$scenario" = equivalent; then
+  cat >.fixture-state/existing.json <<'EOF'
 [{"number":101,"html_url":"https://github.com/fixture/manual/issues/101","title":"Align connection instructions with shipped settings","body":"The guide.md statement that the CLI uses the legacy endpoint is false. source.json sets endpoint=current. Correct guide.md and quickstart.md to use the current endpoint. Acceptance: both instructions match the shipped endpoint.","state":"open"}]
 EOF
+fi
 case "$scenario" in
   equivalent|uncertain|unavailable) touch ".fixture-state/$scenario" ;;
 esac

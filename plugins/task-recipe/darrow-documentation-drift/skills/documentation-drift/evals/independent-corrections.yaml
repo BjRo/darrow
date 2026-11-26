@@ -24,8 +24,7 @@ fixture:
           Accepted ADR: the previous release used the legacy endpoint.
         AGENTS.md: >
           This is an isolated tracker fixture. Track tickets in GitHub Issues for fixture/manual
-          with the gh CLI on PATH. Treat gh output as the tracker state; .fixture-state/,
-          .fixture-bin/ and .git/fixture-tracker/ belong to the grader.
+          with the gh CLI on PATH. Treat gh output as the tracker state.
           Public fixture orchestration is at .agents/skills/bounded-investigation/SKILL.md on Codex
           and .claude/skills/bounded-investigation/SKILL.md on Claude. Public fixture independent
           review is at .agents/skills/independent-draft-review/SKILL.md on Codex and

@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 set -eu
 state=.fixture-state
-seed=.git/fixture-tracker
 printf '%s\n' "$*" >>"$state/calls"
 
 equivalent_issues() {
-  jq -c '[range(200;300) | {number:.,title:"Unrelated maintenance",body:"A different claim and correction",state:"open"}] + .' "$seed/existing.json"
+  jq -c '[range(200;300) | {number:.,title:"Unrelated maintenance",body:"A different claim and correction",state:"open"}] + .' "$state/existing.json"
 }
 
 return_equivalent_page() {
@@ -60,7 +59,7 @@ case "$*" in
       esac
     elif test -e "$state/equivalent"; then
       case "$*" in
-        'issue view '*) jq '.[0]' "$seed/existing.json" ;;
+        'issue view '*) jq '.[0]' "$state/existing.json" ;;
         *) return_equivalent_page "$@" ;;
       esac
     else
@@ -83,17 +82,15 @@ case "$*" in
     test -n "$title"
     test -r "$body"
     digest=$(git hash-object "$body")
-    cleared=false
-    if test -s "$state/reviewed-drafts" && grep -Eq "^$digest resolved-cleared( |$)" "$state/reviewed-drafts"; then
-      cleared=true
-    fi
+    reviews=0
+    if test -e "$state/reviewed-drafts"; then reviews=$(wc -l <"$state/reviewed-drafts" | tr -d ' '); fi
     cat "$body" >>"$state/created-bodies"
     printf '%s\n' "$title" >>"$state/created-titles"
     printf '%s\n' create >>"$state/created"
     count=$(wc -l <"$state/created" | tr -d ' ')
     number=$((100 + count))
     url="https://github.com/fixture/manual/issues/$number"
-    printf '%s %s %s\n' "$number" "$digest" "$cleared" >>"$state/clearance-at-creation"
+    printf '%s %s %s\n' "$number" "$digest" "$reviews" >>"$state/reviews-before-create"
     jq -cn --arg title "$title" --rawfile body "$body" --arg url "$url" --argjson number "$number" \
       '{number:$number,title:$title,body:$body,url:$url,html_url:$url,state:"open"}' >>"$state/created-issues.jsonl"
     if test -e "$state/uncertain"; then exit 1; fi
