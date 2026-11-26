@@ -4,9 +4,8 @@ Status: Accepted
 Date: 2026-11-21
 Summary: Limit recurring automation to admitting nominated work under an explicit grant. The original native session owns engineering execution and recovery.
 
-Darrow ships no automation plugin. The
-[automation README](../../plugins/automation/README.md) covers recovery for
-existing installations.
+For recovery of an existing installation, see the
+[automation README](../../plugins/automation/README.md).
 
 ## Context
 
