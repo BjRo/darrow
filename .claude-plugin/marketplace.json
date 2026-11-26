@@ -49,6 +49,11 @@
       "name": "darrow-ticket-to-pr",
       "source": "./plugins/task-recipe/darrow-ticket-to-pr",
       "description": "Delegate one explicit ticket as a one-PR adaptive goal with required same-PR reviewer evidence"
+    },
+    {
+      "name": "darrow-documentation-drift",
+      "source": "./plugins/task-recipe/darrow-documentation-drift",
+      "description": "Manually investigate scoped documentation drift and file verified correction tickets"
     }
   ]
 }

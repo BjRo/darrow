@@ -1,0 +1,163 @@
+id: documentation-drift-unavailable-tracker
+activation: positive
+mount_plugin_skills: true
+expect_head_change: false
+prompt:
+  "{{skill_invocation}} https://github.com/fixture/manual/issues/100 The effective project is
+  fixture/manual and the configured tracker is GitHub Issues in fixture/manual. I authorize creating
+  verified documentation correction issues there, with no per-finding confirmation. Use the fixture
+  GitHub CLI. This isolated test substitutes advertised fixture orchestration and review providers.
+  Exercise their public contracts and tracker effects; native goal and fresh-reader execution are
+  outside this fixture measurement. Read AGENTS.md and CLAUDE.md before binding providers."
+fixture:
+  commits:
+    - message: "chore: initialize reference"
+      files:
+        guide.md: |
+          Connect to the legacy endpoint.
+        quickstart.md: |
+          Use the legacy endpoint.
+        source.json: '{"endpoint":"current"}'
+        history.md: |
+          Accepted ADR: the previous release used the legacy endpoint.
+        AGENTS.md: >
+          This is an isolated tracker fixture. The gh CLI is available on PATH through the shell.
+          Public fixture orchestration is at .agents/skills/bounded-investigation/SKILL.md on Codex
+          and .claude/skills/bounded-investigation/SKILL.md on Claude. Public fixture independent
+          review is at .agents/skills/independent-draft-review/SKILL.md on Codex and
+          .claude/skills/independent-draft-review/SKILL.md on Claude. Read these exact advertised
+          contracts before reporting a missing provider.
+        CLAUDE.md: >
+          Read AGENTS.md. The isolated fixture supplies orchestration and review providers. Invoke
+          their public Skill entrypoints, and use gh through Bash.
+  bin:
+    gh: |
+      #!/usr/bin/env bash
+      exec bash .fixture-bin/gh "$@"
+  setup: bash "{{case_dir}}/fixtures/setup.sh" "{{case_dir}}/fixtures" unavailable
+  files:
+    .agents/skills/bounded-investigation/SKILL.md: >
+      ---
+
+      name: bounded-investigation
+
+      description: Own a bounded investigation as the existing main-thread continuation and
+      acceptance owner. Accept explicit recipe delegation, preserve authority and gaps, coordinate
+      independent review and corrections, and report completion.
+
+      ---
+
+
+      # Bounded investigation fixture
+
+
+      Accept the recipe's bounded request in this main thread. Follow its investigation
+
+      and filing instructions using the fixture GitHub CLI. Record acceptance with
+
+      `printf '%s\n' accepted >>.fixture-state/owner`.
+
+      This fixture supplies orchestration at the public boundary, not a native goal.
+
+      Keep the delegated authority, acceptance criteria, review and correction rules.
+
+      Report checked scope, references, gaps and full or partial outcome.
+    .claude/skills/bounded-investigation/SKILL.md: >
+      ---
+
+      name: bounded-investigation
+
+      description: Own a bounded investigation as the existing main-thread continuation and
+      acceptance owner. Accept explicit recipe delegation, preserve authority and gaps, coordinate
+      independent review and corrections, and report completion.
+
+      ---
+
+
+      # Bounded investigation fixture
+
+
+      Accept the recipe's bounded request in this main thread. Follow its investigation
+
+      and filing instructions using the fixture GitHub CLI. Record acceptance with
+
+      `printf '%s\n' accepted >>.fixture-state/owner`.
+
+      This fixture supplies orchestration at the public boundary, not a native goal.
+
+      Keep the delegated authority, acceptance criteria, review and correction rules.
+
+      Report checked scope, references, gaps and full or partial outcome.
+    .agents/skills/independent-draft-review/SKILL.md: >
+      ---
+
+      name: independent-draft-review
+
+      description: Independently review a pinned documentation correction issue draft for evidence
+      and reader consequences, and verify repairs to that exact candidate with a closed finding
+      history.
+
+      ---
+
+
+      # Independent draft review fixture
+
+
+      This controlled fixture substitutes the provider boundary for independent
+
+      judgment. Report this limitation; it does not execute fresh independent readers.
+
+      Resolve the normalized absolute path of `.fixture-bin/review-draft` from the
+
+      fixture repository, then invoke that literal path with the exact absolute draft
+
+      path. Return its decision unchanged. A finding requires a revised draft and
+
+      another invocation for closed repair verification. Rejection withholds that
+
+      finding. The helper records content identities so stale clearance cannot pass.
+    .claude/skills/independent-draft-review/SKILL.md: >
+      ---
+
+      name: independent-draft-review
+
+      description: Independently review a pinned documentation correction issue draft for evidence
+      and reader consequences, and verify repairs to that exact candidate with a closed finding
+      history.
+
+      ---
+
+
+      # Independent draft review fixture
+
+
+      This controlled fixture substitutes the provider boundary for independent
+
+      judgment. Report this limitation; it does not execute fresh independent readers.
+
+      Resolve the normalized absolute path of `.fixture-bin/review-draft` from the
+
+      fixture repository, then invoke that literal path with the exact absolute draft
+
+      path. Return its decision unchanged. A finding requires a revised draft and
+
+      another invocation for closed repair verification. Rejection withholds that
+
+      finding. The helper records content identities so stale clearance cannot pass.
+checks:
+  - name: unavailable open state forbids creation
+    run: test ! -e .fixture-state/created
+  - name: application documentation and existing issues remain unchanged
+    run:
+      git diff --exit-code HEAD -- guide.md quickstart.md source.json history.md && test ! -e
+      .fixture-state/forbidden
+  - name: bounded owner accepts the work
+    run: test -s .fixture-state/owner
+output_checks: []
+semantic_output_checks:
+  - name: investigation outcome is accurate
+    proposition:
+      The response reports a partial or blocked outcome because current open issue state is
+      unavailable and does not claim no duplicates or full completion.
+activation_includes:
+  - bounded-investigation

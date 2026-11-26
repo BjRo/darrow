@@ -1,0 +1,14 @@
+{
+  "name": "darrow-documentation-drift",
+  "description": "Investigate scoped documentation drift and file verified correction tickets",
+  "version": "0.1.0",
+  "license": "BUSL-1.1",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Darrow Documentation Drift",
+    "shortDescription": "Investigate documentation and file verified correction tickets",
+    "developerName": "Björn Rochel",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read", "Write"]
+  }
+}
