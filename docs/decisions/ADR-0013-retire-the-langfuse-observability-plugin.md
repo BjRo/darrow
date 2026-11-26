@@ -58,10 +58,6 @@ process environment before launching a ticket session. Those attributes apply
 at session/process scope; a later shell cannot change its parent host's
 environment or recreate the removed mid-session epoch behavior.
 
-Track launch-time environment setup and original-owner resume behavior for
-Artificer separately in [issue #285](https://github.com/BjRo/darrow/issues/285).
-This retirement does not implement that feature.
-
 ## Consequences
 
 - Darrow no longer distributes or maintains the plugin's reconstruction,

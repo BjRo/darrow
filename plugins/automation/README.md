@@ -1,8 +1,8 @@
 # Automation
 
-No automation plugin currently ships. The automation category remains for
-admission timing, eligibility and shared capacity under explicit recurring
-authority. Task recipes and native sessions retain engineering execution.
+Automation handles admission timing, eligibility and shared capacity under
+explicit recurring authority. Task recipes and native sessions retain
+engineering execution.
 
 Use [Ticket-to-PR](../task-recipe/darrow-ticket-to-pr/README.md) to explicitly
 deliver one ticket. Installing a plugin grants no recurring execution or

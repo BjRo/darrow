@@ -70,7 +70,7 @@ recurring authority. No automation plugin currently ships. The recipe and
 original native session retain engineering execution and completion. Installing
 a plugin grants no recurring execution or publication authority.
 [ADR-0017](decisions/ADR-0017-limit-automation-to-authorized-admission.md) records
-the former Artificer implementation and its admission boundary.
+the admission boundary.
 
 ## Skills and helpers
 
