@@ -1,12 +1,12 @@
 {
   "name": "darrow-ticket-to-pr",
-  "version": "0.9.1",
-  "description": "Deliver one ticket through implement and one Adaptive Goal: new branch, one PR and green required CI",
+  "version": "0.10.0",
+  "description": "Deliver one ticket as a pull request with green required CI.",
   "skills": "./skills/",
   "interface": {
     "displayName": "Darrow -> Ticket to PR",
     "shortDescription": "Deliver one ticket as one pull request",
-    "longDescription": "A thin Adaptive Goal shortcut: implement one exact ticket on a new branch using TDD, open one verified PR, and hand over with required CI green on its final commit. Use a worktree only when requested.",
+    "longDescription": "Implement one ticket on a new branch, publish a pull request, and hand over when required CI passes on the final commit.",
     "developerName": "Björn Rochel",
     "category": "Productivity",
     "capabilities": ["Interactive", "Read", "Write"],

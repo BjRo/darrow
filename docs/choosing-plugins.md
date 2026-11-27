@@ -6,7 +6,7 @@ alone; its README owns its prerequisites, behavior, and safety rules.
 
 ## Choose by intent
 
-- [Matt Pocock](../plugins/capability/darrow-matt-pocock/README.md): clarify decisions, research, diagnose, model a domain, write skills, use TDD, or implement approved work.
+- [Matt Pocock](../plugins/capability/darrow-matt-pocock/README.md): clarify decisions, research, diagnose, model a domain, write skills, or use TDD.
 - [Pstack](../plugins/capability/darrow-pstack/README.md): investigate impact or rationale, correct mistakes, maintain verification, check measurements, edit writing, or apply principles.
 - [Git](../plugins/capability/darrow-git/README.md): create a branch or an evidence-backed PR.
 - [Readiness Gate](../plugins/capability/darrow-readiness-gate/README.md): assess whether a request is ready to implement.
@@ -18,10 +18,9 @@ alone; its README owns its prerequisites, behavior, and safety rules.
 - [Documentation Drift](../plugins/task-recipe/darrow-documentation-drift/README.md): explicitly check documentation against authoritative sources and file verified correction tickets.
 
 These are the ten entries in the [marketplace manifest](../.claude-plugin/marketplace.json).
-Matt contains 17 selected skills; pstack contains 33. Their unchanged explicit-only
-workflows stay explicit. Adapted implement accepts explicit invocation or authorized
-parent delegation and defaults to local commits. Ticket-to-PR supplies publication
-authority and required CI; Adaptive Goal remains the one continuation owner.
+Matt contains 16 selected skills and pstack contains 33. Their explicit-only
+workflows stay explicit. Ticket-to-PR supplies publication authority and required
+CI to Adaptive Goal, which owns continuation through completion.
 Review is independently usable; acceptance also needs criterion-specific evidence.
 Git creates the complete PR without requiring Explanation.
 

@@ -1,4 +1,4 @@
-id: ticket-to-pr-implement-unavailable
+id: ticket-to-pr-adaptive-goal-unavailable
 candidate_routes:
   codex:
     model: gpt-6.1-sol
@@ -12,15 +12,14 @@ fixture:
       files:
         README.md: "base\n"
   files:
-    .agents/skills/adaptive-goal/SKILL.md: &owner |
+    .agents/skills/implement/SKILL.md: &implementation |
       ---
-      name: adaptive-goal
-      description: Provide Adaptive Goal orchestration for one bounded request in the original main thread, owning preflight, the native goal and completion.
+      name: implement
+      description: Implement approved ticket work. Accept preserved delegation from an explicit recipe. Requires a separate Adaptive Goal skill to own execution.
       ---
-      This provider owns orchestration only. It does not supply the approved-work
-      implementation recipe. If invoked, run `record-owner-bypass` and return
-      `Status: blocked. Reason: direct-owner-bypass` without engineering.
-    .claude/skills/adaptive-goal/SKILL.md: *owner
+      If invoked, run `record-owner-bypass` and return
+      `Status: blocked. Reason: implementation-fallback` without engineering.
+    .claude/skills/implement/SKILL.md: *implementation
   bin:
     record-owner-bypass: |
       #!/bin/sh
@@ -32,8 +31,8 @@ checks:
       test "$(git rev-list --count HEAD)" -eq 1 &&
       git diff --exit-code && test ! -e .fixture-state/owner-bypass
 output_checks:
-  - name: reports the missing approved implementation boundary
-    expect_regex: "launch_required[\\s\\S]*implement|implement[\\s\\S]*launch_required"
+  - name: reports the missing Adaptive Goal skill
+    expect_regex: "launch_required[\\s\\S]*adaptive[ -]goal|adaptive[ -]goal[\\s\\S]*launch_required"
     flags: i
 transcript_checks:
   - name: recipe does not substitute delivery work for adaptive goal
@@ -42,5 +41,6 @@ transcript_checks:
       - read-ticket
       - assess-implementation-readiness
       - prepare-task-branch
+      - implement
     forbidSpawn: true
     forbidAgentTool: true

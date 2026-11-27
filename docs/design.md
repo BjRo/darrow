@@ -49,10 +49,10 @@ chooses authorized investigation, a user question or termination. A successful
 suboperation adds no authority; a required refusal cannot be bypassed through raw tools.
 
 Recipes preserve approved intent, agreed test seams, checks and inherited
-permissions. Ticket-to-PR carries one ticket's branch, publication, reviewer
-proof and required-green-CI envelope through implement into the same native owner.
-A reused PR URL is insufficient: publication evidence must identify the intended
-remote commit and required CI must pass for that final commit.
+permissions. Ticket-to-PR gives Adaptive Goal one ticket, authority to prepare
+its branch and publish its PR, and permission to publish reviewer evidence when
+required. Publication evidence must identify the intended remote commit, and
+required CI must pass for that commit.
 
 ## Acceptance and independent review
 

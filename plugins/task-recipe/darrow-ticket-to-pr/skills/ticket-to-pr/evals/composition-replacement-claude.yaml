@@ -8,16 +8,11 @@ activation: positive
 mount_plugin_skills: true
 activation_includes:
   - ticket-to-pr
-  - implement
   - adaptive-goal
 additional_plugins:
   - plugins/orchestration/darrow-adaptive-goal
   - plugins/capability/darrow-readiness-gate
   - plugins/capability/darrow-git
-  - plugins/capability/darrow-pstack
-additional_skills:
-  - plugins/capability/darrow-matt-pocock/skills/implement
-  - plugins/capability/darrow-matt-pocock/skills/tdd
 prompt: "{{skill_invocation}} https://example.invalid/tickets/42 Reuse
   fix/GH-42-timeout and its existing PR; publish the additional intended
   commits. Verify the change by running `bash check.sh`. The confirmed public
@@ -152,7 +147,7 @@ native_goal: required
 harnesses:
   - claude
 follow_up_prompt: /goal Continue the already prepared Ticket-to-PR delivery
-  through implement and its one Adaptive Goal owner in this original session.
+  through the same Adaptive Goal owner in this original session.
   Preserve the approved scope, inherited ready assessment, confirmed
   config.json/bash check.sh test seam and all first-turn provider bindings. Set
   timeoutMs to 2500 and preserve NOTES.md. Commit with native Git under repository instructions

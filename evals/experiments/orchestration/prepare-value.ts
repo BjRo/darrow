@@ -73,7 +73,6 @@ function supportingSkills(track: "implementation" | "delivery") {
     capability("darrow-pstack", "principles-first"),
     ...(track === "delivery"
       ? [
-          capability("darrow-matt-pocock", "implement"),
           `${adaptive}/skills/adaptive-goal`,
           ...["create-branch", "prepare-task-branch", "create-pr"].map(
             (skill) => capability("darrow-git", skill),
@@ -137,7 +136,7 @@ async function prepareConditions(experiment: string) {
   );
   await writeFile(
     join(conditions, "ticket-to-pr.md"),
-    "Use {{skill_invocation}} for GitHub issue 1, preserving all caller options in the request below. Follow the current recipe and its shared implement recipe and one Adaptive Goal owner in this main thread.\n",
+    "Use {{skill_invocation}} for GitHub issue 1 and preserve all caller options in the request below. Continue with one Adaptive Goal owner in this main thread.\n",
   );
   await writeFile(
     join(conditions, "vanilla-delivery.md"),

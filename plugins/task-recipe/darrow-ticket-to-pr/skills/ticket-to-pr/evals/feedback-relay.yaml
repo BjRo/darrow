@@ -577,11 +577,6 @@ transcript_checks:
   - name: user answer resumes the same native thread
     kind: continuation-boundary
 native_goal: required
-additional_skills:
-  - plugins/capability/darrow-matt-pocock/skills/implement
-  - plugins/capability/darrow-matt-pocock/skills/tdd
-  - plugins/capability/darrow-pstack/skills/principles-first
 activation_includes:
   - ticket-to-pr
   - adaptive-goal
-  - implement

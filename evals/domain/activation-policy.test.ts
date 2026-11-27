@@ -115,8 +115,8 @@ const supportingDefinition = {
 };
 
 test.each([
-  ["ticket-to-pr-explicit-options-delegation", "implement"],
-  ["ticket-to-pr-shortcut-delegation", "implement"],
+  ["ticket-to-pr-explicit-options-delegation", "adaptive-goal"],
+  ["ticket-to-pr-shortcut-delegation", "adaptive-goal"],
   ["ticket-to-pr-compatible-orchestrator", "bounded-delivery"],
 ])(
   "ticket handoff %s accepts batched exposure and requires its provider",

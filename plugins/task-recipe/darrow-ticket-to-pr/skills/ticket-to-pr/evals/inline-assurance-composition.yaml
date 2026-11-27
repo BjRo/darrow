@@ -153,8 +153,5 @@ harnesses:
   - codex
 required_plugin_hook: darrow-review
 activation_includes:
+  - adaptive-goal
   - code-review
-additional_skills:
-  - plugins/capability/darrow-matt-pocock/skills/implement
-  - plugins/capability/darrow-matt-pocock/skills/tdd
-  - plugins/capability/darrow-pstack/skills/principles-first

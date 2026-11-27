@@ -6,7 +6,7 @@ candidate_routes:
 activation: positive
 mount_plugin_skills: true
 activation_includes:
-  - implement
+  - adaptive-goal
 expect_head_change: false
 prompt: >-
   {{skill_invocation}} https://example.invalid/tickets/99 using a linked
@@ -18,10 +18,10 @@ fixture:
       files:
         README.md: "base\n"
   files:
-    .claude/skills/implement/SKILL.md: &implementation_recipe |
+    .claude/skills/adaptive-goal/SKILL.md: &adaptive_goal |
       ---
-      name: implement
-      description: Implement approved ticket/spec work through one Adaptive Goal owner in the original main thread, preserving inherited test seams, readiness and authority for a bounded recipe-delegated delivery. Accept preserved authority and explicit delivery options.
+      name: adaptive-goal
+      description: Coordinate bounded engineering through one native goal in the original main thread. Accept preserved authority and explicit delivery options from an invoked recipe.
       ---
 
       # Fixture adaptive goal
@@ -39,7 +39,7 @@ fixture:
       ```
 
       Return `Status: blocked` and `Reason: fixture-options-observed`.
-    .agents/skills/implement/SKILL.md: *implementation_recipe
+    .agents/skills/adaptive-goal/SKILL.md: *adaptive_goal
   bin:
     record-ticket-to-pr-options: |
       #!/usr/bin/env bash

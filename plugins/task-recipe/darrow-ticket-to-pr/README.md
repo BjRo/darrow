@@ -1,15 +1,13 @@
 # Darrow Ticket to PR
 
-`ticket-to-pr` delegates one exact ticket to implement, the approved-work
-implementation recipe, and its Adaptive Goal owner. It requests a new branch,
-TDD, verification, one PR and green required CI on the final published commit.
+`ticket-to-pr` gives Adaptive Goal one exact ticket to implement on a new branch
+and deliver as one PR with required CI green on the final published commit.
 A linked worktree requires an explicit request.
 
-Implement owns the implementation instructions. Adaptive Goal owns preflight,
-execution, assessment, repairs, publication, CI observation and completion.
-Ticket-to-PR supplies the delivery authority and relays results through that
-same main-thread owner. Caller options override defaults unchanged; Adaptive
-Goal supplies the default repair budget.
+Ticket to PR asks Adaptive Goal to apply principles-first reasoning during
+implementation and use red/green TDD at a stable public seam for behavior changes
+and bug fixes. It supplies delivery authority and passes caller options unchanged
+to the same main-thread goal owner.
 
 ## When to use
 
@@ -19,18 +17,17 @@ outside its scope.
 
 ## Hosts and prerequisites
 
-Codex or Claude Code with a host-advertised approved-work implementation recipe
-and its required Adaptive Goal, TDD, independent Review and principles providers.
-The owner needs repository tools, tracker, Git and forge access. Commits use
-native Git under repository instructions. Missing or refused providers remain
-blockers; the recipe neither installs them nor searches sibling plugins.
+Use Codex or Claude Code with the host-advertised Adaptive Goal skill, repository
+tools, and access to the tracker, Git remote and forge. Adaptive Goal selects
+the capabilities needed for the ticket and caller options. Commits use native
+Git under repository instructions.
 
 ## Installation
 
 Install `darrow-ticket-to-pr@darrow` using the
 [host installation and update instructions](https://github.com/BjRo/darrow/blob/main/docs/installing-plugins.md).
-Update Ticket-to-PR, the Matt bundle, Adaptive Goal and Review together before
-starting delivery. In-flight delivery keeps its installation.
+Update Ticket-to-PR and Adaptive Goal before starting delivery. In-flight
+delivery keeps its installation.
 
 ## Usage
 
@@ -67,7 +64,7 @@ It adds no preflight, controller, delivery work or post-goal inspection.
 
 ## Troubleshooting
 
-Supply the missing exact ticket or resolve an ambiguous implementation provider.
+Supply the missing exact ticket or resolve an unavailable or ambiguous Adaptive Goal skill.
 Preserve an accepted owner's identity and refusal evidence; do not start a duplicate.
 Use the [host discovery checks](https://github.com/BjRo/darrow/blob/main/docs/troubleshooting.md)
 for installation symptoms.

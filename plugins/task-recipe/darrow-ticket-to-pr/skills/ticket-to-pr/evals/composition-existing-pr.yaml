@@ -8,16 +8,11 @@ activation: positive
 mount_plugin_skills: true
 activation_includes:
   - ticket-to-pr
-  - implement
   - adaptive-goal
 additional_plugins:
   - plugins/orchestration/darrow-adaptive-goal
   - plugins/capability/darrow-readiness-gate
   - plugins/capability/darrow-git
-  - plugins/capability/darrow-pstack
-additional_skills:
-  - plugins/capability/darrow-matt-pocock/skills/implement
-  - plugins/capability/darrow-matt-pocock/skills/tdd
 prompt: >-
   {{skill_invocation}} https://example.invalid/tickets/42
   Reuse fix/GH-42-timeout and its existing PR; publish the additional intended commits.

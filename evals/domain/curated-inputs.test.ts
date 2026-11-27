@@ -15,7 +15,7 @@ const script = resolve(import.meta.dir, "../../scripts/acquire-curated-skills");
 const fixtures = join(import.meta.dir, "curated-inputs");
 const roots: string[] = [];
 const matt =
-  "grilling wayfinder grill-with-docs domain-modeling diagnosing-bugs to-spec to-tickets wizard codebase-design improve-codebase-architecture writing-for-agents wait-what tdd implement research prototype setup-matt-pocock-skills".split(
+  "grilling wayfinder grill-with-docs domain-modeling diagnosing-bugs to-spec to-tickets wizard codebase-design improve-codebase-architecture writing-for-agents wait-what tdd research prototype setup-matt-pocock-skills".split(
     " ",
   );
 const workflows =

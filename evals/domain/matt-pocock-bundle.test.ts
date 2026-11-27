@@ -19,7 +19,6 @@ const selected = [
   "writing-for-agents",
   "wait-what",
   "tdd",
-  "implement",
   "research",
   "prototype",
   "setup-matt-pocock-skills",
