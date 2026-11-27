@@ -58,6 +58,13 @@ repository templates take precedence. Small changes can use short prose, while
 a compact visual is useful when it clarifies a complex change. This complete PR
 experience works without the Explanation plugin.
 
+For a completed GitHub issue, a PR targeting the default branch uses `Closes`
+so merging closes the issue when repository auto-closing is enabled.
+Partial work, uncertain completion,
+opaque IDs without an established GitHub mapping, and nondefault bases use
+`Refs`. The workflow preserves the requested base and explains when merging
+will not automatically close the ticket.
+
 An explicit request to publish commits to and reuse the existing PR selects a
 separate path: it pushes without force and verifies that the remote branch and
 forge head both equal the intended commit. It returns the repository, URL,

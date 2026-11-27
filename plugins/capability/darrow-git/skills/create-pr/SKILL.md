@@ -93,7 +93,8 @@ adding competing headings.
 
 - **Summary.** Start the change summary with a small fenced `diff` sketch
   when it can show a meaningful change in behavior or structure. Sketch
-  the relevant calls, branch conditions, or ownership changes. Follow with a
+  the relevant calls, branch conditions, or ownership changes. End the sketch
+  with an unprefixed line of three backticks. Follow with a
   sentence explaining why the change is needed and what it does. For a
   straightforward correction such as a typo, use a sentence in place of
   the sketch.
@@ -145,16 +146,47 @@ Pass each heading with its content as a separate `-b` section. For the default
 body, each section starts with its `##` heading, followed by a blank line and
 the content. Use a quoted shell heredoc or equivalent literal argument for
 each section so Markdown backticks and dollar signs reach the PR intact.
-If the branch name or conversation supplies a ticket identifier, add it
-verbatim to the body as `Refs <identifier>` or in the template's ticket
-section. Omit filler and boilerplate checklists. Never add tool
+Omit filler and boilerplate checklists. Never add tool
 attribution to the title or body. Presentation sources and applicable notices
 are recorded in [CREDITS.md](CREDITS.md).
+
+#### Ticket links
+
+Finish the change summary's diff sketch and explanatory prose first. Then add
+links for each known ticket using its supplied scope and the branch evidence.
+Put them in the template's ticket section or after the summary prose.
+
+- Use `Closes #123` when the PR fully resolves an established GitHub issue and
+  targets the repository's default branch. For an issue in another repository,
+  use `Closes owner/repo#123`. Each completed issue needs its own keyword.
+  Write closing references as ordinary body text, outside code blocks, inline
+  code, and Markdown links.
+  Ordinary completed tickets need no separate confirmation.
+- Use `Refs <identifier>` for partial work, umbrella issues with outstanding
+  scope, outstanding post-merge work, or when completion is unknown.
+- Preserve supplied opaque identifiers verbatim. Use a GitHub closing reference
+  only when its issue and repository are established by the available context.
+  Never derive a GitHub issue number from digits in a branch or opaque ID.
+  When a mapping is known, retain the opaque ID alongside the closing reference.
+- For any nondefault base, use `Refs` even for completed work. Preserve the
+  requested base. In the final report, explain that this merge will not
+  automatically close the ticket because GitHub closing keywords require the
+  default branch.
+- When no ticket is known, omit the ticket reference.
+
+Apply these rules within repository templates as well. GitHub's
+[closing-keyword documentation](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue)
+defines the supported syntax and default-branch requirement.
+Automatic closing also depends on the repository's
+[auto-closing setting](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/managing-auto-closing-issues).
+
+Before creation, check the assembled body. Closing references must appear
+outside every sketch, rather than as added lines inside a `diff` fence.
 
 **Complete when:** the title names the branch-wide effect. The body opens the
 change summary with a grounded sketch when useful, states evidence and its
 limits, and labels rollback and blast radius. It follows the selected template
-and preserves any known ticket identifier.
+and applies the ticket-linking rules to every known ticket.
 
 ### 3. Push and create
 
