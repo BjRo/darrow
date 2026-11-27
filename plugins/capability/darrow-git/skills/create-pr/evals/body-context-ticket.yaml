@@ -86,7 +86,11 @@ checks:
     expect_regex: "^created$"
   - name: ticket referenced verbatim
     run: cat .fixture-state/gh/body
-    expect_regex: "DAR-123"
+    expect_regex: '\bDAR-123\b'
+  - name: opaque ID does not become a GitHub closing reference
+    run: cat .fixture-state/gh/body
+    not_regex: '\b(?:close[sd]?|fix(?:es|ed)?|resolve[sd]?):?\s+(?:[\w.-]+/[\w.-]+)?#\d+'
+    flags: i
   - name: default presentation sections
     run: cat .fixture-state/gh/body
     expect_regex: "^## Summary$[\\s\\S]*^## Evidence$[\\s\\S]*^## Merge Danger$"

@@ -21,8 +21,8 @@ template's relevant sections. Do not add competing default headings.
    Remove placeholder text.
 5. Preserve every template checklist item. Check only statements known to be
    true for this branch; leave the others unchecked.
-6. Include a known ticket identifier verbatim in the section requested by the
-   template, or in the most relevant contextual section.
+6. Apply the [ticket-linking rules](../SKILL.md#ticket-links) in the section
+   requested by the template, or in the most relevant contextual section.
 7. Pass each heading together with its filled content as one `-b` section, in
    template order.
 

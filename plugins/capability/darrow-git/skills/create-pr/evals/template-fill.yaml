@@ -1,7 +1,11 @@
 id: create-pr-template-fill
 activation: positive
 mount_plugin_skills: true
-prompt: Open a PR for the preferences migration.
+prompt: >-
+  Open a PR for the preferences migration. The active ticket is GitHub issue
+  fixture/repo#123, also tracked as DAR-123. Its complete acceptance is removing
+  the legacy-preferences key during migration. The committed change satisfies
+  that scope, with no remaining ticket work after merge.
 fixture:
   commits:
     - message: "chore: init"
@@ -115,6 +119,14 @@ checks:
   - name: ticket referenced verbatim
     run: cat .fixture-state/gh/body
     expect_regex: "DAR-123"
+  - name: completed GitHub issue closes within the template
+    run: |
+      awk '
+        /^[[:space:]]*```/ { fenced = !fenced; next }
+        !fenced { gsub(/`[^`]*`/, ""); print }
+      ' .fixture-state/gh/body
+    expect_regex: '\bCloses:?\s+(?:fixture/repo)?#123\b'
+    flags: i
   - name: template replaces default presentation headings
     run: grep -Ec '^## (Summary|Evidence|Merge Danger)$' .fixture-state/gh/body || true
     expect_exact: "0"

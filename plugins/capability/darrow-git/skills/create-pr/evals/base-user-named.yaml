@@ -1,7 +1,11 @@
 id: create-pr-base-user-named
 activation: positive
 mount_plugin_skills: true
-prompt: Open a PR for the rate limit work against develop, not main.
+prompt: >-
+  Open a PR for the rate limit work against develop, not main. The active ticket
+  is GitHub issue fixture/repo#123. Its complete acceptance is defining the
+  per-client rate limit as 100 requests per minute. The committed change
+  satisfies that scope, with no remaining ticket work after merge.
 fixture:
   commits:
     - message: "chore: init"
@@ -83,6 +87,19 @@ checks:
   - name: user-named base used
     run: cat .fixture-state/gh/base
     expect_regex: "^develop$"
+  - name: nondefault base uses a nonclosing ticket reference
+    run: cat .fixture-state/gh/body
+    expect_regex: '(?:fixture/repo)?#123\b'
+  - name: nondefault base has no closing keyword
+    run: cat .fixture-state/gh/body
+    not_regex: '\b(?:close[sd]?|fix(?:es|ed)?|resolve[sd]?):?\s+(?:fixture/repo)?#123\b'
+    flags: i
   - name: intended feature published
     run: test "$(git rev-parse HEAD)" = "$(git -C .fixture-state/remote.git rev-parse refs/heads/feat/api-rate-limits)" && echo published
     expect_regex: "^published$"
+semantic_output_checks:
+  - name: explain the default-branch requirement
+    proposition: >-
+      The final response explains that merging this PR into develop will not
+      automatically close the ticket because automatic closing requires the
+      repository's default branch.

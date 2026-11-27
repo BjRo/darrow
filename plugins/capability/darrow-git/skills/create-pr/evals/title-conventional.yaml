@@ -93,6 +93,10 @@ checks:
   - name: no trailing period
     run: cat .fixture-state/gh/title
     not_regex: "\\.$"
+  - name: ticket-free work does not invent an issue reference
+    run: cat .fixture-state/gh/body
+    not_regex: '\b(?:Refs|close[sd]?|fix(?:es|ed)?|resolve[sd]?):?\s+(?:[\w.-]+/[\w.-]+)?#\d+'
+    flags: i
 output_checks:
   - name: successful creation links the canonical PR
     expect_regex: "https://github.com/fixture/repo/pull/1"
