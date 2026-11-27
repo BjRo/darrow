@@ -84,12 +84,15 @@ test("isolated Matt package mounts both host entrypoints through the public exte
         "prototype/LOGIC.md",
         "codebase-design/DESIGN-IT-TWICE.md",
         "setup-matt-pocock-skills/agents/openai.yaml",
-        "implement/SKILL.md",
-        "implement/agents/openai.yaml",
       ])
         expect(
           artifacts.some((a) => a.relativePath === `${prefix}/skills/${path}`),
         ).toBe(true);
+      expect(
+        artifacts.some((a) =>
+          a.relativePath.startsWith(`${prefix}/skills/implement/`),
+        ),
+      ).toBe(false);
       expect(artifacts.some((a) => a.relativePath.includes("/evals/"))).toBe(
         false,
       );
@@ -205,7 +208,7 @@ test.each(["darrow-matt-pocock", "darrow-pstack"])(
         await verifyPackageClosure(
           source,
           files,
-          { "darrow-matt-pocock": 17, "darrow-pstack": 33 }[name]!,
+          { "darrow-matt-pocock": 16, "darrow-pstack": 33 }[name]!,
         );
         expect(files.get("references/LICENSE")).toBe(
           await readFile(join(source, "LICENSE"), "utf8"),
