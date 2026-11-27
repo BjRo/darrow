@@ -1,7 +1,8 @@
 # Darrow Pstack
 
 Investigate changes, correct recurring mistakes, maintain project verification,
-and check performance measurements with six explicitly invoked workflows from
+check performance measurements and turn session lessons into skill edits with
+seven explicitly invoked workflows from
 Lauren Tan's pstack. Edit writing with `unslop`, or apply optional engineering
 guidance through an editable Markdown routing table.
 The `principles-first` entry reads the selected table and loads only matching
@@ -20,8 +21,9 @@ Invoke a focused workflow for one of these tasks:
 | `maintain-verification-skill` | Source and live checks of an existing verification skill, with proven corrections |
 | `why`                         | Design rationale cited from commits, PR discussions and other records             |
 | `benchmark-checklist`         | A performance verdict supported by checked measurements                           |
+| `reflect`                     | Proposed skill edits from this session's corrections, applied after your approval |
 
-These six workflows require explicit invocation on both hosts. Ordinary matching
+These seven workflows require explicit invocation on both hosts. Ordinary matching
 intent does not activate them. They do not replace independent review or delivery
 orchestration.
 
@@ -101,6 +103,8 @@ The selected workflow returns its findings, evidence and unresolved gaps.
 `correct` may edit the authorized repository area. Verification creation writes
 a project skill, its feature map and helpers, then exercises one mapped feature.
 Maintenance edits only the existing verification skill and its own resources.
+`reflect` edits only approved skills whose source lives in the current
+repository. For an installed plugin skill it returns patch text or an issue draft.
 Investigation and performance proof scripts use disposable scratch space.
 
 `unslop` rewrites supplied text while preserving its meaning and intended tone.

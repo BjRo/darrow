@@ -90,5 +90,11 @@ Guidance cannot change scope, acceptance, compatibility obligations, authority,
 required checks, stop conditions or the owner's repair and completion rules.
 It grants no Git effects or additional implementation attempt.
 
+Cite what shaped the work. In the reply, name each applied principle by its row
+ID and state the specific choice it changed. Cite only principles whose full
+referenced instructions you read this session. A matching trigger alone is not
+a read.
+
 Complete when: every applied principle has been fully read, its relevant
-decision is reflected in the work, and the caller's boundaries still hold.
+decision is reflected in the work, the reply cites it with the choice it
+changed, and the caller's boundaries still hold.

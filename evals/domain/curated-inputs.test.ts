@@ -19,7 +19,7 @@ const matt =
     " ",
   );
 const workflows =
-  "blast-radius correct create-verification-skill maintain-verification-skill why benchmark-checklist".split(
+  "blast-radius correct create-verification-skill maintain-verification-skill why benchmark-checklist reflect".split(
     " ",
   );
 const workflowRevision = "7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9";

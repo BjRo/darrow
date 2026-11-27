@@ -45,11 +45,11 @@ Use disposable scratch files for proof scripts. Execute only checks permitted by
 ## What to hand back
 
 - **What it does.** What changed, including the part that isn't obvious.
-- **The one fact it's safe because of.** State it, say which step you got it to, and show the proof. If you couldn't prove it, write unproven.
+- **The one fact it's safe because of.** State it, say which step you got it to, and show the proof. Give it a verdict: VERIFIED when a run at step 4 or 5 proved it, NOT VERIFIED when a run disproved it, INCONCLUSIVE otherwise. Inconclusive is not a pass.
 - **Risks.** Each names how it breaks, the `file:line`, how likely and how bad, and how to check. Paste the proof for the ones that matter.
 - **Cleared.** What you checked and why it's fine.
 - **Before you merge.** The cheapest test or repro that catches the real bug, including the script you wrote.
 
 Apply the bundled [unslop writing rules](../unslop/SKILL.md) to the report. Cite real code and keep private evidence local. Publication requires separate authority.
 
-**Reply:** the writeup above, with the one safety fact either proven or marked unproven.
+**Reply:** the writeup above, with the one safety fact's verdict.

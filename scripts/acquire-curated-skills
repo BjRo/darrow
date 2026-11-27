@@ -24,7 +24,7 @@ export DISABLE_TELEMETRY=1 DO_NOT_TRACK=1
 matt_revision=abeeaf95660ba9e8b7c753eb38f441ca707a8823
 pstack_revision=aaeb0ea3a0584995aa8f55ce44c6c5259414b896
 pstack_workflows_revision=7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9
-pstack_workflows=(blast-radius correct create-verification-skill maintain-verification-skill why benchmark-checklist)
+pstack_workflows=(blast-radius correct create-verification-skill maintain-verification-skill why benchmark-checklist reflect)
 matt_skills=(grilling wayfinder grill-with-docs domain-modeling diagnosing-bugs
   to-spec to-tickets wizard codebase-design improve-codebase-architecture
   writing-for-agents wait-what tdd research prototype setup-matt-pocock-skills)

@@ -50,4 +50,6 @@ Run its own instructions end to end once: launch, doctor, drive ONE mapped featu
 
 Point the user at the bundled `maintain-verification-skill`, using `$darrow-pstack:maintain-verification-skill` in Codex or `/darrow-pstack:maintain-verification-skill` in Claude Code, for keeping the map honest as the app changes. Suggest a cadence only if they ask.
 
+Report the generated skill's verdict: VERIFIED when its instructions ran end to end on the real target, NOT VERIFIED when that run failed, INCONCLUSIVE when it ran only in a stand-in or did not finish. Inconclusive is not a pass.
+
 Complete when: the host entrypoints resolve, the generated instructions ran end to end on one mapped feature, and retained evidence survives cleanup. Otherwise report a draft and the missing proof.

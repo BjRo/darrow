@@ -1,0 +1,63 @@
+# The oracle treats any root-agent mention of a route ID as a citation. A reply
+# that names the unmatched release-tone route without opening it fails, which
+# matches the skill's rule to leave unmatched references unread.
+id: pstack-principles-first-cite-read-principles
+activation: positive
+mount_plugin_skills: true
+expect_head_change: false
+prompt: >-
+  Use a principles-first approach to design the nightly payment import described
+  in import.md. Recommend a module structure in a few short paragraphs. Do not
+  edit files.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        import.md: |
+          The nightly job reads bank CSV rows with an account ID, an amount in
+          cents as text and a booking date, then updates account balances. Four
+          parallel workers process the rows. Today each worker parses the fields
+          it needs and updates the balances table directly.
+        .darrow/principles.md: |
+          # Principles routing
+
+          | ID | Trigger | Reference |
+          | --- | --- | --- |
+          | ledger-parse-once | Designing code that consumes external files or messages | custom-principles/parse-once.md |
+          | ledger-one-writer | Designing concurrent updates to shared balances | custom-principles/one-writer.md |
+          | release-tone | Writing release announcements | custom-principles/release-tone.md |
+        .darrow/custom-principles/parse-once.md: |
+          # Parse once
+
+          Parse external input once at the boundary into a typed record.
+          Downstream code accepts only parsed records, never raw rows.
+        .darrow/custom-principles/one-writer.md: |
+          # One writer
+
+          Give each mutable balance exactly one writer. Other components send
+          requests to that writer instead of updating shared state.
+        .darrow/custom-principles/release-tone.md: |
+          # Release tone
+
+          Lead release announcements with the user-visible change.
+  setup: |
+    mkdir -p .git/eval-checks
+    cp "{{case_dir}}/fixtures/assert-cited-principles-read.mjs" .git/eval-checks/
+checks:
+  - name: every cited route ID names a principle file the agent opened
+    run: >-
+      node .git/eval-checks/assert-cited-principles-read.mjs
+      ledger-parse-once=parse-once.md ledger-one-writer=one-writer.md
+      release-tone=release-tone.md
+  - name: applying guidance changes no tracked or user files
+    run: test -z "$(git status --porcelain)"
+semantic_output_checks:
+  - name: each cited principle names the choice it changed
+    proposition: >-
+      A nightly job reads bank CSV rows and four parallel workers currently parse
+      fields and update balances directly. The response names at least one
+      applied principle by its route ID, ledger-parse-once or ledger-one-writer.
+      For each one it names, it states the specific design choice that principle
+      changed, such as parsing rows once into typed records before the workers
+      or routing balance updates through a single writer.
+native_goal: forbidden

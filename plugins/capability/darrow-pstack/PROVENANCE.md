@@ -29,6 +29,10 @@ optional routing, and customization behavior. Unlike the researched upstream
 number/type leaves, these versions do not invoke `benchmark-checklist` or
 `typescript-best-practices`.
 
+One later Darrow change is recorded. `principles-first` requires the reply to
+cite each applied principle by route ID with the choice it changed, and to cite
+only principles whose full instructions were read that session.
+
 Local packaging differences are the plugin identity, paired manifests, README,
 MIT notices and provenance. Copied evals retain their behavior while package
 references identify `darrow-pstack`. Existing principle IDs and personal state
@@ -53,4 +57,4 @@ root distribution notices remain; no preserved skill or routing-table body chang
 
 ## Additional engineering workflows
 
-Six explicitly invoked workflows are pinned separately from `unslop`. Their source, full notice, support files and Darrow adaptations live in [workflow provenance](references/workflows/LOCAL-DIFFERENCES.md). The original pins and preserved principle bodies above remain unchanged.
+Seven explicitly invoked workflows are pinned separately from `unslop`. Their source, full notice, support files and Darrow adaptations live in [workflow provenance](references/workflows/LOCAL-DIFFERENCES.md). The original pins and preserved principle bodies above remain unchanged.

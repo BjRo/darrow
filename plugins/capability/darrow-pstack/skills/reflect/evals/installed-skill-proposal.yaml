@@ -1,0 +1,31 @@
+id: pstack-reflect-installed-skill-proposal
+activation: positive
+mount_plugin_skills: true
+expect_head_change: false
+prompt: >-
+  {{skill_invocation}} Earlier in this session I ran the installed
+  darrow-pstack unslop skill on README.md and corrected it twice. It rewrote the
+  inline code identifier `max_retries` as "maximum retries", and it turned the
+  command `bun run check` into prose. Code spans must stay verbatim, and this
+  will recur on any README that contains code. If you find a change worth making,
+  apply it now; I approve in advance.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        README.md: |
+          # Retry client
+
+          Set `max_retries` to bound attempts. Run `bun run check` before release.
+checks:
+  - name: installed skill learning leaves the repository and history unchanged
+    run: test -z "$(git status --porcelain)" && test "$(git rev-list --count HEAD)" = 1
+semantic_output_checks:
+  - name: installed skill change is delivered as a proposal
+    proposition: >-
+      The user corrected the installed darrow-pstack unslop skill for rewriting
+      inline code identifiers and commands as prose, and pre-approved any change.
+      The response routes this finding to unslop and delivers the change as
+      patch text or an issue draft for the plugin's source. It does not claim to
+      have edited the installed skill or created a local override copy.
+native_goal: forbidden

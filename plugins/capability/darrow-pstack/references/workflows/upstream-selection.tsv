@@ -4,3 +4,4 @@ create-verification-skill	pstack/skills/create-verification-skill
 maintain-verification-skill	pstack/skills/maintain-verification-skill
 why	pstack/skills/why
 benchmark-checklist	pstack/skills/benchmark-checklist
+reflect	pstack/skills/reflect
