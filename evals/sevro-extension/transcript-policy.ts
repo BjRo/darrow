@@ -92,16 +92,21 @@ function inactiveParameters(check: Record<string, unknown>, kind: string) {
   return selected;
 }
 
+function commandAbsenceParameters(check: Record<string, unknown>) {
+  fields(check, ["forbiddenCommandTerms", "turn"]);
+  if (check.turn !== undefined && check.turn !== "follow-up")
+    throw new Error("transcript turn must be follow-up");
+  return {
+    forbiddenCommandTerms: strings(
+      check.forbiddenCommandTerms,
+      "forbiddenCommandTerms",
+    ),
+    ...(check.turn ? { turn: "follow-up" } : {}),
+  };
+}
+
 function parameters(check: Record<string, unknown>, kind: string) {
-  if (kind === "command-absence") {
-    fields(check, ["forbiddenCommandTerms"]);
-    return {
-      forbiddenCommandTerms: strings(
-        check.forbiddenCommandTerms,
-        "forbiddenCommandTerms",
-      ),
-    };
-  }
+  if (kind === "command-absence") return commandAbsenceParameters(check);
   if (simpleKinds.has(kind)) {
     fields(check, []);
     return {};

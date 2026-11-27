@@ -14,6 +14,7 @@ import { nativeGoalPolicy, nativeGoalOutcomes } from "./native-goal-policy";
 import {
   nativeTranscriptOutcomes,
   NATIVE_TRANSCRIPT_KINDS,
+  followUpEventId,
   nativeTranscriptEvidence,
   type NativeTranscript,
 } from "./native-transcript-policy";
@@ -4510,6 +4511,17 @@ function guideDisclosureOutcomes(checkIds: unknown, observations: unknown) {
   }));
 }
 
+/** Load the follow-up stream only when a check is scoped to that turn. */
+async function selectedFollowUpEvents(
+  checks: NativeTranscript[],
+  artifacts: unknown,
+  eventId: string,
+) {
+  return checks.some((check) => check.turn)
+    ? codexEventText(artifacts, followUpEventId(eventId))
+    : null;
+}
+
 async function currentNativeTranscriptChecks(
   details: RecordValue,
   params: RecordValue,
@@ -4527,9 +4539,15 @@ async function currentNativeTranscriptChecks(
       ? "sevro.claude.events"
       : "sevro.codex.events";
   const events = await codexEventText(params.artifacts, eventId);
+  const followUpEvents = await selectedFollowUpEvents(
+    selected,
+    params.artifacts,
+    eventId,
+  );
   const tools = claudeCalls(params.observations);
   return nativeTranscriptOutcomes(selected, params.observations, {
     events,
+    followUpEvents,
     eventId,
     skills: transcriptSkillObservation(params.observations, details),
     spawns: nativeControlEvidence(params.observations)?.acceptedSpawns ?? null,

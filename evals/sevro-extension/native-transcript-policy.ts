@@ -9,6 +9,8 @@ export type NativeTranscript = {
   effort?: string;
   claudeTypes?: string[];
   forbiddenCommandTerms?: string[];
+  /** Restrict command absence to the configured follow-up turn. */
+  turn?: "follow-up";
 };
 
 function row(value: unknown): Row | null {
@@ -321,6 +323,7 @@ function repairReuseStatus(
 
 type NativeContext = {
   events: string | null;
+  followUpEvents?: string | null;
   eventId: string;
   skills: { observedSkills: string[]; evidenceRef: string } | null;
   spawns: Row[] | null;
@@ -352,12 +355,14 @@ function status(
   if (check.kind === "route") return hostRouteStatus(check, context);
   if (check.kind === "repair-reuse") return repairReuseStatus(check, context);
   if (check.kind === "inactive") return inactiveStatus(context);
-  if (check.kind === "command-absence")
+  if (check.kind === "command-absence") {
+    const selected = commandEvents(check, context);
     return commandAbsence(
-      context.events,
-      context.eventId,
+      selected.events,
+      selected.eventId,
       check.forbiddenCommandTerms!,
     );
+  }
   if (check.kind.endsWith("before-feedback"))
     return feedbackStatus(check, values, context.spawns);
   return claudeStatus(check, context);
@@ -385,9 +390,23 @@ export function nativeTranscriptOutcomes(
 
 const SPAWN_KINDS = new Set(["route", "repair-reuse"]);
 
+export function followUpEventId(eventId: string): string {
+  return eventId.replace(/\.events$/, ".follow-up-events");
+}
+
+function commandEvents(check: NativeTranscript, context: NativeContext) {
+  return check.turn
+    ? {
+        events: context.followUpEvents ?? null,
+        eventId: followUpEventId(context.eventId),
+      }
+    : { events: context.events, eventId: context.eventId };
+}
+
 function transcriptRefs(check: NativeTranscript, context: NativeContext) {
   const { eventId } = context;
-  if (check.kind === "command-absence") return [eventId];
+  if (check.kind === "command-absence")
+    return [commandEvents(check, context).eventId];
   if (SPAWN_KINDS.has(check.kind))
     return eventId === "sevro.claude.events"
       ? ["sevro.claude.tool-calls", eventId]
