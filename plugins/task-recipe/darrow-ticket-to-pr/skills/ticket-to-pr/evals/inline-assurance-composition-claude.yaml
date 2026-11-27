@@ -6,6 +6,8 @@ candidate_routes:
 expect_head_change: true
 activation: positive
 mount_plugin_skills: true
+activation_includes:
+  - adaptive-goal
 additional_plugins:
   - plugins/orchestration/darrow-adaptive-goal
   - plugins/capability/darrow-git
@@ -158,7 +160,3 @@ assessment_capture: required
 harnesses:
   - claude
 required_plugin_hook: darrow-review
-additional_skills:
-  - plugins/capability/darrow-matt-pocock/skills/implement
-  - plugins/capability/darrow-matt-pocock/skills/tdd
-  - plugins/capability/darrow-pstack/skills/principles-first

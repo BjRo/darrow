@@ -9,4 +9,4 @@ installer-options: --agent codex --copy --yes --skill (names from selection.tsv)
 selection-and-source-paths: selection.tsv
 required-files: required-files.txt
 content-inventory: files.sha256
-local-adaptations: Darrow package; see local-differences.json and ../LOCAL-DIFFERENCES.md. Adapted implement completes the selected 17-skill bundle.
+local-adaptations: Darrow package; see local-differences.json and ../LOCAL-DIFFERENCES.md.

@@ -83,7 +83,10 @@ materially change. Record `ready` or omission row; derive criteria without mutat
 
 Choose evidence before editing, at original public entrypoints/callers:
 
-- **Behavior/bug.** Red for intended reason, then green at stable public seam; update affected callers/examples/docs.
+- **Behavior change or bug fix.** Run a test of the requested behavior at a stable
+  public seam before editing the implementation. Confirm it fails for the intended
+  reason. After the change, rerun the same test and confirm it passes. Update
+  affected callers, examples and docs.
 - **Refactoring.** Passing baseline before/after.
 - **Consumer/format transition.** Map all criteria/conversion to original callers and transition order; test compatibility; retain tested forwarding entrypoints when moved.
 - **Exact non-behavioral edit.** Complete oracle, then passing result.

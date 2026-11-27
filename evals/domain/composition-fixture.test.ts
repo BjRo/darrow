@@ -60,17 +60,20 @@ for (const shell of ["bash", "/bin/bash"]) {
   }, 30_000);
 }
 
-test("unavailable implementation oracle accepts the advertised name and rejects missing boundary evidence", async () => {
-  const source = new URL("implement-unavailable.yaml", cases);
+test("unavailable owner oracle requires the Adaptive Goal boundary", async () => {
+  const source = new URL("adaptive-goal-unavailable.yaml", cases);
   const canonical = await readFixtureCase(source);
   for (const [finalMessage, passes] of [
     [
-      "Status: launch_required. I could not find a host-advertised approved-work implement recipe. Native goal controls alone do not meet that boundary.",
+      "Status: launch_required. No host-advertised Adaptive Goal skill is available.",
       true,
     ],
-    ["Status: launch_required. The implement capability is unavailable.", true],
+    ["The adaptive-goal skill is unavailable. Status: launch_required.", true],
     ["Status: launch_required. Supply a ticket reference.", false],
-    ["The implement capability is available; work will continue.", false],
+    [
+      "Status: launch_required. The implement capability is unavailable.",
+      false,
+    ],
   ] as const) {
     const result = await runFixtureChecks({
       source,

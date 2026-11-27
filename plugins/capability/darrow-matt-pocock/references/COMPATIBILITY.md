@@ -5,12 +5,8 @@ skill through its native Skill facility. On Codex, read the advertised SKILL.md
 through the supported reader and follow it; do not invent a Claude Skill tool.
 Explicit user entrypoints are `$darrow-matt-pocock:<skill>` on Codex and
 `/darrow-matt-pocock:<skill>` on Claude Code. Preserve explicit-only metadata for
-unchanged upstream entrypoints. Adapted implement is model-invocable so an
-explicitly invoked parent recipe or orchestration can delegate the same bounded
-work through host discovery. Its description and first workflow guard require
-explicit user invocation or that preserved authority; ordinary implementation
-intent never starts it. A supporting reference does not authorize another
-workflow's external effects.
+upstream entrypoints. A supporting reference does not authorize another workflow's
+external effects.
 
 Use the host's advertised delegation tools for bounded fresh-context work.
 Carry the question, required output, relevant context and inherited authority.

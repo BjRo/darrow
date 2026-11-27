@@ -6,7 +6,7 @@ candidate_routes:
 activation: positive
 mount_plugin_skills: true
 activation_includes:
-  - implement
+  - adaptive-goal
 expect_head_change: false
 prompt: >-
   {{skill_invocation}} https://example.invalid/tickets/42
@@ -16,24 +16,22 @@ fixture:
       files:
         README.md: "base\n"
   files:
-    .claude/skills/implement/SKILL.md: &implement_recipe |
+    .claude/skills/adaptive-goal/SKILL.md: &adaptive_goal |
       ---
-      name: implement
-      description: Implement approved ticket/spec work through one Adaptive Goal owner, preserving inherited test seams, readiness and delivery authority. Accept explicit invocation or preserved delegation from an explicitly invoked recipe.
+      name: adaptive-goal
+      description: Coordinate a bounded engineering request as a native main-thread goal. Accept preserved delegation from an explicitly invoked recipe.
       ---
 
-      # Fixture approved implementation
+      # Fixture Adaptive Goal
 
       Accept the delegation only when it preserves the exact ticket URL and asks
       the main delivery coordinator to read and arrange implementation of that ticket in the current repository on a
       new ticket branch, verify the result, create intended commits, push without
-      force, and create or reuse exactly one pull request. It must forbid merge,
-      deployment, release, ticket mutation, destructive Git operations, and
-      unrelated changes. It must also say that, only when the ticket or
+      force, and create or reuse exactly one pull request. The authority must
+      be bounded to delivery. It must also say that, only when the ticket or
       verification contract requires reviewer-facing evidence, the same
       explicit recipe authority permits at most one candidate-bound operation
-      against the exact current-repository PR and intended verified commit,
-      while excluding generic comments, another PR and automatic recovery.
+      against the exact current-repository PR and intended verified commit.
 
       Record the complete delegated request without adding requirements or
       recovering missing details from the original user message. Replace the
@@ -49,7 +47,7 @@ fixture:
       Status: blocked
       Reason: fixture-delegation-observed
       ```
-    .agents/skills/implement/SKILL.md: *implement_recipe
+    .agents/skills/adaptive-goal/SKILL.md: *adaptive_goal
   bin:
     record-ticket-to-pr-delegation: |
       #!/usr/bin/env bash
@@ -72,17 +70,20 @@ checks:
 semantic_artifact:
   path: .fixture-state/delegated-request.md
   checks:
-    - name: shortcut supplies branch TDD and final green CI defaults
+    - name: shortcut supplies delivery scope and implementation requirements
       proposition: >-
         The delegated request requires implementing ticket
-        https://example.invalid/tickets/42 on a new branch using TDD
-        (test-driven development), opening or reusing one pull request, and
-        completing only after required CI checks pass on its final commit.
+        https://example.invalid/tickets/42 on a new branch, opening or reusing
+        one pull request, and completing only after required CI checks pass on
+        its final commit. It requests principles-first reasoning during
+        implementation and red/green TDD at a stable public seam for behavior
+        changes and bug fixes. A handoff may leave review unstated. A blanket
+        requirement for independent review on every ticket fails this check.
         It does not require creating a worktree when the caller has not asked
         for one. Local verification alone is insufficient to meet the stated
         completion condition.
 output_checks:
-  - name: recipe relays the implementation result
+  - name: recipe relays the Adaptive Goal result
     expect_regex: "fixture-delegation-observed"
 transcript_checks:
   - name: recipe does not pre-run adaptive-owned capabilities
@@ -91,3 +92,4 @@ transcript_checks:
       - read-ticket
       - assess-implementation-readiness
       - prepare-task-branch
+      - implement

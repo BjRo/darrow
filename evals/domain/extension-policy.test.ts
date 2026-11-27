@@ -329,7 +329,7 @@ test("Darrow extension resolves supported cases and rejects unsupported fixtures
   });
   const advancedHead = await command<ExtensionReply>(
     [process.execPath, extension],
-    request("resolve", resolveParams("implement-approved-local")),
+    request("resolve", resolveParams("goal-native-git-commit-composition")),
   );
   expect(advancedHead.code, advancedHead.stderr).toBe(0);
   expect(advancedHead.value.result.cases[0]!.checks).toEqual(
@@ -1168,7 +1168,7 @@ test("Darrow retains ticket workflow diagnostics from supporting reads and forbi
     data: {
       method: "skill_file_read_probe",
       primarySkill: "ticket-to-pr",
-      observedSkills: ["ticket-to-pr", "implement"],
+      observedSkills: ["ticket-to-pr", "adaptive-goal"],
     },
   };
   const native = {
@@ -1261,7 +1261,7 @@ test("Darrow retains ticket workflow diagnostics from supporting reads and forbi
     expect(await activation(invalid)).toEqual(["unavailable"]);
   for (const [observedSkills, expected] of [
     [["ticket-to-pr"], "failed"],
-    [["ticket-to-pr", "foreign:implement"], "unavailable"],
+    [["ticket-to-pr", "foreign:adaptive-goal"], "unavailable"],
   ] as const)
     expect(
       await activation([
@@ -1292,7 +1292,9 @@ test("Darrow retains ticket workflow diagnostics from supporting reads and forbi
       await statuses(shortcut, [activationReceipt(["prepare-task-branch"])], [])
     )[0],
   ).toBe("failed");
-  const unavailable = await resolveTicket("ticket-to-pr-implement-unavailable");
+  const unavailable = await resolveTicket(
+    "ticket-to-pr-adaptive-goal-unavailable",
+  );
   const ticketReads = {
     ...common,
     data: {

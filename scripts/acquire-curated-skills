@@ -27,7 +27,7 @@ pstack_workflows_revision=7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9
 pstack_workflows=(blast-radius correct create-verification-skill maintain-verification-skill why benchmark-checklist)
 matt_skills=(grilling wayfinder grill-with-docs domain-modeling diagnosing-bugs
   to-spec to-tickets wizard codebase-design improve-codebase-architecture
-  writing-for-agents wait-what tdd implement research prototype setup-matt-pocock-skills)
+  writing-for-agents wait-what tdd research prototype setup-matt-pocock-skills)
 mkdir -p "$stage/acquisition/matt" "$stage/acquisition/pstack" "$stage/matt" "$stage/pstack"
 mkdir -p "$stage/acquisition/pstack-workflows" "$stage/pstack-workflows"
 (
@@ -107,7 +107,7 @@ installer-options: --agent codex --copy --yes --skill (names from selection.tsv)
 selection-and-source-paths: selection.tsv
 required-files: required-files.txt
 content-inventory: files.sha256
-local-adaptations: none in these inputs; downstream owns host calls, configured tracker/setup compatibility, Review binding and adapted implement with one Adaptive Goal owner, inherited seams and publication authority.
+local-adaptations: none in these inputs; downstream owns host calls, configured tracker/setup compatibility, Review binding, inherited seams and publication authority.
 EOF
 cat >"$stage/pstack/provenance.txt" <<EOF
 source: https://github.com/cursor/plugins

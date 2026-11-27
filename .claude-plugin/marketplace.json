@@ -8,7 +8,7 @@
     {
       "name": "darrow-matt-pocock",
       "source": "./plugins/capability/darrow-matt-pocock",
-      "description": "Pinned Matt Pocock discovery, design, writing, TDD and approved implementation workflows"
+      "description": "Pinned Matt Pocock discovery, design, diagnosis, writing and TDD workflows"
     },
     {
       "name": "darrow-pstack",

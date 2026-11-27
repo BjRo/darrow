@@ -4,6 +4,13 @@ Status: Accepted
 Date: 2026-11-21
 Summary: Curate pinned MIT upstream workflows and retain Darrow-specific capabilities instead of maintaining duplicate standalone providers.
 
+## Amendment (2026-11-27)
+
+The maintainer approved retiring the adapted `implement` skill after Ticket to PR
+began calling Adaptive Goal directly. This replaces the selection of `implement`
+and its standalone local-commit default below. For local work with a native goal,
+invoke Adaptive Goal and state any required review and commit authority.
+
 ## Context
 
 Maintaining parallel discovery, writing, TDD and decision-management providers
