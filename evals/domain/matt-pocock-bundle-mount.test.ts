@@ -208,7 +208,7 @@ test.each(["darrow-matt-pocock", "darrow-pstack"])(
         await verifyPackageClosure(
           source,
           files,
-          { "darrow-matt-pocock": 16, "darrow-pstack": 33 }[name]!,
+          { "darrow-matt-pocock": 16, "darrow-pstack": 34 }[name]!,
         );
         expect(files.get("references/LICENSE")).toBe(
           await readFile(join(source, "LICENSE"), "utf8"),

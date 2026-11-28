@@ -43,4 +43,6 @@ Only edit the verification skill's own directory (its SKILL.md, features/, and a
 
 Keep concise run notes (features covered, unreachable prerequisites, confirmed drift, outcome) in a scratch location; don't commit them.
 
+Report each feature's live verdict: VERIFIED when a drive proved its end state, NOT VERIFIED when the drive showed different behavior, INCONCLUSIVE otherwise. A `verified-unreachable` feature is INCONCLUSIVE with its prerequisite named. Inconclusive is not a pass.
+
 Complete when: every mapped feature has source and live coverage or a concrete gap, corrections stay within edit scope, and evidence survives teardown. Missing required coverage makes the result blocked.

@@ -24,6 +24,10 @@ adaptations. Matt Pocock and pstack are independently installable MIT bundles;
 their installer pin is distinct from the source-content revision. See
 [acquisition](plugin-development.md#curated-upstream-inputs) and [migration](decisions/ADR-0015-curate-upstream-workflows-and-retire-duplicate-providers.md).
 
+A **verdict** is one claim's VERIFIED, NOT VERIFIED or INCONCLUSIVE result.
+INCONCLUSIVE is never a pass. Adaptive Goal gives one verdict per acceptance
+criterion; see [acceptance](../plugins/orchestration/darrow-adaptive-goal/skills/adaptive-goal/references/verification-lifecycle.md).
+
 ## Evidence states
 
 The [repository guide](../.agents/skills/darrow-guide/SKILL.md#inspect-the-evidence) defines

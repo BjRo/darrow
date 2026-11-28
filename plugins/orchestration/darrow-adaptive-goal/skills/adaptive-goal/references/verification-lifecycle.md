@@ -15,9 +15,11 @@ is optional.
    and unavailable evidence. Use provider routes/readers; no inline role switching,
    inherited author context, substitutes or private mechanics. Await all before edits.
 3. **Traceability.** Map each criterion to source/current target and actual
-   assertions/commands/results/independent evidence, supported failure or gap.
+   assertions/commands/results/independent evidence. Give each criterion one
+   verdict: VERIFIED when current evidence proves it, NOT VERIFIED for a
+   supported failure, INCONCLUSIVE for a gap. Inconclusive is not a pass.
    Shape proves no values; missing staging/deployment observations and unassessed
-   criteria are gaps, not findings. Separate blockers/advisories.
+   criteria are INCONCLUSIVE, not findings. Separate blockers/advisories.
 4. **Freshness.** Bind identities to current content; observe relationships across
    differing schemes/scopes. Unsupported relationships are gaps, not mismatches.
    After edits, refresh invalidated checks and every selected assessment.
@@ -28,12 +30,13 @@ is optional.
 Keep provider outcomes separate. Combined precedence: gaps, no-progress, progress.
 These are verification conclusions; native goal transitions follow host controls.
 
-- **`clear`.** Every selected assessment is current and clear; all criteria have
-  current evidence, checks pass, no eligible blocker/direct regression.
+- **`clear`.** Every selected assessment is current and clear; every criterion is
+  VERIFIED, checks pass, no eligible blocker/direct regression.
 - **`progress`.** Initial actionable evidenced defects; follow-up material improvement/new eligible direct repair-caused regression.
 - **`no-progress`.** Unchanged/repeated/oscillating follow-up failure.
 - **`blocked`.** Any selected assessment is missing/stale/unavailable/inconclusive,
-  or required input/check/result/coverage evidence is missing/unavailable.
+  any criterion is INCONCLUSIVE, or required input/check/result/coverage evidence
+  is missing/unavailable.
 
 Advisories stay visible/nonblocking. Pass/zero exit alone proves no acceptance.
 Require `clear` before final commits/publication/completion. Bound intermediate
@@ -87,5 +90,5 @@ refusals or restart comprehensive review. Implementation count is unchanged; unv
 causes remain gaps.
 
 Missing authority, blocked evidence, no progress/exhausted limits stops repair,
-completion/remaining publication. Report conclusion, criteria/gaps, findings and
-attempts used/maximum/source.
+completion/remaining publication. Report conclusion, criterion verdicts,
+findings and attempts used/maximum/source.

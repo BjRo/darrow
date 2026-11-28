@@ -71,8 +71,10 @@ Report discovery/activation separately from the exact refusal and effect checks.
 An exact refusal without both activations does not establish authority coverage.
 
 Matched comparisons hold prompts, fixtures, checks, harness versions, models,
-effort, trial counts and thresholds constant. A skill-only ablation changes only
-the mounted skill. Complete-workflow comparisons include differences in assurance
+effort, trial counts and thresholds constant. When a semantic grader compares
+variants, one grader scores both sets in a single pass on one scale, and sees
+each output only by a neutral label, never by variant or model name. A
+skill-only ablation changes only the mounted skill. Complete-workflow comparisons include differences in assurance
 and coordination cost; they cannot isolate those costs or establish equal review
 quality from equal task pass rates. Record limits, unknowns and per-task regressions.
 
@@ -151,6 +153,17 @@ quality from equal task pass rates. Record limits, unknowns and per-task regress
   require one exact tool sequence when several safe implementations yield the
   same observable result.
 - Keep participant prompts visible and pass criteria hidden.
+- Write the participant prompt as an organic user request. Keep `eval`,
+  `judge`, `grader`, `rubric`, `score`, `benchmark`, `experiment` and `arena`
+  out of the prompt and of fixture paths and names the agent sees. `candidate`
+  stays allowed where it carries Darrow's domain meaning, such as a
+  candidate-bound review target. Do not tell the agent that other variants exist.
+- Grade which instructions an agent followed from the files it actually opened,
+  never from its own claims. Read native tool calls through
+  `SEVRO_CANDIDATE_TRANSCRIPTS`, as `assert-cited-principles-read.mjs` in
+  `principles-first` does. Prefer that over receipt phrases or prompts that
+  ask the agent to list what it applied, unless the case tests a citation
+  contract.
 - When a native host requires user authorization to run tests, explicitly
   request that verification in a participant prompt whose acceptance expects
   test execution. Repository guidance or a skill cannot supply host-required

@@ -56,8 +56,10 @@ const sourceDigests: Record<string, string> = {
     "00cdc968e4f029cead526e90e4cd8a5e298eb25a95ac23c8a35f9287a774b906",
   "skills/principle-type-system-discipline/SKILL.md":
     "29e327d4c05cced12a6acd8e21099553ef6c966c2dbf2c01093852a4c6b547f7",
+  // Darrow added the citation rule after the copy (#359); original bytes
+  // dbf5776a99ffe22a355d9000cdcf8e159a7134624e3535060ba10a8f13e1964a.
   "skills/principles-first/SKILL.md":
-    "dbf5776a99ffe22a355d9000cdcf8e159a7134624e3535060ba10a8f13e1964a",
+    "9f94e98aedb24c369bfb245a3b4a6ee8f578958ba70b2ffce2aa9b2c00aba199",
   "skills/setup-principles/SKILL.md":
     "4cde61bc851f2173e6135a378b8552d5f29524359cfe388917a27d480064bde4",
   "skills/principles-first/assets/default-principles.md":
@@ -83,6 +85,8 @@ const workflowSources: Record<string, string> = {
     "6e87b9e7f2791a7776ba1bb83f371cd285c306c67f19d245cc4dd6ca3015c823",
   "skills/maintain-verification-skill/SKILL.md":
     "515c0eaa054b3f6be1b1fb06f2c2f173c80fddb58bbcac57576f89c479bc68e8",
+  "skills/reflect/SKILL.md":
+    "6f6952f91514dc86257830da93a446c732a1af906f6acd5e5783dc587a29031e",
   "skills/why/SKILL.md":
     "6b65b3180f1f1bd3b696d7933daf900747410c82931d220a3f57a98addb1c0fd",
   LICENSE: "bc957ca6bee02792566a1a028d105e02e247c6e77cf057061674273da77b200e",

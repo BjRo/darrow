@@ -84,6 +84,7 @@ test("a copied pstack package exposes every selected skill through both public h
         "maintain-verification-skill",
         "why",
         "benchmark-checklist",
+        "reflect",
       ]) {
         const mounted = prepared.artifacts.filter((file) =>
           file.relativePath.endsWith(`/skills/${id}/SKILL.md`),
