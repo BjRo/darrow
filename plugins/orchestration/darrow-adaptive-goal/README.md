@@ -1,14 +1,15 @@
 # Darrow Adaptive Goal
 
-Adaptive Goal keeps one bounded native goal in the main thread. That thread
-owns preflight, acceptance, user decisions and completion. A route is a model and reasoning effort. The main thread implements directly
+Adaptive Goal keeps one bounded goal in the main thread. On Codex it is a native
+goal; on Claude Code the thread carries it without one. That thread owns
+preflight, acceptance, user decisions and completion. A route is a model and reasoning effort. The main thread implements directly
 when its route matches the selected route. It delegates when the selected route
 is stronger, its own route is unknown, or cost, focused ticket context or
 concurrency justifies the handoff. The main thread maps each acceptance criterion to current evidence or a gap.
 Selected Review owns its workflow, placement and fresh independent readers.
 
 ```text
-request + repository -> read-only preflight/readiness -> main-thread native goal
+request + repository -> read-only preflight/readiness -> main-thread goal (native on Codex)
                                                          -> direct or delegated implementation
                                                          -> acceptance evidence and selected Review
 ```
@@ -28,8 +29,8 @@ The skill:
 - resolves selected readiness before implementation, reusing ready same-scope evidence;
 - selects implementation difficulty separately from consequence risk;
 - binds authorized operations to compatible advertised capabilities;
-- keeps the native goal objective within 4,000 characters, and a Claude `SetGoal`
-  condition within 500 display columns, with coordination instructions in the skill;
+- keeps the Codex native goal objective within 4,000 characters, with
+  coordination instructions in the skill;
 - places implementation directly or in bounded assignments;
 - accounts for acceptance and invokes independent Review through its public workflow;
 - coordinates repairs, user feedback, reassessment and evidence-supported completion.
@@ -168,7 +169,8 @@ succeed before work resumes. A status question does not cancel work.
 
 Use the host's actual goal controls. On Codex, literal pause requires an explicit
 user pause request; a pending question can stop affected work without inventing
-a pause transition. On Claude, use native goal question and continuation behavior.
+a pause transition. On Claude, ask in the session and continue the same work after
+the answer.
 Do not clear and recreate the goal to obtain an answer or reset history.
 
 A blocker names the condition, evidence and smallest next action. Observe current
@@ -238,19 +240,20 @@ does not select it. Use a focused capability when one operation suffices.
 
 ## Hosts and prerequisites
 
-Require native goal continuation and delegation, available selected model routes,
-UV, Git and capabilities matching authorized operations.
+Require delegation, available selected model routes, UV, Git and capabilities
+matching authorized operations. Codex also requires native goal continuation.
 
-Codex activates the goal in the main thread using native goal controls.
+Codex activates a native goal in the main thread after preflight and readiness.
+If native activation is unavailable, the skill reports the required boundary
+rather than launching another owner or a nested host process.
 
-Interactive Claude Code can start the goal after you approve its `SetGoal`
-proposal. Claude Code offers `SetGoal` only in interactive local sessions.
-T3 Code, other Agent SDK clients and `claude -p` need one extra message: the
-skill stops with `Status: launch_required` and one `/goal <objective>` line.
-Send that line, or let the client send it, in the same session. When Claude
-confirms the goal, the skill continues to implementation without repeating
-preflight. If native activation is unavailable, the skill reports the required
-boundary rather than launching another owner or a nested host process.
+Claude Code gives skills no way to start a goal, so Adaptive Goal runs there
+without one. One invocation runs preflight, readiness, implementation,
+assessment and completion in the main thread. This works the same in interactive
+sessions, `claude -p`, T3 Code and other Agent SDK clients. Without a host goal,
+nothing outside the thread keeps it going: the thread works until completion or
+a documented stop, but a session can still end early. A session you start with
+`/goal` keeps that goal for extra persistence.
 
 ## Installation
 
@@ -282,8 +285,11 @@ authority.
 
 ## Troubleshooting
 
-If Claude stops with `Status: launch_required` and a `/goal` line, the session
-is non-interactive. Send that exact line in the same session to start the goal.
+If a Claude session ends before completion or a documented stop, send
+`continue` in the same session. The thread resumes with its retained preflight,
+readiness and evidence. If Claude stops with `Status: launch_required` and a
+`/goal` line, an older plugin version is loaded; update it and start a fresh
+session.
 
 Resolve non-ready findings before implementation. Report unavailable native goal,
 route or capability boundaries concretely. Run the doctor for delegation-capacity

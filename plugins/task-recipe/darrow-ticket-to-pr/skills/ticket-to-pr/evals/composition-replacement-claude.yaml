@@ -143,17 +143,6 @@ semantic_output_checks:
       completion phrase is not required. Evaluate the whole response. A plan to
       publish, remaining implementation, or unresolved verification does not
       satisfy completion.
-native_goal: required
+native_goal: forbidden
 harnesses:
   - claude
-follow_up_prompt: /goal Continue the already prepared Ticket-to-PR delivery
-  through the same Adaptive Goal owner in this original session.
-  Preserve the approved scope, inherited ready assessment, confirmed
-  config.json/bash check.sh test seam and all first-turn provider bindings. Set
-  timeoutMs to 2500 and preserve NOTES.md. Commit with native Git under repository instructions
-  only after current checks, acceptance accounting and independent Review clear.
-  Publish without force to the existing fix/GH-42-timeout branch and exact PR
-  https://github.com/fixture/repo/pull/42 through ship-proposal. Complete only
-  with required CI green on that exact published commit; report its URL and
-  commit. Preserve every original exclusion and do not start another owner or
-  reinvoke Ticket-to-PR.

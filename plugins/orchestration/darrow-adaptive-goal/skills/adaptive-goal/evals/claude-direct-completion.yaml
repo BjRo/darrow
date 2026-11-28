@@ -1,0 +1,34 @@
+id: goal-claude-direct-completion
+harnesses: [claude]
+activation: positive
+prompt: >-
+  {{skill_invocation}} Add the exact line `Direct completion.` beneath the
+  heading in NOTES.md and change nothing else. Acceptance is that bash check.sh
+  passes. Keep the result local; no commits or publication.
+fixture:
+  commits:
+    - message: "chore: init"
+      files:
+        AGENTS.md: |
+          # Instructions
+
+          Run `bash check.sh` for NOTES.md changes.
+        NOTES.md: |
+          # Notes
+        check.sh: |
+          #!/usr/bin/env bash
+          set -eu
+          grep -Fx 'Direct completion.' NOTES.md >/dev/null
+checks:
+  - name: one invocation completes the requested change
+    run: printf '%s\n' '# Notes' 'Direct completion.' | cmp - NOTES.md && bash check.sh
+  - name: no publication occurred
+    run: test "$(git rev-list --count HEAD)" -eq 1
+semantic_output_checks:
+  - name: one invocation completes without a goal handoff
+    proposition: >-
+      The response reports that the NOTES.md change is complete and that the
+      check passed, with no unresolved blocker. It contains no
+      `Status: launch_required`, no `/goal` line and no request to start a goal
+      or send another message.
+native_goal: forbidden

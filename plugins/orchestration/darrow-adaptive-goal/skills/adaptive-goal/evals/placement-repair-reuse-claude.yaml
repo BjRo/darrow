@@ -9,7 +9,7 @@ mount_plugin_skills: true
 candidate_routes:
   claude: { model: claude-sonnet-5-5, effort: medium }
 prompt: >-
-  /goal {{skill_invocation}} Add an exported clamp(value, min, max) function to src/range.js
+  {{skill_invocation}} Add an exported clamp(value, min, max) function to src/range.js
   with focused tests in test/range.test.js covering every rule: (1) it returns min
   when value is below min; (2) it returns max when value is above max; (3) it
   returns value otherwise; (4) it throws RangeError("min must not exceed max") when
@@ -72,4 +72,4 @@ transcript_checks:
     kind: repair-reuse
     model: gpt-6.1-sol
     effort: high
-native_goal: complete
+native_goal: forbidden

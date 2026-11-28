@@ -99,7 +99,7 @@ completed native event stream. It ignores returned text and normalizes command
 whitespace before matching literal terms. These bounded matches cannot detect
 every alias or indirect effect. Pair them with repository-state checks.
 Add `turn: follow-up` to grade only the configured follow-up turn's event
-stream, for example to show that a client `/goal` reuses the earlier preflight.
+stream, for example to show that a follow-up answer reuses the earlier preflight.
 
 Native-goal checks consume bound goal state. Transcript checks retain their declared
 task or diagnostic role. Historical transcript regexes and specification labels

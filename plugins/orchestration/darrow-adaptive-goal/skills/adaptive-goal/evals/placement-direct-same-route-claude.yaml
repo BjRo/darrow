@@ -3,7 +3,7 @@ harnesses: [claude]
 candidate_routes:
   claude: { model: claude-sonnet-5-5, effort: low }
 prompt: >-
-  /goal {{skill_invocation}} Add an exported clamp(value, min, max) function to src/range.js
+  {{skill_invocation}} Add an exported clamp(value, min, max) function to src/range.js
   that returns min when value is below min, max when value is above max, and value
   otherwise. Add focused tests for below, inside and above the range. Acceptance is
   that bash test.sh passes. Select and apply the policy route rather than pinning a
@@ -49,4 +49,4 @@ semantic_output_checks:
     proposition:
       The response states that implementation was done directly rather than
       delegated to another agent.
-native_goal: required
+native_goal: forbidden

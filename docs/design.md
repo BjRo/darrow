@@ -29,11 +29,13 @@ explicit invocation or preserved delegation from an authorized workflow.
 Complexity or duration alone does not start it. See
 [ADR-0002](decisions/ADR-0002-separate-capabilities-from-orchestration.md).
 
-Adaptive Goal keeps the native goal, user decisions and completion in the
-original main thread. It implements directly or delegates bounded assignments.
-The host supplies execution, recovery and continuation. Darrow adds no second
-execution controller or lifecycle ledger. See
-[ADR-0012](decisions/ADR-0012-keep-native-goal-ownership-in-the-main-thread.md).
+Adaptive Goal keeps the goal, user decisions and completion in the original
+main thread. On Codex that goal is native; Claude Code gives skills no goal
+control, so there the thread runs without one. It implements directly or
+delegates bounded assignments. The host supplies execution, recovery and
+continuation. Darrow adds no second execution controller or lifecycle ledger.
+See [ADR-0012](decisions/ADR-0012-keep-native-goal-ownership-in-the-main-thread.md)
+and [ADR-0018](decisions/ADR-0018-run-claude-adaptive-goal-without-a-native-goal.md).
 
 ## Independent plugins and public handoffs
 
