@@ -43,7 +43,7 @@ These are responsibilities, not steps every task must traverse.
   or can be invoked explicitly, and work without orchestration.
 - **Orchestration** owns a bounded completion contract and execution handoff.
   It begins only through explicit invocation. Adaptive Goal selects a
-  proportionate workflow while the main thread keeps the native goal and completion.
+  proportionate workflow while the main thread keeps the goal and completion.
 - **Task recipes** package a familiar outcome and permission envelope, then
   delegate the bounded work. Recipes cover ticket delivery and documentation-drift investigation.
 - **Automation** describes admission under explicit recurring authority. No

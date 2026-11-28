@@ -9,6 +9,10 @@ Pipeline retirement (2026-11-20): The executable-reference and benchmark-baselin
 clauses below are superseded by [Ticket Pipeline retirement](https://github.com/BjRo/darrow/commit/2258e604793a8b405dd290ea275e9e1a23e7d716).
 The native-goal ownership decision retains its existing status.
 
+Claude Code (2026-11-28): [ADR-0018](ADR-0018-run-claude-adaptive-goal-without-a-native-goal.md)
+runs Adaptive Goal on Claude Code without a native goal. The native-goal clause
+below applies to Codex; main-thread ownership still applies to both hosts.
+
 ## Context
 
 ADR-0004 selected host-native execution instead of a second Darrow execution

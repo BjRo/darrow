@@ -9,7 +9,7 @@ additional_plugins:
 candidate_routes:
   claude: { model: claude-sonnet-5-5, effort: medium }
 prompt: >-
-  /goal {{skill_invocation}} Deliver the complete already-assessed ready specification
+  {{skill_invocation}} Deliver the complete already-assessed ready specification
   below. The finite ticket set is exactly issue-41, with no prerequisites or
   unresolved shared decisions. This substantial ticket benefits from fresh focused
   context; that benefit is worth the branch, handoff and integration overhead.
@@ -106,4 +106,4 @@ checks:
     run: |
       export DARROW_REVIEW_STATE_DIR="${SEVRO_CANDIDATE_ARTIFACT_REVIEWS:?Candidate Review artifact grant is required}"
       python3 .git/eval-checks/isolated_ticket_routes.py --host claude
-native_goal: complete
+native_goal: forbidden

@@ -3,11 +3,11 @@ id: goal-review-high-selected-claude
 # .claude/skills is not catalog-advertised; the prompt names its path instead.
 harnesses: [claude]
 prompt: >-
-  /goal Use {{skill_invocation}} to change the exported sessionCookieOptions in auth-config.js so
+  Use {{skill_invocation}} to change the exported sessionCookieOptions in auth-config.js so
   sameSite is exactly "strict" instead of "lax". This security boundary has high
   consequence risk, but the implementation is clear, localized and fully specified.
   Preserve the other options, add focused evidence and run bash test.sh. Select the
-  implementation policy route, retain the native goal in this main thread, place
+  implementation policy route, keep ownership in this main thread, place
   implementation by policy and invoke selected independent Review. Use the
   independent-review capability at .claude/skills/independent-code-review/SKILL.md
   through its public workflow. Keep the result local; no commits
@@ -84,4 +84,4 @@ semantic_output_checks:
 transcript_checks:
   - name: advertised independent review skill is invoked
     kind: independent-review
-native_goal: required
+native_goal: forbidden

@@ -1,7 +1,7 @@
 {
   "name": "darrow-ticket-to-pr",
   "description": "Deliver one ticket as a pull request with green required CI.",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "license": "BUSL-1.1",
   "author": {
     "name": "Björn Rochel",

@@ -51,8 +51,10 @@ Native-goal declarations are `required`, `complete`, `forbidden` or `optional`.
 Bind observations to the original thread or session. `complete` requires observed
 terminal completion; activation alone is insufficient. `optional` accepts valid
 presence or valid observed absence, never failed observation. Codex goal objectives
-must fit the native 4,000-character boundary. Claude headless activation uses the
-native user-visible `/goal` entry, not synthetic continuation or a replacement owner.
+must fit the native 4,000-character boundary. Claude Adaptive Goal runs without a
+native goal, synthetic continuation or a replacement owner. Claude-only cases
+invoke the skill directly and declare `native_goal: forbidden`; a case that starts
+with `/goal` tests a goal the skill keeps.
 
 Ticket-to-PR task verdicts use observable output, repository effects and acceptance
 checks. Its native-goal and transcript assertions are separate workflow

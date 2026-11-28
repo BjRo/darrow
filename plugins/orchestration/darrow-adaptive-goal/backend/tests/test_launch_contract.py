@@ -22,27 +22,21 @@ def test_removed_lifecycle_protocol_stays_absent() -> None:
         assert not any(token in text for token in removed), path
 
 
-def test_claude_launch_matches_claude_code_goal_controls() -> None:
-    """Claude Code exposes SetGoal only interactively and caps its condition."""
+def test_claude_launch_runs_without_native_goal() -> None:
+    """Claude Code gives skills no goal control, so one invocation runs to completion."""
     path = PLUGIN / "skills/adaptive-goal/references/claude-launch.md"
     text = " ".join(path.read_text(encoding="utf-8").split())
-    required = (
-        "`SetGoal`",
-        "`ProposeGoal`",
-        "`select:SetGoal`",
-        "500 display columns",
-        "only available in interactive local sessions",
-        "A session-scoped Stop hook is now active with condition:",
-        "/goal <objective>",
-    )
-    missing = [token for token in required if token not in text]
-    assert not missing, missing
+    assert "without a native goal" in text
+    activation_handoff = ("SetGoal", "ProposeGoal", "/goal <", "launch_required")
+    present = [token for token in activation_handoff if token in text]
+    assert not present, present
 
 
-def test_codex_objective_limit_is_unchanged() -> None:
+def test_codex_native_goal_is_unchanged() -> None:
     skill = (PLUGIN / "skills/adaptive-goal/SKILL.md").read_text(encoding="utf-8")
     codex = (PLUGIN / "skills/adaptive-goal/references/codex-launch.md").read_text(
         encoding="utf-8"
     )
     assert "At most 4,000 Unicode characters" in skill
+    assert "`create_goal({objective})`" in codex
     assert "500" not in codex

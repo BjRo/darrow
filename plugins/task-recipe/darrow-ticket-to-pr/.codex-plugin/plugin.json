@@ -1,6 +1,6 @@
 {
   "name": "darrow-ticket-to-pr",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "Deliver one ticket as a pull request with green required CI.",
   "skills": "./skills/",
   "interface": {

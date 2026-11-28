@@ -3,7 +3,7 @@ harnesses: [claude]
 candidate_routes:
   claude: { model: claude-sonnet-5-5, effort: low }
 prompt: >-
-  /goal {{skill_invocation}} Change formatPrice in src/price.js to take a single options
+  {{skill_invocation}} Change formatPrice in src/price.js to take a single options
   object { cents, currency } instead of positional (cents, currency) arguments, and
   update every caller in src/cart.js and src/invoice.js plus their tests so observable
   output is unchanged. Acceptance is that bash test.sh passes and no caller uses the
@@ -79,4 +79,4 @@ semantic_output_checks:
       concurrent implementation of those coupled changes and future plans
       without completed implementation. Reject responses without placement
       information; completed edits and passed checks alone do not establish placement.
-native_goal: required
+native_goal: forbidden

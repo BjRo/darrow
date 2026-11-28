@@ -6,7 +6,7 @@ activation_includes:
   - code-review
 additional_plugins:
   - plugins/capability/darrow-review
-prompt: /goal Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR,
+prompt: Preserve the configured DARROW_REVIEW_STATE_DIR, DARROW_CACHE_DIR,
   and UV_CACHE_DIR paths; use the existing Review state configuration. Use
   {{skill_invocation}} to change the exported sessionCookieOptions in
   auth-config.js so sameSite is exactly "strict" instead of "lax". This is a
@@ -142,6 +142,6 @@ semantic_output_checks:
     proposition: The response reports that independent review passed or found no
       blocking findings for the completed change. It need not repeat the risk
       classification.
-native_goal: required
+native_goal: forbidden
 harnesses:
   - claude

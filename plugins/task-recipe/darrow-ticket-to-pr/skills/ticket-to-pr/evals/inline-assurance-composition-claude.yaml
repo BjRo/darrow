@@ -20,11 +20,6 @@ prompt: "{{skill_invocation}} https://example.invalid/tickets/42. Reuse
   test seam is config.json through bash check.sh; this seam is approved and
   inherited unchanged. An existing ready assessment covers this exact scope with
   no unresolved findings. Preserve it without repeating readiness."
-follow_up_prompt: /goal Finish the already authorized ticket delivery in this
-  original session. Publish the intended config.json change and committed
-  NOTES.md to the existing fix/GH-42-timeout PR only after current checks and
-  independent acceptance verification clear. Complete when the intended
-  published commit has green required CI. Report that PR and commit.
 fixture:
   commits:
     - message: "chore: init"
@@ -155,7 +150,7 @@ semantic_output_checks:
       completion phrase is not required. Evaluate the whole response. A plan to
       publish, remaining implementation, or unresolved verification does not
       satisfy completion.
-native_goal: complete
+native_goal: forbidden
 assessment_capture: required
 harnesses:
   - claude

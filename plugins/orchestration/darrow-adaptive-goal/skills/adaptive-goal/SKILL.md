@@ -1,15 +1,17 @@
 ---
 name: adaptive-goal
-description: Coordinate a bounded engineering request as a native main-thread goal. Start only on explicit adaptive-goal invocation, preserved orchestration delegation, or unambiguous same-thread continuation. Exclude ordinary engineering regardless of complexity or duration.
+description: Coordinate a bounded engineering request as a main-thread goal. Start only on explicit adaptive-goal invocation, preserved orchestration delegation, or unambiguous same-thread continuation. Exclude ordinary engineering regardless of complexity or duration.
 ---
 
 # Adaptive Goal
 
 Own decisions, acceptance, coordination and completion here. Bound capabilities
-own their public workflows. Before activation/delegation, read the host guide:
-[Codex](references/codex-launch.md) or [Claude](references/claude-launch.md).
-Require native goals after section 6's startup gate; retain the coordinator model. On Codex, recommend
-GPT-6.1 Sol/medium once, nonblocking, if the current model is known weaker.
+own their public workflows. Before section 6's startup gate or any delegation,
+read the host guide: [Codex](references/codex-launch.md) or
+[Claude](references/claude-launch.md). Codex activates a native goal after the
+startup gate. Claude runs without one. Keep the coordinator on its current
+model. On Codex, if the current model is known to be weaker than GPT-6.1 Sol at
+medium effort, recommend that route once and keep working.
 
 ## 1. Authority
 
@@ -48,11 +50,11 @@ reason: explicit-orchestration-entrypoint-required
    [isolated workers](references/isolated-ticket-workers.md); preselect finite scope,
    effects and final assurance. Size/count alone is insufficient.
 6. **Branch.** For ticket-linked delivery branches, run bound Git's exact-ID
-   discovery before activation. One match: bind its full name as preparation input; suggested
+   discovery in preflight. One match: bind its full name as preparation input; suggested
    creation names apply only with no matches. Several: ask among exact matches.
    None: use caller's exact name or let creation name it. Refresh discovery
    immediately before preparation; reconcile changed matches before mutation.
-   Prepare the bound branch after section 6's native goal activation.
+   Prepare the bound branch after section 6's startup gate.
 
 ```sh
 uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" adaptive-goal-preflight prepare \
@@ -146,16 +148,19 @@ Keep the coordinator's route. Section 7 owns parallel placement and assignments.
 - **Records.** Preserve tracker identity/configuration. ADR lifecycle/catalog work
   follows repository/domain-modeling guidance as ordinary document work.
 
-## 6. Activation and ledger
+## 6. Startup gate and ledger
 
-**Start.** Resolve preflight decisions, clear readiness and bind every required
-capability before creating/proposing a native goal or delegating. Missing required
-bindings return `Status: launch_required`; unresolved decisions/results return
-without activation.
+**Startup gate.** Before you activate a native goal, implement or delegate,
+resolve every preflight decision, clear readiness and bind every required
+capability. When a required binding is missing, return `Status: launch_required`.
+Return an unresolved decision or result before implementation.
+
+**Host.** On Codex, activate a native goal and observe the activation before
+implementation or verification. On Claude, continue without one, as the Claude
+guide describes.
 
 **Continue.** Retain an existing matching goal when later decisions stop affected work.
-
-Observe activation before implementation/verification. Preserve unrelated goals.
+Preserve unrelated goals.
 **Objective.** At most 4,000 Unicode characters: outcome/criteria/assurance/authority/completion.
 **Tokens.** Default unbudgeted; explicit user request only.
 

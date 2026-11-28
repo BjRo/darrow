@@ -1,38 +1,34 @@
 # Claude controls
 
-## Native goal
+## Without a native goal
 
-Apply section 6's startup gate before proposing or preparing activation.
+Claude Code gives skills no way to start a native goal. Adaptive Goal runs here
+without a native goal, and this thread works on the goal until it is done.
 
-1. **Continue.** Retain a matching session goal.
-2. **Propose.** Call `SetGoal`; `ProposeGoal` is its alias. When it is deferred,
-   load it with `ToolSearch` `select:SetGoal`. Give it one measurable end state
-   of at most 500 display columns, because the approval dialog must show all of
-   it. Keep section 6's full objective (criteria, constraints, authority, repair
-   ledger) in this conversation, where Claude's goal evaluator reads it. Use
-   `ask_user: false` only with direct-setting authority; honor host confirmation.
-   A proposal queues activation at turn end. Yield; await native kickoff before
-   implementation/assessment.
-3. **Unavailable.** A failed load, or the error "Goal proposals are only
-   available in interactive local sessions that have /goal", means `SetGoal` is
-   unavailable. T3 Code, other Agent SDK clients and `claude -p` are
-   non-interactive. If a client advertises a headless activation interface,
-   return the settled objective through it and yield; the client chooses no
-   readiness, objective or workflow. Otherwise return `Status: launch_required`,
-   the concrete boundary and one `/goal <objective>` line carrying section 6's
-   objective for the user or client to send next.
-   Never invoke built-ins through Skill, start nested Claude or create custom stop hooks.
-4. **Go signal.** Claude confirms a client `/goal` with "A session-scoped Stop
-   hook is now active with condition: …" or `Goal set: <condition>`. When the
-   condition states the prepared outcome and criteria, that goal is active.
-   Continue in this session to implementation with the retained preflight,
-   readiness and bindings. Rerun them only after a material change.
+1. **Continue in this turn.** After section 6's startup gate, prepare the bound
+   branch, implement or delegate, assess and complete in the same turn. Reuse
+   the retained preflight, readiness and bindings. Rerun them only after a
+   material change.
+2. **Persist.** End the turn only at section 9's definition of done or at one
+   of these stops:
+   - readiness returns a result other than `ready`;
+   - a launch is refused;
+   - the lifecycle reaches `blocked` or `no-progress`;
+   - the repair budget is exhausted;
+   - a material question needs the user's answer.
+3. **Client goal.** When the session already has an active goal, such as one a
+   client started with `/goal`, keep it and continue. That goal adds host
+   persistence and changes nothing else.
+
+Use ordinary turns and the controls below. Never invoke built-ins through Skill,
+start nested Claude or create custom stop hooks.
 
 ## Agent calls
 
 Start every Agent call from this thread with `run_in_background: false`. This
 includes readers that a bound workflow starts here without naming a placement.
-Background agents cannot ask for permission, so a denied command hides its reason.
+Background agents cannot ask for permission. When a background agent's command
+is denied, this thread never sees the reason.
 
 ## Delegation
 
@@ -44,22 +40,29 @@ uv run --quiet --no-project "<absolute-plugin-backend>/scripts/run_locked.py" cl
   --effort <low|medium|high>
 ```
 
-On Windows, use one PowerShell line. The helper verifies scoped model/effort and
-rejects conflicting higher-priority environment overrides. Refusal stops assignment.
+On Windows, use one PowerShell line. The helper verifies the scoped model and
+effort. It rejects higher-priority environment overrides that conflict with
+them. A refusal stops the assignment.
 
-- **Assign.** Use returned `subagent_type` and section 7's complete assignment.
-  No per-call model override. For authorized
+- **Assign.** Use this plugin's scoped agents. Pass the returned
+  `subagent_type` and section 7's complete assignment, and omit the Agent
+  call's `model` field. For authorized
   [isolated workers](isolated-ticket-workers.md), set `isolation: "worktree"`
-  on initial allocation; verify the returned checkout, branch and base. Other
-  assignments use no isolation.
-  Use this plugin's scoped agents. Parallel parts: one Agent call each in the same
-  message; settle all before integration/another assignment.
-- **Reuse.** Retain agent id/result. Send later work/repairs via `SendMessage` to
-  that id without allocating another worktree. If unloaded, use `ToolSearch` with `select:SendMessage`. Only an actual
-  failed send establishes unavailability for replacement.
-- **Steer.** Use native question/continuation/user controls; retain goal/history.
-  Deliver complete feedback; require supplied acknowledgement before mutation.
-  Cancellation uses available stop controls and reports observed effects. Foreground
-  Agent can delay delivery/stopping; never claim prevention of in-flight effects.
-- **Complete.** Apply section 9; report substantive evidence here for native
-  evaluation. Child returns prove no delivery. Claim only host-confirmed transitions.
+  on the first allocation, then verify the returned checkout, branch and base.
+  Omit `isolation` for other assignments. For parallel parts, make one Agent
+  call per part in the same message. Wait until every part settles before
+  integrating or making another assignment.
+- **Reuse.** Keep each agent's id and result. Send later work and repairs to
+  that id with `SendMessage`, and allocate no new worktree for it. If
+  `SendMessage` is not loaded, load it with `ToolSearch` and
+  `select:SendMessage`. Treat an agent as unavailable, and replace it, only
+  after a send to it actually fails.
+- **Steer.** Use the host's native controls for questions, continuation and
+  user input. Keep the goal and its history. Deliver complete feedback, and
+  require the supplied acknowledgement before any mutation. To cancel, use the
+  available stop controls and report the effects you observed. A foreground
+  Agent call can delay delivery and stopping, so claim only the stops you
+  observed. An in-flight effect can still complete.
+- **Complete.** Apply section 9 and report the substantive evidence in this
+  thread. A child's return is no proof of delivery. Claim only transitions the
+  host confirmed.

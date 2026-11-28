@@ -12,7 +12,7 @@ candidate_routes:
     model: claude-sonnet-5-5
     effort: medium
 prompt: >-
-  /goal {{skill_invocation}} Deliver the complete already-assessed ready specification
+  {{skill_invocation}} Deliver the complete already-assessed ready specification
   in committed SPEC.md. The finite ticket set is exactly issue-41, with no prerequisites
   or unresolved shared decisions. This substantial ticket benefits from fresh focused
   context; that benefit is worth the branch, handoff and integration overhead. Use the
@@ -198,4 +198,4 @@ checks:
       git diff --exit-code "$(cat .git/integration-base)" HEAD -- SPEC.md && git diff
       --exit-code HEAD -- SPEC.md && cmp .git/hooks/post-commit
       .git/eval-checks/expected-post-commit
-native_goal: complete
+native_goal: forbidden

@@ -11,7 +11,7 @@ contract.
 | Foundation    | A capability that maintains durable context or reusable agent guidance; see [layer composition](design.md).                                                                                         |
 | Orchestration | An explicitly invoked owner of the completion contract and execution handoff; see [Adaptive Goal](../plugins/orchestration/darrow-adaptive-goal/README.md).                                         |
 | Task recipe   | An explicit familiar outcome and permission envelope that delegates bounded work; see [ticket to PR](../plugins/task-recipe/darrow-ticket-to-pr/README.md).                                         |
-| Native owner  | The main thread that retains the native goal and completion while delegating bounded assignments; see [native goal ownership](decisions/ADR-0012-keep-native-goal-ownership-in-the-main-thread.md). |
+| Native owner  | The main thread retaining the goal (native on Codex) and completion when delegating bounded assignments; see [goal ownership](decisions/ADR-0012-keep-native-goal-ownership-in-the-main-thread.md). |
 | Readiness     | An assessment of whether work has sufficient decisions and evidence to implement; see [implementation readiness](../plugins/capability/darrow-readiness-gate/README.md).                            |
 | ADR           | An architecture decision record with an explicit status and lifecycle; see [ordinary ADR maintenance](decisions/README.md).                                                                         |
 | Eval          | A case measuring behavior in a real host, distinct from a deterministic script test; see [skill evaluation](eval-development.md).                                                                   |

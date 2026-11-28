@@ -13,13 +13,6 @@ prompt: >-
   follow-up assessment. Complete locally only when current verification clears.
   Report the initial finding and final verification outcome. No commits,
   publication, new behavior or replacement owner is authorized.
-follow_up_prompt: >-
-  /goal Complete the already scoped src/config.js repair in this original session.
-  TIMEOUT_MS must equal 2500 and RETRY_COUNT must remain 3. Assess the unchanged
-  candidate independently before repairing it, then refresh checks and obtain
-  closed follow-up verification. Complete locally only when verification clears.
-  Report the initial finding and final verification outcome. No commits or
-  publication.
 fixture:
   commits:
     - message: "chore: baseline"
@@ -96,7 +89,7 @@ semantic_output_checks:
       completed outcomes suffice; it need not use the word "complete" or identify the
       owner by name. It must not claim publication, replacement of the owner, or an
       unresolved condition that prevents completion.
-native_goal: complete
+native_goal: forbidden
 assessment_capture: required
 harnesses:
   - claude
