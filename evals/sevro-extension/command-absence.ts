@@ -102,12 +102,16 @@ export function commandAbsence(
       .map((line) => row(JSON.parse(line)));
     if (events.some((event) => typeof event.type !== "string"))
       return "unavailable";
-    const commands =
-      eventId === "sevro.codex.events"
-        ? codexCommands(events)
-        : eventId === "sevro.claude.events"
-          ? claudeCommands(events)
-          : null;
+    const commands = [
+      "sevro.codex.events",
+      "sevro.codex.follow-up-events",
+    ].includes(eventId)
+      ? codexCommands(events)
+      : ["sevro.claude.events", "sevro.claude.follow-up-events"].includes(
+            eventId,
+          )
+        ? claudeCommands(events)
+        : null;
     if (commands === null) return "unavailable";
     return commands.some((value) =>
       terms.some((term) => value.replace(/\s+/g, " ").includes(term)),

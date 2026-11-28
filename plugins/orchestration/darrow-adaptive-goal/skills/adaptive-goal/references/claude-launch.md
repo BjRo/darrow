@@ -4,17 +4,29 @@
 
 Apply section 6's startup gate before proposing or preparing activation.
 
-1. **Activate.** Continue a matching session goal; otherwise,
-   call `ProposeGoal` with section 6's objective. Use `ask_user: false` only with
-   direct-setting authority; honor host confirmation. Proposal queues activation
-   at turn end. Yield; await native kickoff before implementation/assessment.
-2. **Headless.** Without matching goal/usable control, return
-   `Status: launch_required`, concrete boundary and `/goal <prepared-objective>`.
+1. **Continue.** Retain a matching session goal.
+2. **Propose.** Call `SetGoal`; `ProposeGoal` is its alias. When it is deferred,
+   load it with `ToolSearch` `select:SetGoal`. Give it one measurable end state
+   of at most 500 display columns, because the approval dialog must show all of
+   it. Keep section 6's full objective (criteria, constraints, authority, repair
+   ledger) in this conversation, where Claude's goal evaluator reads it. Use
+   `ask_user: false` only with direct-setting authority; honor host confirmation.
+   A proposal queues activation at turn end. Yield; await native kickoff before
+   implementation/assessment.
+3. **Unavailable.** A failed load, or the error "Goal proposals are only
+   available in interactive local sessions that have /goal", means `SetGoal` is
+   unavailable. T3 Code, other Agent SDK clients and `claude -p` are
+   non-interactive. If a client advertises a headless activation interface,
+   return the settled objective through it and yield; the client chooses no
+   readiness, objective or workflow. Otherwise return `Status: launch_required`,
+   the concrete boundary and one `/goal <objective>` line carrying section 6's
+   objective for the user or client to send next.
    Never invoke built-ins through Skill, start nested Claude or create custom stop hooks.
-3. **Client.** If advertised, return the settled objective through the headless
-   activation interface; yield. The client enters that
-   exact native `/goal` here. Await kickoff. The client chooses no readiness,
-   objective or workflow. Otherwise use `launch_required`.
+4. **Go signal.** Claude confirms a client `/goal` with "A session-scoped Stop
+   hook is now active with condition: …" or `Goal set: <condition>`. When the
+   condition states the prepared outcome and criteria, that goal is active.
+   Continue in this session to implementation with the retained preflight,
+   readiness and bindings. Rerun them only after a material change.
 
 ## Agent calls
 

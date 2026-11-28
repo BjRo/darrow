@@ -28,7 +28,8 @@ The skill:
 - resolves selected readiness before implementation, reusing ready same-scope evidence;
 - selects implementation difficulty separately from consequence risk;
 - binds authorized operations to compatible advertised capabilities;
-- keeps the native goal within 4,000 characters and coordination instructions in the skill;
+- keeps the native goal objective within 4,000 characters, and a Claude `SetGoal`
+  condition within 500 display columns, with coordination instructions in the skill;
 - places implementation directly or in bounded assignments;
 - accounts for acceptance and invokes independent Review through its public workflow;
 - coordinates repairs, user feedback, reassessment and evidence-supported completion.
@@ -240,12 +241,16 @@ does not select it. Use a focused capability when one operation suffices.
 Require native goal continuation and delegation, available selected model routes,
 UV, Git and capabilities matching authorized operations.
 
-Codex activates the goal in the main thread using native goal controls. Claude
-uses native `/goal`; an available `ProposeGoal` may queue activation for the end
-of the turn. A queued proposal is not an active goal. Headless Claude may require
-the client or user to enter through `/goal <condition>`. If native activation
-is unavailable, the skill reports the required boundary rather than launching
-another owner or a nested host process.
+Codex activates the goal in the main thread using native goal controls.
+
+Interactive Claude Code can start the goal after you approve its `SetGoal`
+proposal. Claude Code offers `SetGoal` only in interactive local sessions.
+T3 Code, other Agent SDK clients and `claude -p` need one extra message: the
+skill stops with `Status: launch_required` and one `/goal <objective>` line.
+Send that line, or let the client send it, in the same session. When Claude
+confirms the goal, the skill continues to implementation without repeating
+preflight. If native activation is unavailable, the skill reports the required
+boundary rather than launching another owner or a nested host process.
 
 ## Installation
 
@@ -276,6 +281,9 @@ completion. Completion grants no commit, push, PR, merge, deployment or ticket
 authority.
 
 ## Troubleshooting
+
+If Claude stops with `Status: launch_required` and a `/goal` line, the session
+is non-interactive. Send that exact line in the same session to start the goal.
 
 Resolve non-ready findings before implementation. Report unavailable native goal,
 route or capability boundaries concretely. Run the doctor for delegation-capacity
